@@ -1,5 +1,11 @@
 <x-layouts.admin title="Create HPP">
     <div class="space-y-6">
+        @if (session('status'))
+            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-[13px] font-medium text-emerald-700">
+                {{ session('status') }}
+            </div>
+        @endif
+
         <section class="rounded-[1.5rem] border border-blue-100 px-5 py-4 shadow-sm" style="background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 48%, #e6f1ff 100%);">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex items-center gap-4">
@@ -64,35 +70,27 @@
                         @forelse ($rows as $row)
                             <tr class="hover:bg-slate-50">
                                 <td class="px-4 py-3 text-[12px] font-semibold text-slate-800">
-                                    <div>{{ $row['order_no'] }}</div>
-                                    <div class="text-[10px] text-slate-400">HPP-{{ str_pad((string) $row['id'], 4, '0', STR_PAD_LEFT) }}</div>
+                                    <div>{{ $row->nomor_order }}</div>
+                                    <div class="text-[10px] text-slate-400">HPP-{{ str_pad((string) $row->id, 4, '0', STR_PAD_LEFT) }}</div>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <div class="font-semibold text-slate-800">{{ $row['job_name'] }}</div>
-                                    <div class="mt-1 text-[10px] text-slate-500">{{ $row['kategori'] }} - {{ $row['lokasi'] }} - {{ $row['area'] }}</div>
-                                    <div class="mt-2 text-[10px] text-slate-400">Dibuat: {{ $row['created_at'] }}</div>
+                                    <div class="font-semibold text-slate-800">{{ $row->nama_pekerjaan }}</div>
+                                    <div class="mt-1 text-[10px] text-slate-500">{{ $row->kategori_pekerjaan }} - {{ $row->area_pekerjaan }} - {{ $row->unit_kerja }}</div>
+                                    <div class="mt-2 text-[10px] text-slate-400">Dibuat: {{ $row->created_at?->format('Y-m-d') }}</div>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <div class="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-semibold text-slate-700">{{ $row['case_code'] }}</div>
+                                    <div class="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-semibold text-slate-700">{{ $row->approval_case ?: '-' }}</div>
                                 </td>
                                 <td class="px-4 py-3 text-[12px] font-semibold text-slate-800">
-                                    Rp {{ number_format($row['nilai'], 0, ',', '.') }}
+                                    Rp {{ number_format((float) $row->total_keseluruhan, 2, ',', '.') }}
                                 </td>
                                 <td class="px-4 py-3">
-                                    @php
-                                        $badge = match ($row['status']) {
-                                            'approved' => 'bg-emerald-100 text-emerald-700',
-                                            'rejected' => 'bg-rose-100 text-rose-700',
-                                            'in_review' => 'bg-amber-100 text-amber-700',
-                                            default => 'bg-slate-100 text-slate-700',
-                                        };
-                                    @endphp
-                                    <span class="inline-flex rounded-full px-3 py-1 text-[10px] font-semibold {{ $badge }}">
-                                        {{ ucfirst(str_replace('_', ' ', $row['status'])) }}
+                                    <span class="inline-flex rounded-full px-3 py-1 text-[10px] font-semibold {{ $row->statusBadgeClasses() }}">
+                                        {{ \App\Models\Hpp::statusOptions()[$row->status] ?? ucfirst(str_replace('_', ' ', $row->status)) }}
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-[12px] text-slate-700">
-                                    {{ $row['current_step'] }}
+                                    {{ $row->currentStepLabel() }}
                                 </td>
                             </tr>
                         @empty

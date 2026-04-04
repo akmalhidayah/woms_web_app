@@ -11,8 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('orders', function (Blueprint $table) {
-            $table->string('catatan_status')->default('pending')->after('status');
+        if (Schema::hasColumn('orders', 'catatan_status')) {
+            return;
+        }
+
+        $afterColumn = Schema::hasColumn('orders', 'catatan') ? 'catatan' : null;
+
+        Schema::table('orders', function (Blueprint $table) use ($afterColumn) {
+            $column = $table->string('catatan_status')->default('pending');
+
+            if ($afterColumn !== null) {
+                $column->after($afterColumn);
+            }
         });
     }
 
@@ -21,6 +31,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (! Schema::hasColumn('orders', 'catatan_status')) {
+            return;
+        }
+
         Schema::table('orders', function (Blueprint $table) {
             $table->dropColumn('catatan_status');
         });

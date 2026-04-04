@@ -171,6 +171,14 @@ class Order extends Model
     }
 
     /**
+     * Get HPP records created from the order.
+     */
+    public function hpps(): HasMany
+    {
+        return $this->hasMany(Hpp::class);
+    }
+
+    /**
      * Get the scope of work for the order.
      */
     public function scopeOfWork(): HasOne

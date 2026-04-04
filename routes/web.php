@@ -144,9 +144,12 @@ Route::middleware(['auth'])->group(function () {
 
 require __DIR__.'/admin/orders.php';
 require __DIR__.'/auth.php';
-    Route::get('admin/hpp', [HppController::class, 'index'])
-        ->middleware(['role:admin', 'admin_menu:create_hpp'])
-        ->name('admin.hpp.index');
-    Route::get('admin/hpp/create', [HppController::class, 'create'])
-        ->middleware(['role:admin', 'admin_menu:create_hpp'])
-        ->name('admin.hpp.create');
+
+Route::prefix('admin/hpp')
+    ->name('admin.hpp.')
+    ->middleware(['auth', 'role:admin', 'admin_menu:create_hpp'])
+    ->group(function () {
+        Route::get('/', [HppController::class, 'index'])->name('index');
+        Route::get('/create', [HppController::class, 'create'])->name('create');
+        Route::post('/', [HppController::class, 'store'])->name('store');
+    });

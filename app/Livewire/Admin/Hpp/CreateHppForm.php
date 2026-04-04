@@ -2,226 +2,109 @@
 
 namespace App\Livewire\Admin\Hpp;
 
+use App\Models\Order;
+use App\Models\OutlineAgreement;
+use App\Support\HppApprovalFlow;
 use Livewire\Component;
 
 class CreateHppForm extends Component
 {
-    private const THRESHOLD = 250_000_000;
-
-    public string $selectedOrder = 'ORD-2026-0012';
-    public string $nilaiHpp = '185000000';
-    public string $kategoriPekerjaan = 'Fabrikasi';
-    public string $areaPekerjaan = 'Dalam';
-
-    public array $orderOptions = [];
-    public array $kategoriOptions = ['Fabrikasi', 'Konstruksi'];
-    public array $areaOptions = ['Dalam', 'Luar'];
-
-    public function mount(): void
-    {
-        $this->orderOptions = [
-            [
-                'value' => 'ORD-2026-0012',
-                'label' => 'ORD-2026-0012 - Fabrikasi support kiln',
-                'cost_centre' => 'CC-WS-014',
-                'description' => 'Fabrikasi support kiln untuk shutdown area workshop utama.',
-                'requesting_unit' => 'Unit Produksi Kiln',
-                'controlling_unit' => 'Unit of Workshop & Design',
-                'outline_agreement' => 'OA/WS/2026/014',
-                'oa_period' => '01/01/2026 - 31/12/2026',
-            ],
-            [
-                'value' => 'ORD-2026-0015',
-                'label' => 'ORD-2026-0015 - Konstruksi area packing',
-                'cost_centre' => 'CC-KON-022',
-                'description' => 'Konstruksi perbaikan civil area packing line dan jalur akses material.',
-                'requesting_unit' => 'Unit Packing Plant',
-                'controlling_unit' => 'Unit of Workshop & Design',
-                'outline_agreement' => 'OA/KON/2026/022',
-                'oa_period' => '15/01/2026 - 15/10/2026',
-            ],
-            [
-                'value' => 'ORD-2026-0020',
-                'label' => 'ORD-2026-0020 - Fabrikasi luar area pabrik',
-                'cost_centre' => 'CC-EXT-031',
-                'description' => 'Fabrikasi struktur penyangga untuk pekerjaan luar area pabrik.',
-                'requesting_unit' => 'Unit Proyek Eksternal',
-                'controlling_unit' => 'Unit of Workshop & Design',
-                'outline_agreement' => 'OA/EXT/2026/031',
-                'oa_period' => '01/02/2026 - 30/11/2026',
-            ],
-            [
-                'value' => 'ORD-2026-0024',
-                'label' => 'ORD-2026-0024 - Konstruksi sipil area utility',
-                'cost_centre' => 'CC-UTL-018',
-                'description' => 'Konstruksi sipil dan perkuatan pondasi pada area utility plant.',
-                'requesting_unit' => 'Unit Utility & Support',
-                'controlling_unit' => 'Unit of Workshop & Design',
-                'outline_agreement' => 'OA/UTL/2026/018',
-                'oa_period' => '10/02/2026 - 31/08/2026',
-            ],
-        ];
-    }
-
-    public function updatedNilaiHpp(string $value): void
-    {
-        $this->nilaiHpp = preg_replace('/\D+/', '', $value) ?? '';
-    }
-
     public function render()
     {
-        $previewCase = $this->resolvePreviewCase();
-        $approvalFlow = $this->resolveApprovalFlow();
+        $orders = Order::query()
+            ->orderByDesc('tanggal_order')
+            ->orderByDesc('id')
+            ->get(['id', 'nomor_order', 'nama_pekerjaan', 'unit_kerja']);
+
+        $orderOptions = $orders
+            ->map(fn (Order $order) => [
+                'value' => (string) $order->id,
+                'label' => "{$order->nomor_order} - {$order->nama_pekerjaan}",
+                'nomor_order' => $order->nomor_order,
+                'nama_pekerjaan' => $order->nama_pekerjaan,
+                'unit_kerja' => $order->unit_kerja,
+                'seksi' => $order->seksi,
+            ])
+            ->values()
+            ->all();
+
+        $outlineAgreementOptions = OutlineAgreement::query()
+            ->with(['unitWork:id,name', 'unitWork.sections:id,unit_work_id,name'])
+            ->where('status', OutlineAgreement::STATUS_ACTIVE)
+            ->orderByDesc('current_period_end')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (OutlineAgreement $agreement) => [
+                'value' => (string) $agreement->id,
+                'label' => "{$agreement->nomor_oa} - {$agreement->nama_kontrak}",
+                'nomor_oa' => $agreement->nomor_oa,
+                'unit_kerja_pengendali' => $agreement->unitWork?->name ?? '',
+                'seksi_pengendali' => $agreement->unitWork
+                    ? ($agreement->unitWork->sections->pluck('name')->filter()->values()->join(', ') ?: 'Tidak ada seksi')
+                    : 'Tidak ada seksi',
+                'periode_outline_agreement' => trim(sprintf(
+                    '%s - %s',
+                    $agreement->current_period_start?->format('d/m/Y') ?? '-',
+                    $agreement->current_period_end?->format('d/m/Y') ?? '-',
+                )),
+            ])
+            ->values()
+            ->all();
 
         return view('livewire.admin.hpp.create-hpp-form', [
-            'threshold' => self::THRESHOLD,
-            'previewCase' => $previewCase,
-            'approvalFlow' => $approvalFlow,
-            'formattedNilaiHpp' => number_format($this->normalizeNilaiHpp(), 0, ',', '.'),
-            'thresholdLabel' => $this->isOverThreshold() ? 'OVER 250 JT' : 'UNDER 250 JT',
-            'selectedOrderLabel' => $this->resolveSelectedOrderLabel(),
+            'orderOptions' => $orderOptions,
+            'outlineAgreementOptions' => $outlineAgreementOptions,
+            'kategoriOptions' => HppApprovalFlow::kategoriOptions(),
+            'areaOptions' => HppApprovalFlow::areaOptions(),
+            'bucketOptions' => HppApprovalFlow::bucketOptions(),
+            'flowMatrix' => HppApprovalFlow::flowMatrix(),
+            'itemGroupPresets' => $this->oldItemGroupPresets(),
+            'initialState' => [
+                'selectedOrder' => old('order_id', $orderOptions[0]['value'] ?? ''),
+                'selectedOutlineAgreement' => old('outline_agreement_id', $outlineAgreementOptions[0]['value'] ?? ''),
+                'kategoriPekerjaan' => old('kategori_pekerjaan', 'Fabrikasi'),
+                'areaPekerjaan' => old('area_pekerjaan', 'Dalam'),
+                'nilaiBucket' => old('nilai_hpp_bucket', 'under'),
+                'costCentre' => old('cost_centre', ''),
+            ],
         ]);
     }
 
-    private function isOverThreshold(): bool
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function oldItemGroupPresets(): array
     {
-        return $this->normalizeNilaiHpp() > self::THRESHOLD;
-    }
+        $groupLabels = old('jenis_label_visible', []);
+        $namaItems = old('nama_item', []);
+        $jumlahItems = old('jumlah_item', []);
+        $qtyItems = old('qty', []);
+        $satuanItems = old('satuan', []);
+        $hargaSatuanItems = old('harga_satuan', []);
+        $keteranganItems = old('keterangan', []);
 
-    private function normalizeNilaiHpp(): int
-    {
-        $numeric = preg_replace('/\D+/', '', $this->nilaiHpp);
+        $presets = [];
 
-        return (int) ($numeric ?: 0);
-    }
+        foreach ($groupLabels as $groupIndex => $groupLabel) {
+            $items = [];
 
-    private function resolvePreviewCase(): ?string
-    {
-        if ($this->kategoriPekerjaan === '' || $this->areaPekerjaan === '') {
-            return null;
-        }
-
-        $prefix = $this->kategoriPekerjaan === 'Fabrikasi' ? 'FAB' : 'KONS';
-        $area = strtoupper($this->areaPekerjaan);
-        $bucket = $this->isOverThreshold() ? 'OVER250' : 'UNDER250';
-
-        return "{$prefix}-{$area}-{$bucket}";
-    }
-
-    private function resolveApprovalFlow(): array
-    {
-        if ($this->kategoriPekerjaan === '' || $this->areaPekerjaan === '') {
-            return [];
-        }
-
-        $bucket = $this->isOverThreshold() ? 'over' : 'under';
-
-        $flows = [
-            'Fabrikasi' => [
-                'Dalam' => [
-                    'under' => [
-                        'Manager Pengendali',
-                        'SM Pengendali',
-                        'Manager Peminta',
-                        'SM Peminta',
-                        'GM Peminta',
-                        'GM Pengendali',
-                    ],
-                    'over' => [
-                        'Manager Pengendali',
-                        'SM Pengendali',
-                        'Manager Peminta',
-                        'SM Peminta',
-                        'GM Peminta',
-                        'GM Pengendali',
-                        'DIROPS',
-                    ],
-                ],
-                'Luar' => [
-                    'under' => [
-                        'Planner Control',
-                        'Manager Pengendali',
-                        'SM Pengendali',
-                        'Manager Peminta',
-                        'SM Peminta',
-                        'GM Peminta',
-                        'GM Pengendali',
-                    ],
-                    'over' => [
-                        'Planner Control',
-                        'Manager Pengendali',
-                        'SM Pengendali',
-                        'Manager Peminta',
-                        'SM Peminta',
-                        'GM Peminta',
-                        'GM Pengendali',
-                        'DIROPS',
-                    ],
-                ],
-            ],
-            'Konstruksi' => [
-                'Dalam' => [
-                    'under' => [
-                        'Manager Counter Part',
-                        'SM Counter Part',
-                        'Manager Pengendali',
-                        'SM Pengendali',
-                        'Manager Peminta',
-                        'SM Peminta',
-                        'GM Peminta',
-                        'GM Pengendali',
-                    ],
-                    'over' => [
-                        'Manager Counter Part',
-                        'SM Counter Part',
-                        'Manager Pengendali',
-                        'SM Pengendali',
-                        'Manager Peminta',
-                        'SM Peminta',
-                        'GM Peminta',
-                        'GM Pengendali',
-                        'DIROPS',
-                    ],
-                ],
-                'Luar' => [
-                    'under' => [
-                        'Manager Counter Part',
-                        'SM Counter Part',
-                        'Planner Control',
-                        'Manager Pengendali',
-                        'SM Pengendali',
-                        'Manager Peminta',
-                        'SM Peminta',
-                        'GM Peminta',
-                        'GM Pengendali',
-                    ],
-                    'over' => [
-                        'Manager Counter Part',
-                        'SM Counter Part',
-                        'Planner Control',
-                        'Manager Pengendali',
-                        'SM Pengendali',
-                        'Manager Peminta',
-                        'SM Peminta',
-                        'GM Peminta',
-                        'GM Pengendali',
-                        'DIROPS',
-                    ],
-                ],
-            ],
-        ];
-
-        return $flows[$this->kategoriPekerjaan][$this->areaPekerjaan][$bucket] ?? [];
-    }
-
-    private function resolveSelectedOrderLabel(): ?string
-    {
-        foreach ($this->orderOptions as $option) {
-            if ($option['value'] === $this->selectedOrder) {
-                return $option['label'];
+            foreach (($namaItems[$groupIndex] ?? []) as $itemIndex => $namaItem) {
+                $items[] = [
+                    'nama_item' => $namaItem,
+                    'jumlah_item' => $jumlahItems[$groupIndex][$itemIndex] ?? '',
+                    'qty' => $qtyItems[$groupIndex][$itemIndex] ?? '',
+                    'satuan' => $satuanItems[$groupIndex][$itemIndex] ?? '',
+                    'harga_satuan' => $hargaSatuanItems[$groupIndex][$itemIndex] ?? '',
+                    'keterangan' => $keteranganItems[$groupIndex][$itemIndex] ?? '',
+                ];
             }
+
+            $presets[] = [
+                'title' => $groupLabel,
+                'items' => $items,
+            ];
         }
 
-        return null;
+        return $presets;
     }
 }

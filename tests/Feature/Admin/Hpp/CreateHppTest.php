@@ -12,6 +12,35 @@ class CreateHppTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_create_hpp_page_includes_order_seksi_in_livewire_payload(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+
+        Order::query()->create([
+            'nomor_order' => 'ORD-2026-0099',
+            'nama_pekerjaan' => 'Potong plat',
+            'unit_kerja' => 'Unit of Elins Maintenance 2',
+            'seksi' => 'Section of Line 4/5 RKC Elctr. Maint.',
+            'deskripsi' => 'Cutting plate for maintenance work.',
+            'prioritas' => Order::PRIORITY_MEDIUM,
+            'tanggal_order' => '2026-04-04',
+            'target_selesai' => '2026-04-10',
+            'created_by' => $admin->id,
+        ]);
+
+        $response = $this
+            ->actingAs($admin)
+            ->get(route('admin.hpp.create'));
+
+        $response
+            ->assertOk()
+            ->assertSee('Unit of Elins Maintenance 2')
+            ->assertSee('Section of Line 4/5 RKC Elctr. Maint.');
+    }
+
     public function test_it_stores_hpp_from_selected_order_and_snapshots_order_fields(): void
     {
         $admin = User::factory()->create([

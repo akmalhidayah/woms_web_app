@@ -3,13 +3,14 @@
 namespace App\Http\Controllers\Admin\Hpp;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Admin\Hpp\StoreHppRequest;
 use App\Models\Hpp;
+use App\Http\Requests\Admin\Hpp\StoreHppRequest;
 use App\Models\Order;
 use App\Models\OutlineAgreement;
 use App\Support\HppApprovalFlow;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class HppController extends Controller
@@ -20,7 +21,7 @@ class HppController extends Controller
         $status = trim((string) $request->string('status'));
 
         $rows = Hpp::query()
-            ->with(['outlineAgreement:id,nomor_oa', 'unitWork:id,name'])
+            ->with(['order:id,seksi', 'outlineAgreement:id,nomor_oa', 'unitWork:id,name'])
             ->search($search)
             ->when($status !== '', fn ($query) => $query->where('status', $status))
             ->latest()
@@ -39,22 +40,153 @@ class HppController extends Controller
         return view('admin.hpp.create');
     }
 
+    public function edit(Hpp $hpp): View
+    {
+        abort_unless($hpp->isEditable(), 403);
+
+        return view('admin.hpp.edit', [
+            'hpp' => $hpp,
+        ]);
+    }
+
     public function store(StoreHppRequest $request): RedirectResponse
     {
         $validated = $request->validated();
+        $hpp = new Hpp();
+
+        $this->fillHppFromRequest($hpp, $validated, $request->all());
+        $hpp->created_by = $request->user()?->id;
+        $hpp->save();
+
+        return redirect()
+            ->route('admin.hpp.index')
+            ->with('status', sprintf(
+                'HPP untuk order %s berhasil disimpan sebagai %s.',
+                $hpp->nomor_order,
+                $hpp->status === Hpp::STATUS_DRAFT ? 'draft' : 'pengajuan',
+            ));
+    }
+
+    public function update(StoreHppRequest $request, Hpp $hpp): RedirectResponse
+    {
+        abort_unless($hpp->isEditable(), 403);
+
+        $validated = $request->validated();
+
+        $this->fillHppFromRequest($hpp, $validated, $request->all());
+        $hpp->save();
+
+        return redirect()
+            ->route('admin.hpp.index')
+            ->with('status', sprintf(
+                'HPP untuk order %s berhasil diperbarui sebagai %s.',
+                $hpp->nomor_order,
+                $hpp->status === Hpp::STATUS_DRAFT ? 'draft' : 'pengajuan',
+            ));
+    }
+
+    public function destroy(Hpp $hpp): RedirectResponse
+    {
+        abort_unless($hpp->isDeletable(), 403);
+
+        $nomorOrder = $hpp->nomor_order;
+        $hpp->delete();
+
+        return redirect()
+            ->route('admin.hpp.index')
+            ->with('status', sprintf(
+                'HPP untuk order %s berhasil dihapus.',
+                $nomorOrder,
+            ));
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return list<array<string, mixed>>
+     */
+    private function buildItemGroups(array $payload): array
+    {
+        $groupLabels = $payload['jenis_label_visible'] ?? [];
+        $namaItems = $payload['nama_item'] ?? [];
+        $jumlahItems = $payload['jumlah_item'] ?? [];
+        $qtyItems = $payload['qty'] ?? [];
+        $satuanItems = $payload['satuan'] ?? [];
+        $hargaSatuanItems = $payload['harga_satuan'] ?? [];
+        $hargaTotalItems = $payload['harga_total'] ?? [];
+        $keteranganItems = $payload['keterangan'] ?? [];
+
+        $result = [];
+
+        foreach ($groupLabels as $groupIndex => $groupLabel) {
+            $items = [];
+            $subtotal = '0.00';
+
+            foreach (($namaItems[$groupIndex] ?? []) as $itemIndex => $namaItem) {
+                $jumlahItem = (string) ($jumlahItems[$groupIndex][$itemIndex] ?? '');
+                $qty = $this->normalizeNumericString($qtyItems[$groupIndex][$itemIndex] ?? '');
+                $satuan = (string) ($satuanItems[$groupIndex][$itemIndex] ?? '');
+                $hargaSatuan = $this->normalizeNumericString($hargaSatuanItems[$groupIndex][$itemIndex] ?? '');
+                $keterangan = (string) ($keteranganItems[$groupIndex][$itemIndex] ?? '');
+                $hargaTotal = $this->normalizeCurrencyDecimal(
+                    $hargaTotalItems[$groupIndex][$itemIndex]
+                        ?? $this->multiplyCurrencyDecimal($qty, $hargaSatuan),
+                );
+
+                if (
+                    trim((string) $namaItem) === ''
+                    && trim($jumlahItem) === ''
+                    && $this->isZeroNumericString($qty)
+                    && trim($satuan) === ''
+                    && $this->isZeroNumericString($hargaSatuan)
+                    && trim($keterangan) === ''
+                ) {
+                    continue;
+                }
+
+                $items[] = [
+                    'nama_item' => trim((string) $namaItem),
+                    'jumlah_item' => trim($jumlahItem),
+                    'qty' => $qty,
+                    'satuan' => trim($satuan),
+                    'harga_satuan' => $hargaSatuan,
+                    'harga_total' => $hargaTotal,
+                    'keterangan' => trim($keterangan),
+                ];
+
+                $subtotal = $this->addCurrencyDecimals($subtotal, $hargaTotal);
+            }
+
+            if ($items === []) {
+                continue;
+            }
+
+            $result[] = [
+                'jenis_item' => trim((string) $groupLabel) !== '' ? trim((string) $groupLabel) : 'Material/Jasa',
+                'subtotal' => $subtotal,
+                'items' => $items,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param array<string, mixed> $validated
+     * @param array<string, mixed> $payload
+     */
+    private function fillHppFromRequest(Hpp $hpp, array $validated, array $payload): void
+    {
         $order = Order::query()->findOrFail($validated['order_id']);
         $outlineAgreement = OutlineAgreement::query()
             ->with('unitWork:id,name')
             ->findOrFail($validated['outline_agreement_id']);
-        $itemGroups = $this->buildItemGroups($request->all());
-        $totalKeseluruhan = collect($itemGroups)->sum('subtotal');
+        $itemGroups = $this->buildItemGroups($payload);
+        $totalKeseluruhan = $this->sumItemGroupSubtotals($itemGroups);
 
-        if ($validated['action'] === 'submit' && $totalKeseluruhan <= 0) {
-            return back()
-                ->withErrors([
-                    'items' => 'Minimal satu item dengan nilai total lebih dari 0 wajib diisi saat submit HPP.',
-                ])
-                ->withInput();
+        if ($validated['action'] === 'submit' && $this->isZeroOrNegativeCurrency($totalKeseluruhan)) {
+            throw ValidationException::withMessages([
+                'items' => 'Minimal satu item dengan nilai total lebih dari 0 wajib diisi saat submit HPP.',
+            ]);
         }
 
         $approvalCase = HppApprovalFlow::resolvePreviewCase(
@@ -69,7 +201,7 @@ class HppController extends Controller
             $validated['nilai_hpp_bucket'],
         );
 
-        $hpp = Hpp::create([
+        $hpp->fill([
             'order_id' => $order->id,
             'outline_agreement_id' => $outlineAgreement->id,
             'nomor_order' => $order->nomor_order,
@@ -89,82 +221,89 @@ class HppController extends Controller
             'total_keseluruhan' => $totalKeseluruhan,
             'status' => $validated['action'] === 'submit' ? Hpp::STATUS_IN_REVIEW : Hpp::STATUS_DRAFT,
             'submitted_at' => $validated['action'] === 'submit' ? now() : null,
-            'created_by' => $request->user()?->id,
         ]);
-
-        return redirect()
-            ->route('admin.hpp.index')
-            ->with('status', sprintf(
-                'HPP untuk order %s berhasil disimpan sebagai %s.',
-                $hpp->nomor_order,
-                $hpp->status === Hpp::STATUS_DRAFT ? 'draft' : 'pengajuan',
-            ));
     }
 
     /**
-     * @param array<string, mixed> $payload
-     * @return list<array<string, mixed>>
+     * @param list<array<string, mixed>> $itemGroups
      */
-    private function buildItemGroups(array $payload): array
+    private function sumItemGroupSubtotals(array $itemGroups): string
     {
-        $groupLabels = $payload['jenis_label_visible'] ?? [];
-        $namaItems = $payload['nama_item'] ?? [];
-        $jumlahItems = $payload['jumlah_item'] ?? [];
-        $qtyItems = $payload['qty'] ?? [];
-        $satuanItems = $payload['satuan'] ?? [];
-        $hargaSatuanItems = $payload['harga_satuan'] ?? [];
-        $keteranganItems = $payload['keterangan'] ?? [];
+        $total = '0.00';
 
-        $result = [];
-
-        foreach ($groupLabels as $groupIndex => $groupLabel) {
-            $items = [];
-            $subtotal = 0.0;
-
-            foreach (($namaItems[$groupIndex] ?? []) as $itemIndex => $namaItem) {
-                $jumlahItem = (string) ($jumlahItems[$groupIndex][$itemIndex] ?? '');
-                $qty = (float) ($qtyItems[$groupIndex][$itemIndex] ?? 0);
-                $satuan = (string) ($satuanItems[$groupIndex][$itemIndex] ?? '');
-                $hargaSatuan = (float) ($hargaSatuanItems[$groupIndex][$itemIndex] ?? 0);
-                $keterangan = (string) ($keteranganItems[$groupIndex][$itemIndex] ?? '');
-                $hargaTotal = round($qty * $hargaSatuan, 2);
-
-                if (
-                    trim((string) $namaItem) === ''
-                    && trim($jumlahItem) === ''
-                    && $qty === 0.0
-                    && trim($satuan) === ''
-                    && $hargaSatuan === 0.0
-                    && trim($keterangan) === ''
-                ) {
-                    continue;
-                }
-
-                $items[] = [
-                    'nama_item' => trim((string) $namaItem),
-                    'jumlah_item' => trim($jumlahItem),
-                    'qty' => $qty,
-                    'satuan' => trim($satuan),
-                    'harga_satuan' => $hargaSatuan,
-                    'harga_total' => $hargaTotal,
-                    'keterangan' => trim($keterangan),
-                ];
-
-                $subtotal += $hargaTotal;
-            }
-
-            if ($items === []) {
-                continue;
-            }
-
-            $result[] = [
-                'jenis_item' => trim((string) $groupLabel) !== '' ? trim((string) $groupLabel) : 'Material/Jasa',
-                'subtotal' => round($subtotal, 2),
-                'items' => $items,
-            ];
+        foreach ($itemGroups as $group) {
+            $total = $this->addCurrencyDecimals(
+                $total,
+                $this->normalizeCurrencyDecimal($group['subtotal'] ?? '0'),
+            );
         }
 
-        return $result;
+        return $total;
+    }
+
+    private function normalizeNumericString(mixed $value): string
+    {
+        $normalized = preg_replace('/[^0-9.\-]/', '', trim((string) $value)) ?? '';
+
+        if ($normalized === '' || $normalized === '-' || $normalized === '.') {
+            return '0';
+        }
+
+        if (str_contains($normalized, '.')) {
+            [$integer, $decimal] = array_pad(explode('.', $normalized, 2), 2, '');
+            $integer = ltrim($integer, '0');
+            $decimal = rtrim($decimal, '0');
+
+            return ($integer === '' ? '0' : $integer).($decimal !== '' ? ".{$decimal}" : '');
+        }
+
+        $integer = ltrim($normalized, '0');
+
+        return $integer === '' ? '0' : $integer;
+    }
+
+    private function normalizeCurrencyDecimal(mixed $value): string
+    {
+        $normalized = $this->normalizeNumericString($value);
+
+        if (! str_contains($normalized, '.')) {
+            return $normalized.'.00';
+        }
+
+        [$integer, $decimal] = array_pad(explode('.', $normalized, 2), 2, '');
+        $decimal = substr(str_pad($decimal, 2, '0'), 0, 2);
+
+        return "{$integer}.{$decimal}";
+    }
+
+    private function isZeroNumericString(string $value): bool
+    {
+        return (float) $this->normalizeNumericString($value) === 0.0;
+    }
+
+    private function isZeroOrNegativeCurrency(string $value): bool
+    {
+        return (float) $this->normalizeCurrencyDecimal($value) <= 0.0;
+    }
+
+    private function multiplyCurrencyDecimal(string $left, string $right): string
+    {
+        return number_format(
+            (float) $this->normalizeNumericString($left) * (float) $this->normalizeNumericString($right),
+            2,
+            '.',
+            '',
+        );
+    }
+
+    private function addCurrencyDecimals(string $left, string $right): string
+    {
+        return number_format(
+            (float) $this->normalizeCurrencyDecimal($left) + (float) $this->normalizeCurrencyDecimal($right),
+            2,
+            '.',
+            '',
+        );
     }
 
     private function formatOutlineAgreementPeriod(OutlineAgreement $outlineAgreement): ?string

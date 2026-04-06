@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Models\OutlineAgreement;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -26,7 +25,13 @@ class StoreOutlineAgreementRequest extends FormRequest
         return [
             'nomor_oa' => ['required', 'string', 'max:255', 'unique:outline_agreements,nomor_oa'],
             'unit_work_id' => ['required', 'exists:unit_works,id'],
-            'jenis_kontrak' => ['required', Rule::in(array_keys(OutlineAgreement::jenisKontrakOptions()))],
+            'jenis_kontrak' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::exists('unit_work_sections', 'name')
+                    ->where(fn ($query) => $query->where('unit_work_id', (int) $this->input('unit_work_id'))),
+            ],
             'nama_kontrak' => ['required', 'string', 'max:255'],
             'nilai_kontrak_awal' => ['required', 'numeric', 'min:0'],
             'periode_awal_start' => ['required', 'date'],

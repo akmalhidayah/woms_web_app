@@ -1,10 +1,6 @@
 <x-layouts.admin title="Kuota Anggaran & OA">
     @php
         $currency = fn ($value) => 'Rp '.number_format((float) $value, 0, ',', '.');
-        $contractOptions = collect($jenisKontrakOptions)->map(fn ($names, $label) => [
-            'label' => $label,
-            'names' => array_values($names),
-        ])->values();
     @endphp
 
     @if (session('success'))

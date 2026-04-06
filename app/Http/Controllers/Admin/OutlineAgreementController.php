@@ -50,11 +50,13 @@ class OutlineAgreementController extends Controller
 
         return view('admin.outline-agreements.index', [
             'agreements' => $agreements,
-            'unitWorks' => UnitWork::query()->with('department')->orderBy('name')->get(),
+            'unitWorks' => UnitWork::query()
+                ->with(['department', 'sections:id,unit_work_id,name'])
+                ->orderBy('name')
+                ->get(),
             'search' => $search,
             'status' => $status,
             'statusOptions' => OutlineAgreement::statusOptions(),
-            'jenisKontrakOptions' => OutlineAgreement::jenisKontrakOptions(),
             'amendmentTypeOptions' => OutlineAgreement::amendmentTypeOptions(),
             'summary' => [
                 'active_count' => (clone $summaryQuery)->where('status', OutlineAgreement::STATUS_ACTIVE)->count(),

@@ -1,11 +1,22 @@
 <x-layouts.admin title="Create HPP">
-    <div class="space-y-6">
-        @if (session('status'))
-            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-[13px] font-medium text-emerald-700">
-                {{ session('status') }}
-            </div>
-        @endif
+    @php
+        $formatRupiah = function ($value): string {
+            $normalized = number_format((float) $value, 2, ',', '.');
 
+            if (str_ends_with($normalized, ',00')) {
+                return substr($normalized, 0, -3);
+            }
+
+            return rtrim(rtrim($normalized, '0'), ',');
+        };
+        $bucketLabels = \App\Support\HppApprovalFlow::bucketOptions();
+    @endphp
+
+    @if (session('status'))
+        <div id="hpp-status-alert" data-message="{{ session('status') }}" class="hidden"></div>
+    @endif
+
+    <div class="space-y-6">
         <section class="rounded-[1.5rem] border border-blue-100 px-5 py-4 shadow-sm" style="background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 48%, #e6f1ff 100%);">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex items-center gap-4">
@@ -55,47 +66,93 @@
             </div>
 
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200 text-[12px] text-slate-700">
+                <table class="min-w-full table-fixed divide-y divide-slate-200 text-[12px] text-slate-700">
+                    <colgroup>
+                        <col class="w-[15%]">
+                        <col class="w-[33%]">
+                        <col class="w-[14%]">
+                        <col class="w-[11%]">
+                        <col class="w-[10%]">
+                        <col class="w-[11%]">
+                        <col class="w-[6%]">
+                    </colgroup>
                     <thead class="bg-slate-200/80 text-slate-700">
                         <tr>
-                            <th class="px-4 py-2.5 text-left text-[10px] font-semibold uppercase">Order</th>
-                            <th class="px-4 py-2.5 text-left text-[10px] font-semibold uppercase">Detail Pekerjaan</th>
-                            <th class="px-4 py-2.5 text-left text-[10px] font-semibold uppercase">Case</th>
-                            <th class="px-4 py-2.5 text-left text-[10px] font-semibold uppercase">Nilai HPP</th>
-                            <th class="px-4 py-2.5 text-left text-[10px] font-semibold uppercase">Status</th>
-                            <th class="px-4 py-2.5 text-left text-[10px] font-semibold uppercase">Step Aktif</th>
+                            <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Order</th>
+                            <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Detail Pekerjaan</th>
+                            <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Case</th>
+                            <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Nilai HPP</th>
+                            <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Status</th>
+                            <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Step Aktif</th>
+                            <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200 bg-white">
                         @forelse ($rows as $row)
-                            <tr class="hover:bg-slate-50">
-                                <td class="px-4 py-3 text-[12px] font-semibold text-slate-800">
-                                    <div>{{ $row->nomor_order }}</div>
-                                    <div class="text-[10px] text-slate-400">HPP-{{ str_pad((string) $row->id, 4, '0', STR_PAD_LEFT) }}</div>
+                            <tr class="align-top hover:bg-slate-50">
+                                <td class="px-5 py-4 text-[12px] font-semibold text-slate-800">
+                                    <div class="inline-flex items-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-[18px] font-bold tracking-[0.04em] text-slate-900 shadow-sm">
+                                        {{ $row->nomor_order }}
+                                    </div>
                                 </td>
-                                <td class="px-4 py-3">
+                                <td class="px-5 py-4">
                                     <div class="font-semibold text-slate-800">{{ $row->nama_pekerjaan }}</div>
-                                    <div class="mt-1 text-[10px] text-slate-500">{{ $row->kategori_pekerjaan }} - {{ $row->area_pekerjaan }} - {{ $row->unit_kerja }}</div>
+                                    <div class="mt-2 text-[10px]">
+                                        <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 font-semibold text-blue-700 ring-1 ring-blue-100">
+                                            Seksi: {{ $row->order?->seksi ?: '-' }}
+                                        </span>
+                                    </div>
+                                    <div class="mt-2 text-[10px]">
+                                        <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-600">
+                                            Unit: {{ $row->unit_kerja }}
+                                        </span>
+                                    </div>
                                     <div class="mt-2 text-[10px] text-slate-400">Dibuat: {{ $row->created_at?->format('Y-m-d') }}</div>
                                 </td>
-                                <td class="px-4 py-3">
-                                    <div class="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-semibold text-slate-700">{{ $row->approval_case ?: '-' }}</div>
+                                <td class="px-5 py-4">
+                                    <div class="inline-flex flex-col rounded-2xl bg-slate-100 px-3 py-2 text-[10px] text-slate-700">
+                                        <span class="font-semibold">{{ $row->kategori_pekerjaan }} ({{ $row->area_pekerjaan }})</span>
+                                        <span class="mt-1 text-slate-500">{{ $bucketLabels[$row->nilai_hpp_bucket] ?? ($row->approval_case ?: '-') }}</span>
+                                    </div>
                                 </td>
-                                <td class="px-4 py-3 text-[12px] font-semibold text-slate-800">
-                                    Rp {{ number_format((float) $row->total_keseluruhan, 2, ',', '.') }}
+                                <td class="px-5 py-4 text-[12px] font-semibold text-slate-800">
+                                    Rp {{ $formatRupiah($row->total_keseluruhan) }}
                                 </td>
-                                <td class="px-4 py-3">
+                                <td class="px-5 py-4">
                                     <span class="inline-flex rounded-full px-3 py-1 text-[10px] font-semibold {{ $row->statusBadgeClasses() }}">
                                         {{ \App\Models\Hpp::statusOptions()[$row->status] ?? ucfirst(str_replace('_', ' ', $row->status)) }}
                                     </span>
                                 </td>
-                                <td class="px-4 py-3 text-[12px] text-slate-700">
+                                <td class="px-5 py-4 text-[12px] text-slate-700">
                                     {{ $row->currentStepLabel() }}
+                                </td>
+                                <td class="px-5 py-4">
+                                    @if ($row->isEditable() || $row->isDeletable())
+                                        <div class="flex items-center gap-2">
+                                            @if ($row->isEditable())
+                                                <a href="{{ route('admin.hpp.edit', $row) }}" class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100" title="Edit HPP">
+                                                    <i data-lucide="pencil" class="h-[16px] w-[16px]"></i>
+                                                </a>
+                                            @endif
+
+                                            @if ($row->isDeletable())
+                                                <form method="POST" action="{{ route('admin.hpp.destroy', $row) }}" class="delete-hpp-form" data-order="{{ $row->nomor_order }}">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-700 transition hover:bg-rose-100" title="Hapus HPP">
+                                                        <i data-lucide="trash-2" class="h-[16px] w-[16px]"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    @else
+                                        <span class="text-[10px] text-slate-400">-</span>
+                                    @endif
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-10 text-center text-[12px] text-slate-500">Belum ada HPP yang dibuat.</td>
+                                <td colspan="7" class="px-4 py-10 text-center text-[12px] text-slate-500">Belum ada HPP yang dibuat.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -103,4 +160,46 @@
             </div>
         </section>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const statusAlert = document.getElementById('hpp-status-alert');
+
+            if (statusAlert?.dataset.message && window.Swal) {
+                window.Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil',
+                    text: statusAlert.dataset.message,
+                    timer: 1800,
+                    showConfirmButton: false,
+                });
+            }
+
+            document.querySelectorAll('.delete-hpp-form').forEach((form) => {
+                form.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+
+                    if (!window.Swal) {
+                        form.submit();
+                        return;
+                    }
+
+                    const orderNumber = form.dataset.order || 'HPP ini';
+                    const result = await window.Swal.fire({
+                        icon: 'warning',
+                        title: 'Hapus HPP?',
+                        html: `Yakin ingin menghapus HPP untuk order <b>${orderNumber}</b>?`,
+                        showCancelButton: true,
+                        confirmButtonText: 'Ya, hapus',
+                        cancelButtonText: 'Batal',
+                        confirmButtonColor: '#dc2626',
+                    });
+
+                    if (result.isConfirmed) {
+                        form.submit();
+                    }
+                });
+            });
+        });
+    </script>
 </x-layouts.admin>

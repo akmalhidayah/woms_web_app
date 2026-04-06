@@ -15,11 +15,15 @@ class HppApprovalFlow
     }
 
     /**
-     * @return list<string>
+     * @return array<string, string>
      */
     public static function areaOptions(): array
     {
-        return ['Dalam', 'Luar'];
+        return [
+            'Dalam' => 'Dalam (T.23,4,5, Pelabuhan BKS & Packing Plant)',
+            'Luar' => 'Luar (BTG&CUS)',
+            'Workshop' => 'Workshop',
+        ];
     }
 
     /**
@@ -83,6 +87,19 @@ class HppApprovalFlow
                         'SM Peminta',
                         'GM Peminta',
                         'GM Pengendali',
+                        'DIROPS',
+                    ],
+                ],
+                'Workshop' => [
+                    'under' => [
+                        'Manager',
+                        'SM',
+                        'GM',
+                    ],
+                    'over' => [
+                        'Manager',
+                        'SM',
+                        'GM',
                         'DIROPS',
                     ],
                 ],

@@ -27,20 +27,24 @@
                 <i data-lucide="pencil-line" class="h-6 w-6"></i>
             </span>
             <div>
-                <h1 class="text-[1.65rem] font-bold leading-none tracking-tight text-slate-900">Buat HPP</h1>
-                <p class="mt-2 text-[13px] text-slate-500">Order pekerjaan diambil langsung dari database order, lalu nama pekerjaan dan unit kerja terisi otomatis.</p>
+                <h1 class="text-[1.65rem] font-bold leading-none tracking-tight text-slate-900">{{ $isEdit ? 'Edit HPP' : 'Buat HPP' }}</h1>
+                <p class="mt-2 text-[13px] text-slate-500">
+                    {{ $isEdit ? 'Perbarui snapshot HPP yang sudah dibuat beserta rincian item dan approval flow-nya.' : 'Order pekerjaan diambil langsung dari database order, lalu nama pekerjaan dan unit kerja terisi otomatis.' }}
+                </p>
             </div>
         </div>
     </section>
 
-    <form method="POST" action="{{ route('admin.hpp.store') }}" class="space-y-6">
+    <form method="POST" action="{{ $submitRoute }}" class="space-y-6">
         @csrf
+        @if ($isEdit)
+            @method('PUT')
+        @endif
 
         <section class="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
             <div class="mb-4 flex items-start justify-between gap-3">
                 <div>
                     <h2 class="text-[15px] font-semibold text-slate-900">Input HPP</h2>
-                    <p class="mt-1 text-[12px] text-slate-500">Approval flow preview ikut berubah dari kategori, area, dan bucket nilai yang dipilih.</p>
                 </div>
                 <span class="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-semibold text-emerald-700">Order DB Connected</span>
             </div>
@@ -61,16 +65,19 @@
                 <div class="min-w-0 flex-1 space-y-4">
                     <div class="space-y-1.5">
                         <label for="order_id" class="text-[12px] font-semibold text-slate-700">Order Pekerjaan</label>
+                        @if ($isEdit)
+                            <input type="hidden" name="order_id" x-model="selectedOrder">
+                        @endif
                         <select
                             id="order_id"
-                            name="order_id"
+                            @if (! $isEdit) name="order_id" @endif
                             x-model="selectedOrder"
                             class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                            @disabled($orderOptions === [])
+                            @disabled($orderOptions === [] || $isEdit)
                         >
                             <option value="">Pilih order pekerjaan</option>
                             <template x-for="order in orderOptions" :key="order.value">
-                                <option :value="order.value" x-text="order.label"></option>
+                                <option :value="order.value" :selected="String(order.value) === String(selectedOrder)" x-text="order.label"></option>
                             </template>
                         </select>
                     </div>
@@ -88,7 +95,6 @@
                                     <option value="{{ $value }}">{{ $label }}</option>
                                 @endforeach
                             </select>
-                            <p class="text-[11px] text-slate-400">Bucket dipakai untuk membentuk preview jalur approval awal.</p>
                         </div>
 
                         <div class="space-y-1.5">
@@ -114,11 +120,10 @@
                             x-model="areaPekerjaan"
                             class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                         >
-                            @foreach ($areaOptions as $option)
-                                <option value="{{ $option }}">{{ $option }}</option>
+                            @foreach ($areaOptions as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
                             @endforeach
                         </select>
-                        <p class="text-[11px] text-slate-400">Area disederhanakan ke Dalam dan Luar sesuai flow approval saat ini.</p>
                     </div>
 
                     <div class="grid gap-4 border-t border-slate-200 pt-4 md:grid-cols-2">
@@ -190,7 +195,7 @@
                             >
                                 <option value="">Pilih Outline Agreement</option>
                                 <template x-for="agreement in outlineAgreementOptions" :key="agreement.value">
-                                    <option :value="agreement.value" x-text="agreement.label"></option>
+                                    <option :value="agreement.value" :selected="String(agreement.value) === String(selectedOutlineAgreement)" x-text="agreement.label"></option>
                                 </template>
                             </select>
                         </div>
@@ -213,7 +218,6 @@
                         <div class="flex items-start justify-between gap-2">
                             <div>
                                 <h3 class="text-[13px] font-semibold text-slate-900">Snapshot Approval Flow</h3>
-                                <p class="mt-1 text-[11px] text-slate-500">Preview jalur approval berdasarkan kategori, area, dan bucket nilai HPP.</p>
                             </div>
                             <span class="rounded-full bg-white px-2.5 py-1 text-[10px] font-medium text-slate-600 ring-1 ring-slate-200" x-text="`${approvalFlow.length} step`"></span>
                         </div>
@@ -281,10 +285,10 @@
                 Kembali
             </a>
             <button type="submit" name="action" value="draft" class="inline-flex items-center rounded-xl bg-slate-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-slate-700" @disabled($orderOptions === [] || $outlineAgreementOptions === [])>
-                Simpan Draft
+                {{ $isEdit ? 'Update Draft' : 'Simpan Draft' }}
             </button>
             <button type="submit" name="action" value="submit" class="inline-flex items-center rounded-xl bg-blue-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-blue-700" @disabled($orderOptions === [] || $outlineAgreementOptions === [])>
-                Submit
+                {{ $isEdit ? 'Update & Submit' : 'Submit' }}
             </button>
         </div>
     </form>
@@ -299,8 +303,8 @@
             areaOptions: config.areaOptions,
             bucketOptions: config.bucketOptions,
             flowMatrix: config.flowMatrix,
-            selectedOrder: config.initialState.selectedOrder ?? '',
-            selectedOutlineAgreement: config.initialState.selectedOutlineAgreement ?? '',
+            selectedOrder: String(config.initialState.selectedOrder ?? ''),
+            selectedOutlineAgreement: String(config.initialState.selectedOutlineAgreement ?? ''),
             kategoriPekerjaan: config.initialState.kategoriPekerjaan ?? 'Fabrikasi',
             areaPekerjaan: config.initialState.areaPekerjaan ?? 'Dalam',
             nilaiBucket: config.initialState.nilaiBucket ?? 'under',
@@ -313,11 +317,11 @@
             seksiPengendali: '',
             init() {
                 if (! this.selectedOrder && this.orderOptions.length > 0) {
-                    this.selectedOrder = this.orderOptions[0].value;
+                    this.selectedOrder = String(this.orderOptions[0].value);
                 }
 
                 if (! this.selectedOutlineAgreement && this.outlineAgreementOptions.length > 0) {
-                    this.selectedOutlineAgreement = this.outlineAgreementOptions[0].value;
+                    this.selectedOutlineAgreement = String(this.outlineAgreementOptions[0].value);
                 }
 
                 this.syncOrderFields();
@@ -326,10 +330,10 @@
                 this.$watch('selectedOutlineAgreement', () => this.syncOutlineAgreementFields());
             },
             get selectedOrderData() {
-                return this.orderOptions.find((order) => order.value === this.selectedOrder) ?? {};
+                return this.orderOptions.find((order) => String(order.value) === String(this.selectedOrder)) ?? {};
             },
             get selectedOutlineAgreementData() {
-                return this.outlineAgreementOptions.find((agreement) => agreement.value === this.selectedOutlineAgreement) ?? {};
+                return this.outlineAgreementOptions.find((agreement) => String(agreement.value) === String(this.selectedOutlineAgreement)) ?? {};
             },
             syncOrderFields() {
                 this.namaPekerjaan = this.selectedOrderData.nama_pekerjaan ?? '';
@@ -371,6 +375,89 @@
         let jenisCounter = 0;
 
         tambahJenisBtn.addEventListener('click', () => addJenis(null));
+
+        function normalizeDecimalString(value) {
+            const normalized = String(value ?? '').replace(/[^0-9.\-]/g, '').trim();
+
+            if (!normalized || normalized === '-' || normalized === '.') {
+                return '0';
+            }
+
+            const isNegative = normalized.startsWith('-');
+            const unsigned = isNegative ? normalized.slice(1) : normalized;
+            const [rawInteger = '0', rawDecimal = ''] = unsigned.split('.', 2);
+            const integer = rawInteger.replace(/^0+(?=\d)/, '') || '0';
+            const decimal = rawDecimal.replace(/0+$/, '');
+
+            return `${isNegative ? '-' : ''}${integer}${decimal ? `.${decimal}` : ''}`;
+        }
+
+        function parseDecimalParts(value) {
+            const normalized = normalizeDecimalString(value);
+            const isNegative = normalized.startsWith('-');
+            const unsigned = isNegative ? normalized.slice(1) : normalized;
+            const [integer = '0', decimal = ''] = unsigned.split('.', 2);
+
+            return {
+                negative: isNegative,
+                digits: BigInt(`${integer}${decimal}` || '0'),
+                scale: decimal.length,
+            };
+        }
+
+        function roundScaledBigInt(value, currentScale, targetScale) {
+            if (currentScale <= targetScale) {
+                return value * (10n ** BigInt(targetScale - currentScale));
+            }
+
+            const diff = currentScale - targetScale;
+            const factor = 10n ** BigInt(diff);
+            const quotient = value / factor;
+            const remainder = value % factor;
+            const threshold = factor / 2n;
+
+            return remainder >= threshold ? quotient + 1n : quotient;
+        }
+
+        function formatScaledBigInt(value, scale) {
+            const negative = value < 0n;
+            const absolute = negative ? -value : value;
+            const digits = absolute.toString().padStart(scale + 1, '0');
+            const integer = digits.slice(0, Math.max(1, digits.length - scale));
+            const decimal = scale > 0 ? digits.slice(-scale) : '';
+
+            return `${negative ? '-' : ''}${integer}${scale > 0 ? `.${decimal}` : ''}`;
+        }
+
+        function multiplyToCurrencyString(left, right) {
+            const leftParts = parseDecimalParts(left);
+            const rightParts = parseDecimalParts(right);
+            const sign = leftParts.negative === rightParts.negative ? 1n : -1n;
+            const product = leftParts.digits * rightParts.digits * sign;
+            const scaled = roundScaledBigInt(product, leftParts.scale + rightParts.scale, 2);
+
+            return formatScaledBigInt(scaled, 2);
+        }
+
+        function addCurrencyStrings(left, right) {
+            const leftParts = parseDecimalParts(left);
+            const rightParts = parseDecimalParts(right);
+            const leftScaled = roundScaledBigInt(leftParts.negative ? -leftParts.digits : leftParts.digits, leftParts.scale, 2);
+            const rightScaled = roundScaledBigInt(rightParts.negative ? -rightParts.digits : rightParts.digits, rightParts.scale, 2);
+
+            return formatScaledBigInt(leftScaled + rightScaled, 2);
+        }
+
+        function formatCurrencyDisplay(value) {
+            const normalized = normalizeDecimalString(value);
+            const [integerRaw = '0', decimalRaw = '00'] = normalized.split('.', 2);
+            const negative = integerRaw.startsWith('-');
+            const integer = negative ? integerRaw.slice(1) : integerRaw;
+            const formattedInteger = integer.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            const decimal = (decimalRaw || '').padEnd(2, '0').slice(0, 2);
+
+            return `${negative ? '-' : ''}${formattedInteger},${decimal}`;
+        }
 
         function addJenis(preset = null) {
             const g = jenisCounter++;
@@ -465,9 +552,7 @@
             const htEl = item.querySelector('.harga-total');
 
             function recompute() {
-                const qty = parseFloat(qtyEl.value) || 0;
-                const hs = parseFloat(hsEl.value) || 0;
-                htEl.value = (qty * hs).toFixed(2);
+                htEl.value = multiplyToCurrencyString(qtyEl.value, hsEl.value);
                 recalcSubtotal(list, subtotalEl);
             }
 
@@ -483,32 +568,26 @@
         }
 
         function recalcSubtotal(list, subtotalEl) {
-            let subtotal = 0;
+            let subtotal = '0.00';
 
             list.querySelectorAll('.harga-total').forEach((ht) => {
-                subtotal += parseFloat(ht.value) || 0;
+                subtotal = addCurrencyStrings(subtotal, ht.value || '0');
             });
 
-            subtotalEl.dataset.raw = String(subtotal);
-            subtotalEl.textContent = subtotal.toLocaleString('id-ID', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            });
+            subtotalEl.dataset.raw = subtotal;
+            subtotalEl.textContent = formatCurrencyDisplay(subtotal);
 
             updateGrandTotal();
         }
 
         function updateGrandTotal() {
-            let grand = 0;
+            let grand = '0.00';
 
             document.querySelectorAll('.subtotal').forEach((subtotal) => {
-                grand += parseFloat(subtotal.dataset.raw || '0') || 0;
+                grand = addCurrencyStrings(grand, subtotal.dataset.raw || '0');
             });
 
-            totalAllEl.value = grand.toLocaleString('id-ID', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            });
+            totalAllEl.value = formatCurrencyDisplay(grand);
         }
 
         function escapeAttr(value) {

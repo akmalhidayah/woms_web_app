@@ -34,10 +34,14 @@
                 <div class="grid gap-5 md:grid-cols-2">
                     <div>
                         <label class="mb-2 block text-sm font-semibold text-slate-700">Unit Kerja</label>
-                        <select name="unit_work_id" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none" required>
+                        <select name="unit_work_id" id="createUnitWorkId" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none" required>
                             <option value="">Pilih Unit Kerja</option>
                             @foreach ($unitWorks as $unit)
-                                <option value="{{ $unit->id }}" @selected((string) old('unit_work_id') === (string) $unit->id)>{{ $unit->name }}</option>
+                                <option
+                                    value="{{ $unit->id }}"
+                                    data-sections='@json($unit->sections->pluck('name')->values())'
+                                    @selected((string) old('unit_work_id') === (string) $unit->id)
+                                >{{ $unit->name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -50,18 +54,14 @@
                     <div>
                         <label class="mb-2 block text-sm font-semibold text-slate-700">Jenis Kontrak</label>
                         <select name="jenis_kontrak" id="jenisKontrak" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none" required>
-                            <option value="">Pilih Jenis Kontrak</option>
-                            @foreach ($jenisKontrakOptions as $jenisLabel => $names)
-                                <option value="{{ $jenisLabel }}" @selected(old('jenis_kontrak') === $jenisLabel)>{{ $jenisLabel }}</option>
-                            @endforeach
+                            <option value="">Pilih seksi unit kerja</option>
                         </select>
+                        <p class="mt-2 text-xs text-slate-500">Daftar jenis kontrak mengikuti seksi pada unit kerja yang dipilih.</p>
                     </div>
 
                     <div>
                         <label class="mb-2 block text-sm font-semibold text-slate-700">Nama Kontrak</label>
-                        <select name="nama_kontrak" id="namaKontrak" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none" required>
-                            <option value="">Pilih Nama Kontrak</option>
-                        </select>
+                        <input type="text" name="nama_kontrak" id="namaKontrak" value="{{ old('nama_kontrak') }}" placeholder="Masukkan nama kontrak" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none" required>
                     </div>
 
                     <div>

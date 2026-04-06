@@ -151,5 +151,8 @@ Route::prefix('admin/hpp')
     ->group(function () {
         Route::get('/', [HppController::class, 'index'])->name('index');
         Route::get('/create', [HppController::class, 'create'])->name('create');
+        Route::get('/{hpp}/edit', [HppController::class, 'edit'])->name('edit');
         Route::post('/', [HppController::class, 'store'])->name('store');
+        Route::put('/{hpp}', [HppController::class, 'update'])->name('update');
+        Route::delete('/{hpp}', [HppController::class, 'destroy'])->name('destroy');
     });

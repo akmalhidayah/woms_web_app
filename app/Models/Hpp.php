@@ -104,6 +104,19 @@ class Hpp extends Model
         };
     }
 
+    public function isEditable(): bool
+    {
+        return in_array($this->status, [
+            self::STATUS_DRAFT,
+            self::STATUS_IN_REVIEW,
+        ], true);
+    }
+
+    public function isDeletable(): bool
+    {
+        return $this->isEditable();
+    }
+
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);

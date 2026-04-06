@@ -1,12 +1,10 @@
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const contractOptions = @json($contractOptions);
-        const oldCreateNamaKontrak = @json((string) old('nama_kontrak', ''));
+        const oldCreateJenisKontrak = @json((string) old('jenis_kontrak', ''));
         const oldCreateYears = @json(old('target_years', []));
         const oldCreateValues = @json(old('target_values', []));
         const oldEditMethod = @json((string) old('_method', ''));
         const oldEditId = @json((string) old('_edit_id', ''));
-        const oldEditNamaKontrak = @json((string) old('nama_kontrak', ''));
         const oldEditYears = @json(old('target_years', []));
         const oldEditValues = @json(old('target_values', []));
         const currentYear = new Date().getFullYear();
@@ -57,27 +55,56 @@
             return row;
         };
 
-        const syncContractNames = (jenisElement, namaElement, selectedName = '') => {
-            if (!jenisElement || !namaElement) return;
+        const parseSectionOptions = (unitElement) => {
+            const selectedOption = unitElement?.selectedOptions?.[0];
+            const raw = selectedOption?.dataset?.sections;
 
-            const optionGroup = contractOptions.find((item) => item.label === jenisElement.value);
-            namaElement.innerHTML = '<option value="">Pilih Nama Kontrak</option>';
+            if (!raw) return [];
 
-            if (!optionGroup) return;
+            try {
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+            } catch (error) {
+                console.error('Gagal parse seksi unit kerja', error);
+                return [];
+            }
+        };
 
-            optionGroup.names.forEach((name) => {
+        const syncJenisKontrakOptions = (unitElement, jenisElement, selectedValue = '') => {
+            if (!unitElement || !jenisElement) return;
+
+            const sections = parseSectionOptions(unitElement);
+            const normalizedSelected = selectedValue || '';
+
+            jenisElement.innerHTML = '';
+
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = sections.length > 0 ? 'Pilih seksi unit kerja' : 'Unit kerja ini belum punya seksi';
+            placeholder.selected = normalizedSelected === '';
+            jenisElement.appendChild(placeholder);
+
+            sections.forEach((name) => {
                 const option = document.createElement('option');
                 option.value = name;
                 option.textContent = name;
-                if (selectedName && selectedName === name) option.selected = true;
-                namaElement.appendChild(option);
+                if (normalizedSelected === name) option.selected = true;
+                jenisElement.appendChild(option);
             });
+
+            if (normalizedSelected && !sections.includes(normalizedSelected)) {
+                const legacyOption = document.createElement('option');
+                legacyOption.value = normalizedSelected;
+                legacyOption.textContent = normalizedSelected;
+                legacyOption.selected = true;
+                jenisElement.appendChild(legacyOption);
+            }
         };
 
+        const createUnitWorkId = document.getElementById('createUnitWorkId');
         const createJenisKontrak = document.getElementById('jenisKontrak');
-        const createNamaKontrak = document.getElementById('namaKontrak');
-        createJenisKontrak?.addEventListener('change', () => syncContractNames(createJenisKontrak, createNamaKontrak));
-        syncContractNames(createJenisKontrak, createNamaKontrak, oldCreateNamaKontrak);
+        createUnitWorkId?.addEventListener('change', () => syncJenisKontrakOptions(createUnitWorkId, createJenisKontrak));
+        syncJenisKontrakOptions(createUnitWorkId, createJenisKontrak, oldCreateJenisKontrak);
 
         const createTargetsContainer = document.getElementById('targetsContainer');
         document.getElementById('addTargetRow')?.addEventListener('click', () => {
@@ -124,8 +151,8 @@
             editForm.action = `{{ url('admin/outline-agreements') }}/${payload.id}`;
             editUnitWorkId.value = payload.unitWorkId ?? '';
             editNomorOa.value = payload.nomor ?? '';
-            editJenisKontrak.value = payload.jenis ?? '';
-            syncContractNames(editJenisKontrak, editNamaKontrak, payload.nama ?? '');
+            syncJenisKontrakOptions(editUnitWorkId, editJenisKontrak, payload.jenis ?? '');
+            editNamaKontrak.value = payload.nama ?? '';
             editCurrentTotalNilai.value = payload.total ?? '';
             editCurrentPeriodEnd.value = payload.periodEnd ?? '';
             editCurrentPeriodEnd.min = payload.periodStart ?? '';
@@ -161,7 +188,7 @@
             editModal.classList.remove('flex');
         };
 
-        editJenisKontrak?.addEventListener('change', () => syncContractNames(editJenisKontrak, editNamaKontrak));
+        editUnitWorkId?.addEventListener('change', () => syncJenisKontrakOptions(editUnitWorkId, editJenisKontrak));
         document.getElementById('editAddTargetRow')?.addEventListener('click', () => {
             editTargetsContainer?.appendChild(createTargetRow({ mode: 'edit' }));
         });
@@ -196,7 +223,7 @@
                 unitWorkId: @json((string) old('unit_work_id', '')),
                 nomor: @json((string) old('nomor_oa', '')),
                 jenis: @json((string) old('jenis_kontrak', '')),
-                nama: oldEditNamaKontrak,
+                nama: @json((string) old('nama_kontrak', '')),
                 total: @json((string) old('current_total_nilai', '')),
                 periodStart: @json((string) old('current_period_start', '')),
                 periodEnd: @json((string) old('current_period_end', '')),

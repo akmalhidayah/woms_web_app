@@ -36,7 +36,7 @@
                             <select name="unit_work_id" id="editUnitWorkId" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none" required>
                                 <option value="">Pilih Unit Kerja</option>
                                 @foreach ($unitWorks as $unit)
-                                    <option value="{{ $unit->id }}">{{ $unit->name }}</option>
+                                    <option value="{{ $unit->id }}" data-sections='@json($unit->sections->pluck('name')->values())'>{{ $unit->name }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -49,18 +49,14 @@
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">Jenis Kontrak</label>
                             <select name="jenis_kontrak" id="editJenisKontrak" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none" required>
-                                <option value="">Pilih Jenis Kontrak</option>
-                                @foreach ($jenisKontrakOptions as $jenisLabel => $names)
-                                    <option value="{{ $jenisLabel }}">{{ $jenisLabel }}</option>
-                                @endforeach
+                                <option value="">Pilih seksi unit kerja</option>
                             </select>
+                            <p class="mt-2 text-xs text-slate-500">Jenis kontrak diambil dari seksi unit kerja OA.</p>
                         </div>
 
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">Nama Kontrak</label>
-                            <select name="nama_kontrak" id="editNamaKontrak" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none" required>
-                                <option value="">Pilih Nama Kontrak</option>
-                            </select>
+                            <input type="text" name="nama_kontrak" id="editNamaKontrak" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 focus:border-emerald-500 focus:outline-none" required>
                         </div>
                     </div>
 

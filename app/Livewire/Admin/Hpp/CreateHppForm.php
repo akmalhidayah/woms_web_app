@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin\Hpp;
 
+use App\Models\Hpp;
 use App\Models\Order;
 use App\Models\OutlineAgreement;
 use App\Support\HppApprovalFlow;
@@ -9,12 +10,19 @@ use Livewire\Component;
 
 class CreateHppForm extends Component
 {
+    public ?Hpp $hpp = null;
+
+    public function mount(?Hpp $hpp = null): void
+    {
+        $this->hpp = $hpp;
+    }
+
     public function render()
     {
         $orders = Order::query()
             ->orderByDesc('tanggal_order')
             ->orderByDesc('id')
-            ->get(['id', 'nomor_order', 'nama_pekerjaan', 'unit_kerja']);
+            ->get(['id', 'nomor_order', 'nama_pekerjaan', 'unit_kerja', 'seksi']);
 
         $orderOptions = $orders
             ->map(fn (Order $order) => [
@@ -29,7 +37,7 @@ class CreateHppForm extends Component
             ->all();
 
         $outlineAgreementOptions = OutlineAgreement::query()
-            ->with(['unitWork:id,name', 'unitWork.sections:id,unit_work_id,name'])
+            ->with(['unitWork:id,name'])
             ->where('status', OutlineAgreement::STATUS_ACTIVE)
             ->orderByDesc('current_period_end')
             ->orderByDesc('id')
@@ -39,8 +47,8 @@ class CreateHppForm extends Component
                 'label' => "{$agreement->nomor_oa} - {$agreement->nama_kontrak}",
                 'nomor_oa' => $agreement->nomor_oa,
                 'unit_kerja_pengendali' => $agreement->unitWork?->name ?? '',
-                'seksi_pengendali' => $agreement->unitWork
-                    ? ($agreement->unitWork->sections->pluck('name')->filter()->values()->join(', ') ?: 'Tidak ada seksi')
+                'seksi_pengendali' => trim((string) $agreement->jenis_kontrak) !== ''
+                    ? trim((string) $agreement->jenis_kontrak)
                     : 'Tidak ada seksi',
                 'periode_outline_agreement' => trim(sprintf(
                     '%s - %s',
@@ -58,15 +66,17 @@ class CreateHppForm extends Component
             'areaOptions' => HppApprovalFlow::areaOptions(),
             'bucketOptions' => HppApprovalFlow::bucketOptions(),
             'flowMatrix' => HppApprovalFlow::flowMatrix(),
-            'itemGroupPresets' => $this->oldItemGroupPresets(),
+            'itemGroupPresets' => $this->resolveItemGroupPresets(),
             'initialState' => [
-                'selectedOrder' => old('order_id', $orderOptions[0]['value'] ?? ''),
-                'selectedOutlineAgreement' => old('outline_agreement_id', $outlineAgreementOptions[0]['value'] ?? ''),
-                'kategoriPekerjaan' => old('kategori_pekerjaan', 'Fabrikasi'),
-                'areaPekerjaan' => old('area_pekerjaan', 'Dalam'),
-                'nilaiBucket' => old('nilai_hpp_bucket', 'under'),
-                'costCentre' => old('cost_centre', ''),
+                'selectedOrder' => (string) old('order_id', $this->hpp?->order_id ?? ($orderOptions[0]['value'] ?? '')),
+                'selectedOutlineAgreement' => (string) old('outline_agreement_id', $this->hpp?->outline_agreement_id ?? ($outlineAgreementOptions[0]['value'] ?? '')),
+                'kategoriPekerjaan' => old('kategori_pekerjaan', $this->hpp?->kategori_pekerjaan ?? 'Fabrikasi'),
+                'areaPekerjaan' => old('area_pekerjaan', $this->hpp?->area_pekerjaan ?? 'Dalam'),
+                'nilaiBucket' => old('nilai_hpp_bucket', $this->hpp?->nilai_hpp_bucket ?? 'under'),
+                'costCentre' => old('cost_centre', $this->hpp?->cost_centre ?? ''),
             ],
+            'isEdit' => $this->hpp?->exists ?? false,
+            'submitRoute' => $this->hpp?->exists ? route('admin.hpp.update', $this->hpp) : route('admin.hpp.store'),
         ]);
     }
 
@@ -106,5 +116,40 @@ class CreateHppForm extends Component
         }
 
         return $presets;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function resolveItemGroupPresets(): array
+    {
+        if (session()->getOldInput() !== []) {
+            return $this->oldItemGroupPresets();
+        }
+
+        if (! $this->hpp || ! is_array($this->hpp->item_groups)) {
+            return [];
+        }
+
+        return collect($this->hpp->item_groups)
+            ->map(function (array $group): array {
+                return [
+                    'title' => $group['jenis_item'] ?? 'Material/Jasa',
+                    'items' => collect($group['items'] ?? [])
+                        ->map(fn (array $item): array => [
+                            'nama_item' => $item['nama_item'] ?? '',
+                            'jumlah_item' => $item['jumlah_item'] ?? '',
+                            'qty' => $item['qty'] ?? '',
+                            'satuan' => $item['satuan'] ?? '',
+                            'harga_satuan' => $item['harga_satuan'] ?? '',
+                            'harga_total' => $item['harga_total'] ?? '',
+                            'keterangan' => $item['keterangan'] ?? '',
+                        ])
+                        ->values()
+                        ->all(),
+                ];
+            })
+            ->values()
+            ->all();
     }
 }

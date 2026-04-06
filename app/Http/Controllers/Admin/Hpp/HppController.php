@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Hpp;
 
+use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Controllers\Controller;
 use App\Models\Hpp;
 use App\Http\Requests\Admin\Hpp\StoreHppRequest;
@@ -12,6 +13,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 class HppController extends Controller
 {
@@ -47,6 +49,21 @@ class HppController extends Controller
         return view('admin.hpp.edit', [
             'hpp' => $hpp,
         ]);
+    }
+
+    public function pdf(Hpp $hpp): Response
+    {
+        $hpp->loadMissing([
+            'order',
+            'outlineAgreement',
+            'creator',
+        ]);
+
+        $pdf = Pdf::loadView('admin.hpp.hpppdf', [
+            'hpp' => $hpp,
+        ])->setPaper('a4', 'landscape');
+
+        return $pdf->stream('hpp-'.$hpp->nomor_order.'.pdf');
     }
 
     public function store(StoreHppRequest $request): RedirectResponse
@@ -210,7 +227,7 @@ class HppController extends Controller
             'unit_work_id' => $outlineAgreement->unit_work_id,
             'cost_centre' => $validated['cost_centre'] ?: null,
             'kategori_pekerjaan' => $validated['kategori_pekerjaan'],
-            'area_pekerjaan' => $validated['area_pekerjaan'],
+            'area_pekerjaan' => HppApprovalFlow::displayArea($validated['area_pekerjaan']),
             'nilai_hpp_bucket' => $validated['nilai_hpp_bucket'],
             'unit_kerja_pengendali' => $outlineAgreement->unitWork?->name,
             'outline_agreement' => $outlineAgreement->nomor_oa,

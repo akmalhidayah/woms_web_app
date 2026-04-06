@@ -4,6 +4,7 @@
         outlineAgreementOptions: @js($outlineAgreementOptions),
         kategoriOptions: @js($kategoriOptions),
         areaOptions: @js($areaOptions),
+        areaKeysByLabel: @js($areaKeysByLabel),
         bucketOptions: @js($bucketOptions),
         flowMatrix: @js($flowMatrix),
         initialState: @js($initialState),
@@ -301,6 +302,7 @@
             outlineAgreementOptions: config.outlineAgreementOptions,
             kategoriOptions: config.kategoriOptions,
             areaOptions: config.areaOptions,
+            areaKeysByLabel: config.areaKeysByLabel,
             bucketOptions: config.bucketOptions,
             flowMatrix: config.flowMatrix,
             selectedOrder: String(config.initialState.selectedOrder ?? ''),
@@ -351,13 +353,16 @@
                 }
 
                 const prefix = this.kategoriPekerjaan === 'Fabrikasi' ? 'FAB' : 'KONS';
-                const area = this.areaPekerjaan.toUpperCase();
+                const areaKey = this.areaKeysByLabel?.[this.areaPekerjaan] ?? this.areaPekerjaan;
+                const area = areaKey.toUpperCase();
                 const bucket = this.nilaiBucket === 'over' ? 'OVER250' : 'UNDER250';
 
                 return `${prefix}-${area}-${bucket}`;
             },
             get approvalFlow() {
-                return this.flowMatrix?.[this.kategoriPekerjaan]?.[this.areaPekerjaan]?.[this.nilaiBucket] ?? [];
+                const areaKey = this.areaKeysByLabel?.[this.areaPekerjaan] ?? this.areaPekerjaan;
+
+                return this.flowMatrix?.[this.kategoriPekerjaan]?.[areaKey]?.[this.nilaiBucket] ?? [];
             },
         };
     }

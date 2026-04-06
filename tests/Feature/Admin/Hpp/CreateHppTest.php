@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin\Hpp;
 use App\Models\Hpp;
 use App\Models\Order;
 use App\Models\User;
+use App\Support\HppApprovalFlow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -66,7 +67,7 @@ class CreateHppTest extends TestCase
                 'action' => 'submit',
                 'order_id' => $order->id,
                 'kategori_pekerjaan' => 'Fabrikasi',
-                'area_pekerjaan' => 'Dalam',
+                'area_pekerjaan' => HppApprovalFlow::displayArea('Dalam'),
                 'nilai_hpp_bucket' => 'under',
                 'cost_centre' => 'CC-RM-001',
                 'unit_kerja_pengendali' => 'Unit Workshop',
@@ -107,6 +108,7 @@ class CreateHppTest extends TestCase
         $this->assertSame('ORD-2026-0001', $hpp->nomor_order);
         $this->assertSame('Perbaikan conveyor raw mill', $hpp->nama_pekerjaan);
         $this->assertSame('Unit Produksi Raw Mill', $hpp->unit_kerja);
+        $this->assertSame('Dalam (T.23,4,5, Pelabuhan BKS & Packing Plant)', $hpp->area_pekerjaan);
         $this->assertSame(Hpp::STATUS_IN_REVIEW, $hpp->status);
         $this->assertSame(3000000.0, (float) $hpp->total_keseluruhan);
         $this->assertSame('FAB-DALAM-UNDER250', $hpp->approval_case);

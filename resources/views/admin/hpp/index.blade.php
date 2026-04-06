@@ -10,6 +10,7 @@
             return rtrim(rtrim($normalized, '0'), ',');
         };
         $bucketLabels = \App\Support\HppApprovalFlow::bucketOptions();
+        $displayArea = fn (?string $value): string => \App\Support\HppApprovalFlow::displayArea((string) $value);
     @endphp
 
     @if (session('status'))
@@ -73,8 +74,8 @@
                         <col class="w-[14%]">
                         <col class="w-[11%]">
                         <col class="w-[10%]">
-                        <col class="w-[11%]">
-                        <col class="w-[6%]">
+                        <col class="w-[10%]">
+                        <col class="w-[7%]">
                     </colgroup>
                     <thead class="bg-slate-200/80 text-slate-700">
                         <tr>
@@ -111,7 +112,7 @@
                                 </td>
                                 <td class="px-5 py-4">
                                     <div class="inline-flex flex-col rounded-2xl bg-slate-100 px-3 py-2 text-[10px] text-slate-700">
-                                        <span class="font-semibold">{{ $row->kategori_pekerjaan }} ({{ $row->area_pekerjaan }})</span>
+                                        <span class="font-semibold">{{ $row->kategori_pekerjaan }} ({{ $displayArea($row->area_pekerjaan) }})</span>
                                         <span class="mt-1 text-slate-500">{{ $bucketLabels[$row->nilai_hpp_bucket] ?? ($row->approval_case ?: '-') }}</span>
                                     </div>
                                 </td>
@@ -127,27 +128,27 @@
                                     {{ $row->currentStepLabel() }}
                                 </td>
                                 <td class="px-5 py-4">
-                                    @if ($row->isEditable() || $row->isDeletable())
-                                        <div class="flex items-center gap-2">
-                                            @if ($row->isEditable())
-                                                <a href="{{ route('admin.hpp.edit', $row) }}" class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100" title="Edit HPP">
-                                                    <i data-lucide="pencil" class="h-[16px] w-[16px]"></i>
-                                                </a>
-                                            @endif
+                                    <div class="flex items-center gap-2">
+                                        <a href="{{ route('admin.hpp.pdf', $row) }}" target="_blank" rel="noopener noreferrer" class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50" title="Lihat PDF HPP">
+                                            <i data-lucide="file-text" class="h-[16px] w-[16px]"></i>
+                                        </a>
 
-                                            @if ($row->isDeletable())
-                                                <form method="POST" action="{{ route('admin.hpp.destroy', $row) }}" class="delete-hpp-form" data-order="{{ $row->nomor_order }}">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-700 transition hover:bg-rose-100" title="Hapus HPP">
-                                                        <i data-lucide="trash-2" class="h-[16px] w-[16px]"></i>
-                                                    </button>
-                                                </form>
-                                            @endif
-                                        </div>
-                                    @else
-                                        <span class="text-[10px] text-slate-400">-</span>
-                                    @endif
+                                        @if ($row->isEditable())
+                                            <a href="{{ route('admin.hpp.edit', $row) }}" class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100" title="Edit HPP">
+                                                <i data-lucide="pencil" class="h-[16px] w-[16px]"></i>
+                                            </a>
+                                        @endif
+
+                                        @if ($row->isDeletable())
+                                            <form method="POST" action="{{ route('admin.hpp.destroy', $row) }}" class="delete-hpp-form" data-order="{{ $row->nomor_order }}">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-700 transition hover:bg-rose-100" title="Hapus HPP">
+                                                    <i data-lucide="trash-2" class="h-[16px] w-[16px]"></i>
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty

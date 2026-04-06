@@ -7,6 +7,18 @@ class HppApprovalFlow
     public const THRESHOLD = 250_000_000;
 
     /**
+     * @return array<string, string>
+     */
+    public static function canonicalAreaLabels(): array
+    {
+        return [
+            'Dalam' => 'Dalam (T.23,4,5, Pelabuhan BKS & Packing Plant)',
+            'Luar' => 'Luar (BTG&CUS)',
+            'Workshop' => 'Workshop',
+        ];
+    }
+
+    /**
      * @return list<string>
      */
     public static function kategoriOptions(): array
@@ -19,11 +31,44 @@ class HppApprovalFlow
      */
     public static function areaOptions(): array
     {
-        return [
-            'Dalam' => 'Dalam (T.23,4,5, Pelabuhan BKS & Packing Plant)',
-            'Luar' => 'Luar (BTG&CUS)',
-            'Workshop' => 'Workshop',
-        ];
+        return collect(static::canonicalAreaLabels())
+            ->mapWithKeys(fn (string $label): array => [$label => $label])
+            ->all();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function areaKeysByLabel(): array
+    {
+        return collect(static::canonicalAreaLabels())
+            ->mapWithKeys(fn (string $label, string $key): array => [$label => $key])
+            ->all();
+    }
+
+    public static function normalizeAreaKey(string $areaPekerjaan): string
+    {
+        $normalized = trim($areaPekerjaan);
+
+        if ($normalized === '') {
+            return '';
+        }
+
+        $labels = static::canonicalAreaLabels();
+        $keysByLabel = static::areaKeysByLabel();
+
+        if (array_key_exists($normalized, $labels)) {
+            return $normalized;
+        }
+
+        return $keysByLabel[$normalized] ?? $normalized;
+    }
+
+    public static function displayArea(string $areaPekerjaan): string
+    {
+        $key = static::normalizeAreaKey($areaPekerjaan);
+
+        return static::canonicalAreaLabels()[$key] ?? trim($areaPekerjaan);
     }
 
     /**
@@ -39,12 +84,14 @@ class HppApprovalFlow
 
     public static function resolvePreviewCase(string $kategoriPekerjaan, string $areaPekerjaan, string $nilaiBucket): ?string
     {
-        if ($kategoriPekerjaan === '' || $areaPekerjaan === '' || ! array_key_exists($nilaiBucket, static::bucketOptions())) {
+        $areaKey = static::normalizeAreaKey($areaPekerjaan);
+
+        if ($kategoriPekerjaan === '' || $areaKey === '' || ! array_key_exists($nilaiBucket, static::bucketOptions())) {
             return null;
         }
 
         $prefix = $kategoriPekerjaan === 'Fabrikasi' ? 'FAB' : 'KONS';
-        $area = strtoupper($areaPekerjaan);
+        $area = strtoupper($areaKey);
         $bucket = $nilaiBucket === 'over' ? 'OVER250' : 'UNDER250';
 
         return "{$prefix}-{$area}-{$bucket}";
@@ -55,13 +102,15 @@ class HppApprovalFlow
      */
     public static function resolveApprovalFlow(string $kategoriPekerjaan, string $areaPekerjaan, string $nilaiBucket): array
     {
-        if ($kategoriPekerjaan === '' || $areaPekerjaan === '' || ! array_key_exists($nilaiBucket, static::bucketOptions())) {
+        $areaKey = static::normalizeAreaKey($areaPekerjaan);
+
+        if ($kategoriPekerjaan === '' || $areaKey === '' || ! array_key_exists($nilaiBucket, static::bucketOptions())) {
             return [];
         }
 
         $flows = static::flowMatrix();
 
-        return $flows[$kategoriPekerjaan][$areaPekerjaan][$nilaiBucket] ?? [];
+        return $flows[$kategoriPekerjaan][$areaKey][$nilaiBucket] ?? [];
     }
 
     /**

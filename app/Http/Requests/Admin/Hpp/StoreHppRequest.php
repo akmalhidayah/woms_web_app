@@ -23,6 +23,7 @@ class StoreHppRequest extends FormRequest
     {
         $this->merge([
             'action' => (string) $this->input('action', 'draft'),
+            'area_pekerjaan' => HppApprovalFlow::displayArea((string) $this->input('area_pekerjaan', '')),
         ]);
     }
 

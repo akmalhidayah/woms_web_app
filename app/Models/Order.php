@@ -179,6 +179,14 @@ class Order extends Model
     }
 
     /**
+     * Get the latest HPP for the order.
+     */
+    public function latestHpp(): HasOne
+    {
+        return $this->hasOne(Hpp::class)->latestOfMany();
+    }
+
+    /**
      * Get the scope of work for the order.
      */
     public function scopeOfWork(): HasOne
@@ -192,6 +200,30 @@ class Order extends Model
     public function orderWorkshop(): HasOne
     {
         return $this->hasOne(OrderWorkshop::class);
+    }
+
+    /**
+     * Get budget verification data for the order.
+     */
+    public function budgetVerification(): HasOne
+    {
+        return $this->hasOne(BudgetVerification::class);
+    }
+
+    /**
+     * Get purchase order data for the order.
+     */
+    public function purchaseOrder(): HasOne
+    {
+        return $this->hasOne(PurchaseOrder::class);
+    }
+
+    /**
+     * Get the latest purchase order data for the order.
+     */
+    public function latestPurchaseOrder(): HasOne
+    {
+        return $this->hasOne(PurchaseOrder::class)->latestOfMany();
     }
 
     /**

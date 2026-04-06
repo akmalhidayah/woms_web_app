@@ -18,20 +18,20 @@
     @endif
 
     <div class="space-y-6">
-        <section class="rounded-[1.5rem] border border-blue-100 px-5 py-4 shadow-sm" style="background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 48%, #e6f1ff 100%);">
+        <section class="rounded-[1.35rem] border border-blue-100 px-5 py-4 shadow-sm" style="background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 48%, #e6f1ff 100%);">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex items-center gap-4">
-                    <span class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm ring-1 ring-blue-200">
-                        <i data-lucide="file-text" class="h-5 w-5"></i>
+                    <span class="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm ring-1 ring-blue-200">
+                        <i data-lucide="file-text" class="h-[18px] w-[18px]"></i>
                     </span>
                     <div>
-                        <h1 class="text-[1.4rem] font-bold leading-none tracking-tight text-slate-900">Create HPP</h1>
-                        <p class="mt-2 text-[12px] text-slate-500">Daftar HPP dan snapshot approval yang sudah dibuat.</p>
+                        <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Create HPP</h1>
+                        <p class="mt-1.5 text-[11px] text-slate-500">Daftar HPP dan snapshot approval yang sudah dibuat.</p>
                     </div>
                 </div>
 
-                <a href="{{ route('admin.hpp.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-blue-700">
-                    <i data-lucide="plus-circle" class="h-[14px] w-[14px]"></i>
+                <a href="{{ route('admin.hpp.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-[11px] font-semibold text-white transition hover:bg-blue-700">
+                    <i data-lucide="plus-circle" class="h-[13px] w-[13px]"></i>
                     Buat HPP
                 </a>
             </div>
@@ -43,11 +43,11 @@
                     <div class="grid flex-1 gap-2.5 md:grid-cols-2 xl:grid-cols-[1.2fr_0.6fr]">
                         <div class="flex flex-col">
                             <label for="search" class="mb-1.5 text-[10px] font-semibold text-slate-700">Pencarian</label>
-                            <input id="search" name="search" type="text" value="{{ $search }}" placeholder="Cari nomor order / pekerjaan / area..." class="rounded-lg border border-slate-300 px-3 py-2 text-[12px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none">
+                            <input id="search" name="search" type="text" value="{{ $search }}" placeholder="Cari nomor order / pekerjaan / area..." class="rounded-lg border border-slate-300 px-3 py-2 text-[11px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none">
                         </div>
                         <div class="flex flex-col">
                             <label for="status" class="mb-1.5 text-[10px] font-semibold text-slate-700">Status</label>
-                            <select id="status" name="status" class="rounded-lg border border-slate-300 px-3 py-2 text-[12px] text-slate-700 focus:border-blue-500 focus:outline-none">
+                            <select id="status" name="status" class="rounded-lg border border-slate-300 px-3 py-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none">
                                 <option value="">Semua Status</option>
                                 @foreach ($statusOptions as $value => $label)
                                     <option value="{{ $value }}" @selected($status === $value)>{{ $label }}</option>
@@ -56,18 +56,18 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button type="submit" class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-700" title="Filter">
-                            <i data-lucide="filter" class="h-[14px] w-[14px]"></i>
+                        <button type="submit" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-700" title="Filter">
+                            <i data-lucide="filter" class="h-[13px] w-[13px]"></i>
                         </button>
-                        <a href="{{ route('admin.hpp.index') }}" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50" title="Reset">
-                            <i data-lucide="rotate-ccw" class="h-[14px] w-[14px]"></i>
+                        <a href="{{ route('admin.hpp.index') }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50" title="Reset">
+                            <i data-lucide="rotate-ccw" class="h-[13px] w-[13px]"></i>
                         </a>
                     </div>
                 </form>
             </div>
 
             <div class="overflow-x-auto">
-                <table class="min-w-full table-fixed divide-y divide-slate-200 text-[12px] text-slate-700">
+                <table class="min-w-full table-fixed divide-y divide-slate-200 text-[11px] text-slate-700">
                     <colgroup>
                         <col class="w-[15%]">
                         <col class="w-[33%]">
@@ -91,51 +91,51 @@
                     <tbody class="divide-y divide-slate-200 bg-white">
                         @forelse ($rows as $row)
                             <tr class="align-top hover:bg-slate-50">
-                                <td class="px-5 py-4 text-[12px] font-semibold text-slate-800">
-                                    <div class="inline-flex items-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-[18px] font-bold tracking-[0.04em] text-slate-900 shadow-sm">
+                                <td class="px-5 py-4 text-[11px] font-semibold text-slate-800">
+                                    <div class="inline-flex items-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-[16px] font-bold tracking-[0.04em] text-slate-900 shadow-sm">
                                         {{ $row->nomor_order }}
                                     </div>
                                 </td>
                                 <td class="px-5 py-4">
                                     <div class="font-semibold text-slate-800">{{ $row->nama_pekerjaan }}</div>
-                                    <div class="mt-2 text-[10px]">
+                                    <div class="mt-2 text-[9px]">
                                         <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 font-semibold text-blue-700 ring-1 ring-blue-100">
                                             Seksi: {{ $row->order?->seksi ?: '-' }}
                                         </span>
                                     </div>
-                                    <div class="mt-2 text-[10px]">
+                                    <div class="mt-2 text-[9px]">
                                         <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-600">
                                             Unit: {{ $row->unit_kerja }}
                                         </span>
                                     </div>
-                                    <div class="mt-2 text-[10px] text-slate-400">Dibuat: {{ $row->created_at?->format('Y-m-d') }}</div>
+                                    <div class="mt-2 text-[9px] text-slate-400">Dibuat: {{ $row->created_at?->format('Y-m-d') }}</div>
                                 </td>
                                 <td class="px-5 py-4">
-                                    <div class="inline-flex flex-col rounded-2xl bg-slate-100 px-3 py-2 text-[10px] text-slate-700">
+                                    <div class="inline-flex flex-col rounded-2xl bg-slate-100 px-3 py-2 text-[9px] text-slate-700">
                                         <span class="font-semibold">{{ $row->kategori_pekerjaan }} ({{ $displayArea($row->area_pekerjaan) }})</span>
                                         <span class="mt-1 text-slate-500">{{ $bucketLabels[$row->nilai_hpp_bucket] ?? ($row->approval_case ?: '-') }}</span>
                                     </div>
                                 </td>
-                                <td class="px-5 py-4 text-[12px] font-semibold text-slate-800">
+                                <td class="px-5 py-4 text-[11px] font-semibold text-slate-800">
                                     Rp {{ $formatRupiah($row->total_keseluruhan) }}
                                 </td>
                                 <td class="px-5 py-4">
-                                    <span class="inline-flex rounded-full px-3 py-1 text-[10px] font-semibold {{ $row->statusBadgeClasses() }}">
+                                    <span class="inline-flex rounded-full px-3 py-1 text-[9px] font-semibold {{ $row->statusBadgeClasses() }}">
                                         {{ \App\Models\Hpp::statusOptions()[$row->status] ?? ucfirst(str_replace('_', ' ', $row->status)) }}
                                     </span>
                                 </td>
-                                <td class="px-5 py-4 text-[12px] text-slate-700">
+                                <td class="px-5 py-4 text-[11px] text-slate-700">
                                     {{ $row->currentStepLabel() }}
                                 </td>
                                 <td class="px-5 py-4">
                                     <div class="flex items-center gap-2">
-                                        <a href="{{ route('admin.hpp.pdf', $row) }}" target="_blank" rel="noopener noreferrer" class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50" title="Lihat PDF HPP">
-                                            <i data-lucide="file-text" class="h-[16px] w-[16px]"></i>
+                                        <a href="{{ route('admin.hpp.pdf', ['hpp' => $row->nomor_order]) }}" target="_blank" rel="noopener noreferrer" class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50" title="Lihat PDF HPP">
+                                            <i data-lucide="file-text" class="h-[14px] w-[14px]"></i>
                                         </a>
 
                                         @if ($row->isEditable())
-                                            <a href="{{ route('admin.hpp.edit', $row) }}" class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100" title="Edit HPP">
-                                                <i data-lucide="pencil" class="h-[16px] w-[16px]"></i>
+                                            <a href="{{ route('admin.hpp.edit', ['hpp' => $row->nomor_order]) }}" class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100" title="Edit HPP">
+                                                <i data-lucide="pencil" class="h-[14px] w-[14px]"></i>
                                             </a>
                                         @endif
 
@@ -143,8 +143,8 @@
                                             <form method="POST" action="{{ route('admin.hpp.destroy', $row) }}" class="delete-hpp-form" data-order="{{ $row->nomor_order }}">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-700 transition hover:bg-rose-100" title="Hapus HPP">
-                                                    <i data-lucide="trash-2" class="h-[16px] w-[16px]"></i>
+                                                <button type="submit" class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-700 transition hover:bg-rose-100" title="Hapus HPP">
+                                                    <i data-lucide="trash-2" class="h-[14px] w-[14px]"></i>
                                                 </button>
                                             </form>
                                         @endif

@@ -42,7 +42,7 @@ class OrderController extends Controller
             ->search($search)
             ->when($seksi !== '', fn ($query) => $query->where('seksi', $seksi))
             ->when($catatanStatus !== '', fn ($query) => $query->where('catatan_status', $catatanStatus))
-            ->latest('tanggal_order')
+            ->latest('id')
             ->paginate($perPage)
             ->withQueryString();
 

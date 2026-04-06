@@ -48,21 +48,40 @@
             @endforeach
         @endforeach
     </tr>
-    <tr>
-        <td colspan="{{ max(1, $columnCount) }}" class="approval-inline">
-            @forelse ($initials as $initial)
-                <span class="sig-initial">{{ $initial['label'] }}:</span>
-                @if($initial['signature'])
-                    <img src="{{ $initial['signature'] }}" alt="{{ $initial['label'] }}" class="sig-inline">
+    @if (($position ?? 'top') === 'top')
+        <tr>
+            <td class="approval-inline-cell"></td>
+            <td class="approval-inline-cell">
+                <span class="sig-initial">{{ $requesterManagerInitial['label'] }}:</span>
+                @if($requesterManagerInitial['signature'])
+                    <img src="{{ $requesterManagerInitial['signature'] }}" alt="{{ $requesterManagerInitial['label'] }}" class="sig-inline">
                 @else
-                    <span class="sig-initial">{{ $initial['value'] }}</span>
+                    <span class="sig-initial">{{ $requesterManagerInitial['value'] }}</span>
                 @endif
-                @if (! $loop->last)
-                    <span class="sig-initial" style="margin: 0 6px;">|</span>
+            </td>
+            <td class="approval-inline-cell">
+                <span class="sig-initial">{{ $counterPartManagerInitial['label'] }}:</span>
+                @if($counterPartManagerInitial['signature'])
+                    <img src="{{ $counterPartManagerInitial['signature'] }}" alt="{{ $counterPartManagerInitial['label'] }}" class="sig-inline">
+                @else
+                    <span class="sig-initial">{{ $counterPartManagerInitial['value'] }}</span>
                 @endif
-            @empty
-                <span class="sig-initial">-</span>
-            @endforelse
-        </td>
-    </tr>
+            </td>
+        </tr>
+    @else
+        <tr>
+            @if($isOver)
+                <td class="approval-inline-cell"></td>
+            @endif
+            <td class="approval-inline-cell"></td>
+            <td class="approval-inline-cell">
+                <span class="sig-initial">{{ $controllerManagerInitial['label'] }}:</span>
+                @if($controllerManagerInitial['signature'])
+                    <img src="{{ $controllerManagerInitial['signature'] }}" alt="{{ $controllerManagerInitial['label'] }}" class="sig-inline">
+                @else
+                    <span class="sig-initial">{{ $controllerManagerInitial['value'] }}</span>
+                @endif
+            </td>
+        </tr>
+    @endif
 </table>

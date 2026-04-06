@@ -24,8 +24,7 @@
             $pkmMenus = [
                 ['route' => 'pkm.dashboard', 'icon' => 'layout-dashboard', 'label' => 'Dashboard'],
                 ['route' => 'pkm.jobwaiting', 'icon' => 'bell', 'label' => 'List Pekerjaan'],
-                ['route' => 'pkm.items.index', 'icon' => 'boxes', 'label' => 'Item Kebutuhan'],
-                ['route' => 'pkm.lhpp.index', 'icon' => 'file-text', 'label' => 'Buat LHPP'],
+                ['route' => 'pkm.lhpp.index', 'icon' => 'file-text', 'label' => 'Buat BAST/LHPP'],
                 ['route' => 'pkm.laporan', 'icon' => 'folder-open', 'label' => 'Dokumen'],
             ];
         @endphp
@@ -55,13 +54,13 @@
             ></div>
 
             <aside
-                class="fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-orange-800/30 bg-orange-600 shadow-sm transition-all duration-300"
+                class="fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-[#cb6b33]/35 bg-[#de773b] shadow-sm transition-all duration-300"
                 :class="[
                     (mobileOpen ? 'translate-x-0' : '-translate-x-full') + ' lg:translate-x-0',
                     sidebarOpen ? 'lg:w-72' : 'lg:w-20'
                 ]"
             >
-                <div class="sticky top-0 z-10 border-b border-orange-800/30 bg-orange-600">
+                <div class="sticky top-0 z-10 border-b border-[#cb6b33]/35 bg-[#de773b]">
                     <div class="flex items-center justify-between gap-3 px-4 py-4">
                         <div class="flex min-w-0 items-center gap-3">
                             <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white p-2 shadow-sm">
@@ -89,7 +88,7 @@
                             <input
                                 type="text"
                                 placeholder="Cari menu..."
-                                class="w-full rounded-xl border border-white/15 bg-white/10 py-2 pl-9 pr-3 text-sm text-white placeholder:text-white/50 focus:border-white/25 focus:outline-none focus:ring-2 focus:ring-white/25"
+                                class="w-full rounded-xl border border-white/20 bg-white/12 py-2 pl-9 pr-3 text-sm text-white placeholder:text-white/55 focus:border-white/30 focus:outline-none focus:ring-2 focus:ring-white/20"
                             >
                         </div>
                     </div>
@@ -100,9 +99,9 @@
                         @foreach ($pkmMenus as $menu)
                             <a
                                 href="{{ route($menu['route']) }}"
-                                class="group flex items-center gap-3 rounded-xl px-3 py-2.5 transition {{ request()->routeIs($menu['route']) ? 'bg-white text-orange-700 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
+                                class="group flex items-center gap-3 rounded-xl px-3 py-2.5 transition {{ request()->routeIs($menu['route']) ? 'bg-white text-[#c7612c] ring-1 ring-white/45' : 'text-white/95 hover:bg-white/12' }}"
                             >
-                                <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl transition {{ request()->routeIs($menu['route']) ? 'bg-orange-100 text-orange-700' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
+                                <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl transition {{ request()->routeIs($menu['route']) ? 'bg-[#fde9db] text-[#c7612c]' : 'bg-white/12 text-white/90 group-hover:bg-white/16' }}">
                                     <i data-lucide="{{ $menu['icon'] }}" class="h-5 w-5"></i>
                                 </span>
                                 <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="font-medium">{{ $menu['label'] }}</span>
@@ -111,16 +110,16 @@
                     </nav>
                 </div>
 
-                <div class="border-t border-white/10 p-3">
+                <div class="border-t border-white/12 p-3">
                     <div class="flex items-center gap-2 rounded-xl px-3 py-2 text-xs text-white/70">
                         <i data-lucide="sparkles" class="h-4 w-4"></i>
-                        <span x-show="sidebarOpen" x-transition.opacity.duration.200ms>Vendor • PKM</span>
+                        <span x-show="sidebarOpen" x-transition.opacity.duration.200ms>Vendor � PKM</span>
                     </div>
                 </div>
             </aside>
 
             <div class="min-h-screen transition-all duration-300" :class="sidebarOpen ? 'lg:pl-72' : 'lg:pl-20'">
-                <header class="sticky top-0 z-20 border-b border-orange-800/30 bg-orange-600">
+                <header class="sticky top-0 z-20 border-b border-[#cb6b33]/35 bg-[#de773b]">
                     <div class="flex items-center justify-between px-4 py-3 lg:px-6">
                         <div class="flex items-center gap-3">
                             <button
@@ -135,7 +134,7 @@
                                 <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-white p-1.5 shadow-sm">
                                     <img src="{{ $logoSig }}" alt="Logo SIG" class="max-h-full w-auto object-contain">
                                 </div>
-                                <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-700 p-1.5 ring-1 ring-white/10">
+                                <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-[#ca6127] p-1.5 ring-1 ring-white/12">
                                     <img src="{{ $logoSt }}" alt="Logo ST2" class="max-h-full w-auto object-contain">
                                 </div>
                             </div>
@@ -150,16 +149,16 @@
                             <div class="relative" @click.outside="profileOpen = false">
                                 <button
                                     @click="profileOpen = !profileOpen"
-                                    class="inline-flex items-center gap-3 rounded-xl bg-white px-3 py-2 text-orange-700 shadow-sm transition hover:bg-orange-50"
+                                    class="inline-flex items-center gap-3 rounded-xl bg-white/96 px-3 py-2 text-[#c7612c] shadow-sm transition hover:bg-[#fff7f2]"
                                 >
-                                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100 text-sm font-bold tracking-wide text-orange-700">
+                                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#fde9db] text-sm font-bold tracking-wide text-[#c7612c]">
                                         {{ $userInitials }}
                                     </span>
                                     <span class="hidden min-w-0 text-left sm:block">
                                         <span class="block truncate text-sm font-semibold">{{ $user?->name ?? 'Vendor' }}</span>
-                                        <span class="block text-xs text-orange-400">{{ strtoupper($user?->role ?? 'pkm') }}</span>
+                                        <span class="block text-xs text-[#d88858]">{{ strtoupper($user?->role ?? 'pkm') }}</span>
                                     </span>
-                                    <i data-lucide="chevron-down" class="h-4 w-4 text-orange-300"></i>
+                                    <i data-lucide="chevron-down" class="h-4 w-4 text-[#dd9b72]"></i>
                                 </button>
 
                                 <div

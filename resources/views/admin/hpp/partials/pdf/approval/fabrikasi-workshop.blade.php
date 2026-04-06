@@ -42,9 +42,24 @@
             @endforeach
         @endforeach
     </tr>
-    <tr>
-        <td colspan="{{ max(1, $columnCount) }}" class="approval-inline">
-            <span class="sig-initial">-</span>
-        </td>
-    </tr>
+    @if (($position ?? 'top') === 'top')
+        <tr>
+            <td class="approval-inline-cell"></td>
+        </tr>
+    @else
+        <tr>
+            @if($isOver)
+                <td class="approval-inline-cell"></td>
+            @endif
+            <td class="approval-inline-cell"></td>
+            <td class="approval-inline-cell">
+                <span class="sig-initial">{{ $controllerManagerInitial['label'] }}:</span>
+                @if($controllerManagerInitial['signature'])
+                    <img src="{{ $controllerManagerInitial['signature'] }}" alt="{{ $controllerManagerInitial['label'] }}" class="sig-inline">
+                @else
+                    <span class="sig-initial">{{ $controllerManagerInitial['value'] }}</span>
+                @endif
+            </td>
+        </tr>
+    @endif
 </table>

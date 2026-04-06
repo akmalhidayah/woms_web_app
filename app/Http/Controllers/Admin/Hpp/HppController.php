@@ -26,7 +26,7 @@ class HppController extends Controller
             ->with(['order:id,seksi', 'outlineAgreement:id,nomor_oa', 'unitWork:id,name'])
             ->search($search)
             ->when($status !== '', fn ($query) => $query->where('status', $status))
-            ->latest()
+            ->latest('id')
             ->get();
 
         return view('admin.hpp.index', [

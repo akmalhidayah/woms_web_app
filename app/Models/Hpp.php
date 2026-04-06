@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Hpp extends Model
 {
@@ -135,5 +136,15 @@ class Hpp extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function budgetVerification(): HasOne
+    {
+        return $this->hasOne(BudgetVerification::class);
+    }
+
+    public function purchaseOrder(): HasOne
+    {
+        return $this->hasOne(PurchaseOrder::class);
     }
 }

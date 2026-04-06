@@ -52,7 +52,7 @@
 
             @if ($orderOptions === [])
                 <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-700">
-                    Belum ada data order. Buat order pekerjaan dulu sebelum membuat HPP.
+                    Belum ada order yang memenuhi syarat HPP. Order harus berstatus Approved (Jasa) atau Approved (Workshop + Jasa), sudah punya dokumen Abnormalitas, Gambar Teknik, Scope of Work, dan belum pernah dibuatkan HPP.
                 </div>
             @endif
 

@@ -73,14 +73,16 @@ class AdminMenuRegistry
                 'label' => 'Verifikasi Anggaran',
                 'icon' => 'wallet',
                 'group' => 'main',
-                'href' => '#',
+                'route_name' => 'admin.budget-verification.index',
+                'active_patterns' => ['admin.budget-verification.*'],
             ],
             self::MENU_PURCHASE_ORDER => [
                 'key' => self::MENU_PURCHASE_ORDER,
                 'label' => 'Purchase Order',
                 'icon' => 'list-checks',
                 'group' => 'main',
-                'href' => '#',
+                'route_name' => 'admin.purchase-order.index',
+                'active_patterns' => ['admin.purchase-order.*'],
             ],
             self::MENU_LHPP_BAST => [
                 'key' => self::MENU_LHPP_BAST,

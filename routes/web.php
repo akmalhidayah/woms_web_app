@@ -1,11 +1,17 @@
 <?php
 
 use App\Http\Controllers\Admin\AccessControlController;
+use App\Http\Controllers\Admin\BudgetVerificationController;
 use App\Http\Controllers\Admin\Hpp\HppController;
 use App\Http\Controllers\Admin\InformationUploadController;
 use App\Http\Controllers\Admin\OutlineAgreementController;
+use App\Http\Controllers\Admin\Orders\OrderDocumentController;
+use App\Http\Controllers\Admin\Orders\OrderScopeOfWorkController;
+use App\Http\Controllers\Admin\PurchaseOrderController;
 use App\Http\Controllers\Admin\StructureOrganizationController;
 use App\Http\Controllers\Admin\UserPanelController;
+use App\Http\Controllers\Pkm\JobWaitingController;
+use App\Http\Controllers\Pkm\LhppController;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
@@ -55,6 +61,23 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('admin/upload-informasi/{informationUpload}', [InformationUploadController::class, 'destroy'])
         ->middleware(['role:admin', 'admin_menu:upload_informasi'])
         ->name('admin.information-upload.destroy');
+
+    Route::get('admin/verifikasi-anggaran', [BudgetVerificationController::class, 'index'])
+        ->middleware(['role:admin', 'admin_menu:verifikasi_anggaran'])
+        ->name('admin.budget-verification.index');
+    Route::patch('admin/verifikasi-anggaran/{hpp:nomor_order}', [BudgetVerificationController::class, 'update'])
+        ->middleware(['role:admin', 'admin_menu:verifikasi_anggaran'])
+        ->name('admin.budget-verification.update');
+
+    Route::get('admin/purchase-order', [PurchaseOrderController::class, 'index'])
+        ->middleware(['role:admin', 'admin_menu:purchase_order'])
+        ->name('admin.purchase-order.index');
+    Route::patch('admin/purchase-order/{hpp:nomor_order}', [PurchaseOrderController::class, 'update'])
+        ->middleware(['role:admin', 'admin_menu:purchase_order'])
+        ->name('admin.purchase-order.update');
+    Route::get('admin/purchase-order/{hpp:nomor_order}/document', [PurchaseOrderController::class, 'document'])
+        ->middleware(['role:admin', 'admin_menu:purchase_order'])
+        ->name('admin.purchase-order.document');
 
     Route::get('admin/outline-agreements', [OutlineAgreementController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:kuota_anggaran_oa'])
@@ -109,10 +132,24 @@ Route::middleware(['auth'])->group(function () {
         'pageDescription' => 'Ringkasan utama aktivitas vendor PKM dan status pekerjaan yang sedang berjalan.',
     ])->middleware('role:pkm')->name('pkm.dashboard');
 
-    Route::view('pkm/jobwaiting', 'dashboards.pkm', [
-        'pageTitle' => 'List Pekerjaan',
-        'pageDescription' => 'Placeholder frontend untuk daftar pekerjaan yang menunggu tindak lanjut vendor PKM.',
-    ])->middleware('role:pkm')->name('pkm.jobwaiting');
+    Route::get('pkm/jobwaiting', [JobWaitingController::class, 'index'])
+        ->middleware('role:pkm')
+        ->name('pkm.jobwaiting');
+    Route::patch('pkm/jobwaiting/{order}', [JobWaitingController::class, 'update'])
+        ->middleware('role:pkm')
+        ->name('pkm.jobwaiting.update');
+    Route::get('pkm/jobwaiting/{order}/documents/{document}/preview', [OrderDocumentController::class, 'preview'])
+        ->middleware('role:pkm')
+        ->name('pkm.jobwaiting.documents.preview');
+    Route::get('pkm/jobwaiting/{order}/scope-of-work/{scopeOfWork}/pdf', [OrderScopeOfWorkController::class, 'pdf'])
+        ->middleware('role:pkm')
+        ->name('pkm.jobwaiting.scope-of-work.pdf');
+    Route::get('pkm/jobwaiting/{hpp:nomor_order}/hpp', [HppController::class, 'pdf'])
+        ->middleware('role:pkm')
+        ->name('pkm.jobwaiting.hpp.pdf');
+    Route::get('pkm/jobwaiting/{hpp:nomor_order}/purchase-order', [PurchaseOrderController::class, 'document'])
+        ->middleware('role:pkm')
+        ->name('pkm.jobwaiting.purchase-order.document');
 
     Route::view('pkm/items', 'dashboards.pkm', [
         'pageTitle' => 'Item Kebutuhan',
@@ -120,9 +157,12 @@ Route::middleware(['auth'])->group(function () {
     ])->middleware('role:pkm')->name('pkm.items.index');
 
     Route::view('pkm/lhpp', 'dashboards.pkm', [
-        'pageTitle' => 'Buat LHPP',
-        'pageDescription' => 'Placeholder frontend untuk pembuatan LHPP dan dokumen pendukung pekerjaan.',
+        'pageTitle' => 'BAST / LHPP',
+        'pageDescription' => 'Monitoring laporan hasil pekerjaan dan dokumen BAST/LHPP PKM.',
     ])->middleware('role:pkm')->name('pkm.lhpp.index');
+    Route::get('pkm/lhpp/create', [LhppController::class, 'create'])
+        ->middleware('role:pkm')
+        ->name('pkm.lhpp.create');
 
     Route::view('pkm/laporan', 'dashboards.pkm', [
         'pageTitle' => 'Dokumen',
@@ -151,8 +191,8 @@ Route::prefix('admin/hpp')
     ->group(function () {
         Route::get('/', [HppController::class, 'index'])->name('index');
         Route::get('/create', [HppController::class, 'create'])->name('create');
-        Route::get('/{hpp}/pdf', [HppController::class, 'pdf'])->name('pdf');
-        Route::get('/{hpp}/edit', [HppController::class, 'edit'])->name('edit');
+        Route::get('/{hpp:nomor_order}/pdf', [HppController::class, 'pdf'])->name('pdf');
+        Route::get('/{hpp:nomor_order}/edit', [HppController::class, 'edit'])->name('edit');
         Route::post('/', [HppController::class, 'store'])->name('store');
         Route::put('/{hpp}', [HppController::class, 'update'])->name('update');
         Route::delete('/{hpp}', [HppController::class, 'destroy'])->name('destroy');

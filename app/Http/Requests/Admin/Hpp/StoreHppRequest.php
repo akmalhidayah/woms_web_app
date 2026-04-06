@@ -2,6 +2,10 @@
 
 namespace App\Http\Requests\Admin\Hpp;
 
+use App\Domain\Orders\Enums\OrderDocumentType;
+use App\Domain\Orders\Enums\OrderUserNoteStatus;
+use App\Models\Hpp;
+use App\Models\Order;
 use App\Support\HppApprovalFlow;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -34,9 +38,56 @@ class StoreHppRequest extends FormRequest
      */
     public function rules(): array
     {
+        /** @var Hpp|null $hpp */
+        $hpp = $this->route('hpp');
+
         return [
             'action' => ['required', Rule::in(['draft', 'submit'])],
-            'order_id' => ['required', 'integer', 'exists:orders,id'],
+            'order_id' => [
+                'required',
+                'integer',
+                'exists:orders,id',
+                Rule::unique('hpps', 'order_id')->ignore($hpp?->id),
+                function (string $attribute, mixed $value, \Closure $fail) use ($hpp): void {
+                    if ($hpp?->exists) {
+                        return;
+                    }
+
+                    $order = Order::query()
+                        ->with(['documents:id,order_id,jenis_dokumen', 'scopeOfWork:id,order_id'])
+                        ->find($value);
+
+                    if (! $order) {
+                        return;
+                    }
+
+                    if (! in_array($order->catatan_status?->value, [
+                        OrderUserNoteStatus::ApprovedJasa->value,
+                        OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+                    ], true)) {
+                        $fail('Order untuk HPP hanya bisa dipilih dari status Approved (Jasa) atau Approved (Workshop + Jasa).');
+
+                        return;
+                    }
+
+                    $documentTypes = $order->documents
+                        ->pluck('jenis_dokumen')
+                        ->map(fn ($type) => $type instanceof OrderDocumentType ? $type->value : (string) $type)
+                        ->all();
+
+                    if (! in_array(OrderDocumentType::Abnormalitas->value, $documentTypes, true)) {
+                        $fail('Order belum memiliki dokumen Abnormalitas.');
+                    }
+
+                    if (! in_array(OrderDocumentType::GambarTeknik->value, $documentTypes, true)) {
+                        $fail('Order belum memiliki dokumen Gambar Teknik.');
+                    }
+
+                    if (! $order->scopeOfWork) {
+                        $fail('Order belum memiliki Scope of Work.');
+                    }
+                },
+            ],
             'outline_agreement_id' => ['required', 'integer', 'exists:outline_agreements,id'],
             'kategori_pekerjaan' => ['required', Rule::in(HppApprovalFlow::kategoriOptions())],
             'area_pekerjaan' => ['required', Rule::in(array_keys(HppApprovalFlow::areaOptions()))],
@@ -51,6 +102,13 @@ class StoreHppRequest extends FormRequest
             'harga_satuan' => ['nullable', 'array'],
             'harga_total' => ['nullable', 'array'],
             'keterangan' => ['nullable', 'array'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'order_id.unique' => 'Order ini sudah dibuatkan HPP. Hapus HPP lama terlebih dahulu jika ingin membuat ulang.',
         ];
     }
 }

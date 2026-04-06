@@ -2,10 +2,13 @@
 
 namespace App\Livewire\Admin\Hpp;
 
+use App\Domain\Orders\Enums\OrderDocumentType;
+use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\Hpp;
 use App\Models\Order;
 use App\Models\OutlineAgreement;
 use App\Support\HppApprovalFlow;
+use Illuminate\Database\Eloquent\Builder;
 use Livewire\Component;
 
 class CreateHppForm extends Component
@@ -20,6 +23,18 @@ class CreateHppForm extends Component
     public function render()
     {
         $orders = Order::query()
+            ->when(
+                $this->hpp?->exists,
+                fn ($query) => $query->where(function ($builder) {
+                    $builder
+                        ->whereKey($this->hpp?->order_id)
+                        ->orWhere(function (Builder $eligibleQuery) {
+                            $this->applyEligibleOrderConstraints($eligibleQuery);
+                            $eligibleQuery->doesntHave('hpps');
+                        });
+                }),
+                fn ($query) => $this->applyEligibleOrderConstraints($query)->doesntHave('hpps'),
+            )
             ->orderByDesc('tanggal_order')
             ->orderByDesc('id')
             ->get(['id', 'nomor_order', 'nama_pekerjaan', 'unit_kerja', 'seksi']);
@@ -152,5 +167,17 @@ class CreateHppForm extends Component
             })
             ->values()
             ->all();
+    }
+
+    private function applyEligibleOrderConstraints(Builder $query): Builder
+    {
+        return $query
+            ->whereIn('catatan_status', [
+                OrderUserNoteStatus::ApprovedJasa->value,
+                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+            ])
+            ->whereHas('documents', fn (Builder $documentQuery) => $documentQuery->where('jenis_dokumen', OrderDocumentType::Abnormalitas->value))
+            ->whereHas('documents', fn (Builder $documentQuery) => $documentQuery->where('jenis_dokumen', OrderDocumentType::GambarTeknik->value))
+            ->whereHas('scopeOfWork');
     }
 }

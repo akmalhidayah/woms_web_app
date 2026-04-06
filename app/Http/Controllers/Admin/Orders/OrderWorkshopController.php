@@ -39,7 +39,7 @@ class OrderWorkshopController extends Controller
                 $query->whereHas('orderWorkshop', fn ($builder) => $builder->where('progress_status', $progress));
             })
             ->when($regu !== '', fn ($query) => $query->where('catatan', $regu))
-            ->latest('tanggal_order')
+            ->latest('id')
             ->paginate($perPage)
             ->withQueryString();
 

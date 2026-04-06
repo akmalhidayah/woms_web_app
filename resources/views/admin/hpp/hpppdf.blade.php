@@ -77,6 +77,7 @@
         .approval-signature {
             height: 54px;
             vertical-align: bottom;
+            border-bottom: none !important;
         }
 
         .approval-name {
@@ -84,12 +85,20 @@
             vertical-align: bottom;
             font-size: 10px;
             font-weight: bold;
+            border-top: none !important;
         }
 
         .approval-inline {
             font-size: 9px;
             text-align: right;
             white-space: nowrap;
+        }
+
+        .approval-inline-cell {
+            font-size: 9px;
+            text-align: center;
+            white-space: nowrap;
+            padding: 4px;
         }
 
         .placeholder-line {
@@ -212,6 +221,7 @@
     </style>
 </head>
 @php
+    use App\Models\UnitWork;
     use Illuminate\Support\Facades\Storage;
 
     $order = $hpp->order;
@@ -301,8 +311,16 @@
     $unitKerjaPengendali = $outlineAgreement?->jenis_kontrak ?: ($hpp->unit_kerja_pengendali ?: '-');
     $unitPemintaLabel = $hpp->unit_kerja ?: '-';
     $unitPengendaliLabel = $hpp->unit_kerja_pengendali ?: '-';
+    $requestingUnit = $hpp->unit_kerja
+        ? UnitWork::query()
+            ->with('department:id,name')
+            ->where('name', $hpp->unit_kerja)
+            ->first()
+        : null;
+    $requestingDepartmentLabel = $requestingUnit?->department?->name ?: $unitPemintaLabel;
+    $controllingDepartmentLabel = $outlineAgreement?->unitWork?->department?->name ?: $unitPengendaliLabel;
     $periodeOA = $hpp->periode_outline_agreement ?: '-';
-    $requestingNotes = $order?->catatan ? [$order->catatan] : [];
+    $requestingNotes = [];
     $controllingNotes = [];
     $creatorName = $hpp->creator?->name ?: 'N/A';
     $requestingInitials = $initials($hpp->creator?->name);
@@ -334,6 +352,7 @@
         ?: HppApprovalFlow::resolvePreviewCase($hpp->kategori_pekerjaan, $hpp->area_pekerjaan, $hpp->nilai_hpp_bucket)
         ?: '';
 
+    /*
     $caseBanner = match ($approvalCase) {
         'KONS-DALAM-UNDER250' => 'FORM PEKERJAAN KONSTRUKSI < 250 JT USER T.2,3,4&5, PELABUHAN BIRINGKASSI & PACKING PLANT',
         'KONS-DALAM-OVER250' => 'FORM PEKERJAAN KONSTRUKSI > 250 JT USER T.2,3,4&5, PELABUHAN BIRINGKASSI & PACKING PLANT',
@@ -347,6 +366,7 @@
         'KONS-LUAR-OVER250' => 'FORM PEKERJAAN KONSTRUKSI BTG & CUS > 250 JT',
         default => 'FORM HARGA PERKIRAAN PERANCANG (HPP)',
     };
+    */
 
     $requesterManagerInitial = [
         'label' => 'Manager Peminta',
@@ -367,9 +387,9 @@
     $plannerControlCell = $buildApprovalCell('SM of P.Plant Machine Maint.', null, '-', 'N/A');
     $counterPartCell = $buildApprovalCell('SM of Reliability Maintenance', null, '-', 'N/A');
     $directorCell = $buildApprovalCell('Director of Operation', $SIG_DIR, $DT_DIR, 'N/A');
-    $gmControllerCell = $buildApprovalCell('GM of '.$unitPengendaliLabel, $SIG_GM, $DT_GM, 'N/A');
+    $gmControllerCell = $buildApprovalCell('GM of '.$controllingDepartmentLabel, $SIG_GM, $DT_GM, 'N/A');
     $smControllerCell = $buildApprovalCell('SM of '.$unitPengendaliLabel, $SIG_SM, $DT_SM, 'N/A');
-    $gmRequesterCell = $buildApprovalCell('GM of '.$unitPemintaLabel, $SIG_REQ_GM, $DT_REQ_GM, 'N/A');
+    $gmRequesterCell = $buildApprovalCell('GM of '.$requestingDepartmentLabel, $SIG_REQ_GM, $DT_REQ_GM, 'N/A');
     $smRequesterCell = $buildApprovalCell('SM of '.$unitPemintaLabel, $SIG_REQ_SM, $DT_REQ_SM, 'N/A');
     $managerRequesterCell = $buildApprovalCell('Mgr of '.$unitPemintaLabel, $SIG_REQ_MG, '-', 'N/A');
 
@@ -429,7 +449,7 @@
 @endphp
 <body>
 <div class="container">
-    <div class="case-banner">{{ $caseBanner }}</div>
+    {{-- <div class="case-banner">{{ $caseBanner }}</div> --}}
 
     <table class="no-border">
         <tr>

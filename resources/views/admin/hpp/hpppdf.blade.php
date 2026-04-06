@@ -22,6 +22,17 @@
             padding: 2px;
         }
 
+        .case-banner {
+            margin-bottom: 8px;
+            border: 1px solid #000;
+            background: #ff1c12;
+            color: #000;
+            font-size: 16px;
+            text-align: center;
+            padding: 8px 12px;
+            text-transform: uppercase;
+        }
+
         table {
             width: 98%;
             border-collapse: collapse;
@@ -35,6 +46,57 @@
         .no-border td, .no-border th {
             border: none !important;
             padding: 5px;
+        }
+
+        .approval-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .approval-table td,
+        .approval-table th {
+            border: 1px solid #000;
+            padding: 4px;
+            text-align: center;
+        }
+
+        .approval-group-title {
+            background: #e6f0db;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .approval-role {
+            font-weight: bold;
+            font-size: 10px;
+            line-height: 1.2;
+            min-height: 28px;
+        }
+
+        .approval-signature {
+            height: 54px;
+            vertical-align: bottom;
+        }
+
+        .approval-name {
+            height: 28px;
+            vertical-align: bottom;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .approval-inline {
+            font-size: 9px;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .placeholder-line {
+            display: inline-block;
+            min-width: 88px;
+            border-bottom: 1px dotted #000;
+            height: 12px;
         }
 
         .table-hpp {
@@ -115,6 +177,38 @@
             margin-right: 4px;
             vertical-align: middle;
         }
+
+        .sig-box > img {
+            bottom: -6px;
+            height: auto;
+            max-height: 54px;
+            max-width: 95%;
+        }
+
+        .sig-fallback {
+            font-size: 14px;
+            bottom: 2px;
+        }
+
+        .sig-date {
+            font-size: 8px;
+            margin: 0 0 2px 0;
+        }
+
+        .sig-inline {
+            height: 14px;
+            margin-left: 4px;
+            margin-right: 0;
+        }
+
+        .sig-initial {
+            margin-right: 0;
+        }
+
+        .notes-cell {
+            height: 120px;
+            font-size: 9px;
+        }
     </style>
 </head>
 @php
@@ -190,6 +284,15 @@
         return null;
     };
 
+    $buildApprovalCell = function (string $title, ?string $signaturePath = null, string $date = '-', string $name = 'N/A'): array {
+        return [
+            'title' => $title,
+            'signature' => $signaturePath,
+            'date' => $date,
+            'name' => $name,
+        ];
+    };
+
     $nomorOrder = $hpp->nomor_order ?: '-';
     $deskripsi = $order?->deskripsi ?: ($hpp->nama_pekerjaan ?: '-');
     $costCentre = $hpp->cost_centre ?: '-';
@@ -226,6 +329,61 @@
         'assets/branding/logos/logo-st.png',
         'assets/branding/logos/logo-st.jpg',
     ]);
+
+    $approvalCase = $hpp->approval_case
+        ?: HppApprovalFlow::resolvePreviewCase($hpp->kategori_pekerjaan, $hpp->area_pekerjaan, $hpp->nilai_hpp_bucket)
+        ?: '';
+
+    $caseBanner = match ($approvalCase) {
+        'KONS-DALAM-UNDER250' => 'FORM PEKERJAAN KONSTRUKSI < 250 JT USER T.2,3,4&5, PELABUHAN BIRINGKASSI & PACKING PLANT',
+        'KONS-DALAM-OVER250' => 'FORM PEKERJAAN KONSTRUKSI > 250 JT USER T.2,3,4&5, PELABUHAN BIRINGKASSI & PACKING PLANT',
+        'FAB-WORKSHOP-UNDER250' => 'FORM PEKERJAAN FABRIKASI & BUBUTAN < 250 JT USER UNIT WORKSHOP',
+        'FAB-WORKSHOP-OVER250' => 'FORM PEKERJAAN FABRIKASI & BUBUTAN > 250 JT USER UNIT WORKSHOP',
+        'FAB-DALAM-UNDER250' => 'FORM PEKERJAAN FABRIKASI (PLATE WORK & MACHINING) < 250 JT USER T.23,4,5, PELABUHAN BKS & PACKING PLANT',
+        'FAB-DALAM-OVER250' => 'FORM PEKERJAAN FABRIKASI (PLATE WORK & MACHINING) > 250 JT USER T.23,4,5, PELABUHAN BKS & PACKING PLANT',
+        'FAB-LUAR-UNDER250' => 'FORM PEKERJAAN FABRIKASI & BUBUTAN < 250 JT',
+        'FAB-LUAR-OVER250' => 'FORM PEKERJAAN FABRIKASI & BUBUTAN > 250 JT',
+        'KONS-LUAR-UNDER250' => 'FORM PEKERJAAN KONSTRUKSI BTG & CUS < 250 JT',
+        'KONS-LUAR-OVER250' => 'FORM PEKERJAAN KONSTRUKSI BTG & CUS > 250 JT',
+        default => 'FORM HARGA PERKIRAAN PERANCANG (HPP)',
+    };
+
+    $requesterManagerInitial = [
+        'label' => 'Manager Peminta',
+        'signature' => $SIG_REQ_MG,
+        'value' => $initials($creatorName),
+    ];
+    $controllerManagerInitial = [
+        'label' => 'Manager Pengendali',
+        'signature' => $SIG_MG,
+        'value' => 'N/A',
+    ];
+    $counterPartManagerInitial = [
+        'label' => 'Manager Counter Part',
+        'signature' => null,
+        'value' => 'N/A',
+    ];
+
+    $plannerControlCell = $buildApprovalCell('SM of P.Plant Machine Maint.', null, '-', 'N/A');
+    $counterPartCell = $buildApprovalCell('SM of Reliability Maintenance', null, '-', 'N/A');
+    $directorCell = $buildApprovalCell('Director of Operation', $SIG_DIR, $DT_DIR, 'N/A');
+    $gmControllerCell = $buildApprovalCell('GM of '.$unitPengendaliLabel, $SIG_GM, $DT_GM, 'N/A');
+    $smControllerCell = $buildApprovalCell('SM of '.$unitPengendaliLabel, $SIG_SM, $DT_SM, 'N/A');
+    $gmRequesterCell = $buildApprovalCell('GM of '.$unitPemintaLabel, $SIG_REQ_GM, $DT_REQ_GM, 'N/A');
+    $smRequesterCell = $buildApprovalCell('SM of '.$unitPemintaLabel, $SIG_REQ_SM, $DT_REQ_SM, 'N/A');
+    $managerRequesterCell = $buildApprovalCell('Mgr of '.$unitPemintaLabel, $SIG_REQ_MG, '-', 'N/A');
+
+    $approvalFamily = match (true) {
+        str_starts_with($approvalCase, 'FAB-DALAM') => 'fabrikasi-dalam',
+        str_starts_with($approvalCase, 'FAB-WORKSHOP') => 'fabrikasi-workshop',
+        str_starts_with($approvalCase, 'FAB-LUAR') => 'fabrikasi-luar',
+        str_starts_with($approvalCase, 'KONS-DALAM') => 'konstruksi-dalam',
+        str_starts_with($approvalCase, 'KONS-LUAR') => 'konstruksi-luar',
+        default => 'fabrikasi-dalam',
+    };
+
+    $approvalPartial = 'admin.hpp.partials.pdf.approval.'.$approvalFamily;
+    $isOver = str_contains($approvalCase, 'OVER250');
 
     $groupsByJenis = [];
     $itemGroups = is_array($hpp->item_groups) ? $hpp->item_groups : [];
@@ -271,6 +429,8 @@
 @endphp
 <body>
 <div class="container">
+    <div class="case-banner">{{ $caseBanner }}</div>
+
     <table class="no-border">
         <tr>
             <td style="width: 20%; text-align: left;">
@@ -331,68 +491,8 @@
                 </table>
             </td>
 
-            <td style="width: 18%; vertical-align: top; padding: 4px; border-left: 1px solid black;">
-                <div style="border: 1px solid black; padding: 4px;">
-                    <div style="text-align: center; font-weight: bold; border-bottom: 1px solid black; padding-bottom: 4px;">
-                        FUNGSI PEMINTA
-                    </div>
-
-                    <table style="width: 100%; border-collapse: collapse; text-align: center;">
-                        <tr>
-                            <td style="width: 50%; border-right: 1px solid black; padding: 4px;">
-                                <strong>GM Of</strong><br>
-                                <span style="font-size: 10px;">{{ $unitPemintaLabel }}</span>
-                            </td>
-                            <td style="width: 50%; padding: 4px;">
-                                <strong>SM Of</strong><br>
-                                <span style="font-size: 10px;">{{ $unitPemintaLabel }}</span>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td style="border-right: 1px solid black; padding: 4px; text-align: center; vertical-align: bottom;">
-                                <div class="sig-box">
-                                    <div class="sig-date">{{ $DT_REQ_GM }}</div>
-                                    @if($SIG_REQ_GM)
-                                        <img src="{{ $SIG_REQ_GM }}" alt="TTD GM Peminta">
-                                    @else
-                                        <strong class="sig-fallback">TTD</strong>
-                                    @endif
-                                </div>
-                            </td>
-                            <td style="padding: 4px; text-align: center; vertical-align: bottom;">
-                                <div class="sig-box">
-                                    <div class="sig-date">{{ $DT_REQ_SM }}</div>
-                                    @if($SIG_REQ_SM)
-                                        <img src="{{ $SIG_REQ_SM }}" alt="TTD SM Peminta">
-                                    @else
-                                        <strong class="sig-fallback">TTD</strong>
-                                    @endif
-                                </div>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td style="border-right: 1px solid black; border-bottom: 1px solid black; padding: 4px; font-size: 10px;">
-                                <strong>N/A</strong>
-                            </td>
-                            <td style="border-bottom: 1px solid black; padding: 4px; font-size: 10px;">
-                                <strong>N/A</strong>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td colspan="3" style="border-top: 1px solid #000; border-bottom: 1px solid #000; text-align: right; padding: 2px 4px; vertical-align: middle;">
-                                <strong class="sig-initial">{{ $requestingInitials }} /</strong>
-                                @if($SIG_REQ_MG)
-                                    <img src="{{ $SIG_REQ_MG }}" alt="Manager Signature" class="sig-inline">
-                                @else
-                                    <strong style="font-size: 9px; vertical-align: middle;">TTD</strong>
-                                @endif
-                            </td>
-                        </tr>
-                    </table>
-                </div>
+            <td style="width: 40%; vertical-align: top; padding: 0; border-left: 1px solid black;">
+                @include($approvalPartial, ['position' => 'top'])
             </td>
         </tr>
     </table>
@@ -478,7 +578,7 @@
 
     <table style="width: 100%; border: 1px solid black; border-collapse: collapse;">
         <tr>
-            <td style="width: 28%; border: 1px solid black; vertical-align: top; padding: 8px;">
+            <td class="notes-cell" style="width: 28%; border: 1px solid black; vertical-align: top; padding: 8px;">
                 <strong>Catatan User Peminta:</strong><br>
                 @if(!empty($requestingNotes))
                     @foreach($requestingNotes as $i => $note)
@@ -492,7 +592,7 @@
                 @endif
             </td>
 
-            <td style="width: 28%; border: 1px solid black; vertical-align: top; padding: 8px;">
+            <td class="notes-cell" style="width: 28%; border: 1px solid black; vertical-align: top; padding: 8px;">
                 <strong>Catatan Pengendali:</strong><br>
                 @if(!empty($controllingNotes))
                     @foreach($controllingNotes as $i => $note)
@@ -506,87 +606,8 @@
                 @endif
             </td>
 
-            <td style="width: 50%; border: 1px solid black;">
-                <table style="width: 100%; border-collapse: collapse; border: 1px solid black;">
-                    <tr>
-                        <td style="width: 40%; border-right: 1px solid black; border-bottom: 1px solid black; font-weight: bold; font-style: italic; text-align: center; padding: 6px;">Menyetujui</td>
-                        <td colspan="2" style="width: 60%; border-bottom: 1px solid black; font-weight: bold; font-style: italic; text-align: center; padding: 6px;">FUNGSI PENGENDALI</td>
-                    </tr>
-                    <tr>
-                        <td style="width: 33%; border-right: 1px solid black; text-align: center; padding: 10px 6px;">
-                            <strong>Director</strong> of Operation
-                        </td>
-                        <td style="width: 34%; border-right: 1px solid black; text-align: center; padding: 10px 6px;">
-                            <strong>GM of</strong> {{ $unitPengendaliLabel }}
-                        </td>
-                        <td style="width: 33%; text-align: center; padding: 10px 6px;">
-                            <strong>SM of</strong> {{ $unitPengendaliLabel }}
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="width: 33%; border-right: 1px solid black; padding: 6px; font-size: 10px; text-align: right; vertical-align: top; color: #333;">
-                            {{ $DT_DIR }}
-                        </td>
-                        <td style="width: 34%; border-right: 1px solid black; padding: 6px; font-size: 10px; text-align: right; vertical-align: top; color: #333;">
-                            {{ $DT_GM }}
-                        </td>
-                        <td style="width: 33%; padding: 6px; font-size: 10px; text-align: right; vertical-align: top; color: #333;">
-                            {{ $DT_SM }}
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="width: 33%; border-right: 1px solid black; vertical-align: bottom; text-align: center; padding: 12px 6px;">
-                            <div class="sig-box">
-                                @if($SIG_DIR)
-                                    <img src="{{ $SIG_DIR }}" alt="Director Signature">
-                                @else
-                                    <strong class="sig-fallback">TTD</strong>
-                                @endif
-                            </div>
-                        </td>
-                        <td style="width: 34%; border-right: 1px solid black; vertical-align: bottom; text-align: center; padding: 12px 6px;">
-                            <div class="sig-box">
-                                @if($SIG_GM)
-                                    <img src="{{ $SIG_GM }}" alt="GM Signature">
-                                @else
-                                    <strong class="sig-fallback">TTD</strong>
-                                @endif
-                            </div>
-                        </td>
-                        <td style="width: 33%; vertical-align: bottom; text-align: center; padding: 12px 6px;">
-                            <div class="sig-box">
-                                @if($SIG_SM)
-                                    <img src="{{ $SIG_SM }}" alt="SM Signature">
-                                @else
-                                    <strong class="sig-fallback">TTD</strong>
-                                @endif
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="width: 33%; border-right: 1px solid black; border-bottom: 1px solid black; text-align: center; padding: 6px;">
-                            <strong>N/A</strong>
-                        </td>
-                        <td style="width: 34%; border-right: 1px solid black; border-bottom: 1px solid black; text-align: center; padding: 6px;">
-                            <strong>N/A</strong>
-                        </td>
-                        <td style="width: 33%; border-bottom: 1px solid black; text-align: center; padding: 6px;">
-                            <strong>N/A</strong>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td colspan="3" style="border-top: 1px solid #000; border-bottom: 1px solid #000; text-align: right; padding: 2px 4px; vertical-align: middle;">
-                            <div style="position: relative; display: inline-block; width: 100%;">
-                                <strong class="sig-initial">{{ $controllingInitials }} /</strong>
-                                @if($SIG_MG)
-                                    <img src="{{ $SIG_MG }}" alt="Manager Signature" class="sig-inline">
-                                @else
-                                    <strong style="font-size: 9px; vertical-align: middle;">TTD</strong>
-                                @endif
-                            </div>
-                        </td>
-                    </tr>
-                </table>
+            <td style="width: 50%; border: 1px solid black; padding: 0;">
+                @include($approvalPartial, ['position' => 'bottom'])
             </td>
         </tr>
     </table>

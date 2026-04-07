@@ -86,17 +86,19 @@ class AdminMenuRegistry
             ],
             self::MENU_LHPP_BAST => [
                 'key' => self::MENU_LHPP_BAST,
-                'label' => 'LHPP / BAST',
+                'label' => 'BAST',
                 'icon' => 'file-text',
                 'group' => 'main',
-                'href' => '#',
+                'route_name' => 'admin.lhpp.index',
+                'active_patterns' => ['admin.lhpp.*'],
             ],
             self::MENU_LPJ_PPL => [
                 'key' => self::MENU_LPJ_PPL,
                 'label' => 'LPJ / PPL',
                 'icon' => 'folder-open',
                 'group' => 'main',
-                'href' => '#',
+                'route_name' => 'admin.lpj.index',
+                'active_patterns' => ['admin.lpj.*'],
             ],
             self::MENU_GARANSI => [
                 'key' => self::MENU_GARANSI,

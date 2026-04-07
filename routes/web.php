@@ -4,6 +4,8 @@ use App\Http\Controllers\Admin\AccessControlController;
 use App\Http\Controllers\Admin\BudgetVerificationController;
 use App\Http\Controllers\Admin\Hpp\HppController;
 use App\Http\Controllers\Admin\InformationUploadController;
+use App\Http\Controllers\Admin\LhppController as AdminLhppController;
+use App\Http\Controllers\Admin\LpjPplController;
 use App\Http\Controllers\Admin\OutlineAgreementController;
 use App\Http\Controllers\Admin\Orders\OrderDocumentController;
 use App\Http\Controllers\Admin\Orders\OrderScopeOfWorkController;
@@ -78,6 +80,23 @@ Route::middleware(['auth'])->group(function () {
     Route::get('admin/purchase-order/{hpp:nomor_order}/document', [PurchaseOrderController::class, 'document'])
         ->middleware(['role:admin', 'admin_menu:purchase_order'])
         ->name('admin.purchase-order.document');
+
+    Route::get('admin/lhpp', [AdminLhppController::class, 'index'])
+        ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
+        ->name('admin.lhpp.index');
+    Route::patch('admin/lhpp/{lhpp}/quality-control', [AdminLhppController::class, 'updateQualityControl'])
+        ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
+        ->name('admin.lhpp.quality-control');
+    Route::get('admin/lhpp/{lhpp}/pdf', [AdminLhppController::class, 'pdf'])
+        ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
+        ->name('admin.lhpp.pdf');
+
+    Route::get('admin/lpj', [LpjPplController::class, 'index'])
+        ->middleware(['role:admin', 'admin_menu:lpj_ppl'])
+        ->name('admin.lpj.index');
+    Route::patch('admin/lpj/{lhpp}', [LpjPplController::class, 'update'])
+        ->middleware(['role:admin', 'admin_menu:lpj_ppl'])
+        ->name('admin.lpj.update');
 
     Route::get('admin/outline-agreements', [OutlineAgreementController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:kuota_anggaran_oa'])
@@ -156,13 +175,30 @@ Route::middleware(['auth'])->group(function () {
         'pageDescription' => 'Placeholder frontend untuk item kebutuhan, material, dan komponen pekerjaan.',
     ])->middleware('role:pkm')->name('pkm.items.index');
 
-    Route::view('pkm/lhpp', 'dashboards.pkm', [
-        'pageTitle' => 'BAST / LHPP',
-        'pageDescription' => 'Monitoring laporan hasil pekerjaan dan dokumen BAST/LHPP PKM.',
-    ])->middleware('role:pkm')->name('pkm.lhpp.index');
+    Route::get('pkm/lhpp', [LhppController::class, 'index'])
+        ->middleware('role:pkm')
+        ->name('pkm.lhpp.index');
     Route::get('pkm/lhpp/create', [LhppController::class, 'create'])
         ->middleware('role:pkm')
         ->name('pkm.lhpp.create');
+    Route::get('pkm/lhpp/{lhpp}/edit', [LhppController::class, 'edit'])
+        ->middleware('role:pkm')
+        ->name('pkm.lhpp.edit');
+    Route::post('pkm/lhpp/calculate', [LhppController::class, 'calculate'])
+        ->middleware('role:pkm')
+        ->name('pkm.lhpp.calculate');
+    Route::post('pkm/lhpp', [LhppController::class, 'store'])
+        ->middleware('role:pkm')
+        ->name('pkm.lhpp.store');
+    Route::patch('pkm/lhpp/{lhpp}', [LhppController::class, 'update'])
+        ->middleware('role:pkm')
+        ->name('pkm.lhpp.update');
+    Route::delete('pkm/lhpp/{lhpp}', [LhppController::class, 'destroy'])
+        ->middleware('role:pkm')
+        ->name('pkm.lhpp.destroy');
+    Route::get('pkm/lhpp/{lhpp}/pdf', [LhppController::class, 'pdf'])
+        ->middleware('role:pkm')
+        ->name('pkm.lhpp.pdf');
 
     Route::view('pkm/laporan', 'dashboards.pkm', [
         'pageTitle' => 'Dokumen',

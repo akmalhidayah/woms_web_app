@@ -14,6 +14,8 @@ return new class extends Migration
         Schema::create('lhpp_basts', function (Blueprint $table) {
             $table->id();
             $table->foreignId('order_id')->constrained()->cascadeOnDelete();
+            $table->string('termin_type', 20)->default('termin_1')->index();
+            $table->foreignId('parent_lhpp_bast_id')->nullable()->constrained('lhpp_basts')->nullOnDelete();
             $table->foreignId('hpp_id')->nullable()->constrained('hpps')->nullOnDelete();
             $table->foreignId('purchase_order_id')->nullable()->constrained('purchase_orders')->nullOnDelete();
             $table->string('nomor_order')->index();
@@ -39,6 +41,8 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
+
+            $table->unique(['order_id', 'termin_type'], 'lhpp_basts_order_termin_unique');
         });
     }
 

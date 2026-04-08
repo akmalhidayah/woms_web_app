@@ -110,6 +110,7 @@
                                 @php
                                     $t1 = $row->termin1_status ?? null;
                                     $t2 = $row->termin2_status ?? null;
+                                    $terminTwo = $row->terminTwo;
 
                                     $hasUserSign = ! empty($row->manager_signature_requesting) || ! empty($row->manager_signature_requesting_user_id);
                                     $hasWsSign = ! empty($row->manager_signature) || ! empty($row->manager_signature_user_id);
@@ -158,9 +159,14 @@
                                     }
                                     $totalBiaya = (float) ($row->total_aktual_biaya ?? 0);
                                     $termin1Paid = $t1 === 'sudah';
+                                    $termin2Paid = $t2 === 'sudah';
                                     $termin1Amount = $termin1Paid
-                                        ? (int) round($totalBiaya * 0.95)
+                                        ? (float) ($row->termin_1_nilai ?? round($totalBiaya * 0.95))
                                         : null;
+                                    $termin2Amount = $termin2Paid
+                                        ? (float) ($row->termin_2_nilai ?? round($totalBiaya * 0.05))
+                                        : null;
+                                    $terminTwoExists = filled($terminTwo?->id);
                                 @endphp
 
                                 <tr class="transition hover:bg-slate-50">
@@ -194,6 +200,11 @@
                                         @if (! is_null($termin1Amount))
                                             <div class="mt-1 text-[10px] font-medium text-emerald-600">
                                                 Termin 1: Rp {{ number_format($termin1Amount, 0, ',', '.') }}
+                                            </div>
+                                        @endif
+                                        @if (! is_null($termin2Amount))
+                                            <div class="mt-1 text-[10px] font-medium text-sky-600">
+                                                Termin 2: Rp {{ number_format($termin2Amount, 0, ',', '.') }}
                                             </div>
                                         @endif
                                     </td>
@@ -252,13 +263,13 @@
                                             </div>
 
                                             <div x-show="selectedTerm === 'termin_1'" class="flex items-center justify-center gap-1">
-                                                <a href="{{ route('pkm.lhpp.edit', $row) }}" class="pkm-lhpp-action-btn bg-emerald-500 hover:bg-emerald-600" title="Edit LHPP">
+                                                <a href="{{ route('pkm.lhpp.edit', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" class="pkm-lhpp-action-btn bg-emerald-500 hover:bg-emerald-600" title="Edit LHPP">
                                                     <i data-lucide="square-pen" class="h-3.5 w-3.5"></i>
                                                 </a>
-                                                <a href="{{ route('pkm.lhpp.pdf', $row) }}" target="_blank" rel="noopener noreferrer" class="pkm-lhpp-action-btn bg-blue-500 hover:bg-blue-600" title="Download PDF LHPP">
+                                                <a href="{{ route('pkm.lhpp.pdf', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" target="_blank" rel="noopener noreferrer" class="pkm-lhpp-action-btn bg-blue-500 hover:bg-blue-600" title="Download PDF LHPP">
                                                     <i data-lucide="file-text" class="h-3.5 w-3.5"></i>
                                                 </a>
-                                                <form action="{{ route('pkm.lhpp.destroy', $row) }}" method="POST" class="inline-block pkm-lhpp-delete-form">
+                                                <form action="{{ route('pkm.lhpp.destroy', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" method="POST" class="inline-block pkm-lhpp-delete-form">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="button" class="pkm-lhpp-action-btn bg-red-500 hover:bg-red-600 pkm-lhpp-delete-button" title="Hapus LHPP">
@@ -268,9 +279,31 @@
                                             </div>
 
                                             <div x-show="selectedTerm === 'termin_2'" class="w-full">
-                                                <button type="button" class="w-full rounded-md bg-[#ca642f] px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-[#b85b2b] pkm-lhpp-termin2-button">
-                                                    Buat BAST Termin 2
-                                                </button>
+                                                @if ($terminTwoExists)
+                                                    <div class="flex items-center justify-center gap-1">
+                                                        <a href="{{ route('pkm.lhpp.edit', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-2']) }}" class="pkm-lhpp-action-btn bg-emerald-500 hover:bg-emerald-600" title="Edit BAST Termin 2">
+                                                            <i data-lucide="square-pen" class="h-3.5 w-3.5"></i>
+                                                        </a>
+                                                        <a href="{{ route('pkm.lhpp.pdf', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-2']) }}" target="_blank" rel="noopener noreferrer" class="pkm-lhpp-action-btn bg-blue-500 hover:bg-blue-600" title="Download PDF BAST Termin 2">
+                                                            <i data-lucide="file-text" class="h-3.5 w-3.5"></i>
+                                                        </a>
+                                                        <form action="{{ route('pkm.lhpp.destroy', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-2']) }}" method="POST" class="inline-block pkm-lhpp-delete-form">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="button" class="pkm-lhpp-action-btn bg-red-500 hover:bg-red-600 pkm-lhpp-delete-button" title="Hapus BAST Termin 2">
+                                                                <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                @elseif ($termin1Paid)
+                                                    <a href="{{ route('pkm.lhpp.termin2.create', ['nomorOrder' => $row->nomor_order]) }}" class="block w-full rounded-md bg-[#ca642f] px-3 py-1.5 text-center text-[10px] font-bold text-white transition hover:bg-[#b85b2b]">
+                                                        Buat BAST Termin 2
+                                                    </a>
+                                                @else
+                                                    <button type="button" class="w-full cursor-not-allowed rounded-md bg-slate-200 px-3 py-1.5 text-[10px] font-bold text-slate-500">
+                                                        Termin 1 Belum Dibayar
+                                                    </button>
+                                                @endif
                                             </div>
                                         </div>
                                     </td>
@@ -380,16 +413,5 @@
                     });
                 });
 
-                document.querySelectorAll('.pkm-lhpp-termin2-button').forEach((button) => {
-                    button.addEventListener('click', (event) => {
-                        event.preventDefault();
-                        Swal.fire({
-                            icon: 'info',
-                            title: 'Termin 2',
-                            text: 'Form BAST Termin 2 masih front-end dulu dan belum disambungkan ke backend.',
-                            confirmButtonText: 'OK',
-                        });
-                    });
-                });
             });
         </script>

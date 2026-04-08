@@ -116,7 +116,7 @@
                                 </td>
 
                                 <td class="px-3 py-3 align-top">
-                                    <form id="lpj-form-{{ $row->id }}" action="{{ route('admin.lpj.update', $row) }}" method="POST" enctype="multipart/form-data" class="space-y-1.5">
+                                    <form id="lpj-form-{{ $row->id }}" action="{{ route('admin.lpj.update', ['lhppId' => $row->id]) }}" method="POST" enctype="multipart/form-data" class="space-y-1.5">
                                         @csrf
                                         @method('PATCH')
                                         <input type="hidden" name="search" value="{{ $search }}">

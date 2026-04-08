@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
             $table->string('nomor_order')->unique();
+            $table->string('notifikasi')->nullable()->index();
             $table->string('nama_pekerjaan');
             $table->string('unit_kerja');
             $table->string('seksi');

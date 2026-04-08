@@ -23,6 +23,7 @@ class LpjPplController extends Controller
             $selectedPo = trim((string) $request->string('po'));
 
             $poOptions = LhppBast::query()
+                ->where('termin_type', 'termin_1')
                 ->whereNotNull('purchase_order_number')
                 ->whereRaw("TRIM(purchase_order_number) <> ''")
                 ->orderBy('purchase_order_number')
@@ -36,6 +37,7 @@ class LpjPplController extends Controller
                     'purchaseOrder:id,order_id,purchase_order_number',
                     'lpjPpl:id,lhpp_bast_id,lpj_number_termin1,ppl_number_termin1,lpj_document_path_termin1,ppl_document_path_termin1,lpj_number_termin2,ppl_number_termin2,lpj_document_path_termin2,ppl_document_path_termin2,updated_at',
                 ])
+                ->where('termin_type', 'termin_1')
                 ->when($search !== '', function ($query) use ($search): void {
                     $query->where(function ($builder) use ($search): void {
                         $builder
@@ -76,9 +78,13 @@ class LpjPplController extends Controller
         }
     }
 
-    public function update(UpdateLpjPplRequest $request, LhppBast $lhpp): RedirectResponse
+    public function update(UpdateLpjPplRequest $request, int $lhppId): RedirectResponse
     {
         try {
+            $lhpp = LhppBast::query()
+                ->where('termin_type', 'termin_1')
+                ->findOrFail($lhppId);
+
             $validated = $request->validated();
             $selectedTermin = (int) $validated['selected_termin'];
             $userId = $request->user()?->id;

@@ -22,6 +22,7 @@ class StoreLhppBastRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'termin_type' => ['required', 'in:termin_1,termin_2'],
             'tanggal_bast' => ['required', 'date'],
             'nomor_order' => ['required', 'exists:orders,nomor_order'],
             'approval_threshold' => ['required', 'in:under_250,over_250'],

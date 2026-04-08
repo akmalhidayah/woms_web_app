@@ -4,6 +4,7 @@
         $isJobWaitingPage = request()->routeIs('pkm.jobwaiting');
         $isLhppIndexPage = request()->routeIs('pkm.lhpp.index');
         $isLhppCreatePage = request()->routeIs('pkm.lhpp.create');
+        $isLhppTerminTwoCreatePage = request()->routeIs('pkm.lhpp.termin2.create');
         $isLhppEditPage = request()->routeIs('pkm.lhpp.edit');
     @endphp
 
@@ -17,7 +18,7 @@
         @include('pkm.jobwaiting')
     @elseif ($isLhppIndexPage)
         @include('pkm.lhpp.index')
-    @elseif ($isLhppCreatePage || $isLhppEditPage)
+    @elseif ($isLhppCreatePage || $isLhppTerminTwoCreatePage || $isLhppEditPage)
         @include('pkm.lhpp.create')
     @else
         @include('pkm.placeholder')

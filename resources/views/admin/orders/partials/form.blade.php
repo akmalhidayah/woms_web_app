@@ -38,6 +38,18 @@
             </div>
 
             <div class="space-y-2">
+                <label for="notifikasi" class="text-sm font-semibold text-slate-700">Notifikasi</label>
+                <input
+                    id="notifikasi"
+                    name="notifikasi"
+                    type="text"
+                    value="{{ old('notifikasi', $order->notifikasi) }}"
+                    class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                    placeholder="Nomor notifikasi"
+                >
+            </div>
+
+            <div class="space-y-2">
                 <label for="nama_pekerjaan" class="text-sm font-semibold text-slate-700">Nama Pekerjaan</label>
                 <input
                     id="nama_pekerjaan"

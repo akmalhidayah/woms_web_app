@@ -29,6 +29,8 @@ class LhppController extends Controller
             ];
 
             $baseQuery = LhppBast::query()
+                ->with(['terminTwo'])
+                ->where('termin_type', 'termin_1')
                 ->when($filters['search'] !== '', function ($query) use ($filters): void {
                     $needle = $filters['search'];
 
@@ -53,6 +55,7 @@ class LhppController extends Controller
                 });
 
             $units = LhppBast::query()
+                ->where('termin_type', 'termin_1')
                 ->whereNotNull('unit_kerja')
                 ->whereRaw("TRIM(unit_kerja) <> ''")
                 ->orderBy('unit_kerja')
@@ -61,6 +64,7 @@ class LhppController extends Controller
                 ->values();
 
             $pos = LhppBast::query()
+                ->where('termin_type', 'termin_1')
                 ->whereNotNull('purchase_order_number')
                 ->whereRaw("TRIM(purchase_order_number) <> ''")
                 ->orderBy('purchase_order_number')
@@ -105,7 +109,7 @@ class LhppController extends Controller
                 'formAction' => route('pkm.lhpp.store'),
                 'formMethod' => 'POST',
                 'submitLabel' => 'Simpan',
-            ]);
+            ], 'termin_1');
         } catch (Throwable $exception) {
             Log::error('Failed to load PKM LHPP create form.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
@@ -119,24 +123,69 @@ class LhppController extends Controller
         }
     }
 
-    public function edit(Request $request, LhppBast $lhpp): View
+    public function createTerminTwo(Request $request, string $nomorOrder): View|RedirectResponse
     {
         try {
-            $lhpp->loadMissing('order');
+            $terminOne = $this->resolveLhppByOrderAndTermin($nomorOrder, 'termin_1');
+
+            abort_if(! $terminOne, Response::HTTP_NOT_FOUND, 'BAST Termin 1 tidak ditemukan.');
+            abort_if(($terminOne->termin1_status ?? 'belum') !== 'sudah', Response::HTTP_BAD_REQUEST, 'BAST Termin 2 hanya bisa dibuat setelah Termin 1 sudah dibayar.');
+
+            if ($terminOne->terminTwo) {
+                return redirect()->route('pkm.lhpp.edit', [
+                    'nomorOrder' => $terminOne->nomor_order,
+                    'termin' => 'termin-2',
+                ]);
+            }
+
+            return $this->buildFormView($request, null, [
+                'pageTitle' => 'Form LHPP',
+                'pageDescription' => 'Form pembuatan BAST termin 2 PKM.',
+                'formTitle' => 'Buat BAST Termin 2',
+                'formAction' => route('pkm.lhpp.store'),
+                'formMethod' => 'POST',
+                'submitLabel' => 'Simpan',
+            ], 'termin_2', $terminOne);
+        } catch (Throwable $exception) {
+            Log::error('Failed to load PKM LHPP termin 2 create form.', [
+                'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
+                'user_id' => $request->user()?->id,
+                'nomor_order' => $nomorOrder,
+                'error' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+            ]);
+
+            abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Terjadi kesalahan saat memuat form BAST Termin 2 PKM.');
+        }
+    }
+
+    public function edit(Request $request, string $nomorOrder, string $termin): View
+    {
+        $terminType = $this->normalizeTerminType($termin);
+
+        try {
+            $lhpp = $this->resolveLhppByOrderAndTermin($nomorOrder, $terminType);
+
+            abort_if(! $lhpp, Response::HTTP_NOT_FOUND, 'Data BAST tidak ditemukan.');
 
             return $this->buildFormView($request, $lhpp, [
                 'pageTitle' => 'Edit LHPP',
-                'pageDescription' => 'Pembaruan data BAST termin 1 PKM.',
-                'formTitle' => 'Edit BAST Termin 1',
-                'formAction' => route('pkm.lhpp.update', $lhpp),
+                'pageDescription' => sprintf('Pembaruan data BAST %s PKM.', $this->terminLabel($terminType)),
+                'formTitle' => sprintf('Edit BAST %s', $this->terminLabel($terminType)),
+                'formAction' => route('pkm.lhpp.update', [
+                    'nomorOrder' => $lhpp->nomor_order,
+                    'termin' => $this->terminSlug($terminType),
+                ]),
                 'formMethod' => 'PATCH',
                 'submitLabel' => 'Update',
-            ]);
+            ], $terminType, $lhpp->parentLhppBast);
         } catch (Throwable $exception) {
             Log::error('Failed to load PKM LHPP edit form.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'user_id' => $request->user()?->id,
-                'lhpp_id' => $lhpp->id,
+                'nomor_order' => $nomorOrder,
+                'termin_type' => $terminType,
                 'error' => $exception->getMessage(),
                 'file' => $exception->getFile(),
                 'line' => $exception->getLine(),
@@ -158,8 +207,13 @@ class LhppController extends Controller
 
     public function store(StoreLhppBastRequest $request): RedirectResponse
     {
+        $terminType = $this->normalizeTerminType($request->string('termin_type')->toString());
+
         try {
-            $order = $this->resolveEligibleOrder($request->input('nomor_order'));
+            [$order, $parentLhpp] = $this->resolveStoreContext(
+                trim((string) $request->input('nomor_order')),
+                $terminType,
+            );
 
             abort_if(! $order, Response::HTTP_NOT_FOUND, 'Order tidak ditemukan atau belum memenuhi syarat BAST.');
 
@@ -169,10 +223,17 @@ class LhppController extends Controller
                 $request->input('material_rows', []),
                 $request->input('service_rows', []),
             );
+            $qualityControlStatus = $terminType === 'termin_2'
+                ? ($parentLhpp?->quality_control_status ?? 'pending')
+                : 'pending';
 
             $lhpp = LhppBast::query()->updateOrCreate(
-                ['order_id' => $order->id],
                 [
+                    'order_id' => $order->id,
+                    'termin_type' => $terminType,
+                ],
+                [
+                    'parent_lhpp_bast_id' => $terminType === 'termin_2' ? $parentLhpp?->id : null,
                     'hpp_id' => $latestHpp?->id,
                     'purchase_order_id' => $purchaseOrder?->id,
                     'nomor_order' => $order->nomor_order,
@@ -183,7 +244,7 @@ class LhppController extends Controller
                     'tanggal_bast' => $request->date('tanggal_bast'),
                     'tanggal_mulai_pekerjaan' => $request->date('tanggal_mulai_pekerjaan'),
                     'tanggal_selesai_pekerjaan' => $request->date('tanggal_selesai_pekerjaan'),
-                    'approval_threshold' => $request->string('approval_threshold')->toString(),
+                    'approval_threshold' => $this->resolveThresholdFromTotals($terminType, $calculation['totals']),
                     'nilai_hpp' => $latestHpp?->total_keseluruhan ?? 0,
                     'material_items' => $calculation['material_rows'],
                     'service_items' => $calculation['service_rows'],
@@ -192,6 +253,7 @@ class LhppController extends Controller
                     'total_aktual_biaya' => $calculation['totals']['total_aktual_biaya'],
                     'termin_1_nilai' => $calculation['totals']['termin_1_nilai'],
                     'termin_2_nilai' => $calculation['totals']['termin_2_nilai'],
+                    'quality_control_status' => $qualityControlStatus,
                     'updated_by' => $request->user()?->id,
                     'created_by' => $request->user()?->id,
                 ]
@@ -200,7 +262,8 @@ class LhppController extends Controller
             return redirect()
                 ->route('pkm.lhpp.index')
                 ->with('status', sprintf(
-                    'BAST Termin 1 untuk order %s berhasil disimpan. Total aktual biaya Rp %s.',
+                    'BAST %s untuk order %s berhasil disimpan. Total aktual biaya Rp %s.',
+                    $this->terminLabel($terminType),
                     $lhpp->nomor_order,
                     number_format((float) $lhpp->total_aktual_biaya, 0, ',', '.'),
                 ));
@@ -208,6 +271,7 @@ class LhppController extends Controller
             Log::error('Failed to store PKM LHPP form.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'user_id' => $request->user()?->id,
+                'termin_type' => $terminType,
                 'error' => $exception->getMessage(),
                 'file' => $exception->getFile(),
                 'line' => $exception->getLine(),
@@ -216,17 +280,21 @@ class LhppController extends Controller
             return back()
                 ->withInput()
                 ->withErrors([
-                    'form' => 'Terjadi kesalahan saat menyimpan BAST Termin 1.',
+                    'form' => sprintf('Terjadi kesalahan saat menyimpan BAST %s.', $this->terminLabel($terminType)),
                 ]);
         }
     }
 
-    public function update(StoreLhppBastRequest $request, LhppBast $lhpp): RedirectResponse
+    public function update(StoreLhppBastRequest $request, string $nomorOrder, string $termin): RedirectResponse
     {
-        try {
-            $order = $this->resolveEligibleOrder($request->input('nomor_order'), $lhpp->order_id);
+        $terminType = $this->normalizeTerminType($termin);
 
-            abort_if(! $order, Response::HTTP_NOT_FOUND, 'Order tidak ditemukan atau belum memenuhi syarat BAST.');
+        try {
+            $lhpp = $this->resolveLhppByOrderAndTermin($nomorOrder, $terminType);
+
+            abort_if(! $lhpp, Response::HTTP_NOT_FOUND, 'Data BAST tidak ditemukan.');
+
+            [$order, $parentLhpp] = $this->resolveUpdateContext($lhpp, $terminType);
 
             $purchaseOrder = $order->purchaseOrder;
             $latestHpp = $order->latestHpp;
@@ -237,6 +305,8 @@ class LhppController extends Controller
 
             $lhpp->fill([
                 'order_id' => $order->id,
+                'termin_type' => $terminType,
+                'parent_lhpp_bast_id' => $terminType === 'termin_2' ? $parentLhpp?->id : null,
                 'hpp_id' => $latestHpp?->id,
                 'purchase_order_id' => $purchaseOrder?->id,
                 'nomor_order' => $order->nomor_order,
@@ -247,7 +317,7 @@ class LhppController extends Controller
                 'tanggal_bast' => $request->date('tanggal_bast'),
                 'tanggal_mulai_pekerjaan' => $request->date('tanggal_mulai_pekerjaan'),
                 'tanggal_selesai_pekerjaan' => $request->date('tanggal_selesai_pekerjaan'),
-                'approval_threshold' => $request->string('approval_threshold')->toString(),
+                'approval_threshold' => $this->resolveThresholdFromTotals($terminType, $calculation['totals']),
                 'nilai_hpp' => $latestHpp?->total_keseluruhan ?? 0,
                 'material_items' => $calculation['material_rows'],
                 'service_items' => $calculation['service_rows'],
@@ -256,6 +326,9 @@ class LhppController extends Controller
                 'total_aktual_biaya' => $calculation['totals']['total_aktual_biaya'],
                 'termin_1_nilai' => $calculation['totals']['termin_1_nilai'],
                 'termin_2_nilai' => $calculation['totals']['termin_2_nilai'],
+                'quality_control_status' => $terminType === 'termin_2'
+                    ? ($parentLhpp?->quality_control_status ?? $lhpp->quality_control_status)
+                    : $lhpp->quality_control_status,
                 'updated_by' => $request->user()?->id,
             ]);
 
@@ -264,14 +337,16 @@ class LhppController extends Controller
             return redirect()
                 ->route('pkm.lhpp.index')
                 ->with('status', sprintf(
-                    'BAST Termin 1 untuk order %s berhasil diperbarui.',
+                    'BAST %s untuk order %s berhasil diperbarui.',
+                    $this->terminLabel($terminType),
                     $lhpp->nomor_order,
                 ));
         } catch (Throwable $exception) {
             Log::error('Failed to update PKM LHPP form.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'user_id' => $request->user()?->id,
-                'lhpp_id' => $lhpp->id,
+                'nomor_order' => $nomorOrder,
+                'termin_type' => $terminType,
                 'error' => $exception->getMessage(),
                 'file' => $exception->getFile(),
                 'line' => $exception->getLine(),
@@ -280,25 +355,37 @@ class LhppController extends Controller
             return back()
                 ->withInput()
                 ->withErrors([
-                    'form' => 'Terjadi kesalahan saat memperbarui BAST Termin 1.',
+                    'form' => sprintf('Terjadi kesalahan saat memperbarui BAST %s.', $this->terminLabel($terminType)),
                 ]);
         }
     }
 
-    public function destroy(Request $request, LhppBast $lhpp): RedirectResponse
+    public function destroy(Request $request, string $nomorOrder, string $termin): RedirectResponse
     {
+        $terminType = $this->normalizeTerminType($termin);
+
         try {
+            $lhpp = $this->resolveLhppByOrderAndTermin($nomorOrder, $terminType);
+
+            abort_if(! $lhpp, Response::HTTP_NOT_FOUND, 'Data BAST tidak ditemukan.');
+
+            if ($terminType === 'termin_1') {
+                $lhpp->childLhppBasts()->delete();
+            }
+
             $nomorOrder = $lhpp->nomor_order;
+            $termLabel = $this->terminLabel($terminType);
             $lhpp->delete();
 
             return redirect()
                 ->route('pkm.lhpp.index')
-                ->with('status', sprintf('BAST Termin 1 untuk order %s berhasil dihapus.', $nomorOrder));
+                ->with('status', sprintf('BAST %s untuk order %s berhasil dihapus.', $termLabel, $nomorOrder));
         } catch (Throwable $exception) {
             Log::error('Failed to delete PKM LHPP.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'user_id' => $request->user()?->id,
-                'lhpp_id' => $lhpp->id,
+                'nomor_order' => $nomorOrder,
+                'termin_type' => $terminType,
                 'error' => $exception->getMessage(),
                 'file' => $exception->getFile(),
                 'line' => $exception->getLine(),
@@ -310,21 +397,28 @@ class LhppController extends Controller
         }
     }
 
-    public function pdf(Request $request, LhppBast $lhpp)
+    public function pdf(Request $request, string $nomorOrder, string $termin)
     {
+        $terminType = $this->normalizeTerminType($termin);
+
         try {
+            $lhpp = $this->resolveLhppByOrderAndTermin($nomorOrder, $terminType);
+
+            abort_if(! $lhpp, Response::HTTP_NOT_FOUND, 'Data BAST tidak ditemukan.');
+
             $pdf = Pdf::loadView('pkm.lhpp.pdf', [
                 'lhpp' => $lhpp,
                 'materialItems' => collect($lhpp->material_items ?? []),
                 'serviceItems' => collect($lhpp->service_items ?? []),
             ])->setPaper('a4', 'portrait');
 
-            return $pdf->stream('bast-termin-1-'.$lhpp->nomor_order.'.pdf');
+            return $pdf->stream(sprintf('bast-%s-%s.pdf', $this->terminSlug($terminType), $lhpp->nomor_order));
         } catch (Throwable $exception) {
             Log::error('Failed to generate PKM LHPP PDF.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'user_id' => $request->user()?->id,
-                'lhpp_id' => $lhpp->id,
+                'nomor_order' => $nomorOrder,
+                'termin_type' => $terminType,
                 'error' => $exception->getMessage(),
                 'file' => $exception->getFile(),
                 'line' => $exception->getLine(),
@@ -337,6 +431,7 @@ class LhppController extends Controller
     private function eligibleOrders(?int $exceptOrderId = null): Collection
     {
         $existingOrderIds = LhppBast::query()
+            ->where('termin_type', 'termin_1')
             ->when($exceptOrderId !== null, fn ($query) => $query->where('order_id', '!=', $exceptOrderId))
             ->pluck('order_id');
 
@@ -372,6 +467,65 @@ class LhppController extends Controller
         return $this->eligibleOrders($exceptOrderId)->firstWhere('nomor_order', trim((string) $nomorOrder));
     }
 
+    /**
+     * @return array{0: Order|null, 1: LhppBast|null}
+     */
+    private function resolveStoreContext(string $nomorOrder, string $terminType): array
+    {
+        if ($terminType === 'termin_2') {
+            $parentLhpp = $this->resolveLhppByOrderAndTermin($nomorOrder, 'termin_1');
+
+            if (! $parentLhpp || ($parentLhpp->termin1_status ?? 'belum') !== 'sudah') {
+                return [null, null];
+            }
+
+            return [$this->loadOrderWithRelations($parentLhpp->order), $parentLhpp];
+        }
+
+        return [$this->resolveEligibleOrder($nomorOrder), null];
+    }
+
+    /**
+     * @return array{0: Order, 1: LhppBast|null}
+     */
+    private function resolveUpdateContext(LhppBast $lhpp, string $terminType): array
+    {
+        if ($terminType === 'termin_2') {
+            $parentLhpp = $lhpp->parentLhppBast ?: $this->resolveLhppByOrderAndTermin($lhpp->nomor_order, 'termin_1');
+
+            abort_if(! $parentLhpp, Response::HTTP_NOT_FOUND, 'BAST Termin 1 tidak ditemukan.');
+
+            return [$this->loadOrderWithRelations($parentLhpp->order), $parentLhpp];
+        }
+
+        return [$this->loadOrderWithRelations($lhpp->order), null];
+    }
+
+    private function loadOrderWithRelations(?Order $order): ?Order
+    {
+        if (! $order) {
+            return null;
+        }
+
+        return $order->loadMissing([
+            'latestHpp' => fn ($query) => $query->select([
+                'hpps.id',
+                'hpps.order_id',
+                'hpps.total_keseluruhan',
+            ]),
+            'purchaseOrder:id,order_id,hpp_id,purchase_order_number,target_penyelesaian,progress_pekerjaan',
+        ]);
+    }
+
+    private function resolveLhppByOrderAndTermin(string $nomorOrder, string $terminType): ?LhppBast
+    {
+        return LhppBast::query()
+            ->with(['order', 'parentLhppBast', 'terminTwo'])
+            ->where('nomor_order', $nomorOrder)
+            ->where('termin_type', $terminType)
+            ->first();
+    }
+
     private function mapOrderOption(Order $order): array
     {
         return [
@@ -388,41 +542,32 @@ class LhppController extends Controller
     /**
      * @param array<string, string> $meta
      */
-    private function buildFormView(Request $request, ?LhppBast $lhpp, array $meta): View
+    private function buildFormView(Request $request, ?LhppBast $lhpp, array $meta, string $terminType, ?LhppBast $parentLhpp = null): View
     {
-        $orders = $this->eligibleOrders($lhpp?->order_id);
-
-        if ($lhpp?->order && ! $orders->contains('id', $lhpp->order_id)) {
-            $orders->prepend($lhpp->order->loadMissing([
-                'latestHpp' => fn ($query) => $query->select([
-                    'hpps.id',
-                    'hpps.order_id',
-                    'hpps.total_keseluruhan',
-                ]),
-                'purchaseOrder:id,order_id,hpp_id,purchase_order_number,target_penyelesaian,progress_pekerjaan',
-            ]));
-        }
+        $sourceLhpp = $lhpp ?? $parentLhpp;
+        $currentOrder = $sourceLhpp?->order ? $this->loadOrderWithRelations($sourceLhpp->order) : null;
+        $orders = $currentOrder ? collect([$currentOrder]) : $this->eligibleOrders();
 
         $orderOptions = $orders
+            ->filter()
             ->unique('id')
             ->map(fn (Order $order): array => $this->mapOrderOption($order))
             ->values();
 
         $selectedOrder = trim((string) old(
             'nomor_order',
-            $request->string('order')->toString() !== ''
-                ? $request->string('order')->toString()
-                : ($lhpp?->nomor_order ?? '')
+            $currentOrder?->nomor_order
+                ?? ($request->string('order')->toString() !== '' ? $request->string('order')->toString() : '')
         ));
 
         if ($selectedOrder === '' || ! $orderOptions->firstWhere('nomor_order', $selectedOrder)) {
             $selectedOrder = (string) ($orderOptions->first()['nomor_order'] ?? '');
         }
 
-        $materialRows = collect(old('material_rows', $lhpp?->material_items ?? [
+        $materialRows = collect(old('material_rows', $lhpp?->material_items ?? $parentLhpp?->material_items ?? [
             ['name' => '', 'volume' => '', 'unit' => 'Jam', 'unit_price' => '', 'amount' => '0', 'amount_display' => '0'],
         ]))->values();
-        $serviceRows = collect(old('service_rows', $lhpp?->service_items ?? [
+        $serviceRows = collect(old('service_rows', $lhpp?->service_items ?? $parentLhpp?->service_items ?? [
             ['name' => '', 'volume' => '', 'unit' => 'Jam', 'unit_price' => '', 'amount' => '0', 'amount_display' => '0'],
         ]))->values();
 
@@ -436,10 +581,10 @@ class LhppController extends Controller
             'pageDescription' => $meta['pageDescription'],
             'bastOrderOptions' => $orderOptions,
             'selectedBastOrder' => $selectedOrder,
-            'selectedThreshold' => old('approval_threshold', $lhpp?->approval_threshold ?? 'under_250'),
+            'selectedThreshold' => old('approval_threshold', $lhpp?->approval_threshold ?? $this->resolveThresholdFromTotals($terminType, $calculation['totals'])),
             'bastDate' => old('tanggal_bast', optional($lhpp?->tanggal_bast)->format('Y-m-d') ?? now()->format('Y-m-d')),
-            'tanggalMulaiPekerjaan' => old('tanggal_mulai_pekerjaan', optional($lhpp?->tanggal_mulai_pekerjaan)->format('Y-m-d')),
-            'tanggalSelesaiPekerjaan' => old('tanggal_selesai_pekerjaan', optional($lhpp?->tanggal_selesai_pekerjaan)->format('Y-m-d')),
+            'tanggalMulaiPekerjaan' => old('tanggal_mulai_pekerjaan', optional($lhpp?->tanggal_mulai_pekerjaan)->format('Y-m-d') ?? optional($parentLhpp?->tanggal_mulai_pekerjaan)->format('Y-m-d')),
+            'tanggalSelesaiPekerjaan' => old('tanggal_selesai_pekerjaan', optional($lhpp?->tanggal_selesai_pekerjaan)->format('Y-m-d') ?? optional($parentLhpp?->tanggal_selesai_pekerjaan)->format('Y-m-d')),
             'initialMaterialRows' => $calculation['material_rows'],
             'initialServiceRows' => $calculation['service_rows'],
             'initialCalculation' => $calculation['totals'],
@@ -447,7 +592,39 @@ class LhppController extends Controller
             'formAction' => $meta['formAction'],
             'formMethod' => $meta['formMethod'],
             'submitLabel' => $meta['submitLabel'],
+            'terminType' => $terminType,
+            'terminLabel' => $this->terminLabel($terminType),
         ]);
+    }
+
+    /**
+     * @param array<string, string> $totals
+     */
+    private function resolveThresholdFromTotals(string $terminType, array $totals): string
+    {
+        $amount = $terminType === 'termin_2'
+            ? (float) ($totals['termin_2_nilai'] ?? 0)
+            : (float) ($totals['termin_1_nilai'] ?? 0);
+
+        return $amount > 250000000 ? 'over_250' : 'under_250';
+    }
+
+    private function normalizeTerminType(string $termin): string
+    {
+        return match ($termin) {
+            'termin_2', 'termin-2', '2' => 'termin_2',
+            default => 'termin_1',
+        };
+    }
+
+    private function terminSlug(string $terminType): string
+    {
+        return $terminType === 'termin_2' ? 'termin-2' : 'termin-1';
+    }
+
+    private function terminLabel(string $terminType): string
+    {
+        return $terminType === 'termin_2' ? 'Termin 2' : 'Termin 1';
     }
 
     /**

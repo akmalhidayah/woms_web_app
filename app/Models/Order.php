@@ -27,6 +27,7 @@ class Order extends Model
      */
     protected $fillable = [
         'nomor_order',
+        'notifikasi',
         'nama_pekerjaan',
         'unit_kerja',
         'seksi',
@@ -150,6 +151,7 @@ class Order extends Model
         return $query->where(function (Builder $builder) use ($search) {
             $builder
                 ->where('nomor_order', 'like', "%{$search}%")
+                ->orWhere('notifikasi', 'like', "%{$search}%")
                 ->orWhere('nama_pekerjaan', 'like', "%{$search}%");
         });
     }

@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>BAST - {{ $lhpp->nomor_order }}</title>
+    <title>BAST {{ $lhpp->termin_type === 'termin_2' ? 'Termin 2' : 'Termin 1' }} - {{ $lhpp->nomor_order }}</title>
     <style>
         @page {
             margin: 6mm;
@@ -274,6 +274,7 @@
 <body>
 @php
     $isOver250 = $lhpp->approval_threshold === 'over_250';
+    $isTerminTwo = $lhpp->termin_type === 'termin_2';
     $title = $isOver250
         ? 'BERITA ACARA SERAH TERIMA (BAST) PEKERJAAN'
         : 'BERITA ACARA SERAH TERIMA (BAST) REALISASI PEKERJAAN';
@@ -288,13 +289,13 @@
     };
     $formatDate = static fn ($value) => $value ? \Illuminate\Support\Carbon::parse($value)->translatedFormat('d F Y') : '';
 
-    $terminDisplayLabel = $isOver250
-        ? 'TERMIN 1 (95% x Total Actual Biaya)'
-        : 'TERMIN 2 (5% x Total Actual Biaya)';
+    $terminDisplayLabel = $isTerminTwo
+        ? 'TERMIN 2 (5% x Total Actual Biaya)'
+        : 'TERMIN 1 (95% x Total Actual Biaya)';
 
-    $terminDisplayValue = $isOver250
-        ? ((float) $lhpp->total_aktual_biaya * 0.95)
-        : (float) $lhpp->termin_2_nilai;
+    $terminDisplayValue = $isTerminTwo
+        ? (float) $lhpp->termin_2_nilai
+        : (float) $lhpp->termin_1_nilai;
     $qualityControlStatus = $lhpp->quality_control_status ?? 'pending';
 
     $approvalRoles = $isOver250

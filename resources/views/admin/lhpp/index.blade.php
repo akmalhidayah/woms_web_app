@@ -66,6 +66,7 @@
                             @php
                                 $nomorOrder = $lhpp->nomor_order ?: ($lhpp->order?->nomor_order ?? '-');
                                 $nomorPo = $lhpp->purchase_order_number ?: ($lhpp->purchaseOrder?->purchase_order_number ?? '-');
+                                $terminTwo = $lhpp->terminTwo;
                                 $seksi = $lhpp->seksi ?: ($lhpp->order?->seksi ?? '-');
                                 $unitKerja = $lhpp->unit_kerja ?: ($lhpp->order?->unit_kerja ?? '-');
                                 $tanggalSelesai = $lhpp->tanggal_selesai_pekerjaan
@@ -98,9 +99,14 @@
                                     default => 'text-slate-500',
                                 };
                                 $termin1Paid = ($lhpp->termin1_status ?? 'belum') === 'sudah';
+                                $termin2Paid = ($lhpp->termin2_status ?? 'belum') === 'sudah';
                                 $termin1Amount = $termin1Paid
-                                    ? (int) round($totalBiaya * 0.95)
+                                    ? (float) ($lhpp->termin_1_nilai ?? round($totalBiaya * 0.95))
                                     : null;
+                                $termin2Amount = $termin2Paid
+                                    ? (float) ($lhpp->termin_2_nilai ?? round($totalBiaya * 0.05))
+                                    : null;
+                                $hasTerminTwo = filled($terminTwo?->id);
                             @endphp
 
                             <tr class="transition duration-150 hover:bg-slate-50">
@@ -129,6 +135,11 @@
                                             Termin 1: Rp{{ number_format($termin1Amount, 0, ',', '.') }}
                                         </div>
                                     @endif
+                                    @if (!is_null($termin2Amount))
+                                        <div class="mt-1 text-[10px] font-medium text-sky-600">
+                                            Termin 2: Rp{{ number_format($termin2Amount, 0, ',', '.') }}
+                                        </div>
+                                    @endif
                                 </td>
 
                                 <td class="px-4 py-3 align-top">
@@ -147,7 +158,7 @@
 
                                 <td class="px-4 py-3 align-top">
                                     <div class="flex flex-wrap items-start justify-center gap-3">
-                                        <form method="POST" action="{{ route('admin.lhpp.quality-control', $lhpp) }}" class="w-[190px] space-y-1.5">
+                                        <form method="POST" action="{{ route('admin.lhpp.quality-control', ['lhppId' => $lhpp->id]) }}" class="w-[190px] space-y-1.5">
                                             @csrf
                                             @method('PATCH')
                                             <input type="hidden" name="search" value="{{ $search }}">
@@ -160,15 +171,29 @@
                                             <p class="text-[10px] leading-snug {{ $qualityControlHelperClass }}">{{ $qualityControlHelper }}</p>
                                         </form>
 
-                                        <a href="{{ route('admin.lhpp.pdf', $lhpp) }}"
-                                           target="_blank"
-                                           rel="noopener"
-                                           title="Lihat BAST Termin 1 (PDF)"
-                                           aria-label="Lihat BAST Termin 1 PDF"
-                                           class="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-semibold text-rose-700 shadow-sm transition hover:bg-rose-100">
-                                            <i data-lucide="file-text" class="h-4 w-4"></i>
-                                            BAST Termin 1
-                                        </a>
+                                        <div class="flex flex-wrap items-center justify-center gap-1.5">
+                                            <a href="{{ route('admin.lhpp.pdf', ['lhppId' => $lhpp->id]) }}"
+                                               target="_blank"
+                                               rel="noopener"
+                                               title="Lihat BAST Termin 1 (PDF)"
+                                               aria-label="Lihat BAST Termin 1 PDF"
+                                               class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-[9px] font-semibold text-rose-700 shadow-sm transition hover:bg-rose-100">
+                                                <i data-lucide="file-text" class="h-3 w-3"></i>
+                                                BAST Termin 1
+                                            </a>
+
+                                            @if ($hasTerminTwo)
+                                                <a href="{{ route('admin.lhpp.pdf', ['lhppId' => $terminTwo->id]) }}"
+                                                   target="_blank"
+                                                   rel="noopener"
+                                                   title="Lihat BAST Termin 2 (PDF)"
+                                                   aria-label="Lihat BAST Termin 2 PDF"
+                                                   class="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-[9px] font-semibold text-sky-700 shadow-sm transition hover:bg-sky-100">
+                                                    <i data-lucide="file-text" class="h-3 w-3"></i>
+                                                    BAST Termin 2
+                                                </a>
+                                            @endif
+                                        </div>
                                     </div>
                                 </td>
                             </tr>

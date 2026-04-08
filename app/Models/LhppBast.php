@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class LhppBast extends Model
@@ -13,7 +14,7 @@ class LhppBast extends Model
 
     public function getRouteKeyName(): string
     {
-        return 'nomor_order';
+        return 'id';
     }
 
     /**
@@ -21,6 +22,8 @@ class LhppBast extends Model
      */
     protected $fillable = [
         'order_id',
+        'termin_type',
+        'parent_lhpp_bast_id',
         'hpp_id',
         'purchase_order_id',
         'nomor_order',
@@ -80,6 +83,21 @@ class LhppBast extends Model
     public function purchaseOrder(): BelongsTo
     {
         return $this->belongsTo(PurchaseOrder::class);
+    }
+
+    public function parentLhppBast(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_lhpp_bast_id');
+    }
+
+    public function childLhppBasts(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_lhpp_bast_id');
+    }
+
+    public function terminTwo(): HasOne
+    {
+        return $this->hasOne(self::class, 'parent_lhpp_bast_id')->where('termin_type', 'termin_2');
     }
 
     public function lpjPpl(): HasOne

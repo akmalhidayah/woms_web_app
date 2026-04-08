@@ -105,7 +105,8 @@ class AdminMenuRegistry
                 'label' => 'Garansi',
                 'icon' => 'shield-check',
                 'group' => 'main',
-                'href' => '#',
+                'route_name' => 'admin.garansi.index',
+                'active_patterns' => ['admin.garansi.*'],
             ],
             self::MENU_DISPLAY_PEKERJAAN_BENGKEL => [
                 'key' => self::MENU_DISPLAY_PEKERJAAN_BENGKEL,

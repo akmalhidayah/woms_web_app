@@ -13,9 +13,11 @@ use Throwable;
 
 class LhppController extends Controller
 {
-    public function updateQualityControl(Request $request, LhppBast $lhpp)
+    public function updateQualityControl(Request $request, int $lhppId)
     {
         try {
+            $lhpp = LhppBast::query()->findOrFail($lhppId);
+
             $validated = $request->validate([
                 'quality_control_status' => ['required', 'in:pending,approved,rejected'],
             ]);
@@ -23,6 +25,11 @@ class LhppController extends Controller
             $lhpp->quality_control_status = $validated['quality_control_status'];
             $lhpp->updated_by = $request->user()?->id;
             $lhpp->save();
+
+            $lhpp->childLhppBasts()->update([
+                'quality_control_status' => $validated['quality_control_status'],
+                'updated_by' => $request->user()?->id,
+            ]);
 
             return redirect()
                 ->route('admin.lhpp.index', $request->only('search', 'page'))
@@ -52,7 +59,9 @@ class LhppController extends Controller
                 ->with([
                     'order:id,nomor_order,unit_kerja,seksi',
                     'purchaseOrder:id,order_id,purchase_order_number',
+                    'terminTwo',
                 ])
+                ->where('termin_type', 'termin_1')
                 ->when($search !== '', function ($query) use ($search): void {
                     $query->where(function ($builder) use ($search): void {
                         $builder
@@ -84,16 +93,20 @@ class LhppController extends Controller
         }
     }
 
-    public function pdf(Request $request, LhppBast $lhpp)
+    public function pdf(Request $request, int $lhppId)
     {
         try {
+            $lhpp = LhppBast::query()->findOrFail($lhppId);
+
             $pdf = Pdf::loadView('pkm.lhpp.pdf', [
                 'lhpp' => $lhpp,
                 'materialItems' => collect($lhpp->material_items ?? []),
                 'serviceItems' => collect($lhpp->service_items ?? []),
             ])->setPaper('a4', 'portrait');
 
-            return $pdf->stream('bast-termin-1-'.$lhpp->nomor_order.'.pdf');
+            $terminSlug = $lhpp->termin_type === 'termin_2' ? 'termin-2' : 'termin-1';
+
+            return $pdf->stream('bast-'.$terminSlug.'-'.$lhpp->nomor_order.'.pdf');
         } catch (Throwable $exception) {
             Log::error('Failed to generate admin BAST PDF.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,

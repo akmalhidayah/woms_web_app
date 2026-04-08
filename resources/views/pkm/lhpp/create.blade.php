@@ -3,6 +3,8 @@
             $formAction = $formAction ?? route('pkm.lhpp.store');
             $formMethod = $formMethod ?? 'POST';
             $submitLabel = $submitLabel ?? 'Simpan';
+            $terminType = $terminType ?? 'termin_1';
+            $terminLabel = $terminLabel ?? ($terminType === 'termin_2' ? 'Termin 2' : 'Termin 1');
             $bastDate = old('tanggal_bast', $bastDate ?? now()->format('Y-m-d'));
             $tanggalMulaiPekerjaan = old('tanggal_mulai_pekerjaan', $tanggalMulaiPekerjaan ?? '');
             $tanggalSelesaiPekerjaan = old('tanggal_selesai_pekerjaan', $tanggalSelesaiPekerjaan ?? '');
@@ -31,7 +33,7 @@
 
         <div class="space-y-5">
             <section class="overflow-hidden rounded-[1.8rem] border border-slate-200 bg-white px-5 py-5 text-slate-900 shadow-sm">
-                <h1 class="text-[2rem] font-black leading-none tracking-tight text-slate-900">Buat BAST Termin 1</h1>
+                <h1 class="text-[2rem] font-black leading-none tracking-tight text-slate-900">{{ $formTitle }}</h1>
             </section>
 
             <section
@@ -40,6 +42,7 @@
                     orderOptions: @js($bastOrderOptions->values()->all()),
                     selectedOrder: @js($selectedBastOrder),
                     calculateUrl: @js(route('pkm.lhpp.calculate')),
+                    terminType: @js($terminType),
                     unitOptions: ['Jam', 'Kg', 'M2', 'CM3', 'Liter'],
                     materialRows: @js($materialRows->values()->all()),
                     serviceRows: @js($serviceRows->values()->all()),
@@ -56,12 +59,8 @@
                     <div class="flex flex-wrap items-end gap-3">
                         <div class="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
                             <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Rule Approval &amp; PDF</div>
-                            <div class="relative mt-1.5">
-                                <select name="approval_threshold" form="pkm-lhpp-create-form" x-model="approvalThreshold" class="min-w-[210px] appearance-none rounded-xl border border-slate-300 bg-white py-2 pl-4 pr-10 text-[12px] font-bold text-slate-700 transition focus:border-[#ca642f] focus:outline-none">
-                                    <option value="under_250">Dibawah 250 JT</option>
-                                    <option value="over_250">Diatas 250 JT</option>
-                                </select>
-                                <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"></i>
+                            <div class="mt-1.5 min-w-[210px] rounded-xl border border-slate-300 bg-white px-4 py-2 text-[12px] font-bold text-slate-700">
+                                <span x-text="approvalThresholdLabel()"></span>
                             </div>
                             <div class="mt-1.5 text-[10px] leading-snug text-slate-500">
                                 Menentukan alur approval dan format PDF BAST
@@ -79,6 +78,8 @@
                     @if (strtoupper($formMethod) !== 'POST')
                         @method($formMethod)
                     @endif
+                    <input type="hidden" name="termin_type" value="{{ $terminType }}">
+                    <input type="hidden" name="approval_threshold" :value="approvalThreshold">
                     @if ($errors->has('form'))
                         <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                             {{ $errors->first('form') }}
@@ -135,7 +136,7 @@
                                 <div class="flex items-start justify-between gap-3">
                                     <div>
                                         <div class="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Flow Approval</div>
-                                        <div class="mt-1 text-[13px] font-black text-slate-900">BAST Termin 1</div>
+                                        <div class="mt-1 text-[13px] font-black text-slate-900">BAST {{ $terminLabel }}</div>
                                     </div>
                                     <span class="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-[10px] font-bold text-[#ca642f] ring-1 ring-orange-200" x-text="approvalThreshold === 'over_250' ? 'Diatas 250 JT' : 'Dibawah 250 JT'"></span>
                                 </div>
@@ -302,8 +303,8 @@
                                         <td class="border border-slate-300 px-2 py-2 text-right font-black" x-text="calculation.total_aktual_biaya_display"></td>
                                     </tr>
                                     <tr class="bg-slate-200">
-                                        <td colspan="4" class="border border-slate-300 px-2 py-2 font-black">TERMIN 1 (95% x Total Actual Biaya)</td>
-                                        <td class="border border-slate-300 px-2 py-2 text-right font-black" x-text="calculation.termin_1_nilai_display"></td>
+                                        <td colspan="4" class="border border-slate-300 px-2 py-2 font-black" x-text="terminType === 'termin_2' ? 'TERMIN 2 (5% x Total Actual Biaya)' : 'TERMIN 1 (95% x Total Actual Biaya)'"></td>
+                                        <td class="border border-slate-300 px-2 py-2 text-right font-black" x-text="terminType === 'termin_2' ? calculation.termin_2_nilai_display : calculation.termin_1_nilai_display"></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -320,6 +321,7 @@
                     orderOptions: config.orderOptions,
                     selectedOrder: config.selectedOrder,
                     calculateUrl: config.calculateUrl,
+                    terminType: config.terminType,
                     unitOptions: config.unitOptions,
                     materialRows: config.materialRows,
                     serviceRows: config.serviceRows,
@@ -334,6 +336,9 @@
                             purchase_order_number: '',
                             nilai_ece: 0,
                         };
+                    },
+                    approvalThresholdLabel() {
+                        return this.approvalThreshold === 'over_250' ? 'Diatas 250 JT' : 'Dibawah 250 JT';
                     },
                     formatCurrency(value) {
                         const amount = Number(value || 0);
@@ -362,6 +367,7 @@
                             this.materialRows = result.material_rows;
                             this.serviceRows = result.service_rows;
                             this.calculation = result.totals;
+                            this.approvalThreshold = this.resolveThreshold();
 
                             this.$nextTick(() => {
                                 if (window.lucide?.createIcons) {
@@ -377,6 +383,13 @@
                     },
                     addServiceRow() {
                         this.serviceRows.push({ name: '', volume: '', unit: 'Jam', unit_price: '', amount: '0.00', amount_display: '0' });
+                    },
+                    resolveThreshold() {
+                        const thresholdBase = this.terminType === 'termin_2'
+                            ? Number(this.calculation.termin_2_nilai || 0)
+                            : Number(this.calculation.termin_1_nilai || 0);
+
+                        return thresholdBase > 250000000 ? 'over_250' : 'under_250';
                     },
                 };
             }

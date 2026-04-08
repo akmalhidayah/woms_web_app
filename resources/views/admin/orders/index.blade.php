@@ -149,8 +149,11 @@
 
                                     <tr class="{{ $index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60' }} align-top transition hover:bg-slate-50">
                                         <td class="px-4 py-4 text-[11px] font-semibold text-slate-600">
-                                            <div class="inline-flex min-w-[102px] items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[15px] font-semibold text-slate-800 shadow-sm">
-                                                {{ $order->nomor_order }}
+                                            <div class="inline-flex min-w-[102px] flex-col items-start justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[15px] font-semibold text-slate-800 shadow-sm">
+                                                <span>{{ $order->nomor_order }}</span>
+                                                @if ($order->notifikasi)
+                                                    <span class="mt-1 text-[11px] font-medium text-blue-600">Notif: {{ $order->notifikasi }}</span>
+                                                @endif
                                             </div>
                                         </td>
 
@@ -285,6 +288,7 @@
                                                         class="edit-order-trigger inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white transition hover:bg-emerald-700"
                                                         data-action="{{ route('admin.orders.update', $order) }}"
                                                         data-nomor-order="{{ $order->nomor_order }}"
+                                                        data-notifikasi="{{ $order->notifikasi }}"
                                                         data-nama-pekerjaan="{{ $order->nama_pekerjaan }}"
                                                         data-unit-kerja="{{ $order->unit_kerja }}"
                                                         data-prioritas="{{ $order->prioritas }}"
@@ -357,6 +361,10 @@
                         <input id="createNomorOrder" name="nomor_order" type="text" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
                     </div>
                     <div>
+                        <label class="mb-2 block text-sm text-slate-700">Notifikasi</label>
+                        <input id="createNotifikasi" name="notifikasi" type="text" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none">
+                    </div>
+                    <div>
                         <label class="mb-2 block text-sm text-slate-700">Nama Pekerjaan</label>
                         <input id="createNamaPekerjaan" name="nama_pekerjaan" type="text" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
                     </div>
@@ -420,6 +428,10 @@
                     <div>
                         <label class="mb-2 block text-sm text-slate-700">Nomor Order</label>
                         <input id="editNomorOrder" name="nomor_order" type="text" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm text-slate-700">Notifikasi</label>
+                        <input id="editNotifikasi" name="notifikasi" type="text" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none">
                     </div>
                     <div>
                         <label class="mb-2 block text-sm text-slate-700">Nama Pekerjaan</label>
@@ -638,6 +650,7 @@
 
             document.getElementById('openCreateOrderModal')?.addEventListener('click', () => {
                 document.getElementById('createNomorOrder').value = '';
+                document.getElementById('createNotifikasi').value = '';
                 document.getElementById('createNamaPekerjaan').value = '';
                 createUnitKerja.value = '';
                 document.getElementById('createPrioritas').value = 'sedang';
@@ -662,6 +675,7 @@
 
                     editForm.action = button.dataset.action || '#';
                     document.getElementById('editNomorOrder').value = button.dataset.nomorOrder || '';
+                    document.getElementById('editNotifikasi').value = button.dataset.notifikasi || '';
                     document.getElementById('editNamaPekerjaan').value = button.dataset.namaPekerjaan || '';
                     editUnitKerja.value = button.dataset.unitKerja || '';
                     document.getElementById('editPrioritas').value = button.dataset.prioritas || 'sedang';

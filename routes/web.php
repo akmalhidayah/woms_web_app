@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AccessControlController;
 use App\Http\Controllers\Admin\BudgetVerificationController;
 use App\Http\Controllers\Admin\Hpp\HppController;
 use App\Http\Controllers\Admin\InformationUploadController;
+use App\Http\Controllers\Admin\GaransiController;
 use App\Http\Controllers\Admin\LhppController as AdminLhppController;
 use App\Http\Controllers\Admin\LpjPplController;
 use App\Http\Controllers\Admin\OutlineAgreementController;
@@ -84,19 +85,26 @@ Route::middleware(['auth'])->group(function () {
     Route::get('admin/lhpp', [AdminLhppController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
         ->name('admin.lhpp.index');
-    Route::patch('admin/lhpp/{lhpp}/quality-control', [AdminLhppController::class, 'updateQualityControl'])
+    Route::patch('admin/lhpp/{lhppId}/quality-control', [AdminLhppController::class, 'updateQualityControl'])
         ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
+        ->whereNumber('lhppId')
         ->name('admin.lhpp.quality-control');
-    Route::get('admin/lhpp/{lhpp}/pdf', [AdminLhppController::class, 'pdf'])
+    Route::get('admin/lhpp/{lhppId}/pdf', [AdminLhppController::class, 'pdf'])
         ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
+        ->whereNumber('lhppId')
         ->name('admin.lhpp.pdf');
 
     Route::get('admin/lpj', [LpjPplController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:lpj_ppl'])
         ->name('admin.lpj.index');
-    Route::patch('admin/lpj/{lhpp}', [LpjPplController::class, 'update'])
+    Route::patch('admin/lpj/{lhppId}', [LpjPplController::class, 'update'])
         ->middleware(['role:admin', 'admin_menu:lpj_ppl'])
+        ->whereNumber('lhppId')
         ->name('admin.lpj.update');
+
+    Route::get('admin/garansi', [GaransiController::class, 'index'])
+        ->middleware(['role:admin', 'admin_menu:garansi'])
+        ->name('admin.garansi.index');
 
     Route::get('admin/outline-agreements', [OutlineAgreementController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:kuota_anggaran_oa'])
@@ -181,8 +189,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('pkm/lhpp/create', [LhppController::class, 'create'])
         ->middleware('role:pkm')
         ->name('pkm.lhpp.create');
-    Route::get('pkm/lhpp/{lhpp}/edit', [LhppController::class, 'edit'])
+    Route::get('pkm/lhpp/{nomorOrder}/termin-2/create', [LhppController::class, 'createTerminTwo'])
         ->middleware('role:pkm')
+        ->name('pkm.lhpp.termin2.create');
+    Route::get('pkm/lhpp/{nomorOrder}/{termin}/edit', [LhppController::class, 'edit'])
+        ->middleware('role:pkm')
+        ->where('termin', 'termin-[12]')
         ->name('pkm.lhpp.edit');
     Route::post('pkm/lhpp/calculate', [LhppController::class, 'calculate'])
         ->middleware('role:pkm')
@@ -190,14 +202,17 @@ Route::middleware(['auth'])->group(function () {
     Route::post('pkm/lhpp', [LhppController::class, 'store'])
         ->middleware('role:pkm')
         ->name('pkm.lhpp.store');
-    Route::patch('pkm/lhpp/{lhpp}', [LhppController::class, 'update'])
+    Route::patch('pkm/lhpp/{nomorOrder}/{termin}', [LhppController::class, 'update'])
         ->middleware('role:pkm')
+        ->where('termin', 'termin-[12]')
         ->name('pkm.lhpp.update');
-    Route::delete('pkm/lhpp/{lhpp}', [LhppController::class, 'destroy'])
+    Route::delete('pkm/lhpp/{nomorOrder}/{termin}', [LhppController::class, 'destroy'])
         ->middleware('role:pkm')
+        ->where('termin', 'termin-[12]')
         ->name('pkm.lhpp.destroy');
-    Route::get('pkm/lhpp/{lhpp}/pdf', [LhppController::class, 'pdf'])
+    Route::get('pkm/lhpp/{nomorOrder}/{termin}/pdf', [LhppController::class, 'pdf'])
         ->middleware('role:pkm')
+        ->where('termin', 'termin-[12]')
         ->name('pkm.lhpp.pdf');
 
     Route::view('pkm/laporan', 'dashboards.pkm', [

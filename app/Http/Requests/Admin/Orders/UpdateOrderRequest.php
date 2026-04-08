@@ -28,6 +28,7 @@ class UpdateOrderRequest extends FormRequest
 
         return [
             'nomor_order' => ['required', 'string', 'max:100', Rule::unique('orders', 'nomor_order')->ignore($order->id)],
+            'notifikasi' => ['nullable', 'string', 'max:255'],
             'nama_pekerjaan' => ['required', 'string', 'max:255'],
             'unit_kerja' => ['required', 'string', 'max:255'],
             'seksi' => ['required', 'string', 'max:255'],

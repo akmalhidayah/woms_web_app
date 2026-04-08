@@ -19,6 +19,7 @@ return new class extends Migration
             $table->foreignId('hpp_id')->nullable()->constrained('hpps')->nullOnDelete();
             $table->foreignId('purchase_order_id')->nullable()->constrained('purchase_orders')->nullOnDelete();
             $table->string('nomor_order')->index();
+            $table->string('notifikasi')->nullable()->index();
             $table->string('purchase_order_number')->nullable()->index();
             $table->string('deskripsi_pekerjaan')->nullable();
             $table->string('unit_kerja')->nullable()->index();
@@ -44,6 +45,17 @@ return new class extends Migration
 
             $table->unique(['order_id', 'termin_type'], 'lhpp_basts_order_termin_unique');
         });
+
+        Schema::create('lhpp_bast_images', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('lhpp_bast_id')->constrained('lhpp_basts')->cascadeOnDelete();
+            $table->string('file_path');
+            $table->string('file_name')->nullable();
+            $table->string('mime_type', 100)->nullable();
+            $table->unsignedBigInteger('file_size')->nullable();
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->timestamps();
+        });
     }
 
     /**
@@ -51,6 +63,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::dropIfExists('lhpp_bast_images');
         Schema::dropIfExists('lhpp_basts');
     }
 };

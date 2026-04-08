@@ -102,10 +102,15 @@
                             <div class="bg-gradient-to-r from-[#ca642f] to-[#e18e4d] px-4 py-3 text-white">
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="min-w-0">
-                                        <div class="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/80">Nomor Order</div>
+                                        <div class="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/80">Order / Notifikasi</div>
                                         <div class="mt-1 truncate text-[15px] font-black">
-                                            <i data-lucide="bell-ring" class="mr-1 inline h-4 w-4"></i>{{ $notification['notification_number'] }}
+                                            <i data-lucide="file-text" class="mr-1 inline h-4 w-4"></i>{{ $notification['nomor_order'] }}
                                         </div>
+                                        @if (! empty($notification['notification_number']))
+                                            <div class="mt-1 truncate text-[15px] font-black">
+                                                <i data-lucide="bell-ring" class="mr-1 inline h-4 w-4"></i>{{ $notification['notification_number'] }}
+                                            </div>
+                                        @endif
                                     </div>
 
                                     <div class="text-right">

@@ -38,6 +38,8 @@ class StoreLhppBastRequest extends FormRequest
             'service_rows.*.volume' => ['nullable', 'string', 'max:50'],
             'service_rows.*.unit' => ['nullable', 'string', 'max:20'],
             'service_rows.*.unit_price' => ['nullable', 'string', 'max:50'],
+            'gambar' => ['nullable', 'array'],
+            'gambar.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ];
     }
 }

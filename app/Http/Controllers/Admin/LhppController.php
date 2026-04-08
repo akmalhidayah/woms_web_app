@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Garansi;
 use App\Models\LhppBast;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
@@ -60,6 +62,7 @@ class LhppController extends Controller
                     'order:id,nomor_order,unit_kerja,seksi',
                     'purchaseOrder:id,order_id,purchase_order_number',
                     'terminTwo',
+                    'garansi',
                 ])
                 ->where('termin_type', 'termin_1')
                 ->when($search !== '', function ($query) use ($search): void {
@@ -98,6 +101,8 @@ class LhppController extends Controller
         try {
             $lhpp = LhppBast::query()->findOrFail($lhppId);
 
+            $lhpp->loadMissing(['images', 'parentLhppBast.images']);
+
             $pdf = Pdf::loadView('pkm.lhpp.pdf', [
                 'lhpp' => $lhpp,
                 'materialItems' => collect($lhpp->material_items ?? []),
@@ -118,6 +123,56 @@ class LhppController extends Controller
             ]);
 
             abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Terjadi kesalahan saat membuat PDF BAST admin.');
+        }
+    }
+
+    public function updateGaransi(Request $request, int $lhppId)
+    {
+        try {
+            $lhpp = LhppBast::query()
+                ->where('termin_type', 'termin_1')
+                ->findOrFail($lhppId);
+
+            $validated = $request->validate([
+                'garansi_months' => ['required', 'integer', 'in:0,1,3,6,12'],
+            ], [
+                'garansi_months.required' => 'Durasi garansi wajib dipilih.',
+                'garansi_months.in' => 'Durasi garansi tidak valid.',
+            ]);
+
+            $garansiMonths = (int) $validated['garansi_months'];
+            $startDate = Carbon::today();
+            $endDate = $garansiMonths > 0
+                ? $startDate->copy()->addMonthsNoOverflow($garansiMonths)
+                : null;
+
+            Garansi::query()->updateOrCreate(
+                ['lhpp_bast_id' => $lhpp->id],
+                [
+                    'garansi_months' => $garansiMonths,
+                    'start_date' => $startDate,
+                    'end_date' => $endDate,
+                    'created_by' => $lhpp->garansi?->created_by ?? $request->user()?->id,
+                    'updated_by' => $request->user()?->id,
+                ],
+            );
+
+            return redirect()
+                ->route('admin.lhpp.index', $request->only('search', 'page'))
+                ->with('status', sprintf('Garansi untuk order %s berhasil diperbarui.', $lhpp->nomor_order));
+        } catch (Throwable $exception) {
+            Log::error('Failed to update admin BAST garansi.', [
+                'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
+                'user_id' => $request->user()?->id,
+                'lhpp_id' => $lhppId,
+                'error' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+            ]);
+
+            return back()->withErrors([
+                'garansi_months' => 'Terjadi kesalahan saat memperbarui data garansi.',
+            ]);
         }
     }
 }

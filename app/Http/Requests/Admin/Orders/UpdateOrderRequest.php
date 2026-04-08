@@ -28,7 +28,7 @@ class UpdateOrderRequest extends FormRequest
 
         return [
             'nomor_order' => ['required', 'string', 'max:100', Rule::unique('orders', 'nomor_order')->ignore($order->id)],
-            'notifikasi' => ['nullable', 'string', 'max:255'],
+            'notifikasi' => ['nullable', 'string', 'max:255', Rule::unique('orders', 'notifikasi')->ignore($order->id)],
             'nama_pekerjaan' => ['required', 'string', 'max:255'],
             'unit_kerja' => ['required', 'string', 'max:255'],
             'seksi' => ['required', 'string', 'max:255'],
@@ -37,6 +37,27 @@ class UpdateOrderRequest extends FormRequest
             'tanggal_order' => ['required', 'date'],
             'target_selesai' => ['required', 'date', 'after_or_equal:tanggal_order'],
             'catatan' => ['nullable', 'string'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'nomor_order.required' => 'Nomor order wajib diisi.',
+            'nomor_order.unique' => 'Nomor order ini sudah digunakan.',
+            'notifikasi.unique' => 'Nomor notifikasi ini sudah digunakan.',
+            'target_selesai.after_or_equal' => 'Target selesai tidak boleh lebih awal dari tanggal order.',
+        ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'nomor_order' => 'nomor order',
+            'notifikasi' => 'nomor notifikasi',
+            'nama_pekerjaan' => 'nama pekerjaan',
+            'unit_kerja' => 'unit kerja',
+            'target_selesai' => 'target selesai',
         ];
     }
 }

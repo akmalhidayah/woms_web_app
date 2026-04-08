@@ -24,7 +24,7 @@ class GaransiController extends Controller
                 ->with([
                     'order:id,nomor_order',
                     'order.documents:id,order_id,jenis_dokumen,nama_file_asli,path_file',
-                    'lpjPpl:id,lhpp_bast_id,lpj_number_termin1,ppl_number_termin1,lpj_document_path_termin1,ppl_document_path_termin1,lpj_number_termin2,ppl_number_termin2,lpj_document_path_termin2,ppl_document_path_termin2',
+                    'garansi:id,lhpp_bast_id,garansi_months,start_date,end_date',
                 ])
                 ->where('termin_type', 'termin_1')
                 ->when($search !== '', function ($query) use ($search): void {
@@ -39,37 +39,17 @@ class GaransiController extends Controller
                 ->latest('id')
                 ->paginate(10)
                 ->through(function (LhppBast $lhpp): array {
-                    $lpj = $lhpp->lpjPpl;
-                    $lpjPresent = filled($lpj?->lpj_number_termin1)
-                        || filled($lpj?->ppl_number_termin1)
-                        || filled($lpj?->lpj_document_path_termin1)
-                        || filled($lpj?->ppl_document_path_termin1)
-                        || filled($lpj?->lpj_number_termin2)
-                        || filled($lpj?->ppl_number_termin2)
-                        || filled($lpj?->lpj_document_path_termin2)
-                        || filled($lpj?->ppl_document_path_termin2);
-
-                    $has3Ttd = ($lhpp->quality_control_status ?? 'pending') === 'approved';
-                    $garansiMonths = match ($lhpp->approval_threshold) {
-                        'over_250' => 6,
-                        'under_250' => 3,
-                        default => null,
+                    $garansi = $lhpp->garansi;
+                    $garansiMonths = $garansi?->garansi_months;
+                    $startDate = $garansi?->start_date;
+                    $endDate = $garansi?->end_date;
+                    $status = match (true) {
+                        $garansiMonths === null => 'Belum Diatur',
+                        $garansiMonths === 0 => 'Tidak Memiliki Garansi',
+                        $endDate && now()->startOfDay()->lte($endDate->copy()->startOfDay()) => 'Masih Berlaku',
+                        $endDate !== null => 'Sudah Berakhir',
+                        default => 'Belum Diatur',
                     };
-
-                    $startDate = $has3Ttd && $lhpp->tanggal_bast
-                        ? $lhpp->tanggal_bast->copy()
-                        : null;
-
-                    $endDate = ($startDate && $garansiMonths !== null)
-                        ? $startDate->copy()->addMonthsNoOverflow($garansiMonths)
-                        : null;
-
-                    $status = null;
-                    if ($startDate && $endDate) {
-                        $status = now()->startOfDay()->lte($endDate->copy()->startOfDay())
-                            ? 'Masih Berlaku'
-                            : 'Habis';
-                    }
 
                     $gambar = collect($lhpp->order?->documents ?? [])
                         ->filter(function ($document): bool {
@@ -91,10 +71,8 @@ class GaransiController extends Controller
                         'ttd_date' => $startDate?->format('d-m-Y') ?? '-',
                         'end_date' => $endDate?->format('d-m-Y') ?? '-',
                         'garansi_months' => $garansiMonths,
-                        'garansi_label' => $garansiMonths !== null ? "Dummy {$garansiMonths} Bulan" : '',
+                        'garansi_label' => $garansiMonths !== null ? "{$garansiMonths} Bulan" : '',
                         'status' => $status,
-                        'has_3_ttd' => $has3Ttd,
-                        'lpj_present' => $lpjPresent,
                         'gambar' => $gambar,
                     ];
                 })

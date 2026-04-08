@@ -69,6 +69,7 @@ class JobWaitingController extends Controller
                     $query->where(function (Builder $builder) use ($search): void {
                         $builder
                             ->where('nomor_order', 'like', "%{$search}%")
+                            ->orWhere('notifikasi', 'like', "%{$search}%")
                             ->orWhere('nama_pekerjaan', 'like', "%{$search}%")
                             ->orWhere('unit_kerja', 'like', "%{$search}%")
                             ->orWhere('seksi', 'like', "%{$search}%");
@@ -178,7 +179,8 @@ class JobWaitingController extends Controller
         $gambarDocument = $this->findDocument($order, OrderDocumentType::GambarTeknik);
 
         return [
-            'notification_number' => $order->nomor_order,
+            'nomor_order' => $order->nomor_order,
+            'notification_number' => $order->notifikasi,
             'priority' => $this->priorityLabel($order->prioritas),
             'job_name' => $order->nama_pekerjaan,
             'seksi' => $order->seksi,

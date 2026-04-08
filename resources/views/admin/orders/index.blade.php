@@ -287,6 +287,7 @@
                                                         type="button"
                                                         class="edit-order-trigger inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white transition hover:bg-emerald-700"
                                                         data-action="{{ route('admin.orders.update', $order) }}"
+                                                        data-order-key="{{ $order->getRouteKey() }}"
                                                         data-nomor-order="{{ $order->nomor_order }}"
                                                         data-notifikasi="{{ $order->notifikasi }}"
                                                         data-nama-pekerjaan="{{ $order->nama_pekerjaan }}"
@@ -346,6 +347,7 @@
         <div class="rounded-3xl bg-white shadow-2xl" style="width:min(100%, 640px);">
             <form method="POST" action="{{ route('admin.orders.store') }}" class="p-6">
                 @csrf
+                <input type="hidden" name="form_context" value="create">
                 <input type="hidden" name="tanggal_order" id="createTanggalOrder" value="{{ $today }}">
                 <input type="hidden" name="deskripsi" id="createDeskripsi" value="Order pekerjaan jasa">
                 <input type="hidden" name="catatan" value="">
@@ -358,15 +360,25 @@
                 <div class="mt-6 grid gap-5">
                     <div>
                         <label class="mb-2 block text-sm text-slate-700">Nomor Order</label>
-                        <input id="createNomorOrder" name="nomor_order" type="text" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                        <input id="createNomorOrder" name="nomor_order" type="text" value="{{ old('form_context') === 'create' ? old('nomor_order') : '' }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                        @if (old('form_context') === 'create')
+                            @error('nomor_order')
+                                <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                            @enderror
+                        @endif
                     </div>
                     <div>
                         <label class="mb-2 block text-sm text-slate-700">Notifikasi</label>
-                        <input id="createNotifikasi" name="notifikasi" type="text" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none">
+                        <input id="createNotifikasi" name="notifikasi" type="text" value="{{ old('form_context') === 'create' ? old('notifikasi') : '' }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none">
+                        @if (old('form_context') === 'create')
+                            @error('notifikasi')
+                                <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                            @enderror
+                        @endif
                     </div>
                     <div>
                         <label class="mb-2 block text-sm text-slate-700">Nama Pekerjaan</label>
-                        <input id="createNamaPekerjaan" name="nama_pekerjaan" type="text" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                        <input id="createNamaPekerjaan" name="nama_pekerjaan" type="text" value="{{ old('form_context') === 'create' ? old('nama_pekerjaan') : '' }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
                     </div>
                     <div>
                         <label class="mb-2 block text-sm text-slate-700">Unit Kerja</label>
@@ -375,6 +387,7 @@
                             @foreach ($structureUnitOptions as $unitWork)
                                 <option
                                     value="{{ $unitWork->name }}"
+                                    @selected(old('form_context') === 'create' && old('unit_kerja') === $unitWork->name)
                                     data-seksi='@json($unitWork->sections->pluck('name')->values())'
                                 >
                                     {{ $unitWork->name }}
@@ -392,13 +405,13 @@
                         <label class="mb-2 block text-sm text-slate-700">Prioritas</label>
                         <select id="createPrioritas" name="prioritas" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
                             @foreach (\App\Models\Order::priorityOptions() as $value => $label)
-                                <option value="{{ $value }}">{{ $label }}</option>
+                                <option value="{{ $value }}" @selected(old('form_context') === 'create' ? old('prioritas', 'sedang') === $value : $value === 'sedang')>{{ $label }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div>
                         <label class="mb-2 block text-sm text-slate-700">Rencana Pemakaian</label>
-                        <input id="createTargetSelesai" name="target_selesai" type="date" value="{{ $today }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                        <input id="createTargetSelesai" name="target_selesai" type="date" value="{{ old('form_context') === 'create' ? old('target_selesai', $today) : $today }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
                     </div>
                 </div>
 
@@ -415,6 +428,8 @@
             <form method="POST" id="editOrderForm" action="#" class="p-6">
                 @csrf
                 @method('PUT')
+                <input type="hidden" name="form_context" value="edit">
+                <input type="hidden" name="edit_original_order" id="editOriginalOrder" value="{{ old('edit_original_order') }}">
                 <input type="hidden" name="tanggal_order" id="editTanggalOrder" value="{{ $today }}">
                 <input type="hidden" name="deskripsi" id="editDeskripsi" value="Order pekerjaan jasa">
                 <input type="hidden" name="catatan" id="editCatatan" value="">
@@ -427,15 +442,25 @@
                 <div class="mt-6 grid gap-5">
                     <div>
                         <label class="mb-2 block text-sm text-slate-700">Nomor Order</label>
-                        <input id="editNomorOrder" name="nomor_order" type="text" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                        <input id="editNomorOrder" name="nomor_order" type="text" value="{{ old('form_context') === 'edit' ? old('nomor_order') : '' }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                        @if (old('form_context') === 'edit')
+                            @error('nomor_order')
+                                <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                            @enderror
+                        @endif
                     </div>
                     <div>
                         <label class="mb-2 block text-sm text-slate-700">Notifikasi</label>
-                        <input id="editNotifikasi" name="notifikasi" type="text" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none">
+                        <input id="editNotifikasi" name="notifikasi" type="text" value="{{ old('form_context') === 'edit' ? old('notifikasi') : '' }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none">
+                        @if (old('form_context') === 'edit')
+                            @error('notifikasi')
+                                <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                            @enderror
+                        @endif
                     </div>
                     <div>
                         <label class="mb-2 block text-sm text-slate-700">Nama Pekerjaan</label>
-                        <input id="editNamaPekerjaan" name="nama_pekerjaan" type="text" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                        <input id="editNamaPekerjaan" name="nama_pekerjaan" type="text" value="{{ old('form_context') === 'edit' ? old('nama_pekerjaan') : '' }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
                     </div>
                     <div>
                         <label class="mb-2 block text-sm text-slate-700">Unit Kerja</label>
@@ -444,6 +469,7 @@
                             @foreach ($structureUnitOptions as $unitWork)
                                 <option
                                     value="{{ $unitWork->name }}"
+                                    @selected(old('form_context') === 'edit' && old('unit_kerja') === $unitWork->name)
                                     data-seksi='@json($unitWork->sections->pluck('name')->values())'
                                 >
                                     {{ $unitWork->name }}
@@ -461,13 +487,13 @@
                         <label class="mb-2 block text-sm text-slate-700">Prioritas</label>
                         <select id="editPrioritas" name="prioritas" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
                             @foreach (\App\Models\Order::priorityOptions() as $value => $label)
-                                <option value="{{ $value }}">{{ $label }}</option>
+                                <option value="{{ $value }}" @selected(old('form_context') === 'edit' && old('prioritas') === $value)>{{ $label }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div>
                         <label class="mb-2 block text-sm text-slate-700">Rencana Pemakaian</label>
-                        <input id="editTargetSelesai" name="target_selesai" type="date" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                        <input id="editTargetSelesai" name="target_selesai" type="date" value="{{ old('form_context') === 'edit' ? old('target_selesai') : '' }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
                     </div>
                 </div>
 
@@ -491,6 +517,8 @@
             const createSeksi = document.getElementById('createSeksi');
             const editUnitKerja = document.getElementById('editUnitKerja');
             const editSeksi = document.getElementById('editSeksi');
+            const oldFormContext = @json(old('form_context'));
+            const oldEditOrderKey = @json(old('edit_original_order'));
 
             const parseSeksiOptions = (select) => {
                 const selectedOption = select?.options?.[select.selectedIndex];
@@ -674,6 +702,7 @@
                     if (!editForm) return;
 
                     editForm.action = button.dataset.action || '#';
+                    document.getElementById('editOriginalOrder').value = button.dataset.orderKey || '';
                     document.getElementById('editNomorOrder').value = button.dataset.nomorOrder || '';
                     document.getElementById('editNotifikasi').value = button.dataset.notifikasi || '';
                     document.getElementById('editNamaPekerjaan').value = button.dataset.namaPekerjaan || '';
@@ -688,6 +717,27 @@
                     openModal(editModal);
                 });
             });
+
+            if (oldFormContext === 'create') {
+                syncSeksiSelect(createUnitKerja, createSeksi, @json(old('seksi')));
+                openModal(createModal);
+            }
+
+            if (oldFormContext === 'edit') {
+                const editTrigger = oldEditOrderKey
+                    ? document.querySelector(`.edit-order-trigger[data-order-key="${oldEditOrderKey}"]`)
+                    : null;
+
+                if (editTrigger && editForm) {
+                    editForm.action = editTrigger.dataset.action || '#';
+                    document.getElementById('editOriginalOrder').value = oldEditOrderKey || '';
+                    document.getElementById('editTanggalOrder').value = @json(old('tanggal_order', $today));
+                    document.getElementById('editCatatan').value = @json(old('catatan', ''));
+                    document.getElementById('editDeskripsi').value = @json(old('deskripsi', 'Order pekerjaan jasa'));
+                    syncSeksiSelect(editUnitKerja, editSeksi, @json(old('seksi')));
+                    openModal(editModal);
+                }
+            }
 
             overlay?.addEventListener('click', closeModals);
 

@@ -77,11 +77,7 @@
                                     : '-';
                                 $totalBiaya = (float) ($lhpp->total_aktual_biaya ?? 0);
                                 $garansiMonths = [0, 1, 3, 6, 12];
-                                $garansiValue = match ($lhpp->approval_threshold) {
-                                    'over_250' => 6,
-                                    'under_250' => 3,
-                                    default => '',
-                                };
+                                $garansiValue = $lhpp->garansi?->garansi_months;
                                 $qualityControlStatus = $lhpp->quality_control_status ?: 'pending';
                                 $qualityControlSelectClass = match ($qualityControlStatus) {
                                     'approved' => 'border-emerald-300 bg-emerald-50 text-emerald-700',
@@ -144,15 +140,21 @@
 
                                 <td class="px-4 py-3 align-top">
                                     <div class="mx-auto flex max-w-[180px] flex-col gap-2">
-                                        <select class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] text-slate-700 bast-admin-dummy-control">
-                                            <option value="">-- Garansi (Bulan) --</option>
-                                            @foreach ($garansiMonths as $month)
-                                                <option value="{{ $month }}" @selected((string) $garansiValue === (string) $month)>{{ $month }} Bulan</option>
-                                            @endforeach
-                                        </select>
-                                        <button type="button" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-indigo-700 bast-admin-dummy-save" data-order="{{ $nomorOrder }}">
-                                            Simpan
-                                        </button>
+                                        <form method="POST" action="{{ route('admin.lhpp.garansi', ['lhppId' => $lhpp->id]) }}" class="flex flex-col gap-2">
+                                            @csrf
+                                            @method('PATCH')
+                                            <input type="hidden" name="search" value="{{ $search }}">
+                                            <input type="hidden" name="page" value="{{ $lhpps->currentPage() }}">
+                                            <select name="garansi_months" class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] text-slate-700">
+                                                <option value="">-- Garansi (Bulan) --</option>
+                                                @foreach ($garansiMonths as $month)
+                                                    <option value="{{ $month }}" @selected((string) $garansiValue === (string) $month)>{{ $month }} Bulan</option>
+                                                @endforeach
+                                            </select>
+                                            <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-indigo-700">
+                                                Simpan
+                                            </button>
+                                        </form>
                                     </div>
                                 </td>
 
@@ -228,17 +230,6 @@
                     showConfirmButton: false,
                 });
             }
-
-            document.querySelectorAll('.bast-admin-dummy-save').forEach((button) => {
-                button.addEventListener('click', () => {
-                    window.Swal?.fire({
-                        icon: 'info',
-                        title: 'Garansi',
-                        text: `Garansi untuk order ${button.dataset.order} masih dummy dulu dan belum disimpan ke database.`,
-                        confirmButtonText: 'OK',
-                    });
-                });
-            });
         });
     </script>
 </x-layouts.admin>

@@ -54,14 +54,6 @@
                             <tr class="transition hover:bg-slate-50">
                                 <td class="px-4 py-3">
                                     <div class="font-semibold text-slate-900">{{ $g['order_number'] }}</div>
-                                    <div class="mt-1 text-[10px] text-slate-500">
-                                        @if (!($g['lpj_present'] ?? false))
-                                            <span class="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[10px] text-amber-700">
-                                                <i data-lucide="triangle-alert" class="h-3 w-3"></i>
-                                                LPJ belum terisi
-                                            </span>
-                                        @endif
-                                    </div>
                                 </td>
 
                                 <td class="px-4 py-3 text-slate-700">
@@ -110,25 +102,26 @@
                                 <td class="px-4 py-3">
                                     @php
                                         $status = $g['status'] ?? null;
-                                        $has3Ttd = $g['has_3_ttd'] ?? false;
                                     @endphp
 
                                     @if ($status === 'Masih Berlaku')
                                         <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] text-emerald-800">
                                             <i data-lucide="check-circle-2" class="h-3 w-3"></i> Masih Berlaku
                                         </span>
-                                    @elseif ($status === 'Habis')
+                                    @elseif ($status === 'Sudah Berakhir')
                                         <span class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] text-rose-800">
-                                            <i data-lucide="x-circle" class="h-3 w-3"></i> Habis
+                                            <i data-lucide="x-circle" class="h-3 w-3"></i> Sudah Berakhir
+                                        </span>
+                                    @elseif ($status === 'Tidak Memiliki Garansi')
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-700">
+                                            <i data-lucide="ban" class="h-3 w-3"></i> Tidak Memiliki Garansi
+                                        </span>
+                                    @elseif ($status === 'Belum Diatur')
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] text-amber-800">
+                                            <i data-lucide="clock-3" class="h-3 w-3"></i> Belum Diatur
                                         </span>
                                     @else
-                                        @if (!$has3Ttd)
-                                            <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] text-amber-800">
-                                                <i data-lucide="pen-tool" class="h-3 w-3"></i> LHPP Belum ada TTD
-                                            </span>
-                                        @else
-                                            <span class="text-[10px] text-slate-400">-</span>
-                                        @endif
+                                        <span class="text-[10px] text-slate-400">-</span>
                                     @endif
                                 </td>
 
@@ -163,37 +156,30 @@
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <div class="text-sm font-semibold text-slate-800">{{ $g['order_number'] }}</div>
-                                <div class="mt-1 text-[10px] text-slate-500">
-                                    @if (!($g['lpj_present'] ?? false))
-                                        <span class="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[10px] text-amber-700">
-                                            <i data-lucide="triangle-alert" class="h-3 w-3"></i>
-                                            LPJ belum terisi
-                                        </span>
-                                    @endif
-                                </div>
                             </div>
 
                             <div class="text-right">
                                 @php
                                     $status = $g['status'] ?? null;
-                                    $has3Ttd = $g['has_3_ttd'] ?? false;
                                 @endphp
                                 @if ($status === 'Masih Berlaku')
                                     <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] text-emerald-800">
                                         <i data-lucide="check-circle-2" class="h-3 w-3"></i> Masih
                                     </span>
-                                @elseif ($status === 'Habis')
+                                @elseif ($status === 'Sudah Berakhir')
                                     <span class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] text-rose-800">
-                                        <i data-lucide="x-circle" class="h-3 w-3"></i> Habis
+                                        <i data-lucide="x-circle" class="h-3 w-3"></i> Berakhir
+                                    </span>
+                                @elseif ($status === 'Tidak Memiliki Garansi')
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-700">
+                                        <i data-lucide="ban" class="h-3 w-3"></i> Tanpa
+                                    </span>
+                                @elseif ($status === 'Belum Diatur')
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] text-amber-800">
+                                        <i data-lucide="clock-3" class="h-3 w-3"></i> Belum
                                     </span>
                                 @else
-                                    @if (!$has3Ttd)
-                                        <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] text-amber-800">
-                                            <i data-lucide="pen-tool" class="h-3 w-3"></i> LHPP Belum ada TTD
-                                        </span>
-                                    @else
-                                        <span class="text-[10px] text-slate-400">-</span>
-                                    @endif
+                                    <span class="text-[10px] text-slate-400">-</span>
                                 @endif
                             </div>
                         </div>

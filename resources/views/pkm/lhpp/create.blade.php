@@ -11,6 +11,7 @@
             $bastOrderOptions = collect($bastOrderOptions ?? []);
             $selectedBastOrder = (string) old('nomor_order', $selectedBastOrder ?? '');
             $selectedThreshold = (string) old('approval_threshold', $selectedThreshold ?? 'under_250');
+            $existingImages = collect($existingImages ?? []);
             $materialRows = collect($initialMaterialRows ?? [
                 ['name' => '', 'volume' => '', 'unit' => 'Jam', 'unit_price' => '', 'amount' => '0.00', 'amount_display' => '0'],
             ]);
@@ -73,7 +74,7 @@
                     </div>
                 </div>
 
-                <form id="pkm-lhpp-create-form" method="POST" action="{{ $formAction }}" class="mt-5 space-y-5">
+                <form id="pkm-lhpp-create-form" method="POST" action="{{ $formAction }}" enctype="multipart/form-data" class="mt-5 space-y-5">
                     @csrf
                     @if (strtoupper($formMethod) !== 'POST')
                         @method($formMethod)
@@ -103,6 +104,10 @@
                                     </select>
                                     <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"></i>
                                 </div>
+
+                                <label class="text-[12px] font-semibold uppercase tracking-[0.08em] text-slate-700">Nomor Notifikasi</label>
+                                <div aria-hidden="true"></div>
+                                <input type="text" x-bind:value="currentOrder().notifikasi" readonly class="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:outline-none">
 
                                 <label class="text-[12px] font-semibold uppercase tracking-[0.08em] text-slate-700">Deskripsi Pekerjaan</label>
                                 <div aria-hidden="true"></div>
@@ -310,6 +315,44 @@
                             </table>
                         </div>
                     </div>
+
+                    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        <div class="border-b border-slate-200 px-4 py-3">
+                            <div class="text-[13px] font-bold text-slate-900">Gambar Pekerjaan</div>
+                            <p class="mt-1 text-[11px] text-slate-500">
+                                {{ $terminType === 'termin_2'
+                                    ? 'Gambar Termin 1 otomatis ikut tampil. Kalau perlu, kamu bisa tambah upload gambar baru untuk Termin 2.'
+                                    : 'Upload bisa lebih dari satu gambar sekaligus.' }}
+                            </p>
+                        </div>
+                        <div class="p-4 space-y-4">
+                            <div>
+                                <input type="file" name="gambar[]" multiple accept=".jpg,.jpeg,.png,.webp" class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-[#ca642f] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-[#b85b2b]">
+                                @error('gambar')
+                                    <p class="mt-2 text-sm text-rose-600">{{ $message }}</p>
+                                @enderror
+                                @error('gambar.*')
+                                    <p class="mt-2 text-sm text-rose-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            @if ($existingImages->isNotEmpty())
+                                <div>
+                                    <div class="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Gambar Tersimpan</div>
+                                    <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                        @foreach ($existingImages as $image)
+                                            <a href="{{ $image['url'] }}" target="_blank" rel="noopener noreferrer" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-700 transition hover:bg-slate-100">
+                                                <div class="font-semibold">{{ $image['name'] }}</div>
+                                                @if (! empty($image['source']))
+                                                    <div class="mt-1 text-[10px] uppercase tracking-[0.08em] text-slate-500">{{ $image['source'] }}</div>
+                                                @endif
+                                            </a>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
                 </form>
             </section>
         </div>
@@ -329,6 +372,7 @@
                     currentOrder() {
                         return this.orderOptions.find((item) => item.nomor_order === this.selectedOrder) ?? {
                             nomor_order: '',
+                            notifikasi: '',
                             deskripsi_pekerjaan: '',
                             unit_kerja_peminta: '',
                             unit_kerja: '',

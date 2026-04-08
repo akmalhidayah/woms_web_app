@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Pkm;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Pkm\StoreLhppBastRequest;
 use App\Models\LhppBast;
+use App\Models\LhppBastImage;
 use App\Models\Order;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
@@ -12,6 +13,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
@@ -29,7 +31,10 @@ class LhppController extends Controller
             ];
 
             $baseQuery = LhppBast::query()
-                ->with(['terminTwo'])
+                ->with([
+                    'terminTwo',
+                    'order:id,nomor_order,notifikasi',
+                ])
                 ->where('termin_type', 'termin_1')
                 ->when($filters['search'] !== '', function ($query) use ($filters): void {
                     $needle = $filters['search'];
@@ -39,7 +44,10 @@ class LhppController extends Controller
                             ->where('nomor_order', 'like', "%{$needle}%")
                             ->orWhere('purchase_order_number', 'like', "%{$needle}%")
                             ->orWhere('unit_kerja', 'like', "%{$needle}%")
-                            ->orWhere('seksi', 'like', "%{$needle}%");
+                            ->orWhere('seksi', 'like', "%{$needle}%")
+                            ->orWhereHas('order', function ($orderQuery) use ($needle): void {
+                                $orderQuery->where('notifikasi', 'like', "%{$needle}%");
+                            });
                     });
                 })
                 ->when($filters['unit_kerja'] !== '', fn ($query) => $query->where('unit_kerja', $filters['unit_kerja']))
@@ -237,6 +245,7 @@ class LhppController extends Controller
                     'hpp_id' => $latestHpp?->id,
                     'purchase_order_id' => $purchaseOrder?->id,
                     'nomor_order' => $order->nomor_order,
+                    'notifikasi' => $order->notifikasi,
                     'purchase_order_number' => $purchaseOrder?->purchase_order_number,
                     'deskripsi_pekerjaan' => $order->nama_pekerjaan,
                     'unit_kerja' => $order->unit_kerja,
@@ -258,6 +267,8 @@ class LhppController extends Controller
                     'created_by' => $request->user()?->id,
                 ]
             );
+
+            $this->storeUploadedImages($request, $lhpp);
 
             return redirect()
                 ->route('pkm.lhpp.index')
@@ -310,6 +321,7 @@ class LhppController extends Controller
                 'hpp_id' => $latestHpp?->id,
                 'purchase_order_id' => $purchaseOrder?->id,
                 'nomor_order' => $order->nomor_order,
+                'notifikasi' => $order->notifikasi,
                 'purchase_order_number' => $purchaseOrder?->purchase_order_number,
                 'deskripsi_pekerjaan' => $order->nama_pekerjaan,
                 'unit_kerja' => $order->unit_kerja,
@@ -333,6 +345,7 @@ class LhppController extends Controller
             ]);
 
             $lhpp->save();
+            $this->storeUploadedImages($request, $lhpp);
 
             return redirect()
                 ->route('pkm.lhpp.index')
@@ -373,6 +386,13 @@ class LhppController extends Controller
                 $lhpp->childLhppBasts()->delete();
             }
 
+            $lhpp->loadMissing('images');
+            foreach ($lhpp->images as $image) {
+                if ($image->file_path) {
+                    Storage::disk('public')->delete($image->file_path);
+                }
+            }
+
             $nomorOrder = $lhpp->nomor_order;
             $termLabel = $this->terminLabel($terminType);
             $lhpp->delete();
@@ -405,6 +425,8 @@ class LhppController extends Controller
             $lhpp = $this->resolveLhppByOrderAndTermin($nomorOrder, $terminType);
 
             abort_if(! $lhpp, Response::HTTP_NOT_FOUND, 'Data BAST tidak ditemukan.');
+
+            $lhpp->loadMissing(['images', 'parentLhppBast.images']);
 
             $pdf = Pdf::loadView('pkm.lhpp.pdf', [
                 'lhpp' => $lhpp,
@@ -520,7 +542,7 @@ class LhppController extends Controller
     private function resolveLhppByOrderAndTermin(string $nomorOrder, string $terminType): ?LhppBast
     {
         return LhppBast::query()
-            ->with(['order', 'parentLhppBast', 'terminTwo'])
+            ->with(['order', 'parentLhppBast.images', 'terminTwo', 'images'])
             ->where('nomor_order', $nomorOrder)
             ->where('termin_type', $terminType)
             ->first();
@@ -530,6 +552,7 @@ class LhppController extends Controller
     {
         return [
             'nomor_order' => (string) $order->nomor_order,
+            'notifikasi' => (string) ($order->notifikasi ?? ''),
             'deskripsi_pekerjaan' => (string) ($order->nama_pekerjaan ?? ''),
             'unit_kerja_peminta' => (string) ($order->seksi ?: $order->unit_kerja ?: ''),
             'unit_kerja' => (string) ($order->unit_kerja ?? ''),
@@ -544,6 +567,9 @@ class LhppController extends Controller
      */
     private function buildFormView(Request $request, ?LhppBast $lhpp, array $meta, string $terminType, ?LhppBast $parentLhpp = null): View
     {
+        $lhpp?->loadMissing(['images', 'parentLhppBast.images']);
+        $parentLhpp?->loadMissing('images');
+
         $sourceLhpp = $lhpp ?? $parentLhpp;
         $currentOrder = $sourceLhpp?->order ? $this->loadOrderWithRelations($sourceLhpp->order) : null;
         $orders = $currentOrder ? collect([$currentOrder]) : $this->eligibleOrders();
@@ -585,6 +611,7 @@ class LhppController extends Controller
             'bastDate' => old('tanggal_bast', optional($lhpp?->tanggal_bast)->format('Y-m-d') ?? now()->format('Y-m-d')),
             'tanggalMulaiPekerjaan' => old('tanggal_mulai_pekerjaan', optional($lhpp?->tanggal_mulai_pekerjaan)->format('Y-m-d') ?? optional($parentLhpp?->tanggal_mulai_pekerjaan)->format('Y-m-d')),
             'tanggalSelesaiPekerjaan' => old('tanggal_selesai_pekerjaan', optional($lhpp?->tanggal_selesai_pekerjaan)->format('Y-m-d') ?? optional($parentLhpp?->tanggal_selesai_pekerjaan)->format('Y-m-d')),
+            'existingImages' => $this->buildExistingImageList($lhpp, $parentLhpp)->all(),
             'initialMaterialRows' => $calculation['material_rows'],
             'initialServiceRows' => $calculation['service_rows'],
             'initialCalculation' => $calculation['totals'],
@@ -595,6 +622,28 @@ class LhppController extends Controller
             'terminType' => $terminType,
             'terminLabel' => $this->terminLabel($terminType),
         ]);
+    }
+
+    private function buildExistingImageList(?LhppBast $lhpp, ?LhppBast $parentLhpp = null): Collection
+    {
+        $parentImages = collect($parentLhpp?->images ?? [])
+            ->map(fn (LhppBastImage $image): array => [
+                'name' => $image->file_name ?: basename((string) $image->file_path),
+                'url' => $image->file_path ? Storage::disk('public')->url($image->file_path) : null,
+                'source' => 'Termin 1',
+            ]);
+
+        $ownImages = collect($lhpp?->images ?? [])
+            ->map(fn (LhppBastImage $image): array => [
+                'name' => $image->file_name ?: basename((string) $image->file_path),
+                'url' => $image->file_path ? Storage::disk('public')->url($image->file_path) : null,
+                'source' => ($lhpp?->termin_type === 'termin_2') ? 'Tambahan Termin 2' : 'Termin 1',
+            ]);
+
+        return $parentImages
+            ->concat($ownImages)
+            ->unique(fn (array $image): string => (string) ($image['url'] ?? $image['name']))
+            ->values();
     }
 
     /**
@@ -625,6 +674,34 @@ class LhppController extends Controller
     private function terminLabel(string $terminType): string
     {
         return $terminType === 'termin_2' ? 'Termin 2' : 'Termin 1';
+    }
+
+    private function storeUploadedImages(StoreLhppBastRequest $request, LhppBast $lhpp): void
+    {
+        $files = $request->file('gambar', []);
+
+        if (! is_array($files) || $files === []) {
+            return;
+        }
+
+        foreach ($files as $file) {
+            if (! $file || ! $file->isValid()) {
+                continue;
+            }
+
+            $path = $file->store(
+                sprintf('lhpp-basts/%s/%s', $lhpp->nomor_order, $lhpp->termin_type),
+                'public'
+            );
+
+            $lhpp->images()->create([
+                'file_path' => $path,
+                'file_name' => $file->getClientOriginalName(),
+                'mime_type' => $file->getClientMimeType(),
+                'file_size' => $file->getSize(),
+                'created_by' => $request->user()?->id,
+            ]);
+        }
     }
 
     /**

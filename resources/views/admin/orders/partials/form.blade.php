@@ -35,6 +35,9 @@
                     placeholder="ORD-2026-0001"
                     required
                 >
+                @error('nomor_order')
+                    <p class="text-sm font-medium text-rose-600">{{ $message }}</p>
+                @enderror
             </div>
 
             <div class="space-y-2">
@@ -47,6 +50,9 @@
                     class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-4 focus:ring-blue-100"
                     placeholder="Nomor notifikasi"
                 >
+                @error('notifikasi')
+                    <p class="text-sm font-medium text-rose-600">{{ $message }}</p>
+                @enderror
             </div>
 
             <div class="space-y-2">

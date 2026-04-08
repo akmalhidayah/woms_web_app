@@ -269,6 +269,45 @@
             display: table;
             clear: both;
         }
+
+        .page-break {
+            page-break-before: always;
+        }
+
+        .image-page-title {
+            text-align: center;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .image-table td {
+            width: 50%;
+            border: 1px solid #222;
+            padding: 8px;
+            vertical-align: top;
+        }
+
+        .image-card-title {
+            font-size: 9px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .image-preview {
+            width: 100%;
+            height: 300px;
+            object-fit: contain;
+        }
+
+        .image-empty {
+            height: 300px;
+            text-align: center;
+            font-size: 10px;
+            color: #777;
+            line-height: 300px;
+        }
     </style>
 </head>
 <body>
@@ -288,6 +327,31 @@
         return number_format((float) ($normalized !== '' ? $normalized : 0), 0, ',', '.');
     };
     $formatDate = static fn ($value) => $value ? \Illuminate\Support\Carbon::parse($value)->translatedFormat('d F Y') : '';
+    $resolveImageSource = static function ($relativePath) {
+        if (! $relativePath) {
+            return null;
+        }
+
+        $normalized = ltrim((string) $relativePath, '/');
+        $candidates = [
+            storage_path('app/public/'.$normalized),
+            public_path('storage/'.$normalized),
+            public_path($normalized),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate)) {
+                $mimeType = mime_content_type($candidate) ?: 'image/png';
+                $contents = @file_get_contents($candidate);
+
+                if ($contents !== false) {
+                    return 'data:'.$mimeType.';base64,'.base64_encode($contents);
+                }
+            }
+        }
+
+        return null;
+    };
 
     $terminDisplayLabel = $isTerminTwo
         ? 'TERMIN 2 (5% x Total Actual Biaya)'
@@ -297,6 +361,21 @@
         ? (float) $lhpp->termin_2_nilai
         : (float) $lhpp->termin_1_nilai;
     $qualityControlStatus = $lhpp->quality_control_status ?? 'pending';
+    $rawImageItems = collect($lhpp->images ?? []);
+
+    if ($isTerminTwo && $lhpp->parentLhppBast) {
+        $rawImageItems = collect($lhpp->parentLhppBast->images ?? [])->concat($rawImageItems);
+    }
+
+    $imageItems = $rawImageItems
+        ->map(function ($image) use ($resolveImageSource) {
+            return [
+                'name' => $image->file_name ?: basename((string) $image->file_path),
+                'src' => $resolveImageSource($image->file_path),
+            ];
+        })
+        ->unique(fn (array $image): string => (string) ($image['name'].'|'.$image['src']))
+        ->values();
 
     $approvalRoles = $isOver250
         ? [
@@ -324,16 +403,16 @@
             $lhpp->manager_signature_requesting ?: null,
         ];
 
-    $renderSignature = static function ($value) {
+    $renderSignature = static function ($value) use ($resolveImageSource) {
         if (! $value) {
             return '';
         }
 
         if (preg_match('/\.(png|jpg|jpeg|webp)$/i', (string) $value)) {
-            $path = public_path('storage/'.ltrim((string) $value, '/'));
+            $src = $resolveImageSource($value);
 
-            if (is_file($path)) {
-                return '<img src="'.$path.'" class="signature-initial" alt="ttd">';
+            if ($src) {
+                return '<img src="'.$src.'" class="signature-initial" alt="ttd">';
             }
         }
 
@@ -560,5 +639,36 @@
             </div>
         </div>
     </div>
+
+    @if ($imageItems->isNotEmpty())
+        <div class="page-break"></div>
+
+        <div class="page">
+            <div class="image-page-title">Gambar Pekerjaan</div>
+
+            <table class="image-table">
+                <tbody>
+                    @foreach ($imageItems->chunk(2) as $chunk)
+                        <tr>
+                            @foreach ($chunk as $image)
+                                <td>
+                                    <div class="image-card-title">{{ $image['name'] }}</div>
+                                    @if ($image['src'])
+                                        <img src="{{ $image['src'] }}" alt="{{ $image['name'] }}" class="image-preview">
+                                    @else
+                                        <div class="image-empty">Gambar tidak ditemukan</div>
+                                    @endif
+                                </td>
+                            @endforeach
+
+                            @if ($chunk->count() === 1)
+                                <td></td>
+                            @endif
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
 </body>
 </html>

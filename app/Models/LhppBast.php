@@ -27,6 +27,7 @@ class LhppBast extends Model
         'hpp_id',
         'purchase_order_id',
         'nomor_order',
+        'notifikasi',
         'purchase_order_number',
         'deskripsi_pekerjaan',
         'unit_kerja',
@@ -103,6 +104,16 @@ class LhppBast extends Model
     public function lpjPpl(): HasOne
     {
         return $this->hasOne(LpjPpl::class);
+    }
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(LhppBastImage::class)->latest('id');
+    }
+
+    public function garansi(): HasOne
+    {
+        return $this->hasOne(Garansi::class);
     }
 
     public function creator(): BelongsTo

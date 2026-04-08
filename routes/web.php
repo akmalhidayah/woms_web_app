@@ -89,6 +89,10 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
         ->whereNumber('lhppId')
         ->name('admin.lhpp.quality-control');
+    Route::patch('admin/lhpp/{lhppId}/garansi', [AdminLhppController::class, 'updateGaransi'])
+        ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
+        ->whereNumber('lhppId')
+        ->name('admin.lhpp.garansi');
     Route::get('admin/lhpp/{lhppId}/pdf', [AdminLhppController::class, 'pdf'])
         ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
         ->whereNumber('lhppId')

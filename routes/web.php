@@ -13,6 +13,8 @@ use App\Http\Controllers\Admin\Orders\OrderScopeOfWorkController;
 use App\Http\Controllers\Admin\PurchaseOrderController;
 use App\Http\Controllers\Admin\StructureOrganizationController;
 use App\Http\Controllers\Admin\UserPanelController;
+use App\Http\Controllers\Pkm\DashboardController as PkmDashboardController;
+use App\Http\Controllers\Pkm\DocumentsController as PkmDocumentsController;
 use App\Http\Controllers\Pkm\JobWaitingController;
 use App\Http\Controllers\Pkm\LhppController;
 use App\Models\User;
@@ -109,6 +111,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('admin/garansi', [GaransiController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:garansi'])
         ->name('admin.garansi.index');
+    Route::get('admin/garansi/images/{image}', [GaransiController::class, 'image'])
+        ->middleware(['role:admin', 'admin_menu:garansi'])
+        ->whereNumber('image')
+        ->name('admin.garansi.image');
 
     Route::get('admin/outline-agreements', [OutlineAgreementController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:kuota_anggaran_oa'])
@@ -158,10 +164,9 @@ Route::middleware(['auth'])->group(function () {
         'description' => 'Placeholder area for the standard user experience and upcoming modules.',
     ])->middleware('role:user')->name('user.dashboard');
 
-    Route::view('pkm/dashboard', 'dashboards.pkm', [
-        'pageTitle' => 'Dashboard',
-        'pageDescription' => 'Ringkasan utama aktivitas vendor PKM dan status pekerjaan yang sedang berjalan.',
-    ])->middleware('role:pkm')->name('pkm.dashboard');
+    Route::get('pkm/dashboard', [PkmDashboardController::class, 'index'])
+        ->middleware('role:pkm')
+        ->name('pkm.dashboard');
 
     Route::get('pkm/jobwaiting', [JobWaitingController::class, 'index'])
         ->middleware('role:pkm')
@@ -219,10 +224,15 @@ Route::middleware(['auth'])->group(function () {
         ->where('termin', 'termin-[12]')
         ->name('pkm.lhpp.pdf');
 
-    Route::view('pkm/laporan', 'dashboards.pkm', [
-        'pageTitle' => 'Dokumen',
-        'pageDescription' => 'Placeholder frontend untuk arsip dokumen vendor, laporan, dan file pekerjaan.',
-    ])->middleware('role:pkm')->name('pkm.laporan');
+    Route::get('pkm/laporan', [PkmDocumentsController::class, 'index'])
+        ->middleware('role:pkm')
+        ->name('pkm.laporan');
+    Route::get('pkm/laporan/{nomorOrder}/files/{kind}/{termin}', [PkmDocumentsController::class, 'previewLpjPpl'])
+        ->middleware('role:pkm')
+        ->where('nomorOrder', '[0-9A-Za-z\-]+')
+        ->where('kind', 'lpj|ppl')
+        ->where('termin', '[12]')
+        ->name('pkm.laporan.preview');
 
     Route::view('approver/dashboard', 'dashboards.placeholder', [
         'title' => 'Approver Dashboard',

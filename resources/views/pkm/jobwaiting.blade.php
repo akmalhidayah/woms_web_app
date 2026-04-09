@@ -96,6 +96,7 @@
                         @php
                             $approval = $approvalLabel($notification['approval_target']);
                             $started = $notification['progress'] >= 11;
+                            $isFinished = (bool) ($notification['is_finished'] ?? false);
                         @endphp
 
                         <article class="flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
@@ -164,8 +165,8 @@
                                         <input type="hidden" name="_filter_priority" value="{{ $selectedPriority }}">
                                         <input type="hidden" name="_filter_search" value="{{ $search }}">
                                         <input type="hidden" name="_filter_page" value="{{ $notifications->currentPage() }}">
-                                        <button type="submit" class="inline-flex w-full items-center justify-center rounded-xl bg-amber-500 px-3 py-2 text-[11px] font-bold text-white transition hover:bg-amber-600 {{ $started ? 'opacity-50' : '' }}" @disabled($started)>
-                                            {{ $started ? 'Dimulai' : 'Start' }}
+                                        <button type="submit" class="inline-flex w-full items-center justify-center rounded-xl bg-amber-500 px-3 py-2 text-[11px] font-bold text-white transition hover:bg-amber-600 {{ ($started || $isFinished) ? 'opacity-50' : '' }}" @disabled($started || $isFinished)>
+                                            {{ $isFinished ? 'Selesai' : ($started ? 'Dimulai' : 'Start') }}
                                         </button>
                                     </form>
                                 </div>

@@ -2,14 +2,13 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Http\Controllers\Controller;
 use App\Models\LhppBast;
+use App\Models\LhppBastImage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
@@ -23,8 +22,10 @@ class GaransiController extends Controller
             $garansiList = LhppBast::query()
                 ->with([
                     'order:id,nomor_order',
-                    'order.documents:id,order_id,jenis_dokumen,nama_file_asli,path_file',
                     'garansi:id,lhpp_bast_id,garansi_months,start_date,end_date',
+                    'images:id,lhpp_bast_id,file_path,file_name,mime_type',
+                    'terminTwo:id,parent_lhpp_bast_id',
+                    'terminTwo.images:id,lhpp_bast_id,file_path,file_name,mime_type',
                 ])
                 ->where('termin_type', 'termin_1')
                 ->when($search !== '', function ($query) use ($search): void {
@@ -51,18 +52,11 @@ class GaransiController extends Controller
                         default => 'Belum Diatur',
                     };
 
-                    $gambar = collect($lhpp->order?->documents ?? [])
-                        ->filter(function ($document): bool {
-                            $type = $document->jenis_dokumen?->value ?? (string) $document->jenis_dokumen;
-                            $extension = strtolower(pathinfo((string) $document->path_file, PATHINFO_EXTENSION));
-
-                            return in_array($type, [
-                                OrderDocumentType::Abnormalitas->value,
-                                OrderDocumentType::GambarTeknik->value,
-                                OrderDocumentType::Garansi->value,
-                            ], true) && in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true);
-                        })
-                        ->map(fn ($document) => Storage::url($document->path_file))
+                    $gambar = collect($lhpp->images ?? [])
+                        ->concat(collect($lhpp->terminTwo?->images ?? []))
+                        ->filter(fn ($image) => filled($image->file_path))
+                        ->map(fn (LhppBastImage $image) => route('admin.garansi.image', ['image' => $image->id]))
+                        ->unique()
                         ->values()
                         ->all();
 
@@ -93,5 +87,18 @@ class GaransiController extends Controller
 
             abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Terjadi kesalahan saat memuat halaman Garansi admin.');
         }
+    }
+
+    public function image(int $image): BinaryFileResponse
+    {
+        $imageRecord = LhppBastImage::query()->findOrFail($image);
+        $path = storage_path('app/public/'.ltrim((string) $imageRecord->file_path, '/'));
+
+        abort_unless(is_file($path), Response::HTTP_NOT_FOUND, 'Gambar tidak ditemukan.');
+
+        return response()->file($path, [
+            'Content-Type' => $imageRecord->mime_type ?: 'application/octet-stream',
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
     }
 }

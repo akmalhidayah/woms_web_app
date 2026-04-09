@@ -6,6 +6,7 @@
         $isLhppCreatePage = request()->routeIs('pkm.lhpp.create');
         $isLhppTerminTwoCreatePage = request()->routeIs('pkm.lhpp.termin2.create');
         $isLhppEditPage = request()->routeIs('pkm.lhpp.edit');
+        $isDocumentsPage = request()->routeIs('pkm.laporan');
     @endphp
 
     @if (session('status'))
@@ -20,6 +21,8 @@
         @include('pkm.lhpp.index')
     @elseif ($isLhppCreatePage || $isLhppTerminTwoCreatePage || $isLhppEditPage)
         @include('pkm.lhpp.create')
+    @elseif ($isDocumentsPage)
+        @include('pkm.documents.index')
     @else
         @include('pkm.placeholder')
     @endif

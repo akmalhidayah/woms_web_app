@@ -181,6 +181,14 @@ class Order extends Model
     }
 
     /**
+     * Get BAST/LHPP documents created for the order.
+     */
+    public function lhppBasts(): HasMany
+    {
+        return $this->hasMany(LhppBast::class);
+    }
+
+    /**
      * Get the latest HPP for the order.
      */
     public function latestHpp(): HasOne

@@ -34,6 +34,8 @@ class JobWaitingController extends Controller
                 ->with([
                     'documents',
                     'scopeOfWork',
+                    'lhppBasts:id,order_id,termin_type',
+                    'lhppBasts.lpjPpl:id,lhpp_bast_id',
                     'latestHpp' => fn ($query) => $query->select([
                         'hpps.id',
                         'hpps.order_id',
@@ -61,6 +63,20 @@ class JobWaitingController extends Controller
                         ->where('approve_manager', true)
                         ->whereNotNull('purchase_order_number')
                         ->whereRaw("TRIM(purchase_order_number) <> ''");
+                })
+                ->where(function (Builder $query): void {
+                    $query
+                        ->doesntHave('latestHpp')
+                        ->orWhereDoesntHave('lhppBasts', function (Builder $bastQuery): void {
+                            $bastQuery
+                                ->where('termin_type', 'termin_1')
+                                ->whereHas('garansi')
+                                ->whereHas('lpjPpl', function (Builder $lpjPplQuery): void {
+                                    $lpjPplQuery
+                                        ->whereNotNull('lpj_document_path_termin1')
+                                        ->whereNotNull('ppl_document_path_termin1');
+                                });
+                        });
                 })
                 ->when($selectedPriority !== '' && isset($priorityMap[$selectedPriority]), function (Builder $query) use ($priorityMap, $selectedPriority): void {
                     $query->where('prioritas', $priorityMap[$selectedPriority]);
@@ -177,6 +193,9 @@ class JobWaitingController extends Controller
         $latestPurchaseOrder = $order->latestPurchaseOrder;
         $abnormalDocument = $this->findDocument($order, OrderDocumentType::Abnormalitas);
         $gambarDocument = $this->findDocument($order, OrderDocumentType::GambarTeknik);
+        $terminOneBast = $order->lhppBasts->firstWhere('termin_type', 'termin_1');
+        $hasBastOrLpj = (bool) $terminOneBast || (bool) optional($terminOneBast)->lpjPpl;
+        $isFinished = (int) ($latestPurchaseOrder?->progress_pekerjaan ?? 0) >= 100 && $hasBastOrLpj;
 
         return [
             'nomor_order' => $order->nomor_order,
@@ -190,6 +209,7 @@ class JobWaitingController extends Controller
             'approval_target' => $latestPurchaseOrder?->approval_target,
             'catatan' => $latestPurchaseOrder?->vendor_note ?: ($order->catatan ?: ''),
             'catatan_admin' => $latestPurchaseOrder?->admin_note ?: 'Belum ada catatan dari Admin Bengkel.',
+            'is_finished' => $isFinished,
             'documents' => [
                 [
                     'label' => 'Abnormalitas',

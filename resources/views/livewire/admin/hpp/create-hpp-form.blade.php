@@ -508,6 +508,46 @@
             );
         }
 
+        function populateItemSelect(selectEl, options, placeholder, selectedValue = '') {
+            const normalizedSelected = normalizeKey(selectedValue);
+            const fragment = document.createDocumentFragment();
+            const firstOption = document.createElement('option');
+            firstOption.value = '';
+            firstOption.textContent = placeholder;
+            fragment.appendChild(firstOption);
+
+            const seen = new Set();
+
+            options.forEach((option) => {
+                const value = normalizeKey(option?.nama_item);
+
+                if (! value || seen.has(value)) {
+                    return;
+                }
+
+                seen.add(value);
+
+                const optionEl = document.createElement('option');
+                optionEl.value = value;
+                optionEl.textContent = option?.nama_item ?? value;
+                optionEl.dataset.satuan = option?.satuan ?? '';
+                optionEl.dataset.hargaSatuan = normalizeCurrencyDecimal(option?.harga_satuan ?? '0');
+                optionEl.selected = value === normalizedSelected;
+                fragment.appendChild(optionEl);
+            });
+
+            if (normalizedSelected && ! seen.has(normalizedSelected)) {
+                const fallbackOption = document.createElement('option');
+                fallbackOption.value = normalizedSelected;
+                fallbackOption.textContent = selectedValue;
+                fallbackOption.selected = true;
+                fragment.appendChild(fallbackOption);
+            }
+
+            selectEl.innerHTML = '';
+            selectEl.appendChild(fragment);
+        }
+
         function populateSelect(selectEl, options, placeholder, selectedValue = '') {
             const normalizedSelected = normalizeKey(selectedValue);
             const fragment = document.createDocumentFragment();
@@ -735,13 +775,9 @@
 
             function syncNamaItem(reset = false) {
                 const selectedValue = reset ? '' : (initialNamaItem || namaItemEl.value);
-                const options = getItemOptions(jenisLabelEl.value, subJenisEl.value, kategoriEl.value)
-                    .map((row) => ({
-                        value: row.nama_item,
-                        label: row.nama_item,
-                    }));
+                const options = getItemOptions(jenisLabelEl.value, subJenisEl.value, kategoriEl.value);
 
-                populateSelect(
+                populateItemSelect(
                     namaItemEl,
                     options,
                     options.length > 0 ? 'Pilih nama item' : 'Tidak ada item tersedia',
@@ -757,19 +793,21 @@
             }
 
             function syncItemMeta() {
-                const matchedItem = getItemOptions(jenisLabelEl.value, subJenisEl.value, kategoriEl.value)
-                    .find((row) => normalizeKey(row.nama_item) === normalizeKey(namaItemEl.value));
+                const selectedOption = namaItemEl.selectedOptions?.[0];
+                const hargaSatuan = selectedOption?.dataset?.hargaSatuan ?? '';
+                const satuan = selectedOption?.dataset?.satuan ?? '';
 
-                if (! matchedItem) {
+                if (! selectedOption || normalizeKey(namaItemEl.value) === '') {
                     satuanEl.value = '';
                     hsEl.value = '';
+                    hsEl.setAttribute('value', '');
                     recompute();
 
                     return;
                 }
 
-                satuanEl.value = matchedItem.satuan ?? '';
-                hsEl.value = normalizeCurrencyDecimal(matchedItem.harga_satuan ?? '0');
+                satuanEl.value = satuan;
+                hsEl.value = hargaSatuan;
                 hsEl.setAttribute('value', hsEl.value);
                 recompute();
             }

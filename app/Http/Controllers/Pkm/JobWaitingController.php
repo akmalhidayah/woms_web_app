@@ -52,6 +52,8 @@ class JobWaitingController extends Controller
                         'purchase_orders.vendor_note',
                         'purchase_orders.admin_note',
                         'purchase_orders.po_document_path',
+                        'purchase_orders.created_at',
+                        'purchase_orders.updated_at',
                     ]),
                 ])
                 ->whereIn('catatan_status', [
@@ -200,6 +202,10 @@ class JobWaitingController extends Controller
         return [
             'nomor_order' => $order->nomor_order,
             'notification_number' => $order->notifikasi,
+            'jobwaiting_since_raw' => $latestPurchaseOrder?->updated_at?->toDateString()
+                ?: $latestPurchaseOrder?->created_at?->toDateString(),
+            'jobwaiting_since' => $latestPurchaseOrder?->updated_at?->format('d/m/Y')
+                ?: $latestPurchaseOrder?->created_at?->format('d/m/Y'),
             'priority' => $this->priorityLabel($order->prioritas),
             'job_name' => $order->nama_pekerjaan,
             'seksi' => $order->seksi,

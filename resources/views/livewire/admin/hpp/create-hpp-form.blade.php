@@ -265,8 +265,14 @@
                 >
                     Tambah Jenis
                 </button>
-                <span class="text-[12px] text-slate-500">Tambahkan jenis item lalu isi rincian perhitungan HPP di dalamnya.</span>
+                <span class="text-[12px] text-slate-500">Pilih jenis item dari master kontrak, lalu pilih sub jenis, kategori, dan nama item agar satuan serta harga satuan terisi otomatis.</span>
             </div>
+
+            @if (empty($contractCatalog))
+                <div class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-700">
+                    Belum ada master item kontrak. Tambahkan dulu data di menu Kontrak Jasa Fabrikasi Konstruksi agar dropdown item HPP bisa dipilih otomatis.
+                </div>
+            @endif
 
             <div id="jenis-container" class="mt-6 space-y-6"></div>
 
@@ -372,6 +378,7 @@
         const tambahJenisBtn = document.getElementById('tambah-jenis-btn');
         const totalAllEl = document.getElementById('total_keseluruhan');
         const presetGroups = @js($itemGroupPresets);
+        const contractCatalog = @js($contractCatalog);
 
         if (! container || ! tambahJenisBtn || ! totalAllEl) {
             return;
@@ -380,6 +387,16 @@
         let jenisCounter = 0;
 
         tambahJenisBtn.addEventListener('click', () => addJenis(null));
+
+        function normalizeKey(value) {
+            return String(value ?? '').trim();
+        }
+
+        function uniqueValues(values) {
+            return [...new Set(values.map(normalizeKey).filter(Boolean))];
+        }
+
+        const jenisOptions = uniqueValues(contractCatalog.map((item) => item.jenis_item));
 
         function normalizeDecimalString(value) {
             const normalized = String(value ?? '').replace(/[^0-9.\-]/g, '').trim();
@@ -464,17 +481,83 @@
             return `${negative ? '-' : ''}${formattedInteger},${decimal}`;
         }
 
+        function getSubJenisOptions(jenisItem) {
+            return uniqueValues(
+                contractCatalog
+                    .filter((item) => normalizeKey(item.jenis_item) === normalizeKey(jenisItem))
+                    .map((item) => item.sub_jenis_item),
+            );
+        }
+
+        function getKategoriOptions(jenisItem, subJenisItem) {
+            return uniqueValues(
+                contractCatalog
+                    .filter((item) =>
+                        normalizeKey(item.jenis_item) === normalizeKey(jenisItem)
+                        && normalizeKey(item.sub_jenis_item) === normalizeKey(subJenisItem)
+                    )
+                    .map((item) => item.kategori_item),
+            );
+        }
+
+        function getItemOptions(jenisItem, subJenisItem, kategoriItem) {
+            return contractCatalog.filter((item) =>
+                normalizeKey(item.jenis_item) === normalizeKey(jenisItem)
+                && normalizeKey(item.sub_jenis_item) === normalizeKey(subJenisItem)
+                && normalizeKey(item.kategori_item) === normalizeKey(kategoriItem)
+            );
+        }
+
+        function populateSelect(selectEl, options, placeholder, selectedValue = '') {
+            const normalizedSelected = normalizeKey(selectedValue);
+            const fragment = document.createDocumentFragment();
+            const firstOption = document.createElement('option');
+            firstOption.value = '';
+            firstOption.textContent = placeholder;
+            fragment.appendChild(firstOption);
+
+            const normalizedOptions = [];
+            const seen = new Set();
+
+            options.forEach((option) => {
+                const value = normalizeKey(typeof option === 'string' ? option : option?.value);
+                const label = typeof option === 'string' ? option : (option?.label ?? option?.value ?? '');
+
+                if (! value || seen.has(value)) {
+                    return;
+                }
+
+                seen.add(value);
+                normalizedOptions.push({ value, label });
+            });
+
+            if (normalizedSelected && ! seen.has(normalizedSelected)) {
+                normalizedOptions.unshift({ value: normalizedSelected, label: selectedValue });
+            }
+
+            normalizedOptions.forEach((option) => {
+                const optionEl = document.createElement('option');
+                optionEl.value = option.value;
+                optionEl.textContent = option.label;
+                optionEl.selected = normalizeKey(option.value) === normalizedSelected;
+                fragment.appendChild(optionEl);
+            });
+
+            selectEl.innerHTML = '';
+            selectEl.appendChild(fragment);
+        }
+
         function addJenis(preset = null) {
             const g = jenisCounter++;
             const wrap = document.createElement('div');
             wrap.className = 'jenis-block rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm';
-            const titleVal = preset?.title ?? `Material/Jasa ${g + 1}`;
+            const titleVal = preset?.title ?? (jenisOptions[0] ?? '');
 
             wrap.innerHTML = `
                 <div class="mb-3 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div class="flex-1">
                         <label class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Jenis Item</label>
-                        <input type="text" name="jenis_label_visible[${g}]" class="jenis-label mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700" value="${escapeAttr(titleVal)}" placeholder="Contoh: Material/Jasa">
+                        <select name="jenis_label_visible[${g}]" class="jenis-label mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700"></select>
                     </div>
                     <div class="flex items-center gap-2">
                         <button type="button" class="hapus-jenis rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] font-semibold text-rose-700 transition hover:bg-rose-100">
@@ -498,6 +581,14 @@
 
             const itemsContainer = wrap.querySelector('.items-container');
             const subtotalEl = wrap.querySelector('.subtotal');
+            const jenisLabelEl = wrap.querySelector('.jenis-label');
+
+            populateSelect(
+                jenisLabelEl,
+                jenisOptions,
+                jenisOptions.length > 0 ? 'Pilih jenis item' : 'Belum ada jenis item master',
+                titleVal,
+            );
 
             wrap.querySelector('.tambah-item').addEventListener('click', () => {
                 addItem(itemsContainer, subtotalEl, g, null);
@@ -506,6 +597,14 @@
             wrap.querySelector('.hapus-jenis').addEventListener('click', () => {
                 wrap.remove();
                 updateGrandTotal();
+            });
+
+            jenisLabelEl.addEventListener('change', () => {
+                itemsContainer.querySelectorAll('.uraian-item').forEach((itemEl) => {
+                    if (typeof itemEl.refreshContractOptions === 'function') {
+                        itemEl.refreshContractOptions(true);
+                    }
+                });
             });
 
             if (preset?.items && Array.isArray(preset.items) && preset.items.length > 0) {
@@ -520,10 +619,13 @@
         function addItem(list, subtotalEl, gIndex, data = null) {
             const item = document.createElement('div');
             item.className = 'uraian-item rounded-2xl border border-slate-200 bg-white p-4 shadow-sm';
+            let initialSubJenis = data?.sub_jenis_item ?? '';
+            let initialKategori = data?.kategori_item ?? '';
+            let initialNamaItem = data?.nama_item ?? '';
 
             item.innerHTML = `
                 <div class="mb-3 flex items-center justify-between gap-2">
-                    <h4 class="text-[13px] font-semibold text-slate-800">Item</h4>
+                    <h4 class="text-[13px] font-semibold text-slate-800">Deskripsi Item</h4>
                     <button type="button" class="remove-item text-[12px] font-semibold text-rose-600 transition hover:text-rose-700">
                         Hapus
                     </button>
@@ -531,45 +633,181 @@
 
                 <div class="mb-3 grid gap-3 md:grid-cols-2">
                     <div>
-                        <input type="text" name="nama_item[${gIndex}][]" value="${escapeAttr(data?.nama_item ?? '')}" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-[12px] text-slate-700" placeholder="Nama item">
+                        <label class="mb-1 block text-[11px] font-medium text-slate-600">Sub Jenis Item</label>
+                        <select name="sub_jenis_item[${gIndex}][]" class="sub-jenis-item w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[12px] text-slate-700"></select>
                     </div>
                     <div>
-                        <input type="text" name="jumlah_item[${gIndex}][]" value="${escapeAttr(data?.jumlah_item ?? '')}" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-[12px] text-slate-700" placeholder="Quantity">
+                        <label class="mb-1 block text-[11px] font-medium text-slate-600">Kategori Item</label>
+                        <select name="kategori_item[${gIndex}][]" class="kategori-item w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[12px] text-slate-700"></select>
+                    </div>
+                </div>
+
+                <div class="mb-3 grid gap-3 md:grid-cols-2">
+                    <div>
+                        <label class="mb-1 block text-[11px] font-medium text-slate-600">Nama Item</label>
+                        <select name="nama_item[${gIndex}][]" class="nama-item w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[12px] text-slate-700"></select>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-[11px] font-medium text-slate-600">Ukuran & Quantity</label>
+                        <input type="text" name="jumlah_item[${gIndex}][]" value="${escapeAttr(data?.jumlah_item ?? '')}" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-[12px] text-slate-700" placeholder="Ukuran & Quantity">
                     </div>
                 </div>
 
                 <div class="mb-3 grid gap-3 lg:grid-cols-4">
-                    <input type="number" name="qty[${gIndex}][]" value="${escapeAttr(data?.qty ?? '')}" min="0" step="0.01" class="qty rounded-xl border border-slate-300 px-3 py-2.5 text-[12px] text-slate-700" placeholder="Berat/Jmlh Jam/Luasan">
-                    <input type="text" name="satuan[${gIndex}][]" value="${escapeAttr(data?.satuan ?? '')}" class="rounded-xl border border-slate-300 px-3 py-2.5 text-[12px] text-slate-700" placeholder="Satuan">
-                    <input type="number" name="harga_satuan[${gIndex}][]" value="${escapeAttr(data?.harga_satuan ?? '')}" min="0" step="0.01" class="harga-satuan rounded-xl border border-slate-300 px-3 py-2.5 text-[12px] text-slate-700" placeholder="Harga satuan">
-                    <input type="number" name="harga_total[${gIndex}][]" value="${escapeAttr(data?.harga_total ?? '')}" class="harga-total rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-[12px] font-semibold text-slate-700" placeholder="Harga total" readonly>
+                    <div>
+                        <label class="mb-1 block text-[11px] font-medium text-slate-600">Qty</label>
+                        <input type="number" name="qty[${gIndex}][]" value="${escapeAttr(data?.qty ?? '')}" min="0" step="0.01" class="qty w-full rounded-xl border border-slate-300 px-3 py-2.5 text-[12px] text-slate-700" placeholder="Total (Berat/Jmlh Jam/Luasan)">
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-[11px] font-medium text-slate-600">Satuan</label>
+                        <input type="text" name="satuan[${gIndex}][]" value="${escapeAttr(data?.satuan ?? '')}" class="satuan w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-[12px] text-slate-700" placeholder="Satuan" readonly>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-[11px] font-medium text-slate-600">Harga Satuan</label>
+                        <input type="text" name="harga_satuan[${gIndex}][]" value="${escapeAttr(data?.harga_satuan ?? '')}" class="harga-satuan w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-[12px] text-slate-700" placeholder="Harga satuan" readonly>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-[11px] font-medium text-slate-600">Harga Total</label>
+                        <input type="text" name="harga_total[${gIndex}][]" value="${escapeAttr(data?.harga_total ?? '')}" class="harga-total w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-[12px] font-semibold text-slate-700" placeholder="Harga total" readonly>
+                    </div>
                 </div>
 
                 <div>
+                    <label class="mb-1 block text-[11px] font-medium text-slate-600">Keterangan</label>
                     <input type="text" name="keterangan[${gIndex}][]" value="${escapeAttr(data?.keterangan ?? '')}" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-[12px] text-slate-700" placeholder="Keterangan (opsional)">
                 </div>
             `;
 
             list.appendChild(item);
 
+            const jenisLabelEl = list.closest('.jenis-block').querySelector('.jenis-label');
+            const subJenisEl = item.querySelector('.sub-jenis-item');
+            const kategoriEl = item.querySelector('.kategori-item');
+            const namaItemEl = item.querySelector('.nama-item');
             const qtyEl = item.querySelector('.qty');
+            const satuanEl = item.querySelector('.satuan');
             const hsEl = item.querySelector('.harga-satuan');
             const htEl = item.querySelector('.harga-total');
 
             function recompute() {
                 htEl.value = multiplyToCurrencyString(qtyEl.value, hsEl.value);
+                htEl.setAttribute('value', htEl.value);
                 recalcSubtotal(list, subtotalEl);
             }
 
+            function syncSubJenis(reset = false) {
+                const selectedValue = reset ? '' : (initialSubJenis || subJenisEl.value);
+                const options = getSubJenisOptions(jenisLabelEl.value).map((value) => ({ value, label: value }));
+
+                populateSelect(
+                    subJenisEl,
+                    options,
+                    options.length > 0 ? 'Pilih sub jenis item' : 'Tanpa sub jenis',
+                    selectedValue,
+                );
+
+                subJenisEl.disabled = options.length === 0;
+                if (options.length === 0) {
+                    subJenisEl.value = '';
+                }
+
+                initialSubJenis = '';
+            }
+
+            function syncKategori(reset = false) {
+                const selectedValue = reset ? '' : (initialKategori || kategoriEl.value);
+                const options = getKategoriOptions(jenisLabelEl.value, subJenisEl.value).map((value) => ({ value, label: value }));
+
+                populateSelect(
+                    kategoriEl,
+                    options,
+                    options.length > 0 ? 'Pilih kategori item' : 'Tanpa kategori',
+                    selectedValue,
+                );
+
+                kategoriEl.disabled = options.length === 0;
+                if (options.length === 0) {
+                    kategoriEl.value = '';
+                }
+
+                initialKategori = '';
+            }
+
+            function syncNamaItem(reset = false) {
+                const selectedValue = reset ? '' : (initialNamaItem || namaItemEl.value);
+                const options = getItemOptions(jenisLabelEl.value, subJenisEl.value, kategoriEl.value)
+                    .map((row) => ({
+                        value: row.nama_item,
+                        label: row.nama_item,
+                    }));
+
+                populateSelect(
+                    namaItemEl,
+                    options,
+                    options.length > 0 ? 'Pilih nama item' : 'Tidak ada item tersedia',
+                    selectedValue,
+                );
+
+                namaItemEl.disabled = options.length === 0;
+                if (options.length === 0) {
+                    namaItemEl.value = '';
+                }
+
+                initialNamaItem = '';
+            }
+
+            function syncItemMeta() {
+                const matchedItem = getItemOptions(jenisLabelEl.value, subJenisEl.value, kategoriEl.value)
+                    .find((row) => normalizeKey(row.nama_item) === normalizeKey(namaItemEl.value));
+
+                if (! matchedItem) {
+                    satuanEl.value = '';
+                    hsEl.value = '';
+                    recompute();
+
+                    return;
+                }
+
+                satuanEl.value = matchedItem.satuan ?? '';
+                hsEl.value = normalizeCurrencyDecimal(matchedItem.harga_satuan ?? '0');
+                hsEl.setAttribute('value', hsEl.value);
+                recompute();
+            }
+
             qtyEl.addEventListener('input', recompute);
-            hsEl.addEventListener('input', recompute);
+            namaItemEl.addEventListener('change', syncItemMeta);
+            subJenisEl.addEventListener('change', () => {
+                initialKategori = '';
+                initialNamaItem = '';
+                syncKategori(true);
+                syncNamaItem(true);
+                syncItemMeta();
+            });
+            kategoriEl.addEventListener('change', () => {
+                initialNamaItem = '';
+                syncNamaItem(true);
+                syncItemMeta();
+            });
 
             item.querySelector('.remove-item').addEventListener('click', () => {
                 item.remove();
                 recalcSubtotal(list, subtotalEl);
             });
 
-            recompute();
+            item.refreshContractOptions = (reset = false) => {
+                if (reset) {
+                    initialSubJenis = '';
+                    initialKategori = '';
+                    initialNamaItem = '';
+                }
+
+                syncSubJenis(reset);
+                syncKategori(reset);
+                syncNamaItem(reset);
+                syncItemMeta();
+            };
+
+            item.refreshContractOptions();
         }
 
         function recalcSubtotal(list, subtotalEl) {
@@ -597,7 +835,11 @@
 
         function escapeAttr(value) {
             if (value == null) return '';
-            return String(value).replace(/"/g, '&quot;').replace(/</g, '&lt;');
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
         }
 
         if (Array.isArray(presetGroups) && presetGroups.length > 0) {

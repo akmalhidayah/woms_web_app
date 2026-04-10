@@ -95,6 +95,8 @@ class StoreHppRequest extends FormRequest
             'cost_centre' => ['nullable', 'string', 'max:255'],
             'jenis_label_visible' => ['nullable', 'array'],
             'jenis_label_visible.*' => ['nullable', 'string', 'max:255'],
+            'sub_jenis_item' => ['nullable', 'array'],
+            'kategori_item' => ['nullable', 'array'],
             'nama_item' => ['nullable', 'array'],
             'jumlah_item' => ['nullable', 'array'],
             'qty' => ['nullable', 'array'],

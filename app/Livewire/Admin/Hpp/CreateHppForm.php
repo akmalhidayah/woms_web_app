@@ -4,6 +4,7 @@ namespace App\Livewire\Admin\Hpp;
 
 use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
+use App\Models\FabricationConstructionContract;
 use App\Models\Hpp;
 use App\Models\Order;
 use App\Models\OutlineAgreement;
@@ -22,6 +23,8 @@ class CreateHppForm extends Component
 
     public function render()
     {
+        $itemGroupPresets = $this->resolveItemGroupPresets();
+
         $orders = Order::query()
             ->when(
                 $this->hpp?->exists,
@@ -82,7 +85,8 @@ class CreateHppForm extends Component
             'areaKeysByLabel' => HppApprovalFlow::areaKeysByLabel(),
             'bucketOptions' => HppApprovalFlow::bucketOptions(),
             'flowMatrix' => HppApprovalFlow::flowMatrix(),
-            'itemGroupPresets' => $this->resolveItemGroupPresets(),
+            'itemGroupPresets' => $itemGroupPresets,
+            'contractCatalog' => $this->resolveContractCatalog($itemGroupPresets),
             'initialState' => [
                 'selectedOrder' => (string) old('order_id', $this->hpp?->order_id ?? ($orderOptions[0]['value'] ?? '')),
                 'selectedOutlineAgreement' => (string) old('outline_agreement_id', $this->hpp?->outline_agreement_id ?? ($outlineAgreementOptions[0]['value'] ?? '')),
@@ -102,6 +106,8 @@ class CreateHppForm extends Component
     private function oldItemGroupPresets(): array
     {
         $groupLabels = old('jenis_label_visible', []);
+        $subJenisItems = old('sub_jenis_item', []);
+        $kategoriItems = old('kategori_item', []);
         $namaItems = old('nama_item', []);
         $jumlahItems = old('jumlah_item', []);
         $qtyItems = old('qty', []);
@@ -116,6 +122,8 @@ class CreateHppForm extends Component
 
             foreach (($namaItems[$groupIndex] ?? []) as $itemIndex => $namaItem) {
                 $items[] = [
+                    'sub_jenis_item' => $subJenisItems[$groupIndex][$itemIndex] ?? '',
+                    'kategori_item' => $kategoriItems[$groupIndex][$itemIndex] ?? '',
                     'nama_item' => $namaItem,
                     'jumlah_item' => $jumlahItems[$groupIndex][$itemIndex] ?? '',
                     'qty' => $qtyItems[$groupIndex][$itemIndex] ?? '',
@@ -153,6 +161,8 @@ class CreateHppForm extends Component
                     'title' => $group['jenis_item'] ?? 'Material/Jasa',
                     'items' => collect($group['items'] ?? [])
                         ->map(fn (array $item): array => [
+                            'sub_jenis_item' => $item['sub_jenis_item'] ?? '',
+                            'kategori_item' => $item['kategori_item'] ?? '',
                             'nama_item' => $item['nama_item'] ?? '',
                             'jumlah_item' => $item['jumlah_item'] ?? '',
                             'qty' => $item['qty'] ?? '',
@@ -165,6 +175,62 @@ class CreateHppForm extends Component
                         ->all(),
                 ];
             })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $itemGroupPresets
+     * @return list<array<string, string|null>>
+     */
+    private function resolveContractCatalog(array $itemGroupPresets): array
+    {
+        $catalog = FabricationConstructionContract::query()
+            ->orderBy('tahun')
+            ->orderBy('jenis_item')
+            ->orderBy('sub_jenis_item')
+            ->orderBy('kategori_item')
+            ->orderBy('nama_item')
+            ->get(['jenis_item', 'sub_jenis_item', 'kategori_item', 'nama_item', 'satuan', 'harga_satuan'])
+            ->map(fn (FabricationConstructionContract $item): array => [
+                'jenis_item' => $item->jenis_item,
+                'sub_jenis_item' => $item->sub_jenis_item,
+                'kategori_item' => $item->kategori_item,
+                'nama_item' => $item->nama_item,
+                'satuan' => $item->satuan,
+                'harga_satuan' => (string) $item->harga_satuan,
+            ]);
+
+        $presetCatalog = collect($itemGroupPresets)
+            ->flatMap(function (array $group): array {
+                $jenisItem = trim((string) ($group['title'] ?? ''));
+
+                return collect($group['items'] ?? [])
+                    ->map(function (array $item) use ($jenisItem): array {
+                        return [
+                            'jenis_item' => $jenisItem !== '' ? $jenisItem : null,
+                            'sub_jenis_item' => filled($item['sub_jenis_item'] ?? null) ? trim((string) $item['sub_jenis_item']) : null,
+                            'kategori_item' => filled($item['kategori_item'] ?? null) ? trim((string) $item['kategori_item']) : null,
+                            'nama_item' => filled($item['nama_item'] ?? null) ? trim((string) $item['nama_item']) : null,
+                            'satuan' => filled($item['satuan'] ?? null) ? trim((string) $item['satuan']) : null,
+                            'harga_satuan' => filled($item['harga_satuan'] ?? null) ? (string) $item['harga_satuan'] : '0',
+                        ];
+                    })
+                    ->filter(fn (array $item): bool => filled($item['jenis_item']) && filled($item['nama_item']))
+                    ->values()
+                    ->all();
+            });
+
+        return $catalog
+            ->concat($presetCatalog)
+            ->unique(fn (array $item): string => implode('||', [
+                trim((string) ($item['jenis_item'] ?? '')),
+                trim((string) ($item['sub_jenis_item'] ?? '')),
+                trim((string) ($item['kategori_item'] ?? '')),
+                trim((string) ($item['nama_item'] ?? '')),
+                trim((string) ($item['satuan'] ?? '')),
+                trim((string) ($item['harga_satuan'] ?? '0')),
+            ]))
             ->values()
             ->all();
     }

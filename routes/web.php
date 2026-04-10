@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\BudgetVerificationController;
 use App\Http\Controllers\Admin\Hpp\HppController;
 use App\Http\Controllers\Admin\InformationUploadController;
 use App\Http\Controllers\Admin\GaransiController;
+use App\Http\Controllers\Admin\FabricationConstructionContractController;
 use App\Http\Controllers\Admin\LhppController as AdminLhppController;
 use App\Http\Controllers\Admin\LpjPplController;
 use App\Http\Controllers\Admin\OutlineAgreementController;
@@ -157,6 +158,25 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('admin/struktur-organisasi/{unitWork}', [StructureOrganizationController::class, 'destroy'])
         ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
         ->name('admin.structure.destroy');
+
+    Route::get('admin/kontrak-jasa-fabrikasi-konstruksi', [FabricationConstructionContractController::class, 'index'])
+        ->middleware(['role:admin', 'admin_menu:kontrak_jasa_fabrikasi_konstruksi'])
+        ->name('admin.fabrication-construction-contracts.index');
+    Route::get('admin/kontrak-jasa-fabrikasi-konstruksi/create', [FabricationConstructionContractController::class, 'create'])
+        ->middleware(['role:admin', 'admin_menu:kontrak_jasa_fabrikasi_konstruksi'])
+        ->name('admin.fabrication-construction-contracts.create');
+    Route::post('admin/kontrak-jasa-fabrikasi-konstruksi', [FabricationConstructionContractController::class, 'store'])
+        ->middleware(['role:admin', 'admin_menu:kontrak_jasa_fabrikasi_konstruksi'])
+        ->name('admin.fabrication-construction-contracts.store');
+    Route::get('admin/kontrak-jasa-fabrikasi-konstruksi/{contract}/edit', [FabricationConstructionContractController::class, 'edit'])
+        ->middleware(['role:admin', 'admin_menu:kontrak_jasa_fabrikasi_konstruksi'])
+        ->name('admin.fabrication-construction-contracts.edit');
+    Route::put('admin/kontrak-jasa-fabrikasi-konstruksi/{contract}', [FabricationConstructionContractController::class, 'update'])
+        ->middleware(['role:admin', 'admin_menu:kontrak_jasa_fabrikasi_konstruksi'])
+        ->name('admin.fabrication-construction-contracts.update');
+    Route::delete('admin/kontrak-jasa-fabrikasi-konstruksi/{contract}', [FabricationConstructionContractController::class, 'destroy'])
+        ->middleware(['role:admin', 'admin_menu:kontrak_jasa_fabrikasi_konstruksi'])
+        ->name('admin.fabrication-construction-contracts.destroy');
 
     Route::view('user/dashboard', 'dashboards.placeholder', [
         'title' => 'User Dashboard',

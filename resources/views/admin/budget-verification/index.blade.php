@@ -72,7 +72,7 @@
                         <tr>
                             <th class="px-4 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-600">Nomor Order</th>
                             <th class="px-4 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-600">Dokumen</th>
-                            <th class="px-4 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-600">Dana</th>
+                            <th class="px-4 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-600">Anggaran</th>
                             <th class="px-4 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-600">Kategori</th>
                             <th class="px-4 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-600">Cost Element</th>
                             <th class="px-4 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-600">Catatan</th>
@@ -143,7 +143,7 @@
                                     <div class="text-[10px] font-semibold text-slate-900">Rp {{ $formatRupiah($notification['nilai_hpp']) }}</div>
                                     <div class="mt-2.5">
                                         <select name="status_anggaran" form="budget-verification-form-{{ $notification['nomor_order'] }}" class="{{ $selectBaseClasses }}">
-                                            <option value="">Pilih status dana</option>
+                                            <option value="">Pilih status Anggaran</option>
                                             @foreach ($statusOptions as $value => $label)
                                                 <option value="{{ $value }}" @selected($notification['status_anggaran'] === $value)>{{ $label }}</option>
                                             @endforeach

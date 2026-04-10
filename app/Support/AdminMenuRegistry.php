@@ -21,6 +21,7 @@ class AdminMenuRegistry
     public const MENU_USER_PANEL = 'user_panel';
     public const MENU_UPLOAD_INFORMASI = 'upload_informasi';
     public const MENU_STRUKTUR_ORGANISASI = 'struktur_organisasi';
+    public const MENU_KONTRAK_JASA_FABRIKASI_KONSTRUKSI = 'kontrak_jasa_fabrikasi_konstruksi';
 
     /**
      * Get all admin menu definitions.
@@ -151,6 +152,13 @@ class AdminMenuRegistry
                 'group' => 'other',
                 'route_name' => 'admin.structure.index',
                 'active_patterns' => ['admin.structure.*'],
+            ],
+            self::MENU_KONTRAK_JASA_FABRIKASI_KONSTRUKSI => [
+                'key' => self::MENU_KONTRAK_JASA_FABRIKASI_KONSTRUKSI,
+                'label' => 'Kontrak Jasa Fabrikasi Konstruksi',
+                'group' => 'other',
+                'route_name' => 'admin.fabrication-construction-contracts.index',
+                'active_patterns' => ['admin.fabrication-construction-contracts.*'],
             ],
         ];
     }

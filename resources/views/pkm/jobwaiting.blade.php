@@ -103,8 +103,8 @@
                             <div class="bg-gradient-to-r from-[#ca642f] to-[#e18e4d] px-4 py-3 text-white">
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="min-w-0">
-                                        <div class="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/80">Order / Notifikasi</div>
-                                        <div class="mt-1 truncate text-[15px] font-black">
+                                        <div class="text-[8px] font-semibold uppercase tracking-[0.14em] text-white/80">Order / Notifikasi</div>
+                                        <div class="mt-1 truncate text-[13px] font-black">
                                             <i data-lucide="file-text" class="mr-1 inline h-4 w-4"></i>{{ $notification['nomor_order'] }}
                                         </div>
                                         @if (! empty($notification['notification_number']))
@@ -119,6 +119,11 @@
                                         <span class="mt-1 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] {{ $priorityBadgeClasses($notification['priority']) }}">
                                             {{ $notification['priority'] }}
                                         </span>
+                                        @if (! empty($notification['jobwaiting_since']))
+                                            <div class="mt-3 text-[10px] font-medium text-white/80">
+                                                {{ $notification['jobwaiting_since'] }}
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -158,7 +163,7 @@
                                 </div>
 
                                 <div class="mb-3">
-                                    <form method="POST" action="{{ route('pkm.jobwaiting.update', ['order' => $notification['notification_number']]) }}">
+                                    <form method="POST" action="{{ route('pkm.jobwaiting.update', ['order' => $notification['nomor_order']]) }}">
                                         @csrf
                                         @method('PATCH')
                                         <input type="hidden" name="start_progress" value="1">
@@ -171,12 +176,12 @@
                                     </form>
                                 </div>
 
-                                <button type="button" class="pkm-jobwaiting-toggle inline-flex items-center gap-2 text-[11px] font-bold text-[#ca642f]" data-target="details-{{ $notification['notification_number'] }}">
+                                <button type="button" class="pkm-jobwaiting-toggle inline-flex items-center gap-2 text-[11px] font-bold text-[#ca642f]" data-target="details-{{ $notification['nomor_order'] }}">
                                     Show details
                                     <i data-lucide="chevron-down" class="h-3.5 w-3.5"></i>
                                 </button>
 
-                                <form id="details-{{ $notification['notification_number'] }}" method="POST" action="{{ route('pkm.jobwaiting.update', ['order' => $notification['notification_number']]) }}" class="mt-3 hidden space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                                <form id="details-{{ $notification['nomor_order'] }}" method="POST" action="{{ route('pkm.jobwaiting.update', ['order' => $notification['nomor_order']]) }}" class="mt-3 hidden space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
                                     @csrf
                                     @method('PATCH')
                                     <input type="hidden" name="progress_pekerjaan" value="{{ $notification['progress'] }}" class="pkm-progress-hidden">
@@ -187,17 +192,31 @@
                                     <div>
                                         <div class="mb-1 flex items-center justify-between text-[11px] text-slate-500">
                                             <span>Progress</span>
-                                            <span id="slider-value-{{ $notification['notification_number'] }}" class="font-bold text-slate-700">{{ $notification['progress'] }}%</span>
+                                            <span id="slider-value-{{ $notification['nomor_order'] }}" class="font-bold text-slate-700">{{ $notification['progress'] }}%</span>
                                         </div>
-                                        <input type="range" min="0" max="100" step="1" value="{{ $notification['progress'] }}" class="pkm-range w-full accent-[#ca642f]" data-value-target="slider-value-{{ $notification['notification_number'] }}" @disabled(! $started)>
+                                        <input type="range" min="0" max="100" step="1" value="{{ $notification['progress'] }}" class="pkm-range w-full accent-[#ca642f]" data-value-target="slider-value-{{ $notification['nomor_order'] }}" @disabled(! $started)>
                                         @unless ($started)
                                             <div class="mt-1 text-[10px] font-medium text-amber-700">Klik Start dulu supaya progress bisa digeser.</div>
                                         @endunless
                                     </div>
 
                                     <div>
-                                        <label class="mb-1 block text-[11px] font-semibold text-slate-500">Target Penyelesaian</label>
-                                        <input type="date" name="target_penyelesaian" value="{{ $notification['target_penyelesaian'] }}" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none">
+                                        <div class="mb-1 flex items-center justify-between gap-3">
+                                            <label class="block text-[11px] font-semibold text-slate-500">Estimasi Penyelesaian</label>
+                                            <span
+                                                class="pkm-estimasi-total inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700"
+                                                data-start-date="{{ $notification['jobwaiting_since_raw'] ?? '' }}"
+                                                data-target-date="{{ $notification['target_penyelesaian'] ?? '' }}"
+                                            >
+                                                -
+                                            </span>
+                                        </div>
+                                        <input
+                                            type="date"
+                                            name="target_penyelesaian"
+                                            value="{{ $notification['target_penyelesaian'] }}"
+                                            class="pkm-estimasi-date w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none"
+                                        >
                                     </div>
 
                                     <div>
@@ -212,7 +231,7 @@
 
                                     <div class="flex items-center gap-2">
                                         <button type="submit" class="rounded-xl bg-[#ca642f] px-3 py-2 text-[11px] font-bold text-white transition hover:bg-[#b85b2b]">Update</button>
-                                        <button type="button" class="pkm-jobwaiting-toggle rounded-xl border border-slate-300 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50" data-target="details-{{ $notification['notification_number'] }}">Close</button>
+                                        <button type="button" class="pkm-jobwaiting-toggle rounded-xl border border-slate-300 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50" data-target="details-{{ $notification['nomor_order'] }}">Close</button>
                                     </div>
                                 </form>
                             </div>
@@ -277,7 +296,59 @@
                 }
             });
 
+            const updateEstimasiTotal = (form) => {
+                if (!form) {
+                    return;
+                }
+
+                const totalBadge = form.querySelector('.pkm-estimasi-total');
+                const dateInput = form.querySelector('.pkm-estimasi-date');
+
+                if (!totalBadge || !dateInput) {
+                    return;
+                }
+
+                const startDate = totalBadge.dataset.startDate;
+                const targetDate = dateInput.value || totalBadge.dataset.targetDate;
+
+                if (!startDate || !targetDate) {
+                    totalBadge.textContent = '-';
+                    return;
+                }
+
+                const start = new Date(`${startDate}T00:00:00`);
+                const target = new Date(`${targetDate}T00:00:00`);
+
+                if (Number.isNaN(start.getTime()) || Number.isNaN(target.getTime())) {
+                    totalBadge.textContent = '-';
+                    return;
+                }
+
+                const msPerDay = 24 * 60 * 60 * 1000;
+                const diffDays = Math.floor((target - start) / msPerDay) + 1;
+
+                totalBadge.textContent = diffDays > 0 ? `Total ${diffDays} hari` : 'Tanggal tidak valid';
+            };
+
+            document.addEventListener('input', function (event) {
+                if (! event.target.classList.contains('pkm-estimasi-date')) {
+                    return;
+                }
+
+                const form = event.target.closest('form');
+
+                if (!form) {
+                    return;
+                }
+
+                updateEstimasiTotal(form);
+            });
+
             document.addEventListener('DOMContentLoaded', function () {
+                document.querySelectorAll('form[id^="details-"]').forEach((form) => {
+                    updateEstimasiTotal(form);
+                });
+
                 const statusAlert = document.getElementById('pkm-jobwaiting-status-alert');
 
                 if (statusAlert?.dataset.message && window.Swal) {

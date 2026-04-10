@@ -304,7 +304,7 @@
     };
 
     $nomorOrder = $hpp->nomor_order ?: '-';
-    $deskripsi = $order?->deskripsi ?: ($hpp->nama_pekerjaan ?: '-');
+    $deskripsi = $order?->nama_pekerjaan ?: ($hpp->nama_pekerjaan ?: ($order?->deskripsi ?: '-'));
     $costCentre = $hpp->cost_centre ?: '-';
     $rencanaPemakaian = $order?->target_selesai ? $formatDate($order->target_selesai) : '-';
     $unitKerjaPeminta = $order?->seksi ?: ($hpp->unit_kerja ?: '-');

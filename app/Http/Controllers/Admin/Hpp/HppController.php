@@ -124,6 +124,8 @@ class HppController extends Controller
     private function buildItemGroups(array $payload): array
     {
         $groupLabels = $payload['jenis_label_visible'] ?? [];
+        $subJenisItems = $payload['sub_jenis_item'] ?? [];
+        $kategoriItems = $payload['kategori_item'] ?? [];
         $namaItems = $payload['nama_item'] ?? [];
         $jumlahItems = $payload['jumlah_item'] ?? [];
         $qtyItems = $payload['qty'] ?? [];
@@ -139,6 +141,8 @@ class HppController extends Controller
             $subtotal = '0.00';
 
             foreach (($namaItems[$groupIndex] ?? []) as $itemIndex => $namaItem) {
+                $subJenisItem = trim((string) ($subJenisItems[$groupIndex][$itemIndex] ?? ''));
+                $kategoriItem = trim((string) ($kategoriItems[$groupIndex][$itemIndex] ?? ''));
                 $jumlahItem = (string) ($jumlahItems[$groupIndex][$itemIndex] ?? '');
                 $qty = $this->normalizeNumericString($qtyItems[$groupIndex][$itemIndex] ?? '');
                 $satuan = (string) ($satuanItems[$groupIndex][$itemIndex] ?? '');
@@ -150,7 +154,9 @@ class HppController extends Controller
                 );
 
                 if (
-                    trim((string) $namaItem) === ''
+                    $subJenisItem === ''
+                    && $kategoriItem === ''
+                    && trim((string) $namaItem) === ''
                     && trim($jumlahItem) === ''
                     && $this->isZeroNumericString($qty)
                     && trim($satuan) === ''
@@ -161,6 +167,8 @@ class HppController extends Controller
                 }
 
                 $items[] = [
+                    'sub_jenis_item' => $subJenisItem !== '' ? $subJenisItem : null,
+                    'kategori_item' => $kategoriItem !== '' ? $kategoriItem : null,
                     'nama_item' => trim((string) $namaItem),
                     'jumlah_item' => trim($jumlahItem),
                     'qty' => $qty,

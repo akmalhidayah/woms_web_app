@@ -20,6 +20,7 @@
                 'path' => request()->url(),
                 'query' => request()->query(),
             ]);
+            $pendingTerminOneOrders = collect($pendingTerminOneOrders ?? []);
             $activeTokens = collect($activeTokens ?? []);
         @endphp
 
@@ -41,6 +42,41 @@
                         Buat BAST Termin 1
                     </a>
                 </div>
+
+                @if ($pendingTerminOneOrders->isNotEmpty())
+                    <div class="mb-3 rounded-[1.2rem] border border-amber-200 bg-gradient-to-r from-amber-50 to-white px-3 py-3 text-slate-800 shadow-sm">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <div class="min-w-0">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                                        <i data-lucide="triangle-alert" class="h-3.5 w-3.5"></i>
+                                    </span>
+                                    <div class="text-[12px] font-black text-amber-950">Order Belum Dibuatkan BAST Termin 1</div>
+                                    <span class="inline-flex rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                                        {{ $pendingTerminOneOrders->count() }} order
+                                    </span>
+                                </div>
+                                <p class="mt-1 pl-9 text-[10px] leading-5 text-amber-800">
+                                    Sudah memenuhi syarat BAST, tapi Termin 1-nya belum dibuat.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            @foreach ($pendingTerminOneOrders as $pendingOrder)
+                                <div class="min-w-[210px] rounded-xl border border-amber-200 bg-white px-2.5 py-2 text-[10px] shadow-sm">
+                                    <div class="font-black text-slate-900">{{ $pendingOrder['nomor_order'] }}</div>
+                                    <div class="mt-0.5 text-slate-600">
+                                        {{ $pendingOrder['purchase_order_number'] !== '' ? 'PO: '.$pendingOrder['purchase_order_number'] : 'PO belum terbaca' }}
+                                    </div>
+                                    <div class="mt-0.5 truncate text-slate-500">
+                                        {{ $pendingOrder['seksi'] !== '' ? $pendingOrder['seksi'] : ($pendingOrder['unit_kerja'] !== '' ? $pendingOrder['unit_kerja'] : '-') }}
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
 
                 <form action="{{ route('pkm.lhpp.index') }}" method="GET" class="flex flex-wrap items-center gap-2 overflow-x-auto whitespace-nowrap">
                     <div class="relative">

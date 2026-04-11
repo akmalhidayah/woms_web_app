@@ -414,6 +414,18 @@
             return `${isNegative ? '-' : ''}${integer}${decimal ? `.${decimal}` : ''}`;
         }
 
+        function normalizeCurrencyDecimal(value) {
+            const normalized = normalizeDecimalString(value);
+
+            if (! normalized.includes('.')) {
+                return `${normalized}.00`;
+            }
+
+            const [integer = '0', decimal = ''] = normalized.split('.', 2);
+
+            return `${integer}.${decimal.padEnd(2, '0').slice(0, 2)}`;
+        }
+
         function parseDecimalParts(value) {
             const normalized = normalizeDecimalString(value);
             const isNegative = normalized.startsWith('-');

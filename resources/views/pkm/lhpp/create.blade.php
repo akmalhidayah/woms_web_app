@@ -5,6 +5,7 @@
             $submitLabel = $submitLabel ?? 'Simpan';
             $terminType = $terminType ?? 'termin_1';
             $terminLabel = $terminLabel ?? ($terminType === 'termin_2' ? 'Termin 2' : 'Termin 1');
+            $isTerminTwoLocked = $terminType === 'termin_2';
             $bastDate = old('tanggal_bast', $bastDate ?? now()->format('Y-m-d'));
             $tanggalMulaiPekerjaan = old('tanggal_mulai_pekerjaan', $tanggalMulaiPekerjaan ?? '');
             $tanggalSelesaiPekerjaan = old('tanggal_selesai_pekerjaan', $tanggalSelesaiPekerjaan ?? '');
@@ -13,11 +14,12 @@
             $selectedThreshold = (string) old('approval_threshold', $selectedThreshold ?? 'under_250');
             $existingImages = collect($existingImages ?? []);
             $materialRows = collect($initialMaterialRows ?? [
-                ['name' => '', 'volume' => '', 'unit' => 'Jam', 'unit_price' => '', 'amount' => '0.00', 'amount_display' => '0'],
+                ['jenis_item' => '', 'kategori_item' => '', 'name' => '', 'volume' => '', 'unit' => '', 'unit_price' => '', 'amount' => '0.00', 'amount_display' => '0'],
             ]);
             $serviceRows = collect($initialServiceRows ?? [
-                ['name' => '', 'volume' => '', 'unit' => 'Jam', 'unit_price' => '', 'amount' => '0.00', 'amount_display' => '0'],
+                ['jenis_item' => '', 'kategori_item' => '', 'name' => '', 'volume' => '', 'unit' => '', 'unit_price' => '', 'amount' => '0.00', 'amount_display' => '0'],
             ]);
+            $contractCatalog = collect($contractCatalog ?? []);
             $initialCalculation = $initialCalculation ?? [
                 'subtotal_material' => '0.00',
                 'subtotal_jasa' => '0.00',
@@ -45,9 +47,11 @@
                     calculateUrl: @js(route('pkm.lhpp.calculate')),
                     terminType: @js($terminType),
                     unitOptions: ['Jam', 'Kg', 'M2', 'CM3', 'Liter'],
+                    contractCatalog: @js($contractCatalog->values()->all()),
                     materialRows: @js($materialRows->values()->all()),
                     serviceRows: @js($serviceRows->values()->all()),
                     calculation: @js($initialCalculation),
+                    isTerminTwoLocked: @js($isTerminTwoLocked),
                 })"
                 x-init="recalculate()"
                 class="rounded-[1.6rem] border border-slate-200 bg-white p-5 shadow-sm"
@@ -190,8 +194,13 @@
 
                     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                         <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-                            <div class="text-[13px] font-bold text-slate-900">Aktual Pemakaian Material</div>
-                            <button type="button" @click="addMaterialRow()" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50">
+                            <div>
+                                <div class="text-[13px] font-bold text-slate-900">Aktual Pemakaian Material</div>
+                                @if ($isTerminTwoLocked)
+                                    <p class="mt-1 text-[11px] text-slate-500">Data material mengikuti BAST Termin 1 dan dikunci agar tidak berubah.</p>
+                                @endif
+                            </div>
+                            <button type="button" @click="addMaterialRow()" x-show="!isTerminTwoLocked" x-cloak class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50">
                                 <i data-lucide="plus" class="h-3.5 w-3.5"></i>
                                 Tambah Baris
                             </button>
@@ -212,26 +221,53 @@
                                         <tr>
                                             <td class="border border-slate-300 px-2 py-2 text-center align-top font-semibold" x-text="index + 1"></td>
                                             <td class="border border-slate-300 px-2 py-2">
-                                                <input type="text" x-model="row.name" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none">
+                                                <div class="grid gap-2 md:grid-cols-3">
+                                                    <div class="relative">
+                                                        <select x-model="row.jenis_item" :disabled="isTerminTwoLocked" @change="handleJenisChange(row); recalculate()" class="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
+                                                            <option value="">Pilih Jenis Item</option>
+                                                            <template x-for="jenisOption in getJenisOptions()" :key="`material-jenis-${jenisOption}`">
+                                                                <option :value="jenisOption" x-text="jenisOption"></option>
+                                                            </template>
+                                                        </select>
+                                                        <i data-lucide="chevron-down" class="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"></i>
+                                                    </div>
+                                                    <input type="hidden" :name="`material_rows[${index}][jenis_item]`" x-model="row.jenis_item">
+
+                                                    <template x-if="hasKategoriOptions(row.jenis_item)">
+                                                        <div class="relative">
+                                                            <select x-model="row.kategori_item" :disabled="isTerminTwoLocked" @change="handleKategoriChange(row); recalculate()" class="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
+                                                                <option value="">Pilih Kategori Item</option>
+                                                                <template x-for="kategoriOption in getKategoriOptions(row.jenis_item)" :key="`material-kategori-${row.jenis_item}-${kategoriOption.value}`">
+                                                                    <option :value="kategoriOption.value" x-text="kategoriOption.label"></option>
+                                                                </template>
+                                                            </select>
+                                                            <i data-lucide="chevron-down" class="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"></i>
+                                                        </div>
+                                                    </template>
+                                                    <input type="hidden" :name="`material_rows[${index}][kategori_item]`" x-model="row.kategori_item">
+
+                                                    <div class="relative" :class="hasKategoriOptions(row.jenis_item) ? '' : 'md:col-span-2'">
+                                                        <select x-model="row.name" :disabled="isTerminTwoLocked" @change="handleNameChange(row); recalculate()" class="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
+                                                            <option value="">Pilih Nama Item</option>
+                                                            <template x-for="itemOption in getNameOptions(row.jenis_item, row.kategori_item)" :key="`material-name-${row.jenis_item}-${row.kategori_item || 'none'}-${itemOption.nama_item}`">
+                                                                <option :value="itemOption.nama_item" x-text="itemOption.nama_item"></option>
+                                                            </template>
+                                                        </select>
+                                                        <i data-lucide="chevron-down" class="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"></i>
+                                                    </div>
+                                                </div>
                                                 <input type="hidden" :name="`material_rows[${index}][name]`" x-model="row.name">
                                             </td>
                                             <td class="border border-slate-300 px-2 py-2">
                                                 <div class="flex flex-nowrap items-center gap-1.5">
-                                                    <input type="text" x-model="row.volume" @change="recalculate()" @blur="recalculate()" class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-right text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none">
+                                                    <input type="text" x-model="row.volume" :readonly="isTerminTwoLocked" @change="recalculate()" @blur="recalculate()" class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-right text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none read-only:cursor-not-allowed read-only:bg-slate-50 read-only:text-slate-500">
                                                     <input type="hidden" :name="`material_rows[${index}][volume]`" x-model="row.volume">
-                                                    <div class="relative">
-                                                        <select x-model="row.unit" @change="recalculate()" class="w-[68px] shrink-0 appearance-none rounded-lg border border-slate-300 bg-white px-2 py-2 pr-6 text-[11px] text-slate-700 focus:border-[#ca642f] focus:outline-none">
-                                                            <template x-for="unitOption in unitOptions" :key="unitOption">
-                                                                <option :value="unitOption" x-text="unitOption"></option>
-                                                            </template>
-                                                        </select>
-                                                        <input type="hidden" :name="`material_rows[${index}][unit]`" x-model="row.unit">
-                                                        <i data-lucide="chevron-down" class="pointer-events-none absolute right-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-500"></i>
-                                                    </div>
+                                                    <input type="text" x-model="row.unit" readonly class="w-[68px] shrink-0 rounded-lg border border-slate-300 bg-slate-50 px-2 py-2 text-center text-[11px] text-slate-700 focus:outline-none">
+                                                    <input type="hidden" :name="`material_rows[${index}][unit]`" x-model="row.unit">
                                                 </div>
                                             </td>
                                             <td class="border border-slate-300 px-2 py-2">
-                                                <input type="text" x-model="row.unit_price" @change="recalculate()" @blur="recalculate()" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-right text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none">
+                                                <input type="text" x-model="row.unit_price" readonly class="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-right text-sm text-slate-700 focus:outline-none">
                                                 <input type="hidden" :name="`material_rows[${index}][unit_price]`" x-model="row.unit_price">
                                             </td>
                                             <td class="border border-slate-300 px-2 py-2">
@@ -250,8 +286,13 @@
 
                     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                         <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-                            <div class="text-[13px] font-bold text-slate-900">Aktual Biaya Jasa</div>
-                            <button type="button" @click="addServiceRow()" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50">
+                            <div>
+                                <div class="text-[13px] font-bold text-slate-900">Aktual Biaya Jasa</div>
+                                @if ($isTerminTwoLocked)
+                                    <p class="mt-1 text-[11px] text-slate-500">Data jasa mengikuti BAST Termin 1 dan dikunci agar tidak berubah.</p>
+                                @endif
+                            </div>
+                            <button type="button" @click="addServiceRow()" x-show="!isTerminTwoLocked" x-cloak class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50">
                                 <i data-lucide="plus" class="h-3.5 w-3.5"></i>
                                 Tambah Baris
                             </button>
@@ -272,26 +313,53 @@
                                         <tr>
                                             <td class="border border-slate-300 px-2 py-2 text-center align-top font-semibold" x-text="index + 1"></td>
                                             <td class="border border-slate-300 px-2 py-2">
-                                                <input type="text" x-model="row.name" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none">
+                                                <div class="grid gap-2 md:grid-cols-3">
+                                                    <div class="relative">
+                                                        <select x-model="row.jenis_item" :disabled="isTerminTwoLocked" @change="handleJenisChange(row); recalculate()" class="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
+                                                            <option value="">Pilih Jenis Item</option>
+                                                            <template x-for="jenisOption in getJenisOptions()" :key="`service-jenis-${jenisOption}`">
+                                                                <option :value="jenisOption" x-text="jenisOption"></option>
+                                                            </template>
+                                                        </select>
+                                                        <i data-lucide="chevron-down" class="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"></i>
+                                                    </div>
+                                                    <input type="hidden" :name="`service_rows[${index}][jenis_item]`" x-model="row.jenis_item">
+
+                                                    <template x-if="hasKategoriOptions(row.jenis_item)">
+                                                        <div class="relative">
+                                                            <select x-model="row.kategori_item" :disabled="isTerminTwoLocked" @change="handleKategoriChange(row); recalculate()" class="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
+                                                                <option value="">Pilih Kategori Item</option>
+                                                                <template x-for="kategoriOption in getKategoriOptions(row.jenis_item)" :key="`service-kategori-${row.jenis_item}-${kategoriOption.value}`">
+                                                                    <option :value="kategoriOption.value" x-text="kategoriOption.label"></option>
+                                                                </template>
+                                                            </select>
+                                                            <i data-lucide="chevron-down" class="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"></i>
+                                                        </div>
+                                                    </template>
+                                                    <input type="hidden" :name="`service_rows[${index}][kategori_item]`" x-model="row.kategori_item">
+
+                                                    <div class="relative" :class="hasKategoriOptions(row.jenis_item) ? '' : 'md:col-span-2'">
+                                                        <select x-model="row.name" :disabled="isTerminTwoLocked" @change="handleNameChange(row); recalculate()" class="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
+                                                            <option value="">Pilih Nama Item</option>
+                                                            <template x-for="itemOption in getNameOptions(row.jenis_item, row.kategori_item)" :key="`service-name-${row.jenis_item}-${row.kategori_item || 'none'}-${itemOption.nama_item}`">
+                                                                <option :value="itemOption.nama_item" x-text="itemOption.nama_item"></option>
+                                                            </template>
+                                                        </select>
+                                                        <i data-lucide="chevron-down" class="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"></i>
+                                                    </div>
+                                                </div>
                                                 <input type="hidden" :name="`service_rows[${index}][name]`" x-model="row.name">
                                             </td>
                                             <td class="border border-slate-300 px-2 py-2">
                                                 <div class="flex flex-nowrap items-center gap-1.5">
-                                                    <input type="text" x-model="row.volume" @change="recalculate()" @blur="recalculate()" class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-right text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none">
+                                                    <input type="text" x-model="row.volume" :readonly="isTerminTwoLocked" @change="recalculate()" @blur="recalculate()" class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-right text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none read-only:cursor-not-allowed read-only:bg-slate-50 read-only:text-slate-500">
                                                     <input type="hidden" :name="`service_rows[${index}][volume]`" x-model="row.volume">
-                                                    <div class="relative">
-                                                        <select x-model="row.unit" @change="recalculate()" class="w-[68px] shrink-0 appearance-none rounded-lg border border-slate-300 bg-white px-2 py-2 pr-6 text-[11px] text-slate-700 focus:border-[#ca642f] focus:outline-none">
-                                                            <template x-for="unitOption in unitOptions" :key="unitOption">
-                                                                <option :value="unitOption" x-text="unitOption"></option>
-                                                            </template>
-                                                        </select>
-                                                        <input type="hidden" :name="`service_rows[${index}][unit]`" x-model="row.unit">
-                                                        <i data-lucide="chevron-down" class="pointer-events-none absolute right-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-500"></i>
-                                                    </div>
+                                                    <input type="text" x-model="row.unit" readonly class="w-[68px] shrink-0 rounded-lg border border-slate-300 bg-slate-50 px-2 py-2 text-center text-[11px] text-slate-700 focus:outline-none">
+                                                    <input type="hidden" :name="`service_rows[${index}][unit]`" x-model="row.unit">
                                                 </div>
                                             </td>
                                             <td class="border border-slate-300 px-2 py-2">
-                                                <input type="text" x-model="row.unit_price" @change="recalculate()" @blur="recalculate()" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-right text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none">
+                                                <input type="text" x-model="row.unit_price" readonly class="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-right text-sm text-slate-700 focus:outline-none">
                                                 <input type="hidden" :name="`service_rows[${index}][unit_price]`" x-model="row.unit_price">
                                             </td>
                                             <td class="border border-slate-300 px-2 py-2">
@@ -366,6 +434,7 @@
                     calculateUrl: config.calculateUrl,
                     terminType: config.terminType,
                     unitOptions: config.unitOptions,
+                    contractCatalog: config.contractCatalog,
                     materialRows: config.materialRows,
                     serviceRows: config.serviceRows,
                     calculation: config.calculation,
@@ -387,6 +456,85 @@
                     formatCurrency(value) {
                         const amount = Number(value || 0);
                         return new Intl.NumberFormat('id-ID').format(amount);
+                    },
+                    normalizeCatalogValue(value) {
+                        return String(value ?? '').trim();
+                    },
+                    getJenisOptions() {
+                        return [...new Set(this.contractCatalog.map((item) => this.normalizeCatalogValue(item.jenis_item)).filter(Boolean))];
+                    },
+                    getKategoriOptions(jenisItem) {
+                        const normalizedJenis = this.normalizeCatalogValue(jenisItem);
+
+                        if (!normalizedJenis) {
+                            return [];
+                        }
+
+                        const categories = this.contractCatalog
+                            .filter((item) => this.normalizeCatalogValue(item.jenis_item) === normalizedJenis)
+                            .map((item) => this.normalizeCatalogValue(item.kategori_item))
+                            .filter(Boolean);
+
+                        return [...new Set(categories)].map((value) => ({
+                            value,
+                            label: value,
+                        }));
+                    },
+                    hasKategoriOptions(jenisItem) {
+                        return this.getKategoriOptions(jenisItem).length > 0;
+                    },
+                    getNameOptions(jenisItem, kategoriItem) {
+                        const normalizedJenis = this.normalizeCatalogValue(jenisItem);
+                        const normalizedKategori = this.normalizeCatalogValue(kategoriItem);
+
+                        if (!normalizedJenis) {
+                            return [];
+                        }
+
+                        return this.contractCatalog.filter((item) =>
+                            this.normalizeCatalogValue(item.jenis_item) === normalizedJenis
+                            && this.normalizeCatalogValue(item.kategori_item) === normalizedKategori
+                        );
+                    },
+                    findCatalogItem(jenisItem, kategoriItem, namaItem) {
+                        const normalizedJenis = this.normalizeCatalogValue(jenisItem);
+                        const normalizedKategori = this.normalizeCatalogValue(kategoriItem);
+                        const normalizedNama = this.normalizeCatalogValue(namaItem);
+
+                        return this.contractCatalog.find((item) =>
+                            this.normalizeCatalogValue(item.jenis_item) === normalizedJenis
+                            && this.normalizeCatalogValue(item.kategori_item) === normalizedKategori
+                            && this.normalizeCatalogValue(item.nama_item) === normalizedNama
+                        ) ?? null;
+                    },
+                    handleJenisChange(row) {
+                        const kategoriOptions = this.getKategoriOptions(row.jenis_item);
+                        const kategoriExists = kategoriOptions.some((item) => item.value === this.normalizeCatalogValue(row.kategori_item));
+
+                        if (!kategoriExists) {
+                            row.kategori_item = kategoriOptions[0]?.value ?? '';
+                        }
+
+                        row.name = '';
+                        row.unit = '';
+                        row.unit_price = '';
+                    },
+                    handleKategoriChange(row) {
+                        row.name = '';
+                        row.unit = '';
+                        row.unit_price = '';
+                    },
+                    handleNameChange(row) {
+                        const selectedItem = this.findCatalogItem(row.jenis_item, row.kategori_item, row.name);
+
+                        if (!selectedItem) {
+                            row.unit = '';
+                            row.unit_price = '';
+                            return;
+                        }
+
+                        row.unit = this.normalizeCatalogValue(selectedItem.satuan);
+                        row.unit_price = this.normalizeCatalogValue(selectedItem.harga_satuan);
                     },
                     async recalculate() {
                         try {
@@ -423,10 +571,10 @@
                         }
                     },
                     addMaterialRow() {
-                        this.materialRows.push({ name: '', volume: '', unit: 'Jam', unit_price: '', amount: '0.00', amount_display: '0' });
+                        this.materialRows.push({ jenis_item: '', kategori_item: '', name: '', volume: '', unit: '', unit_price: '', amount: '0.00', amount_display: '0' });
                     },
                     addServiceRow() {
-                        this.serviceRows.push({ name: '', volume: '', unit: 'Jam', unit_price: '', amount: '0.00', amount_display: '0' });
+                        this.serviceRows.push({ jenis_item: '', kategori_item: '', name: '', volume: '', unit: '', unit_price: '', amount: '0.00', amount_display: '0' });
                     },
                     resolveThreshold() {
                         const thresholdBase = this.terminType === 'termin_2'

@@ -218,6 +218,44 @@
             height: 120px;
             font-size: 9px;
         }
+
+        .uraian-cell {
+            padding: 3px 12px !important;
+        }
+
+        .uraian-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .uraian-table td {
+            border: none !important;
+            padding: 0 !important;
+            vertical-align: top;
+        }
+
+        .uraian-bullet {
+            width: 12px;
+            padding-right: 6px !important;
+            text-align: left;
+        }
+
+        .uraian-main {
+            width: 66%;
+            padding-right: 14px !important;
+            text-align: left;
+        }
+
+        .uraian-detail {
+            width: 32%;
+            padding-left: 18px !important;
+            white-space: normal;
+            text-align: left;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            font-size: 8px;
+        }
     </style>
 </head>
 @php
@@ -411,9 +449,24 @@
     foreach ($itemGroups as $group) {
         $label = trim((string) ($group['jenis_item'] ?? ''));
         $groupKey = $label !== '' ? $label : 'Lainnya';
+        $groupsByJenis[$groupKey] ??= [];
 
         foreach (($group['items'] ?? []) as $item) {
-            $groupsByJenis[$groupKey][] = [
+            $kategoriLabel = trim((string) ($item['kategori_item'] ?? ''));
+            $lastEntryIndex = array_key_last($groupsByJenis[$groupKey]);
+
+            if (
+                $lastEntryIndex === null
+                || ($groupsByJenis[$groupKey][$lastEntryIndex]['label'] ?? '') !== $kategoriLabel
+            ) {
+                $groupsByJenis[$groupKey][] = [
+                    'label' => $kategoriLabel,
+                    'items' => [],
+                ];
+                $lastEntryIndex = array_key_last($groupsByJenis[$groupKey]);
+            }
+
+            $groupsByJenis[$groupKey][$lastEntryIndex]['items'][] = [
                 'nama' => $item['nama_item'] ?? '',
                 'jumlah' => $item['jumlah_item'] ?? '',
                 'qty' => $item['qty'] ?? null,
@@ -439,9 +492,16 @@
     };
 
     $totalRows = 0;
-    foreach ($groupsByJenis as $rows) {
+    foreach ($groupsByJenis as $kategoriGroups) {
         $totalRows += 1;
-        $totalRows += count($rows);
+
+        foreach ($kategoriGroups as $kategoriGroup) {
+            if (($kategoriGroup['label'] ?? '') !== '') {
+                $totalRows += 1;
+            }
+
+            $totalRows += count($kategoriGroup['items'] ?? []);
+        }
     }
     if ($totalRows === 0) {
         $totalRows = 1;
@@ -539,7 +599,7 @@
             @else
                 @php $printedOA = false; $groupIndex = 0; @endphp
 
-                @foreach ($groupsByJenis as $label => $items)
+                @foreach ($groupsByJenis as $label => $kategoriGroups)
                     <tr>
                         @if (! $printedOA)
                             <td style="border: 1px solid black; text-align: center; vertical-align: top;" rowspan="{{ $totalRows }}">
@@ -558,27 +618,52 @@
                         <td style="border: 1px solid black;"></td>
                     </tr>
 
-                    @foreach ($items as $it)
-                        <tr>
-                            <td style="border: 1px solid black; padding: 3px 12px;">
-                                &nbsp;&nbsp;&nbsp;- {{ $it['nama'] }}@if($it['jumlah']) = {{ $it['jumlah'] }}@endif
-                            </td>
-                            <td style="border: 1px solid black; text-align: center;">
-                                {{ $formatQty($it['qty']) }}
-                            </td>
-                            <td style="border: 1px solid black; text-align: center;">
-                                {{ $it['satuan'] ?? '' }}
-                            </td>
-                            <td style="border: 1px solid black; text-align: right; padding-right: 6px;">
-                                {{ $formatMoney($it['harga_satuan']) }}
-                            </td>
-                            <td style="border: 1px solid black; text-align: right; padding-right: 6px;">
-                                {{ $formatMoney($it['harga_total']) }}
-                            </td>
-                            <td style="border: 1px solid black; padding: 4px;">
-                                {{ $it['keterangan'] ?? '' }}
-                            </td>
-                        </tr>
+                    @foreach ($kategoriGroups as $kategoriGroup)
+                        @if(($kategoriGroup['label'] ?? '') !== '')
+                            <tr>
+                                <td style="border: 1px solid black; padding: 4px 18px; font-weight: bold;">
+                                    {{ $kategoriGroup['label'] }}
+                                </td>
+                                <td style="border: 1px solid black;"></td>
+                                <td style="border: 1px solid black;"></td>
+                                <td style="border: 1px solid black;"></td>
+                                <td style="border: 1px solid black;"></td>
+                                <td style="border: 1px solid black;"></td>
+                            </tr>
+                        @endif
+
+                        @foreach (($kategoriGroup['items'] ?? []) as $it)
+                            <tr>
+                                <td class="uraian-cell" style="border: 1px solid black;">
+                                    <table class="uraian-table">
+                                        <tr>
+                                            <td class="uraian-bullet">-</td>
+                                            <td class="uraian-main">{{ $it['nama'] }}</td>
+                                            <td class="uraian-detail">
+                                                @if($it['jumlah'])
+                                                    {{ $it['jumlah'] }}
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                                <td style="border: 1px solid black; text-align: center;">
+                                    {{ $formatQty($it['qty']) }}
+                                </td>
+                                <td style="border: 1px solid black; text-align: center;">
+                                    {{ $it['satuan'] ?? '' }}
+                                </td>
+                                <td style="border: 1px solid black; text-align: right; padding-right: 6px;">
+                                    {{ $formatMoney($it['harga_satuan']) }}
+                                </td>
+                                <td style="border: 1px solid black; text-align: right; padding-right: 6px;">
+                                    {{ $formatMoney($it['harga_total']) }}
+                                </td>
+                                <td style="border: 1px solid black; padding: 4px;">
+                                    {{ $it['keterangan'] ?? '' }}
+                                </td>
+                            </tr>
+                        @endforeach
                     @endforeach
 
                     @php $groupIndex++; @endphp

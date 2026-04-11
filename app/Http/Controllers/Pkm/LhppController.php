@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Pkm;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Pkm\StoreLhppBastRequest;
+use App\Models\FabricationConstructionContract;
 use App\Models\LhppBast;
 use App\Models\LhppBastImage;
 use App\Models\Order;
@@ -85,6 +86,16 @@ class LhppController extends Controller
                 ->paginate(8)
                 ->withQueryString();
 
+            $pendingTerminOneOrders = $this->eligibleOrders()
+                ->map(fn (Order $order): array => [
+                    'nomor_order' => (string) $order->nomor_order,
+                    'notifikasi' => (string) ($order->notifikasi ?? ''),
+                    'purchase_order_number' => (string) ($order->purchaseOrder?->purchase_order_number ?? ''),
+                    'unit_kerja' => (string) ($order->unit_kerja ?? ''),
+                    'seksi' => (string) ($order->seksi ?? ''),
+                ])
+                ->values();
+
             return view('dashboards.pkm', [
                 'pageTitle' => 'BAST / LHPP',
                 'pageDescription' => 'Monitoring laporan hasil pekerjaan dan dokumen BAST/LHPP PKM.',
@@ -92,6 +103,7 @@ class LhppController extends Controller
                 'filters' => $filters,
                 'units' => $units,
                 'pos' => $pos,
+                'pendingTerminOneOrders' => $pendingTerminOneOrders,
                 'activeTokens' => collect(),
             ]);
         } catch (Throwable $exception) {
@@ -208,6 +220,7 @@ class LhppController extends Controller
         $calculation = $this->calculateRows(
             $request->input('material_rows', []),
             $request->input('service_rows', []),
+            true,
         );
 
         return response()->json($calculation);
@@ -227,9 +240,15 @@ class LhppController extends Controller
 
             $purchaseOrder = $order->purchaseOrder;
             $latestHpp = $order->latestHpp;
-            $calculation = $this->calculateRows(
+            [$materialRowsPayload, $serviceRowsPayload] = $this->resolveActualRowsPayload(
+                $terminType,
+                $parentLhpp,
                 $request->input('material_rows', []),
                 $request->input('service_rows', []),
+            );
+            $calculation = $this->calculateRows(
+                $materialRowsPayload,
+                $serviceRowsPayload,
             );
             $qualityControlStatus = $terminType === 'termin_2'
                 ? ($parentLhpp?->quality_control_status ?? 'pending')
@@ -309,9 +328,15 @@ class LhppController extends Controller
 
             $purchaseOrder = $order->purchaseOrder;
             $latestHpp = $order->latestHpp;
-            $calculation = $this->calculateRows(
+            [$materialRowsPayload, $serviceRowsPayload] = $this->resolveActualRowsPayload(
+                $terminType,
+                $parentLhpp,
                 $request->input('material_rows', []),
                 $request->input('service_rows', []),
+            );
+            $calculation = $this->calculateRows(
+                $materialRowsPayload,
+                $serviceRowsPayload,
             );
 
             $lhpp->fill([
@@ -590,12 +615,18 @@ class LhppController extends Controller
             $selectedOrder = (string) ($orderOptions->first()['nomor_order'] ?? '');
         }
 
+        $contractCatalog = $this->resolveContractCatalog();
+
         $materialRows = collect(old('material_rows', $lhpp?->material_items ?? $parentLhpp?->material_items ?? [
-            ['name' => '', 'volume' => '', 'unit' => 'Jam', 'unit_price' => '', 'amount' => '0', 'amount_display' => '0'],
-        ]))->values();
+            ['jenis_item' => '', 'kategori_item' => '', 'name' => '', 'volume' => '', 'unit' => '', 'unit_price' => '', 'amount' => '0', 'amount_display' => '0'],
+        ]))
+            ->map(fn (array $row): array => $this->enrichLhppItemRow($row, $contractCatalog))
+            ->values();
         $serviceRows = collect(old('service_rows', $lhpp?->service_items ?? $parentLhpp?->service_items ?? [
-            ['name' => '', 'volume' => '', 'unit' => 'Jam', 'unit_price' => '', 'amount' => '0', 'amount_display' => '0'],
-        ]))->values();
+            ['jenis_item' => '', 'kategori_item' => '', 'name' => '', 'volume' => '', 'unit' => '', 'unit_price' => '', 'amount' => '0', 'amount_display' => '0'],
+        ]))
+            ->map(fn (array $row): array => $this->enrichLhppItemRow($row, $contractCatalog))
+            ->values();
 
         $calculation = $this->calculateRows(
             $materialRows->all(),
@@ -615,6 +646,7 @@ class LhppController extends Controller
             'initialMaterialRows' => $calculation['material_rows'],
             'initialServiceRows' => $calculation['service_rows'],
             'initialCalculation' => $calculation['totals'],
+            'contractCatalog' => $contractCatalog,
             'formTitle' => $meta['formTitle'],
             'formAction' => $meta['formAction'],
             'formMethod' => $meta['formMethod'],
@@ -709,10 +741,10 @@ class LhppController extends Controller
      * @param array<int, array<string, mixed>> $serviceRows
      * @return array<string, mixed>
      */
-    private function calculateRows(array $materialRows, array $serviceRows): array
+    private function calculateRows(array $materialRows, array $serviceRows, bool $preserveEmptyRows = false): array
     {
-        $normalizedMaterialRows = $this->normalizeItemRows($materialRows);
-        $normalizedServiceRows = $this->normalizeItemRows($serviceRows);
+        $normalizedMaterialRows = $this->normalizeItemRows($materialRows, $preserveEmptyRows);
+        $normalizedServiceRows = $this->normalizeItemRows($serviceRows, $preserveEmptyRows);
 
         $subtotalMaterial = $this->sumAmounts($normalizedMaterialRows);
         $subtotalJasa = $this->sumAmounts($normalizedServiceRows);
@@ -722,17 +754,21 @@ class LhppController extends Controller
 
         return [
             'material_rows' => $normalizedMaterialRows !== [] ? $normalizedMaterialRows : [[
+                'jenis_item' => '',
+                'kategori_item' => '',
                 'name' => '',
                 'volume' => '',
-                'unit' => 'Jam',
+                'unit' => '',
                 'unit_price' => '',
                 'amount' => '0.00',
                 'amount_display' => '0',
             ]],
             'service_rows' => $normalizedServiceRows !== [] ? $normalizedServiceRows : [[
+                'jenis_item' => '',
+                'kategori_item' => '',
                 'name' => '',
                 'volume' => '',
-                'unit' => 'Jam',
+                'unit' => '',
                 'unit_price' => '',
                 'amount' => '0.00',
                 'amount_display' => '0',
@@ -756,11 +792,13 @@ class LhppController extends Controller
      * @param array<int, array<string, mixed>> $rows
      * @return array<int, array<string, string>>
      */
-    private function normalizeItemRows(array $rows): array
+    private function normalizeItemRows(array $rows, bool $preserveEmptyRows = false): array
     {
         $normalizedRows = [];
 
         foreach ($rows as $row) {
+            $jenisItem = trim((string) ($row['jenis_item'] ?? ''));
+            $kategoriItem = trim((string) ($row['kategori_item'] ?? ''));
             $name = trim((string) ($row['name'] ?? ''));
             $volume = $this->normalizeNumericString($row['volume'] ?? '');
             $unit = trim((string) ($row['unit'] ?? 'Jam'));
@@ -768,10 +806,27 @@ class LhppController extends Controller
             $amount = $this->multiplyCurrencyDecimal($volume, $unitPrice);
 
             if ($name === '' && $this->isZeroNumericString($volume) && $this->isZeroCurrency($unitPrice)) {
+                if (! $preserveEmptyRows) {
+                    continue;
+                }
+
+                $normalizedRows[] = [
+                    'jenis_item' => $jenisItem,
+                    'kategori_item' => $kategoriItem,
+                    'name' => '',
+                    'volume' => '',
+                    'unit' => $unit !== 'Jam' ? $unit : '',
+                    'unit_price' => '',
+                    'amount' => '0.00',
+                    'amount_display' => '0',
+                ];
+
                 continue;
             }
 
             $normalizedRows[] = [
+                'jenis_item' => $jenisItem,
+                'kategori_item' => $kategoriItem,
                 'name' => $name,
                 'volume' => $volume === '0' ? '' : $volume,
                 'unit' => $unit !== '' ? $unit : 'Jam',
@@ -782,6 +837,100 @@ class LhppController extends Controller
         }
 
         return $normalizedRows;
+    }
+
+    /**
+     * @return list<array<string, string>>
+     */
+    private function resolveContractCatalog(): array
+    {
+        return FabricationConstructionContract::query()
+            ->orderBy('jenis_item')
+            ->orderBy('kategori_item')
+            ->orderBy('nama_item')
+            ->get()
+            ->map(fn (FabricationConstructionContract $item): array => [
+                'jenis_item' => trim((string) $item->jenis_item),
+                'kategori_item' => trim((string) ($item->kategori_item ?? '')),
+                'nama_item' => trim((string) $item->nama_item),
+                'satuan' => trim((string) $item->satuan),
+                'harga_satuan' => $this->displayEditableCurrency((string) $item->harga_satuan),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @param list<array<string, string>> $contractCatalog
+     * @return array<string, mixed>
+     */
+    private function enrichLhppItemRow(array $row, array $contractCatalog): array
+    {
+        $enriched = [
+            'jenis_item' => trim((string) ($row['jenis_item'] ?? '')),
+            'kategori_item' => trim((string) ($row['kategori_item'] ?? '')),
+            'name' => trim((string) ($row['name'] ?? '')),
+            'volume' => $row['volume'] ?? '',
+            'unit' => trim((string) ($row['unit'] ?? '')),
+            'unit_price' => $row['unit_price'] ?? '',
+            'amount' => $row['amount'] ?? '0.00',
+            'amount_display' => $row['amount_display'] ?? '0',
+        ];
+
+        if ($enriched['name'] === '') {
+            return $enriched;
+        }
+
+        $matchedItem = collect($contractCatalog)
+            ->first(function (array $item) use ($enriched): bool {
+                if (($item['nama_item'] ?? '') !== $enriched['name']) {
+                    return false;
+                }
+
+                if ($enriched['jenis_item'] !== '' && ($item['jenis_item'] ?? '') !== $enriched['jenis_item']) {
+                    return false;
+                }
+
+                if ($enriched['kategori_item'] !== '' && ($item['kategori_item'] ?? '') !== $enriched['kategori_item']) {
+                    return false;
+                }
+
+                return true;
+            });
+
+        if (! $matchedItem) {
+            $matchedItem = collect($contractCatalog)
+                ->first(fn (array $item): bool => ($item['nama_item'] ?? '') === $enriched['name']);
+        }
+
+        if (! $matchedItem) {
+            return $enriched;
+        }
+
+        $enriched['jenis_item'] = $enriched['jenis_item'] !== '' ? $enriched['jenis_item'] : (string) ($matchedItem['jenis_item'] ?? '');
+        $enriched['kategori_item'] = $enriched['kategori_item'] !== '' ? $enriched['kategori_item'] : (string) ($matchedItem['kategori_item'] ?? '');
+        $enriched['unit'] = $enriched['unit'] !== '' ? $enriched['unit'] : (string) ($matchedItem['satuan'] ?? '');
+        $enriched['unit_price'] = $enriched['unit_price'] !== '' ? $enriched['unit_price'] : (string) ($matchedItem['harga_satuan'] ?? '');
+
+        return $enriched;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $materialRows
+     * @param array<int, array<string, mixed>> $serviceRows
+     * @return array{0: array<int, array<string, mixed>>, 1: array<int, array<string, mixed>>}
+     */
+    private function resolveActualRowsPayload(string $terminType, ?LhppBast $parentLhpp, array $materialRows, array $serviceRows): array
+    {
+        if ($terminType !== 'termin_2' || ! $parentLhpp) {
+            return [$materialRows, $serviceRows];
+        }
+
+        return [
+            is_array($parentLhpp->material_items) ? $parentLhpp->material_items : [],
+            is_array($parentLhpp->service_items) ? $parentLhpp->service_items : [],
+        ];
     }
 
     /**

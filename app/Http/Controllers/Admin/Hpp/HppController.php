@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admin\Hpp;
 
+use App\Domain\Orders\Enums\OrderDocumentType;
+use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Controllers\Controller;
 use App\Models\Hpp;
@@ -9,6 +11,7 @@ use App\Http\Requests\Admin\Hpp\StoreHppRequest;
 use App\Models\Order;
 use App\Models\OutlineAgreement;
 use App\Support\HppApprovalFlow;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -29,11 +32,32 @@ class HppController extends Controller
             ->latest('id')
             ->get();
 
+        $pendingHppOrders = Order::query()
+            ->whereIn('catatan_status', [
+                OrderUserNoteStatus::ApprovedJasa->value,
+                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+            ])
+            ->whereHas('documents', fn (Builder $documentQuery) => $documentQuery->where('jenis_dokumen', OrderDocumentType::Abnormalitas->value))
+            ->whereHas('documents', fn (Builder $documentQuery) => $documentQuery->where('jenis_dokumen', OrderDocumentType::GambarTeknik->value))
+            ->whereHas('scopeOfWork')
+            ->doesntHave('hpps')
+            ->orderByDesc('tanggal_order')
+            ->orderByDesc('id')
+            ->get(['id', 'nomor_order', 'nama_pekerjaan', 'unit_kerja', 'seksi'])
+            ->map(fn (Order $order): array => [
+                'nomor_order' => (string) $order->nomor_order,
+                'nama_pekerjaan' => (string) ($order->nama_pekerjaan ?? ''),
+                'unit_kerja' => (string) ($order->unit_kerja ?? ''),
+                'seksi' => (string) ($order->seksi ?? ''),
+            ])
+            ->values();
+
         return view('admin.hpp.index', [
             'rows' => $rows,
             'search' => $search,
             'status' => $status,
             'statusOptions' => Hpp::statusOptions(),
+            'pendingHppOrders' => $pendingHppOrders,
         ]);
     }
 

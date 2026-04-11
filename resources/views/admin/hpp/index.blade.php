@@ -11,6 +11,7 @@
         };
         $bucketLabels = \App\Support\HppApprovalFlow::bucketOptions();
         $displayArea = fn (?string $value): string => \App\Support\HppApprovalFlow::displayArea((string) $value);
+        $pendingHppOrders = collect($pendingHppOrders ?? []);
     @endphp
 
     @if (session('status'))
@@ -39,6 +40,39 @@
 
         <section class="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 px-5 py-4">
+                @if ($pendingHppOrders->isNotEmpty())
+                    <div class="mb-4 rounded-[1.2rem] border border-blue-200 bg-gradient-to-r from-blue-50 to-white px-3 py-3 text-slate-800 shadow-sm">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <div class="min-w-0">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-700">
+                                        <i data-lucide="triangle-alert" class="h-3.5 w-3.5"></i>
+                                    </span>
+                                    <div class="text-[12px] font-black text-blue-950">Order Belum Dibuatkan HPP</div>
+                                    <span class="inline-flex rounded-full border border-blue-200 bg-white px-2 py-0.5 text-[10px] font-bold text-blue-800">
+                                        {{ $pendingHppOrders->count() }} order
+                                    </span>
+                                </div>
+                                <p class="mt-1 pl-9 text-[10px] leading-5 text-blue-800">
+                                    Sudah memenuhi syarat create HPP, tapi dokumen HPP-nya belum dibuat.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            @foreach ($pendingHppOrders as $pendingOrder)
+                                <div class="min-w-[210px] rounded-xl border border-blue-200 bg-white px-2.5 py-2 text-[10px] shadow-sm">
+                                    <div class="font-black text-slate-900">{{ $pendingOrder['nomor_order'] }}</div>
+                                    <div class="mt-0.5 truncate text-slate-700">{{ $pendingOrder['nama_pekerjaan'] !== '' ? $pendingOrder['nama_pekerjaan'] : '-' }}</div>
+                                    <div class="mt-0.5 truncate text-slate-500">
+                                        {{ $pendingOrder['seksi'] !== '' ? $pendingOrder['seksi'] : ($pendingOrder['unit_kerja'] !== '' ? $pendingOrder['unit_kerja'] : '-') }}
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
                 <form method="GET" action="{{ route('admin.hpp.index') }}" class="flex flex-col gap-2.5 xl:flex-row xl:items-end xl:justify-between">
                     <div class="grid flex-1 gap-2.5 md:grid-cols-2 xl:grid-cols-[1.2fr_0.6fr]">
                         <div class="flex flex-col">

@@ -10,6 +10,7 @@ use App\Http\Requests\Admin\Orders\UpdateOrderRequest;
 use App\Http\Requests\Admin\Orders\UpdateOrderUserNoteRequest;
 use App\Models\Order;
 use App\Models\UnitWork;
+use App\Http\Controllers\Admin\Orders\InitialWorkController;
 use App\Services\Orders\OrderDocumentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
@@ -38,7 +39,12 @@ class OrderController extends Controller
             ->get(['id', 'name']);
 
         $orders = Order::query()
-            ->with(['creator:id,name', 'documents:id,order_id,jenis_dokumen', 'scopeOfWork:id,order_id'])
+            ->with([
+                'creator:id,name',
+                'documents:id,order_id,jenis_dokumen',
+                'scopeOfWork:id,order_id',
+                'initialWork:id,order_id,nomor_initial_work,kepada_yth,perihal,tanggal_initial_work,functional_location,scope_pekerjaan,qty,stn,keterangan,keterangan_pekerjaan',
+            ])
             ->search($search)
             ->when($seksi !== '', fn ($query) => $query->where('seksi', $seksi))
             ->when($catatanStatus !== '', fn ($query) => $query->where('catatan_status', $catatanStatus))
@@ -64,9 +70,9 @@ class OrderController extends Controller
                 ->orderBy('unit_kerja')
                 ->pluck('unit_kerja'),
             'structureUnitOptions' => $structureUnits,
-            'priorityControlOptions' => Order::priorityControlOptions(),
             'userNoteStatusOptions' => OrderUserNoteStatus::options(),
             'userNoteDetailOptions' => Order::userNoteDetailOptions(),
+            'initialWorkPreviewNumber' => InitialWorkController::previewDocumentNumber(),
         ]);
     }
 

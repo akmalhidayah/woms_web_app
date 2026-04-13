@@ -24,16 +24,16 @@ class JobWaitingController extends Controller
             $search = trim((string) $request->string('search'));
 
             $priorityMap = [
-                'Urgently' => Order::PRIORITY_URGENT,
-                'Hard' => Order::PRIORITY_HIGH,
-                'Medium' => Order::PRIORITY_MEDIUM,
-                'Low' => Order::PRIORITY_LOW,
+                'Emergency' => [Order::PRIORITY_URGENT, Order::PRIORITY_HIGH],
+                'High' => [Order::PRIORITY_MEDIUM],
+                'Medium' => [Order::PRIORITY_LOW],
             ];
 
             $notifications = Order::query()
                 ->with([
                     'documents',
                     'scopeOfWork',
+                    'initialWork:id,order_id,nomor_initial_work,tanggal_initial_work,created_at',
                     'lhppBasts:id,order_id,termin_type',
                     'lhppBasts.lpjPpl:id,lhpp_bast_id',
                     'latestHpp' => fn ($query) => $query->select([
@@ -48,6 +48,7 @@ class JobWaitingController extends Controller
                         'purchase_orders.purchase_order_number',
                         'purchase_orders.target_penyelesaian',
                         'purchase_orders.approval_target',
+                        'purchase_orders.approve_manager',
                         'purchase_orders.progress_pekerjaan',
                         'purchase_orders.vendor_note',
                         'purchase_orders.admin_note',
@@ -60,11 +61,22 @@ class JobWaitingController extends Controller
                     OrderUserNoteStatus::ApprovedJasa->value,
                     OrderUserNoteStatus::ApprovedWorkshopJasa->value,
                 ])
-                ->whereHas('purchaseOrder', function (Builder $query): void {
+                ->where(function (Builder $query): void {
                     $query
-                        ->where('approve_manager', true)
-                        ->whereNotNull('purchase_order_number')
-                        ->whereRaw("TRIM(purchase_order_number) <> ''");
+                        ->whereHas('purchaseOrder', function (Builder $purchaseOrderQuery): void {
+                            $purchaseOrderQuery
+                                ->where('approve_manager', true)
+                                ->whereNotNull('purchase_order_number')
+                                ->whereRaw("TRIM(purchase_order_number) <> ''");
+                        })
+                        ->orWhere(function (Builder $emergencyQuery): void {
+                            $emergencyQuery
+                                ->whereIn('prioritas', [
+                                    Order::PRIORITY_URGENT,
+                                    Order::PRIORITY_HIGH,
+                                ])
+                                ->has('initialWork');
+                        });
                 })
                 ->where(function (Builder $query): void {
                     $query
@@ -81,7 +93,14 @@ class JobWaitingController extends Controller
                         });
                 })
                 ->when($selectedPriority !== '' && isset($priorityMap[$selectedPriority]), function (Builder $query) use ($priorityMap, $selectedPriority): void {
-                    $query->where('prioritas', $priorityMap[$selectedPriority]);
+                    $mappedPriorities = $priorityMap[$selectedPriority];
+
+                    if (is_array($mappedPriorities)) {
+                        $query->whereIn('prioritas', $mappedPriorities);
+                        return;
+                    }
+
+                    $query->where('prioritas', $mappedPriorities);
                 })
                 ->when($search !== '', function (Builder $query) use ($search): void {
                     $query->where(function (Builder $builder) use ($search): void {
@@ -198,24 +217,38 @@ class JobWaitingController extends Controller
         $terminOneBast = $order->lhppBasts->firstWhere('termin_type', 'termin_1');
         $hasBastOrLpj = (bool) $terminOneBast || (bool) optional($terminOneBast)->lpjPpl;
         $isFinished = (int) ($latestPurchaseOrder?->progress_pekerjaan ?? 0) >= 100 && $hasBastOrLpj;
+        $initialWork = $order->initialWork;
+        $canUpdateByPurchaseOrder = (bool) (
+            $latestPurchaseOrder
+            && $latestPurchaseOrder->approve_manager
+            && filled($latestPurchaseOrder->purchase_order_number)
+        );
+        $isEmergencyInitialWorkFlow = ! $canUpdateByPurchaseOrder
+            && in_array($order->prioritas, [Order::PRIORITY_URGENT, Order::PRIORITY_HIGH], true)
+            && (bool) $initialWork;
+        $jobWaitingSinceDate = $latestPurchaseOrder?->updated_at
+            ?: $latestPurchaseOrder?->created_at
+            ?: $initialWork?->tanggal_initial_work
+            ?: $initialWork?->created_at;
 
         return [
             'nomor_order' => $order->nomor_order,
             'notification_number' => $order->notifikasi,
-            'jobwaiting_since_raw' => $latestPurchaseOrder?->updated_at?->toDateString()
-                ?: $latestPurchaseOrder?->created_at?->toDateString(),
-            'jobwaiting_since' => $latestPurchaseOrder?->updated_at?->format('d/m/Y')
-                ?: $latestPurchaseOrder?->created_at?->format('d/m/Y'),
+            'jobwaiting_since_raw' => $jobWaitingSinceDate?->toDateString(),
+            'jobwaiting_since' => $jobWaitingSinceDate?->format('d/m/Y'),
             'priority' => $this->priorityLabel($order->prioritas),
             'job_name' => $order->nama_pekerjaan,
             'seksi' => $order->seksi,
             'unit' => $order->unit_kerja,
             'progress' => (int) ($latestPurchaseOrder?->progress_pekerjaan ?? 0),
-            'target_penyelesaian' => $latestPurchaseOrder?->target_penyelesaian?->format('Y-m-d'),
+            'target_penyelesaian' => $latestPurchaseOrder?->target_penyelesaian?->format('Y-m-d')
+                ?: $order->target_selesai?->format('Y-m-d'),
             'approval_target' => $latestPurchaseOrder?->approval_target,
             'catatan' => $latestPurchaseOrder?->vendor_note ?: ($order->catatan ?: ''),
             'catatan_admin' => $latestPurchaseOrder?->admin_note ?: 'Belum ada catatan dari Admin Bengkel.',
             'is_finished' => $isFinished,
+            'can_update' => $canUpdateByPurchaseOrder,
+            'is_initial_work_flow' => $isEmergencyInitialWorkFlow,
             'documents' => [
                 [
                     'label' => 'Abnormalitas',
@@ -260,8 +293,10 @@ class JobWaitingController extends Controller
                     'label' => 'Initial Work',
                     'icon' => 'file-badge',
                     'tone' => 'violet',
-                    'ready' => false,
-                    'url' => null,
+                    'ready' => (bool) $initialWork,
+                    'url' => $initialWork
+                        ? route('pkm.jobwaiting.initial-work.pdf', ['order' => $order, 'initialWork' => $initialWork])
+                        : null,
                 ],
             ],
         ];
@@ -277,11 +312,10 @@ class JobWaitingController extends Controller
     private function priorityLabel(?string $priority): string
     {
         return match ($priority) {
-            Order::PRIORITY_URGENT => 'Urgently',
-            Order::PRIORITY_HIGH => 'Hard',
-            Order::PRIORITY_MEDIUM => 'Medium',
-            Order::PRIORITY_LOW => 'Low',
-            default => 'Low',
+            Order::PRIORITY_URGENT, Order::PRIORITY_HIGH => 'Emergency',
+            Order::PRIORITY_MEDIUM => 'High',
+            Order::PRIORITY_LOW => 'Medium',
+            default => 'Medium',
         };
     }
 

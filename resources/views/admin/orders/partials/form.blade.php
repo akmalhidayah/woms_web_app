@@ -110,16 +110,31 @@
         <div class="grid gap-5 lg:grid-cols-2">
             <div class="space-y-2">
                 <label for="prioritas" class="text-sm font-semibold text-slate-700">Prioritas</label>
-                <select
+                <input
+                    type="hidden"
                     id="prioritas"
                     name="prioritas"
-                    class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-4 focus:ring-blue-100"
-                    required
+                    value="{{ old('prioritas', $order->prioritas ?? \App\Models\Order::PRIORITY_LOW) }}"
                 >
-                    @foreach ($priorityOptions as $value => $label)
-                        <option value="{{ $value }}" @selected(old('prioritas', $order->prioritas) === $value)>{{ $label }}</option>
-                    @endforeach
-                </select>
+                <div class="space-y-2">
+                    <select
+                        id="prioritas_primary"
+                        class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                        required
+                    >
+                        @foreach (\App\Models\Order::priorityPrimaryOptions() as $value => $label)
+                            <option value="{{ $value }}" @selected(\App\Models\Order::priorityPrimaryFor(old('prioritas', $order->prioritas ?? \App\Models\Order::PRIORITY_LOW)) === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <select
+                        id="prioritas_emergency"
+                        class="hidden w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                    >
+                        @foreach (\App\Models\Order::priorityEmergencyOptions() as $value => $label)
+                            <option value="{{ $value }}" @selected(\App\Models\Order::priorityEmergencyFor(old('prioritas', $order->prioritas ?? \App\Models\Order::PRIORITY_LOW)) === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
             </div>
 
             <div class="space-y-2">
@@ -198,3 +213,65 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const hiddenInput = document.getElementById('prioritas');
+        const primarySelect = document.getElementById('prioritas_primary');
+        const emergencySelect = document.getElementById('prioritas_emergency');
+
+        if (!hiddenInput || !primarySelect || !emergencySelect) {
+            return;
+        }
+
+        const priorityUrgent = @json(\App\Models\Order::PRIORITY_URGENT);
+        const priorityHigh = @json(\App\Models\Order::PRIORITY_HIGH);
+        const priorityMedium = @json(\App\Models\Order::PRIORITY_MEDIUM);
+        const priorityLow = @json(\App\Models\Order::PRIORITY_LOW);
+
+        const syncPriorityField = (currentPriority = priorityLow) => {
+            const primaryValue = currentPriority === priorityUrgent || currentPriority === priorityHigh
+                ? 'emergency'
+                : currentPriority === priorityMedium
+                    ? 'high'
+                    : 'medium';
+
+            primarySelect.value = primaryValue;
+
+            if (primaryValue === 'emergency') {
+                emergencySelect.classList.remove('hidden');
+                emergencySelect.disabled = false;
+                emergencySelect.value = currentPriority === priorityUrgent ? priorityUrgent : priorityHigh;
+                hiddenInput.value = emergencySelect.value;
+                return;
+            }
+
+            emergencySelect.classList.add('hidden');
+            emergencySelect.disabled = true;
+            emergencySelect.value = priorityHigh;
+            hiddenInput.value = primaryValue === 'high' ? priorityMedium : priorityLow;
+        };
+
+        primarySelect.addEventListener('change', () => {
+            if (primarySelect.value === 'emergency') {
+                emergencySelect.classList.remove('hidden');
+                emergencySelect.disabled = false;
+                if (!emergencySelect.value) {
+                    emergencySelect.value = priorityHigh;
+                }
+                hiddenInput.value = emergencySelect.value || priorityHigh;
+                return;
+            }
+
+            emergencySelect.classList.add('hidden');
+            emergencySelect.disabled = true;
+            hiddenInput.value = primarySelect.value === 'high' ? priorityMedium : priorityLow;
+        });
+
+        emergencySelect.addEventListener('change', () => {
+            hiddenInput.value = emergencySelect.value || priorityHigh;
+        });
+
+        syncPriorityField(hiddenInput.value || priorityLow);
+    });
+</script>

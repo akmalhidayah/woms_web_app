@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin\Orders;
 
+use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\Order;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -36,6 +37,7 @@ class UpdateOrderRequest extends FormRequest
             'prioritas' => ['required', Rule::in(array_keys(Order::priorityOptions()))],
             'tanggal_order' => ['required', 'date'],
             'target_selesai' => ['required', 'date', 'after_or_equal:tanggal_order'],
+            'catatan_status' => ['required', Rule::in(array_keys(OrderUserNoteStatus::options()))],
             'catatan' => ['nullable', 'string'],
         ];
     }
@@ -58,6 +60,7 @@ class UpdateOrderRequest extends FormRequest
             'nama_pekerjaan' => 'nama pekerjaan',
             'unit_kerja' => 'unit kerja',
             'target_selesai' => 'target selesai',
+            'catatan_status' => 'status catatan',
         ];
     }
 }

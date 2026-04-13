@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\GaransiController;
 use App\Http\Controllers\Admin\FabricationConstructionContractController;
 use App\Http\Controllers\Admin\LhppController as AdminLhppController;
 use App\Http\Controllers\Admin\LpjPplController;
+use App\Http\Controllers\Admin\Orders\InitialWorkController as AdminInitialWorkController;
 use App\Http\Controllers\Admin\OutlineAgreementController;
 use App\Http\Controllers\Admin\Orders\OrderDocumentController;
 use App\Http\Controllers\Admin\Orders\OrderScopeOfWorkController;
@@ -206,6 +207,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('pkm/jobwaiting/{hpp:nomor_order}/purchase-order', [PurchaseOrderController::class, 'document'])
         ->middleware('role:pkm')
         ->name('pkm.jobwaiting.purchase-order.document');
+    Route::get('pkm/jobwaiting/{order}/initial-work/{initialWork}/pdf', [AdminInitialWorkController::class, 'pdf'])
+        ->middleware('role:pkm')
+        ->name('pkm.jobwaiting.initial-work.pdf');
 
     Route::view('pkm/items', 'dashboards.pkm', [
         'pageTitle' => 'Item Kebutuhan',

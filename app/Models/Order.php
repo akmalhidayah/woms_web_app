@@ -15,10 +15,10 @@ class Order extends Model
 {
     use HasFactory;
 
-    public const PRIORITY_LOW = 'rendah';
-    public const PRIORITY_MEDIUM = 'sedang';
-    public const PRIORITY_HIGH = 'tinggi';
-    public const PRIORITY_URGENT = 'urgent';
+    public const PRIORITY_LOW = 'medium_gt_10_hari';
+    public const PRIORITY_MEDIUM = 'high_gt_7_sd_10_hari';
+    public const PRIORITY_HIGH = 'emergency_lte_7_hari';
+    public const PRIORITY_URGENT = 'emergency_unplan_overhaul';
 
     /**
      * The attributes that are mass assignable.
@@ -70,10 +70,10 @@ class Order extends Model
     public static function priorityOptions(): array
     {
         return [
-            self::PRIORITY_LOW => 'Rendah',
-            self::PRIORITY_MEDIUM => 'Sedang',
-            self::PRIORITY_HIGH => 'Tinggi',
-            self::PRIORITY_URGENT => 'Urgent',
+            self::PRIORITY_URGENT => 'Emergency (Unplan Overhaul)',
+            self::PRIORITY_HIGH => 'Emergency (<= 7 Hari)',
+            self::PRIORITY_MEDIUM => 'High (> 7 Hari s/d 10 Hari)',
+            self::PRIORITY_LOW => 'Medium (> 10 Hari)',
         ];
     }
 
@@ -91,7 +91,7 @@ class Order extends Model
     public function priorityBadgeClasses(): string
     {
         return match ($this->prioritas) {
-            self::PRIORITY_LOW => 'bg-slate-100 text-slate-700',
+            self::PRIORITY_LOW => 'bg-blue-100 text-blue-700',
             self::PRIORITY_MEDIUM => 'bg-amber-100 text-amber-700',
             self::PRIORITY_HIGH => 'bg-orange-100 text-orange-700',
             self::PRIORITY_URGENT => 'bg-rose-100 text-rose-700',
@@ -105,11 +105,60 @@ class Order extends Model
     public static function priorityControlOptions(): array
     {
         return [
-            self::PRIORITY_URGENT => 'Emergency',
-            self::PRIORITY_HIGH => 'High',
-            self::PRIORITY_MEDIUM => 'Medium',
-            self::PRIORITY_LOW => 'Low',
+            self::PRIORITY_URGENT => 'Emergency (Unplan Overhaul)',
+            self::PRIORITY_HIGH => 'Emergency (<= 7 Hari)',
+            self::PRIORITY_MEDIUM => 'High (> 7 Hari s/d 10 Hari)',
+            self::PRIORITY_LOW => 'Medium (> 10 Hari)',
         ];
+    }
+
+    /**
+     * Get the primary priority groups shown in the form.
+     *
+     * @return array<string, string>
+     */
+    public static function priorityPrimaryOptions(): array
+    {
+        return [
+            'emergency' => 'Emergency',
+            'high' => 'High (> 7 Hari s/d 10 Hari)',
+            'medium' => 'Medium (> 10 Hari)',
+        ];
+    }
+
+    /**
+     * Get the emergency detail options shown when Emergency is selected.
+     *
+     * @return array<string, string>
+     */
+    public static function priorityEmergencyOptions(): array
+    {
+        return [
+            self::PRIORITY_URGENT => 'Unplan Overhaul',
+            self::PRIORITY_HIGH => '<= 7 Hari',
+        ];
+    }
+
+    /**
+     * Resolve the primary group from the stored priority value.
+     */
+    public static function priorityPrimaryFor(?string $priority): string
+    {
+        return match ($priority) {
+            self::PRIORITY_URGENT, self::PRIORITY_HIGH => 'emergency',
+            self::PRIORITY_MEDIUM => 'high',
+            default => 'medium',
+        };
+    }
+
+    /**
+     * Resolve the emergency detail selection from the stored priority value.
+     */
+    public static function priorityEmergencyFor(?string $priority): string
+    {
+        return $priority === self::PRIORITY_URGENT
+            ? self::PRIORITY_URGENT
+            : self::PRIORITY_HIGH;
     }
 
     /**
@@ -202,6 +251,14 @@ class Order extends Model
     public function scopeOfWork(): HasOne
     {
         return $this->hasOne(OrderScopeOfWork::class);
+    }
+
+    /**
+     * Get the initial work document for the order.
+     */
+    public function initialWork(): HasOne
+    {
+        return $this->hasOne(InitialWork::class);
     }
 
     /**

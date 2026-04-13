@@ -14,10 +14,9 @@
             }
 
             $priorityBadgeClasses = static fn (string $priority): string => match ($priority) {
-                'Urgently' => 'bg-red-700 text-white animate-pulse',
-                'Hard' => 'bg-amber-300 text-amber-950',
+                'Emergency' => 'bg-red-700 text-white animate-pulse',
+                'High' => 'bg-amber-300 text-amber-950',
                 'Medium' => 'bg-blue-200 text-blue-900',
-                'Low' => 'bg-emerald-200 text-emerald-900',
                 default => 'bg-slate-200 text-slate-700',
             };
 
@@ -52,10 +51,9 @@
                             <label class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Prioritas</label>
                             <select name="priority" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none">
                                 <option value="">Semua Prioritas</option>
-                                <option value="Urgently" @selected($selectedPriority === 'Urgently')>Urgently</option>
-                                <option value="Hard" @selected($selectedPriority === 'Hard')>Hard</option>
+                                <option value="Emergency" @selected($selectedPriority === 'Emergency')>Emergency</option>
+                                <option value="High" @selected($selectedPriority === 'High')>High</option>
                                 <option value="Medium" @selected($selectedPriority === 'Medium')>Medium</option>
-                                <option value="Low" @selected($selectedPriority === 'Low')>Low</option>
                             </select>
                         </div>
 
@@ -97,6 +95,8 @@
                             $approval = $approvalLabel($notification['approval_target']);
                             $started = $notification['progress'] >= 11;
                             $isFinished = (bool) ($notification['is_finished'] ?? false);
+                            $canUpdate = (bool) ($notification['can_update'] ?? true);
+                            $isInitialWorkFlow = (bool) ($notification['is_initial_work_flow'] ?? false);
                         @endphp
 
                         <article class="flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
@@ -159,7 +159,7 @@
                                 </div>
 
                                 <div class="mb-3 rounded-xl border px-3 py-2 text-[11px] {{ $approval['class'] }}">
-                                    {{ $approval['label'] }}
+                                    {{ $isInitialWorkFlow ? 'Masuk lewat Initial Work (Emergency)' : $approval['label'] }}
                                 </div>
 
                                 <div class="mb-3">
@@ -170,8 +170,8 @@
                                         <input type="hidden" name="_filter_priority" value="{{ $selectedPriority }}">
                                         <input type="hidden" name="_filter_search" value="{{ $search }}">
                                         <input type="hidden" name="_filter_page" value="{{ $notifications->currentPage() }}">
-                                        <button type="submit" class="inline-flex w-full items-center justify-center rounded-xl bg-amber-500 px-3 py-2 text-[11px] font-bold text-white transition hover:bg-amber-600 {{ ($started || $isFinished) ? 'opacity-50' : '' }}" @disabled($started || $isFinished)>
-                                            {{ $isFinished ? 'Selesai' : ($started ? 'Dimulai' : 'Start') }}
+                                        <button type="submit" class="inline-flex w-full items-center justify-center rounded-xl bg-amber-500 px-3 py-2 text-[11px] font-bold text-white transition hover:bg-amber-600 {{ ($started || $isFinished || ! $canUpdate) ? 'opacity-50' : '' }}" @disabled($started || $isFinished || ! $canUpdate)>
+                                            {{ $isFinished ? 'Selesai' : ($canUpdate ? ($started ? 'Dimulai' : 'Start') : 'Initial Work') }}
                                         </button>
                                     </form>
                                 </div>
@@ -189,13 +189,19 @@
                                     <input type="hidden" name="_filter_search" value="{{ $search }}">
                                     <input type="hidden" name="_filter_page" value="{{ $notifications->currentPage() }}">
 
+                                    @if ($isInitialWorkFlow)
+                                        <div class="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-[11px] text-violet-700">
+                                            Order emergency ini sudah masuk ke Job Waiting berdasarkan dokumen Initial Work. Progress PKM bisa diperbarui setelah PO tersedia.
+                                        </div>
+                                    @endif
+
                                     <div>
                                         <div class="mb-1 flex items-center justify-between text-[11px] text-slate-500">
                                             <span>Progress</span>
                                             <span id="slider-value-{{ $notification['nomor_order'] }}" class="font-bold text-slate-700">{{ $notification['progress'] }}%</span>
                                         </div>
-                                        <input type="range" min="0" max="100" step="1" value="{{ $notification['progress'] }}" class="pkm-range w-full accent-[#ca642f]" data-value-target="slider-value-{{ $notification['nomor_order'] }}" @disabled(! $started)>
-                                        @unless ($started)
+                                        <input type="range" min="0" max="100" step="1" value="{{ $notification['progress'] }}" class="pkm-range w-full accent-[#ca642f]" data-value-target="slider-value-{{ $notification['nomor_order'] }}" @disabled(! $started || ! $canUpdate)>
+                                        @unless ($started || ! $canUpdate)
                                             <div class="mt-1 text-[10px] font-medium text-amber-700">Klik Start dulu supaya progress bisa digeser.</div>
                                         @endunless
                                     </div>
@@ -216,12 +222,13 @@
                                             name="target_penyelesaian"
                                             value="{{ $notification['target_penyelesaian'] }}"
                                             class="pkm-estimasi-date w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none"
+                                            @disabled(! $canUpdate)
                                         >
                                     </div>
 
                                     <div>
                                         <label class="mb-1 block text-[11px] font-semibold text-slate-500">Catatan Anda</label>
-                                        <textarea name="catatan" rows="2" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none" placeholder="Catatan...">{{ $notification['catatan'] }}</textarea>
+                                        <textarea name="catatan" rows="2" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none" placeholder="Catatan..." @disabled(! $canUpdate)>{{ $notification['catatan'] }}</textarea>
                                     </div>
 
                                     <div class="rounded-xl border border-slate-200 bg-white px-3 py-2">
@@ -230,7 +237,7 @@
                                     </div>
 
                                     <div class="flex items-center gap-2">
-                                        <button type="submit" class="rounded-xl bg-[#ca642f] px-3 py-2 text-[11px] font-bold text-white transition hover:bg-[#b85b2b]">Update</button>
+                                        <button type="submit" class="rounded-xl bg-[#ca642f] px-3 py-2 text-[11px] font-bold text-white transition hover:bg-[#b85b2b] {{ ! $canUpdate ? 'opacity-50' : '' }}" @disabled(! $canUpdate)>Update</button>
                                         <button type="button" class="pkm-jobwaiting-toggle rounded-xl border border-slate-300 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50" data-target="details-{{ $notification['nomor_order'] }}">Close</button>
                                     </div>
                                 </form>

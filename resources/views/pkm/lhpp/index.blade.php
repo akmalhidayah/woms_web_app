@@ -66,7 +66,12 @@
                             @foreach ($pendingTerminOneOrders as $pendingOrder)
                                 <div class="min-w-[210px] rounded-xl border border-amber-200 bg-white px-2.5 py-2 text-[10px] shadow-sm">
                                     <div class="font-black text-slate-900">{{ $pendingOrder['nomor_order'] }}</div>
-                                    <div class="mt-0.5 text-slate-600">
+                                    @if (! empty($pendingOrder['deskripsi_pekerjaan']))
+                                        <div class="mt-0.5 line-clamp-2 font-semibold leading-snug text-slate-700">
+                                            {{ $pendingOrder['deskripsi_pekerjaan'] }}
+                                        </div>
+                                    @endif
+                                    <div class="mt-1 text-slate-600">
                                         {{ $pendingOrder['purchase_order_number'] !== '' ? 'PO: '.$pendingOrder['purchase_order_number'] : 'PO belum terbaca' }}
                                     </div>
                                     <div class="mt-0.5 truncate text-slate-500">
@@ -209,11 +214,16 @@
                                     <td class="px-3 py-2">
                                         <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] text-slate-600 shadow-sm">
                                             <div class="font-semibold leading-tight text-slate-900">{{ $row->nomor_order }}</div>
+                                            @if (filled($row->deskripsi_pekerjaan))
+                                                <div class="mt-1 line-clamp-2 text-[10px] font-medium leading-snug text-slate-700">
+                                                    {{ $row->deskripsi_pekerjaan }}
+                                                </div>
+                                            @endif
                                             @if (filled($row->order?->notifikasi))
-                                                <div class="mt-1 leading-tight text-slate-900">{{ $row->order?->notifikasi }}</div>
+                                                <div class="mt-1 leading-tight text-slate-900">Notif: {{ $row->order?->notifikasi }}</div>
                                             @endif
                                             <div class="mt-1 border-t border-slate-200 pt-1 leading-tight">
-                                                <span class="font-medium text-slate-700">{{ $row->purchase_order_number ?? '-' }}</span>
+                                                <span class="font-medium text-slate-700">PO: {{ $row->purchase_order_number ?? '-' }}</span>
                                             </div>
                                         </div>
                                     </td>

@@ -159,7 +159,7 @@
                                 </div>
 
                                 <div class="mb-3 rounded-xl border px-3 py-2 text-[11px] {{ $approval['class'] }}">
-                                    {{ $isInitialWorkFlow ? 'Masuk lewat Initial Work (Emergency)' : $approval['label'] }}
+                                    {{ $approval['label'] }}
                                 </div>
 
                                 <div class="mb-3">
@@ -188,12 +188,6 @@
                                     <input type="hidden" name="_filter_priority" value="{{ $selectedPriority }}">
                                     <input type="hidden" name="_filter_search" value="{{ $search }}">
                                     <input type="hidden" name="_filter_page" value="{{ $notifications->currentPage() }}">
-
-                                    @if ($isInitialWorkFlow)
-                                        <div class="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-[11px] text-violet-700">
-                                            Order emergency ini sudah masuk ke Job Waiting berdasarkan dokumen Initial Work. Progress PKM bisa diperbarui setelah PO tersedia.
-                                        </div>
-                                    @endif
 
                                     <div>
                                         <div class="mb-1 flex items-center justify-between text-[11px] text-slate-500">

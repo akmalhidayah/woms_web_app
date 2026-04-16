@@ -6,6 +6,7 @@ use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Pkm\UpdateJobWaitingRequest;
+use App\Models\InitialWork;
 use App\Models\Order;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -33,7 +34,7 @@ class JobWaitingController extends Controller
                 ->with([
                     'documents',
                     'scopeOfWork',
-                    'initialWork:id,order_id,nomor_initial_work,tanggal_initial_work,created_at',
+                    'initialWork:id,order_id,nomor_initial_work,tanggal_initial_work,target_penyelesaian,progress_pekerjaan,vendor_note,admin_note,created_at',
                     'lhppBasts:id,order_id,termin_type',
                     'lhppBasts.lpjPpl:id,lhpp_bast_id',
                     'latestHpp' => fn ($query) => $query->select([
@@ -112,7 +113,53 @@ class JobWaitingController extends Controller
                             ->orWhere('seksi', 'like', "%{$search}%");
                     });
                 })
-                ->latest('id')
+                ->orderByRaw("
+                    CASE
+                        WHEN prioritas IN (?, ?) THEN 1
+                        WHEN prioritas = ? THEN 2
+                        WHEN prioritas = ? THEN 3
+                        ELSE 4
+                    END ASC
+                ", [
+                    Order::PRIORITY_URGENT,
+                    Order::PRIORITY_HIGH,
+                    Order::PRIORITY_MEDIUM,
+                    Order::PRIORITY_LOW,
+                ])
+                ->orderByRaw("
+                    COALESCE(
+                        (
+                            SELECT purchase_orders.updated_at
+                            FROM purchase_orders
+                            WHERE purchase_orders.order_id = orders.id
+                            ORDER BY purchase_orders.id DESC
+                            LIMIT 1
+                        ),
+                        (
+                            SELECT purchase_orders.created_at
+                            FROM purchase_orders
+                            WHERE purchase_orders.order_id = orders.id
+                            ORDER BY purchase_orders.id DESC
+                            LIMIT 1
+                        ),
+                        (
+                            SELECT initial_works.tanggal_initial_work
+                            FROM initial_works
+                            WHERE initial_works.order_id = orders.id
+                            ORDER BY initial_works.id DESC
+                            LIMIT 1
+                        ),
+                        (
+                            SELECT initial_works.created_at
+                            FROM initial_works
+                            WHERE initial_works.order_id = orders.id
+                            ORDER BY initial_works.id DESC
+                            LIMIT 1
+                        ),
+                        orders.created_at
+                    ) ASC
+                ")
+                ->orderBy('id')
                 ->paginate(8)
                 ->withQueryString();
 
@@ -143,18 +190,32 @@ class JobWaitingController extends Controller
     public function update(UpdateJobWaitingRequest $request, Order $order): RedirectResponse
     {
         try {
-            $order->loadMissing('purchaseOrder');
+            $order->loadMissing(['purchaseOrder', 'initialWork']);
 
             $purchaseOrder = $order->purchaseOrder;
+            $initialWork = $order->initialWork;
+            $usesInitialWorkFlow = ! (
+                $purchaseOrder
+                && $purchaseOrder->approve_manager
+                && filled($purchaseOrder->purchase_order_number)
+            )
+                && in_array($order->prioritas, [Order::PRIORITY_URGENT, Order::PRIORITY_HIGH], true)
+                && (bool) $initialWork;
 
-            abort_unless($purchaseOrder, Response::HTTP_NOT_FOUND);
-            abort_unless(
-                $purchaseOrder->approve_manager
-                && filled($purchaseOrder->purchase_order_number),
-                Response::HTTP_FORBIDDEN
-            );
+            abort_unless($purchaseOrder || $usesInitialWorkFlow, Response::HTTP_NOT_FOUND);
 
-            $currentProgress = (int) ($purchaseOrder->progress_pekerjaan ?? 0);
+            if (! $usesInitialWorkFlow) {
+                abort_unless(
+                    $purchaseOrder
+                    && $purchaseOrder->approve_manager
+                    && filled($purchaseOrder->purchase_order_number),
+                    Response::HTTP_FORBIDDEN
+                );
+            }
+
+            $jobSource = $usesInitialWorkFlow ? $initialWork : $purchaseOrder;
+
+            $currentProgress = (int) ($jobSource->progress_pekerjaan ?? 0);
             $nextProgress = $currentProgress;
 
             if ($request->boolean('start_progress')) {
@@ -163,14 +224,19 @@ class JobWaitingController extends Controller
                 $nextProgress = max(11, min(100, $request->integer('progress_pekerjaan')));
             }
 
-            $purchaseOrder->fill([
+            $payload = [
                 'progress_pekerjaan' => $nextProgress,
                 'target_penyelesaian' => $this->normalizeNullableString($request->input('target_penyelesaian')),
                 'vendor_note' => $this->normalizeNullableString($request->input('catatan')),
-                'updated_by' => $request->user()?->id,
-            ]);
+            ];
 
-            $purchaseOrder->save();
+            if (! $usesInitialWorkFlow) {
+                $payload['updated_by'] = $request->user()?->id;
+            }
+
+            $jobSource->fill($payload);
+
+            $jobSource->save();
 
             return redirect()
                 ->route('pkm.jobwaiting', [
@@ -216,7 +282,6 @@ class JobWaitingController extends Controller
         $gambarDocument = $this->findDocument($order, OrderDocumentType::GambarTeknik);
         $terminOneBast = $order->lhppBasts->firstWhere('termin_type', 'termin_1');
         $hasBastOrLpj = (bool) $terminOneBast || (bool) optional($terminOneBast)->lpjPpl;
-        $isFinished = (int) ($latestPurchaseOrder?->progress_pekerjaan ?? 0) >= 100 && $hasBastOrLpj;
         $initialWork = $order->initialWork;
         $canUpdateByPurchaseOrder = (bool) (
             $latestPurchaseOrder
@@ -226,6 +291,8 @@ class JobWaitingController extends Controller
         $isEmergencyInitialWorkFlow = ! $canUpdateByPurchaseOrder
             && in_array($order->prioritas, [Order::PRIORITY_URGENT, Order::PRIORITY_HIGH], true)
             && (bool) $initialWork;
+        $jobSource = $canUpdateByPurchaseOrder ? $latestPurchaseOrder : ($isEmergencyInitialWorkFlow ? $initialWork : null);
+        $isFinished = (int) ($jobSource?->progress_pekerjaan ?? 0) >= 100 && $hasBastOrLpj;
         $jobWaitingSinceDate = $latestPurchaseOrder?->updated_at
             ?: $latestPurchaseOrder?->created_at
             ?: $initialWork?->tanggal_initial_work
@@ -240,14 +307,14 @@ class JobWaitingController extends Controller
             'job_name' => $order->nama_pekerjaan,
             'seksi' => $order->seksi,
             'unit' => $order->unit_kerja,
-            'progress' => (int) ($latestPurchaseOrder?->progress_pekerjaan ?? 0),
-            'target_penyelesaian' => $latestPurchaseOrder?->target_penyelesaian?->format('Y-m-d')
+            'progress' => (int) ($jobSource?->progress_pekerjaan ?? 0),
+            'target_penyelesaian' => $jobSource?->target_penyelesaian?->format('Y-m-d')
                 ?: $order->target_selesai?->format('Y-m-d'),
             'approval_target' => $latestPurchaseOrder?->approval_target,
-            'catatan' => $latestPurchaseOrder?->vendor_note ?: ($order->catatan ?: ''),
-            'catatan_admin' => $latestPurchaseOrder?->admin_note ?: 'Belum ada catatan dari Admin Bengkel.',
+            'catatan' => $jobSource?->vendor_note ?: ($order->catatan ?: ''),
+            'catatan_admin' => $jobSource?->admin_note ?: 'Belum ada catatan dari Admin Bengkel.',
             'is_finished' => $isFinished,
-            'can_update' => $canUpdateByPurchaseOrder,
+            'can_update' => $canUpdateByPurchaseOrder || $isEmergencyInitialWorkFlow,
             'is_initial_work_flow' => $isEmergencyInitialWorkFlow,
             'documents' => [
                 [

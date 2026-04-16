@@ -80,7 +80,15 @@
                     </thead>
                     <tbody class="divide-y divide-slate-200 bg-white">
                         @forelse ($notifications as $notification)
-                            <tr class="align-top hover:bg-slate-50">
+                            @php
+                                $rowClasses = $notification['is_executed']
+                                    ? 'bg-emerald-50/70 hover:bg-emerald-100/60'
+                                    : 'bg-white hover:bg-slate-50';
+                                $executionBadgeClasses = $notification['is_executed']
+                                    ? 'border-emerald-200 bg-emerald-100 text-emerald-700'
+                                    : 'border-slate-200 bg-white text-slate-500';
+                            @endphp
+                            <tr class="align-top transition {{ $rowClasses }}">
                                 <td class="px-4 py-3">
                                     <form id="budget-verification-form-{{ $notification['nomor_order'] }}" method="POST" action="{{ $notification['update_url'] }}" class="hidden">
                                         @csrf
@@ -140,7 +148,12 @@
                                 </td>
 
                                 <td class="px-4 py-3">
-                                    <div class="text-[10px] font-semibold text-slate-900">Rp {{ $formatRupiah($notification['nilai_hpp']) }}</div>
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div class="text-[10px] font-semibold text-slate-900">Rp {{ $formatRupiah($notification['nilai_hpp']) }}</div>
+                                        <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[8px] font-semibold {{ $executionBadgeClasses }}">
+                                            {{ $notification['execution_label'] }}
+                                        </span>
+                                    </div>
                                     <div class="mt-2.5">
                                         <select name="status_anggaran" form="budget-verification-form-{{ $notification['nomor_order'] }}" class="{{ $selectBaseClasses }}">
                                             <option value="">Pilih status Anggaran</option>

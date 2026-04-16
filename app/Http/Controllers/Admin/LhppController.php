@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
+use setasign\Fpdi\Fpdi;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
@@ -101,28 +102,126 @@ class LhppController extends Controller
         try {
             $lhpp = LhppBast::query()->findOrFail($lhppId);
 
-            $lhpp->loadMissing(['images', 'parentLhppBast.images']);
+            $lhpp->loadMissing([
+                'images',
+                'parentLhppBast.images',
+                'hpp.order',
+                'hpp.outlineAgreement.unitWork.department',
+                'hpp.creator',
+                'order.latestHpp.order',
+                'order.latestHpp.outlineAgreement.unitWork.department',
+                'order.latestHpp.creator',
+            ]);
 
-            $pdf = Pdf::loadView('pkm.lhpp.pdf', [
+            $bastPdf = Pdf::loadView('pkm.lhpp.pdf', [
                 'lhpp' => $lhpp,
                 'materialItems' => collect($lhpp->material_items ?? []),
                 'serviceItems' => collect($lhpp->service_items ?? []),
-            ])->setPaper('a4', 'portrait');
+            ])->setPaper('a4', 'portrait')->output();
 
             $terminSlug = $lhpp->termin_type === 'termin_2' ? 'termin-2' : 'termin-1';
 
-            return $pdf->stream('bast-'.$terminSlug.'-'.$lhpp->nomor_order.'.pdf');
+            $attachedHpp = $lhpp->hpp ?: $lhpp->order?->latestHpp;
+
+            if (! $attachedHpp) {
+                return response($bastPdf, Response::HTTP_OK, [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => sprintf('inline; filename="%s"', 'bast-'.$terminSlug.'-'.$lhpp->nomor_order.'.pdf'),
+                ]);
+            }
+
+            $hppPdf = Pdf::loadView('admin.hpp.hpppdf', [
+                'hpp' => $attachedHpp,
+            ])->setPaper('a4', 'landscape')->output();
+
+            $mergedPdf = $this->mergePdfOutputs([$bastPdf, $hppPdf]);
+
+            return response($mergedPdf, Response::HTTP_OK, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => sprintf('inline; filename="%s"', 'bast-'.$terminSlug.'-'.$lhpp->nomor_order.'.pdf'),
+            ]);
         } catch (Throwable $exception) {
             Log::error('Failed to generate admin BAST PDF.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'user_id' => $request->user()?->id,
-                'lhpp_id' => $lhpp->id,
+                'lhpp_id' => $lhppId,
                 'error' => $exception->getMessage(),
                 'file' => $exception->getFile(),
                 'line' => $exception->getLine(),
             ]);
 
             abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Terjadi kesalahan saat membuat PDF BAST admin.');
+        }
+    }
+
+    public function pdfByOrder(Request $request, string $nomorOrder, string $termin)
+    {
+        $terminType = $termin === 'termin-2' ? 'termin_2' : 'termin_1';
+
+        try {
+            $lhpp = LhppBast::query()
+                ->where('nomor_order', $nomorOrder)
+                ->where('termin_type', $terminType)
+                ->firstOrFail();
+
+            return $this->pdf($request, $lhpp->id);
+        } catch (Throwable $exception) {
+            Log::error('Failed to generate admin BAST PDF by order.', [
+                'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
+                'user_id' => $request->user()?->id,
+                'nomor_order' => $nomorOrder,
+                'termin_type' => $terminType,
+                'error' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+            ]);
+
+            abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Terjadi kesalahan saat membuat PDF BAST admin.');
+        }
+    }
+
+    /**
+     * @param array<int, string> $pdfOutputs
+     */
+    private function mergePdfOutputs(array $pdfOutputs): string
+    {
+        $fpdi = new Fpdi();
+        $temporaryFiles = [];
+
+        try {
+            foreach ($pdfOutputs as $pdfOutput) {
+                if (! is_string($pdfOutput) || trim($pdfOutput) === '') {
+                    continue;
+                }
+
+                $temporaryFile = tempnam(sys_get_temp_dir(), 'woms-pdf-');
+
+                if ($temporaryFile === false) {
+                    continue;
+                }
+
+                file_put_contents($temporaryFile, $pdfOutput);
+                $temporaryFiles[] = $temporaryFile;
+
+                $pageCount = $fpdi->setSourceFile($temporaryFile);
+
+                for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
+                    $templateId = $fpdi->importPage($pageNumber);
+                    $templateSize = $fpdi->getTemplateSize($templateId);
+                    $orientation = $templateSize['width'] > $templateSize['height'] ? 'L' : 'P';
+
+                    $fpdi->AddPage($orientation, [$templateSize['width'], $templateSize['height']]);
+                    $fpdi->useTemplate($templateId);
+                }
+            }
+
+            return $fpdi->Output('S');
+        } finally {
+            foreach ($temporaryFiles as $temporaryFile) {
+                if (is_string($temporaryFile) && is_file($temporaryFile)) {
+                    @unlink($temporaryFile);
+                }
+            }
         }
     }
 

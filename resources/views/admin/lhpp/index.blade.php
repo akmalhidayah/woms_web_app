@@ -174,7 +174,7 @@
                                         </form>
 
                                         <div class="flex flex-wrap items-center justify-center gap-1.5">
-                                            <a href="{{ route('admin.lhpp.pdf', ['lhppId' => $lhpp->id]) }}"
+                                            <a href="{{ route('admin.lhpp.pdf', ['nomorOrder' => $lhpp->nomor_order, 'termin' => 'termin-1']) }}"
                                                target="_blank"
                                                rel="noopener"
                                                title="Lihat BAST Termin 1 (PDF)"
@@ -185,7 +185,7 @@
                                             </a>
 
                                             @if ($hasTerminTwo)
-                                                <a href="{{ route('admin.lhpp.pdf', ['lhppId' => $terminTwo->id]) }}"
+                                                <a href="{{ route('admin.lhpp.pdf', ['nomorOrder' => $terminTwo->nomor_order, 'termin' => 'termin-2']) }}"
                                                    target="_blank"
                                                    rel="noopener"
                                                    title="Lihat BAST Termin 2 (PDF)"

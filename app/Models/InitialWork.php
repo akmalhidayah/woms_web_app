@@ -32,6 +32,10 @@ class InitialWork extends Model
         'stn',
         'keterangan',
         'keterangan_pekerjaan',
+        'target_penyelesaian',
+        'progress_pekerjaan',
+        'vendor_note',
+        'admin_note',
         'created_by',
     ];
 
@@ -44,11 +48,13 @@ class InitialWork extends Model
     {
         return [
             'tanggal_initial_work' => 'date',
+            'target_penyelesaian' => 'date',
             'functional_location' => 'array',
             'scope_pekerjaan' => 'array',
             'qty' => 'array',
             'stn' => 'array',
             'keterangan' => 'array',
+            'progress_pekerjaan' => 'integer',
         ];
     }
 

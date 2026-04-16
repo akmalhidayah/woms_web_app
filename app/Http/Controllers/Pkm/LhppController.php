@@ -16,6 +16,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use setasign\Fpdi\Fpdi;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
@@ -90,6 +91,7 @@ class LhppController extends Controller
                 ->map(fn (Order $order): array => [
                     'nomor_order' => (string) $order->nomor_order,
                     'notifikasi' => (string) ($order->notifikasi ?? ''),
+                    'deskripsi_pekerjaan' => (string) ($order->nama_pekerjaan ?? ''),
                     'purchase_order_number' => (string) ($order->purchaseOrder?->purchase_order_number ?? ''),
                     'unit_kerja' => (string) ($order->unit_kerja ?? ''),
                     'seksi' => (string) ($order->seksi ?? ''),
@@ -451,15 +453,42 @@ class LhppController extends Controller
 
             abort_if(! $lhpp, Response::HTTP_NOT_FOUND, 'Data BAST tidak ditemukan.');
 
-            $lhpp->loadMissing(['images', 'parentLhppBast.images']);
+            $lhpp->loadMissing([
+                'images',
+                'parentLhppBast.images',
+                'hpp.order',
+                'hpp.outlineAgreement.unitWork.department',
+                'hpp.creator',
+                'order.latestHpp.order',
+                'order.latestHpp.outlineAgreement.unitWork.department',
+                'order.latestHpp.creator',
+            ]);
 
-            $pdf = Pdf::loadView('pkm.lhpp.pdf', [
+            $bastPdf = Pdf::loadView('pkm.lhpp.pdf', [
                 'lhpp' => $lhpp,
                 'materialItems' => collect($lhpp->material_items ?? []),
                 'serviceItems' => collect($lhpp->service_items ?? []),
-            ])->setPaper('a4', 'portrait');
+            ])->setPaper('a4', 'portrait')->output();
 
-            return $pdf->stream(sprintf('bast-%s-%s.pdf', $this->terminSlug($terminType), $lhpp->nomor_order));
+            $attachedHpp = $lhpp->hpp ?: $lhpp->order?->latestHpp;
+
+            if (! $attachedHpp) {
+                return response($bastPdf, Response::HTTP_OK, [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => sprintf('inline; filename="%s"', sprintf('bast-%s-%s.pdf', $this->terminSlug($terminType), $lhpp->nomor_order)),
+                ]);
+            }
+
+            $hppPdf = Pdf::loadView('admin.hpp.hpppdf', [
+                'hpp' => $attachedHpp,
+            ])->setPaper('a4', 'landscape')->output();
+
+            $mergedPdf = $this->mergePdfOutputs([$bastPdf, $hppPdf]);
+
+            return response($mergedPdf, Response::HTTP_OK, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => sprintf('inline; filename="%s"', sprintf('bast-%s-%s.pdf', $this->terminSlug($terminType), $lhpp->nomor_order)),
+            ]);
         } catch (Throwable $exception) {
             Log::error('Failed to generate PKM LHPP PDF.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
@@ -472,6 +501,51 @@ class LhppController extends Controller
             ]);
 
             abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Terjadi kesalahan saat membuat PDF LHPP PKM.');
+        }
+    }
+
+    /**
+     * @param array<int, string> $pdfOutputs
+     */
+    private function mergePdfOutputs(array $pdfOutputs): string
+    {
+        $fpdi = new Fpdi();
+        $temporaryFiles = [];
+
+        try {
+            foreach ($pdfOutputs as $pdfOutput) {
+                if (! is_string($pdfOutput) || trim($pdfOutput) === '') {
+                    continue;
+                }
+
+                $temporaryFile = tempnam(sys_get_temp_dir(), 'woms-pdf-');
+
+                if ($temporaryFile === false) {
+                    continue;
+                }
+
+                file_put_contents($temporaryFile, $pdfOutput);
+                $temporaryFiles[] = $temporaryFile;
+
+                $pageCount = $fpdi->setSourceFile($temporaryFile);
+
+                for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
+                    $templateId = $fpdi->importPage($pageNumber);
+                    $templateSize = $fpdi->getTemplateSize($templateId);
+                    $orientation = $templateSize['width'] > $templateSize['height'] ? 'L' : 'P';
+
+                    $fpdi->AddPage($orientation, [$templateSize['width'], $templateSize['height']]);
+                    $fpdi->useTemplate($templateId);
+                }
+            }
+
+            return $fpdi->Output('S');
+        } finally {
+            foreach ($temporaryFiles as $temporaryFile) {
+                if (is_string($temporaryFile) && is_file($temporaryFile)) {
+                    @unlink($temporaryFile);
+                }
+            }
         }
     }
 
@@ -503,6 +577,7 @@ class LhppController extends Controller
             ->get([
                 'id',
                 'nomor_order',
+                'notifikasi',
                 'nama_pekerjaan',
                 'unit_kerja',
                 'seksi',

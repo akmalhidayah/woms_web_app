@@ -97,10 +97,14 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
         ->whereNumber('lhppId')
         ->name('admin.lhpp.garansi');
+    Route::get('admin/lhpp/{nomorOrder}/{termin}/pdf', [AdminLhppController::class, 'pdfByOrder'])
+        ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
+        ->where('termin', 'termin-1|termin-2')
+        ->name('admin.lhpp.pdf');
     Route::get('admin/lhpp/{lhppId}/pdf', [AdminLhppController::class, 'pdf'])
         ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
         ->whereNumber('lhppId')
-        ->name('admin.lhpp.pdf');
+        ->name('admin.lhpp.pdf.legacy');
 
     Route::get('admin/lpj', [LpjPplController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:lpj_ppl'])

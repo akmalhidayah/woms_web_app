@@ -19,6 +19,7 @@ use App\Http\Controllers\Pkm\DashboardController as PkmDashboardController;
 use App\Http\Controllers\Pkm\DocumentsController as PkmDocumentsController;
 use App\Http\Controllers\Pkm\JobWaitingController;
 use App\Http\Controllers\Pkm\LhppController;
+use App\Http\Controllers\User\OrderTrackingController;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
@@ -183,11 +184,37 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:kontrak_jasa_fabrikasi_konstruksi'])
         ->name('admin.fabrication-construction-contracts.destroy');
 
-    Route::view('user/dashboard', 'dashboards.placeholder', [
-        'title' => 'User Dashboard',
-        'role' => User::ROLE_USER,
-        'description' => 'Placeholder area for the standard user experience and upcoming modules.',
-    ])->middleware('role:user')->name('user.dashboard');
+    Route::get('user/dashboard', [OrderTrackingController::class, 'index'])
+        ->middleware('role:user')
+        ->name('user.dashboard');
+    Route::get('user/orders/{order}', [OrderTrackingController::class, 'show'])
+        ->middleware('role:user')
+        ->name('user.orders.show');
+    Route::get('user/orders/{order}/documents/{document}', [OrderTrackingController::class, 'previewDocument'])
+        ->middleware('role:user')
+        ->whereNumber('document')
+        ->name('user.orders.documents.preview');
+    Route::get('user/orders/{order}/scope-of-work/pdf', [OrderTrackingController::class, 'scopeOfWorkPdf'])
+        ->middleware('role:user')
+        ->name('user.orders.scope-of-work.pdf');
+    Route::get('user/orders/{order}/initial-work/pdf', [OrderTrackingController::class, 'initialWorkPdf'])
+        ->middleware('role:user')
+        ->name('user.orders.initial-work.pdf');
+    Route::get('user/orders/{order}/hpp/pdf', [OrderTrackingController::class, 'hppPdf'])
+        ->middleware('role:user')
+        ->name('user.orders.hpp.pdf');
+    Route::get('user/orders/{order}/purchase-order/document', [OrderTrackingController::class, 'purchaseOrderDocument'])
+        ->middleware('role:user')
+        ->name('user.orders.purchase-order.document');
+    Route::get('user/orders/{order}/{termin}/bast/pdf', [OrderTrackingController::class, 'bastPdf'])
+        ->middleware('role:user')
+        ->where('termin', 'termin-1|termin-2')
+        ->name('user.orders.bast.pdf');
+    Route::get('user/orders/{order}/laporan/{kind}/{termin}', [OrderTrackingController::class, 'previewLpjPpl'])
+        ->middleware('role:user')
+        ->where('kind', 'lpj|ppl')
+        ->whereNumber('termin')
+        ->name('user.orders.laporan.preview');
 
     Route::get('pkm/dashboard', [PkmDashboardController::class, 'index'])
         ->middleware('role:pkm')

@@ -302,6 +302,7 @@ class Order extends Model
     {
         return $this->documents
             ->pluck('jenis_dokumen')
+            ->map(static fn ($type) => $type instanceof OrderDocumentType ? $type->value : (string) $type)
             ->unique()
             ->values()
             ->all();

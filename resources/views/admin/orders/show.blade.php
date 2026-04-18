@@ -4,6 +4,9 @@
         $gambarTeknik = $documentMap->get('gambar_teknik');
         $scopeItems = $scopeOfWork?->scope_items ?? [];
         $showSowOnLoad = old('scope_pekerjaan') || old('nama_penginput');
+        $abnormalitasUploadHint = 'Maks. 10 MB • Format: PDF, DOC, DOCX';
+        $gambarTeknikUploadHint = 'Maks. 10 MB • Format: JPG, JPEG, PDF, DOC, DOCX';
+        $documentUploadHint = 'Maks. 10 MB • Format: PDF, DOC, DOCX, XLS, XLSX, JPG, JPEG, PNG';
     @endphp
 
     <div
@@ -93,8 +96,10 @@
                             <input
                                 name="abnormalitas_file"
                                 type="file"
+                                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                                 class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 file:mr-4 file:rounded-xl file:border-0 file:bg-slate-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800"
                             >
+                            <div class="mt-2 text-[11px] text-slate-500">{{ $abnormalitasUploadHint }}</div>
 
                             @if ($abnormalitas)
                                 <div class="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
@@ -129,8 +134,10 @@
                             <input
                                 name="gambar_teknik_file"
                                 type="file"
+                                accept=".jpg,.jpeg,.pdf,.doc,.docx,image/jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                                 class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 file:mr-4 file:rounded-xl file:border-0 file:bg-slate-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800"
                             >
+                            <div class="mt-2 text-[11px] text-slate-500">{{ $gambarTeknikUploadHint }}</div>
 
                             @if ($gambarTeknik)
                                 <div class="mt-4 rounded-2xl border border-slate-200 bg-white p-4">

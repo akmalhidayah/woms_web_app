@@ -99,7 +99,7 @@
                             $isInitialWorkFlow = (bool) ($notification['is_initial_work_flow'] ?? false);
                         @endphp
 
-                        <article class="flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
+                        <article class="pkm-jobwaiting-card flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
                             <div class="bg-gradient-to-r from-[#ca642f] to-[#e18e4d] px-4 py-3 text-white">
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="min-w-0">
@@ -128,7 +128,7 @@
                                 </div>
                             </div>
 
-                            <div class="flex flex-1 flex-col p-4 text-[12px] text-slate-700">
+                            <div class="flex min-w-0 flex-1 flex-col p-4 text-[12px] text-slate-700">
                                 <div class="mb-3 flex items-start gap-2">
                                     <span class="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
                                         <i data-lucide="pin" class="h-4 w-4"></i>
@@ -181,7 +181,7 @@
                                     <i data-lucide="chevron-down" class="h-3.5 w-3.5"></i>
                                 </button>
 
-                                <form id="details-{{ $notification['nomor_order'] }}" method="POST" action="{{ route('pkm.jobwaiting.update', ['order' => $notification['nomor_order']]) }}" class="mt-3 hidden space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                                <form id="details-{{ $notification['nomor_order'] }}" method="POST" action="{{ route('pkm.jobwaiting.update', ['order' => $notification['nomor_order']]) }}" class="pkm-jobwaiting-details mt-3 hidden min-w-0 space-y-3 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-3">
                                     @csrf
                                     @method('PATCH')
                                     <input type="hidden" name="progress_pekerjaan" value="{{ $notification['progress'] }}" class="pkm-progress-hidden">
@@ -200,11 +200,11 @@
                                         @endunless
                                     </div>
 
-                                    <div>
-                                        <div class="mb-1 flex items-center justify-between gap-3">
+                                    <div class="pkm-estimasi-field min-w-0">
+                                        <div class="mb-1 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
                                             <label class="block text-[11px] font-semibold text-slate-500">Estimasi Penyelesaian</label>
                                             <span
-                                                class="pkm-estimasi-total inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700"
+                                                class="pkm-estimasi-total inline-flex max-w-full rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700"
                                                 data-start-date="{{ $notification['jobwaiting_since_raw'] ?? '' }}"
                                                 data-target-date="{{ $notification['target_penyelesaian'] ?? '' }}"
                                             >
@@ -215,7 +215,7 @@
                                             type="date"
                                             name="target_penyelesaian"
                                             value="{{ $notification['target_penyelesaian'] }}"
-                                            class="pkm-estimasi-date w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none"
+                                            class="pkm-estimasi-date block min-w-0 w-full max-w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none"
                                             @disabled(! $canUpdate)
                                         >
                                     </div>
@@ -258,6 +258,27 @@
                 </div>
             </div>
         </div>
+
+        <style>
+            @media (max-width: 640px) {
+                .pkm-jobwaiting-card,
+                .pkm-jobwaiting-details,
+                .pkm-estimasi-field {
+                    min-width: 0;
+                    width: 100%;
+                }
+
+                .pkm-estimasi-date {
+                    display: block;
+                    width: 100% !important;
+                    min-width: 0 !important;
+                    max-width: 100% !important;
+                    box-sizing: border-box !important;
+                    -webkit-appearance: none;
+                    appearance: none;
+                }
+            }
+        </style>
 
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
         <script>

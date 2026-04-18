@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             StructureOrganizationSeeder::class,
             FabricationConstructionContractSeeder::class,
+            BengkelPicSeeder::class,
         ]);
     }
 }

@@ -4,6 +4,7 @@
     @endif
 
     @php
+        $purchaseOrderUploadHint = 'Maks. 10 MB • Format: PDF, DOC, DOCX, JPG, JPEG';
         $approvalBadgeClasses = static fn (?string $value): string => match ($value) {
             'setuju' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
             'tidak_setuju' => 'border-rose-200 bg-rose-50 text-rose-700',
@@ -174,11 +175,15 @@
                                                 name="po_document"
                                                 form="purchase-order-form-{{ $notification['nomor_order'] }}"
                                                 class="hidden purchase-order-file-input"
+                                                accept=".pdf,.doc,.docx,.jpg,.jpeg"
                                                 data-label-id="po-file-label-{{ $notification['nomor_order'] }}"
                                                 data-form-id="purchase-order-form-{{ $notification['nomor_order'] }}"
                                                 data-order-number="{{ $notification['nomor_order'] }}"
                                             >
                                         </label>
+                                        <div class="text-[9px] text-slate-500">
+                                            {{ $purchaseOrderUploadHint }}
+                                        </div>
                                         <div id="po-file-label-{{ $notification['nomor_order'] }}" class="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-2 py-2 text-[9px] text-slate-500">
                                             {{ $notification['po_document_name'] ?: 'Belum ada file dipilih' }}
                                         </div>

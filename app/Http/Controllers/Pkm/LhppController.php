@@ -473,10 +473,9 @@ class LhppController extends Controller
             $attachedHpp = $lhpp->hpp ?: $lhpp->order?->latestHpp;
 
             if (! $attachedHpp) {
-                return response($bastPdf, Response::HTTP_OK, [
-                    'Content-Type' => 'application/pdf',
-                    'Content-Disposition' => sprintf('inline; filename="%s"', sprintf('bast-%s-%s.pdf', $this->terminSlug($terminType), $lhpp->nomor_order)),
-                ]);
+                return response($bastPdf, Response::HTTP_OK, $this->pdfInlineHeaders(
+                    sprintf('bast-%s-%s.pdf', $this->terminSlug($terminType), $lhpp->nomor_order)
+                ));
             }
 
             $hppPdf = Pdf::loadView('admin.hpp.hpppdf', [
@@ -485,10 +484,9 @@ class LhppController extends Controller
 
             $mergedPdf = $this->mergePdfOutputs([$bastPdf, $hppPdf]);
 
-            return response($mergedPdf, Response::HTTP_OK, [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => sprintf('inline; filename="%s"', sprintf('bast-%s-%s.pdf', $this->terminSlug($terminType), $lhpp->nomor_order)),
-            ]);
+            return response($mergedPdf, Response::HTTP_OK, $this->pdfInlineHeaders(
+                sprintf('bast-%s-%s.pdf', $this->terminSlug($terminType), $lhpp->nomor_order)
+            ));
         } catch (Throwable $exception) {
             Log::error('Failed to generate PKM LHPP PDF.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
@@ -509,6 +507,24 @@ class LhppController extends Controller
      */
     private function mergePdfOutputs(array $pdfOutputs): string
     {
+        $pdfOutputs = array_values(array_filter(
+            $pdfOutputs,
+            static fn ($pdfOutput): bool => is_string($pdfOutput) && trim($pdfOutput) !== ''
+        ));
+
+        if ($pdfOutputs === []) {
+            return '';
+        }
+
+        if (! class_exists(Fpdi::class)) {
+            Log::warning('FPDI package is unavailable. Returning the first PDF output without merge.', [
+                'controller' => static::class,
+                'pdf_count' => count($pdfOutputs),
+            ]);
+
+            return $pdfOutputs[0];
+        }
+
         $fpdi = new Fpdi();
         $temporaryFiles = [];
 
@@ -547,6 +563,20 @@ class LhppController extends Controller
                 }
             }
         }
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function pdfInlineHeaders(string $filename): array
+    {
+        return [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => sprintf('inline; filename="%s"', $filename),
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ];
     }
 
     private function eligibleOrders(?int $exceptOrderId = null): Collection

@@ -124,10 +124,9 @@ class LhppController extends Controller
             $attachedHpp = $lhpp->hpp ?: $lhpp->order?->latestHpp;
 
             if (! $attachedHpp) {
-                return response($bastPdf, Response::HTTP_OK, [
-                    'Content-Type' => 'application/pdf',
-                    'Content-Disposition' => sprintf('inline; filename="%s"', 'bast-'.$terminSlug.'-'.$lhpp->nomor_order.'.pdf'),
-                ]);
+                return response($bastPdf, Response::HTTP_OK, $this->pdfInlineHeaders(
+                    'bast-'.$terminSlug.'-'.$lhpp->nomor_order.'.pdf'
+                ));
             }
 
             $hppPdf = Pdf::loadView('admin.hpp.hpppdf', [
@@ -136,10 +135,20 @@ class LhppController extends Controller
 
             $mergedPdf = $this->mergePdfOutputs([$bastPdf, $hppPdf]);
 
-            return response($mergedPdf, Response::HTTP_OK, [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => sprintf('inline; filename="%s"', 'bast-'.$terminSlug.'-'.$lhpp->nomor_order.'.pdf'),
+            Log::info('Admin BAST PDF merged successfully.', [
+                'user_id' => $request->user()?->id,
+                'lhpp_id' => $lhpp->id,
+                'nomor_order' => $lhpp->nomor_order,
+                'termin_type' => $lhpp->termin_type,
+                'attached_hpp_id' => $attachedHpp->id,
+                'bast_pdf_bytes' => strlen($bastPdf),
+                'hpp_pdf_bytes' => strlen($hppPdf),
+                'merged_pdf_bytes' => strlen($mergedPdf),
             ]);
+
+            return response($mergedPdf, Response::HTTP_OK, $this->pdfInlineHeaders(
+                'bast-'.$terminSlug.'-'.$lhpp->nomor_order.'.pdf'
+            ));
         } catch (Throwable $exception) {
             Log::error('Failed to generate admin BAST PDF.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
@@ -185,6 +194,24 @@ class LhppController extends Controller
      */
     private function mergePdfOutputs(array $pdfOutputs): string
     {
+        $pdfOutputs = array_values(array_filter(
+            $pdfOutputs,
+            static fn ($pdfOutput): bool => is_string($pdfOutput) && trim($pdfOutput) !== ''
+        ));
+
+        if ($pdfOutputs === []) {
+            return '';
+        }
+
+        if (! class_exists(Fpdi::class)) {
+            Log::warning('FPDI package is unavailable. Returning the first PDF output without merge.', [
+                'controller' => static::class,
+                'pdf_count' => count($pdfOutputs),
+            ]);
+
+            return $pdfOutputs[0];
+        }
+
         $fpdi = new Fpdi();
         $temporaryFiles = [];
 
@@ -273,5 +300,19 @@ class LhppController extends Controller
                 'garansi_months' => 'Terjadi kesalahan saat memperbarui data garansi.',
             ]);
         }
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function pdfInlineHeaders(string $filename): array
+    {
+        return [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => sprintf('inline; filename="%s"', $filename),
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ];
     }
 }

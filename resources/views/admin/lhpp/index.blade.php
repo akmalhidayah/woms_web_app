@@ -67,6 +67,7 @@
                                 $nomorOrder = $lhpp->nomor_order ?: ($lhpp->order?->nomor_order ?? '-');
                                 $nomorPo = $lhpp->purchase_order_number ?: ($lhpp->purchaseOrder?->purchase_order_number ?? '-');
                                 $terminTwo = $lhpp->terminTwo;
+                                $pdfRefreshToken = now()->timestamp;
                                 $seksi = $lhpp->seksi ?: ($lhpp->order?->seksi ?? '-');
                                 $unitKerja = $lhpp->unit_kerja ?: ($lhpp->order?->unit_kerja ?? '-');
                                 $tanggalSelesai = $lhpp->tanggal_selesai_pekerjaan
@@ -174,7 +175,7 @@
                                         </form>
 
                                         <div class="flex flex-wrap items-center justify-center gap-1.5">
-                                            <a href="{{ route('admin.lhpp.pdf', ['nomorOrder' => $lhpp->nomor_order, 'termin' => 'termin-1']) }}"
+                                            <a href="{{ route('admin.lhpp.pdf', ['nomorOrder' => $lhpp->nomor_order, 'termin' => 'termin-1']) }}?refresh={{ $pdfRefreshToken }}"
                                                target="_blank"
                                                rel="noopener"
                                                title="Lihat BAST Termin 1 (PDF)"
@@ -185,7 +186,7 @@
                                             </a>
 
                                             @if ($hasTerminTwo)
-                                                <a href="{{ route('admin.lhpp.pdf', ['nomorOrder' => $terminTwo->nomor_order, 'termin' => 'termin-2']) }}"
+                                                <a href="{{ route('admin.lhpp.pdf', ['nomorOrder' => $terminTwo->nomor_order, 'termin' => 'termin-2']) }}?refresh={{ $pdfRefreshToken }}"
                                                    target="_blank"
                                                    rel="noopener"
                                                    title="Lihat BAST Termin 2 (PDF)"

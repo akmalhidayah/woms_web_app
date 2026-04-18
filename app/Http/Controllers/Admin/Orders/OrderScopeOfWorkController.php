@@ -19,19 +19,31 @@ class OrderScopeOfWorkController extends Controller
      */
     public function store(StoreOrderScopeOfWorkRequest $request, Order $order): RedirectResponse
     {
-        $order->scopeOfWork()->create([
+        $attributes = [
             'nama_penginput' => $request->validated('nama_penginput'),
             'tanggal_dokumen' => $request->validated('tanggal_dokumen'),
             'tanggal_pemakaian' => $request->validated('tanggal_pemakaian'),
             'scope_items' => $this->scopeItemsFromRequest($request->validated()),
             'catatan' => $request->validated('catatan'),
             'tanda_tangan' => $request->validated('tanda_tangan'),
-            'created_by' => $request->user()?->id,
-        ]);
+        ];
+
+        $scopeOfWork = $order->scopeOfWork()->first();
+
+        if ($scopeOfWork) {
+            $scopeOfWork->update($attributes);
+            $message = 'Scope of Work berhasil diperbarui.';
+        } else {
+            $order->scopeOfWork()->create([
+                ...$attributes,
+                'created_by' => $request->user()?->id,
+            ]);
+            $message = 'Scope of Work berhasil disimpan.';
+        }
 
         return redirect()
             ->route('admin.orders.show', $order)
-            ->with('status', 'Scope of Work berhasil disimpan.');
+            ->with('status', $message);
     }
 
     /**

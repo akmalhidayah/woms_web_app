@@ -114,7 +114,8 @@ class AdminMenuRegistry
                 'label' => 'Display Pekerjaan Bengkel',
                 'icon' => 'monitor',
                 'group' => 'support',
-                'href' => '#',
+                'route_name' => 'admin.bengkel-tasks.index',
+                'active_patterns' => ['admin.bengkel-tasks.*', 'admin.bengkel-pics.*'],
             ],
             self::MENU_ACCESS_CONTROL => [
                 'key' => self::MENU_ACCESS_CONTROL,

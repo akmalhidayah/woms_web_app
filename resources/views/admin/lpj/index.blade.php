@@ -1,4 +1,8 @@
 <x-layouts.admin title="LPJ / PPL">
+    @php
+        $lpjPplUploadHint = 'Maks. 10 MB • Format: PDF, DOC, DOCX';
+    @endphp
+
     <div class="space-y-4">
         <section class="rounded-[1.25rem] border border-sky-100 px-4 py-3.5 shadow-sm" style="background: linear-gradient(135deg, #f2f9ff 0%, #fbfdff 48%, #ecf6ff 100%);">
             <div class="flex items-center gap-4">
@@ -160,6 +164,9 @@
                                                     <input type="file" name="lpj_document" form="lpj-form-{{ $row->id }}" accept=".pdf,.doc,.docx" class="hidden" onchange="window.adminLpjSetFileName('{{ $row->id }}', 'lpj', this)">
                                                 </label>
                                             </div>
+                                            <div class="mt-1 text-[9px] text-slate-500">
+                                                {{ $lpjPplUploadHint }}
+                                            </div>
                                         </div>
 
                                         <div class="rounded-lg border border-slate-200 bg-white px-2.5 py-2 shadow-sm">
@@ -175,6 +182,9 @@
                                                     <span id="ppl-upload-text-{{ $row->id }}">Upload T1</span>
                                                     <input type="file" name="ppl_document" form="lpj-form-{{ $row->id }}" accept=".pdf,.doc,.docx" class="hidden" onchange="window.adminLpjSetFileName('{{ $row->id }}', 'ppl', this)">
                                                 </label>
+                                            </div>
+                                            <div class="mt-1 text-[9px] text-slate-500">
+                                                {{ $lpjPplUploadHint }}
                                             </div>
                                         </div>
                                     </div>

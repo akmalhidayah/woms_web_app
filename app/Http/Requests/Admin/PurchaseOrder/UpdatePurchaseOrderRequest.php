@@ -27,7 +27,7 @@ class UpdatePurchaseOrderRequest extends FormRequest
             'approve_general_manager' => ['nullable', 'boolean'],
             'approve_direktur_operasional' => ['nullable', 'boolean'],
             'admin_note' => ['nullable', 'string', 'max:2000'],
-            'po_document' => ['nullable', 'file', 'mimes:pdf,png,jpg,jpeg,doc,docx,xls,xlsx,ppt,pptx', 'max:10240'],
+            'po_document' => ['nullable', 'file', 'mimes:pdf,doc,docx,jpg,jpeg', 'max:10240'],
         ];
     }
 }

@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Admin\AccessControlController;
 use App\Http\Controllers\Admin\BudgetVerificationController;
+use App\Http\Controllers\Admin\BengkelPicController;
+use App\Http\Controllers\Admin\BengkelTaskController;
 use App\Http\Controllers\Admin\Hpp\HppController;
 use App\Http\Controllers\Admin\InformationUploadController;
 use App\Http\Controllers\Admin\GaransiController;
@@ -41,6 +43,9 @@ Route::get('dashboard', function () {
 Route::get('informasi/{informationUpload}/preview', [InformationUploadController::class, 'preview'])
     ->whereNumber('informationUpload')
     ->name('public.information-upload.preview');
+
+Route::view('display-pekerjaan-bengkel', 'display.bengkel')
+    ->name('display.bengkel');
 
 Route::middleware(['auth'])->group(function () {
     Route::view('admin/dashboard', 'dashboards.admin')
@@ -122,6 +127,50 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:garansi'])
         ->whereNumber('image')
         ->name('admin.garansi.image');
+
+    Route::get('admin/display-pekerjaan-bengkel', [BengkelTaskController::class, 'index'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->name('admin.bengkel-tasks.index');
+    Route::get('admin/display-pekerjaan-bengkel/create', [BengkelTaskController::class, 'create'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->name('admin.bengkel-tasks.create');
+    Route::post('admin/display-pekerjaan-bengkel', [BengkelTaskController::class, 'store'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->name('admin.bengkel-tasks.store');
+    Route::get('admin/display-pekerjaan-bengkel/{bengkel_task}/edit', [BengkelTaskController::class, 'edit'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->whereNumber('bengkel_task')
+        ->name('admin.bengkel-tasks.edit');
+    Route::put('admin/display-pekerjaan-bengkel/{bengkel_task}', [BengkelTaskController::class, 'update'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->whereNumber('bengkel_task')
+        ->name('admin.bengkel-tasks.update');
+    Route::delete('admin/display-pekerjaan-bengkel/{bengkel_task}', [BengkelTaskController::class, 'destroy'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->whereNumber('bengkel_task')
+        ->name('admin.bengkel-tasks.destroy');
+
+    Route::get('admin/display-pekerjaan-bengkel/pics', [BengkelPicController::class, 'index'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->name('admin.bengkel-pics.index');
+    Route::get('admin/display-pekerjaan-bengkel/pics/create', [BengkelPicController::class, 'create'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->name('admin.bengkel-pics.create');
+    Route::post('admin/display-pekerjaan-bengkel/pics', [BengkelPicController::class, 'store'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->name('admin.bengkel-pics.store');
+    Route::get('admin/display-pekerjaan-bengkel/pics/{bengkel_pic}/edit', [BengkelPicController::class, 'edit'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->whereNumber('bengkel_pic')
+        ->name('admin.bengkel-pics.edit');
+    Route::put('admin/display-pekerjaan-bengkel/pics/{bengkel_pic}', [BengkelPicController::class, 'update'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->whereNumber('bengkel_pic')
+        ->name('admin.bengkel-pics.update');
+    Route::delete('admin/display-pekerjaan-bengkel/pics/{bengkel_pic}', [BengkelPicController::class, 'destroy'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->whereNumber('bengkel_pic')
+        ->name('admin.bengkel-pics.destroy');
 
     Route::get('admin/outline-agreements', [OutlineAgreementController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:kuota_anggaran_oa'])

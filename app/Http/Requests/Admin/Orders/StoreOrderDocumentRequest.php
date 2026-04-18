@@ -22,11 +22,9 @@ class StoreOrderDocumentRequest extends FormRequest
      */
     public function rules(): array
     {
-        $fileRules = ['nullable', 'file', 'max:10240', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png'];
-
         return [
-            'abnormalitas_file' => $fileRules,
-            'gambar_teknik_file' => $fileRules,
+            'abnormalitas_file' => ['nullable', 'file', 'max:10240', 'mimes:pdf,doc,docx'],
+            'gambar_teknik_file' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,pdf,doc,docx'],
         ];
     }
 

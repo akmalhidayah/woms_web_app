@@ -606,6 +606,24 @@ class OrderTrackingController extends Controller
      */
     private function mergePdfOutputs(array $pdfOutputs): string
     {
+        $pdfOutputs = array_values(array_filter(
+            $pdfOutputs,
+            static fn ($pdfOutput): bool => is_string($pdfOutput) && trim($pdfOutput) !== ''
+        ));
+
+        if ($pdfOutputs === []) {
+            return '';
+        }
+
+        if (! class_exists(Fpdi::class)) {
+            Log::warning('FPDI package is unavailable. Returning the first PDF output without merge.', [
+                'controller' => static::class,
+                'pdf_count' => count($pdfOutputs),
+            ]);
+
+            return $pdfOutputs[0];
+        }
+
         $fpdi = new Fpdi();
         $temporaryFiles = [];
 

@@ -11,19 +11,6 @@
             return $initials !== '' ? $initials : '?';
         };
 
-        $picAvatarUrl = function (?string $path): ?string {
-            if (! $path) {
-                return null;
-            }
-
-            $cleanPath = ltrim((string) $path, '/');
-            if (str_starts_with($cleanPath, 'storage/')) {
-                $cleanPath = substr($cleanPath, strlen('storage/'));
-            }
-
-            return '/storage/'.$cleanPath;
-        };
-
         $reguBadge = function (?string $catatan): array {
             $value = trim((string) ($catatan ?? ''));
 
@@ -159,16 +146,16 @@
                                             @foreach ($profiles as $profile)
                                                 @php
                                                     $name = is_array($profile) ? ($profile['name'] ?? '') : '';
-                                                    $avatar = is_array($profile) ? $picAvatarUrl($profile['avatar_path'] ?? null) : null;
+                                                    $avatar = is_array($profile) ? ($profile['avatar_url'] ?? null) : null;
                                                 @endphp
                                                 <span class="inline-flex items-center gap-2 rounded-full bg-slate-50 px-2 py-1 ring-1 ring-slate-200">
                                                     @if ($avatar)
-                                                        <img src="{{ $avatar }}" alt="" class="h-6 w-6 rounded-full object-cover ring-1 ring-white">
+                                                        <img src="{{ $avatar }}" alt="" class="h-6 w-6 rounded-full object-cover ring-1 ring-white" onerror="this.remove(); this.parentElement.querySelector('[data-pic-fallback]')?.classList.remove('hidden');">
                                                     @else
-                                                        <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-700">
-                                                            {{ $picInitials($name) }}
-                                                        </span>
                                                     @endif
+                                                    <span data-pic-fallback class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-700 {{ $avatar ? 'hidden' : '' }}">
+                                                        {{ $picInitials($name) }}
+                                                    </span>
                                                     <span class="text-xs font-medium text-slate-700">{{ $name !== '' ? $name : '-' }}</span>
                                                 </span>
                                             @endforeach

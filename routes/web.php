@@ -34,6 +34,9 @@ Route::get('/', function () {
     return redirect()->route('login');
 })->name('home');
 
+Route::get('display-pekerjaan-bengkel/pics/{bengkel_pic}/avatar', [BengkelPicController::class, 'avatar'])
+    ->name('bengkel-pics.avatar');
+
 Route::get('dashboard', function () {
     return redirect()->route(request()->user()->dashboardRouteName());
 })

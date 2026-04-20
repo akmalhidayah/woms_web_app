@@ -44,7 +44,10 @@
                                 <td class="px-4 py-3">
                                     <div class="flex items-center gap-3">
                                         @if ($pic->avatar_url)
-                                            <img src="{{ $pic->avatar_url }}" alt="{{ $pic->name }}" class="h-10 w-10 rounded-full border border-slate-200 object-cover">
+                                            <img src="{{ $pic->avatar_url }}" alt="{{ $pic->name }}" class="h-10 w-10 rounded-full border border-slate-200 object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+                                            <div style="display:none" class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-500">
+                                                <i data-lucide="user" class="h-5 w-5"></i>
+                                            </div>
                                         @else
                                             <div class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-500">
                                                 <i data-lucide="user" class="h-5 w-5"></i>

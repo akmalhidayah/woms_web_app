@@ -1,0 +1,140 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\User;
+use Illuminate\Database\Seeder;
+
+class StructureOrganizationUserSeeder extends Seeder
+{
+    /**
+     * Seed approval users.
+     */
+    public function run(): void
+    {
+        $password = 'bengkelmesin123';
+
+        $users = [
+            ['name' => 'Ari N.K. Tri Mahesthi', 'email' => 'ari.tri@sementonasa.com'],
+            ['name' => 'Manat L. Silitonga', 'email' => 'manat.silitonga@sementonasa.com'],
+            ['name' => 'Syafardino', 'email' => 'syafardino@sementonasa.com'],
+            ['name' => 'Yosi Pradana', 'email' => 'yosi.pradana@sementonasa.com'],
+            ['name' => 'Andi Rachman', 'email' => 'andi.rachman@sementonasa.com'],
+            ['name' => 'Adi Fatkhurrohman', 'email' => 'adi.fatkhurrohman@sementonasa.com'],
+            ['name' => 'Muh. Musafir', 'email' => 'musafir@sementonasa.com'],
+            ['name' => 'Albar Budiman', 'email' => 'albar.budiman@sementonasa.com'],
+            ['name' => 'Dwi Kurniawan', 'email' => 'dwi.kurniawan@sementonasa.com'],
+            ['name' => 'Maryono', 'email' => 'maryono@sementonasa.com'],
+            ['name' => 'Andi Hilman', 'email' => 'andi.hilman@sementonasa.com'],
+            ['name' => 'Ardiansyah', 'email' => 'ardiansyah@sementonasa.com'],
+            ['name' => 'Ihrar Nuzul Azis', 'email' => 'ihrar.azis@sementonasa.com'],
+            ['name' => 'Suryadani', 'email' => 'suryadani@sementonasa.com'],
+            ['name' => 'Alamsyah', 'email' => 'alamsyah@sementonasa.com'],
+            ['name' => 'Nur Asmal Mustafa', 'email' => 'mustafa@sementonasa.com'],
+            ['name' => 'Yatman Setiawan', 'email' => 'yatman@sementonasa.com'],
+            ['name' => 'Muh. Asis Asri', 'email' => 'asis.asri@sementonasa.com'],
+            ['name' => 'Ifnul Mubarak', 'email' => 'ifnul.mubarak@sementonasa.com'],
+            ['name' => 'Suryadi Pasambangi', 'email' => 'suryadi@sementonasa.com'],
+            ['name' => 'Jasmiati', 'email' => 'jasmiati@sementonasa.com'],
+            ['name' => 'Irsan ST', 'email' => 'irsan@sementonasa.com'],
+            ['name' => 'Stevanus Bodro Wibowo', 'email' => 'stevanus@sementonasa.com'],
+            ['name' => 'M. Alianto M', 'email' => 'alianto@sementonasa.com'],
+            ['name' => 'Wellem Ariance', 'email' => 'wellem@sementonasa.com'],
+            ['name' => 'Ambo Masse', 'email' => 'ambo.masse@sementonasa.com'],
+            ['name' => 'Capt. Guntur Eko Prasetyo', 'email' => 'guntur.prasetyo@sementonasa.com'],
+            ['name' => 'Simon Salea', 'email' => 'simon.salea@sementonasa.com'],
+            ['name' => 'Hakmal Candra', 'email' => 'hakmal.candra@sementonasa.com'],
+            ['name' => 'Imran', 'email' => 'imran@sementonasa.com'],
+            ['name' => 'Parlindungan Pardosi', 'email' => 'pardosi@sementonasa.com'],
+            ['name' => 'Budi Wiyono', 'email' => 'budi.wiyono@sementonasa.com'],
+            ['name' => 'Mudassir Syam', 'email' => 'mudassir.syam@sementonasa.com'],
+            ['name' => 'Muhammad Rusdianto HN', 'email' => 'rusdianto@sementonasa.com'],
+            ['name' => 'Abd. Wahid', 'email' => 'wahid@sementonasa.com'],
+            ['name' => 'Nasaruddin', 'email' => 'nasaruddin@sementonasa.com'],
+            ['name' => 'Wibowo', 'email' => 'wibowo@sementonasa.com'],
+            ['name' => 'Wahyu A.R.', 'email' => 'wahyu@sementonasa.com'],
+            ['name' => 'Andika Sariy Tandirura', 'email' => 'andika@sementonasa.com'],
+            ['name' => 'Muhammad Fausi', 'email' => 'fausi@sementonasa.com'],
+            ['name' => 'Antonius F.H. Sukma', 'email' => 'sukma@sementonasa.com'],
+            ['name' => 'Safruddin Haeruddin', 'email' => 'safruddin@sementonasa.com'],
+            ['name' => 'Ilyasusanto', 'email' => 'ilyasusanto@sementonasa.com'],
+            ['name' => 'Al Azhar', 'email' => 'alazhar@sementonasa.com'],
+            ['name' => 'Muh. Basri', 'email' => 'basri@sementonasa.com'],
+            ['name' => 'Irwan Saparuddin', 'email' => 'irwan@sementonasa.com'],
+            ['name' => 'Imam Suyuti', 'email' => 'imam@sementonasa.com'],
+            ['name' => 'Mohammad Andi Yustian', 'email' => 'yustian@sementonasa.com'],
+            ['name' => 'Arif Budiman', 'email' => 'arif.budiman@sementonasa.com'],
+            ['name' => 'Muhammad Ageng Anom', 'email' => 'ageng@sementonasa.com'],
+            ['name' => 'H. Alimuddin', 'email' => 'alimuddin@sementonasa.com'],
+            ['name' => 'Putra Adhi Sumaryanto', 'email' => 'putra@sementonasa.com'],
+            ['name' => 'Ezra', 'email' => 'ezra@sementonasa.com'],
+            ['name' => 'H. Syahruddin', 'email' => 'syahruddin@sementonasa.com'],
+            ['name' => 'Kaharuddin', 'email' => 'kaharuddin@sementonasa.com'],
+            ['name' => 'Abd. Salam', 'email' => 'salam@sementonasa.com'],
+            ['name' => 'MZ Sukma Hastika', 'email' => 'sukma.hastika@sementonasa.com'],
+            ['name' => 'Asriyanto Nasir', 'email' => 'asriyanto@sementonasa.com'],
+            ['name' => 'Nani Sri Lestari', 'email' => 'nani@sementonasa.com'],
+            ['name' => 'Cendhika Larassayom Esa', 'email' => 'cendhika@sementonasa.com'],
+            ['name' => 'Ahmad', 'email' => 'ahmad@sementonasa.com'],
+            ['name' => 'Syaharuddin Ngewa', 'email' => 'ngewa@sementonasa.com'],
+            ['name' => 'Surahman', 'email' => 'surahman@sementonasa.com'],
+            ['name' => 'M. Rizal M.', 'email' => 'rizal@sementonasa.com'],
+            ['name' => 'Resti Setianingrum', 'email' => 'resti@sementonasa.com'],
+            ['name' => 'Agus Firmanto', 'email' => 'agus.firmanto@sementonasa.com'],
+            ['name' => 'Lukas Tandi', 'email' => 'lukas@sementonasa.com'],
+            ['name' => 'Ahmad Zaky Imani', 'email' => 'zaky@sementonasa.com'],
+            ['name' => 'Alfian Jais', 'email' => 'alfian@sementonasa.com'],
+            ['name' => 'M. Yasin', 'email' => 'yasin@sementonasa.com'],
+            ['name' => 'Andi Mayundari', 'email' => 'mayundari@sementonasa.com'],
+            ['name' => 'Ahmad Zakki Mubarok', 'email' => 'zakki@sementonasa.com'],
+            ['name' => 'Faizal Amir Razak', 'email' => 'faizal@sementonasa.com'],
+            ['name' => 'Angga Adhitya', 'email' => 'angga@sementonasa.com'],
+            ['name' => 'M. Sahrir', 'email' => 'sahrir@sementonasa.com'],
+            ['name' => 'Syamsupriadi', 'email' => 'syamsupriadi@sementonasa.com'],
+            ['name' => 'Sjarifuddin Said', 'email' => 'sjarifuddin@sementonasa.com'],
+            ['name' => 'Azis', 'email' => 'azis@sementonasa.com'],
+            ['name' => 'Mathius Rota', 'email' => 'mathius@sementonasa.com'],
+            ['name' => 'Isak', 'email' => 'isak@sementonasa.com'],
+            ['name' => 'Rahmat S', 'email' => 'rahmat@sementonasa.com'],
+            ['name' => 'Harianto Marzuki', 'email' => 'harianto@sementonasa.com'],
+            ['name' => 'Helton Yhoni', 'email' => 'helton@sementonasa.com'],
+            ['name' => 'Achmad Firmansjah', 'email' => 'firmansjah@sementonasa.com'],
+            ['name' => 'Bungin R', 'email' => 'bungin@sementonasa.com'],
+            ['name' => 'Kardianusti T. Bua', 'email' => 'kardianusti@sementonasa.com'],
+            ['name' => 'Jamaluddin', 'email' => 'jamaluddin@sementonasa.com'],
+            ['name' => 'Zulfadli', 'email' => 'zulfadli@sementonasa.com'],
+            ['name' => 'Wirawan Yusuf', 'email' => 'wirawan@sementonasa.com'],
+            ['name' => 'Sumardi', 'email' => 'sumardi@sementonasa.com'],
+            ['name' => 'Margiantonius', 'email' => 'margiantonius@sementonasa.com'],
+            ['name' => 'Rabenka Palesa', 'email' => 'rabenka@sementonasa.com'],
+            ['name' => 'Mursalin Tawang', 'email' => 'mursalin@sementonasa.com'],
+            ['name' => 'Aszriadi', 'email' => 'aszriadi@sementonasa.com'],
+            ['name' => 'H. Ferry Wardana', 'email' => 'ferry@sementonasa.com'],
+            ['name' => 'Muhammad Zubair Baso', 'email' => 'zubair@sementonasa.com'],
+            ['name' => 'Syamsul Bahri', 'email' => 'syamsul@sementonasa.com'],
+            ['name' => 'Wijanarko', 'email' => 'wijanarko@sementonasa.com'],
+            ['name' => 'Syaharuddin', 'email' => 'syaharuddin.pp@sementonasa.com'],
+            ['name' => 'Roniansyah Malinggi', 'email' => 'roniansyah@sementonasa.com'],
+            ['name' => 'Andi Rahmat', 'email' => 'andi.rahmat@sementonasa.com'],
+            ['name' => 'Ruben Bondo', 'email' => 'ruben@sementonasa.com'],
+            ['name' => 'Dasa Agustriawan', 'email' => 'dasa@sementonasa.com'],
+            ['name' => 'Lamasi', 'email' => 'lamasi@sementonasa.com'],
+            ['name' => 'Irfan', 'email' => 'irfan@sementonasa.com'],
+            ['name' => 'Rahman', 'email' => 'rahman@sementonasa.com'],
+            ['name' => 'Suriadi', 'email' => 'suriadi@sementonasa.com'],
+        ];
+
+        foreach ($users as $item) {
+            User::query()->updateOrCreate(
+                ['email' => $item['email']],
+                [
+                    'name' => $item['name'],
+                    'password' => $password,
+                    'role' => User::ROLE_APPROVER,
+                    'admin_role' => null,
+                    'email_verified_at' => now(),
+                ]
+            );
+        }
+    }
+}

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class BengkelPic extends Model
 {
@@ -27,6 +28,10 @@ class BengkelPic extends Model
             return null;
         }
 
-        return '/storage/'.ltrim($this->avatar_path, '/');
+        if (! Storage::disk('public')->exists($this->avatar_path)) {
+            return null;
+        }
+
+        return route('bengkel-pics.avatar', $this, false);
     }
 }

@@ -8,9 +8,26 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 class BengkelPicController extends Controller
 {
+    public function avatar(BengkelPic $bengkel_pic): Response
+    {
+        abort_unless(
+            $bengkel_pic->avatar_path && Storage::disk('public')->exists($bengkel_pic->avatar_path),
+            404
+        );
+
+        return response()->file(
+            Storage::disk('public')->path($bengkel_pic->avatar_path),
+            [
+                'Content-Type' => Storage::disk('public')->mimeType($bengkel_pic->avatar_path) ?: 'application/octet-stream',
+                'Content-Disposition' => 'inline; filename="'.basename($bengkel_pic->avatar_path).'"',
+            ]
+        );
+    }
+
     public function index(): View
     {
         $pics = BengkelPic::query()->orderBy('name')->paginate(15);

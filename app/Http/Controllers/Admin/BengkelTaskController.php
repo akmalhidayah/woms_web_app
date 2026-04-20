@@ -55,6 +55,75 @@ class BengkelTaskController extends Controller
 
         $tasks = $query->paginate($perPage)->withQueryString();
 
+        $pics = BengkelPic::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'avatar_path']);
+
+        $picsById = $pics->keyBy('id');
+        $picsByName = $pics->keyBy(static fn (BengkelPic $pic): string => mb_strtolower(trim($pic->name)));
+
+        $tasks->setCollection(
+            $tasks->getCollection()->map(function (BengkelTask $task) use ($picsById, $picsByName): BengkelTask {
+                $profiles = collect(is_array($task->person_in_charge_profiles) ? $task->person_in_charge_profiles : [])
+                    ->map(function ($profile) use ($picsById, $picsByName): ?array {
+                        if (! is_array($profile)) {
+                            return null;
+                        }
+
+                        $currentPic = null;
+
+                        if (! empty($profile['id'])) {
+                            $currentPic = $picsById->get((int) $profile['id']);
+                        }
+
+                        if (! $currentPic && ! empty($profile['name'])) {
+                            $currentPic = $picsByName->get(mb_strtolower(trim((string) $profile['name'])));
+                        }
+
+                        $name = $currentPic?->name ?? trim((string) ($profile['name'] ?? ''));
+
+                        if ($name === '') {
+                            return null;
+                        }
+
+                        return [
+                            'id' => $currentPic?->id ?? ($profile['id'] ?? null),
+                            'name' => $name,
+                            'avatar_path' => $currentPic?->avatar_path ?? ($profile['avatar_path'] ?? null),
+                            'avatar_url' => $currentPic?->avatar_url,
+                        ];
+                    })
+                    ->filter()
+                    ->values();
+
+                if ($profiles->isEmpty()) {
+                    $profiles = collect(is_array($task->person_in_charge) ? $task->person_in_charge : [])
+                        ->map(function ($name) use ($picsByName): ?array {
+                            $cleanName = trim((string) $name);
+
+                            if ($cleanName === '') {
+                                return null;
+                            }
+
+                            $currentPic = $picsByName->get(mb_strtolower($cleanName));
+
+                            return [
+                                'id' => $currentPic?->id,
+                                'name' => $currentPic?->name ?? $cleanName,
+                                'avatar_path' => $currentPic?->avatar_path,
+                                'avatar_url' => $currentPic?->avatar_url,
+                            ];
+                        })
+                        ->filter()
+                        ->values();
+                }
+
+                $task->setAttribute('person_in_charge_profiles', $profiles->all());
+
+                return $task;
+            })
+        );
+
         return view('admin.bengkel-tasks.index', compact('tasks', 'q', 'regu', 'perPage'));
     }
 

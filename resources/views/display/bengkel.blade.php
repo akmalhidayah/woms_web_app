@@ -17,8 +17,11 @@
     <style>
         body { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; }
         .ticker { position: relative; background:#7f1d1d; color:#fff; overflow:hidden; white-space:nowrap; height:46px; }
-        .ticker span { display:inline-block; padding:10px 24px; animation: ticker 15s linear infinite; font-size:16px; font-weight:700; }
-        @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+        .ticker span { display:inline-block; padding:10px 24px; animation: ticker 18s linear infinite; font-size:16px; font-weight:700; will-change: transform; }
+        @keyframes ticker {
+            0% { transform: translateX(10%); }
+            100% { transform: translateX(-100%); }
+        }
     </style>
 </head>
 

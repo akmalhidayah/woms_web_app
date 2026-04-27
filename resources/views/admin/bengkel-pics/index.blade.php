@@ -1,4 +1,8 @@
 <x-layouts.admin title="Master PIC Bengkel">
+    @php
+        $pageQuery = request()->only('page');
+    @endphp
+
     @if (session('status'))
         <div id="bengkel-pic-status-alert" data-message="{{ session('status') }}" class="hidden"></div>
     @endif
@@ -21,7 +25,7 @@
                         <i data-lucide="monitor" class="h-4 w-4"></i>
                         Daftar Pekerjaan
                     </a>
-                    <a href="{{ route('admin.bengkel-pics.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700">
+                    <a href="{{ route('admin.bengkel-pics.create', $pageQuery) }}" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700">
                         <i data-lucide="plus" class="h-4 w-4"></i>
                         Tambah PIC
                     </a>
@@ -44,7 +48,7 @@
                                 <td class="px-4 py-3">
                                     <div class="flex items-center gap-3">
                                         @if ($pic->avatar_url)
-                                            <img src="{{ $pic->avatar_url }}" alt="{{ $pic->name }}" class="h-10 w-10 rounded-full border border-slate-200 object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+                                            <img src="{{ $pic->avatar_url }}" alt="{{ $pic->name }}" class="h-10 w-10 rounded-full border border-slate-200 object-cover" style="object-position: {{ $pic->avatar_object_position }};" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
                                             <div style="display:none" class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-500">
                                                 <i data-lucide="user" class="h-5 w-5"></i>
                                             </div>
@@ -58,11 +62,11 @@
                                 </td>
                                 <td class="px-4 py-3 text-right">
                                     <div class="inline-flex items-center gap-2">
-                                        <a href="{{ route('admin.bengkel-pics.edit', $pic) }}" class="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100">
+                                        <a href="{{ route('admin.bengkel-pics.edit', array_merge(['bengkel_pic' => $pic], $pageQuery)) }}" class="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100">
                                             <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
                                             Edit
                                         </a>
-                                        <form action="{{ route('admin.bengkel-pics.destroy', $pic) }}" method="POST" class="inline-block delete-bengkel-pic-form">
+                                        <form action="{{ route('admin.bengkel-pics.destroy', array_merge(['bengkel_pic' => $pic], $pageQuery)) }}" method="POST" class="inline-block delete-bengkel-pic-form">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100">

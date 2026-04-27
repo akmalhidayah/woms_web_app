@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Pkm;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Pkm\StoreLhppBastRequest;
 use App\Models\FabricationConstructionContract;
+use App\Models\Hpp;
 use App\Models\LhppBast;
 use App\Models\LhppBastImage;
 use App\Models\Order;
@@ -93,6 +94,7 @@ class LhppController extends Controller
                     'notifikasi' => (string) ($order->notifikasi ?? ''),
                     'deskripsi_pekerjaan' => (string) ($order->nama_pekerjaan ?? ''),
                     'purchase_order_number' => (string) ($order->purchaseOrder?->purchase_order_number ?? ''),
+                    'tipe_pekerjaan' => '',
                     'unit_kerja' => (string) ($order->unit_kerja ?? ''),
                     'seksi' => (string) ($order->seksi ?? ''),
                 ])
@@ -242,6 +244,18 @@ class LhppController extends Controller
 
             $purchaseOrder = $order->purchaseOrder;
             $latestHpp = $order->latestHpp;
+            [$tanggalMulaiPekerjaan, $tanggalSelesaiPekerjaan] = $this->resolveWorkDatesForBast(
+                $order,
+                $terminType,
+                $parentLhpp,
+                $request->date('tanggal_mulai_pekerjaan'),
+                $request->date('tanggal_selesai_pekerjaan'),
+            );
+            $tipePekerjaan = $this->resolveTipePekerjaanForBast(
+                $terminType,
+                $parentLhpp,
+                $request->input('tipe_pekerjaan'),
+            );
             [$materialRowsPayload, $serviceRowsPayload] = $this->resolveActualRowsPayload(
                 $terminType,
                 $parentLhpp,
@@ -269,11 +283,12 @@ class LhppController extends Controller
                     'notifikasi' => $order->notifikasi,
                     'purchase_order_number' => $purchaseOrder?->purchase_order_number,
                     'deskripsi_pekerjaan' => $order->nama_pekerjaan,
+                    'tipe_pekerjaan' => $tipePekerjaan,
                     'unit_kerja' => $order->unit_kerja,
                     'seksi' => $order->seksi,
                     'tanggal_bast' => $request->date('tanggal_bast'),
-                    'tanggal_mulai_pekerjaan' => $request->date('tanggal_mulai_pekerjaan'),
-                    'tanggal_selesai_pekerjaan' => $request->date('tanggal_selesai_pekerjaan'),
+                    'tanggal_mulai_pekerjaan' => $tanggalMulaiPekerjaan,
+                    'tanggal_selesai_pekerjaan' => $tanggalSelesaiPekerjaan,
                     'approval_threshold' => $this->resolveThresholdFromTotals($terminType, $calculation['totals']),
                     'nilai_hpp' => $latestHpp?->total_keseluruhan ?? 0,
                     'material_items' => $calculation['material_rows'],
@@ -289,6 +304,7 @@ class LhppController extends Controller
                 ]
             );
 
+            $this->syncParentTipePekerjaanIfMissing($terminType, $parentLhpp, $tipePekerjaan);
             $this->storeUploadedImages($request, $lhpp);
 
             return redirect()
@@ -330,6 +346,18 @@ class LhppController extends Controller
 
             $purchaseOrder = $order->purchaseOrder;
             $latestHpp = $order->latestHpp;
+            [$tanggalMulaiPekerjaan, $tanggalSelesaiPekerjaan] = $this->resolveWorkDatesForBast(
+                $order,
+                $terminType,
+                $parentLhpp,
+                $request->date('tanggal_mulai_pekerjaan'),
+                $request->date('tanggal_selesai_pekerjaan'),
+            );
+            $tipePekerjaan = $this->resolveTipePekerjaanForBast(
+                $terminType,
+                $parentLhpp,
+                $request->input('tipe_pekerjaan'),
+            );
             [$materialRowsPayload, $serviceRowsPayload] = $this->resolveActualRowsPayload(
                 $terminType,
                 $parentLhpp,
@@ -351,11 +379,12 @@ class LhppController extends Controller
                 'notifikasi' => $order->notifikasi,
                 'purchase_order_number' => $purchaseOrder?->purchase_order_number,
                 'deskripsi_pekerjaan' => $order->nama_pekerjaan,
+                'tipe_pekerjaan' => $tipePekerjaan,
                 'unit_kerja' => $order->unit_kerja,
                 'seksi' => $order->seksi,
                 'tanggal_bast' => $request->date('tanggal_bast'),
-                'tanggal_mulai_pekerjaan' => $request->date('tanggal_mulai_pekerjaan'),
-                'tanggal_selesai_pekerjaan' => $request->date('tanggal_selesai_pekerjaan'),
+                'tanggal_mulai_pekerjaan' => $tanggalMulaiPekerjaan,
+                'tanggal_selesai_pekerjaan' => $tanggalSelesaiPekerjaan,
                 'approval_threshold' => $this->resolveThresholdFromTotals($terminType, $calculation['totals']),
                 'nilai_hpp' => $latestHpp?->total_keseluruhan ?? 0,
                 'material_items' => $calculation['material_rows'],
@@ -372,6 +401,7 @@ class LhppController extends Controller
             ]);
 
             $lhpp->save();
+            $this->syncParentTipePekerjaanIfMissing($terminType, $parentLhpp, $tipePekerjaan);
             $this->storeUploadedImages($request, $lhpp);
 
             return redirect()
@@ -456,9 +486,13 @@ class LhppController extends Controller
             $lhpp->loadMissing([
                 'images',
                 'parentLhppBast.images',
+                'parentLhppBast.purchaseOrder:id,order_id,purchase_order_number',
+                'parentLhppBast.order.purchaseOrder:id,order_id,purchase_order_number',
                 'hpp.order',
                 'hpp.outlineAgreement.unitWork.department',
                 'hpp.creator',
+                'purchaseOrder:id,order_id,purchase_order_number',
+                'order.purchaseOrder:id,order_id,purchase_order_number',
                 'order.latestHpp.order',
                 'order.latestHpp.outlineAgreement.unitWork.department',
                 'order.latestHpp.creator',
@@ -471,9 +505,22 @@ class LhppController extends Controller
             ])->setPaper('a4', 'portrait')->output();
 
             $attachedHpp = $lhpp->hpp ?: $lhpp->order?->latestHpp;
+            $terminOnePdf = null;
+
+            if ($terminType === 'termin_2' && $lhpp->parentLhppBast) {
+                $terminOnePdf = Pdf::loadView('pkm.lhpp.pdf', [
+                    'lhpp' => $lhpp->parentLhppBast,
+                    'materialItems' => collect($lhpp->parentLhppBast->material_items ?? []),
+                    'serviceItems' => collect($lhpp->parentLhppBast->service_items ?? []),
+                ])->setPaper('a4', 'portrait')->output();
+            }
 
             if (! $attachedHpp) {
-                return response($bastPdf, Response::HTTP_OK, $this->pdfInlineHeaders(
+                $pdfOutput = $terminOnePdf
+                    ? $this->mergePdfOutputs([$bastPdf, $terminOnePdf])
+                    : $bastPdf;
+
+                return response($pdfOutput, Response::HTTP_OK, $this->pdfInlineHeaders(
                     sprintf('bast-%s-%s.pdf', $this->terminSlug($terminType), $lhpp->nomor_order)
                 ));
             }
@@ -482,7 +529,7 @@ class LhppController extends Controller
                 'hpp' => $attachedHpp,
             ])->setPaper('a4', 'landscape')->output();
 
-            $mergedPdf = $this->mergePdfOutputs([$bastPdf, $hppPdf]);
+            $mergedPdf = $this->mergePdfOutputs(array_filter([$bastPdf, $terminOnePdf, $hppPdf]));
 
             return response($mergedPdf, Response::HTTP_OK, $this->pdfInlineHeaders(
                 sprintf('bast-%s-%s.pdf', $this->terminSlug($terminType), $lhpp->nomor_order)
@@ -592,14 +639,22 @@ class LhppController extends Controller
                     'hpps.id',
                     'hpps.order_id',
                     'hpps.total_keseluruhan',
+                    'hpps.item_groups',
                 ]),
-                'purchaseOrder:id,order_id,hpp_id,purchase_order_number,target_penyelesaian,progress_pekerjaan',
+                'purchaseOrder:id,order_id,hpp_id,purchase_order_number,target_penyelesaian,progress_pekerjaan,tanggal_mulai_pekerjaan,tanggal_selesai_pekerjaan,created_at,updated_at',
+                'initialWork:id,order_id,target_penyelesaian,progress_pekerjaan,tanggal_mulai_pekerjaan,tanggal_selesai_pekerjaan,created_at,updated_at',
             ])
-            ->whereHas('purchaseOrder', function ($query): void {
+            ->where(function ($query): void {
                 $query
-                    ->whereNotNull('purchase_order_number')
-                    ->whereRaw("TRIM(purchase_order_number) <> ''")
-                    ->where('progress_pekerjaan', 100);
+                    ->whereHas('purchaseOrder', function ($purchaseOrderQuery): void {
+                        $purchaseOrderQuery
+                            ->whereNotNull('purchase_order_number')
+                            ->whereRaw("TRIM(purchase_order_number) <> ''")
+                            ->where('progress_pekerjaan', 100);
+                    })
+                    ->orWhereHas('initialWork', function ($initialWorkQuery): void {
+                        $initialWorkQuery->where('progress_pekerjaan', 100);
+                    });
             })
             ->whereHas('latestHpp')
             ->when($existingOrderIds->isNotEmpty(), fn ($query) => $query->whereNotIn('id', $existingOrderIds))
@@ -664,8 +719,10 @@ class LhppController extends Controller
                 'hpps.id',
                 'hpps.order_id',
                 'hpps.total_keseluruhan',
+                'hpps.item_groups',
             ]),
-            'purchaseOrder:id,order_id,hpp_id,purchase_order_number,target_penyelesaian,progress_pekerjaan',
+            'purchaseOrder:id,order_id,hpp_id,purchase_order_number,target_penyelesaian,progress_pekerjaan,tanggal_mulai_pekerjaan,tanggal_selesai_pekerjaan,created_at,updated_at',
+            'initialWork:id,order_id,target_penyelesaian,progress_pekerjaan,tanggal_mulai_pekerjaan,tanggal_selesai_pekerjaan,created_at,updated_at',
         ]);
     }
 
@@ -678,8 +735,61 @@ class LhppController extends Controller
             ->first();
     }
 
+    private function resolveJobSource(Order $order): mixed
+    {
+        $purchaseOrder = $order->purchaseOrder;
+
+        if ($purchaseOrder && filled($purchaseOrder->purchase_order_number)) {
+            return $purchaseOrder;
+        }
+
+        return $order->initialWork ?: $purchaseOrder;
+    }
+
+    /**
+     * @return array{0: mixed, 1: mixed}
+     */
+    private function resolveWorkDatesForBast(Order $order, string $terminType, ?LhppBast $parentLhpp, mixed $fallbackStartDate, mixed $fallbackFinishDate): array
+    {
+        if ($terminType === 'termin_2' && $parentLhpp) {
+            return [
+                $fallbackStartDate ?: $parentLhpp->tanggal_mulai_pekerjaan,
+                $fallbackFinishDate ?: $parentLhpp->tanggal_selesai_pekerjaan,
+            ];
+        }
+
+        $jobSource = $this->resolveJobSource($order);
+
+        return [
+            $fallbackStartDate ?: $this->resolveJobStartDate($jobSource),
+            $fallbackFinishDate ?: $this->resolveJobFinishDate($jobSource),
+        ];
+    }
+
+    private function resolveTipePekerjaanForBast(string $terminType, ?LhppBast $parentLhpp, mixed $requestedValue): string
+    {
+        if ($terminType === 'termin_2' && filled($parentLhpp?->tipe_pekerjaan)) {
+            return (string) $parentLhpp->tipe_pekerjaan;
+        }
+
+        return trim((string) $requestedValue);
+    }
+
+    private function syncParentTipePekerjaanIfMissing(string $terminType, ?LhppBast $parentLhpp, string $tipePekerjaan): void
+    {
+        if ($terminType !== 'termin_2' || ! $parentLhpp || filled($parentLhpp->tipe_pekerjaan) || blank($tipePekerjaan)) {
+            return;
+        }
+
+        $parentLhpp->forceFill([
+            'tipe_pekerjaan' => $tipePekerjaan,
+        ])->save();
+    }
+
     private function mapOrderOption(Order $order): array
     {
+        $jobSource = $this->resolveJobSource($order);
+
         return [
             'nomor_order' => (string) $order->nomor_order,
             'notifikasi' => (string) ($order->notifikasi ?? ''),
@@ -689,7 +799,96 @@ class LhppController extends Controller
             'seksi' => (string) ($order->seksi ?? ''),
             'purchase_order_number' => (string) ($order->purchaseOrder?->purchase_order_number ?? ''),
             'nilai_ece' => (float) ($order->latestHpp?->total_keseluruhan ?? 0),
+            'hpp_material_rows' => $this->buildRowsFromHpp($order->latestHpp, 'material'),
+            'hpp_service_rows' => $this->buildRowsFromHpp($order->latestHpp, 'service'),
+            'tanggal_mulai_pekerjaan' => $this->formatOptionalDate($this->resolveJobStartDate($jobSource)),
+            'tanggal_selesai_pekerjaan' => $this->formatOptionalDate($this->resolveJobFinishDate($jobSource)),
         ];
+    }
+
+    /**
+     * @return list<array<string, string>>
+     */
+    private function buildRowsFromHpp(?Hpp $hpp, string $type): array
+    {
+        if (! $hpp || ! is_array($hpp->item_groups)) {
+            return [];
+        }
+
+        $rows = [];
+
+        foreach ($hpp->item_groups as $group) {
+            $jenisItem = trim((string) ($group['jenis_item'] ?? ''));
+            $isServiceGroup = str_contains(strtoupper($jenisItem), 'JASA');
+
+            if (($type === 'service') !== $isServiceGroup) {
+                continue;
+            }
+
+            foreach (($group['items'] ?? []) as $item) {
+                $namaItem = trim((string) ($item['nama_item'] ?? ''));
+
+                if ($namaItem === '') {
+                    continue;
+                }
+
+                $rows[] = [
+                    'jenis_item' => $jenisItem,
+                    'kategori_item' => trim((string) ($item['kategori_item'] ?? '')),
+                    'name' => $namaItem,
+                    'volume' => (string) ($item['qty'] ?? ''),
+                    'unit' => trim((string) ($item['satuan'] ?? '')),
+                    'unit_price' => $this->displayEditableCurrency((string) ($item['harga_satuan'] ?? '')),
+                    'amount' => (string) ($item['harga_total'] ?? '0.00'),
+                    'amount_display' => $this->displayCurrency((string) ($item['harga_total'] ?? '0.00')),
+                ];
+            }
+        }
+
+        return $rows;
+    }
+
+    private function resolveJobStartDate(mixed $jobSource): mixed
+    {
+        if (! $jobSource) {
+            return null;
+        }
+
+        if ($jobSource->tanggal_mulai_pekerjaan) {
+            return $jobSource->tanggal_mulai_pekerjaan;
+        }
+
+        return (int) ($jobSource->progress_pekerjaan ?? 0) >= 11
+            ? $jobSource->created_at
+            : null;
+    }
+
+    private function resolveJobFinishDate(mixed $jobSource): mixed
+    {
+        if (! $jobSource) {
+            return null;
+        }
+
+        if ($jobSource->tanggal_selesai_pekerjaan) {
+            return $jobSource->tanggal_selesai_pekerjaan;
+        }
+
+        return (int) ($jobSource->progress_pekerjaan ?? 0) >= 100
+            ? $jobSource->updated_at
+            : null;
+    }
+
+    private function formatOptionalDate(mixed $date): string
+    {
+        if (! $date) {
+            return '';
+        }
+
+        if (method_exists($date, 'format')) {
+            return $date->format('Y-m-d');
+        }
+
+        return (string) $date;
     }
 
     /**
@@ -744,9 +943,12 @@ class LhppController extends Controller
             'bastOrderOptions' => $orderOptions,
             'selectedBastOrder' => $selectedOrder,
             'selectedThreshold' => old('approval_threshold', $lhpp?->approval_threshold ?? $this->resolveThresholdFromTotals($terminType, $calculation['totals'])),
+            'selectedTipePekerjaan' => old('tipe_pekerjaan', $lhpp?->tipe_pekerjaan ?? $parentLhpp?->tipe_pekerjaan ?? ''),
+            'tipePekerjaanOptions' => LhppBast::tipePekerjaanOptions(),
             'bastDate' => old('tanggal_bast', optional($lhpp?->tanggal_bast)->format('Y-m-d') ?? now()->format('Y-m-d')),
             'tanggalMulaiPekerjaan' => old('tanggal_mulai_pekerjaan', optional($lhpp?->tanggal_mulai_pekerjaan)->format('Y-m-d') ?? optional($parentLhpp?->tanggal_mulai_pekerjaan)->format('Y-m-d')),
             'tanggalSelesaiPekerjaan' => old('tanggal_selesai_pekerjaan', optional($lhpp?->tanggal_selesai_pekerjaan)->format('Y-m-d') ?? optional($parentLhpp?->tanggal_selesai_pekerjaan)->format('Y-m-d')),
+            'useFixedWorkDates' => (bool) ($lhpp || $parentLhpp),
             'existingImages' => $this->buildExistingImageList($lhpp, $parentLhpp)->all(),
             'initialMaterialRows' => $calculation['material_rows'],
             'initialServiceRows' => $calculation['service_rows'],

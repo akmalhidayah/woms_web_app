@@ -156,7 +156,23 @@ class OrderTrackingController extends Controller
 
         abort_if(! $hpp, 404);
 
-        $hpp->loadMissing(['order', 'outlineAgreement', 'creator']);
+        $hpp->loadMissing(['order', 'outlineAgreement', 'creator', 'signatures']);
+
+        $finalSignedDocument = $hpp->finalSignedDocumentSignature();
+
+        if ($finalSignedDocument?->hasUploadedSignedDocument()) {
+            abort_unless(Storage::disk('public')->exists($finalSignedDocument->signed_document_path), 404);
+
+            return response()->file(
+                Storage::disk('public')->path($finalSignedDocument->signed_document_path),
+                [
+                    'Content-Type' => $finalSignedDocument->signed_document_mime_type ?: (Storage::disk('public')->mimeType($finalSignedDocument->signed_document_path) ?: 'application/octet-stream'),
+                    'Content-Disposition' => 'inline; filename="'.$this->safeFilename(
+                        $finalSignedDocument->signed_document_original_name ?: basename($finalSignedDocument->signed_document_path)
+                    ).'"',
+                ],
+            );
+        }
 
         $pdf = Pdf::loadView('admin.hpp.hpppdf', [
             'hpp' => $hpp,
@@ -191,6 +207,10 @@ class OrderTrackingController extends Controller
             ->with([
                 'images',
                 'parentLhppBast.images',
+                'parentLhppBast.purchaseOrder:id,order_id,purchase_order_number',
+                'parentLhppBast.order.purchaseOrder:id,order_id,purchase_order_number',
+                'purchaseOrder:id,order_id,purchase_order_number',
+                'order.purchaseOrder:id,order_id,purchase_order_number',
                 'hpp.order',
                 'hpp.outlineAgreement.unitWork.department',
                 'hpp.creator',
@@ -205,9 +225,22 @@ class OrderTrackingController extends Controller
 
         $attachedHpp = $lhpp->hpp ?: $order->latestHpp;
         $terminSlug = $terminType === 'termin_2' ? 'termin-2' : 'termin-1';
+        $terminOnePdf = null;
+
+        if ($terminType === 'termin_2' && $lhpp->parentLhppBast) {
+            $terminOnePdf = Pdf::loadView('pkm.lhpp.pdf', [
+                'lhpp' => $lhpp->parentLhppBast,
+                'materialItems' => collect($lhpp->parentLhppBast->material_items ?? []),
+                'serviceItems' => collect($lhpp->parentLhppBast->service_items ?? []),
+            ])->setPaper('a4', 'portrait')->output();
+        }
 
         if (! $attachedHpp) {
-            return response($bastPdf, Response::HTTP_OK, [
+            $pdfOutput = $terminOnePdf
+                ? $this->mergePdfOutputs([$bastPdf, $terminOnePdf])
+                : $bastPdf;
+
+            return response($pdfOutput, Response::HTTP_OK, [
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => sprintf('inline; filename="%s"', 'bast-'.$terminSlug.'-'.$order->nomor_order.'.pdf'),
             ]);
@@ -217,7 +250,7 @@ class OrderTrackingController extends Controller
             'hpp' => $attachedHpp,
         ])->setPaper('a4', 'landscape')->output();
 
-        $mergedPdf = $this->mergePdfOutputs([$bastPdf, $hppPdf]);
+        $mergedPdf = $this->mergePdfOutputs(array_filter([$bastPdf, $terminOnePdf, $hppPdf]));
 
         return response($mergedPdf, Response::HTTP_OK, [
             'Content-Type' => 'application/pdf',
@@ -299,6 +332,7 @@ class OrderTrackingController extends Controller
             'latestHpp.order',
             'latestHpp.outlineAgreement',
             'latestHpp.creator',
+            'latestHpp.signatures',
             'budgetVerification',
             'purchaseOrder',
             'lhppBasts.lpjPpl',
@@ -316,7 +350,9 @@ class OrderTrackingController extends Controller
     {
         $progress = $this->resolveProgress($order);
         $terminOne = $order->lhppBasts->firstWhere('termin_type', 'termin_1');
+        $terminTwo = $order->lhppBasts->firstWhere('termin_type', 'termin_2') ?: $terminOne?->terminTwo;
         $garansi = $terminOne?->garansi;
+        $abnormalitasDocument = $this->resolveOrderDocumentLink($order, 'abnormalitas');
 
         return [
             'nomor_order' => $order->nomor_order,
@@ -333,10 +369,10 @@ class OrderTrackingController extends Controller
             'document_completion_percentage' => $order->documentCompletionPercentage(),
             'show_url' => route('user.orders.show', $order),
             'quick_links' => [
+                'abnormalitas' => $abnormalitasDocument['url'] ?? null,
                 'hpp' => $order->latestHpp ? route('user.orders.hpp.pdf', $order) : null,
-                'po' => filled($order->purchaseOrder?->po_document_path) ? route('user.orders.purchase-order.document', $order) : null,
-                'initial_work' => $order->initialWork ? route('user.orders.initial-work.pdf', $order) : null,
                 'bast_termin_1' => $terminOne ? route('user.orders.bast.pdf', ['order' => $order, 'termin' => 'termin-1']) : null,
+                'bast_termin_2' => $terminTwo ? route('user.orders.bast.pdf', ['order' => $order, 'termin' => 'termin-2']) : null,
             ],
             'garansi' => $garansi ? [
                 'months' => $garansi->garansi_months,
@@ -355,6 +391,117 @@ class OrderTrackingController extends Controller
         $terminTwo = $order->lhppBasts->firstWhere('termin_type', 'termin_2') ?: $terminOne?->terminTwo;
         $lpjPpl = $terminOne?->lpjPpl;
         $garansi = $terminOne?->garansi;
+        $hppDocument = $this->resolveHppDocumentLink($order);
+        $documentPreviewItems = [
+            [
+                'key' => 'hpp',
+                'title' => 'HPP',
+                'label' => $hppDocument['label'] ?? 'HPP',
+                'url' => $hppDocument['url'] ?? null,
+                'preview_type' => $hppDocument['preview_type'] ?? 'pdf',
+                'icon' => 'file-text',
+                'tone' => 'blue',
+            ],
+            [
+                'key' => 'abnormalitas',
+                'title' => 'Abnormalitas',
+                'label' => $this->resolveOrderDocumentLink($order, 'abnormalitas')['label'] ?? 'Abnormalitas',
+                'url' => $this->resolveOrderDocumentLink($order, 'abnormalitas')['url'] ?? null,
+                'preview_type' => $this->resolveOrderDocumentLink($order, 'abnormalitas')['preview_type'] ?? 'file',
+                'icon' => 'triangle-alert',
+                'tone' => 'rose',
+            ],
+            [
+                'key' => 'gambar_teknik',
+                'title' => 'Gambar Teknik',
+                'label' => $this->resolveOrderDocumentLink($order, 'gambar_teknik')['label'] ?? 'Gambar Teknik',
+                'url' => $this->resolveOrderDocumentLink($order, 'gambar_teknik')['url'] ?? null,
+                'preview_type' => $this->resolveOrderDocumentLink($order, 'gambar_teknik')['preview_type'] ?? 'file',
+                'icon' => 'image',
+                'tone' => 'blue',
+            ],
+            [
+                'key' => 'scope_of_work',
+                'title' => 'Scope of Work',
+                'label' => 'Scope of Work',
+                'url' => $order->scopeOfWork ? route('user.orders.scope-of-work.pdf', $order) : null,
+                'preview_type' => 'pdf',
+                'icon' => 'clipboard-list',
+                'tone' => 'emerald',
+            ],
+            [
+                'key' => 'initial_work',
+                'title' => 'Initial Work',
+                'label' => 'Initial Work',
+                'url' => $order->initialWork ? route('user.orders.initial-work.pdf', $order) : null,
+                'preview_type' => 'pdf',
+                'icon' => 'clipboard-pen-line',
+                'tone' => 'violet',
+            ],
+            [
+                'key' => 'purchase_order',
+                'title' => 'Dokumen PO',
+                'label' => $order->purchaseOrder?->purchase_order_number ? 'PO : '.$order->purchaseOrder->purchase_order_number : 'Dokumen PO',
+                'url' => filled($order->purchaseOrder?->po_document_path) ? route('user.orders.purchase-order.document', $order) : null,
+                'preview_type' => $this->detectPreviewTypeFromFilename($order->purchaseOrder?->po_document_path),
+                'icon' => 'receipt',
+                'tone' => 'emerald',
+            ],
+            [
+                'key' => 'bast_termin_1',
+                'title' => 'BAST Termin 1',
+                'label' => 'BAST Termin 1',
+                'url' => $terminOne ? route('user.orders.bast.pdf', ['order' => $order, 'termin' => 'termin-1']) : null,
+                'preview_type' => 'pdf',
+                'icon' => 'file-badge',
+                'tone' => 'orange',
+            ],
+            [
+                'key' => 'bast_termin_2',
+                'title' => 'BAST Termin 2',
+                'label' => 'BAST Termin 2',
+                'url' => $terminTwo ? route('user.orders.bast.pdf', ['order' => $order, 'termin' => 'termin-2']) : null,
+                'preview_type' => 'pdf',
+                'icon' => 'files',
+                'tone' => 'orange',
+            ],
+            [
+                'key' => 'lpj_termin_1',
+                'title' => 'LPJ Termin 1',
+                'label' => $lpjPpl?->lpj_number_termin1 ?: 'LPJ Termin 1',
+                'url' => filled($lpjPpl?->lpj_number_termin1) ? route('user.orders.laporan.preview', ['order' => $order, 'kind' => 'lpj', 'termin' => 1]) : null,
+                'preview_type' => $this->detectPreviewTypeFromFilename($lpjPpl?->lpj_document_path_termin1),
+                'icon' => 'file-chart-column',
+                'tone' => 'slate',
+            ],
+            [
+                'key' => 'ppl_termin_1',
+                'title' => 'PPL Termin 1',
+                'label' => $lpjPpl?->ppl_number_termin1 ?: 'PPL Termin 1',
+                'url' => filled($lpjPpl?->ppl_number_termin1) ? route('user.orders.laporan.preview', ['order' => $order, 'kind' => 'ppl', 'termin' => 1]) : null,
+                'preview_type' => $this->detectPreviewTypeFromFilename($lpjPpl?->ppl_document_path_termin1),
+                'icon' => 'file-bar-chart-2',
+                'tone' => 'slate',
+            ],
+            [
+                'key' => 'lpj_termin_2',
+                'title' => 'LPJ Termin 2',
+                'label' => $lpjPpl?->lpj_number_termin2 ?: 'LPJ Termin 2',
+                'url' => filled($lpjPpl?->lpj_number_termin2) ? route('user.orders.laporan.preview', ['order' => $order, 'kind' => 'lpj', 'termin' => 2]) : null,
+                'preview_type' => $this->detectPreviewTypeFromFilename($lpjPpl?->lpj_document_path_termin2),
+                'icon' => 'file-chart-column',
+                'tone' => 'slate',
+            ],
+            [
+                'key' => 'ppl_termin_2',
+                'title' => 'PPL Termin 2',
+                'label' => $lpjPpl?->ppl_number_termin2 ?: 'PPL Termin 2',
+                'url' => filled($lpjPpl?->ppl_number_termin2) ? route('user.orders.laporan.preview', ['order' => $order, 'kind' => 'ppl', 'termin' => 2]) : null,
+                'preview_type' => $this->detectPreviewTypeFromFilename($lpjPpl?->ppl_document_path_termin2),
+                'icon' => 'file-bar-chart-2',
+                'tone' => 'slate',
+            ],
+        ];
 
         return [
             'nomor_order' => $order->nomor_order,
@@ -380,11 +527,6 @@ class OrderTrackingController extends Controller
                     'label' => 'Persetujuan Awal',
                     'value' => $order->catatan_status?->label() ?? 'Pending',
                     'tone' => $order->catatan_status && $order->catatan_status !== OrderUserNoteStatus::Pending ? 'done' : 'waiting',
-                ],
-                [
-                    'label' => 'Initial Work',
-                    'value' => $order->initialWork?->nomor_initial_work ?? 'Belum dibuat',
-                    'tone' => $order->initialWork ? 'done' : 'waiting',
                 ],
                 [
                     'label' => 'HPP',
@@ -426,7 +568,7 @@ class OrderTrackingController extends Controller
                 'gambar_teknik' => $this->resolveOrderDocumentLink($order, 'gambar_teknik'),
                 'scope_of_work' => $order->scopeOfWork ? route('user.orders.scope-of-work.pdf', $order) : null,
                 'initial_work' => $order->initialWork ? route('user.orders.initial-work.pdf', $order) : null,
-                'hpp' => $order->latestHpp ? route('user.orders.hpp.pdf', $order) : null,
+                'hpp' => $hppDocument ? $hppDocument['url'] : null,
                 'purchase_order' => filled($order->purchaseOrder?->po_document_path) ? route('user.orders.purchase-order.document', $order) : null,
                 'bast_termin_1' => $terminOne ? route('user.orders.bast.pdf', ['order' => $order, 'termin' => 'termin-1']) : null,
                 'bast_termin_2' => $terminTwo ? route('user.orders.bast.pdf', ['order' => $order, 'termin' => 'termin-2']) : null,
@@ -447,6 +589,7 @@ class OrderTrackingController extends Controller
                     'url' => route('user.orders.laporan.preview', ['order' => $order, 'kind' => 'ppl', 'termin' => 2]),
                 ] : null,
             ],
+            'document_preview_items' => $documentPreviewItems,
             'budget' => [
                 'status' => $order->budgetVerification?->status_anggaran ?? 'Belum diverifikasi',
                 'kategori_item' => $order->budgetVerification?->kategori_item,
@@ -486,7 +629,46 @@ class OrderTrackingController extends Controller
         return [
             'label' => $document->jenis_dokumen?->label() ?? ucfirst(str_replace('_', ' ', $type)),
             'url' => route('user.orders.documents.preview', ['order' => $order, 'document' => $document]),
+            'preview_type' => $this->detectPreviewTypeFromFilename($document->nama_file_asli ?: $document->path_file),
         ];
+    }
+
+    /**
+     * @return array<string, string>|array<string, mixed>|null
+     */
+    private function resolveHppDocumentLink(Order $order): ?array
+    {
+        $hpp = $order->latestHpp;
+
+        if (! $hpp) {
+            return null;
+        }
+
+        $previewType = 'pdf';
+        $finalSignedDocument = $hpp->finalSignedDocumentSignature();
+
+        if ($finalSignedDocument?->hasUploadedSignedDocument()) {
+            $previewType = $this->detectPreviewTypeFromFilename(
+                $finalSignedDocument->signed_document_original_name ?: $finalSignedDocument->signed_document_path
+            );
+        }
+
+        return [
+            'label' => $hpp->hasFinalSignedDocument() ? 'HPP Final DIROPS' : 'HPP PDF',
+            'url' => route('user.orders.hpp.pdf', $order),
+            'preview_type' => $previewType,
+        ];
+    }
+
+    private function detectPreviewTypeFromFilename(?string $filename): string
+    {
+        $extension = strtolower((string) pathinfo((string) $filename, PATHINFO_EXTENSION));
+
+        return match ($extension) {
+            'jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg' => 'image',
+            'pdf' => 'pdf',
+            default => 'file',
+        };
     }
 
     /**
@@ -541,6 +723,13 @@ class OrderTrackingController extends Controller
             $order->latestHpp !== null => 'amber',
             default => 'slate',
         };
+    }
+
+    private function safeFilename(?string $filename): string
+    {
+        $filename = trim((string) $filename);
+
+        return $filename !== '' ? str_replace('"', '', $filename) : 'document';
     }
 
     /**

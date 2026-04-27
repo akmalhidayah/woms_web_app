@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Pkm;
 
+use App\Models\LhppBast;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreLhppBastRequest extends FormRequest
 {
@@ -26,6 +28,7 @@ class StoreLhppBastRequest extends FormRequest
             'tanggal_bast' => ['required', 'date'],
             'nomor_order' => ['required', 'exists:orders,nomor_order'],
             'approval_threshold' => ['required', 'in:under_250,over_250'],
+            'tipe_pekerjaan' => ['required', Rule::in(array_keys(LhppBast::tipePekerjaanOptions() + LhppBast::legacyTipePekerjaanOptions()))],
             'tanggal_mulai_pekerjaan' => ['nullable', 'date'],
             'tanggal_selesai_pekerjaan' => ['nullable', 'date', 'after_or_equal:tanggal_mulai_pekerjaan'],
             'material_rows' => ['nullable', 'array'],

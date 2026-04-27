@@ -34,7 +34,7 @@ class JobWaitingController extends Controller
                 ->with([
                     'documents',
                     'scopeOfWork',
-                    'initialWork:id,order_id,nomor_initial_work,tanggal_initial_work,target_penyelesaian,progress_pekerjaan,vendor_note,admin_note,created_at',
+                    'initialWork:id,order_id,nomor_initial_work,tanggal_initial_work,target_penyelesaian,progress_pekerjaan,tanggal_mulai_pekerjaan,tanggal_selesai_pekerjaan,vendor_note,admin_note,created_at',
                     'lhppBasts:id,order_id,termin_type',
                     'lhppBasts.lpjPpl:id,lhpp_bast_id',
                     'latestHpp' => fn ($query) => $query->select([
@@ -51,6 +51,8 @@ class JobWaitingController extends Controller
                         'purchase_orders.approval_target',
                         'purchase_orders.approve_manager',
                         'purchase_orders.progress_pekerjaan',
+                        'purchase_orders.tanggal_mulai_pekerjaan',
+                        'purchase_orders.tanggal_selesai_pekerjaan',
                         'purchase_orders.vendor_note',
                         'purchase_orders.admin_note',
                         'purchase_orders.po_document_path',
@@ -224,11 +226,24 @@ class JobWaitingController extends Controller
                 $nextProgress = max(11, min(100, $request->integer('progress_pekerjaan')));
             }
 
+            $isTargetPenyelesaianLocked = ! $usesInitialWorkFlow
+                && $purchaseOrder?->approval_target === 'setuju';
+
             $payload = [
                 'progress_pekerjaan' => $nextProgress,
-                'target_penyelesaian' => $this->normalizeNullableString($request->input('target_penyelesaian')),
+                'target_penyelesaian' => $isTargetPenyelesaianLocked
+                    ? $jobSource->target_penyelesaian
+                    : $this->normalizeNullableString($request->input('target_penyelesaian')),
                 'vendor_note' => $this->normalizeNullableString($request->input('catatan')),
             ];
+
+            if ($nextProgress >= 11 && ! $jobSource->tanggal_mulai_pekerjaan) {
+                $payload['tanggal_mulai_pekerjaan'] = now()->toDateString();
+            }
+
+            if ($nextProgress >= 100 && ! $jobSource->tanggal_selesai_pekerjaan) {
+                $payload['tanggal_selesai_pekerjaan'] = now()->toDateString();
+            }
 
             if (! $usesInitialWorkFlow) {
                 $payload['updated_by'] = $request->user()?->id;
@@ -311,6 +326,8 @@ class JobWaitingController extends Controller
             'target_penyelesaian' => $jobSource?->target_penyelesaian?->format('Y-m-d')
                 ?: $order->target_selesai?->format('Y-m-d'),
             'approval_target' => $latestPurchaseOrder?->approval_target,
+            'target_penyelesaian_locked' => $canUpdateByPurchaseOrder
+                && $latestPurchaseOrder?->approval_target === 'setuju',
             'catatan' => $jobSource?->vendor_note ?: ($order->catatan ?: ''),
             'catatan_admin' => $jobSource?->admin_note ?: 'Belum ada catatan dari Admin Bengkel.',
             'is_finished' => $isFinished,

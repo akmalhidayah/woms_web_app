@@ -16,7 +16,10 @@ use App\Http\Controllers\Admin\Orders\OrderDocumentController;
 use App\Http\Controllers\Admin\Orders\OrderScopeOfWorkController;
 use App\Http\Controllers\Admin\PurchaseOrderController;
 use App\Http\Controllers\Admin\StructureOrganizationController;
+use App\Http\Controllers\Admin\HppApprovalSettingController;
 use App\Http\Controllers\Admin\UserPanelController;
+use App\Http\Controllers\Approval\HppSignatureController;
+use App\Http\Controllers\Approval\InitialWorkSignatureController;
 use App\Http\Controllers\Pkm\DashboardController as PkmDashboardController;
 use App\Http\Controllers\Pkm\DocumentsController as PkmDocumentsController;
 use App\Http\Controllers\Pkm\JobWaitingController;
@@ -51,6 +54,27 @@ Route::view('display-pekerjaan-bengkel', 'display.bengkel')
     ->name('display.bengkel');
 
 Route::middleware(['auth'])->group(function () {
+    Route::get('approval/initial-work/{token}', [InitialWorkSignatureController::class, 'show'])
+        ->name('approval.initial-work.show');
+    Route::post('approval/initial-work/{token}', [InitialWorkSignatureController::class, 'sign'])
+        ->name('approval.initial-work.sign');
+    Route::get('approval/initial-work/{token}/pdf', [InitialWorkSignatureController::class, 'pdf'])
+        ->name('approval.initial-work.pdf');
+    Route::get('approval/initial-work/{token}/abnormalitas', [InitialWorkSignatureController::class, 'previewAbnormalitas'])
+        ->name('approval.initial-work.abnormalitas');
+    Route::get('approval/initial-work/{token}/gambar-teknik', [InitialWorkSignatureController::class, 'previewGambarTeknik'])
+        ->name('approval.initial-work.gambar-teknik');
+    Route::get('approval/hpp/{token}', [HppSignatureController::class, 'show'])
+        ->name('approval.hpp.show');
+    Route::post('approval/hpp/{token}', [HppSignatureController::class, 'sign'])
+        ->name('approval.hpp.sign');
+    Route::get('approval/hpp/{token}/pdf', [HppSignatureController::class, 'pdf'])
+        ->name('approval.hpp.pdf');
+    Route::get('approval/hpp/{token}/abnormalitas', [HppSignatureController::class, 'previewAbnormalitas'])
+        ->name('approval.hpp.abnormalitas');
+    Route::get('approval/hpp/{token}/gambar-teknik', [HppSignatureController::class, 'previewGambarTeknik'])
+        ->name('approval.hpp.gambar-teknik');
+
     Route::view('admin/dashboard', 'dashboards.admin')
         ->middleware('role:admin')
         ->name('admin.dashboard');
@@ -152,6 +176,9 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
         ->whereNumber('bengkel_task')
         ->name('admin.bengkel-tasks.destroy');
+    Route::patch('admin/display-pekerjaan-bengkel/settings', [BengkelTaskController::class, 'updateDisplaySettings'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->name('admin.bengkel-tasks.display-settings.update');
 
     Route::get('admin/display-pekerjaan-bengkel/pics', [BengkelPicController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
@@ -201,21 +228,41 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:user_panel'])
         ->name('admin.user-panel.destroy');
 
-    Route::get('admin/struktur-organisasi', [StructureOrganizationController::class, 'index'])
-        ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
-        ->name('admin.structure.index');
-    Route::post('admin/struktur-organisasi', [StructureOrganizationController::class, 'store'])
-        ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
-        ->name('admin.structure.store');
-    Route::put('admin/struktur-organisasi/{unitWork}', [StructureOrganizationController::class, 'update'])
-        ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
-        ->name('admin.structure.update');
-    Route::put('admin/struktur-organisasi/departments/{department}', [StructureOrganizationController::class, 'updateDepartment'])
-        ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
-        ->name('admin.structure.departments.update');
-    Route::delete('admin/struktur-organisasi/{unitWork}', [StructureOrganizationController::class, 'destroy'])
-        ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
-        ->name('admin.structure.destroy');
+Route::get('admin/struktur-organisasi', [StructureOrganizationController::class, 'index'])
+    ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
+    ->name('admin.structure.index');
+
+Route::post('admin/struktur-organisasi', [StructureOrganizationController::class, 'store'])
+    ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
+    ->name('admin.structure.store');
+
+Route::put('admin/struktur-organisasi/hpp-approval-setting', [HppApprovalSettingController::class, 'update'])
+    ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
+    ->name('admin.structure.hpp-approval-setting.update');
+
+Route::put('admin/struktur-organisasi/departments/{department}', [StructureOrganizationController::class, 'updateDepartment'])
+    ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
+    ->name('admin.structure.departments.update');
+
+Route::post('admin/struktur-organisasi/vendor-structures', [StructureOrganizationController::class, 'storeVendorStructure'])
+    ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
+    ->name('admin.structure.vendor-structures.store');
+
+Route::put('admin/struktur-organisasi/vendor-structures/{vendorWorkType}', [StructureOrganizationController::class, 'updateVendorStructure'])
+    ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
+    ->name('admin.structure.vendor-structures.update');
+
+Route::delete('admin/struktur-organisasi/vendor-structures/{vendorWorkType}', [StructureOrganizationController::class, 'destroyVendorStructure'])
+    ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
+    ->name('admin.structure.vendor-structures.destroy');
+
+Route::put('admin/struktur-organisasi/{unitWork}', [StructureOrganizationController::class, 'update'])
+    ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
+    ->name('admin.structure.update');
+
+Route::delete('admin/struktur-organisasi/{unitWork}', [StructureOrganizationController::class, 'destroy'])
+    ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
+    ->name('admin.structure.destroy');
 
     Route::get('admin/kontrak-jasa-fabrikasi-konstruksi', [FabricationConstructionContractController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:kontrak_jasa_fabrikasi_konstruksi'])
@@ -364,6 +411,9 @@ Route::prefix('admin/hpp')
         Route::get('/', [HppController::class, 'index'])->name('index');
         Route::get('/create', [HppController::class, 'create'])->name('create');
         Route::get('/{hpp:nomor_order}/pdf', [HppController::class, 'pdf'])->name('pdf');
+        Route::get('/{hpp:nomor_order}/dirops-signed-document', [HppController::class, 'diropsSignedDocument'])->name('dirops-document.show');
+        Route::post('/{hpp:nomor_order}/dirops-signed-document', [HppController::class, 'uploadDiropsSignedDocument'])->name('dirops-document.upload');
+        Route::post('/{hpp:nomor_order}/regenerate-active-approval-token', [HppController::class, 'regenerateActiveApprovalToken'])->name('approval-token.regenerate');
         Route::get('/{hpp:nomor_order}/edit', [HppController::class, 'edit'])->name('edit');
         Route::post('/', [HppController::class, 'store'])->name('store');
         Route::put('/{hpp}', [HppController::class, 'update'])->name('update');

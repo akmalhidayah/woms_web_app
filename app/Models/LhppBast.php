@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Schema;
 
 class LhppBast extends Model
 {
@@ -30,6 +31,7 @@ class LhppBast extends Model
         'notifikasi',
         'purchase_order_number',
         'deskripsi_pekerjaan',
+        'tipe_pekerjaan',
         'unit_kerja',
         'seksi',
         'tanggal_bast',
@@ -68,6 +70,46 @@ class LhppBast extends Model
             'total_aktual_biaya' => 'decimal:2',
             'termin_1_nilai' => 'decimal:2',
             'termin_2_nilai' => 'decimal:2',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function tipePekerjaanOptions(): array
+    {
+        if (! Schema::hasTable('vendor_work_types')) {
+            return self::legacyTipePekerjaanOptions();
+        }
+
+        $vendorOptions = VendorWorkType::query()
+            ->orderBy('name')
+            ->pluck('name', 'name')
+            ->all();
+
+        return $vendorOptions ?: self::legacyTipePekerjaanOptions();
+    }
+
+    public static function tipePekerjaanLabel(?string $value): string
+    {
+        if (blank($value)) {
+            return '-';
+        }
+
+        $options = self::tipePekerjaanOptions() + self::legacyTipePekerjaanOptions();
+
+        return $options[$value] ?? $value;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function legacyTipePekerjaanOptions(): array
+    {
+        return [
+            'pekerjaan_fabrikasi' => 'Pekerjaan Fabrikasi',
+            'pekerjaan_konstruksi' => 'Pekerjaan Konstruksi',
+            'pekerjaan_mesin' => 'Pekerjaan Mesin',
         ];
     }
 

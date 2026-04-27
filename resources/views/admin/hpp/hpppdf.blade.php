@@ -69,14 +69,19 @@
 
         .approval-role {
             font-weight: bold;
-            font-size: 10px;
-            line-height: 1.2;
-            min-height: 28px;
+            font-size: 9px;
+            line-height: 1.1;
+            min-height: 24px;
+        }
+
+        .approval-role-compact {
+            font-size: 7.8px;
+            line-height: 1.02;
         }
 
         .approval-signature {
             height: 54px;
-            vertical-align: bottom;
+            vertical-align: top;
             border-bottom: none !important;
         }
 
@@ -98,7 +103,8 @@
             font-size: 9px;
             text-align: center;
             white-space: nowrap;
-            padding: 4px;
+            padding: 10px 4px 4px;
+            position: relative;
         }
 
         .placeholder-line {
@@ -130,7 +136,7 @@
             position: relative;
             height: 46px;
             overflow: visible;
-            padding-bottom: 0;
+            padding: 10px 2px 0 2px;
         }
 
         .sig-box > img {
@@ -161,11 +167,14 @@
         }
 
         .sig-date {
-            font-size: 9px;
-            text-align: right;
+            position: absolute;
+            top: 0;
+            right: 2px;
+            font-size: 6.5px;
             color: #333;
-            margin: 0 4px 2px 0;
             line-height: 1;
+            text-align: right;
+            white-space: nowrap;
             z-index: 3;
         }
 
@@ -200,18 +209,39 @@
         }
 
         .sig-date {
-            font-size: 8px;
-            margin: 0 0 2px 0;
+            top: 0;
+            right: 2px;
+            width: auto;
+            font-size: 6px;
         }
 
         .sig-inline {
-            height: 14px;
+            height: 22px;
             margin-left: 4px;
             margin-right: 0;
+            max-width: 54px;
         }
 
         .sig-initial {
             margin-right: 0;
+        }
+
+        .sig-inline-value {
+            font-size: 8px;
+            font-weight: bold;
+            vertical-align: middle;
+        }
+
+        .sig-inline-date {
+            position: absolute;
+            top: 1px;
+            right: 3px;
+            float: none;
+            font-size: 5px;
+            color: #333;
+            white-space: nowrap;
+            line-height: 1;
+            text-align: right;
         }
 
         .notes-cell {
@@ -260,6 +290,7 @@
 </head>
 @php
     use App\Models\UnitWork;
+    use App\Support\HppApprovalFlow;
     use Illuminate\Support\Facades\Storage;
 
     $order = $hpp->order;
@@ -358,25 +389,10 @@
     $requestingDepartmentLabel = $requestingUnit?->department?->name ?: $unitPemintaLabel;
     $controllingDepartmentLabel = $outlineAgreement?->unitWork?->department?->name ?: $unitPengendaliLabel;
     $periodeOA = $hpp->periode_outline_agreement ?: '-';
-    $requestingNotes = [];
-    $controllingNotes = [];
     $creatorName = $hpp->creator?->name ?: 'N/A';
     $requestingInitials = $initials($hpp->creator?->name);
     $controllingInitials = 'N/A';
 
-    $SIG_DIR = $safeSignaturePath(data_get($hpp, 'director_signature'));
-    $SIG_GM = $safeSignaturePath(data_get($hpp, 'general_manager_signature'));
-    $SIG_SM = $safeSignaturePath(data_get($hpp, 'senior_manager_signature'));
-    $SIG_MG = $safeSignaturePath(data_get($hpp, 'manager_signature'));
-    $SIG_REQ_GM = $safeSignaturePath(data_get($hpp, 'general_manager_signature_requesting_unit'));
-    $SIG_REQ_SM = $safeSignaturePath(data_get($hpp, 'senior_manager_signature_requesting_unit'));
-    $SIG_REQ_MG = $safeSignaturePath(data_get($hpp, 'manager_signature_requesting_unit'));
-
-    $DT_DIR = $formatDate(data_get($hpp, 'director_signed_at'));
-    $DT_GM = $formatDate(data_get($hpp, 'general_manager_signed_at'));
-    $DT_SM = $formatDate(data_get($hpp, 'senior_manager_signed_at'));
-    $DT_REQ_GM = $formatDate(data_get($hpp, 'general_manager_requesting_signed_at'));
-    $DT_REQ_SM = $formatDate(data_get($hpp, 'senior_manager_requesting_signed_at'));
     $logoSigPath = $resolvePublicImage([
         'assets/branding/logos/logo-sig.png',
         'assets/branding/logos/logo-sig.jpg',
@@ -389,6 +405,118 @@
     $approvalCase = $hpp->approval_case
         ?: HppApprovalFlow::resolvePreviewCase($hpp->kategori_pekerjaan, $hpp->area_pekerjaan, $hpp->nilai_hpp_bucket)
         ?: '';
+
+    $hppSignatures = ($hpp->relationLoaded('signatures') ? $hpp->signatures : $hpp->signatures()->get())
+        ->keyBy('role_key');
+    $isWorkshopCase = str_starts_with($approvalCase, 'FAB-WORKSHOP');
+    $controllerManagerRole = $isWorkshopCase ? 'workshop_manager_pengendali' : 'manager_pengendali';
+    $controllerSmRole = $isWorkshopCase ? 'workshop_sm_pengendali' : 'sm_pengendali';
+    $controllerGmRole = $isWorkshopCase ? 'workshop_gm_pengendali' : 'gm_pengendali';
+    $requesterManagerRole = $isWorkshopCase ? 'workshop_manager_pengendali' : 'manager_peminta';
+
+    $signatureFor = fn (string $roleKey) => $hppSignatures->get($roleKey);
+    $signatureImage = fn ($signature): ?string => $signature?->isSigned() ? $signature->signature_data : null;
+    $signatureDate = function ($signature): string {
+        if (! $signature?->signed_at) {
+            return '-';
+        }
+
+        try {
+            return \Carbon\Carbon::parse($signature->signed_at)->format('d/m/Y H:i');
+        } catch (\Throwable $e) {
+            return (string) $signature->signed_at;
+        }
+    };
+    $signatureName = fn ($signature): string => $signature?->signer_name_snapshot ?: 'N/A';
+    $signatureTitle = fn ($signature, string $fallback): string => $signature?->signer_position_snapshot ?: $fallback;
+    $approvalRoleClass = fn (?string $title): string => mb_strlen(trim((string) $title)) > 28
+        ? 'approval-role approval-role-compact'
+        : 'approval-role';
+    $noteContextLabel = function ($signature): ?string {
+        if (! $signature) {
+            return null;
+        }
+
+        $roleKey = (string) $signature->role_key;
+
+        if (str_contains($roleKey, 'gm')) {
+            return $signature->signer_department_snapshot
+                ?: $signature->signer_unit_snapshot
+                ?: $signature->signer_section_snapshot;
+        }
+
+        if (str_contains($roleKey, 'sm') || str_contains($roleKey, 'planner')) {
+            return $signature->signer_unit_snapshot
+                ?: $signature->signer_department_snapshot
+                ?: $signature->signer_section_snapshot;
+        }
+
+        return $signature->signer_section_snapshot
+            ?: $signature->signer_unit_snapshot
+            ?: $signature->signer_department_snapshot;
+    };
+    $requesterNoteRoles = [
+        'manager_peminta',
+        'sm_peminta',
+        'gm_peminta',
+        'workshop_manager_pengendali',
+        'planner_control',
+        'sm_counter_part',
+        'manager_counter_part',
+    ];
+    $noteEntries = $hppSignatures
+        ->filter(fn ($signature) => $signature?->isSigned() && filled(trim((string) $signature->approval_note)))
+        ->map(fn ($signature): array => [
+            'role_key' => $signature->role_key,
+            'text' => trim((string) $signature->approval_note),
+            'author' => $signature->signer_name_snapshot ?: 'N/A',
+            'context' => $noteContextLabel($signature),
+        ])
+        ->values();
+    $requestingNotes = $noteEntries
+        ->filter(fn (array $note): bool => in_array($note['role_key'], $requesterNoteRoles, true))
+        ->values()
+        ->all();
+    $controllingNotes = $noteEntries
+        ->reject(fn (array $note): bool => in_array($note['role_key'], $requesterNoteRoles, true))
+        ->values()
+        ->all();
+
+    $cellFromRole = function (string $roleKey, string $fallbackTitle) use (
+        $buildApprovalCell,
+        $signatureFor,
+        $signatureImage,
+        $signatureDate,
+        $signatureName,
+        $signatureTitle,
+    ): array {
+        $signature = $signatureFor($roleKey);
+
+        return $buildApprovalCell(
+            $signatureTitle($signature, $fallbackTitle),
+            $signatureImage($signature),
+            $signatureDate($signature),
+            $signatureName($signature),
+        );
+    };
+
+    $initialFromRole = function (string $roleKey, string $fallbackLabel, string $fallbackValue = 'N/A') use (
+        $signatureFor,
+        $signatureImage,
+        $signatureDate,
+        $initials,
+    ): array {
+        $signature = $signatureFor($roleKey);
+        $name = $signature?->signer_name_snapshot;
+
+        return [
+            'label' => $signature?->role_label ?: $fallbackLabel,
+            'signature' => $signatureImage($signature),
+            'value' => $name ? $initials($name) : $fallbackValue,
+            'date' => $signatureDate($signature),
+            'signed' => (bool) $signature?->isSigned(),
+        ];
+    };
 
     /*
     $caseBanner = match ($approvalCase) {
@@ -406,30 +534,21 @@
     };
     */
 
-    $requesterManagerInitial = [
-        'label' => 'Manager Peminta',
-        'signature' => $SIG_REQ_MG,
-        'value' => $initials($creatorName),
-    ];
-    $controllerManagerInitial = [
-        'label' => 'Manager Pengendali',
-        'signature' => $SIG_MG,
-        'value' => 'N/A',
-    ];
-    $counterPartManagerInitial = [
-        'label' => 'Manager Counter Part',
-        'signature' => null,
-        'value' => 'N/A',
-    ];
+    $requesterManagerInitial = $initialFromRole('manager_peminta', 'Manager Peminta', $requestingInitials);
+    $controllerManagerInitial = $initialFromRole($controllerManagerRole, 'Manager Pengendali');
+    $counterPartManagerInitial = $initialFromRole('manager_counter_part', 'Manager Counter Part');
 
-    $plannerControlCell = $buildApprovalCell('SM of P.Plant Machine Maint.', null, '-', 'N/A');
-    $counterPartCell = $buildApprovalCell('SM of Reliability Maintenance', null, '-', 'N/A');
-    $directorCell = $buildApprovalCell('Director of Operation', $SIG_DIR, $DT_DIR, 'N/A');
-    $gmControllerCell = $buildApprovalCell('GM of '.$controllingDepartmentLabel, $SIG_GM, $DT_GM, 'N/A');
-    $smControllerCell = $buildApprovalCell('SM of '.$unitPengendaliLabel, $SIG_SM, $DT_SM, 'N/A');
-    $gmRequesterCell = $buildApprovalCell('GM of '.$requestingDepartmentLabel, $SIG_REQ_GM, $DT_REQ_GM, 'N/A');
-    $smRequesterCell = $buildApprovalCell('SM of '.$unitPemintaLabel, $SIG_REQ_SM, $DT_REQ_SM, 'N/A');
-    $managerRequesterCell = $buildApprovalCell('Mgr of '.$unitPemintaLabel, $SIG_REQ_MG, '-', 'N/A');
+    $plannerControlCell = $cellFromRole('planner_control', 'Planner Control');
+    $counterPartCell = $cellFromRole('sm_counter_part', 'SM of Counter Part');
+    $directorCell = $cellFromRole('dirops', 'Director of Operation');
+    $gmControllerCell = $cellFromRole($controllerGmRole, 'GM of '.$controllingDepartmentLabel);
+    $smControllerCell = $cellFromRole($controllerSmRole, 'SM of '.$unitPengendaliLabel);
+    $gmRequesterCell = $cellFromRole('gm_peminta', 'GM of '.$requestingDepartmentLabel);
+    $smRequesterCell = $cellFromRole('sm_peminta', 'SM of '.$unitPemintaLabel);
+    $managerRequesterCell = $cellFromRole(
+        $requesterManagerRole,
+        $isWorkshopCase ? 'Mgr of '.$unitPengendaliLabel : 'Mgr of '.$unitPemintaLabel,
+    );
 
     $approvalFamily = match (true) {
         str_starts_with($approvalCase, 'FAB-DALAM') => 'fabrikasi-dalam',
@@ -687,9 +806,9 @@
                 <strong>Catatan User Peminta:</strong><br>
                 @if(!empty($requestingNotes))
                     @foreach($requestingNotes as $i => $note)
-                        <div style="margin: 4px 0 8px;">
-                            <div style="margin-bottom: 2px;">{{ $i + 1 }}. {{ $note ?: '-' }}</div>
-                            <div style="font-size: 10px; color: #444;">- {{ $creatorName }}</div>
+                        <div style="margin: 4px 0 8px; line-height: 1.35;">
+                            <span>{{ $i + 1 }}. {{ $note['text'] ?? '-' }}</span>
+                            <span style="font-size: 9px; color: #444;"> - {{ $note['author'] ?? 'N/A' }}{{ !empty($note['context']) ? ' ('.$note['context'].')' : '' }}</span>
                         </div>
                     @endforeach
                 @else
@@ -701,9 +820,9 @@
                 <strong>Catatan Pengendali:</strong><br>
                 @if(!empty($controllingNotes))
                     @foreach($controllingNotes as $i => $note)
-                        <div style="margin: 4px 0 8px;">
-                            <div style="margin-bottom: 2px;">{{ $i + 1 }}. {{ $note ?: '-' }}</div>
-                            <div style="font-size: 10px; color: #444;">- {{ $unitPengendaliLabel }}</div>
+                        <div style="margin: 4px 0 8px; line-height: 1.35;">
+                            <span>{{ $i + 1 }}. {{ $note['text'] ?? '-' }}</span>
+                            <span style="font-size: 9px; color: #444;"> - {{ $note['author'] ?? 'N/A' }}{{ !empty($note['context']) ? ' ('.$note['context'].')' : '' }}</span>
                         </div>
                     @endforeach
                 @else

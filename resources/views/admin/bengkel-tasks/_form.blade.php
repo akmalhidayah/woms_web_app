@@ -1,5 +1,6 @@
 @php
     $task = $task ?? null;
+    $indexQuery = request()->only(['q', 'regu', 'per_page', 'page']);
     $selectedPicIds = collect($selectedPicIds ?? old('pic_ids', []))
         ->map(fn ($value) => (int) $value)
         ->all();
@@ -87,7 +88,7 @@
                                 <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 transition hover:border-blue-300 hover:bg-blue-50/40">
                                     <input type="checkbox" name="pic_ids[]" value="{{ $pic->id }}" class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" @checked(in_array($pic->id, $selectedPicIds, true))>
                                     @if ($pic->avatar_url)
-                                        <img src="{{ $pic->avatar_url }}" alt="{{ $pic->name }}" class="h-10 w-10 rounded-full object-cover ring-1 ring-slate-200">
+                                        <img src="{{ $pic->avatar_url }}" alt="{{ $pic->name }}" class="h-10 w-10 rounded-full object-cover ring-1 ring-slate-200" style="object-position: {{ $pic->avatar_object_position }};">
                                     @else
                                         <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-[11px] font-bold text-slate-700">
                                             {{ collect(explode(' ', $pic->name))->filter()->take(2)->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))->implode('') ?: '?' }}
@@ -103,7 +104,7 @@
         </div>
 
         <div class="mt-6 flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
-            <a href="{{ route('admin.bengkel-tasks.index') }}" class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            <a href="{{ route('admin.bengkel-tasks.index', $indexQuery) }}" class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
                 <i data-lucide="arrow-left" class="h-4 w-4"></i>
                 Kembali
             </a>

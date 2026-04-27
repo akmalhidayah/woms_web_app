@@ -85,7 +85,7 @@
                                     </span>
                                 </a>
 
-                                @if ($showLoginInfoMenu && ($caraKerjaPns->isNotEmpty() || $caraKerjaPkm->isNotEmpty() || $caraKerjaApproval->isNotEmpty() || $flowchartFiles->isNotEmpty() || $kontrakFiles->isNotEmpty()))
+                                @if ($showLoginInfoMenu)
                                     <div class="mt-3 hidden flex-wrap items-center gap-2 text-xs md:flex">
                                         @if ($caraKerjaPns->isNotEmpty() || $caraKerjaPkm->isNotEmpty() || $caraKerjaApproval->isNotEmpty())
                                             <details class="group relative">
@@ -141,6 +141,16 @@
                                                 Kontrak PKM
                                             </a>
                                         @endif
+
+                                        <a href="{{ route('display.bengkel') }}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-xl bg-emerald-400/12 px-3 py-2 font-semibold text-emerald-100 ring-1 ring-emerald-300/25 transition hover:bg-emerald-400/20 hover:text-white">
+                                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect x="3" y="4" width="18" height="12" rx="2"></rect>
+                                                <path d="M8 20h8"></path>
+                                                <path d="M12 16v4"></path>
+                                                <path d="m10 10 2 2 3-4"></path>
+                                            </svg>
+                                            <span>Buka Display</span>
+                                        </a>
                                     </div>
                                 @endif
                             </div>
@@ -167,7 +177,7 @@
                                 </span>
                             </a>
 
-                            @if ($showLoginInfoMenu && ($caraKerjaPns->isNotEmpty() || $caraKerjaPkm->isNotEmpty() || $caraKerjaApproval->isNotEmpty() || $flowchartFiles->isNotEmpty() || $kontrakFiles->isNotEmpty()))
+                            @if ($showLoginInfoMenu)
                                 <div class="auth-reveal auth-delay-1 flex flex-wrap items-center gap-2 lg:hidden">
                                     @if ($caraKerjaPns->isNotEmpty())
                                         <a href="{{ route('public.information-upload.preview', $caraKerjaPns->first()) }}" target="_blank" rel="noopener" class="rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-600">
@@ -194,6 +204,16 @@
                                             Kontrak PKM
                                         </a>
                                     @endif
+
+                                    <a href="{{ route('display.bengkel') }}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/90 px-3 py-1.5 text-xs font-semibold text-emerald-700 shadow-sm shadow-emerald-100/60 transition hover:bg-emerald-100">
+                                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="3" y="4" width="18" height="12" rx="2"></rect>
+                                            <path d="M8 20h8"></path>
+                                            <path d="M12 16v4"></path>
+                                            <path d="m10 10 2 2 3-4"></path>
+                                        </svg>
+                                        <span>Buka Display</span>
+                                    </a>
                                 </div>
                             @endif
 

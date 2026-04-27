@@ -7,9 +7,56 @@
             'rose' => 'bg-rose-50 text-rose-700 ring-rose-200',
             'slate' => 'bg-stone-50 text-stone-700 ring-stone-200',
         ];
+
+        $cardAccentClasses = [
+            'emerald' => 'border-l-4 border-l-emerald-400',
+            'blue' => 'border-l-4 border-l-red-400',
+            'amber' => 'border-l-4 border-l-amber-400',
+            'rose' => 'border-l-4 border-l-rose-400',
+            'slate' => 'border-l-4 border-l-stone-300',
+        ];
     @endphp
 
     <div class="space-y-4">
+        <section class="sticky top-[88px] z-20 rounded-[22px] border border-stone-200 bg-white p-3.5 shadow-sm">
+            <div class="overflow-x-auto">
+                <form method="GET" action="{{ route('user.dashboard') }}" class="flex min-w-[760px] items-center gap-2">
+                    <input
+                        type="text"
+                        name="notification_number"
+                        value="{{ $filters['notification_number'] }}"
+                        placeholder="Cari nomor order / notifikasi..."
+                        class="h-[42px] min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-700 placeholder:text-stone-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100"
+                    >
+
+                    <select name="unit_work" class="h-[42px] w-[180px] rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100">
+                        <option value="">Semua Unit</option>
+                        @foreach ($units as $u)
+                            <option value="{{ $u }}" @selected($filters['unit_work'] === $u)>{{ $u }}</option>
+                        @endforeach
+                    </select>
+
+                    <select name="sortOrder" class="h-[42px] w-[140px] rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100">
+                        <option value="latest" @selected($filters['sortOrder'] === 'latest')>Terbaru</option>
+                        <option value="oldest" @selected($filters['sortOrder'] === 'oldest')>Terlama</option>
+                    </select>
+
+                    <select name="entries" class="h-[42px] w-[90px] rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100">
+                        @foreach ([10, 25, 50, 100] as $n)
+                            <option value="{{ $n }}" @selected((int) $filters['entries'] === $n)>{{ $n }}</option>
+                        @endforeach
+                    </select>
+
+                    <button type="submit" class="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl border border-red-800 bg-red-800 text-white transition hover:bg-red-900" title="Terapkan filter" aria-label="Terapkan filter">
+                        <i data-lucide="filter" class="h-4 w-4"></i>
+                    </button>
+                    <a href="{{ route('user.dashboard') }}" class="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 transition hover:border-red-200 hover:text-red-800" title="Reset filter" aria-label="Reset filter">
+                        <i data-lucide="rotate-ccw" class="h-4 w-4"></i>
+                    </a>
+                </form>
+            </div>
+        </section>
+
         <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <article class="rounded-2xl border border-stone-200 bg-white p-3.5 shadow-sm">
                 <div class="text-[10px] font-bold uppercase tracking-[0.24em] text-red-700">Total Order</div>
@@ -61,63 +108,9 @@
             </div>
         </section>
 
-        <section class="rounded-[22px] border border-stone-200 bg-white p-4 shadow-sm">
-            <form method="GET" action="{{ route('user.dashboard') }}" class="flex flex-col gap-3 xl:flex-row xl:items-end">
-                <div class="w-full xl:max-w-sm">
-                    <label class="mb-1 block text-[11px] font-semibold text-stone-600">Cari Nomor Order</label>
-                    <input
-                        type="text"
-                        name="notification_number"
-                        value="{{ $filters['notification_number'] }}"
-                        placeholder="Masukkan nomor order atau notifikasi..."
-                        class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-700 placeholder:text-stone-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100"
-                    >
-                </div>
-
-                <div class="w-full xl:max-w-xs">
-                    <label class="mb-1 block text-[11px] font-semibold text-stone-600">Unit Kerja</label>
-                    <select name="unit_work" class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100">
-                        <option value="">-- Semua Unit --</option>
-                        @foreach ($units as $u)
-                            <option value="{{ $u }}" @selected($filters['unit_work'] === $u)>{{ $u }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="flex flex-1 flex-wrap items-end gap-3">
-                    <div>
-                        <label class="mb-1 block text-[11px] font-semibold text-stone-600">Urutkan</label>
-                        <select name="sortOrder" class="rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100">
-                            <option value="latest" @selected($filters['sortOrder'] === 'latest')>Terbaru</option>
-                            <option value="oldest" @selected($filters['sortOrder'] === 'oldest')>Terlama</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="mb-1 block text-[11px] font-semibold text-stone-600">Per halaman</label>
-                        <select name="entries" class="rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100">
-                            @foreach ([10, 25, 50, 100] as $n)
-                                <option value="{{ $n }}" @selected((int) $filters['entries'] === $n)>{{ $n }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                        <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-xl border border-red-800 bg-red-800 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-900">
-                            <i data-lucide="filter" class="h-4 w-4"></i>
-                            Filter
-                        </button>
-                        <a href="{{ route('user.dashboard') }}" class="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-stone-600 transition hover:border-red-200 hover:text-red-800">
-                            Reset
-                        </a>
-                    </div>
-                </div>
-            </form>
-        </section>
-
         <section class="space-y-3">
             @forelse ($orders as $order)
-                <article class="overflow-hidden rounded-[22px] border border-stone-200 bg-white shadow-sm transition hover:border-red-200">
+                <article class="overflow-hidden rounded-[22px] border border-stone-200 bg-white shadow-sm transition hover:border-red-200 {{ $cardAccentClasses[$order['status_tone']] ?? $cardAccentClasses['slate'] }}">
                     <div class="grid gap-0 xl:grid-cols-[280px_minmax(0,1fr)]">
                         <div class="border-b border-stone-200 bg-stone-50/70 p-4 xl:border-b-0 xl:border-r">
                             <div class="flex items-start justify-between gap-3">
@@ -159,32 +152,18 @@
                                     </a>
                                 </div>
 
-                                <div class="rounded-2xl border border-stone-200 bg-stone-50 p-3">
-                                    <div class="flex items-start justify-between gap-3">
-                                        <div>
-                                            <div class="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-400">Progress</div>
-                                            <div class="mt-1 text-xs text-stone-600">{{ $order['progress']['source'] }}{{ $order['progress']['target'] ? ' • target '.$order['progress']['target'] : '' }}</div>
-                                        </div>
-                                        <div class="text-lg font-black text-stone-900">{{ $order['progress']['percent'] }}%</div>
-                                    </div>
-                                    <div class="mt-3 h-2 overflow-hidden rounded-full bg-stone-200">
-                                        <div class="h-full rounded-full bg-red-800" style="width: {{ max(0, min(100, (int) $order['progress']['percent'])) }}%"></div>
-                                    </div>
-                                    <div class="mt-2 text-xs text-stone-500">Kelengkapan dokumen utama: {{ $order['document_completion_percentage'] }}%</div>
-                                </div>
-
                                 <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                                    <a href="{{ $order['quick_links']['abnormalitas'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['abnormalitas'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
+                                        Abnormalitas
+                                    </a>
                                     <a href="{{ $order['quick_links']['hpp'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['hpp'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
-                                        HPP PDF
-                                    </a>
-                                    <a href="{{ $order['quick_links']['po'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['po'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
-                                        Dokumen PO
-                                    </a>
-                                    <a href="{{ $order['quick_links']['initial_work'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['initial_work'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
-                                        Initial Work
+                                        HPP
                                     </a>
                                     <a href="{{ $order['quick_links']['bast_termin_1'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['bast_termin_1'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
                                         BAST Termin 1
+                                    </a>
+                                    <a href="{{ $order['quick_links']['bast_termin_2'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['bast_termin_2'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
+                                        BAST Termin 2
                                     </a>
                                 </div>
 
@@ -222,23 +201,6 @@
             const approvedValues = @json($chartApproved['values']);
             const biayaLabels = @json($chartBiaya['labels']);
             const biayaValues = @json($chartBiaya['values']);
-
-            const chartAreaGradientPlugin = {
-                id: 'chartAreaGradientPlugin',
-                beforeDatasetsDraw(chart) {
-                    const { ctx, chartArea } = chart;
-
-                    if (!chartArea) {
-                        return;
-                    }
-
-                    const dataset = chart.data.datasets[0];
-                    const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                    gradient.addColorStop(0, 'rgba(153, 27, 27, 0.22)');
-                    gradient.addColorStop(1, 'rgba(153, 27, 27, 0.02)');
-                    dataset.backgroundColor = gradient;
-                }
-            };
 
             const modernChartOptions = {
                 responsive: true,
@@ -281,14 +243,27 @@
                 },
                 scales: {
                     x: {
-                        display: false,
+                        display: true,
                         grid: {
                             display: false,
-                            drawBorder: false,
-                            drawTicks: false
+                            drawBorder: false
                         },
                         border: {
                             display: false
+                        },
+                        ticks: {
+                            color: '#78716c',
+                            font: {
+                                size: 10,
+                                weight: '600'
+                            },
+                            maxRotation: 0,
+                            minRotation: 0,
+                            callback: function (value) {
+                                const label = this.getLabelForValue(value) || '';
+
+                                return label.length > 16 ? label.slice(0, 16) + '…' : label;
+                            }
                         }
                     },
                     y: {
@@ -318,10 +293,11 @@
                         capBezierPoints: true
                     },
                     point: {
-                        radius: 0,
-                        hoverRadius: 5,
+                        radius: 4,
+                        hoverRadius: 6,
                         hitRadius: 18,
-                        borderWidth: 0
+                        borderWidth: 2,
+                        backgroundColor: '#ffffff'
                     }
                 }
             };
@@ -335,10 +311,12 @@
                         datasets: [{
                             data: approvedValues,
                             borderColor: '#991b1b',
+                            backgroundColor: 'rgba(153, 27, 27, 0.08)',
                             fill: true,
                             pointBackgroundColor: '#991b1b',
                             pointHoverBackgroundColor: '#991b1b',
-                            pointHoverBorderColor: '#ffffff'
+                            pointHoverBorderColor: '#ffffff',
+                            pointBorderColor: '#991b1b'
                         }]
                     },
                     options: {
@@ -357,8 +335,7 @@
                                 }
                             }
                         }
-                    },
-                    plugins: [chartAreaGradientPlugin]
+                    }
                 });
             }
 
@@ -371,10 +348,12 @@
                         datasets: [{
                             data: biayaValues,
                             borderColor: '#7f1d1d',
+                            backgroundColor: 'rgba(127, 29, 29, 0.08)',
                             fill: true,
                             pointBackgroundColor: '#7f1d1d',
                             pointHoverBackgroundColor: '#7f1d1d',
-                            pointHoverBorderColor: '#ffffff'
+                            pointHoverBorderColor: '#ffffff',
+                            pointBorderColor: '#7f1d1d'
                         }]
                     },
                     options: {
@@ -413,8 +392,7 @@
                                 }
                             }
                         }
-                    },
-                    plugins: [chartAreaGradientPlugin]
+                    }
                 });
             }
         });

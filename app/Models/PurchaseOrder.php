@@ -25,6 +25,8 @@ class PurchaseOrder extends Model
         'approve_general_manager',
         'approve_direktur_operasional',
         'progress_pekerjaan',
+        'tanggal_mulai_pekerjaan',
+        'tanggal_selesai_pekerjaan',
         'po_document_path',
         'vendor_note',
         'admin_note',
@@ -44,6 +46,8 @@ class PurchaseOrder extends Model
             'approve_general_manager' => 'boolean',
             'approve_direktur_operasional' => 'boolean',
             'progress_pekerjaan' => 'integer',
+            'tanggal_mulai_pekerjaan' => 'date',
+            'tanggal_selesai_pekerjaan' => 'date',
         ];
     }
 

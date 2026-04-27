@@ -12,6 +12,31 @@
     @endif
 
     <div class="space-y-6">
+        @if (session('initial_work_manager_approval_url'))
+            <section class="rounded-[1.25rem] border border-emerald-200 bg-emerald-50 px-5 py-4 shadow-sm">
+                <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">Token TTD Initial Work</div>
+                        <p class="mt-1 text-sm font-medium text-emerald-950">
+                            Link Manager sudah dibuat untuk {{ session('initial_work_manager_name') ?: 'penanda tangan Manager' }}
+                            @if (session('initial_work_manager_role'))
+                                <span class="font-normal text-emerald-700">({{ session('initial_work_manager_role') }})</span>
+                            @endif
+                        </p>
+                    </div>
+                    <a
+                        href="{{ session('initial_work_manager_approval_url') }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="inline-flex w-fit items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-emerald-700"
+                    >
+                        <i data-lucide="pen-tool" class="h-3.5 w-3.5"></i>
+                        Buka Halaman TTD Manager
+                    </a>
+                </div>
+            </section>
+        @endif
+
         <div class="space-y-5">
             <section
                 class="rounded-[1.35rem] border border-blue-100 px-5 py-4 shadow-sm"
@@ -115,6 +140,21 @@
                                         $hasGambar = $gambarDocument !== null;
                                         $hasScope = $order->scopeOfWork !== null;
                                         $currentNoteStatus = $order->catatan_status?->value ?? 'pending';
+$activeInitialWorkSignature = $order->initialWork?->signatures
+    ?->firstWhere('status', \App\Models\InitialWorkSignature::STATUS_PENDING);
+
+$activeInitialWorkApprovalUrl = $activeInitialWorkSignature?->approvalUrl();
+$activeInitialWorkRoleLabel = $activeInitialWorkSignature?->role_label;
+$activeInitialWorkDisplayLabel = $activeInitialWorkRoleLabel ?: match ($activeInitialWorkSignature?->role_key) {
+    \App\Models\InitialWorkSignature::ROLE_MANAGER => 'Manager',
+    \App\Models\InitialWorkSignature::ROLE_SENIOR_MANAGER => 'Senior Manager',
+    default => 'Approval',
+};
+$initialWorkManagerSignature = $order->initialWork?->signatures
+    ?->firstWhere('role_key', \App\Models\InitialWorkSignature::ROLE_MANAGER);
+
+$initialWorkSeniorSignature = $order->initialWork?->signatures
+    ?->firstWhere('role_key', \App\Models\InitialWorkSignature::ROLE_SENIOR_MANAGER);
                                         $noteDetailOptions = $userNoteDetailOptions[$currentNoteStatus] ?? [];
                                         $noteStatusClasses = match ($currentNoteStatus) {
                                             'approved_jasa' => 'bg-amber-100 text-amber-700',
@@ -135,6 +175,56 @@
                                             default => 'text-emerald-600',
                                         };
                                         $canManageInitialWork = $priorityGroup === 'emergency' || $order->initialWork !== null;
+                                        $routesToHpp = in_array($currentNoteStatus, ['approved_jasa', 'approved_workshop_jasa'], true);
+                                        $routesToWorkshop = in_array($currentNoteStatus, ['approved_workshop', 'approved_workshop_jasa'], true);
+                                        $needsInitialWork = $priorityGroup === 'emergency' && $order->initialWork === null;
+                                        $hppMissingCount = collect([$routesToHpp, $hasAbnormal, $hasGambar, $hasScope])
+                                            ->filter(fn ($ready) => ! $ready)
+                                            ->count();
+                                        $routeLabel = match (true) {
+                                            $routesToHpp && $routesToWorkshop => 'HPP + Bengkel',
+                                            $routesToHpp => 'HPP',
+                                            $routesToWorkshop => 'Bengkel',
+                                            $currentNoteStatus === 'reject' => 'Ditolak',
+                                            default => 'Belum Arah',
+                                        };
+                                        $routeBadgeClasses = match (true) {
+                                            $routesToHpp && $routesToWorkshop => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+                                            $routesToHpp => 'border-amber-200 bg-amber-50 text-amber-700',
+                                            $routesToWorkshop => 'border-blue-200 bg-blue-50 text-blue-700',
+                                            $currentNoteStatus === 'reject' => 'border-rose-200 bg-rose-50 text-rose-700',
+                                            default => 'border-slate-200 bg-slate-50 text-slate-500',
+                                        };
+                                        $hppBadgeLabel = $routesToHpp
+                                            ? ($hppMissingCount === 0 ? 'Siap HPP' : 'HPP -'.$hppMissingCount)
+                                            : 'HPP Off';
+                                        $hppBadgeClasses = $routesToHpp && $hppMissingCount === 0
+                                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                            : ($routesToHpp ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-500');
+                                        $initialWorkBadgeLabel = $priorityGroup === 'emergency'
+                                            ? ($order->initialWork ? 'IW Ada' : 'IW Belum')
+                                            : 'IW N/A';
+                                        $initialWorkBadgeClasses = $priorityGroup === 'emergency'
+                                            ? ($order->initialWork ? 'border-orange-200 bg-orange-50 text-orange-700' : 'border-rose-200 bg-rose-50 text-rose-700')
+                                            : 'border-slate-200 bg-slate-50 text-slate-500';
+                                        $flowChecklist = [
+                                            ['label' => 'Arah ke HPP/Jasa', 'ready' => $routesToHpp],
+                                            ['label' => 'Abnormalitas', 'ready' => $hasAbnormal],
+                                            ['label' => 'Gambar Teknik', 'ready' => $hasGambar],
+                                            ['label' => 'Scope of Work', 'ready' => $hasScope],
+                                            ['label' => 'Initial Work Emergency', 'ready' => $priorityGroup !== 'emergency' || $order->initialWork !== null],
+                                        ];
+                                        $flowNextStep = match (true) {
+                                            $needsInitialWork => 'Buat Initial Work untuk jalur emergency.',
+                                            ! $routesToHpp && ! $routesToWorkshop && $currentNoteStatus !== 'reject' => 'Tentukan status catatan order.',
+                                            $routesToHpp && ! $hasAbnormal => 'Upload dokumen Abnormalitas.',
+                                            $routesToHpp && ! $hasGambar => 'Upload Gambar Teknik.',
+                                            $routesToHpp && ! $hasScope => 'Buat Scope of Work.',
+                                            $routesToHpp && $hppMissingCount === 0 => 'Siap masuk Create HPP.',
+                                            $routesToWorkshop => 'Pantau detail di Order Pekerjaan Bengkel.',
+                                            $currentNoteStatus === 'reject' => 'Order ditolak.',
+                                            default => 'Tidak ada aksi lanjutan.',
+                                        };
                                         $documentIndicators = [
                                             [
                                                 'label' => 'Abnormalitas',
@@ -234,42 +324,82 @@
 
                                                     @if ($canManageInitialWork)
                                                         @if ($order->initialWork)
-                                                            <a
-                                                                href="{{ route('admin.orders.initial-work.pdf', [$order, $order->initialWork]) }}"
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                class="inline-flex items-center gap-1.5 rounded-xl border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-[12px] font-semibold text-orange-700 transition hover:-translate-y-0.5 hover:shadow-sm"
-                                                                title="Lihat Initial Work PDF"
-                                                            >
-                                                                <i data-lucide="file-text" class="h-3 w-3"></i>
-                                                                <span>Initial Work PDF</span>
-                                                            </a>
+<div class="inline-flex flex-wrap items-center gap-2 rounded-2xl border border-orange-200 bg-orange-50/60 px-2.5 py-2">
+    <span class="text-[10px] font-semibold uppercase tracking-[0.12em] text-orange-700">
+        Initial Work
+    </span>
 
-                                                            <button
-                                                                type="button"
-                                                                class="edit-initial-work-trigger inline-flex h-8 w-8 items-center justify-center rounded-xl border border-orange-200 bg-white text-orange-700 transition hover:border-orange-300 hover:bg-orange-50"
-                                                                data-mode="edit"
-                                                                data-action="{{ route('admin.orders.initial-work.update', [$order, $order->initialWork]) }}"
-                                                                data-order-key="{{ $order->getRouteKey() }}"
-                                                                data-nomor-order="{{ $order->nomor_order }}"
-                                                                data-notifikasi="{{ $order->notifikasi }}"
-                                                                data-unit-kerja="{{ $order->unit_kerja }}"
-                                                                data-seksi="{{ $order->seksi }}"
-                                                                data-nama-pekerjaan="{{ $order->nama_pekerjaan }}"
-                                                                data-document-number="{{ $order->initialWork->nomor_initial_work }}"
-                                                                data-kepada-yth="{{ $order->initialWork->kepada_yth }}"
-                                                                data-perihal="{{ $order->initialWork->perihal }}"
-                                                                data-tanggal="{{ optional($order->initialWork->tanggal_initial_work)->format('Y-m-d') }}"
-                                                                data-keterangan-pekerjaan="{{ $order->initialWork->keterangan_pekerjaan }}"
-                                                                data-functional-location='@json($order->initialWork->functional_location ?? [])'
-                                                                data-scope-pekerjaan='@json($order->initialWork->scope_pekerjaan ?? [])'
-                                                                data-qty='@json($order->initialWork->qty ?? [])'
-                                                                data-stn='@json($order->initialWork->stn ?? [])'
-                                                                data-keterangan='@json($order->initialWork->keterangan ?? [])'
-                                                                title="Edit Initial Work"
-                                                            >
-                                                                <i data-lucide="clipboard-pen-line" class="h-3 w-3"></i>
-                                                            </button>
+    <a
+        href="{{ route('admin.orders.initial-work.pdf', [$order, $order->initialWork]) }}"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-1.5 rounded-xl border border-orange-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-orange-700 transition hover:-translate-y-0.5 hover:bg-orange-100 hover:shadow-sm"
+        title="Lihat Initial Work PDF"
+    >
+        <i data-lucide="file-text" class="h-3 w-3"></i>
+        <span>PDF</span>
+    </a>
+
+    <button
+        type="button"
+        class="edit-initial-work-trigger inline-flex items-center gap-1.5 rounded-xl border border-orange-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-orange-700 transition hover:-translate-y-0.5 hover:bg-orange-100 hover:shadow-sm"
+        data-mode="edit"
+        data-action="{{ route('admin.orders.initial-work.update', [$order, $order->initialWork]) }}"
+        data-order-key="{{ $order->getRouteKey() }}"
+        data-outline-agreement-id="{{ $order->initialWork->outline_agreement_id }}"
+        data-nomor-order="{{ $order->nomor_order }}"
+        data-notifikasi="{{ $order->notifikasi }}"
+        data-unit-kerja="{{ $order->unit_kerja }}"
+        data-seksi="{{ $order->seksi }}"
+        data-nama-pekerjaan="{{ $order->nama_pekerjaan }}"
+        data-document-number="{{ $order->initialWork->nomor_initial_work }}"
+        data-kepada-yth="{{ $order->initialWork->kepada_yth }}"
+        data-perihal="{{ $order->initialWork->perihal }}"
+        data-tanggal="{{ optional($order->initialWork->tanggal_initial_work)->format('Y-m-d') }}"
+        data-keterangan-pekerjaan="{{ $order->initialWork->keterangan_pekerjaan }}"
+        data-functional-location='@json($order->initialWork->functional_location ?? [])'
+        data-scope-pekerjaan='@json($order->initialWork->scope_pekerjaan ?? [])'
+        data-qty='@json($order->initialWork->qty ?? [])'
+        data-stn='@json($order->initialWork->stn ?? [])'
+        data-keterangan='@json($order->initialWork->keterangan ?? [])'
+        title="Edit Initial Work"
+    >
+        <i data-lucide="clipboard-pen-line" class="h-3 w-3"></i>
+        <span>Edit</span>
+    </button>
+
+    @if ($activeInitialWorkApprovalUrl)
+        <button
+            type="button"
+            class="copy-initial-work-approval inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[12px] font-semibold text-emerald-700 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-100 hover:shadow-sm"
+            data-link="{{ $activeInitialWorkApprovalUrl }}"
+            data-role-label="{{ $activeInitialWorkDisplayLabel }}"
+            title="Copy link TTD {{ $activeInitialWorkDisplayLabel }}"
+        >
+            <i data-lucide="copy" class="h-3 w-3"></i>
+            <span>TTD {{ $activeInitialWorkDisplayLabel }}</span>
+        </button>
+    @elseif (
+        $initialWorkManagerSignature?->status === \App\Models\InitialWorkSignature::STATUS_MISSING
+        || $initialWorkSeniorSignature?->status === \App\Models\InitialWorkSignature::STATUS_MISSING
+    )
+        <span
+            class="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[12px] font-semibold text-amber-700"
+            title="Token belum dibuat: Manager/Senior Manager belum terisi di Struktur Organisasi untuk OA ini."
+        >
+            <i data-lucide="user-x" class="h-3 w-3"></i>
+            <span>Signer belum lengkap</span>
+        </span>
+    @elseif ($initialWorkManagerSignature?->isSigned() && $initialWorkSeniorSignature?->isSigned())
+        <span
+            class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[12px] font-semibold text-emerald-700"
+            title="Semua approval Initial Work sudah selesai"
+        >
+            <i data-lucide="check-check" class="h-3 w-3"></i>
+            <span>Selesai</span>
+        </span>
+    @endif
+</div>
                                                         @else
                                                             <button
                                                                 type="button"
@@ -277,6 +407,7 @@
                                                                 data-mode="create"
                                                                 data-action="{{ route('admin.orders.initial-work.store', $order) }}"
                                                                 data-order-key="{{ $order->getRouteKey() }}"
+                                                                data-outline-agreement-id="{{ $order->latestHpp?->outline_agreement_id }}"
                                                                 data-nomor-order="{{ $order->nomor_order }}"
                                                                 data-notifikasi="{{ $order->notifikasi }}"
                                                                 data-unit-kerja="{{ $order->unit_kerja }}"
@@ -299,15 +430,36 @@
                                                 <div class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
                                                     <div class="flex flex-wrap items-center justify-between gap-2">
                                                         <div class="text-[10px] font-semibold uppercase tracking-[0.14em] {{ $priorityTextClasses }}">{{ $priorityLabel }}</div>
-                                                        <span class="inline-flex w-max items-center rounded-full px-2 py-1 text-[10px] font-semibold {{ $noteStatusClasses }}">
-                                                            {{ $order->catatan_status?->label() ?? 'Pending' }}
-                                                        </span>
+                                                        <div class="flex flex-col items-end gap-1">
+                                                            <span class="inline-flex w-max items-center rounded-full px-2 py-1 text-[10px] font-semibold {{ $noteStatusClasses }}">
+                                                                {{ $order->catatan_status?->label() ?? 'Pending' }}
+                                                            </span>
+                                                            @if ($order->catatan)
+                                                                <span class="max-w-[150px] truncate text-[10px] font-medium text-slate-500" title="{{ $order->catatan }}">
+                                                                    {{ $order->catatan }}
+                                                                </span>
+                                                            @endif
+                                                        </div>
                                                     </div>
 
                                                     <div class="mt-2 border-t border-slate-100 pt-2">
-                                                        <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Catatan</div>
-                                                        <div class="mt-1 text-[11px] leading-5 {{ $order->catatan ? 'text-slate-700' : 'italic text-slate-400' }}">
-                                                            {{ $order->catatan ?: 'Belum ada catatan user.' }}
+                                                        <div class="mb-1.5 flex items-center justify-between gap-2">
+                                                            <span class="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">Alur</span>
+                                                            <button
+                                                                type="button"
+                                                                class="order-flow-trigger inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-semibold text-slate-500 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                                                                data-title="{{ $order->nomor_order }}"
+                                                                data-route="{{ $routeLabel }}"
+                                                                data-next="{{ $flowNextStep }}"
+                                                                data-checklist='@json($flowChecklist)'
+                                                            >
+                                                                Detail
+                                                            </button>
+                                                        </div>
+                                                        <div class="flex flex-wrap gap-1">
+                                                            <span class="inline-flex rounded-full border px-2 py-0.5 text-[9px] font-semibold {{ $routeBadgeClasses }}">{{ $routeLabel }}</span>
+                                                            <span class="inline-flex rounded-full border px-2 py-0.5 text-[9px] font-semibold {{ $hppBadgeClasses }}">{{ $hppBadgeLabel }}</span>
+                                                            <span class="inline-flex rounded-full border px-2 py-0.5 text-[9px] font-semibold {{ $initialWorkBadgeClasses }}">{{ $initialWorkBadgeLabel }}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -373,6 +525,26 @@
     </div>
 
     <div id="orderModalOverlay" class="fixed inset-0 z-40 hidden bg-slate-950/55"></div>
+
+    <div id="orderFlowModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+        <div class="w-full max-w-md rounded-3xl bg-white p-5 shadow-2xl">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-500">Status Alur</div>
+                    <h2 id="orderFlowTitle" class="mt-1 text-lg font-bold text-slate-900">Order</h2>
+                    <p id="orderFlowRoute" class="mt-1 text-[11px] font-semibold text-slate-500">-</p>
+                </div>
+                <button type="button" data-close-order-modal class="text-2xl leading-none text-slate-400 transition hover:text-slate-700">&times;</button>
+            </div>
+
+            <div id="orderFlowChecklist" class="mt-4 space-y-1.5 text-[11px]"></div>
+
+            <div class="mt-4 rounded-2xl border border-blue-100 bg-blue-50 px-3 py-2.5">
+                <div class="text-[9px] font-semibold uppercase tracking-[0.14em] text-blue-500">Next Step</div>
+                <div id="orderFlowNext" class="mt-1 text-[11px] font-semibold leading-5 text-slate-700">-</div>
+            </div>
+        </div>
+    </div>
 
     <div id="createOrderModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
         <div class="rounded-3xl bg-white shadow-2xl" style="width:min(100%, 860px);">
@@ -636,6 +808,24 @@
                         <label class="mb-2 block text-sm text-slate-700">Tanggal Dokumen</label>
                         <input id="initialWorkTanggal" name="tanggal_initial_work" type="date" value="{{ old('tanggal_initial_work', $today) }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-orange-500 focus:outline-none" required>
                     </div>
+                    <div class="md:col-span-2">
+                        <label class="mb-2 block text-sm text-slate-700">Outline Agreement (Sumber Unit Pengendali)</label>
+                        <select id="initialWorkOutlineAgreement" name="outline_agreement_id" class="w-full rounded-lg border border-slate-400 bg-white px-4 py-3 text-sm text-slate-700 focus:border-orange-500 focus:outline-none" required>
+                            <option value="">Pilih OA untuk menentukan Manager dan Senior Manager</option>
+                            @foreach ($initialWorkOutlineAgreementOptions as $agreement)
+                                <option
+                                    value="{{ $agreement->id }}"
+                                    data-unit="{{ $agreement->unitWork?->name }}"
+                                    data-section="{{ $agreement->jenis_kontrak }}"
+                                    data-department="{{ $agreement->unitWork?->department?->name }}"
+                                    @selected((string) old('outline_agreement_id') === (string) $agreement->id)
+                                >
+                                    {{ $agreement->nomor_oa }} - {{ $agreement->nama_kontrak }} ({{ $agreement->jenis_kontrak }} - {{ $agreement->unitWork?->name ?? '-' }})
+                                </option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-[11px] text-slate-500">Manager diambil dari seksi OA, Senior Manager dari unit OA pada Struktur Organisasi.</p>
+                    </div>
                     <div>
                         <label class="mb-2 block text-sm text-slate-700">Nomor Order</label>
                         <input id="initialWorkOrderNumber" type="text" readonly class="w-full rounded-lg border border-slate-300 bg-slate-100 px-4 py-3 text-sm text-slate-700">
@@ -702,6 +892,7 @@
             const createModal = document.getElementById('createOrderModal');
             const editModal = document.getElementById('editOrderModal');
             const initialWorkModal = document.getElementById('initialWorkModal');
+            const orderFlowModal = document.getElementById('orderFlowModal');
             const editForm = document.getElementById('editOrderForm');
             const initialWorkForm = document.getElementById('initialWorkForm');
             const initialWorkMethod = document.getElementById('initialWorkMethod');
@@ -722,6 +913,7 @@
             const oldEditOrderKey = @json(old('edit_original_order'));
             const oldInitialWorkFormContext = @json(old('initial_work_form_context'));
             const oldInitialWorkOrderKey = @json(old('initial_work_order_key'));
+            const initialWorkOutlineAgreement = document.getElementById('initialWorkOutlineAgreement');
             const userNoteDetailOptions = @json($userNoteDetailOptions);
             const priorityUrgent = @json(\App\Models\Order::PRIORITY_URGENT);
             const priorityHigh = @json(\App\Models\Order::PRIORITY_HIGH);
@@ -1032,6 +1224,9 @@
                 document.getElementById('initialWorkOrderKey').value = button.dataset.orderKey || '';
                 document.getElementById('initialWorkModalTitle').textContent = isEdit ? 'Edit Initial Work' : 'Buat Initial Work';
                 document.getElementById('initialWorkNumber').value = button.dataset.documentNumber || initialWorkDefaultNumber;
+                if (initialWorkOutlineAgreement) {
+                    initialWorkOutlineAgreement.value = button.dataset.outlineAgreementId || '';
+                }
                 document.getElementById('initialWorkOrderNumber').value = button.dataset.nomorOrder || '';
                 document.getElementById('initialWorkNotifikasi').value = button.dataset.notifikasi || '-';
                 document.getElementById('initialWorkUnitKerja').value = button.dataset.unitKerja || '-';
@@ -1082,12 +1277,28 @@
 
             const closeModals = () => {
                 overlay?.classList.add('hidden');
-                [createModal, editModal, initialWorkModal].forEach((modal) => {
+                [createModal, editModal, initialWorkModal, orderFlowModal].forEach((modal) => {
                     modal?.classList.add('hidden');
                     modal?.classList.remove('flex');
                 });
                 document.body.classList.remove('overflow-hidden');
             };
+
+            document.querySelectorAll('.order-flow-trigger').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const checklist = JSON.parse(button.dataset.checklist || '[]');
+                    document.getElementById('orderFlowTitle').textContent = button.dataset.title || 'Order';
+                    document.getElementById('orderFlowRoute').textContent = button.dataset.route || '-';
+                    document.getElementById('orderFlowNext').textContent = button.dataset.next || '-';
+                    document.getElementById('orderFlowChecklist').innerHTML = checklist.map((item) => `
+                        <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                            <span class="font-medium text-slate-700">${escapeHtml(item.label || '-')}</span>
+                            <span class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold ${item.ready ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}">${item.ready ? 'OK' : 'Belum'}</span>
+                        </div>
+                    `).join('');
+                    openModal(orderFlowModal);
+                });
+            });
 
             document.getElementById('openCreateOrderModal')?.addEventListener('click', () => {
                 document.getElementById('createNomorOrder').value = '';
@@ -1153,6 +1364,24 @@
                 });
             });
 
+document.querySelectorAll('.copy-initial-work-approval').forEach((button) => {
+    button.addEventListener('click', async () => {
+        const link = button.dataset.link || '';
+        const roleLabel = button.getAttribute('title')?.replace('Copy link TTD ', '') || 'Approval';
+
+        if (!link) {
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(link);
+            showToast(`Link TTD ${roleLabel} disalin`);
+        } catch (error) {
+            window.prompt(`Copy link TTD ${roleLabel}:`, link);
+        }
+    });
+});
+
             if (oldFormContext === 'create') {
                 syncSeksiSelect(createUnitKerja, createSeksi, @json(old('seksi')));
                 syncPriorityField('create', @json(old('prioritas', \App\Models\Order::PRIORITY_LOW)));
@@ -1204,6 +1433,9 @@
                     document.getElementById('initialWorkKepadaYth').value = @json(old('kepada_yth', 'PT. PRIMA KARYA MANUNGGAL'));
                     document.getElementById('initialWorkPerihal').value = @json(old('perihal', ''));
                     document.getElementById('initialWorkTanggal').value = @json(old('tanggal_initial_work', $today));
+                    if (initialWorkOutlineAgreement) {
+                        initialWorkOutlineAgreement.value = @json((string) old('outline_agreement_id', ''));
+                    }
                     document.getElementById('initialWorkUrgency').value = @json(old('keterangan_pekerjaan', ''));
                     openModal(initialWorkModal);
                 }

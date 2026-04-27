@@ -6,13 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Orders\StoreInitialWorkRequest;
 use App\Http\Requests\Admin\Orders\UpdateInitialWorkRequest;
 use App\Models\InitialWork;
+use App\Models\OutlineAgreement;
 use App\Models\Order;
+use App\Services\InitialWorks\InitialWorkSignatureService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 class InitialWorkController extends Controller
 {
+    public function __construct(
+        private readonly InitialWorkSignatureService $signatureService,
+    ) {
+    }
+
     /**
      * Store a newly created initial work.
      */
@@ -26,28 +34,51 @@ class InitialWorkController extends Controller
                 ->with('status', 'Initial Work untuk order ini sudah tersedia.');
         }
 
-        $initialWork = $order->initialWork()->create([
-            'nomor_initial_work' => $this->nextDocumentNumber(),
-            'nomor_order' => $order->nomor_order,
-            'notifikasi' => $order->notifikasi,
-            'nama_pekerjaan' => $order->nama_pekerjaan,
-            'unit_kerja' => $order->unit_kerja,
-            'seksi' => $order->seksi,
-            'kepada_yth' => $request->validated('kepada_yth') ?: 'PT. PRIMA KARYA MANUNGGAL',
-            'perihal' => $request->validated('perihal'),
-            'tanggal_initial_work' => $request->validated('tanggal_initial_work'),
-            'functional_location' => $this->normalizeRowValues($request->validated('functional_location')),
-            'scope_pekerjaan' => $this->normalizeRowValues($request->validated('scope_pekerjaan')),
-            'qty' => $this->normalizeRowValues($request->validated('qty')),
-            'stn' => $this->normalizeRowValues($request->validated('stn')),
-            'keterangan' => $this->normalizeOptionalRowValues($request->validated('keterangan', []), count($request->validated('functional_location'))),
-            'keterangan_pekerjaan' => $request->validated('keterangan_pekerjaan') ?: null,
-            'created_by' => $request->user()?->id,
-        ]);
+        $outlineAgreement = $this->resolveOutlineAgreement($request->validated('outline_agreement_id'));
+        $signatureUnit = $this->signatureService->resolveUnitForOutlineAgreement($outlineAgreement);
+        $signatureSection = $this->signatureService->resolveSectionForOutlineAgreement($outlineAgreement);
 
-        return redirect()
+        $initialWork = DB::transaction(function () use ($request, $order, $outlineAgreement, $signatureUnit, $signatureSection): InitialWork {
+            return $order->initialWork()->create([
+                'outline_agreement_id' => $outlineAgreement->id,
+                'unit_work_id' => $signatureUnit?->id ?: $outlineAgreement->unit_work_id,
+                'unit_work_section_id' => $signatureSection?->id,
+                'nomor_initial_work' => $this->nextDocumentNumber(),
+                'nomor_order' => $order->nomor_order,
+                'notifikasi' => $order->notifikasi,
+                'nama_pekerjaan' => $order->nama_pekerjaan,
+                'unit_kerja' => $order->unit_kerja,
+                'seksi' => $order->seksi,
+                'kepada_yth' => $request->validated('kepada_yth') ?: 'PT. PRIMA KARYA MANUNGGAL',
+                'perihal' => $request->validated('perihal'),
+                'tanggal_initial_work' => $request->validated('tanggal_initial_work'),
+                'functional_location' => $this->normalizeRowValues($request->validated('functional_location')),
+                'scope_pekerjaan' => $this->normalizeRowValues($request->validated('scope_pekerjaan')),
+                'qty' => $this->normalizeRowValues($request->validated('qty')),
+                'stn' => $this->normalizeRowValues($request->validated('stn')),
+                'keterangan' => $this->normalizeOptionalRowValues($request->validated('keterangan', []), count($request->validated('functional_location'))),
+                'keterangan_pekerjaan' => $request->validated('keterangan_pekerjaan') ?: null,
+                'created_by' => $request->user()?->id,
+            ]);
+        });
+
+        $signatureResult = $this->signatureService->createSignatureChain($initialWork);
+        $managerSignature = $signatureResult['manager_signature'];
+
+        $redirect = redirect()
             ->route('admin.orders.index')
-            ->with('status', sprintf('Initial Work untuk order %s berhasil dibuat.', $initialWork->nomor_order));
+            ->with('status', $signatureResult['manager_url']
+                ? sprintf('Initial Work untuk order %s berhasil dibuat. Token TTD Manager sudah dibuat.', $initialWork->nomor_order)
+                : sprintf('Initial Work untuk order %s berhasil dibuat, tetapi penanda tangan Manager belum ditemukan di struktur organisasi.', $initialWork->nomor_order));
+
+        if ($signatureResult['manager_url']) {
+            $redirect
+                ->with('initial_work_manager_approval_url', $signatureResult['manager_url'])
+                ->with('initial_work_manager_name', $managerSignature?->signer_name)
+                ->with('initial_work_manager_role', $managerSignature?->role_label);
+        }
+
+        return $redirect;
     }
 
     /**
@@ -57,7 +88,14 @@ class InitialWorkController extends Controller
     {
         abort_unless($initialWork->order_id === $order->id, 404);
 
+        $outlineAgreement = $this->resolveOutlineAgreement($request->validated('outline_agreement_id'));
+        $signatureUnit = $this->signatureService->resolveUnitForOutlineAgreement($outlineAgreement);
+        $signatureSection = $this->signatureService->resolveSectionForOutlineAgreement($outlineAgreement);
+
         $initialWork->update([
+            'outline_agreement_id' => $outlineAgreement->id,
+            'unit_work_id' => $signatureUnit?->id ?: $outlineAgreement->unit_work_id,
+            'unit_work_section_id' => $signatureSection?->id,
             'nomor_order' => $order->nomor_order,
             'notifikasi' => $order->notifikasi,
             'nama_pekerjaan' => $order->nama_pekerjaan,
@@ -74,9 +112,22 @@ class InitialWorkController extends Controller
             'keterangan_pekerjaan' => $request->validated('keterangan_pekerjaan') ?: null,
         ]);
 
-        return redirect()
+        $signatureResult = $this->signatureService->rebuildIfUnsigned($initialWork->refresh());
+
+        $redirect = redirect()
             ->route('admin.orders.index')
-            ->with('status', sprintf('Initial Work untuk order %s berhasil diperbarui.', $initialWork->nomor_order));
+            ->with('status', $signatureResult['manager_url']
+                ? sprintf('Initial Work untuk order %s berhasil diperbarui. Token TTD Manager baru sudah dibuat.', $initialWork->nomor_order)
+                : sprintf('Initial Work untuk order %s berhasil diperbarui.', $initialWork->nomor_order));
+
+        if ($signatureResult['manager_url']) {
+            $redirect
+                ->with('initial_work_manager_approval_url', $signatureResult['manager_url'])
+                ->with('initial_work_manager_name', $signatureResult['manager_signature']?->signer_name)
+                ->with('initial_work_manager_role', $signatureResult['manager_signature']?->role_label);
+        }
+
+        return $redirect;
     }
 
     /**
@@ -85,6 +136,8 @@ class InitialWorkController extends Controller
     public function pdf(Order $order, InitialWork $initialWork): Response
     {
         abort_unless($initialWork->order_id === $order->id, 404);
+
+        $initialWork->loadMissing(['signatures', 'unitWork']);
 
         $pdf = Pdf::loadView('admin.orders.initial-work-pdf', [
             'order' => $order,
@@ -148,5 +201,12 @@ class InitialWorkController extends Controller
         }
 
         return sprintf('%s/IW/25.10/%s-%s', $nextNumber, $month, $year);
+    }
+
+    private function resolveOutlineAgreement(int|string $outlineAgreementId): OutlineAgreement
+    {
+        return OutlineAgreement::query()
+            ->with(['unitWork.department', 'unitWork.seniorManager', 'unitWork.sections.manager'])
+            ->findOrFail((int) $outlineAgreementId);
     }
 }

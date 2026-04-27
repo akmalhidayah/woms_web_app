@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\Orders\UpdateOrderPriorityRequest;
 use App\Http\Requests\Admin\Orders\UpdateOrderRequest;
 use App\Http\Requests\Admin\Orders\UpdateOrderUserNoteRequest;
 use App\Models\Order;
+use App\Models\OutlineAgreement;
 use App\Models\UnitWork;
 use App\Http\Controllers\Admin\Orders\InitialWorkController;
 use App\Services\Orders\OrderDocumentService;
@@ -43,11 +44,14 @@ class OrderController extends Controller
                 'creator:id,name',
                 'documents:id,order_id,jenis_dokumen',
                 'scopeOfWork:id,order_id',
-                'initialWork:id,order_id,nomor_initial_work,kepada_yth,perihal,tanggal_initial_work,functional_location,scope_pekerjaan,qty,stn,keterangan,keterangan_pekerjaan',
+                'latestHpp',
+                'initialWork:id,order_id,outline_agreement_id,nomor_initial_work,kepada_yth,perihal,tanggal_initial_work,functional_location,scope_pekerjaan,qty,stn,keterangan,keterangan_pekerjaan',
+                'initialWork.signatures:id,initial_work_id,role_key,status,signer_name,token_encrypted,token_expires_at,signed_at',
             ])
             ->search($search)
             ->when($seksi !== '', fn ($query) => $query->where('seksi', $seksi))
             ->when($catatanStatus !== '', fn ($query) => $query->where('catatan_status', $catatanStatus))
+            ->where('catatan_status', '!=', OrderUserNoteStatus::ApprovedWorkshop->value)
             ->latest('id')
             ->paginate($perPage)
             ->withQueryString();
@@ -73,6 +77,11 @@ class OrderController extends Controller
             'userNoteStatusOptions' => OrderUserNoteStatus::options(),
             'userNoteDetailOptions' => Order::userNoteDetailOptions(),
             'initialWorkPreviewNumber' => InitialWorkController::previewDocumentNumber(),
+            'initialWorkOutlineAgreementOptions' => OutlineAgreement::query()
+                ->with(['unitWork:id,name,department_id', 'unitWork.department:id,name'])
+                ->where('status', OutlineAgreement::STATUS_ACTIVE)
+                ->orderBy('nomor_oa')
+                ->get(['id', 'nomor_oa', 'unit_work_id', 'jenis_kontrak', 'nama_kontrak']),
         ]);
     }
 

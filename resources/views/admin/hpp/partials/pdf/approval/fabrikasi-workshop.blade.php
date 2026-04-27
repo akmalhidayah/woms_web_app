@@ -15,7 +15,7 @@
     <tr>
         @foreach ($groups as $group)
             @foreach ($group['cells'] as $cell)
-                <td class="approval-role">{{ $cell['title'] }}</td>
+                <td class="{{ $approvalRoleClass($cell['title']) }}">{{ $cell['title'] }}</td>
             @endforeach
         @endforeach
     </tr>
@@ -42,24 +42,4 @@
             @endforeach
         @endforeach
     </tr>
-    @if (($position ?? 'top') === 'top')
-        <tr>
-            <td class="approval-inline-cell"></td>
-        </tr>
-    @else
-        <tr>
-            @if($isOver)
-                <td class="approval-inline-cell"></td>
-            @endif
-            <td class="approval-inline-cell"></td>
-            <td class="approval-inline-cell">
-                <span class="sig-initial">{{ $controllerManagerInitial['label'] }}:</span>
-                @if($controllerManagerInitial['signature'])
-                    <img src="{{ $controllerManagerInitial['signature'] }}" alt="{{ $controllerManagerInitial['label'] }}" class="sig-inline">
-                @else
-                    <span class="sig-initial">{{ $controllerManagerInitial['value'] }}</span>
-                @endif
-            </td>
-        </tr>
-    @endif
 </table>

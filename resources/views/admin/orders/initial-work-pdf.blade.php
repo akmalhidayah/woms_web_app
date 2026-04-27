@@ -27,14 +27,6 @@
         .text-right { text-align: right; }
         .bold { font-weight: bold; }
 
-        .muted-head {
-            font-size: 10px;
-            letter-spacing: 0.14em;
-            text-transform: uppercase;
-            text-align: center;
-            margin-bottom: 6px;
-        }
-
         .border {
             border: 1px solid #000;
         }
@@ -43,12 +35,6 @@
         .no-border th {
             border: none !important;
             padding: 0;
-        }
-
-        .header-rule {
-            margin-top: 2px;
-            border-bottom: 2px solid #000;
-            height: 1px;
         }
 
         .letter-meta {
@@ -75,9 +61,25 @@
         }
 
         .top-date {
-            font-size: 10px;
+            font-size: 11px;
             text-align: right;
-            margin-top: 4px;
+            margin-top: 8px;
+        }
+
+        .letterhead {
+            margin-bottom: 28px;
+        }
+
+        .letterhead td {
+            vertical-align: top;
+        }
+
+        .logo-sig {
+            height: 56px;
+        }
+
+        .logo-st {
+            height: 88px;
         }
 
         .recipient-block {
@@ -127,20 +129,38 @@
         .signature-date {
             text-align: right;
             font-size: 9px;
-            margin-bottom: 58px;
+            margin-bottom: 8px;
         }
 
-        .signature-line {
+        .signature-image {
+            height: 54px;
+            text-align: center;
+            margin-bottom: 4px;
+        }
+
+        .signature-image img {
+            max-height: 54px;
+            max-width: 150px;
+        }
+
+        .signature-placeholder {
+            height: 58px;
+        }
+
+        .signature-name {
             width: 78%;
-            margin: 0 auto 6px;
+            margin: 0 auto 4px;
             border-bottom: 1px dotted #000;
-            height: 18px;
+            min-height: 14px;
+            text-align: center;
+            font-size: 10px;
+            font-weight: bold;
         }
 
         .signature-role {
             text-align: center;
-            font-size: 10px;
-            font-weight: bold;
+            font-size: 9px;
+            line-height: 1.3;
         }
     </style>
 </head>
@@ -152,33 +172,60 @@
         ? \Carbon\Carbon::parse($initialWork->tanggal_initial_work)->translatedFormat('d F Y')
         : now()->translatedFormat('d F Y');
     $perihal = $initialWork->perihal ?: 'Surat Inisiasi Kerja';
+    $signatures = $initialWork->signatures ?? collect();
+    $managerSignature = $signatures->firstWhere('role_key', \App\Models\InitialWorkSignature::ROLE_MANAGER);
+    $seniorSignature = $signatures->firstWhere('role_key', \App\Models\InitialWorkSignature::ROLE_SENIOR_MANAGER);
+    $signaturePath = function ($signature) {
+        if (! $signature?->isSigned() || ! $signature->signature_path) {
+            return null;
+        }
+
+        return \Illuminate\Support\Facades\Storage::disk('public')->exists($signature->signature_path)
+            ? \Illuminate\Support\Facades\Storage::disk('public')->path($signature->signature_path)
+            : null;
+    };
+    $signatureDate = fn ($signature) => $signature?->signed_at
+        ? \Carbon\Carbon::parse($signature->signed_at)->format('d/m/Y H:i')
+        : '....................';
+    $signatureRole = function ($signature, string $fallbackRole, string $fallbackScope): string {
+        $scope = trim((string) ($fallbackScope ?: 'Workshop'));
+
+        if ($signature?->role_key === \App\Models\InitialWorkSignature::ROLE_MANAGER) {
+            $scope = trim((string) ($signature->source_section ?: $scope));
+
+            return 'Manager of '.$scope;
+        }
+
+        if ($signature?->role_key === \App\Models\InitialWorkSignature::ROLE_SENIOR_MANAGER) {
+            $scope = trim((string) ($signature->source_unit ?: $scope));
+
+            return 'Senior Manager of '.$scope;
+        }
+
+        return trim($fallbackRole.' of '.$scope);
+    };
+    $unitSignatureTitle = 'PT. SEMEN TONASA - UNIT OF WORKSHOP';
 @endphp
 
 <body>
 
 
-<div class="muted-head">Vendor Workshop Section</div>
-
-<table class="no-border">
+<table class="no-border letterhead">
     <tr>
         <td style="width:22%; text-align:left; vertical-align:middle;">
             @if (file_exists($logoSig))
-                <img src="{{ $logoSig }}" style="height:42px" alt="SIG">
+                <img src="{{ $logoSig }}" class="logo-sig" alt="SIG">
             @endif
         </td>
         <td style="width:56%;">&nbsp;</td>
         <td style="width:22%; text-align:right; vertical-align:top;">
             @if (file_exists($logoSt))
-                <img src="{{ $logoSt }}" style="height:72px" alt="Semen Tonasa">
+                <img src="{{ $logoSt }}" class="logo-st" alt="Semen Tonasa">
             @endif
             <div class="top-date">Pangkep, {{ $documentDate }}</div>
         </td>
     </tr>
 </table>
-
-<div class="header-rule"></div>
-
-<br>
 
 <table class="no-border letter-meta" style="width:78%;">
     <tr>
@@ -258,18 +305,28 @@
 <br><br>
 
 <div class="signature-wrap">
-    <div class="signature-head">PT. SEMEN TONASA - UNIT WORKSHOP</div>
+    <div class="signature-head">{{ $unitSignatureTitle }}</div>
     <table class="signature-table" style="width:100%; border-collapse:collapse;">
         <tr>
             <td style="width:50%;">
-                <div class="signature-date">....................</div>
-                <div class="signature-line"></div>
-                <div class="signature-role">Senior Manager Workshop</div>
+                <div class="signature-date">{{ $signatureDate($seniorSignature) }}</div>
+                @if ($signaturePath($seniorSignature))
+                    <div class="signature-image"><img src="{{ $signaturePath($seniorSignature) }}" alt="Tanda Tangan Senior Manager"></div>
+                @else
+                    <div class="signature-placeholder"></div>
+                @endif
+                <div class="signature-name">{{ $seniorSignature?->isSigned() ? $seniorSignature->signer_name : '' }}</div>
+                <div class="signature-role">{{ $signatureRole($seniorSignature, 'Senior Manager', $initialWork->unitWork?->name ?: 'Workshop') }}</div>
             </td>
             <td style="width:50%;">
-                <div class="signature-date">....................</div>
-                <div class="signature-line"></div>
-                <div class="signature-role">Manager Workshop</div>
+                <div class="signature-date">{{ $signatureDate($managerSignature) }}</div>
+                @if ($signaturePath($managerSignature))
+                    <div class="signature-image"><img src="{{ $signaturePath($managerSignature) }}" alt="Tanda Tangan Manager"></div>
+                @else
+                    <div class="signature-placeholder"></div>
+                @endif
+                <div class="signature-name">{{ $managerSignature?->isSigned() ? $managerSignature->signer_name : '' }}</div>
+                <div class="signature-role">{{ $signatureRole($managerSignature, 'Manager', $initialWork->unitWorkSection?->name ?: 'Workshop') }}</div>
             </td>
         </tr>
     </table>

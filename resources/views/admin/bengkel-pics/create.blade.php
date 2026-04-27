@@ -1,5 +1,5 @@
 <x-layouts.admin title="Tambah PIC Bengkel">
-    <form method="POST" action="{{ route('admin.bengkel-pics.store') }}" enctype="multipart/form-data">
+    <form method="POST" action="{{ route('admin.bengkel-pics.store', request()->only('page')) }}" enctype="multipart/form-data">
         @csrf
         @include('admin.bengkel-pics._form', [
             'title' => 'Tambah PIC Bengkel',

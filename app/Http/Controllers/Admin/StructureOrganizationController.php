@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\UnitWork;
+use App\Models\UnitWorkSection;
 use App\Models\User;
+use App\Models\VendorWorkType;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -47,12 +49,103 @@ class StructureOrganizationController extends Controller
             ->orderBy('name')
             ->get();
 
+        $hppApprovalSetting = \App\Models\HppApprovalSetting::query()
+            ->with([
+                'plannerControl:id,name',
+                'counterPartUnit:id,name,senior_manager_id',
+                'counterPartUnit.seniorManager:id,name',
+                'counterPartSection:id,unit_work_id,name,manager_id',
+                'counterPartSection.manager:id,name',
+                'dirops:id,name',
+            ])
+            ->firstOrCreate([]);
+
+        $unitWorks = UnitWork::query()
+            ->with(['sections.manager'])
+            ->orderBy('name')
+            ->get(['id', 'name', 'senior_manager_id']);
+
         return view('admin.structure.index', [
             'departments' => Department::query()->orderBy('name')->get(['id', 'name']),
             'structureDepartments' => $departments,
             'users' => User::query()->orderBy('name')->get(['id', 'name']),
             'filters' => $filters,
+            'hppApprovalSetting' => $hppApprovalSetting,
+            'unitWorks' => $unitWorks,
+            'sectionOptions' => UnitWorkSection::query()
+                ->with('unitWork:id,name')
+                ->orderBy('name')
+                ->get(['id', 'unit_work_id', 'name', 'manager_id']),
+            'vendorWorkTypes' => VendorWorkType::query()
+                ->with(['section.unitWork:id,name', 'manager:id,name'])
+                ->orderBy('name')
+                ->get(),
         ]);
+    }
+
+    public function storeVendorStructure(Request $request): RedirectResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => ['required', 'string', 'max:255', 'unique:vendor_work_types,name'],
+            'unit_work_section_id' => ['required', 'integer', 'exists:unit_work_sections,id'],
+            'manager_id' => ['required', 'integer', 'exists:users,id'],
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()
+                ->route('admin.structure.index')
+                ->withErrors($validator, 'vendorStructure')
+                ->withInput();
+        }
+
+        $validated = $validator->validated();
+
+        VendorWorkType::create([
+            'name' => trim($validated['name']),
+            'unit_work_section_id' => $validated['unit_work_section_id'],
+            'manager_id' => $validated['manager_id'],
+        ]);
+
+        return redirect()
+            ->route('admin.structure.index')
+            ->with('success', 'Struktur vendor berhasil ditambahkan.');
+    }
+
+    public function updateVendorStructure(Request $request, VendorWorkType $vendorWorkType): RedirectResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => ['required', 'string', 'max:255', Rule::unique('vendor_work_types', 'name')->ignore($vendorWorkType->id)],
+            'unit_work_section_id' => ['required', 'integer', 'exists:unit_work_sections,id'],
+            'manager_id' => ['required', 'integer', 'exists:users,id'],
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()
+                ->route('admin.structure.index')
+                ->withErrors($validator, 'vendorStructure')
+                ->withInput();
+        }
+
+        $validated = $validator->validated();
+
+        $vendorWorkType->update([
+            'name' => trim($validated['name']),
+            'unit_work_section_id' => $validated['unit_work_section_id'],
+            'manager_id' => $validated['manager_id'],
+        ]);
+
+        return redirect()
+            ->route('admin.structure.index')
+            ->with('success', 'Struktur vendor berhasil diperbarui.');
+    }
+
+    public function destroyVendorStructure(VendorWorkType $vendorWorkType): RedirectResponse
+    {
+        $vendorWorkType->delete();
+
+        return redirect()
+            ->route('admin.structure.index')
+            ->with('success', 'Struktur vendor berhasil dihapus.');
     }
 
     /**

@@ -215,7 +215,7 @@
                                             <div class="text-[10px] font-medium leading-snug text-slate-700">{{ $unitRingkas }}</div>
                                         </div>
                                         <div class="border-t border-slate-200 pt-1.5">
-                                            <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Total LHPP</div>
+                                            <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Total BAST</div>
                                             <div class="mt-1 text-[11px] font-bold text-slate-900">Rp {{ number_format($totalBiaya, 0, ',', '.') }}</div>
                                         </div>
                                         <div class="border-t border-slate-200 pt-1.5">

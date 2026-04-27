@@ -6,12 +6,17 @@ use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\Hpp\UploadDiropsSignedDocumentRequest;
 use App\Models\Hpp;
+use App\Models\HppSignature;
 use App\Http\Requests\Admin\Hpp\StoreHppRequest;
 use App\Models\Order;
 use App\Models\OutlineAgreement;
 use App\Support\HppApprovalFlow;
+use App\Support\HppApprovalSignatureBuilder;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -20,13 +25,24 @@ use Symfony\Component\HttpFoundation\Response;
 
 class HppController extends Controller
 {
+    public function __construct(
+        private readonly HppApprovalSignatureBuilder $signatureBuilder,
+    ) {
+    }
+
     public function index(Request $request): View
     {
         $search = trim((string) $request->string('search'));
         $status = trim((string) $request->string('status'));
 
         $rows = Hpp::query()
-            ->with(['order:id,seksi', 'outlineAgreement:id,nomor_oa', 'unitWork:id,name'])
+            ->with([
+                'order:id,seksi,unit_kerja',
+                'outlineAgreement:id,nomor_oa',
+                'unitWork:id,name',
+                'signatures.signer:id,name',
+                'activeSignature.signer:id,name',
+            ])
             ->search($search)
             ->when($status !== '', fn ($query) => $query->where('status', $status))
             ->latest('id')
@@ -79,9 +95,31 @@ class HppController extends Controller
     {
         $hpp->loadMissing([
             'order',
-            'outlineAgreement',
+            'outlineAgreement.unitWork.department',
             'creator',
+            'signatures',
         ]);
+
+        $finalDocumentSignature = $hpp->finalSignedDocumentSignature();
+
+        if ($finalDocumentSignature?->hasUploadedSignedDocument()) {
+            abort_unless(
+                Storage::disk('public')->exists($finalDocumentSignature->signed_document_path),
+                Response::HTTP_NOT_FOUND
+            );
+
+            return response()->file(
+                Storage::disk('public')->path($finalDocumentSignature->signed_document_path),
+                [
+                    'Content-Type' => $finalDocumentSignature->signed_document_mime_type
+                        ?: (Storage::disk('public')->mimeType($finalDocumentSignature->signed_document_path) ?: 'application/octet-stream'),
+                    'Content-Disposition' => 'inline; filename="'.$this->safeFilename(
+                        $finalDocumentSignature->signed_document_original_name
+                            ?: basename($finalDocumentSignature->signed_document_path)
+                    ).'"',
+                ],
+            );
+        }
 
         $pdf = Pdf::loadView('admin.hpp.hpppdf', [
             'hpp' => $hpp,
@@ -90,14 +128,113 @@ class HppController extends Controller
         return $pdf->stream('hpp-'.$hpp->nomor_order.'.pdf');
     }
 
+    public function diropsSignedDocument(Hpp $hpp): Response
+    {
+        $signature = $this->resolveDiropsSignature($hpp);
+        abort_unless($signature?->hasUploadedSignedDocument(), Response::HTTP_NOT_FOUND);
+        abort_unless(Storage::disk('public')->exists($signature->signed_document_path), Response::HTTP_NOT_FOUND);
+
+        return response()->file(
+            Storage::disk('public')->path($signature->signed_document_path),
+            [
+                'Content-Type' => $signature->signed_document_mime_type ?: (Storage::disk('public')->mimeType($signature->signed_document_path) ?: 'application/octet-stream'),
+                'Content-Disposition' => 'inline; filename="'.$this->safeFilename(
+                    $signature->signed_document_original_name ?: basename($signature->signed_document_path)
+                ).'"',
+            ],
+        );
+    }
+
+    public function uploadDiropsSignedDocument(UploadDiropsSignedDocumentRequest $request, Hpp $hpp): RedirectResponse
+    {
+        $signature = $this->resolvePendingDiropsSignature($hpp);
+
+        if (! $signature) {
+            throw ValidationException::withMessages([
+                'signed_document' => 'Upload dokumen hanya tersedia saat tahap DIROPS sedang aktif.',
+            ]);
+        }
+
+        $file = $request->file('signed_document');
+        $storedPath = $file->storeAs(
+            'hpp/dirops-signed/'.$hpp->nomor_order,
+            'dirops-signed-'.now()->format('YmdHis').'.'.$file->getClientOriginalExtension(),
+            'public',
+        );
+
+        try {
+            DB::transaction(function () use ($request, $signature, $file, $storedPath): void {
+                $signature->update([
+                    'status' => HppSignature::STATUS_SIGNED,
+                    'opened_at' => $signature->opened_at ?: now(),
+                    'signed_at' => now(),
+                    'signed_document_path' => $storedPath,
+                    'signed_document_original_name' => $file->getClientOriginalName(),
+                    'signed_document_mime_type' => $file->getClientMimeType(),
+                    'signed_document_uploaded_at' => now(),
+                    'signed_ip' => $request->ip(),
+                    'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
+                ]);
+
+                $this->signatureBuilder->activateNextSignature($signature);
+            });
+        } catch (\Throwable $exception) {
+            Storage::disk('public')->delete($storedPath);
+
+            throw $exception;
+        }
+
+        return redirect()
+            ->route('admin.hpp.index')
+            ->with('status', sprintf(
+                'Dokumen tanda tangan DIROPS untuk order %s berhasil diunggah dan approval selesai.',
+                $hpp->nomor_order,
+            ));
+    }
+
+    public function regenerateActiveApprovalToken(Hpp $hpp): RedirectResponse
+    {
+        $signature = $this->resolveCurrentPendingSignature($hpp);
+
+        if (! $signature) {
+            throw ValidationException::withMessages([
+                'approval' => 'Tidak ada step approval aktif yang bisa diperbarui tokennya.',
+            ]);
+        }
+
+        if (! $signature->tokenExpired()) {
+            throw ValidationException::withMessages([
+                'approval' => 'Token approval aktif belum kedaluwarsa.',
+            ]);
+        }
+
+        $this->signatureBuilder->issueToken($signature);
+
+        return redirect()
+            ->route('admin.hpp.index')
+            ->with('status', sprintf(
+                'Token approval untuk order %s berhasil diperbarui. Silakan salin link approval yang baru.',
+                $hpp->nomor_order,
+            ));
+    }
+
     public function store(StoreHppRequest $request): RedirectResponse
     {
         $validated = $request->validated();
-        $hpp = new Hpp();
 
-        $this->fillHppFromRequest($hpp, $validated, $request->all());
-        $hpp->created_by = $request->user()?->id;
-        $hpp->save();
+        $hpp = DB::transaction(function () use ($request, $validated): Hpp {
+            $hpp = new Hpp();
+
+            $this->fillHppFromRequest($hpp, $validated, $request->all());
+            $hpp->created_by = $request->user()?->id;
+            $hpp->save();
+
+            if ($hpp->status === Hpp::STATUS_IN_REVIEW) {
+                $this->signatureBuilder->ensureSignatures($hpp);
+            }
+
+            return $hpp;
+        });
 
         return redirect()
             ->route('admin.hpp.index')
@@ -114,8 +251,14 @@ class HppController extends Controller
 
         $validated = $request->validated();
 
-        $this->fillHppFromRequest($hpp, $validated, $request->all());
-        $hpp->save();
+        DB::transaction(function () use ($request, $hpp, $validated): void {
+            $this->fillHppFromRequest($hpp, $validated, $request->all());
+            $hpp->save();
+
+            if ($hpp->status === Hpp::STATUS_IN_REVIEW) {
+                $this->signatureBuilder->ensureSignatures($hpp);
+            }
+        });
 
         return redirect()
             ->route('admin.hpp.index')
@@ -271,6 +414,40 @@ class HppController extends Controller
             'status' => $validated['action'] === 'submit' ? Hpp::STATUS_IN_REVIEW : Hpp::STATUS_DRAFT,
             'submitted_at' => $validated['action'] === 'submit' ? now() : null,
         ]);
+    }
+
+    private function resolvePendingDiropsSignature(Hpp $hpp): ?HppSignature
+    {
+        $hpp->loadMissing('signatures');
+
+        return $hpp->signatures->first(function (HppSignature $signature): bool {
+            return $signature->role_key === 'dirops' && $signature->isPending();
+        });
+    }
+
+    private function resolveCurrentPendingSignature(Hpp $hpp): ?HppSignature
+    {
+        $hpp->loadMissing('signatures');
+
+        return $hpp->signatures->first(function (HppSignature $signature): bool {
+            return $signature->isPending();
+        });
+    }
+
+    private function resolveDiropsSignature(Hpp $hpp): ?HppSignature
+    {
+        $hpp->loadMissing('signatures');
+
+        return $hpp->signatures->first(function (HppSignature $signature): bool {
+            return $signature->role_key === 'dirops';
+        });
+    }
+
+    private function safeFilename(?string $filename): string
+    {
+        $filename = trim((string) $filename);
+
+        return $filename !== '' ? str_replace('"', '', $filename) : 'document';
     }
 
     /**

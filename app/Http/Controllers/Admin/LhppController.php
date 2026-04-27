@@ -105,9 +105,13 @@ class LhppController extends Controller
             $lhpp->loadMissing([
                 'images',
                 'parentLhppBast.images',
+                'parentLhppBast.purchaseOrder:id,order_id,purchase_order_number',
+                'parentLhppBast.order.purchaseOrder:id,order_id,purchase_order_number',
                 'hpp.order',
                 'hpp.outlineAgreement.unitWork.department',
                 'hpp.creator',
+                'purchaseOrder:id,order_id,purchase_order_number',
+                'order.purchaseOrder:id,order_id,purchase_order_number',
                 'order.latestHpp.order',
                 'order.latestHpp.outlineAgreement.unitWork.department',
                 'order.latestHpp.creator',
@@ -122,9 +126,22 @@ class LhppController extends Controller
             $terminSlug = $lhpp->termin_type === 'termin_2' ? 'termin-2' : 'termin-1';
 
             $attachedHpp = $lhpp->hpp ?: $lhpp->order?->latestHpp;
+            $terminOnePdf = null;
+
+            if ($lhpp->termin_type === 'termin_2' && $lhpp->parentLhppBast) {
+                $terminOnePdf = Pdf::loadView('pkm.lhpp.pdf', [
+                    'lhpp' => $lhpp->parentLhppBast,
+                    'materialItems' => collect($lhpp->parentLhppBast->material_items ?? []),
+                    'serviceItems' => collect($lhpp->parentLhppBast->service_items ?? []),
+                ])->setPaper('a4', 'portrait')->output();
+            }
 
             if (! $attachedHpp) {
-                return response($bastPdf, Response::HTTP_OK, $this->pdfInlineHeaders(
+                $pdfOutput = $terminOnePdf
+                    ? $this->mergePdfOutputs([$bastPdf, $terminOnePdf])
+                    : $bastPdf;
+
+                return response($pdfOutput, Response::HTTP_OK, $this->pdfInlineHeaders(
                     'bast-'.$terminSlug.'-'.$lhpp->nomor_order.'.pdf'
                 ));
             }
@@ -133,7 +150,7 @@ class LhppController extends Controller
                 'hpp' => $attachedHpp,
             ])->setPaper('a4', 'landscape')->output();
 
-            $mergedPdf = $this->mergePdfOutputs([$bastPdf, $hppPdf]);
+            $mergedPdf = $this->mergePdfOutputs(array_filter([$bastPdf, $terminOnePdf, $hppPdf]));
 
             Log::info('Admin BAST PDF merged successfully.', [
                 'user_id' => $request->user()?->id,

@@ -22,25 +22,28 @@ new #[Layout('components.layouts.auth')] class extends Component {
     /**
      * Handle an incoming authentication request.
      */
-    public function login(): void
-    {
-        $this->validate();
+public function login(): void
+{
+    $this->validate();
 
-        $this->ensureIsNotRateLimited();
+    $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt(['email' => $this->email, 'password' => $this->password], $this->remember)) {
-            RateLimiter::hit($this->throttleKey());
+    if (! Auth::attempt(['email' => $this->email, 'password' => $this->password], $this->remember)) {
+        RateLimiter::hit($this->throttleKey());
 
-            throw ValidationException::withMessages([
-                'email' => __('auth.failed'),
-            ]);
-        }
-
-        RateLimiter::clear($this->throttleKey());
-        Session::regenerate();
-
-        $this->redirect(route(Auth::user()->dashboardRouteName(), absolute: false), navigate: true);
+        throw ValidationException::withMessages([
+            'email' => __('auth.failed'),
+        ]);
     }
+
+    RateLimiter::clear($this->throttleKey());
+    Session::regenerate();
+
+    $this->redirectIntended(
+        route(Auth::user()->dashboardRouteName(), absolute: false),
+        navigate: true
+    );
+}
 
     /**
      * Ensure the authentication request is not rate limited.

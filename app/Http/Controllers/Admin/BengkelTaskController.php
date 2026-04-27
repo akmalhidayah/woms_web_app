@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\BengkelDisplaySetting;
 use App\Models\BengkelPic;
 use App\Models\BengkelTask;
 use App\Models\UnitWork;
@@ -54,10 +55,11 @@ class BengkelTaskController extends Controller
         }
 
         $tasks = $query->paginate($perPage)->withQueryString();
+        $displaySetting = BengkelDisplaySetting::current();
 
         $pics = BengkelPic::query()
             ->orderBy('name')
-            ->get(['id', 'name', 'avatar_path']);
+            ->get(['id', 'name', 'avatar_path', 'avatar_position_x', 'avatar_position_y']);
 
         $picsById = $pics->keyBy('id');
         $picsByName = $pics->keyBy(static fn (BengkelPic $pic): string => mb_strtolower(trim($pic->name)));
@@ -91,6 +93,8 @@ class BengkelTaskController extends Controller
                             'name' => $name,
                             'avatar_path' => $currentPic?->avatar_path ?? ($profile['avatar_path'] ?? null),
                             'avatar_url' => $currentPic?->avatar_url,
+                            'avatar_position_x' => $currentPic?->avatar_position_x ?? (int) ($profile['avatar_position_x'] ?? 50),
+                            'avatar_position_y' => $currentPic?->avatar_position_y ?? (int) ($profile['avatar_position_y'] ?? 50),
                         ];
                     })
                     ->filter()
@@ -112,6 +116,8 @@ class BengkelTaskController extends Controller
                                 'name' => $currentPic?->name ?? $cleanName,
                                 'avatar_path' => $currentPic?->avatar_path,
                                 'avatar_url' => $currentPic?->avatar_url,
+                                'avatar_position_x' => $currentPic?->avatar_position_x ?? 50,
+                                'avatar_position_y' => $currentPic?->avatar_position_y ?? 50,
                             ];
                         })
                         ->filter()
@@ -124,7 +130,7 @@ class BengkelTaskController extends Controller
             })
         );
 
-        return view('admin.bengkel-tasks.index', compact('tasks', 'q', 'regu', 'perPage'));
+        return view('admin.bengkel-tasks.index', compact('tasks', 'q', 'regu', 'perPage', 'displaySetting'));
     }
 
     public function create(): View
@@ -147,7 +153,7 @@ class BengkelTaskController extends Controller
         BengkelTask::create($data);
 
         return redirect()
-            ->route('admin.bengkel-tasks.index')
+            ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
             ->with('status', 'Pekerjaan bengkel ditambahkan.');
     }
 
@@ -191,17 +197,35 @@ class BengkelTaskController extends Controller
         $bengkel_task->update($data);
 
         return redirect()
-            ->route('admin.bengkel-tasks.index')
+            ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
             ->with('status', 'Pekerjaan bengkel diperbarui.');
     }
 
-    public function destroy(BengkelTask $bengkel_task): RedirectResponse
+    public function destroy(Request $request, BengkelTask $bengkel_task): RedirectResponse
     {
         $bengkel_task->delete();
 
         return redirect()
-            ->route('admin.bengkel-tasks.index')
+            ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
             ->with('status', 'Pekerjaan bengkel dihapus.');
+    }
+
+    public function updateDisplaySettings(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'ticker_text' => ['nullable', 'string', 'max:2000'],
+            'ticker_speed_seconds' => ['required', 'integer', 'between:5,60'],
+        ]);
+
+        $displaySetting = BengkelDisplaySetting::current();
+        $displaySetting->update([
+            'ticker_text' => trim((string) ($validated['ticker_text'] ?? '')),
+            'ticker_speed_seconds' => (int) $validated['ticker_speed_seconds'],
+        ]);
+
+        return redirect()
+            ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
+            ->with('status', 'Running text display berhasil diperbarui.');
     }
 
     /**
@@ -235,13 +259,15 @@ class BengkelTaskController extends Controller
             $pics = BengkelPic::query()
                 ->whereIn('id', $picIds->all())
                 ->orderBy('name')
-                ->get(['id', 'name', 'avatar_path']);
+                ->get(['id', 'name', 'avatar_path', 'avatar_position_x', 'avatar_position_y']);
 
             $validated['person_in_charge'] = $pics->pluck('name')->values()->all();
             $validated['person_in_charge_profiles'] = $pics->map(static fn (BengkelPic $pic): array => [
                 'id' => $pic->id,
                 'name' => $pic->name,
                 'avatar_path' => $pic->avatar_path,
+                'avatar_position_x' => $pic->avatar_position_x,
+                'avatar_position_y' => $pic->avatar_position_y,
             ])->values()->all();
         } else {
             $validated['person_in_charge'] = [];
@@ -251,5 +277,15 @@ class BengkelTaskController extends Controller
         unset($validated['pic_ids']);
 
         return $validated;
+    }
+
+    /**
+     * @return array<string, scalar>
+     */
+    private function indexQuery(Request $request): array
+    {
+        return collect($request->only('q', 'regu', 'per_page', 'page'))
+            ->filter(fn ($value) => $value !== null && $value !== '')
+            ->all();
     }
 }

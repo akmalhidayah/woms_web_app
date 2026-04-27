@@ -327,6 +327,9 @@
         return number_format((float) ($normalized !== '' ? $normalized : 0), 0, ',', '.');
     };
     $formatDate = static fn ($value) => $value ? \Illuminate\Support\Carbon::parse($value)->translatedFormat('d F Y') : '';
+    $currentPurchaseOrderNumber = $lhpp->order?->purchaseOrder?->purchase_order_number
+        ?: $lhpp->purchaseOrder?->purchase_order_number
+        ?: $lhpp->purchase_order_number;
     $resolveImageSource = static function ($relativePath) {
         if (! $relativePath) {
             return null;
@@ -440,6 +443,11 @@
                 <td class="meta-value">{{ $lhpp->deskripsi_pekerjaan }}</td>
             </tr>
             <tr>
+                <td class="meta-label">TIPE PEKERJAAN</td>
+                <td class="meta-separator">:</td>
+                <td class="meta-value">{{ \App\Models\LhppBast::tipePekerjaanLabel($lhpp->tipe_pekerjaan) }}</td>
+            </tr>
+            <tr>
                 <td class="meta-label">UNIT KERJA PEMINTA (USER)</td>
                 <td class="meta-separator">:</td>
                 <td class="meta-value">{{ $lhpp->seksi ?: $lhpp->unit_kerja }}</td>
@@ -447,7 +455,7 @@
             <tr>
                 <td class="meta-label">PURCHASING ORDER (P.O)</td>
                 <td class="meta-separator">:</td>
-                <td class="meta-value">{{ $lhpp->purchase_order_number }}</td>
+                <td class="meta-value">{{ $currentPurchaseOrderNumber }}</td>
             </tr>
             <tr>
                 <td class="meta-label">TANGGAL DIMULAINYA PEKERJAAN</td>

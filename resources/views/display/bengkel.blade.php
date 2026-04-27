@@ -16,11 +16,26 @@
 
     <style>
         body { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; }
-        .ticker { position: relative; background:#7f1d1d; color:#fff; overflow:hidden; white-space:nowrap; height:46px; }
-        .ticker span { display:inline-block; padding:10px 24px; animation: ticker 18s linear infinite; font-size:16px; font-weight:700; will-change: transform; }
-        @keyframes ticker {
-            0% { transform: translateX(10%); }
-            100% { transform: translateX(-100%); }
+        .ticker { position: relative; background:#7f1d1d; color:#fff; overflow:hidden; height:46px; }
+        .ticker-track {
+            display: flex;
+            width: max-content;
+            min-width: 100%;
+            will-change: transform;
+            animation: ticker-scroll var(--ticker-duration, 18s) linear infinite;
+        }
+        .ticker-item {
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            padding: 10px 24px;
+            white-space: nowrap;
+            font-size: 16px;
+            font-weight: 700;
+        }
+        @keyframes ticker-scroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
         }
     </style>
 </head>
@@ -32,8 +47,7 @@
 
     @once
     <script>
-        document.addEventListener('livewire:init', () => {
-            if (window.__dpSlideTimer) clearInterval(window.__dpSlideTimer);
+        function bootDashboardDisplay() {
             if (window.__dpClockTimer) clearInterval(window.__dpClockTimer);
 
             function updateDateTime() {
@@ -48,13 +62,14 @@
 
             updateDateTime();
             window.__dpClockTimer = setInterval(updateDateTime, 1000);
+        }
 
-            window.__dpSlideTimer = setInterval(() => {
-                if (window.Livewire?.dispatch) {
-                    window.Livewire.dispatch('nextSlide');
-                }
-            }, 20000);
-        });
+        if (window.Livewire) {
+            bootDashboardDisplay();
+        } else {
+            document.addEventListener('livewire:init', bootDashboardDisplay, { once: true });
+            document.addEventListener('livewire:initialized', bootDashboardDisplay, { once: true });
+        }
     </script>
     @endonce
 </body>

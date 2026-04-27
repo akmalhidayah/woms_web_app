@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\BengkelDisplaySetting;
 use App\Models\BengkelPic;
 use App\Models\BengkelTask;
 use Livewire\Component;
@@ -19,11 +20,20 @@ class DashboardPekerjaan extends Component
 
     public int $perPageFabrikasi = 6;
 
-    public int $perPageRefurbish = 4;
+    public int $perPageRefurbish = 6;
 
     public int $maxPages = 1;
 
-    protected $listeners = ['nextSlide' => 'nextSlide'];
+    public int $displayPollCounter = 0;
+
+    public string $tickerText = '';
+
+    public int $tickerSpeedSeconds = 18;
+
+    protected $listeners = [
+        'nextSlide' => 'nextSlide',
+        'forceRefreshBoard' => 'refreshBoard',
+    ];
 
     public function mount(string $mode = 'admin'): void
     {
@@ -36,13 +46,31 @@ class DashboardPekerjaan extends Component
         $this->loadTasks();
     }
 
+    public function tickDisplay(): void
+    {
+        $this->loadTasks();
+
+        if ($this->mode !== 'display') {
+            return;
+        }
+
+        $this->displayPollCounter++;
+
+        if ($this->displayPollCounter >= 6) {
+            $this->displayPollCounter = 0;
+            $this->nextSlide();
+        }
+    }
+
     public function loadTasks(): void
     {
+        $this->loadDisplaySettings();
+
         $picDirectory = BengkelPic::query()
-            ->get(['id', 'name', 'avatar_path'])
+            ->get(['id', 'name', 'avatar_path', 'avatar_position_x', 'avatar_position_y'])
             ->keyBy('id');
         $picDirectoryByName = BengkelPic::query()
-            ->get(['id', 'name', 'avatar_path'])
+            ->get(['id', 'name', 'avatar_path', 'avatar_position_x', 'avatar_position_y'])
             ->keyBy(fn (BengkelPic $pic) => mb_strtolower(trim($pic->name)));
 
         $tasks = BengkelTask::query()
@@ -80,6 +108,8 @@ class DashboardPekerjaan extends Component
                         'name' => $currentPic?->name ?: ($profile['name'] ?? ''),
                         'avatar_path' => $currentPic?->avatar_path ?: ($profile['avatar_path'] ?? null),
                         'avatar_url' => $currentPic?->avatar_url,
+                        'avatar_position_x' => $currentPic?->avatar_position_x ?? (int) ($profile['avatar_position_x'] ?? 50),
+                        'avatar_position_y' => $currentPic?->avatar_position_y ?? (int) ($profile['avatar_position_y'] ?? 50),
                     ];
                 })
                 ->filter(fn (array $profile): bool => filled($profile['name']))
@@ -95,6 +125,8 @@ class DashboardPekerjaan extends Component
                             'name' => $currentPic?->name ?: $name,
                             'avatar_path' => $currentPic?->avatar_path,
                             'avatar_url' => $currentPic?->avatar_url,
+                            'avatar_position_x' => $currentPic?->avatar_position_x ?? 50,
+                            'avatar_position_y' => $currentPic?->avatar_position_y ?? 50,
                         ];
                     })
                     ->filter(fn (array $profile): bool => filled($profile['name']))
@@ -129,6 +161,14 @@ class DashboardPekerjaan extends Component
 
         $this->maxPages = max(1, $fabrikasiPages, $refurbishPages);
         $this->pageSlide = (int) ($this->pageSlide % $this->maxPages);
+    }
+
+    public function loadDisplaySettings(): void
+    {
+        $setting = BengkelDisplaySetting::current();
+
+        $this->tickerText = trim((string) ($setting->ticker_text ?? ''));
+        $this->tickerSpeedSeconds = max(5, min(60, (int) ($setting->ticker_speed_seconds ?? 18)));
     }
 
     public function nextSlide(): void

@@ -64,6 +64,211 @@
                 </button>
             </div>
         </section>
+        <section class="rounded-[1.35rem] border border-violet-100 bg-white p-4 shadow-sm">
+    <div class="flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+            <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-600">Master Approval Khusus HPP</div>
+            <h2 class="mt-1 text-[1.15rem] font-bold text-slate-900">Planner Control, Counter Part, dan DIROPS</h2>
+            <p class="mt-1 text-sm text-slate-500">
+                Digunakan untuk melengkapi role approval HPP yang tidak berasal langsung dari hirarki Departemen / Unit / Seksi.
+            </p>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ route('admin.structure.hpp-approval-setting.update') }}" class="mt-4 space-y-4">
+        @csrf
+        @method('PUT')
+
+        <div class="grid gap-4 md:grid-cols-2">
+            <div>
+                <label class="mb-1.5 block text-sm font-semibold text-slate-800">Planner Control</label>
+                <select name="planner_control_user_id" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700 focus:border-violet-500 focus:outline-none">
+                    <option value="">Pilih User Planner Control</option>
+                    @foreach ($users as $user)
+                        <option value="{{ $user->id }}" @selected((int) old('planner_control_user_id', $hppApprovalSetting->planner_control_user_id) === $user->id)>
+                            {{ $user->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="mb-1.5 block text-sm font-semibold text-slate-800">DIROPS</label>
+                <select name="dirops_user_id" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700 focus:border-violet-500 focus:outline-none">
+                    <option value="">Pilih User DIROPS</option>
+                    @foreach ($users as $user)
+                        <option value="{{ $user->id }}" @selected((int) old('dirops_user_id', $hppApprovalSetting->dirops_user_id) === $user->id)>
+                            {{ $user->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="mb-1.5 block text-sm font-semibold text-slate-800">Unit Work Counter Part</label>
+                <select id="counter_part_unit_work_id" name="counter_part_unit_work_id" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700 focus:border-violet-500 focus:outline-none">
+                    <option value="">Pilih Unit Work Counter Part</option>
+                    @foreach ($unitWorks as $unit)
+                        <option value="{{ $unit->id }}" @selected((int) old('counter_part_unit_work_id', $hppApprovalSetting->counter_part_unit_work_id) === $unit->id)>
+                            {{ $unit->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="mb-1.5 block text-sm font-semibold text-slate-800">Seksi Counter Part</label>
+                <select id="counter_part_section_id" name="counter_part_section_id" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700 focus:border-violet-500 focus:outline-none">
+                    <option value="">Pilih Seksi Counter Part</option>
+                    @foreach ($unitWorks as $unit)
+                        @foreach ($unit->sections as $section)
+                            <option
+                                value="{{ $section->id }}"
+                                data-unit-id="{{ $unit->id }}"
+                                @selected((int) old('counter_part_section_id', $hppApprovalSetting->counter_part_section_id) === $section->id)
+                            >
+                                {{ $unit->name }} — {{ $section->name }}
+                            </option>
+                        @endforeach
+                    @endforeach
+                </select>
+            </div>
+        </div>
+
+        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Preview resolver Counter Part</div>
+            <div class="mt-3 grid gap-3 md:grid-cols-2">
+                <div class="rounded-lg bg-white px-3 py-3 ring-1 ring-slate-200">
+                    <div class="text-[11px] text-slate-500">Manager Counter Part</div>
+                    <div class="mt-1 text-sm font-semibold text-slate-900">
+                        {{ $hppApprovalSetting->counterPartSection?->manager?->name ?? 'Akan mengikuti manager pada seksi terpilih' }}
+                    </div>
+                </div>
+                <div class="rounded-lg bg-white px-3 py-3 ring-1 ring-slate-200">
+                    <div class="text-[11px] text-slate-500">Senior Manager Counter Part</div>
+                    <div class="mt-1 text-sm font-semibold text-slate-900">
+                        {{ $hppApprovalSetting->counterPartUnit?->seniorManager?->name ?? 'Akan mengikuti senior manager pada unit terpilih' }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end">
+            <button type="submit" class="rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700">
+                Simpan Master HPP
+            </button>
+        </div>
+    </form>
+</section>
+
+        <section class="rounded-[1.35rem] border border-orange-100 bg-white p-4 shadow-sm">
+            <div class="flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ca642f]">Struktur Organisasi Vendor</div>
+                    <h2 class="mt-1 text-[1.15rem] font-bold text-slate-900">Master Tipe Pekerjaan BAST</h2>
+                    <p class="mt-1 text-sm text-slate-500">Nama vendor/tipe pekerjaan di sini akan menjadi pilihan pada field Tipe Pekerjaan BAST.</p>
+                </div>
+            </div>
+
+            @if ($errors->vendorStructure->any())
+                <div class="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                    <div class="font-semibold">Data struktur vendor belum bisa disimpan.</div>
+                    <ul class="mt-2 list-disc space-y-1 pl-5">
+                        @foreach ($errors->vendorStructure->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            <form method="POST" action="{{ route('admin.structure.vendor-structures.store') }}" class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                @csrf
+                <div class="grid gap-3 lg:grid-cols-[1.1fr_1.2fr_1fr_auto] lg:items-end">
+                    <div>
+                        <label class="mb-1 block text-[11px] font-semibold text-slate-700">Nama Vendor / Tipe Pekerjaan</label>
+                        <input name="name" type="text" value="{{ $errors->vendorStructure->any() ? old('name') : '' }}" placeholder="Contoh: Pekerjaan Fabrikasi" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 placeholder:text-slate-400 focus:border-[#ca642f] focus:outline-none" required>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-[11px] font-semibold text-slate-700">Seksi</label>
+                        <select name="unit_work_section_id" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:border-[#ca642f] focus:outline-none" required>
+                            <option value="">Pilih Seksi</option>
+                            @foreach ($sectionOptions as $section)
+                                <option value="{{ $section->id }}" @selected($errors->vendorStructure->any() && (int) old('unit_work_section_id') === $section->id)>
+                                    {{ $section->unitWork?->name ?? '-' }} - {{ $section->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-[11px] font-semibold text-slate-700">Manager Vendor</label>
+                        <select name="manager_id" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:border-[#ca642f] focus:outline-none" required>
+                            <option value="">Pilih Manager</option>
+                            @foreach ($users as $user)
+                                <option value="{{ $user->id }}" @selected($errors->vendorStructure->any() && (int) old('manager_id') === $user->id)>{{ $user->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#ca642f] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#b85b2b]">
+                        <i data-lucide="plus" class="h-3.5 w-3.5"></i>
+                        Tambah
+                    </button>
+                </div>
+            </form>
+
+            <div class="mt-4 space-y-3">
+                @forelse ($vendorWorkTypes as $vendorWorkType)
+                    <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                        <div class="grid gap-3 xl:grid-cols-[1.1fr_1.2fr_1fr_auto] xl:items-end">
+                            <form id="vendor-work-type-{{ $vendorWorkType->id }}" method="POST" action="{{ route('admin.structure.vendor-structures.update', $vendorWorkType) }}" class="contents">
+                                @csrf
+                                @method('PUT')
+                                <div>
+                                    <label class="mb-1 block text-[11px] font-semibold text-slate-700">Nama Vendor / Tipe Pekerjaan</label>
+                                    <input name="name" type="text" value="{{ $vendorWorkType->name }}" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:border-[#ca642f] focus:outline-none" required>
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-[11px] font-semibold text-slate-700">Seksi</label>
+                                    <select name="unit_work_section_id" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:border-[#ca642f] focus:outline-none" required>
+                                        <option value="">Pilih Seksi</option>
+                                        @foreach ($sectionOptions as $section)
+                                            <option value="{{ $section->id }}" @selected((int) $vendorWorkType->unit_work_section_id === $section->id)>
+                                                {{ $section->unitWork?->name ?? '-' }} - {{ $section->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-[11px] font-semibold text-slate-700">Manager Vendor</label>
+                                    <select name="manager_id" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:border-[#ca642f] focus:outline-none" required>
+                                        <option value="">Pilih Manager</option>
+                                        @foreach ($users as $user)
+                                            <option value="{{ $user->id }}" @selected((int) $vendorWorkType->manager_id === $user->id)>{{ $user->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </form>
+
+                            <div class="flex items-center gap-2">
+                                <button type="submit" form="vendor-work-type-{{ $vendorWorkType->id }}" class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition hover:bg-blue-100" title="Simpan Struktur Vendor">
+                                    <i data-lucide="save" class="h-4 w-4"></i>
+                                </button>
+                                <form method="POST" action="{{ route('admin.structure.vendor-structures.destroy', $vendorWorkType) }}" class="delete-structure-form">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-rose-50 text-rose-600 transition hover:bg-rose-100" data-name="{{ $vendorWorkType->name }}" title="Hapus Struktur Vendor">
+                                        <i data-lucide="trash-2" class="h-4 w-4"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                @empty
+                    <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm italic text-slate-500">
+                        Belum ada struktur vendor. Jika kosong, dropdown BAST masih memakai pilihan bawaan lama.
+                    </div>
+                @endforelse
+            </div>
+        </section>
 
         <section class="rounded-[1.35rem] border border-slate-200 bg-white p-4 shadow-sm">
             <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -420,150 +625,211 @@
         </div>
     </div>
 
-    <script>
-        function structureOrgPage(initialState, initialDepartmentState) {
-            return {
-                showModal: initialState.open || false,
-                showDepartmentModal: initialDepartmentState.open || false,
-                mode: initialState.mode || 'create',
-                formAction: initialState.action || '{{ route('admin.structure.store') }}',
-                sectionDraft: '',
-                form: {
-                    department_id: initialState.form?.department_id || '',
-                    department_name_new: initialState.form?.department_name_new || '',
-                    use_new_department: initialState.form?.use_new_department || false,
-                    general_manager_id: initialState.form?.general_manager_id || '',
-                    unit_name: initialState.form?.unit_name || '',
-                    senior_manager_id: initialState.form?.senior_manager_id || '',
-                    sections: initialState.form?.sections || [],
-                },
-                departmentForm: {
-                    action: initialDepartmentState.action || '',
-                    name: initialDepartmentState.name || '',
-                    general_manager_id: initialDepartmentState.general_manager_id || '',
-                },
-                resetForm() {
+<script>
+    function structureOrgPage(initialState, initialDepartmentState) {
+        return {
+            showModal: initialState.open || false,
+            showDepartmentModal: initialDepartmentState.open || false,
+            mode: initialState.mode || 'create',
+            formAction: initialState.action || '{{ route('admin.structure.store') }}',
+            sectionDraft: '',
+            form: {
+                department_id: initialState.form?.department_id || '',
+                department_name_new: initialState.form?.department_name_new || '',
+                use_new_department: initialState.form?.use_new_department || false,
+                general_manager_id: initialState.form?.general_manager_id || '',
+                unit_name: initialState.form?.unit_name || '',
+                senior_manager_id: initialState.form?.senior_manager_id || '',
+                sections: initialState.form?.sections || [],
+            },
+            departmentForm: {
+                action: initialDepartmentState.action || '',
+                name: initialDepartmentState.name || '',
+                general_manager_id: initialDepartmentState.general_manager_id || '',
+            },
+            resetForm() {
+                this.form = {
+                    department_id: '',
+                    department_name_new: '',
+                    use_new_department: false,
+                    general_manager_id: '',
+                    unit_name: '',
+                    senior_manager_id: '',
+                    sections: [],
+                };
+                this.sectionDraft = '';
+                this.mode = 'create';
+                this.formAction = '{{ route('admin.structure.store') }}';
+            },
+            openCreate() {
+                this.resetForm();
+                this.showModal = true;
+            },
+            openEdit(payload) {
+                let raw = payload || '';
+                try {
+                    raw = decodeURIComponent(raw);
+                    const data = JSON.parse(atob(raw));
+                    this.mode = 'edit';
+                    this.formAction = data.action;
                     this.form = {
-                        department_id: '',
+                        department_id: data.department_id ? String(data.department_id) : '',
                         department_name_new: '',
                         use_new_department: false,
-                        general_manager_id: '',
-                        unit_name: '',
-                        senior_manager_id: '',
-                        sections: [],
+                        general_manager_id: data.general_manager_id ? String(data.general_manager_id) : '',
+                        unit_name: data.unit_name || '',
+                        senior_manager_id: data.senior_manager_id ? String(data.senior_manager_id) : '',
+                        sections: (data.sections || []).map((section, index) => ({
+                            uid: `${Date.now()}-${index}`,
+                            name: section.name || '',
+                            manager_id: section.manager_id ? String(section.manager_id) : '',
+                        })),
                     };
                     this.sectionDraft = '';
-                    this.mode = 'create';
-                    this.formAction = '{{ route('admin.structure.store') }}';
-                },
-                openCreate() {
-                    this.resetForm();
                     this.showModal = true;
-                },
-                openEdit(payload) {
-                    let raw = payload || '';
-                    try {
-                        raw = decodeURIComponent(raw);
-                        const data = JSON.parse(atob(raw));
-                        this.mode = 'edit';
-                        this.formAction = data.action;
-                        this.form = {
-                            department_id: data.department_id ? String(data.department_id) : '',
-                            department_name_new: '',
-                            use_new_department: false,
-                            general_manager_id: data.general_manager_id ? String(data.general_manager_id) : '',
-                            unit_name: data.unit_name || '',
-                            senior_manager_id: data.senior_manager_id ? String(data.senior_manager_id) : '',
-                            sections: (data.sections || []).map((section, index) => ({
-                                uid: `${Date.now()}-${index}`,
-                                name: section.name || '',
-                                manager_id: section.manager_id ? String(section.manager_id) : '',
-                            })),
-                        };
-                        this.sectionDraft = '';
-                        this.showModal = true;
-                    } catch (error) {
-                        console.error('Gagal membuka edit modal', error);
-                        if (window.Swal) {
-                            window.Swal.fire({ icon: 'error', title: 'Gagal', text: 'Data edit tidak bisa dibuka.' });
-                        }
+                } catch (error) {
+                    console.error('Gagal membuka edit modal', error);
+                    if (window.Swal) {
+                        window.Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal',
+                            text: 'Data edit tidak bisa dibuka.'
+                        });
                     }
-                },
-                closeModal() {
-                    this.showModal = false;
-                },
-                openDepartmentEdit(payload) {
-                    try {
-                        const data = JSON.parse(atob(decodeURIComponent(payload || '')));
-                        this.departmentForm = {
-                            action: data.action || '',
-                            name: data.name || '',
-                            general_manager_id: data.general_manager_id ? String(data.general_manager_id) : '',
-                        };
-                        this.showDepartmentModal = true;
-                    } catch (error) {
-                        console.error('Gagal membuka departemen modal', error);
-                        if (window.Swal) {
-                            window.Swal.fire({ icon: 'error', title: 'Gagal', text: 'Data departemen tidak bisa dibuka.' });
-                        }
+                }
+            },
+            closeModal() {
+                this.showModal = false;
+            },
+            openDepartmentEdit(payload) {
+                try {
+                    const data = JSON.parse(atob(decodeURIComponent(payload || '')));
+                    this.departmentForm = {
+                        action: data.action || '',
+                        name: data.name || '',
+                        general_manager_id: data.general_manager_id ? String(data.general_manager_id) : '',
+                    };
+                    this.showDepartmentModal = true;
+                } catch (error) {
+                    console.error('Gagal membuka departemen modal', error);
+                    if (window.Swal) {
+                        window.Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal',
+                            text: 'Data departemen tidak bisa dibuka.'
+                        });
                     }
-                },
-                closeDepartmentModal() {
-                    this.showDepartmentModal = false;
-                },
-                toggleDepartmentMode() {
-                    this.form.use_new_department = !this.form.use_new_department;
-                    if (this.form.use_new_department) {
-                        this.form.department_id = '';
-                    } else {
-                        this.form.department_name_new = '';
-                    }
-                },
-                addSection() {
-                    const value = this.sectionDraft.trim();
-                    if (!value) return;
-                    if (this.form.sections.some((section) => section.name.toLowerCase() === value.toLowerCase())) {
-                        this.sectionDraft = '';
-                        return;
-                    }
-                    this.form.sections.push({ uid: `${Date.now()}-${Math.random()}`, name: value, manager_id: '' });
+                }
+            },
+            closeDepartmentModal() {
+                this.showDepartmentModal = false;
+            },
+            toggleDepartmentMode() {
+                this.form.use_new_department = !this.form.use_new_department;
+                if (this.form.use_new_department) {
+                    this.form.department_id = '';
+                } else {
+                    this.form.department_name_new = '';
+                }
+            },
+            addSection() {
+                const value = this.sectionDraft.trim();
+                if (!value) return;
+
+                if (this.form.sections.some((section) => section.name.toLowerCase() === value.toLowerCase())) {
                     this.sectionDraft = '';
-                },
-                removeSection(index) {
-                    this.form.sections.splice(index, 1);
-                },
-                clearSections() {
-                    this.form.sections = [];
-                },
-            };
+                    return;
+                }
+
+                this.form.sections.push({
+                    uid: `${Date.now()}-${Math.random()}`,
+                    name: value,
+                    manager_id: '',
+                });
+
+                this.sectionDraft = '';
+            },
+            removeSection(index) {
+                this.form.sections.splice(index, 1);
+            },
+            clearSections() {
+                this.form.sections = [];
+            },
+        };
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const successFlash = document.getElementById('structure-success');
+
+        if (successFlash?.dataset.message && window.Swal) {
+            window.Swal.fire({
+                icon: 'success',
+                title: 'Berhasil',
+                text: successFlash.dataset.message,
+                timer: 1800,
+                showConfirmButton: false,
+            });
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const successFlash = document.getElementById('structure-success');
-            if (successFlash?.dataset.message && window.Swal) {
-                window.Swal.fire({ icon: 'success', title: 'Berhasil', text: successFlash.dataset.message, timer: 1800, showConfirmButton: false });
-            }
+        document.querySelectorAll('.delete-structure-form').forEach((form) => {
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
 
-            document.querySelectorAll('.delete-structure-form').forEach((form) => {
-                form.addEventListener('submit', async (event) => {
-                    event.preventDefault();
-                    if (!window.Swal) return form.submit();
-                    const button = form.querySelector('button[type="submit"]');
-                    const name = button?.dataset.name || 'struktur ini';
-                    const result = await window.Swal.fire({
-                        icon: 'warning',
-                        title: 'Hapus struktur?',
-                        html: `Yakin ingin menghapus <b>${name}</b>?`,
-                        showCancelButton: true,
-                        confirmButtonText: 'Ya, hapus',
-                        cancelButtonText: 'Batal',
-                        confirmButtonColor: '#dc2626',
-                    });
-                    if (result.isConfirmed) form.submit();
+                if (!window.Swal) {
+                    form.submit();
+                    return;
+                }
+
+                const button = form.querySelector('button[type="submit"]');
+                const name = button?.dataset.name || 'struktur ini';
+
+                const result = await window.Swal.fire({
+                    icon: 'warning',
+                    title: 'Hapus struktur?',
+                    html: `Yakin ingin menghapus <b>${name}</b>?`,
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya, hapus',
+                    cancelButtonText: 'Batal',
+                    confirmButtonColor: '#dc2626',
                 });
+
+                if (result.isConfirmed) {
+                    form.submit();
+                }
+            });
+        });
+
+        const unitSelect = document.getElementById('counter_part_unit_work_id');
+        const sectionSelect = document.getElementById('counter_part_section_id');
+
+        const filterCounterPartSections = () => {
+            if (!unitSelect || !sectionSelect) return;
+
+            const selectedUnitId = unitSelect.value;
+            const options = sectionSelect.querySelectorAll('option[data-unit-id]');
+
+            options.forEach((option) => {
+                const shouldShow = !selectedUnitId || option.dataset.unitId === selectedUnitId;
+                option.hidden = !shouldShow;
             });
 
-            if (window.lucide) window.lucide.createIcons();
-        });
-    </script>
+            const selectedOption = sectionSelect.options[sectionSelect.selectedIndex];
+            if (
+                selectedOption &&
+                selectedOption.dataset.unitId &&
+                selectedUnitId &&
+                selectedOption.dataset.unitId !== selectedUnitId
+            ) {
+                sectionSelect.value = '';
+            }
+        };
+
+        unitSelect?.addEventListener('change', filterCounterPartSections);
+        filterCounterPartSections();
+
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+    });
+</script>
 </x-layouts.admin>

@@ -22,6 +22,7 @@ class StoreInitialWorkRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'outline_agreement_id' => ['required', 'integer', 'exists:outline_agreements,id'],
             'kepada_yth' => ['nullable', 'string', 'max:255'],
             'perihal' => ['required', 'string', 'max:255'],
             'tanggal_initial_work' => ['required', 'date'],

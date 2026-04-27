@@ -9,6 +9,7 @@
         <title>{{ $title ?? config('app.name', 'WOMS') }}</title>
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @fluxAppearance
         <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
         <script defer src="https://unpkg.com/lucide@latest"></script>
         <style>[x-cloak]{ display:none !important; }</style>
@@ -21,7 +22,7 @@
             $currentRoute = request()->route()?->getName();
         @endphp
 
-        <div x-data="{ mobileMenu: false }" class="relative min-h-screen overflow-x-hidden">
+        <div x-data="{ mobileMenu: false, profileOpen: false }" class="relative min-h-screen">
             <header class="sticky top-0 z-30 border-b border-red-900 bg-red-800/95 backdrop-blur">
                 <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
                     <div class="flex items-center gap-3">
@@ -47,13 +48,43 @@
                         >
                             Dashboard
                         </a>
-                        <div class="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white px-3 py-2 shadow-sm">
-                            <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 text-sm font-bold text-red-700">
-                                {{ $user?->initials() ?: 'US' }}
-                            </div>
-                            <div class="max-w-[180px]">
-                                <div class="truncate text-sm font-semibold text-slate-900">{{ $user?->name }}</div>
-                                <div class="truncate text-xs text-slate-500">{{ $user?->email }}</div>
+                        <div class="relative" @click.outside="profileOpen = false">
+                            <button
+                                type="button"
+                                @click="profileOpen = !profileOpen"
+                                class="inline-flex items-center gap-3 rounded-2xl border border-stone-200 bg-white px-3 py-2 shadow-sm transition hover:border-red-200 hover:bg-red-50/40"
+                            >
+                                <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 text-sm font-bold text-red-700">
+                                    {{ $user?->initials() ?: 'US' }}
+                                </div>
+                                <div class="max-w-[180px] text-left">
+                                    <div class="truncate text-sm font-semibold text-slate-900">{{ $user?->name }}</div>
+                                    <div class="truncate text-xs text-slate-500">{{ $user?->email }}</div>
+                                </div>
+                                <i data-lucide="chevron-down" class="h-4 w-4 text-slate-400"></i>
+                            </button>
+
+                            <div
+                                x-show="profileOpen"
+                                x-transition.origin.top.right
+                                x-cloak
+                                class="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+                            >
+                                <div class="border-b border-slate-100 px-4 py-3">
+                                    <div class="text-sm font-semibold text-slate-900">{{ $user?->name }}</div>
+                                    <div class="text-xs text-slate-500">{{ $user?->email }}</div>
+                                </div>
+
+                                <a href="{{ route('settings.profile') }}" class="block px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50">
+                                    Profile
+                                </a>
+
+                                <form method="POST" action="{{ route('logout') }}">
+                                    @csrf
+                                    <button type="submit" class="block w-full px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50">
+                                        Log Out
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -74,6 +105,13 @@
                             <div class="text-sm font-semibold text-slate-900">{{ $user?->name }}</div>
                             <div class="text-xs text-slate-500">{{ $user?->email }}</div>
                         </div>
+                        <a href="{{ route('settings.profile') }}" class="block rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700">Profile</a>
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button type="submit" class="block w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700">
+                                Log Out
+                            </button>
+                        </form>
                     </div>
                 </div>
             </header>
@@ -90,5 +128,6 @@
                 }
             });
         </script>
+        @fluxScripts
     </body>
 </html>

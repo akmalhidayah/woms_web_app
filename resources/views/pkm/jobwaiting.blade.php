@@ -97,6 +97,7 @@
                             $isFinished = (bool) ($notification['is_finished'] ?? false);
                             $canUpdate = (bool) ($notification['can_update'] ?? true);
                             $isInitialWorkFlow = (bool) ($notification['is_initial_work_flow'] ?? false);
+                            $isTargetPenyelesaianLocked = (bool) ($notification['target_penyelesaian_locked'] ?? false);
                         @endphp
 
                         <article class="pkm-jobwaiting-card flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
@@ -215,8 +216,8 @@
                                             type="date"
                                             name="target_penyelesaian"
                                             value="{{ $notification['target_penyelesaian'] }}"
-                                            class="pkm-estimasi-date block min-w-0 w-full max-w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none"
-                                            @disabled(! $canUpdate)
+                                            class="pkm-estimasi-date block min-w-0 w-full max-w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none {{ $isTargetPenyelesaianLocked ? 'cursor-not-allowed bg-slate-100 text-slate-500' : 'bg-white' }}"
+                                            @disabled(! $canUpdate || $isTargetPenyelesaianLocked)
                                         >
                                     </div>
 

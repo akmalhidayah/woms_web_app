@@ -1,5 +1,5 @@
 <x-layouts.admin title="Edit PIC Bengkel">
-    <form method="POST" action="{{ route('admin.bengkel-pics.update', $bengkel_pic) }}" enctype="multipart/form-data">
+    <form method="POST" action="{{ route('admin.bengkel-pics.update', array_merge(['bengkel_pic' => $bengkel_pic], request()->only('page'))) }}" enctype="multipart/form-data">
         @csrf
         @method('PUT')
         @include('admin.bengkel-pics._form', [

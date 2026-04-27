@@ -30,7 +30,7 @@ class BengkelPicController extends Controller
 
     public function index(): View
     {
-        $pics = BengkelPic::query()->orderBy('name')->paginate(15);
+        $pics = BengkelPic::query()->orderBy('name')->paginate(15)->withQueryString();
 
         return view('admin.bengkel-pics.index', compact('pics'));
     }
@@ -51,7 +51,7 @@ class BengkelPicController extends Controller
         BengkelPic::create($validated);
 
         return redirect()
-            ->route('admin.bengkel-pics.index')
+            ->route('admin.bengkel-pics.index', $this->indexQuery($request))
             ->with('status', 'PIC berhasil ditambahkan.');
     }
 
@@ -75,11 +75,11 @@ class BengkelPicController extends Controller
         $bengkel_pic->update($validated);
 
         return redirect()
-            ->route('admin.bengkel-pics.index')
+            ->route('admin.bengkel-pics.index', $this->indexQuery($request))
             ->with('status', 'PIC berhasil diperbarui.');
     }
 
-    public function destroy(BengkelPic $bengkel_pic): RedirectResponse
+    public function destroy(Request $request, BengkelPic $bengkel_pic): RedirectResponse
     {
         if ($bengkel_pic->avatar_path) {
             Storage::disk('public')->delete($bengkel_pic->avatar_path);
@@ -88,13 +88,13 @@ class BengkelPicController extends Controller
         $bengkel_pic->delete();
 
         return redirect()
-            ->route('admin.bengkel-pics.index')
+            ->route('admin.bengkel-pics.index', $this->indexQuery($request))
             ->with('status', 'PIC berhasil dihapus.');
     }
 
     private function validateData(Request $request, ?BengkelPic $pic = null): array
     {
-        return $request->validate([
+        $validated = $request->validate([
             'name' => [
                 'required',
                 'string',
@@ -102,6 +102,23 @@ class BengkelPicController extends Controller
                 'unique:bengkel_pics,name'.($pic ? ','.$pic->id : ''),
             ],
             'avatar' => ['nullable', 'image', 'max:2048'],
+            'avatar_position_x' => ['nullable', 'integer', 'between:0,100'],
+            'avatar_position_y' => ['nullable', 'integer', 'between:0,100'],
         ]);
+
+        $validated['avatar_position_x'] = (int) ($validated['avatar_position_x'] ?? $pic?->avatar_position_x ?? 50);
+        $validated['avatar_position_y'] = (int) ($validated['avatar_position_y'] ?? $pic?->avatar_position_y ?? 50);
+
+        return $validated;
+    }
+
+    /**
+     * @return array<string, scalar>
+     */
+    private function indexQuery(Request $request): array
+    {
+        return collect($request->only('page'))
+            ->filter(fn ($value) => $value !== null && $value !== '')
+            ->all();
     }
 }

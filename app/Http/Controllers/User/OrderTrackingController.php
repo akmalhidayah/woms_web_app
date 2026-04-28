@@ -352,6 +352,8 @@ class OrderTrackingController extends Controller
         $terminOne = $order->lhppBasts->firstWhere('termin_type', 'termin_1');
         $terminTwo = $order->lhppBasts->firstWhere('termin_type', 'termin_2') ?: $terminOne?->terminTwo;
         $garansi = $terminOne?->garansi;
+        $isWithoutWarranty = (int) ($garansi?->garansi_months ?? -1) === 0;
+        $terminTwo = $isWithoutWarranty ? null : $terminTwo;
         $abnormalitasDocument = $this->resolveOrderDocumentLink($order, 'abnormalitas');
 
         return [
@@ -391,6 +393,8 @@ class OrderTrackingController extends Controller
         $terminTwo = $order->lhppBasts->firstWhere('termin_type', 'termin_2') ?: $terminOne?->terminTwo;
         $lpjPpl = $terminOne?->lpjPpl;
         $garansi = $terminOne?->garansi;
+        $isWithoutWarranty = (int) ($garansi?->garansi_months ?? -1) === 0;
+        $terminTwo = $isWithoutWarranty ? null : $terminTwo;
         $hppDocument = $this->resolveHppDocumentLink($order);
         $documentPreviewItems = [
             [
@@ -503,6 +507,13 @@ class OrderTrackingController extends Controller
             ],
         ];
 
+        if ($isWithoutWarranty) {
+            $documentPreviewItems = array_values(array_filter(
+                $documentPreviewItems,
+                fn (array $item): bool => ! in_array($item['key'], ['bast_termin_2', 'lpj_termin_2', 'ppl_termin_2'], true),
+            ));
+        }
+
         return [
             'nomor_order' => $order->nomor_order,
             'notifikasi' => $order->notifikasi,
@@ -580,11 +591,11 @@ class OrderTrackingController extends Controller
                     'label' => $lpjPpl->ppl_number_termin1,
                     'url' => route('user.orders.laporan.preview', ['order' => $order, 'kind' => 'ppl', 'termin' => 1]),
                 ] : null,
-                'lpj_termin_2' => filled($lpjPpl?->lpj_number_termin2) ? [
+                'lpj_termin_2' => (! $isWithoutWarranty && filled($lpjPpl?->lpj_number_termin2)) ? [
                     'label' => $lpjPpl->lpj_number_termin2,
                     'url' => route('user.orders.laporan.preview', ['order' => $order, 'kind' => 'lpj', 'termin' => 2]),
                 ] : null,
-                'ppl_termin_2' => filled($lpjPpl?->ppl_number_termin2) ? [
+                'ppl_termin_2' => (! $isWithoutWarranty && filled($lpjPpl?->ppl_number_termin2)) ? [
                     'label' => $lpjPpl->ppl_number_termin2,
                     'url' => route('user.orders.laporan.preview', ['order' => $order, 'kind' => 'ppl', 'termin' => 2]),
                 ] : null,
@@ -701,6 +712,7 @@ class OrderTrackingController extends Controller
     {
         $terminOne = $order->lhppBasts->firstWhere('termin_type', 'termin_1');
         $terminTwo = $order->lhppBasts->firstWhere('termin_type', 'termin_2') ?: $terminOne?->terminTwo;
+        $terminTwo = (int) ($terminOne?->garansi?->garansi_months ?? -1) === 0 ? null : $terminTwo;
 
         return match (true) {
             $terminTwo !== null => 'Termin 2 berjalan',

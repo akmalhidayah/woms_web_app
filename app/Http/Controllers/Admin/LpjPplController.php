@@ -35,6 +35,7 @@ class LpjPplController extends Controller
                 ->with([
                     'order:id,nomor_order,unit_kerja,seksi',
                     'purchaseOrder:id,order_id,purchase_order_number',
+                    'garansi:id,lhpp_bast_id,garansi_months',
                     'lpjPpl:id,lhpp_bast_id,lpj_number_termin1,ppl_number_termin1,lpj_document_path_termin1,ppl_document_path_termin1,lpj_number_termin2,ppl_number_termin2,lpj_document_path_termin2,ppl_document_path_termin2,updated_at',
                 ])
                 ->where('termin_type', 'termin_1')
@@ -86,8 +87,15 @@ class LpjPplController extends Controller
                 ->findOrFail($lhppId);
 
             $validated = $request->validated();
+            $isWithoutWarranty = (int) ($lhpp->garansi?->garansi_months ?? -1) === 0;
             $selectedTermin = (int) $validated['selected_termin'];
             $userId = $request->user()?->id;
+
+            if ($isWithoutWarranty && $selectedTermin === 2) {
+                return back()
+                    ->withErrors(['lpj_ppl' => 'Termin 2 tidak diperlukan untuk order tanpa garansi.'])
+                    ->withInput();
+            }
 
             $lpjPpl = LpjPpl::firstOrNew([
                 'lhpp_bast_id' => $lhpp->id,
@@ -162,7 +170,7 @@ class LpjPplController extends Controller
             $lpjPpl->save();
 
             $lhpp->termin1_status = $validated['termin1_status'];
-            $lhpp->termin2_status = $validated['termin2_status'];
+            $lhpp->termin2_status = $isWithoutWarranty ? 'belum' : $validated['termin2_status'];
             $lhpp->updated_by = $userId;
             $lhpp->save();
 

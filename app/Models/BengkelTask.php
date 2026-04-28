@@ -19,6 +19,7 @@ class BengkelTask extends Model
         'seksi',
         'usage_plan_date',
         'catatan',
+        'is_completed',
         'person_in_charge',
         'person_in_charge_profiles',
     ];
@@ -30,6 +31,7 @@ class BengkelTask extends Model
     {
         return [
             'usage_plan_date' => 'date',
+            'is_completed' => 'boolean',
             'person_in_charge' => 'array',
             'person_in_charge_profiles' => 'array',
         ];

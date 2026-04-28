@@ -20,7 +20,7 @@ class DashboardPekerjaan extends Component
 
     public int $perPageFabrikasi = 6;
 
-    public int $perPageRefurbish = 6;
+    public int $perPageRefurbish = 3;
 
     public int $maxPages = 1;
 
@@ -84,6 +84,7 @@ class DashboardPekerjaan extends Component
                 'person_in_charge',
                 'person_in_charge_profiles',
                 'catatan',
+                'is_completed',
                 'created_at',
             ])
             ->orderByDesc('created_at')
@@ -110,6 +111,7 @@ class DashboardPekerjaan extends Component
                         'avatar_url' => $currentPic?->avatar_url,
                         'avatar_position_x' => $currentPic?->avatar_position_x ?? (int) ($profile['avatar_position_x'] ?? 50),
                         'avatar_position_y' => $currentPic?->avatar_position_y ?? (int) ($profile['avatar_position_y'] ?? 50),
+                        'work_descriptions' => self::normalizeWorkDescriptions($profile['work_descriptions'] ?? []),
                     ];
                 })
                 ->filter(fn (array $profile): bool => filled($profile['name']))
@@ -127,6 +129,7 @@ class DashboardPekerjaan extends Component
                             'avatar_url' => $currentPic?->avatar_url,
                             'avatar_position_x' => $currentPic?->avatar_position_x ?? 50,
                             'avatar_position_y' => $currentPic?->avatar_position_y ?? 50,
+                            'work_descriptions' => [],
                         ];
                     })
                     ->filter(fn (array $profile): bool => filled($profile['name']))
@@ -143,6 +146,7 @@ class DashboardPekerjaan extends Component
                 'person_in_charge' => $names->all(),
                 'person_in_charge_profiles' => $profiles->all(),
                 'catatan' => $task->catatan,
+                'is_completed' => (bool) $task->is_completed,
             ];
         })->all();
 
@@ -184,5 +188,23 @@ class DashboardPekerjaan extends Component
     public function render()
     {
         return view('livewire.dashboard-pekerjaan');
+    }
+
+    /**
+     * @param  mixed  $descriptions
+     * @return list<string>
+     */
+    private static function normalizeWorkDescriptions(mixed $descriptions): array
+    {
+        if (! is_array($descriptions)) {
+            return [];
+        }
+
+        return collect($descriptions)
+            ->map(fn ($description): string => trim((string) $description))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 }

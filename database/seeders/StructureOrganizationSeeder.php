@@ -203,6 +203,7 @@ class StructureOrganizationSeeder extends Seeder
             ['id' => 46, 'name' => 'Antonius F.H. Sukma', 'jabatan' => 'Manager', 'dept' => 'Clinker & Cement Production', 'unit_kerja' => 'Cement Production', 'seksi' => 'Line 2/3 FM Operation'],
             ['id' => 47, 'name' => 'Safruddin Haeruddin', 'jabatan' => 'Manager', 'dept' => 'Clinker & Cement Production', 'unit_kerja' => 'Cement Production', 'seksi' => 'Cement Production Coach'],
             ['id' => 48, 'name' => 'Ilyasusanto', 'jabatan' => 'Manager', 'dept' => 'Clinker & Cement Production', 'unit_kerja' => 'Cement Production', 'seksi' => 'Line 5 FM Operation'],
+
             ['id' => 49, 'name' => 'Al Azhar', 'jabatan' => 'Manager', 'dept' => 'Maintenance', 'unit_kerja' => 'Reliability Maintenance', 'seksi' => 'PGO'],
             ['id' => 50, 'name' => 'Muh. Basri', 'jabatan' => 'Manager', 'dept' => 'Maintenance', 'unit_kerja' => 'Elins Maintenance 1', 'seksi' => 'Line 2/3 RKC Elins Maint'],
             ['id' => 51, 'name' => 'Irwan Saparuddin', 'jabatan' => 'Manager', 'dept' => 'Maintenance', 'unit_kerja' => 'Elins Maintenance 1', 'seksi' => 'Packer Plant Elins Maint'],
@@ -217,12 +218,14 @@ class StructureOrganizationSeeder extends Seeder
             ['id' => 60, 'name' => 'Kaharuddin', 'jabatan' => 'Manager', 'dept' => 'Maintenance', 'unit_kerja' => 'Machine Maintenance 1', 'seksi' => 'Crusher Machine & Conveyor Maint'],
             ['id' => 61, 'name' => 'Abd. Salam', 'jabatan' => 'Manager', 'dept' => 'Maintenance', 'unit_kerja' => 'Machine Maintenance 1', 'seksi' => 'Packer Machine Maintenance'],
             ['id' => 62, 'name' => 'MZ Sukma Hastika', 'jabatan' => 'Manager', 'dept' => 'Maintenance', 'unit_kerja' => 'Port Product Discharge Maintenance', 'seksi' => 'Port Facility Elins Maintenance'],
+
             ['id' => 63, 'name' => 'Asriyanto Nasir', 'jabatan' => 'Manager', 'dept' => 'Project Management & Maintenance Support', 'unit_kerja' => 'Engineering', 'seksi' => 'Elins Design Engineering'],
             ['id' => 64, 'name' => 'Nani Sri Lestari', 'jabatan' => 'Manager', 'dept' => 'Project Management & Maintenance Support', 'unit_kerja' => 'Engineering', 'seksi' => 'Civil Design Engineering'],
             ['id' => 65, 'name' => 'Cendhika Larassayom Esa', 'jabatan' => 'Manager', 'dept' => 'Project Management & Maintenance Support', 'unit_kerja' => 'Engineering', 'seksi' => 'Process Design Engineering'],
             ['id' => 66, 'name' => 'Ahmad', 'jabatan' => 'Manager', 'dept' => 'Project Management & Maintenance Support', 'unit_kerja' => 'Workshop', 'seksi' => 'Elins Workshop'],
             ['id' => 67, 'name' => 'Syaharuddin Ngewa', 'jabatan' => 'Manager', 'dept' => 'Project Management & Maintenance Support', 'unit_kerja' => 'Workshop', 'seksi' => 'Machine Workshop'],
             ['id' => 68, 'name' => 'Surahman', 'jabatan' => 'Manager', 'dept' => 'Project Management & Maintenance Support', 'unit_kerja' => 'Project Management', 'seksi' => 'Project Execution (Construction)'],
+
             ['id' => 69, 'name' => 'M. Rizal M.', 'jabatan' => 'Manager', 'dept' => 'Production Planning & Control', 'unit_kerja' => 'Quality Control', 'seksi' => 'QC 4/5'],
             ['id' => 70, 'name' => 'Resti Setianingrum', 'jabatan' => 'Manager', 'dept' => 'Production Planning & Control', 'unit_kerja' => 'Quality Control', 'seksi' => 'QC 2/3'],
             ['id' => 71, 'name' => 'Agus Firmanto', 'jabatan' => 'Manager', 'dept' => 'Production Planning & Control', 'unit_kerja' => 'Quality Control', 'seksi' => 'Quality Development & Evaluation'],
@@ -238,6 +241,7 @@ class StructureOrganizationSeeder extends Seeder
             ['id' => 81, 'name' => 'Syamsupriadi', 'jabatan' => 'Manager', 'dept' => 'Production Planning & Control', 'unit_kerja' => 'AFR & Energy', 'seksi' => 'AFR & 3rd Material'],
             ['id' => 82, 'name' => 'Sjarifuddin Said', 'jabatan' => 'Manager', 'dept' => 'Production Planning & Control', 'unit_kerja' => 'OHS', 'seksi' => 'Plant OHS'],
             ['id' => 83, 'name' => 'Azis', 'jabatan' => 'Manager', 'dept' => 'Production Planning & Control', 'unit_kerja' => 'OHS', 'seksi' => 'BKS OHS'],
+
             ['id' => 84, 'name' => 'Mathius Rota', 'jabatan' => 'Manager', 'dept' => 'Infrastructure', 'unit_kerja' => 'Packing Plant 1', 'seksi' => 'Makassar Packing Plant'],
             ['id' => 85, 'name' => 'Isak', 'jabatan' => 'Manager', 'dept' => 'Infrastructure', 'unit_kerja' => 'Packing Plant 1', 'seksi' => 'Samarinda Packing Plant'],
             ['id' => 86, 'name' => 'Rahmat S', 'jabatan' => 'Manager', 'dept' => 'Infrastructure', 'unit_kerja' => 'Packing Plant 1', 'seksi' => 'Balikpapan Packing Plant'],
@@ -254,6 +258,7 @@ class StructureOrganizationSeeder extends Seeder
             ['id' => 97, 'name' => 'Rabenka Palesa', 'jabatan' => 'Manager', 'dept' => 'Infrastructure', 'unit_kerja' => 'Interplant Logistic', 'seksi' => 'Plan Eval & Product Distribution'],
             ['id' => 98, 'name' => 'Mursalin Tawang', 'jabatan' => 'Manager', 'dept' => 'Infrastructure', 'unit_kerja' => 'Interplant Logistic', 'seksi' => 'Sea Interplant'],
             ['id' => 99, 'name' => 'Aszriadi', 'jabatan' => 'Manager', 'dept' => 'Infrastructure', 'unit_kerja' => 'Interplant Logistic', 'seksi' => 'Land Interplant & DEPO Mgmt'],
+
             ['id' => 100, 'name' => 'H. Ferry Wardana', 'jabatan' => 'Manager', 'dept' => 'Mining & Power Plant', 'unit_kerja' => 'Mining Operation', 'seksi' => 'Limestone Mining'],
             ['id' => 101, 'name' => 'Muhammad Zubair Baso', 'jabatan' => 'Manager', 'dept' => 'Mining & Power Plant', 'unit_kerja' => 'Raw Material Management', 'seksi' => 'Clay Crusher Operation'],
             ['id' => 102, 'name' => 'Syamsul Bahri', 'jabatan' => 'Manager', 'dept' => 'Mining & Power Plant', 'unit_kerja' => 'Raw Material Management', 'seksi' => 'Limestone Crusher Operation'],
@@ -265,8 +270,8 @@ class StructureOrganizationSeeder extends Seeder
             ['id' => 108, 'name' => 'Dasa Agustriawan', 'jabatan' => 'Manager', 'dept' => 'Mining & Power Plant', 'unit_kerja' => 'Power Plant Machine Maintenance', 'seksi' => 'CUS Maintenance'],
             ['id' => 109, 'name' => 'Lamasi', 'jabatan' => 'Manager', 'dept' => 'Mining & Power Plant', 'unit_kerja' => 'Power Distribution', 'seksi' => 'Electricity Load Control'],
             ['id' => 110, 'name' => 'Irfan', 'jabatan' => 'Manager', 'dept' => 'Mining & Power Plant', 'unit_kerja' => 'Power Distribution', 'seksi' => 'Electrical Network Maintenance'],
-            ['id' => 111, 'name' => 'Rahman', 'jabatan' => 'Manager', 'dept' => 'Mining & Power Plant', 'unit_kerja' => 'Power Plant Elins Maintenance', 'seksi' => 'Power Plant Instrument Maintenance'],
-            ['id' => 112, 'name' => 'Suriadi', 'jabatan' => 'Manager', 'dept' => 'Mining & Power Plant', 'unit_kerja' => 'Power Plant Elins Maintenance', 'seksi' => 'Power Plant Electrical Maintenance'],
+            ['id' => 111, 'name' => 'Andi Kasman Saransi', 'jabatan' => 'Manager', 'dept' => 'Mining & Power Plant', 'unit_kerja' => 'Power Plant Elins Maintenance', 'seksi' => 'Power Plant Instrument Maintenance'],
+            ['id' => 112, 'name' => 'Muh. Daris Danial', 'jabatan' => 'Manager', 'dept' => 'Mining & Power Plant', 'unit_kerja' => 'Power Plant Elins Maintenance', 'seksi' => 'Power Plant Electrical Maintenance'],
         ];
 
         $generalManagers = [];

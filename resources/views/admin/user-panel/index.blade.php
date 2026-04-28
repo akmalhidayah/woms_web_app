@@ -79,7 +79,7 @@
                                 type="text"
                                 name="search"
                                 value="{{ $search }}"
-                                placeholder="Cari nama, email, role..."
+                                placeholder="Cari nama, email, nomor HP..."
                                 class="w-72 rounded-xl border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
                             >
                         </div>
@@ -101,6 +101,7 @@
                                 <tr>
                                     <th class="px-4 py-3">Nama</th>
                                     <th class="px-4 py-3">Inisial</th>
+                                    <th class="px-4 py-3">Nomor HP</th>
                                     <th class="px-4 py-3">Email</th>
                                     <th class="px-4 py-3">User Type</th>
                                     <th class="px-4 py-3">Admin Role</th>
@@ -116,6 +117,8 @@
                                             'id' => $user->id,
                                             'name' => $user->name,
                                             'email' => $user->email,
+                                            'nomor_hp' => $user->nomor_hp,
+                                            'inisial' => $user->inisial,
                                             'role' => $user->role,
                                             'admin_role' => $user->resolvedAdminRole() ?? \App\Models\User::ADMIN_ROLE_ADMIN,
                                         ];
@@ -128,6 +131,7 @@
                                         <td class="px-4 py-3.5">
                                             <span class="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{{ $user->initials() }}</span>
                                         </td>
+                                        <td class="px-4 py-3.5">{{ $user->nomor_hp ?: '-' }}</td>
                                         <td class="px-4 py-3.5">{{ $user->email }}</td>
                                         <td class="px-4 py-3.5">
                                             <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold
@@ -180,7 +184,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="px-4 py-12 text-center">
+                                        <td colspan="8" class="px-4 py-12 text-center">
                                             <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-500">
                                                 <i data-lucide="users" class="h-6 w-6"></i>
                                             </div>
@@ -237,6 +241,14 @@
                                 <div>
                                     <label class="mb-2 block text-sm font-semibold text-slate-700">Email</label>
                                     <input type="email" name="email" x-model="createForm.email" class="w-full rounded-xl border border-slate-300 px-3 py-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Nomor HP</label>
+                                    <input type="text" name="nomor_hp" x-model="createForm.nomor_hp" class="w-full rounded-xl border border-slate-300 px-3 py-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Inisial</label>
+                                    <input type="text" name="inisial" x-model="createForm.inisial" class="w-full rounded-xl border border-slate-300 px-3 py-3 text-sm uppercase text-slate-700 focus:border-blue-500 focus:outline-none">
                                 </div>
                                 <div>
                                     <label class="mb-2 block text-sm font-semibold text-slate-700">User Type</label>
@@ -314,6 +326,14 @@
                                     <input type="email" name="email" x-model="editForm.email" class="w-full rounded-xl border border-slate-300 px-3 py-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
                                 </div>
                                 <div>
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Nomor HP</label>
+                                    <input type="text" name="nomor_hp" x-model="editForm.nomor_hp" class="w-full rounded-xl border border-slate-300 px-3 py-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Inisial</label>
+                                    <input type="text" name="inisial" x-model="editForm.inisial" class="w-full rounded-xl border border-slate-300 px-3 py-3 text-sm uppercase text-slate-700 focus:border-blue-500 focus:outline-none">
+                                </div>
+                                <div>
                                     <label class="mb-2 block text-sm font-semibold text-slate-700">User Type</label>
                                     <select name="role" x-model="editForm.role" class="w-full rounded-xl border border-slate-300 px-3 py-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
                                         @foreach ($roleLabels as $roleKey => $label)
@@ -328,15 +348,6 @@
                                             <option value="{{ $adminRoleKey }}">{{ $adminRoleLabel }}</option>
                                         @endforeach
                                     </select>
-                                </div>
-                                <div>
-                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Password Baru</label>
-                                    <input type="password" name="password" class="w-full rounded-xl border border-slate-300 px-3 py-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
-                                    <p class="mt-1 text-xs text-slate-400">Kosongkan jika tidak ingin mengganti password.</p>
-                                </div>
-                                <div>
-                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Konfirmasi Password Baru</label>
-                                    <input type="password" name="password_confirmation" class="w-full rounded-xl border border-slate-300 px-3 py-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
                                 </div>
                             </div>
                         </div>
@@ -361,18 +372,22 @@
                 createForm: {
                     name: config.create.form?.name || '',
                     email: config.create.form?.email || '',
+                    nomor_hp: config.create.form?.nomor_hp || '',
+                    inisial: config.create.form?.inisial || '',
                     role: config.create.form?.role || 'user',
                     admin_role: config.create.form?.admin_role || 'admin',
                 },
                 editForm: {
                     name: config.edit.form?.name || '',
                     email: config.edit.form?.email || '',
+                    nomor_hp: config.edit.form?.nomor_hp || '',
+                    inisial: config.edit.form?.inisial || '',
                     role: config.edit.form?.role || 'user',
                     admin_role: config.edit.form?.admin_role || 'admin',
                 },
                 openCreate() {
                     this.showCreateModal = true;
-                    this.createForm = { name: '', email: '', role: 'user', admin_role: 'admin' };
+                    this.createForm = { name: '', email: '', nomor_hp: '', inisial: '', role: 'user', admin_role: 'admin' };
                 },
                 closeCreate() {
                     this.showCreateModal = false;
@@ -383,6 +398,8 @@
                     this.editForm = {
                         name: payload.name || '',
                         email: payload.email || '',
+                        nomor_hp: payload.nomor_hp || '',
+                        inisial: payload.inisial || '',
                         role: payload.role || 'user',
                         admin_role: payload.admin_role || 'admin',
                     };

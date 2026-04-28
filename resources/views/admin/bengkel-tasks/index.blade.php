@@ -153,13 +153,31 @@
 
 
         <section class="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
+            <form id="bulk-delete-bengkel-tasks-form" action="{{ route('admin.bengkel-tasks.bulk-destroy', $indexQuery) }}" method="POST" class="border-b border-slate-200 bg-slate-50 px-4 py-3">
+                @csrf
+                @method('DELETE')
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">
+                        <input id="select-all-bengkel-tasks" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                        Pilih Semua
+                    </label>
+
+                    <button type="submit" class="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100">
+                        <i data-lucide="trash-2" class="h-4 w-4"></i>
+                        Hapus Terpilih
+                    </button>
+                </div>
+            </form>
+
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm text-slate-700">
                     <thead class="bg-slate-100">
                         <tr>
+                            <th class="w-12 px-4 py-3 text-left font-semibold">Pilih</th>
                             <th class="px-4 py-3 text-left font-semibold">Nama Pekerjaan</th>
                             <th class="px-4 py-3 text-left font-semibold">Nomor Order</th>
                             <th class="px-4 py-3 text-left font-semibold">Regu</th>
+                            <th class="px-4 py-3 text-left font-semibold">Status</th>
                             <th class="px-4 py-3 text-left font-semibold">Penanggung Jawab</th>
                             <th class="px-4 py-3 text-left font-semibold">Target</th>
                             <th class="px-4 py-3 text-right font-semibold">Aksi</th>
@@ -171,8 +189,13 @@
                                 $badge = $reguBadge($task->catatan ?? null);
                                 $profiles = is_array($task->person_in_charge_profiles) ? $task->person_in_charge_profiles : [];
                                 $names = is_array($task->person_in_charge) ? $task->person_in_charge : [];
+                                $isCompleted = (bool) $task->is_completed;
                             @endphp
-                            <tr class="hover:bg-slate-50/80">
+                            <tr class="{{ $isCompleted ? 'bg-emerald-50/70 hover:bg-emerald-50' : 'hover:bg-slate-50/80' }}">
+                                <td class="px-4 py-3">
+                                    <input form="bulk-delete-bengkel-tasks-form" type="checkbox" name="task_ids[]" value="{{ $task->id }}" class="bengkel-task-checkbox h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                                </td>
+
                                 <td class="px-4 py-3">
                                     <div class="font-semibold text-slate-900">{{ $task->job_name }}</div>
                                     <div class="mt-1 text-xs text-slate-600 leading-snug">
@@ -195,6 +218,19 @@
                                 </td>
 
                                 <td class="px-4 py-3">
+                                    @if ($isCompleted)
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
+                                            <i data-lucide="check-circle-2" class="h-3.5 w-3.5"></i>
+                                            Selesai
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">
+                                            Berjalan
+                                        </span>
+                                    @endif
+                                </td>
+
+                                <td class="px-4 py-3">
                                     @if ($profiles !== [])
                                         <div class="flex flex-wrap items-center gap-2">
                                             @foreach ($profiles as $profile)
@@ -202,17 +238,26 @@
                                                     $name = is_array($profile) ? ($profile['name'] ?? '') : '';
                                                     $avatar = is_array($profile) ? ($profile['avatar_url'] ?? null) : null;
                                                     $avatarPosition = $avatarObjectPosition($profile);
+                                                    $descriptions = collect(is_array($profile) ? ($profile['work_descriptions'] ?? []) : [])->filter()->values();
                                                 @endphp
-                                                <span class="inline-flex items-center gap-2 rounded-full bg-slate-50 px-2 py-1 ring-1 ring-slate-200">
-                                                    @if ($avatar)
-                                                        <img src="{{ $avatar }}" alt="" class="h-6 w-6 rounded-full object-cover ring-1 ring-white" style="object-position: {{ $avatarPosition }};" onerror="this.remove(); this.parentElement.querySelector('[data-pic-fallback]')?.classList.remove('hidden');">
-                                                    @else
+                                                <div class="rounded-xl bg-slate-50 px-2 py-1.5 ring-1 ring-slate-200">
+                                                    <div class="flex items-center gap-2">
+                                                        @if ($avatar)
+                                                            <img src="{{ $avatar }}" alt="" class="h-6 w-6 rounded-full object-cover ring-1 ring-white" style="object-position: {{ $avatarPosition }};" onerror="this.remove(); this.parentElement.querySelector('[data-pic-fallback]')?.classList.remove('hidden');">
+                                                        @endif
+                                                        <span data-pic-fallback class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-700 {{ $avatar ? 'hidden' : '' }}">
+                                                            {{ $picInitials($name) }}
+                                                        </span>
+                                                        <span class="text-xs font-semibold text-slate-700">{{ $name !== '' ? $name : '-' }}</span>
+                                                    </div>
+                                                    @if ($descriptions->isNotEmpty())
+                                                        <ul class="mt-1 list-disc space-y-0.5 pl-8 text-[11px] leading-snug text-slate-500">
+                                                            @foreach ($descriptions as $description)
+                                                                <li>{{ $description }}</li>
+                                                            @endforeach
+                                                        </ul>
                                                     @endif
-                                                    <span data-pic-fallback class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-700 {{ $avatar ? 'hidden' : '' }}">
-                                                        {{ $picInitials($name) }}
-                                                    </span>
-                                                    <span class="text-xs font-medium text-slate-700">{{ $name !== '' ? $name : '-' }}</span>
-                                                </span>
+                                                </div>
                                             @endforeach
                                         </div>
                                     @elseif ($names !== [])
@@ -231,7 +276,17 @@
                                 </td>
 
                                 <td class="px-4 py-3 text-right">
-                                    <div class="inline-flex items-center gap-2">
+                                    <div class="inline-flex flex-wrap items-center justify-end gap-2">
+                                        @unless ($isCompleted)
+                                            <form action="{{ route('admin.bengkel-tasks.complete', array_merge(['bengkel_task' => $task], $indexQuery)) }}" method="POST" class="inline-block complete-bengkel-task-form">
+                                                @csrf
+                                                @method('PATCH')
+                                                <button type="submit" class="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">
+                                                    <i data-lucide="check" class="h-3.5 w-3.5"></i>
+                                                    Selesai
+                                                </button>
+                                            </form>
+                                        @endunless
                                         <a href="{{ route('admin.bengkel-tasks.edit', array_merge(['bengkel_task' => $task], $indexQuery)) }}" class="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100">
                                             <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
                                             Edit
@@ -249,7 +304,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-8 text-center text-sm text-slate-500">Belum ada pekerjaan bengkel.</td>
+                                <td colspan="8" class="px-4 py-8 text-center text-sm text-slate-500">Belum ada pekerjaan bengkel.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -295,6 +350,78 @@
                             form.submit();
                         }
                     });
+                });
+            });
+
+            document.querySelectorAll('.complete-bengkel-task-form').forEach((form) => {
+                form.addEventListener('submit', (event) => {
+                    event.preventDefault();
+
+                    window.Swal?.fire({
+                        icon: 'question',
+                        title: 'Tandai selesai?',
+                        text: 'Card pekerjaan ini akan tampil hijau di display.',
+                        showCancelButton: true,
+                        confirmButtonText: 'Selesai',
+                        cancelButtonText: 'Batal',
+                        confirmButtonColor: '#059669',
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            form.submit();
+                        }
+                    });
+                });
+            });
+
+            const selectAll = document.getElementById('select-all-bengkel-tasks');
+            const checkboxes = Array.from(document.querySelectorAll('.bengkel-task-checkbox'));
+            const bulkDeleteForm = document.getElementById('bulk-delete-bengkel-tasks-form');
+
+            selectAll?.addEventListener('change', () => {
+                checkboxes.forEach((checkbox) => {
+                    checkbox.checked = selectAll.checked;
+                });
+            });
+
+            checkboxes.forEach((checkbox) => {
+                checkbox.addEventListener('change', () => {
+                    if (! selectAll) {
+                        return;
+                    }
+
+                    selectAll.checked = checkboxes.length > 0 && checkboxes.every((item) => item.checked);
+                    selectAll.indeterminate = checkboxes.some((item) => item.checked) && ! selectAll.checked;
+                });
+            });
+
+            bulkDeleteForm?.addEventListener('submit', (event) => {
+                const checkedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
+
+                if (checkedCount === 0) {
+                    event.preventDefault();
+                    window.Swal?.fire({
+                        icon: 'info',
+                        title: 'Belum ada data dipilih',
+                        text: 'Centang pekerjaan yang ingin dihapus terlebih dahulu.',
+                        confirmButtonText: 'OK',
+                    });
+                    return;
+                }
+
+                event.preventDefault();
+
+                window.Swal?.fire({
+                    icon: 'warning',
+                    title: 'Hapus pekerjaan terpilih?',
+                    text: `${checkedCount} pekerjaan bengkel akan dihapus dari display.`,
+                    showCancelButton: true,
+                    confirmButtonText: 'Hapus',
+                    cancelButtonText: 'Batal',
+                    confirmButtonColor: '#dc2626',
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        bulkDeleteForm.submit();
+                    }
                 });
             });
         });

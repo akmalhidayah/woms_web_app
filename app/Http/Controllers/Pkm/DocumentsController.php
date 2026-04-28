@@ -79,13 +79,17 @@ class DocumentsController extends Controller
                 $hasPo = (bool) $order->latestPurchaseOrder?->po_document_path;
                 $hasBast = (bool) $terminOne;
                 $hasLpjPpl = (bool) ($lpjPpl?->lpj_document_path_termin1 && $lpjPpl?->ppl_document_path_termin1);
+                $isWithoutWarranty = (int) ($garansi?->garansi_months ?? -1) === 0;
 
                 $isComplete = $hasHpp && $hasPo && $hasBast && $hasLpjPpl;
 
                 $paidPercent = 0;
                 $paidAmount = 0;
 
-                if (($terminOne?->termin2_status ?? 'belum') === 'sudah') {
+                if ($isWithoutWarranty && ($terminOne?->termin1_status ?? 'belum') === 'sudah') {
+                    $paidPercent = 100;
+                    $paidAmount = (float) ($terminOne?->total_aktual_biaya ?? 0);
+                } elseif (($terminOne?->termin2_status ?? 'belum') === 'sudah') {
                     $paidPercent = 100;
                     $paidAmount = (float) ($terminOne?->total_aktual_biaya ?? 0);
                 } elseif (($terminOne?->termin1_status ?? 'belum') === 'sudah') {
@@ -113,10 +117,10 @@ class DocumentsController extends Controller
                     'ppl_url_termin1' => ($lpjPpl?->ppl_document_path_termin1)
                         ? route('pkm.laporan.preview', ['nomorOrder' => $terminOne->nomor_order, 'kind' => 'ppl', 'termin' => 1])
                         : null,
-                    'lpj_url_termin2' => ($lpjPpl?->lpj_document_path_termin2)
+                    'lpj_url_termin2' => (! $isWithoutWarranty && $lpjPpl?->lpj_document_path_termin2)
                         ? route('pkm.laporan.preview', ['nomorOrder' => $terminOne->nomor_order, 'kind' => 'lpj', 'termin' => 2])
                         : null,
-                    'ppl_url_termin2' => ($lpjPpl?->ppl_document_path_termin2)
+                    'ppl_url_termin2' => (! $isWithoutWarranty && $lpjPpl?->ppl_document_path_termin2)
                         ? route('pkm.laporan.preview', ['nomorOrder' => $terminOne->nomor_order, 'kind' => 'ppl', 'termin' => 2])
                         : null,
                     'total_biaya' => (float) ($terminOne?->total_aktual_biaya ?? 0),
@@ -125,6 +129,7 @@ class DocumentsController extends Controller
                     'garansi_start' => $garansi?->start_date,
                     'garansi_end' => $garansi?->end_date,
                     'garansi_months' => $garansi?->garansi_months,
+                    'is_without_warranty' => $isWithoutWarranty,
                     'is_complete' => $isComplete,
                 ];
             })

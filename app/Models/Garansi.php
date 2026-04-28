@@ -14,6 +14,7 @@ class Garansi extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'order_id',
         'lhpp_bast_id',
         'garansi_months',
         'start_date',
@@ -36,6 +37,11 @@ class Garansi extends Model
     public function lhppBast(): BelongsTo
     {
         return $this->belongsTo(LhppBast::class);
+    }
+
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
     }
 
     public function creator(): BelongsTo

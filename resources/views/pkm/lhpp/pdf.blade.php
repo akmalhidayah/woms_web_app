@@ -356,13 +356,19 @@
         return null;
     };
 
-    $terminDisplayLabel = $isTerminTwo
-        ? 'TERMIN 2 (5% x Total Actual Biaya)'
-        : 'TERMIN 1 (95% x Total Actual Biaya)';
+    $isWithoutWarranty = ! $isTerminTwo && (int) ($lhpp->garansi?->garansi_months ?? -1) === 0;
 
-    $terminDisplayValue = $isTerminTwo
+    $terminDisplayLabel = $isWithoutWarranty
+        ? 'TOTAL DIBAYAR'
+        : ($isTerminTwo
+        ? 'TERMIN 2 (5% x Total Actual Biaya)'
+        : 'TERMIN 1 (95% x Total Actual Biaya)');
+
+    $terminDisplayValue = $isWithoutWarranty
+        ? (float) $lhpp->total_aktual_biaya
+        : ($isTerminTwo
         ? (float) $lhpp->termin_2_nilai
-        : (float) $lhpp->termin_1_nilai;
+        : (float) $lhpp->termin_1_nilai);
     $qualityControlStatus = $lhpp->quality_control_status ?? 'pending';
     $rawImageItems = collect($lhpp->images ?? []);
 

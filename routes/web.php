@@ -126,10 +126,6 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
         ->whereNumber('lhppId')
         ->name('admin.lhpp.quality-control');
-    Route::patch('admin/lhpp/{lhppId}/garansi', [AdminLhppController::class, 'updateGaransi'])
-        ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
-        ->whereNumber('lhppId')
-        ->name('admin.lhpp.garansi');
     Route::get('admin/lhpp/{nomorOrder}/{termin}/pdf', [AdminLhppController::class, 'pdfByOrder'])
         ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
         ->where('termin', 'termin-1|termin-2')
@@ -150,6 +146,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('admin/garansi', [GaransiController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:garansi'])
         ->name('admin.garansi.index');
+    Route::match(['post', 'patch'], 'admin/garansi/{order:nomor_order}', [GaransiController::class, 'update'])
+        ->middleware(['role:admin', 'admin_menu:garansi'])
+        ->name('admin.garansi.update');
     Route::get('admin/garansi/images/{image}', [GaransiController::class, 'image'])
         ->middleware(['role:admin', 'admin_menu:garansi'])
         ->whereNumber('image')
@@ -172,6 +171,13 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
         ->whereNumber('bengkel_task')
         ->name('admin.bengkel-tasks.update');
+    Route::patch('admin/display-pekerjaan-bengkel/{bengkel_task}/complete', [BengkelTaskController::class, 'complete'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->whereNumber('bengkel_task')
+        ->name('admin.bengkel-tasks.complete');
+    Route::delete('admin/display-pekerjaan-bengkel/bulk-destroy', [BengkelTaskController::class, 'bulkDestroy'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->name('admin.bengkel-tasks.bulk-destroy');
     Route::delete('admin/display-pekerjaan-bengkel/{bengkel_task}', [BengkelTaskController::class, 'destroy'])
         ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
         ->whereNumber('bengkel_task')

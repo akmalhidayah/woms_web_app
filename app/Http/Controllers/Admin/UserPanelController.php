@@ -29,6 +29,8 @@ class UserPanelController extends Controller
                     $inner
                         ->where('name', 'like', '%'.$search.'%')
                         ->orWhere('email', 'like', '%'.$search.'%')
+                        ->orWhere('nomor_hp', 'like', '%'.$search.'%')
+                        ->orWhere('inisial', 'like', '%'.$search.'%')
                         ->orWhere('role', 'like', '%'.$search.'%')
                         ->orWhere('admin_role', 'like', '%'.$search.'%');
                 });
@@ -51,6 +53,8 @@ class UserPanelController extends Controller
                 'form' => [
                     'name' => (string) old('name', ''),
                     'email' => (string) old('email', ''),
+                    'nomor_hp' => (string) old('nomor_hp', ''),
+                    'inisial' => (string) old('inisial', ''),
                     'role' => (string) old('role', $role),
                     'admin_role' => (string) old('admin_role', User::ADMIN_ROLE_ADMIN),
                 ],
@@ -61,6 +65,8 @@ class UserPanelController extends Controller
                 'form' => [
                     'name' => (string) old('name', ''),
                     'email' => (string) old('email', ''),
+                    'nomor_hp' => (string) old('nomor_hp', ''),
+                    'inisial' => (string) old('inisial', ''),
                     'role' => (string) old('role', $role),
                     'admin_role' => (string) old('admin_role', User::ADMIN_ROLE_ADMIN),
                 ],
@@ -91,6 +97,8 @@ class UserPanelController extends Controller
         User::create([
             'name' => trim($validated['name']),
             'email' => strtolower(trim($validated['email'])),
+            'nomor_hp' => $this->nullableTrim($validated['nomor_hp'] ?? null),
+            'inisial' => $this->nullableTrim($validated['inisial'] ?? null),
             'role' => $validated['role'],
             'admin_role' => $validated['role'] === User::ROLE_ADMIN ? $validated['admin_role'] : null,
             'password' => $validated['password'],
@@ -142,12 +150,10 @@ class UserPanelController extends Controller
 
         $user->name = trim($validated['name']);
         $user->email = strtolower(trim($validated['email']));
+        $user->nomor_hp = $this->nullableTrim($validated['nomor_hp'] ?? null);
+        $user->inisial = $this->nullableTrim($validated['inisial'] ?? null);
         $user->role = $newRole;
         $user->admin_role = $newRole === User::ROLE_ADMIN ? $validated['admin_role'] : null;
-
-        if (! empty($validated['password'])) {
-            $user->password = $validated['password'];
-        }
 
         $user->save();
 
@@ -195,17 +201,31 @@ class UserPanelController extends Controller
 
         $isCreate = $user === null;
 
-        return [
+        $rules = [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', $emailRule],
+            'nomor_hp' => ['nullable', 'string', 'max:30'],
+            'inisial' => ['nullable', 'string', 'max:20'],
             'role' => ['required', Rule::in(User::roles())],
             'admin_role' => [
                 Rule::requiredIf(fn () => $request->input('role') === User::ROLE_ADMIN),
                 'nullable',
                 Rule::in(array_keys(User::adminRoleOptions())),
             ],
-            'password' => [$isCreate ? 'required' : 'nullable', 'string', 'min:8', 'confirmed'],
         ];
+
+        if ($isCreate) {
+            $rules['password'] = ['required', 'string', 'min:8', 'confirmed'];
+        }
+
+        return $rules;
+    }
+
+    private function nullableTrim(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        return $value === '' ? null : $value;
     }
 
     private function canManageRequestedRole(User $actor, ?string $requestedRole): bool

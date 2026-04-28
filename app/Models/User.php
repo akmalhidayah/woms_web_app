@@ -29,6 +29,8 @@ class User extends Authenticatable // implements MustVerifyEmail
     protected $fillable = [
         'name',
         'email',
+        'nomor_hp',
+        'inisial',
         'role',
         'admin_role',
         'password',
@@ -154,6 +156,10 @@ class User extends Authenticatable // implements MustVerifyEmail
      */
     public function initials(): string
     {
+        if (filled($this->inisial)) {
+            return Str::of($this->inisial)->upper()->toString();
+        }
+
         return Str::of($this->name)
             ->explode(' ')
             ->map(fn (string $name) => Str::of($name)->substr(0, 1))

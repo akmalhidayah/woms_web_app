@@ -5,6 +5,7 @@
             $submitLabel = $submitLabel ?? 'Simpan';
             $terminType = $terminType ?? 'termin_1';
             $terminLabel = $terminLabel ?? ($terminType === 'termin_2' ? 'Termin 2' : 'Termin 1');
+            $isWithoutWarranty = (bool) ($isWithoutWarranty ?? false);
             $isTerminTwoLocked = $terminType === 'termin_2';
             $bastDate = old('tanggal_bast', $bastDate ?? now()->format('Y-m-d'));
             $tanggalMulaiPekerjaan = old('tanggal_mulai_pekerjaan', $tanggalMulaiPekerjaan ?? '');
@@ -57,6 +58,7 @@
                     materialRows: @js($materialRows->values()->all()),
                     serviceRows: @js($serviceRows->values()->all()),
                     calculation: @js($initialCalculation),
+                    isWithoutWarranty: @js($isWithoutWarranty),
                     isTerminTwoLocked: @js($isTerminTwoLocked),
                     isTipePekerjaanLocked: @js($isTipePekerjaanLocked),
                     selectedTipePekerjaan: @js($selectedTipePekerjaan),
@@ -415,8 +417,8 @@
                                         <td class="border border-slate-300 px-2 py-2 text-right font-black" x-text="calculation.total_aktual_biaya_display"></td>
                                     </tr>
                                     <tr class="bg-slate-200">
-                                        <td colspan="4" class="border border-slate-300 px-2 py-2 font-black" x-text="terminType === 'termin_2' ? 'TERMIN 2 (5% x Total Actual Biaya)' : 'TERMIN 1 (95% x Total Actual Biaya)'"></td>
-                                        <td class="border border-slate-300 px-2 py-2 text-right font-black" x-text="terminType === 'termin_2' ? calculation.termin_2_nilai_display : calculation.termin_1_nilai_display"></td>
+                                        <td colspan="4" class="border border-slate-300 px-2 py-2 font-black" x-text="isWithoutWarranty ? 'TOTAL DIBAYAR' : (terminType === 'termin_2' ? 'TERMIN 2 (5% x Total Actual Biaya)' : 'TERMIN 1 (95% x Total Actual Biaya)')"></td>
+                                        <td class="border border-slate-300 px-2 py-2 text-right font-black" x-text="isWithoutWarranty ? calculation.total_aktual_biaya_display : (terminType === 'termin_2' ? calculation.termin_2_nilai_display : calculation.termin_1_nilai_display)"></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -477,6 +479,7 @@
                     materialRows: config.materialRows,
                     serviceRows: config.serviceRows,
                     calculation: config.calculation,
+                    isWithoutWarranty: config.isWithoutWarranty,
                     isTerminTwoLocked: config.isTerminTwoLocked,
                     selectedTipePekerjaan: config.selectedTipePekerjaan,
                     isTipePekerjaanLocked: config.isTipePekerjaanLocked,

@@ -152,6 +152,7 @@
                                     $t1 = $row->termin1_status ?? null;
                                     $t2 = $row->termin2_status ?? null;
                                     $terminTwo = $row->terminTwo;
+                                    $isWithoutWarranty = (int) ($row->garansi?->garansi_months ?? -1) === 0;
 
                                     $hasUserSign = ! empty($row->manager_signature_requesting) || ! empty($row->manager_signature_requesting_user_id);
                                     $hasWsSign = ! empty($row->manager_signature) || ! empty($row->manager_signature_user_id);
@@ -200,14 +201,14 @@
                                     }
                                     $totalBiaya = (float) ($row->total_aktual_biaya ?? 0);
                                     $termin1Paid = $t1 === 'sudah';
-                                    $termin2Paid = $t2 === 'sudah';
+                                    $termin2Paid = ! $isWithoutWarranty && $t2 === 'sudah';
                                     $termin1Amount = $termin1Paid
-                                        ? (float) ($row->termin_1_nilai ?? round($totalBiaya * 0.95))
+                                        ? (float) ($isWithoutWarranty ? $totalBiaya : ($row->termin_1_nilai ?? round($totalBiaya * 0.95)))
                                         : null;
                                     $termin2Amount = $termin2Paid
                                         ? (float) ($row->termin_2_nilai ?? round($totalBiaya * 0.05))
                                         : null;
-                                    $terminTwoExists = filled($terminTwo?->id);
+                                    $terminTwoExists = ! $isWithoutWarranty && filled($terminTwo?->id);
                                 @endphp
 
                                 <tr class="transition hover:bg-slate-50">
@@ -248,7 +249,7 @@
                                         <div class="font-semibold">Rp {{ number_format($totalBiaya, 2, ',', '.') }}</div>
                                         @if (! is_null($termin1Amount))
                                             <div class="mt-1 text-[10px] font-medium text-emerald-600">
-                                                Termin 1: Rp {{ number_format($termin1Amount, 0, ',', '.') }}
+                                                {{ $isWithoutWarranty ? 'Total Dibayar' : 'Termin 1' }}: Rp {{ number_format($termin1Amount, 0, ',', '.') }}
                                             </div>
                                         @endif
                                         @if (! is_null($termin2Amount))
@@ -290,6 +291,7 @@
                                                     <span class="ml-1 inline-block rounded-md bg-amber-100 px-2 py-0.5 text-[10px] text-amber-800">Belum Dibayar</span>
                                                 @endif
                                             </div>
+                                            @unless ($isWithoutWarranty)
                                             <div>
                                                 <span class="text-[10px] text-slate-600">Termin 2:</span>
                                                 @if ($t2 === 'sudah')
@@ -298,6 +300,7 @@
                                                     <span class="ml-1 inline-block rounded-md bg-amber-100 px-2 py-0.5 text-[10px] text-amber-800">Belum Dibayar</span>
                                                 @endif
                                             </div>
+                                            @endunless
                                         </div>
                                     </td>
 
@@ -306,7 +309,9 @@
                                             <div class="relative w-[118px]">
                                                 <select x-model="selectedTerm" class="w-full appearance-none rounded-md border border-slate-300 bg-white py-1.5 pl-2 pr-7 text-[10px] font-semibold text-slate-700 focus:border-[#ca642f] focus:outline-none">
                                                     <option value="termin_1">Termin 1</option>
-                                                    <option value="termin_2">Termin 2</option>
+                                                    @unless ($isWithoutWarranty)
+                                                        <option value="termin_2">Termin 2</option>
+                                                    @endunless
                                                 </select>
                                                 <i data-lucide="chevron-down" class="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500"></i>
                                             </div>
@@ -327,6 +332,7 @@
                                                 </form>
                                             </div>
 
+                                            @unless ($isWithoutWarranty)
                                             <div x-show="selectedTerm === 'termin_2'" class="w-full">
                                                 @if ($terminTwoExists)
                                                     <div class="flex items-center justify-center gap-1">
@@ -354,6 +360,7 @@
                                                     </button>
                                                 @endif
                                             </div>
+                                            @endunless
                                         </div>
                                     </td>
                                 </tr>

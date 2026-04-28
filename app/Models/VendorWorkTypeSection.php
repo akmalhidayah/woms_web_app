@@ -5,9 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class VendorWorkType extends Model
+class VendorWorkTypeSection extends Model
 {
     use HasFactory;
 
@@ -15,23 +14,18 @@ class VendorWorkType extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'vendor_work_type_id',
         'name',
-        'unit_work_section_id',
         'manager_id',
     ];
 
-    public function section(): BelongsTo
+    public function vendorWorkType(): BelongsTo
     {
-        return $this->belongsTo(UnitWorkSection::class, 'unit_work_section_id');
+        return $this->belongsTo(VendorWorkType::class);
     }
 
     public function manager(): BelongsTo
     {
         return $this->belongsTo(User::class, 'manager_id');
-    }
-
-    public function vendorSections(): HasMany
-    {
-        return $this->hasMany(VendorWorkTypeSection::class);
     }
 }

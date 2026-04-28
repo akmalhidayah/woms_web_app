@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\BengkelDisplaySetting;
 use App\Models\BengkelPic;
 use App\Models\BengkelTask;
+use App\Models\Order;
 use App\Models\UnitWork;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -95,6 +97,7 @@ class BengkelTaskController extends Controller
                             'avatar_url' => $currentPic?->avatar_url,
                             'avatar_position_x' => $currentPic?->avatar_position_x ?? (int) ($profile['avatar_position_x'] ?? 50),
                             'avatar_position_y' => $currentPic?->avatar_position_y ?? (int) ($profile['avatar_position_y'] ?? 50),
+                            'work_descriptions' => $this->normalizeWorkDescriptions($profile['work_descriptions'] ?? []),
                         ];
                     })
                     ->filter()
@@ -118,6 +121,7 @@ class BengkelTaskController extends Controller
                                 'avatar_url' => $currentPic?->avatar_url,
                                 'avatar_position_x' => $currentPic?->avatar_position_x ?? 50,
                                 'avatar_position_y' => $currentPic?->avatar_position_y ?? 50,
+                                'work_descriptions' => [],
                             ];
                         })
                         ->filter()
@@ -138,11 +142,13 @@ class BengkelTaskController extends Controller
         $picOptions = BengkelPic::query()->orderBy('name')->get();
         $catatanOptions = self::CATATAN_REGU_ALLOWED;
         $units = UnitWork::with('sections')->orderBy('name')->get();
+        $workshopOrders = $this->workshopOrderOptions();
 
         return view('admin.bengkel-tasks.create', compact(
             'picOptions',
             'catatanOptions',
             'units',
+            'workshopOrders',
         ));
     }
 
@@ -162,10 +168,20 @@ class BengkelTaskController extends Controller
         $picOptions = BengkelPic::query()->orderBy('name')->get();
         $catatanOptions = self::CATATAN_REGU_ALLOWED;
         $units = UnitWork::with('sections')->orderBy('name')->get();
+        $workshopOrders = $this->workshopOrderOptions();
 
         $selectedPicIds = collect($bengkel_task->person_in_charge_profiles ?? [])
             ->pluck('id')
             ->filter()
+            ->values()
+            ->all();
+
+        $picAssignments = collect($bengkel_task->person_in_charge_profiles ?? [])
+            ->filter(fn ($profile): bool => is_array($profile) && ! empty($profile['id']))
+            ->map(fn (array $profile): array => [
+                'pic_id' => (int) $profile['id'],
+                'descriptions' => $this->normalizeWorkDescriptions($profile['work_descriptions'] ?? []),
+            ])
             ->values()
             ->all();
 
@@ -178,6 +194,14 @@ class BengkelTaskController extends Controller
                     ->pluck('id')
                     ->values()
                     ->all();
+
+                $picAssignments = collect($selectedPicIds)
+                    ->map(fn ($picId): array => [
+                        'pic_id' => (int) $picId,
+                        'descriptions' => [],
+                    ])
+                    ->values()
+                    ->all();
             }
         }
 
@@ -185,8 +209,10 @@ class BengkelTaskController extends Controller
             'bengkel_task',
             'picOptions',
             'selectedPicIds',
+            'picAssignments',
             'catatanOptions',
             'units',
+            'workshopOrders',
         ));
     }
 
@@ -208,6 +234,33 @@ class BengkelTaskController extends Controller
         return redirect()
             ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
             ->with('status', 'Pekerjaan bengkel dihapus.');
+    }
+
+    public function complete(Request $request, BengkelTask $bengkel_task): RedirectResponse
+    {
+        $bengkel_task->update([
+            'is_completed' => true,
+        ]);
+
+        return redirect()
+            ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
+            ->with('status', 'Pekerjaan bengkel ditandai selesai.');
+    }
+
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'task_ids' => ['required', 'array', 'min:1'],
+            'task_ids.*' => ['integer', 'exists:bengkel_tasks,id'],
+        ]);
+
+        $deleted = BengkelTask::query()
+            ->whereIn('id', collect($validated['task_ids'])->map(fn ($id): int => (int) $id)->all())
+            ->delete();
+
+        return redirect()
+            ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
+            ->with('status', $deleted.' pekerjaan bengkel dihapus.');
     }
 
     public function updateDisplaySettings(Request $request): RedirectResponse
@@ -242,6 +295,10 @@ class BengkelTaskController extends Controller
             'catatan' => ['nullable', 'string', 'in:'.implode(',', self::CATATAN_REGU_ALLOWED)],
             'pic_ids' => ['nullable', 'array'],
             'pic_ids.*' => ['nullable', 'integer', 'exists:bengkel_pics,id'],
+            'pic_assignments' => ['nullable', 'array'],
+            'pic_assignments.*.pic_id' => ['nullable', 'integer', 'exists:bengkel_pics,id', 'distinct'],
+            'pic_assignments.*.descriptions' => ['nullable', 'array'],
+            'pic_assignments.*.descriptions.*' => ['nullable', 'string', 'max:255'],
         ]);
 
         if (array_key_exists('catatan', $validated)) {
@@ -249,34 +306,88 @@ class BengkelTaskController extends Controller
             $validated['catatan'] = $catatan === '' ? null : $catatan;
         }
 
-        $picIds = collect($validated['pic_ids'] ?? [])
-            ->filter()
-            ->map(static fn ($value): int => (int) $value)
-            ->unique()
+        $assignments = collect($validated['pic_assignments'] ?? [])
+            ->filter(fn ($row): bool => is_array($row) && ! empty($row['pic_id']))
+            ->map(fn (array $row): array => [
+                'pic_id' => (int) $row['pic_id'],
+                'descriptions' => $this->normalizeWorkDescriptions($row['descriptions'] ?? []),
+            ])
+            ->unique('pic_id')
             ->values();
+
+        $picIds = $assignments->pluck('pic_id');
+
+        if ($picIds->isEmpty()) {
+            $picIds = collect($validated['pic_ids'] ?? [])
+                ->filter()
+                ->map(static fn ($value): int => (int) $value)
+                ->unique()
+                ->values();
+
+            $assignments = $picIds
+                ->map(fn (int $picId): array => [
+                    'pic_id' => $picId,
+                    'descriptions' => [],
+                ])
+                ->values();
+        }
 
         if ($picIds->isNotEmpty()) {
             $pics = BengkelPic::query()
                 ->whereIn('id', $picIds->all())
-                ->orderBy('name')
                 ->get(['id', 'name', 'avatar_path', 'avatar_position_x', 'avatar_position_y']);
 
-            $validated['person_in_charge'] = $pics->pluck('name')->values()->all();
-            $validated['person_in_charge_profiles'] = $pics->map(static fn (BengkelPic $pic): array => [
-                'id' => $pic->id,
-                'name' => $pic->name,
-                'avatar_path' => $pic->avatar_path,
-                'avatar_position_x' => $pic->avatar_position_x,
-                'avatar_position_y' => $pic->avatar_position_y,
-            ])->values()->all();
+            $picsById = $pics->keyBy('id');
+
+            $profiles = $assignments
+                ->map(function (array $assignment) use ($picsById): ?array {
+                    $pic = $picsById->get($assignment['pic_id']);
+
+                    if (! $pic) {
+                        return null;
+                    }
+
+                    return [
+                        'id' => $pic->id,
+                        'name' => $pic->name,
+                        'avatar_path' => $pic->avatar_path,
+                        'avatar_position_x' => $pic->avatar_position_x,
+                        'avatar_position_y' => $pic->avatar_position_y,
+                        'work_descriptions' => $assignment['descriptions'],
+                    ];
+                })
+                ->filter()
+                ->values();
+
+            $validated['person_in_charge'] = $profiles->pluck('name')->values()->all();
+            $validated['person_in_charge_profiles'] = $profiles->all();
         } else {
             $validated['person_in_charge'] = [];
             $validated['person_in_charge_profiles'] = [];
         }
 
         unset($validated['pic_ids']);
+        unset($validated['pic_assignments']);
 
         return $validated;
+    }
+
+    /**
+     * @param  mixed  $descriptions
+     * @return list<string>
+     */
+    private function normalizeWorkDescriptions(mixed $descriptions): array
+    {
+        if (! is_array($descriptions)) {
+            return [];
+        }
+
+        return collect($descriptions)
+            ->map(fn ($description): string => trim((string) $description))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**
@@ -287,5 +398,30 @@ class BengkelTaskController extends Controller
         return collect($request->only('q', 'regu', 'per_page', 'page'))
             ->filter(fn ($value) => $value !== null && $value !== '')
             ->all();
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    private function workshopOrderOptions()
+    {
+        return Order::query()
+            ->whereIn('catatan_status', [
+                OrderUserNoteStatus::ApprovedWorkshop->value,
+                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+            ])
+            ->orderByDesc('id')
+            ->get(['id', 'nomor_order', 'notifikasi', 'nama_pekerjaan', 'unit_kerja', 'seksi', 'target_selesai'])
+            ->map(fn (Order $order): array => [
+                'id' => $order->id,
+                'nomor_order' => $order->nomor_order,
+                'notifikasi' => $order->notifikasi,
+                'nama_pekerjaan' => $order->nama_pekerjaan,
+                'unit_kerja' => $order->unit_kerja,
+                'seksi' => $order->seksi,
+                'target_selesai' => optional($order->target_selesai)->format('Y-m-d'),
+                'label' => trim($order->nomor_order.' - '.$order->nama_pekerjaan),
+            ])
+            ->values();
     }
 }

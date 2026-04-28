@@ -83,14 +83,15 @@
                                     ? ($row->tanggal_mulai_pekerjaan->diffInDays($row->tanggal_selesai_pekerjaan) + 1).' Hari'
                                     : '-';
                                 $totalBiaya = (float) ($row->total_aktual_biaya ?? 0);
+                                $isWithoutWarranty = (int) ($row->garansi?->garansi_months ?? -1) === 0;
                                 $termin1Paid = ($row->termin1_status ?? 'belum') === 'sudah';
-                                $termin2Paid = ($row->termin2_status ?? 'belum') === 'sudah';
+                                $termin2Paid = ! $isWithoutWarranty && ($row->termin2_status ?? 'belum') === 'sudah';
                                 $unitRingkas = $row->seksi ?: ($row->order?->seksi ?? '-');
                                 $poLabel = $nomorPo !== '-' ? 'PO-'.$nomorPo : 'PO belum ada';
-                                $initialTermin = filled($lpj?->lpj_number_termin2)
+                                $initialTermin = ! $isWithoutWarranty && (filled($lpj?->lpj_number_termin2)
                                     || filled($lpj?->ppl_number_termin2)
                                     || filled($lpj?->lpj_document_path_termin2)
-                                    || filled($lpj?->ppl_document_path_termin2)
+                                    || filled($lpj?->ppl_document_path_termin2))
                                         ? '2'
                                         : '1';
                             @endphp
@@ -105,7 +106,8 @@
                                 data-lpj-url-t1="{{ e($lpj?->lpj_document_path_termin1 ? Storage::url($lpj->lpj_document_path_termin1) : '') }}"
                                 data-ppl-url-t1="{{ e($lpj?->ppl_document_path_termin1 ? Storage::url($lpj->ppl_document_path_termin1) : '') }}"
                                 data-lpj-url-t2="{{ e($lpj?->lpj_document_path_termin2 ? Storage::url($lpj->lpj_document_path_termin2) : '') }}"
-                                data-ppl-url-t2="{{ e($lpj?->ppl_document_path_termin2 ? Storage::url($lpj->ppl_document_path_termin2) : '') }}">
+                                data-ppl-url-t2="{{ e($lpj?->ppl_document_path_termin2 ? Storage::url($lpj->ppl_document_path_termin2) : '') }}"
+                                data-without-warranty="{{ $isWithoutWarranty ? '1' : '0' }}">
                                 <td class="px-3 py-3 align-top">
                                     <div class="space-y-1">
                                         <div class="text-[13px] font-bold text-slate-900">{{ $nomorOrder }}</div>
@@ -131,7 +133,9 @@
                                             <label class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Termin</label>
                                             <select id="termin-select-{{ $row->id }}" name="selected_termin" class="h-8 rounded-lg border border-slate-300 bg-white px-2 py-1 text-[10px] text-slate-700 focus:border-sky-500 focus:outline-none" onchange="window.adminLpjApplyTermin('{{ $row->id }}', this.value)">
                                                 <option value="1">Termin 1</option>
-                                                <option value="2">Termin 2</option>
+                                                @unless ($isWithoutWarranty)
+                                                    <option value="2">Termin 2</option>
+                                                @endunless
                                             </select>
                                         </div>
 
@@ -199,6 +203,7 @@
                                                 <option value="sudah" @selected($termin1Paid)>Sudah</option>
                                             </select>
                                         </div>
+                                        @unless ($isWithoutWarranty)
                                         <div class="flex items-center justify-between gap-2 text-[9px]">
                                             <span class="whitespace-nowrap font-medium text-slate-500">Termin 2</span>
                                             <select id="termin2-status-{{ $row->id }}" name="termin2_status" form="lpj-form-{{ $row->id }}" class="h-7 rounded-lg border px-2 py-1 text-[9px] font-semibold {{ $termin2Paid ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-amber-300 bg-amber-50 text-amber-700' }}" onchange="window.adminLpjApplyPaymentState(this)">
@@ -206,6 +211,10 @@
                                                 <option value="sudah" @selected($termin2Paid)>Sudah</option>
                                             </select>
                                         </div>
+                                        @else
+                                            <input type="hidden" name="termin2_status" form="lpj-form-{{ $row->id }}" value="belum">
+                                            <div class="rounded-md bg-slate-100 px-2 py-1 text-[9px] font-semibold text-slate-500">Tanpa Termin 2</div>
+                                        @endunless
                                     </div>
                                 </td>
 

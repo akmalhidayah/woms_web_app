@@ -40,14 +40,15 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full table-fixed bg-white text-[11px] text-slate-700">
                     <colgroup>
-                        <col class="w-[9%]">
+                        <col class="w-[10%]">
                         <col class="w-[8%]">
-                        <col class="w-[15%]">
+                        <col class="w-[16%]">
                         <col class="w-[9%]">
                         <col class="w-[7%]">
-                        <col class="w-[10%]">
-                        <col class="w-[18%]">
-                        <col class="w-[24%]">
+                        <col class="w-[14%]">
+                        <col class="w-[12%]">
+                        <col class="w-[12%]">
+                        <col class="w-[12%]">
                     </colgroup>
                     <thead class="bg-slate-100 text-slate-700 uppercase tracking-wide">
                         <tr>
@@ -57,8 +58,9 @@
                             <th class="px-4 py-2 text-left font-semibold">Tanggal Selesai</th>
                             <th class="px-4 py-2 text-left font-semibold">Waktu</th>
                             <th class="px-4 py-2 text-right font-semibold">Total Biaya</th>
-                            <th class="px-4 py-2 text-center font-semibold">Garansi</th>
-                            <th class="px-4 py-2 text-center font-semibold">Dokumen</th>
+                            <th class="px-4 py-2 text-left font-semibold">Garansi</th>
+                            <th class="px-4 py-2 text-left font-semibold">Quality Control</th>
+                            <th class="px-4 py-2 text-center font-semibold">PDF BAST</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 bg-white">
@@ -77,8 +79,8 @@
                                     ? ($lhpp->tanggal_mulai_pekerjaan->diffInDays($lhpp->tanggal_selesai_pekerjaan) + 1).' Hari'
                                     : '-';
                                 $totalBiaya = (float) ($lhpp->total_aktual_biaya ?? 0);
-                                $garansiMonths = [0, 1, 3, 6, 12];
-                                $garansiValue = $lhpp->garansi?->garansi_months;
+                                $garansiMonths = $lhpp->garansi?->garansi_months;
+                                $isWithoutWarranty = (int) ($garansiMonths ?? -1) === 0;
                                 $qualityControlStatus = $lhpp->quality_control_status ?: 'pending';
                                 $qualityControlSelectClass = match ($qualityControlStatus) {
                                     'approved' => 'border-emerald-300 bg-emerald-50 text-emerald-700',
@@ -96,14 +98,14 @@
                                     default => 'text-slate-500',
                                 };
                                 $termin1Paid = ($lhpp->termin1_status ?? 'belum') === 'sudah';
-                                $termin2Paid = ($lhpp->termin2_status ?? 'belum') === 'sudah';
+                                $termin2Paid = ! $isWithoutWarranty && ($lhpp->termin2_status ?? 'belum') === 'sudah';
                                 $termin1Amount = $termin1Paid
-                                    ? (float) ($lhpp->termin_1_nilai ?? round($totalBiaya * 0.95))
+                                    ? (float) ($isWithoutWarranty ? $totalBiaya : ($lhpp->termin_1_nilai ?? round($totalBiaya * 0.95)))
                                     : null;
                                 $termin2Amount = $termin2Paid
                                     ? (float) ($lhpp->termin_2_nilai ?? round($totalBiaya * 0.05))
                                     : null;
-                                $hasTerminTwo = filled($terminTwo?->id);
+                                $hasTerminTwo = ! $isWithoutWarranty && filled($terminTwo?->id);
                             @endphp
 
                             <tr class="transition duration-150 hover:bg-slate-50">
@@ -129,7 +131,7 @@
                                     <div class="font-semibold text-slate-900">Rp{{ number_format($totalBiaya, 0, ',', '.') }}</div>
                                     @if (!is_null($termin1Amount))
                                         <div class="mt-1 text-[10px] font-medium text-emerald-600">
-                                            Termin 1: Rp{{ number_format($termin1Amount, 0, ',', '.') }}
+                                            {{ $isWithoutWarranty ? 'Total Dibayar' : 'Termin 1' }}: Rp{{ number_format($termin1Amount, 0, ',', '.') }}
                                         </div>
                                     @endif
                                     @if (!is_null($termin2Amount))
@@ -140,69 +142,74 @@
                                 </td>
 
                                 <td class="px-4 py-3 align-top">
-                                    <div class="mx-auto flex max-w-[180px] flex-col gap-2">
-                                        <form method="POST" action="{{ route('admin.lhpp.garansi', ['lhppId' => $lhpp->id]) }}" class="flex flex-col gap-2">
-                                            @csrf
-                                            @method('PATCH')
-                                            <input type="hidden" name="search" value="{{ $search }}">
-                                            <input type="hidden" name="page" value="{{ $lhpps->currentPage() }}">
-                                            <select name="garansi_months" class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] text-slate-700">
-                                                <option value="">-- Garansi (Bulan) --</option>
-                                                @foreach ($garansiMonths as $month)
-                                                    <option value="{{ $month }}" @selected((string) $garansiValue === (string) $month)>{{ $month }} Bulan</option>
-                                                @endforeach
-                                            </select>
-                                            <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-indigo-700">
-                                                Simpan
-                                            </button>
-                                        </form>
-                                    </div>
+                                    @if ($garansiMonths === null)
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200">
+                                            <i data-lucide="clock-3" class="h-3 w-3"></i>
+                                            Belum diatur
+                                        </span>
+                                    @elseif ($isWithoutWarranty)
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200">
+                                            <i data-lucide="ban" class="h-3 w-3"></i>
+                                            Tanpa Garansi
+                                        </span>
+                                        <div class="mt-1 text-[10px] text-slate-500">Pembayaran cukup 1 termin.</div>
+                                    @else
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700 ring-1 ring-indigo-200">
+                                            <i data-lucide="shield-check" class="h-3 w-3"></i>
+                                            {{ $garansiMonths }} Bulan
+                                        </span>
+                                        <div class="mt-1 text-[10px] text-slate-500">Menggunakan Termin 1 & 2.</div>
+                                    @endif
                                 </td>
 
                                 <td class="px-4 py-3 align-top">
-                                    <div class="flex flex-wrap items-start justify-center gap-3">
-                                        <form method="POST" action="{{ route('admin.lhpp.quality-control', ['lhppId' => $lhpp->id]) }}" class="w-[190px] space-y-1.5">
-                                            @csrf
-                                            @method('PATCH')
-                                            <input type="hidden" name="search" value="{{ $search }}">
-                                            <input type="hidden" name="page" value="{{ $lhpps->currentPage() }}">
-                                            <select name="quality_control_status" onchange="this.form.submit()" class="w-full rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold focus:outline-none {{ $qualityControlSelectClass }}">
-                                                <option value="pending" @selected($qualityControlStatus === 'pending')>Pilih Aksi</option>
-                                                <option value="approved" @selected($qualityControlStatus === 'approved')>Setujui</option>
-                                                <option value="rejected" @selected($qualityControlStatus === 'rejected')>Tolak</option>
-                                            </select>
-                                            <p class="text-[10px] leading-snug {{ $qualityControlHelperClass }}">{{ $qualityControlHelper }}</p>
-                                        </form>
+                                    <form method="POST" action="{{ route('admin.lhpp.quality-control', ['lhppId' => $lhpp->id]) }}" class="space-y-1.5">
+                                        @csrf
+                                        @method('PATCH')
+                                        <input type="hidden" name="search" value="{{ $search }}">
+                                        <input type="hidden" name="page" value="{{ $lhpps->currentPage() }}">
+                                        <select name="quality_control_status" onchange="this.form.submit()" class="w-full rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold focus:outline-none {{ $qualityControlSelectClass }}">
+                                            <option value="pending" @selected($qualityControlStatus === 'pending')>Pilih Aksi</option>
+                                            <option value="approved" @selected($qualityControlStatus === 'approved')>Setujui</option>
+                                            <option value="rejected" @selected($qualityControlStatus === 'rejected')>Tolak</option>
+                                        </select>
+                                        <p class="text-[10px] leading-snug {{ $qualityControlHelperClass }}">{{ $qualityControlHelper }}</p>
+                                    </form>
+                                </td>
 
-                                        <div class="flex flex-wrap items-center justify-center gap-1.5">
-                                            <a href="{{ route('admin.lhpp.pdf', ['nomorOrder' => $lhpp->nomor_order, 'termin' => 'termin-1']) }}?refresh={{ $pdfRefreshToken }}"
+                                <td class="px-4 py-3 align-top">
+                                    <div class="flex flex-col items-center gap-1.5">
+                                        <a href="{{ route('admin.lhpp.pdf', ['nomorOrder' => $lhpp->nomor_order, 'termin' => 'termin-1']) }}?refresh={{ $pdfRefreshToken }}"
+                                           target="_blank"
+                                           rel="noopener"
+                                           title="Lihat BAST Termin 1 (PDF)"
+                                           aria-label="Lihat BAST Termin 1 PDF"
+                                           class="inline-flex w-[116px] items-center justify-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[9px] font-semibold text-rose-700 shadow-sm transition hover:bg-rose-100">
+                                            <i data-lucide="file-text" class="h-3 w-3"></i>
+                                            {{ $isWithoutWarranty ? 'BAST Final' : 'BAST Termin 1' }}
+                                        </a>
+
+                                        @if ($hasTerminTwo)
+                                            <a href="{{ route('admin.lhpp.pdf', ['nomorOrder' => $terminTwo->nomor_order, 'termin' => 'termin-2']) }}?refresh={{ $pdfRefreshToken }}"
                                                target="_blank"
                                                rel="noopener"
-                                               title="Lihat BAST Termin 1 (PDF)"
-                                               aria-label="Lihat BAST Termin 1 PDF"
-                                               class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-[9px] font-semibold text-rose-700 shadow-sm transition hover:bg-rose-100">
+                                               title="Lihat BAST Termin 2 (PDF)"
+                                               aria-label="Lihat BAST Termin 2 PDF"
+                                               class="inline-flex w-[116px] items-center justify-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-[9px] font-semibold text-sky-700 shadow-sm transition hover:bg-sky-100">
                                                 <i data-lucide="file-text" class="h-3 w-3"></i>
-                                                BAST Termin 1
+                                                BAST Termin 2
                                             </a>
-
-                                            @if ($hasTerminTwo)
-                                                <a href="{{ route('admin.lhpp.pdf', ['nomorOrder' => $terminTwo->nomor_order, 'termin' => 'termin-2']) }}?refresh={{ $pdfRefreshToken }}"
-                                                   target="_blank"
-                                                   rel="noopener"
-                                                   title="Lihat BAST Termin 2 (PDF)"
-                                                   aria-label="Lihat BAST Termin 2 PDF"
-                                                   class="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-[9px] font-semibold text-sky-700 shadow-sm transition hover:bg-sky-100">
-                                                    <i data-lucide="file-text" class="h-3 w-3"></i>
-                                                    BAST Termin 2
-                                                </a>
-                                            @endif
-                                        </div>
+                                        @elseif ($isWithoutWarranty)
+                                            <span class="text-center text-[10px] font-medium text-slate-400">Tidak ada Termin 2</span>
+                                        @else
+                                            <span class="text-center text-[10px] font-medium text-slate-400">Termin 2 belum dibuat</span>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="px-4 py-8 text-center text-[11px] text-slate-500">Belum ada data BAST yang tersedia.</td>
+                                <td colspan="9" class="px-4 py-8 text-center text-[11px] text-slate-500">Belum ada data BAST yang tersedia.</td>
                             </tr>
                         @endforelse
                     </tbody>

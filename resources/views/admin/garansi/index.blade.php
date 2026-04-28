@@ -1,4 +1,16 @@
 <x-layouts.admin title="Garansi">
+    @if (session('status'))
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+            {{ session('status') }}
+        </div>
+    @endif
+
+    @if ($errors->any())
+        <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+            {{ $errors->first() }}
+        </div>
+    @endif
+
     <div class="space-y-4">
         <section class="rounded-[1.25rem] border border-emerald-100 px-4 py-3.5 shadow-sm" style="background: linear-gradient(135deg, #f2fff8 0%, #fbfffd 48%, #ecfff5 100%);">
             <div class="flex items-center gap-4">
@@ -6,8 +18,8 @@
                     <i data-lucide="shield-check" class="h-4 w-4"></i>
                 </span>
                 <div>
-                    <h1 class="text-[1.15rem] font-bold leading-none tracking-tight text-slate-900">Garansi</h1>
-                    <p class="mt-1 text-[10px] text-slate-500">Kelola masa garansi berdasarkan LHPP dan Garansi.</p>
+                    <h1 class="text-[1.15rem] font-bold leading-none tracking-tight text-slate-900">Set Garansi</h1>
+                    <p class="mt-1 text-[10px] text-slate-500">Set garansi untuk order yang progress pekerjaannya sudah 100%.</p>
                 </div>
             </div>
         </section>
@@ -42,9 +54,10 @@
                     <thead class="border-b border-slate-200 bg-slate-50 text-slate-600 uppercase tracking-wide">
                         <tr>
                             <th class="px-4 py-3 text-left font-semibold">Nomor Order</th>
+                            <th class="px-4 py-3 text-left font-semibold">Unit Kerja</th>
                             <th class="px-4 py-3 text-left font-semibold">Mulai Garansi</th>
                             <th class="px-4 py-3 text-left font-semibold">Berakhir Garansi</th>
-                            <th class="px-4 py-3 text-left font-semibold">Garansi</th>
+                            <th class="px-4 py-3 text-left font-semibold">Set Garansi</th>
                             <th class="px-4 py-3 text-left font-semibold">Status</th>
                             <th class="px-4 py-3 text-left font-semibold">Gambar</th>
                         </tr>
@@ -54,6 +67,10 @@
                             <tr class="transition hover:bg-slate-50">
                                 <td class="px-4 py-3">
                                     <div class="font-semibold text-slate-900">{{ $g['order_number'] }}</div>
+                                </td>
+
+                                <td class="px-4 py-3 text-slate-700">
+                                    {{ $g['unit_kerja'] ?? '-' }}
                                 </td>
 
                                 <td class="px-4 py-3 text-slate-700">
@@ -84,19 +101,21 @@
                                 </td>
 
                                 <td class="px-4 py-3 text-slate-700">
-                                    @if (array_key_exists('garansi_months', $g) && $g['garansi_months'] !== null)
-                                        @if ($g['garansi_months'] === 0)
-                                            <span class="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-[10px] text-slate-700">
-                                                <i data-lucide="ban" class="h-3 w-3"></i> 0 Bulan (Tanpa Garansi)
-                                            </span>
-                                        @else
-                                            <span class="inline-flex items-center gap-1 rounded bg-indigo-50 px-2 py-0.5 text-[10px] text-indigo-700">
-                                                <i data-lucide="clock-3" class="h-3 w-3"></i> {{ $g['garansi_months'] }} Bulan
-                                            </span>
-                                        @endif
-                                    @else
-                                        <span class="text-[10px] text-slate-400">-</span>
-                                    @endif
+                                    <form method="POST" action="{{ route('admin.garansi.update', ['order' => $g['order_route_key']]) }}" class="flex min-w-[170px] items-center gap-2">
+                                        @csrf
+                                        @method('PATCH')
+                                        <input type="hidden" name="search" value="{{ $search }}">
+                                        <input type="hidden" name="page" value="{{ $garansiList->currentPage() }}">
+                                        <select name="garansi_months" class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] text-slate-700">
+                                            <option value="">Pilih Garansi</option>
+                                            @foreach ([0, 1, 3, 6, 12] as $month)
+                                                <option value="{{ $month }}" @selected((string) ($g['garansi_months'] ?? '') === (string) $month)>{{ $month }} Bulan</option>
+                                            @endforeach
+                                        </select>
+                                        <button type="submit" class="inline-flex h-8 items-center justify-center rounded-lg bg-emerald-600 px-3 text-[10px] font-semibold text-white transition hover:bg-emerald-700">
+                                            Simpan
+                                        </button>
+                                    </form>
                                 </td>
 
                                 <td class="px-4 py-3">
@@ -143,7 +162,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-6 py-8 text-center text-gray-500">Tidak ada data garansi</td>
+                                <td colspan="7" class="px-6 py-8 text-center text-gray-500">Tidak ada data garansi</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -156,6 +175,7 @@
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <div class="text-sm font-semibold text-slate-800">{{ $g['order_number'] }}</div>
+                                <div class="mt-1 text-[11px] text-slate-500">{{ $g['unit_kerja'] ?? '-' }}</div>
                             </div>
 
                             <div class="text-right">
@@ -217,6 +237,22 @@
                                 {{ $g['garansi_label'] ?? '' }}
                             </div>
                         </div>
+
+                        <form method="POST" action="{{ route('admin.garansi.update', ['order' => $g['order_route_key']]) }}" class="mt-3 flex items-center gap-2">
+                            @csrf
+                            @method('PATCH')
+                            <input type="hidden" name="search" value="{{ $search }}">
+                            <input type="hidden" name="page" value="{{ $garansiList->currentPage() }}">
+                            <select name="garansi_months" class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[11px] text-slate-700">
+                                <option value="">Pilih Garansi</option>
+                                @foreach ([0, 1, 3, 6, 12] as $month)
+                                    <option value="{{ $month }}" @selected((string) ($g['garansi_months'] ?? '') === (string) $month)>{{ $month }} Bulan</option>
+                                @endforeach
+                            </select>
+                            <button type="submit" class="inline-flex h-9 items-center justify-center rounded-lg bg-emerald-600 px-3 text-[11px] font-semibold text-white">
+                                Simpan
+                            </button>
+                        </form>
                     </div>
                 @empty
                     <div class="py-8 text-center text-gray-500">Tidak ada data garansi</div>

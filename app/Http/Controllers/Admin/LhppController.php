@@ -3,10 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Garansi;
 use App\Models\LhppBast;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
@@ -266,56 +264,6 @@ class LhppController extends Controller
                     @unlink($temporaryFile);
                 }
             }
-        }
-    }
-
-    public function updateGaransi(Request $request, int $lhppId)
-    {
-        try {
-            $lhpp = LhppBast::query()
-                ->where('termin_type', 'termin_1')
-                ->findOrFail($lhppId);
-
-            $validated = $request->validate([
-                'garansi_months' => ['required', 'integer', 'in:0,1,3,6,12'],
-            ], [
-                'garansi_months.required' => 'Durasi garansi wajib dipilih.',
-                'garansi_months.in' => 'Durasi garansi tidak valid.',
-            ]);
-
-            $garansiMonths = (int) $validated['garansi_months'];
-            $startDate = Carbon::today();
-            $endDate = $garansiMonths > 0
-                ? $startDate->copy()->addMonthsNoOverflow($garansiMonths)
-                : null;
-
-            Garansi::query()->updateOrCreate(
-                ['lhpp_bast_id' => $lhpp->id],
-                [
-                    'garansi_months' => $garansiMonths,
-                    'start_date' => $startDate,
-                    'end_date' => $endDate,
-                    'created_by' => $lhpp->garansi?->created_by ?? $request->user()?->id,
-                    'updated_by' => $request->user()?->id,
-                ],
-            );
-
-            return redirect()
-                ->route('admin.lhpp.index', $request->only('search', 'page'))
-                ->with('status', sprintf('Garansi untuk order %s berhasil diperbarui.', $lhpp->nomor_order));
-        } catch (Throwable $exception) {
-            Log::error('Failed to update admin BAST garansi.', [
-                'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
-                'user_id' => $request->user()?->id,
-                'lhpp_id' => $lhppId,
-                'error' => $exception->getMessage(),
-                'file' => $exception->getFile(),
-                'line' => $exception->getLine(),
-            ]);
-
-            return back()->withErrors([
-                'garansi_months' => 'Terjadi kesalahan saat memperbarui data garansi.',
-            ]);
         }
     }
 

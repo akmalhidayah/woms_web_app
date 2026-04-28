@@ -237,6 +237,11 @@ class Order extends Model
         return $this->hasMany(LhppBast::class);
     }
 
+    public function garansi(): HasOne
+    {
+        return $this->hasOne(Garansi::class);
+    }
+
     /**
      * Get the latest HPP for the order.
      */

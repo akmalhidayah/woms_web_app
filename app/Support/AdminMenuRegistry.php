@@ -92,6 +92,20 @@ class AdminMenuRegistry
                 'group' => 'main',
                 'route_name' => 'admin.lhpp.index',
                 'active_patterns' => ['admin.lhpp.*'],
+                'children' => [
+                    [
+                        'key' => self::MENU_GARANSI,
+                        'label' => 'Set Garansi',
+                        'route_name' => 'admin.garansi.index',
+                        'active_patterns' => ['admin.garansi.*'],
+                    ],
+                    [
+                        'key' => self::MENU_LHPP_BAST,
+                        'label' => 'Cek BAST',
+                        'route_name' => 'admin.lhpp.index',
+                        'active_patterns' => ['admin.lhpp.*'],
+                    ],
+                ],
             ],
             self::MENU_LPJ_PPL => [
                 'key' => self::MENU_LPJ_PPL,
@@ -108,6 +122,7 @@ class AdminMenuRegistry
                 'group' => 'main',
                 'route_name' => 'admin.garansi.index',
                 'active_patterns' => ['admin.garansi.*'],
+                'sidebar_hidden' => true,
             ],
             self::MENU_DISPLAY_PEKERJAAN_BENGKEL => [
                 'key' => self::MENU_DISPLAY_PEKERJAAN_BENGKEL,
@@ -213,22 +228,33 @@ class AdminMenuRegistry
         $items = [];
 
         foreach (static::definitions() as $item) {
-            if (! static::canAccess($user, $item['key'])) {
+            $resolvedChildren = [];
+
+            foreach ($item['children'] ?? [] as $child) {
+                $childKey = $child['key'] ?? null;
+
+                if ($childKey && ! static::canAccess($user, $childKey)) {
+                    continue;
+                }
+
+                $resolvedChildren[] = [
+                    ...$child,
+                    'href' => static::resolveUrl($child),
+                    'active' => static::isItemActive($child),
+                ];
+            }
+
+            if (! static::canAccess($user, $item['key']) && $resolvedChildren === []) {
                 continue;
             }
 
             $resolved = $item;
             $resolved['href'] = static::resolveUrl($item);
-            $resolved['active'] = static::isItemActive($item);
+            $resolved['active'] = static::isItemActive($item)
+                || collect($resolvedChildren)->contains(fn (array $child): bool => $child['active'] ?? false);
 
-            if (! empty($item['children'])) {
-                $resolved['children'] = array_map(function (array $child): array {
-                    return [
-                        ...$child,
-                        'href' => static::resolveUrl($child),
-                        'active' => static::isItemActive($child),
-                    ];
-                }, $item['children']);
+            if ($resolvedChildren !== []) {
+                $resolved['children'] = $resolvedChildren;
             }
 
             $items[$item['key']] = $resolved;
@@ -239,7 +265,9 @@ class AdminMenuRegistry
             'orders' => $items[self::MENU_ORDERS] ?? null,
             'main' => array_values(array_filter(
                 $items,
-                fn (array $item) => $item['group'] === 'main' && $item['key'] !== self::MENU_ORDERS,
+                fn (array $item) => $item['group'] === 'main'
+                    && $item['key'] !== self::MENU_ORDERS
+                    && ! ($item['sidebar_hidden'] ?? false),
             )),
             'support' => array_values(array_filter(
                 $items,

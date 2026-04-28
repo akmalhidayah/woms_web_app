@@ -77,7 +77,7 @@ class StructureOrganizationController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'unit_work_id', 'name', 'manager_id']),
             'vendorWorkTypes' => VendorWorkType::query()
-                ->with(['section.unitWork:id,name', 'manager:id,name'])
+                ->with(['vendorSections.manager:id,name'])
                 ->orderBy('name')
                 ->get(),
         ]);
@@ -87,8 +87,9 @@ class StructureOrganizationController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255', 'unique:vendor_work_types,name'],
-            'unit_work_section_id' => ['required', 'integer', 'exists:unit_work_sections,id'],
-            'manager_id' => ['required', 'integer', 'exists:users,id'],
+            'sections' => ['required', 'array', 'min:1'],
+            'sections.*.name' => ['required', 'string', 'max:255'],
+            'sections.*.manager_id' => ['required', 'integer', 'exists:users,id'],
         ]);
 
         if ($validator->fails()) {
@@ -100,11 +101,11 @@ class StructureOrganizationController extends Controller
 
         $validated = $validator->validated();
 
-        VendorWorkType::create([
+        $vendorWorkType = VendorWorkType::create([
             'name' => trim($validated['name']),
-            'unit_work_section_id' => $validated['unit_work_section_id'],
-            'manager_id' => $validated['manager_id'],
         ]);
+
+        $this->syncVendorSections($vendorWorkType, $validated['sections']);
 
         return redirect()
             ->route('admin.structure.index')
@@ -115,8 +116,9 @@ class StructureOrganizationController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255', Rule::unique('vendor_work_types', 'name')->ignore($vendorWorkType->id)],
-            'unit_work_section_id' => ['required', 'integer', 'exists:unit_work_sections,id'],
-            'manager_id' => ['required', 'integer', 'exists:users,id'],
+            'sections' => ['required', 'array', 'min:1'],
+            'sections.*.name' => ['required', 'string', 'max:255'],
+            'sections.*.manager_id' => ['required', 'integer', 'exists:users,id'],
         ]);
 
         if ($validator->fails()) {
@@ -130,9 +132,9 @@ class StructureOrganizationController extends Controller
 
         $vendorWorkType->update([
             'name' => trim($validated['name']),
-            'unit_work_section_id' => $validated['unit_work_section_id'],
-            'manager_id' => $validated['manager_id'],
         ]);
+
+        $this->syncVendorSections($vendorWorkType, $validated['sections']);
 
         return redirect()
             ->route('admin.structure.index')
@@ -319,5 +321,22 @@ class StructureOrganizationController extends Controller
             'name' => trim((string) $validated['department_name_new']),
             'general_manager_id' => $validated['general_manager_id'] ?? null,
         ]);
+    }
+
+    /**
+     * @param list<array{name: string, manager_id: int|string}> $sections
+     */
+    private function syncVendorSections(VendorWorkType $vendorWorkType, array $sections): void
+    {
+        DB::transaction(function () use ($vendorWorkType, $sections): void {
+            $vendorWorkType->vendorSections()->delete();
+
+            foreach ($sections as $section) {
+                $vendorWorkType->vendorSections()->create([
+                    'name' => trim((string) $section['name']),
+                    'manager_id' => $section['manager_id'],
+                ]);
+            }
+        });
     }
 }

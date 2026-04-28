@@ -154,15 +154,44 @@
 
                         @foreach ($mainMenus as $menu)
                             @php($isActive = $menu['active'] ?? false)
-                            <a
-                                href="{{ $menu['href'] }}"
-                                class="group flex items-center gap-3 rounded-xl px-3 py-2.5 transition {{ $isActive ? 'bg-white text-blue-900 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
-                            >
-                                <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl transition {{ $isActive ? 'bg-blue-100 text-blue-900' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
-                                    <i data-lucide="{{ $menu['icon'] }}" class="h-5 w-5"></i>
-                                </span>
-                                <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="font-medium">{{ $menu['label'] }}</span>
-                            </a>
+                            @if (! empty($menu['children']))
+                                <div class="rounded-xl" x-data="{ open: {{ $isActive ? 'true' : 'false' }} }">
+                                    <button
+                                        @click="open = !open"
+                                        class="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition {{ $isActive ? 'bg-white text-blue-900 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
+                                    >
+                                        <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl transition {{ $isActive ? 'bg-blue-100 text-blue-900' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
+                                            <i data-lucide="{{ $menu['icon'] }}" class="h-5 w-5"></i>
+                                        </span>
+                                        <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 text-left font-medium">{{ $menu['label'] }}</span>
+                                        <i
+                                            data-lucide="chevron-down"
+                                            class="h-4 w-4 transition"
+                                            :class="open ? 'rotate-180 {{ $isActive ? 'text-blue-900' : 'text-white/70' }}' : '{{ $isActive ? 'text-blue-900' : 'text-white/70' }}'"
+                                            x-show="sidebarOpen"
+                                            x-transition.opacity.duration.200ms
+                                        ></i>
+                                    </button>
+
+                                    <div x-show="open && sidebarOpen" x-transition.opacity.duration.200ms x-cloak class="mt-1 space-y-1 pl-12">
+                                        @foreach ($menu['children'] as $childMenu)
+                                            <a href="{{ $childMenu['href'] }}" class="flex items-center justify-between rounded-lg px-3 py-2 transition {{ $childMenu['active'] ? 'bg-white text-blue-900' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
+                                                <span>{{ $childMenu['label'] }}</span>
+                                            </a>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @else
+                                <a
+                                    href="{{ $menu['href'] }}"
+                                    class="group flex items-center gap-3 rounded-xl px-3 py-2.5 transition {{ $isActive ? 'bg-white text-blue-900 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
+                                >
+                                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl transition {{ $isActive ? 'bg-blue-100 text-blue-900' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
+                                        <i data-lucide="{{ $menu['icon'] }}" class="h-5 w-5"></i>
+                                    </span>
+                                    <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="font-medium">{{ $menu['label'] }}</span>
+                                </a>
+                            @endif
                         @endforeach
 
                         @if ($supportMenus !== [] || $otherMenus !== [])

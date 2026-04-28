@@ -78,16 +78,18 @@ class LhppBast extends Model
      */
     public static function tipePekerjaanOptions(): array
     {
-        if (! Schema::hasTable('vendor_work_types')) {
+        if (! Schema::hasTable('vendor_work_type_sections')) {
             return self::legacyTipePekerjaanOptions();
         }
 
-        $vendorOptions = VendorWorkType::query()
+        $vendorSectionOptions = VendorWorkTypeSection::query()
+            ->whereNotNull('name')
+            ->whereRaw("TRIM(name) <> ''")
             ->orderBy('name')
             ->pluck('name', 'name')
             ->all();
 
-        return $vendorOptions ?: self::legacyTipePekerjaanOptions();
+        return $vendorSectionOptions ?: self::legacyTipePekerjaanOptions();
     }
 
     public static function tipePekerjaanLabel(?string $value): string

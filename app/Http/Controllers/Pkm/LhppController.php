@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Pkm;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Pkm\StoreLhppBastRequest;
 use App\Models\FabricationConstructionContract;
+use App\Models\Garansi;
 use App\Models\Hpp;
 use App\Models\LhppBast;
 use App\Models\LhppBastImage;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use setasign\Fpdi\Fpdi;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class LhppController extends Controller
@@ -36,6 +38,7 @@ class LhppController extends Controller
             $baseQuery = LhppBast::query()
                 ->with([
                     'terminTwo',
+                    'garansi',
                     'order:id,nomor_order,notifikasi',
                 ])
                 ->where('termin_type', 'termin_1')
@@ -154,6 +157,7 @@ class LhppController extends Controller
 
             abort_if(! $terminOne, Response::HTTP_NOT_FOUND, 'BAST Termin 1 tidak ditemukan.');
             abort_if(($terminOne->termin1_status ?? 'belum') !== 'sudah', Response::HTTP_BAD_REQUEST, 'BAST Termin 2 hanya bisa dibuat setelah Termin 1 sudah dibayar.');
+            abort_if((int) ($terminOne->garansi?->garansi_months ?? -1) === 0, Response::HTTP_BAD_REQUEST, 'BAST Termin 2 tidak diperlukan untuk order tanpa garansi.');
 
             if ($terminOne->terminTwo) {
                 return redirect()->route('pkm.lhpp.edit', [
@@ -171,6 +175,10 @@ class LhppController extends Controller
                 'submitLabel' => 'Simpan',
             ], 'termin_2', $terminOne);
         } catch (Throwable $exception) {
+            if ($exception instanceof HttpExceptionInterface) {
+                throw $exception;
+            }
+
             Log::error('Failed to load PKM LHPP termin 2 create form.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'user_id' => $request->user()?->id,
@@ -305,6 +313,7 @@ class LhppController extends Controller
             );
 
             $this->syncParentTipePekerjaanIfMissing($terminType, $parentLhpp, $tipePekerjaan);
+            $this->syncGaransiToTerminOne($terminType, $order, $lhpp);
             $this->storeUploadedImages($request, $lhpp);
 
             return redirect()
@@ -402,6 +411,7 @@ class LhppController extends Controller
 
             $lhpp->save();
             $this->syncParentTipePekerjaanIfMissing($terminType, $parentLhpp, $tipePekerjaan);
+            $this->syncGaransiToTerminOne($terminType, $order, $lhpp);
             $this->storeUploadedImages($request, $lhpp);
 
             return redirect()
@@ -485,6 +495,7 @@ class LhppController extends Controller
 
             $lhpp->loadMissing([
                 'images',
+                'garansi',
                 'parentLhppBast.images',
                 'parentLhppBast.purchaseOrder:id,order_id,purchase_order_number',
                 'parentLhppBast.order.purchaseOrder:id,order_id,purchase_order_number',
@@ -657,6 +668,7 @@ class LhppController extends Controller
                     });
             })
             ->whereHas('latestHpp')
+            ->whereHas('garansi')
             ->when($existingOrderIds->isNotEmpty(), fn ($query) => $query->whereNotIn('id', $existingOrderIds))
             ->latest('id')
             ->get([
@@ -686,6 +698,10 @@ class LhppController extends Controller
                 return [null, null];
             }
 
+            if ((int) ($parentLhpp->garansi?->garansi_months ?? -1) === 0) {
+                return [null, null];
+            }
+
             return [$this->loadOrderWithRelations($parentLhpp->order), $parentLhpp];
         }
 
@@ -701,6 +717,7 @@ class LhppController extends Controller
             $parentLhpp = $lhpp->parentLhppBast ?: $this->resolveLhppByOrderAndTermin($lhpp->nomor_order, 'termin_1');
 
             abort_if(! $parentLhpp, Response::HTTP_NOT_FOUND, 'BAST Termin 1 tidak ditemukan.');
+            abort_if((int) ($parentLhpp->garansi?->garansi_months ?? -1) === 0, Response::HTTP_BAD_REQUEST, 'BAST Termin 2 tidak diperlukan untuk order tanpa garansi.');
 
             return [$this->loadOrderWithRelations($parentLhpp->order), $parentLhpp];
         }
@@ -729,7 +746,7 @@ class LhppController extends Controller
     private function resolveLhppByOrderAndTermin(string $nomorOrder, string $terminType): ?LhppBast
     {
         return LhppBast::query()
-            ->with(['order', 'parentLhppBast.images', 'terminTwo', 'images'])
+            ->with(['order', 'parentLhppBast.images', 'terminTwo', 'images', 'garansi'])
             ->where('nomor_order', $nomorOrder)
             ->where('termin_type', $terminType)
             ->first();
@@ -784,6 +801,18 @@ class LhppController extends Controller
         $parentLhpp->forceFill([
             'tipe_pekerjaan' => $tipePekerjaan,
         ])->save();
+    }
+
+    private function syncGaransiToTerminOne(string $terminType, Order $order, LhppBast $lhpp): void
+    {
+        if ($terminType !== 'termin_1') {
+            return;
+        }
+
+        Garansi::query()
+            ->where('order_id', $order->id)
+            ->whereNull('lhpp_bast_id')
+            ->update(['lhpp_bast_id' => $lhpp->id]);
     }
 
     private function mapOrderOption(Order $order): array
@@ -960,6 +989,8 @@ class LhppController extends Controller
             'submitLabel' => $meta['submitLabel'],
             'terminType' => $terminType,
             'terminLabel' => $this->terminLabel($terminType),
+            'isWithoutWarranty' => $terminType === 'termin_1'
+                && (int) ($currentOrder?->garansi?->garansi_months ?? $lhpp?->garansi?->garansi_months ?? -1) === 0,
         ]);
     }
 

@@ -153,7 +153,9 @@
                                 <div x-data="{ t: '1' }" class="inline-flex min-w-[150px] flex-col items-center rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2">
                                     <select x-model="t" class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700">
                                         <option value="1">Termin 1</option>
-                                        <option value="2">Termin 2</option>
+                                        @unless ($row['is_without_warranty'] ?? false)
+                                            <option value="2">Termin 2</option>
+                                        @endunless
                                     </select>
 
                                     <div class="mt-2 flex items-center gap-1.5">
@@ -181,6 +183,7 @@
                                             </div>
                                         </template>
 
+                                        @unless ($row['is_without_warranty'] ?? false)
                                         <template x-if="t === '2'">
                                             <div class="flex items-center gap-1.5">
                                                 @if (! empty($row['lpj_url_termin2']))
@@ -204,6 +207,7 @@
                                                 @endif
                                             </div>
                                         </template>
+                                        @endunless
                                     </div>
 
                                     <div class="mt-2 flex items-center gap-4 text-[10px] font-medium text-slate-500">

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Hpp;
+use App\Models\HppSignature;
 use App\Models\Order;
 use App\Models\OrderDocument;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -156,7 +157,7 @@ class OrderTrackingController extends Controller
 
         abort_if(! $hpp, 404);
 
-        $hpp->loadMissing(['order', 'outlineAgreement', 'creator', 'signatures']);
+        $hpp->loadMissing(['order', 'outlineAgreement', 'creator', 'signatures.signer:id,name,inisial']);
 
         $finalSignedDocument = $hpp->finalSignedDocumentSignature();
 
@@ -165,12 +166,12 @@ class OrderTrackingController extends Controller
 
             return response()->file(
                 Storage::disk('public')->path($finalSignedDocument->signed_document_path),
-                [
+                $this->pdfNoCacheHeaders([
                     'Content-Type' => $finalSignedDocument->signed_document_mime_type ?: (Storage::disk('public')->mimeType($finalSignedDocument->signed_document_path) ?: 'application/octet-stream'),
                     'Content-Disposition' => 'inline; filename="'.$this->safeFilename(
                         $finalSignedDocument->signed_document_original_name ?: basename($finalSignedDocument->signed_document_path)
                     ).'"',
-                ],
+                ]),
             );
         }
 
@@ -178,7 +179,13 @@ class OrderTrackingController extends Controller
             'hpp' => $hpp,
         ])->setPaper('a4', 'landscape');
 
-        return $pdf->stream('hpp-'.$hpp->nomor_order.'.pdf');
+        $response = $pdf->stream('hpp-'.$hpp->nomor_order.'.pdf');
+
+        foreach ($this->pdfNoCacheHeaders() as $key => $value) {
+            $response->headers->set($key, $value);
+        }
+
+        return $response;
     }
 
     public function purchaseOrderDocument(Order $order): Response
@@ -206,7 +213,9 @@ class OrderTrackingController extends Controller
             ->where('termin_type', $terminType)
             ->with([
                 'images',
+                'signatures',
                 'parentLhppBast.images',
+                'parentLhppBast.signatures',
                 'parentLhppBast.purchaseOrder:id,order_id,purchase_order_number',
                 'parentLhppBast.order.purchaseOrder:id,order_id,purchase_order_number',
                 'purchaseOrder:id,order_id,purchase_order_number',
@@ -216,6 +225,25 @@ class OrderTrackingController extends Controller
                 'hpp.creator',
             ])
             ->firstOrFail();
+
+        $finalDocumentSignature = $lhpp->finalSignedDocumentSignature();
+
+        if ($finalDocumentSignature?->hasUploadedSignedDocument()) {
+            abort_unless(Storage::disk('public')->exists($finalDocumentSignature->signed_document_path), Response::HTTP_NOT_FOUND);
+
+            return response()->file(
+                Storage::disk('public')->path($finalDocumentSignature->signed_document_path),
+                [
+                    'Content-Type' => $finalDocumentSignature->signed_document_mime_type
+                        ?: (Storage::disk('public')->mimeType($finalDocumentSignature->signed_document_path) ?: 'application/octet-stream'),
+                    'Content-Disposition' => sprintf(
+                        'inline; filename="%s"',
+                        $finalDocumentSignature->signed_document_original_name
+                            ?: basename($finalDocumentSignature->signed_document_path)
+                    ),
+                ],
+            );
+        }
 
         $bastPdf = Pdf::loadView('pkm.lhpp.pdf', [
             'lhpp' => $lhpp,
@@ -616,12 +644,77 @@ class OrderTrackingController extends Controller
             'hpp' => [
                 'status' => $order->latestHpp ? (Hpp::statusOptions()[$order->latestHpp->status] ?? ucfirst($order->latestHpp->status)) : 'Belum dibuat',
                 'total' => $order->latestHpp?->total_keseluruhan,
+                'approval' => $this->resolveHppApprovalShareInfo($order->latestHpp),
             ],
             'garansi' => $garansi ? [
                 'months' => $garansi->garansi_months,
                 'start' => $garansi->start_date?->format('d/m/Y'),
                 'end' => $garansi->end_date?->format('d/m/Y'),
             ] : null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function resolveHppApprovalShareInfo(?Hpp $hpp): ?array
+    {
+        if (! $hpp) {
+            return null;
+        }
+
+        $hpp->loadMissing('signatures');
+
+        $activeSignature = $hpp->signatures
+            ->first(fn ($signature): bool => $signature->isPending());
+        $signatureLinks = $hpp->signatures
+            ->filter(fn ($signature): bool => $signature->isPending() && ! $signature->tokenExpired() && filled($signature->token))
+            ->map(fn ($signature): array => [
+                'step' => $signature->step_order,
+                'role_label' => $signature->role_label,
+                'signer_name' => $signature->signer_name_snapshot,
+                'status' => $signature->status,
+                'status_label' => match ($signature->status) {
+                    HppSignature::STATUS_PENDING => $signature->tokenExpired() ? 'Token kedaluwarsa' : 'Menunggu TTD',
+                    HppSignature::STATUS_SIGNED => 'Sudah TTD',
+                    HppSignature::STATUS_LOCKED => 'Belum aktif',
+                    HppSignature::STATUS_SKIPPED => 'Dilewati',
+                    default => ucfirst((string) $signature->status),
+                },
+                'link' => route('approval.hpp.show', $signature->token),
+                'expires_at' => $signature->token_expires_at?->format('d/m/Y H:i'),
+                'is_expired' => $signature->tokenExpired(),
+                'is_active' => $signature->isPending(),
+            ])
+            ->values()
+            ->all();
+
+        if (! $activeSignature) {
+            return [
+                'state' => $hpp->approvalCompleted() ? 'completed' : 'none',
+                'label' => $hpp->approvalCompleted() ? 'Approval HPP selesai' : 'Tidak ada token aktif',
+                'link' => null,
+                'signer_name' => null,
+                'role_label' => null,
+                'step' => null,
+                'total_steps' => $hpp->approvalStepCount(),
+                'expires_at' => null,
+                'is_expired' => false,
+                'links' => $signatureLinks,
+            ];
+        }
+
+        return [
+            'state' => $activeSignature->tokenExpired() ? 'expired' : 'pending',
+            'label' => $activeSignature->tokenExpired() ? 'Token TTD kedaluwarsa' : 'Menunggu TTD',
+            'link' => $activeSignature->approvalUrl(),
+            'signer_name' => $activeSignature->signer_name_snapshot,
+            'role_label' => $activeSignature->role_label,
+            'step' => $activeSignature->step_order,
+            'total_steps' => $hpp->approvalStepCount(),
+            'expires_at' => $activeSignature->token_expires_at?->format('d/m/Y H:i'),
+            'is_expired' => $activeSignature->tokenExpired(),
+            'links' => $signatureLinks,
         ];
     }
 
@@ -742,6 +835,19 @@ class OrderTrackingController extends Controller
         $filename = trim((string) $filename);
 
         return $filename !== '' ? str_replace('"', '', $filename) : 'document';
+    }
+
+    /**
+     * @param array<string, string> $headers
+     * @return array<string, string>
+     */
+    private function pdfNoCacheHeaders(array $headers = []): array
+    {
+        return array_merge($headers, [
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
     }
 
     /**

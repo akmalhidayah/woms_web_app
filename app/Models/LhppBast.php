@@ -13,6 +13,10 @@ class LhppBast extends Model
 {
     use HasFactory;
 
+    public const APPROVAL_IN_REVIEW = 'in_review';
+    public const APPROVAL_APPROVED = 'approved';
+    public const APPROVAL_REJECTED = 'rejected';
+
     public function getRouteKeyName(): string
     {
         return 'id';
@@ -49,6 +53,9 @@ class LhppBast extends Model
         'termin1_status',
         'termin2_status',
         'quality_control_status',
+        'approval_status',
+        'approval_case',
+        'approval_flow',
         'created_by',
         'updated_by',
     ];
@@ -65,6 +72,7 @@ class LhppBast extends Model
             'nilai_hpp' => 'decimal:2',
             'material_items' => 'array',
             'service_items' => 'array',
+            'approval_flow' => 'array',
             'subtotal_material' => 'decimal:2',
             'subtotal_jasa' => 'decimal:2',
             'total_aktual_biaya' => 'decimal:2',
@@ -155,6 +163,18 @@ class LhppBast extends Model
         return $this->hasMany(LhppBastImage::class)->latest('id');
     }
 
+    public function signatures(): HasMany
+    {
+        return $this->hasMany(LhppBastSignature::class)->orderBy('step_order');
+    }
+
+    public function activeSignature(): HasOne
+    {
+        return $this->hasOne(LhppBastSignature::class)
+            ->where('status', LhppBastSignature::STATUS_PENDING)
+            ->orderBy('step_order');
+    }
+
     public function garansi(): HasOne
     {
         return $this->hasOne(Garansi::class);
@@ -168,5 +188,87 @@ class LhppBast extends Model
     public function updater(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function approvalProgressPercent(): int
+    {
+        $signatures = $this->approvalSignatureCollection();
+        $total = $signatures->count();
+
+        if ($total === 0) {
+            return 0;
+        }
+
+        $completed = $signatures
+            ->filter(fn (LhppBastSignature $signature): bool => $signature->isSigned() || $signature->isSkipped())
+            ->count();
+
+        return (int) round(($completed / $total) * 100);
+    }
+
+    public function approvalSignedCount(): int
+    {
+        return $this->approvalSignatureCollection()
+            ->filter(fn (LhppBastSignature $signature): bool => $signature->isSigned())
+            ->count();
+    }
+
+    public function approvalStepCount(): int
+    {
+        return $this->approvalSignatureCollection()->count();
+    }
+
+    public function approvalCompleted(): bool
+    {
+        $signatures = $this->approvalSignatureCollection();
+
+        return $signatures->isNotEmpty()
+            && $signatures->every(
+                fn (LhppBastSignature $signature): bool => $signature->isSigned() || $signature->isSkipped()
+            );
+    }
+
+    public function latestActiveApprovalLink(): ?string
+    {
+        return $this->currentActiveSignature()?->approvalUrl();
+    }
+
+    public function finalSignedDocumentSignature(): ?LhppBastSignature
+    {
+        return $this->approvalSignatureCollection()->first(function (LhppBastSignature $signature): bool {
+            return $signature->role_key === 'dirops' && $signature->hasUploadedSignedDocument();
+        });
+    }
+
+    public function hasFinalSignedDocument(): bool
+    {
+        return $this->finalSignedDocumentSignature() !== null;
+    }
+
+    private function currentActiveSignature(): ?LhppBastSignature
+    {
+        if ($this->relationLoaded('activeSignature') && $this->activeSignature) {
+            return $this->activeSignature;
+        }
+
+        if ($this->relationLoaded('signatures')) {
+            return $this->signatures->first(
+                fn (LhppBastSignature $signature): bool => $signature->isPending()
+            );
+        }
+
+        return $this->activeSignature()->first();
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, LhppBastSignature>
+     */
+    private function approvalSignatureCollection()
+    {
+        if ($this->relationLoaded('signatures')) {
+            return $this->signatures;
+        }
+
+        return $this->signatures()->get();
     }
 }

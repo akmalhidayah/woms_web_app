@@ -110,7 +110,7 @@ class User extends Authenticatable // implements MustVerifyEmail
         return match ($this->role) {
             self::ROLE_ADMIN => 'admin.dashboard',
             self::ROLE_PKM => 'pkm.dashboard',
-            self::ROLE_APPROVER => 'approver.dashboard',
+            self::ROLE_APPROVER => 'user.dashboard',
             default => 'user.dashboard',
         };
     }

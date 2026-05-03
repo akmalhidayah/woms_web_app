@@ -93,26 +93,33 @@ class InitialWorkSignatureService
      */
     public function activateNextSignature(InitialWorkSignature $signedSignature): ?string
     {
-        if ($signedSignature->role_key !== InitialWorkSignature::ROLE_MANAGER) {
-            return null;
-        }
+        return DB::transaction(function () use ($signedSignature): ?string {
+            if ($signedSignature->role_key !== InitialWorkSignature::ROLE_MANAGER) {
+                return null;
+            }
 
-        $nextSignature = InitialWorkSignature::query()
-            ->where('initial_work_id', $signedSignature->initial_work_id)
-            ->where('role_key', InitialWorkSignature::ROLE_SENIOR_MANAGER)
-            ->first();
+            $nextSignature = InitialWorkSignature::query()
+                ->where('initial_work_id', $signedSignature->initial_work_id)
+                ->where('role_key', InitialWorkSignature::ROLE_SENIOR_MANAGER)
+                ->lockForUpdate()
+                ->first();
 
-        if (! $nextSignature || ! $nextSignature->signer_user_id || $nextSignature->isSigned()) {
-            return null;
-        }
+            if (! $nextSignature || ! $nextSignature->signer_user_id || $nextSignature->isSigned()) {
+                return null;
+            }
 
-        $token = $this->issueToken($nextSignature);
+            if ($nextSignature->isPending() && $nextSignature->approvalUrl()) {
+                return $nextSignature->approvalUrl();
+            }
 
-        $nextSignature->update([
-            'status' => InitialWorkSignature::STATUS_PENDING,
-        ]);
+            $token = $this->issueToken($nextSignature);
 
-        return route('approval.initial-work.show', $token);
+            $nextSignature->update([
+                'status' => InitialWorkSignature::STATUS_PENDING,
+            ]);
+
+            return route('approval.initial-work.show', $token);
+        });
     }
 
     public function resolveUnitForOutlineAgreement(OutlineAgreement $outlineAgreement): ?UnitWork

@@ -10,7 +10,11 @@
             $bastDate = old('tanggal_bast', $bastDate ?? now()->format('Y-m-d'));
             $tanggalMulaiPekerjaan = old('tanggal_mulai_pekerjaan', $tanggalMulaiPekerjaan ?? '');
             $tanggalSelesaiPekerjaan = old('tanggal_selesai_pekerjaan', $tanggalSelesaiPekerjaan ?? '');
-            $selectedTipePekerjaan = (string) old('tipe_pekerjaan', $selectedTipePekerjaan ?? '');
+           $oldTipePekerjaan = old('tipe_pekerjaan');
+
+$selectedTipePekerjaan = filled($oldTipePekerjaan)
+    ? (string) $oldTipePekerjaan
+    : (string) ($selectedTipePekerjaan ?? '');
             $isTipePekerjaanLocked = $terminType === 'termin_2' && $selectedTipePekerjaan !== '';
             $tipePekerjaanOptions = collect($tipePekerjaanOptions ?? [])
                 ->map(fn ($label, $value) => ['value' => $value, 'label' => $label])
@@ -140,19 +144,35 @@
                                 <div aria-hidden="true"></div>
                                 <input type="text" x-bind:value="currentOrder().purchase_order_number" readonly class="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:outline-none">
 
-                                <label class="text-[12px] font-semibold uppercase tracking-[0.08em] text-slate-700">Tipe Pekerjaan</label>
-                                <div aria-hidden="true"></div>
-                                <div class="relative">
-                                    <input type="hidden" name="tipe_pekerjaan" value="{{ $selectedTipePekerjaan }}" :value="resolvedTipePekerjaan()">
-                                    <select x-model="selectedTipePekerjaan" :disabled="isTipePekerjaanLocked" class="w-full appearance-none rounded-xl border border-slate-300 bg-white px-3 py-2 pr-10 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
-                                        <option value="">Pilih Tipe Pekerjaan</option>
-                                        <template x-for="option in tipePekerjaanOptions" :key="option.value">
-                                            <option :value="option.value" x-text="option.label"></option>
-                                        </template>
-                                    </select>
-                                    <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"></i>
-                                </div>
+                            <label class="text-[12px] font-semibold uppercase tracking-[0.08em] text-slate-700">Tipe Pekerjaan</label>
+<div aria-hidden="true"></div>
+<div class="relative">
+    @if ($isTipePekerjaanLocked)
+        <input type="hidden" name="tipe_pekerjaan" value="{{ $selectedTipePekerjaan }}">
+    @endif
 
+    <select
+        @if (! $isTipePekerjaanLocked)
+            name="tipe_pekerjaan"
+        @endif
+        x-model="selectedTipePekerjaan"
+        :disabled="isTipePekerjaanLocked"
+        class="w-full appearance-none rounded-xl border border-slate-300 bg-white px-3 py-2 pr-10 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+    >
+        <option value="">Pilih Tipe Pekerjaan</option>
+
+        @foreach ($tipePekerjaanOptions as $option)
+            <option
+                value="{{ $option['value'] }}"
+                @selected($selectedTipePekerjaan === $option['value'])
+            >
+                {{ $option['label'] }}
+            </option>
+        @endforeach
+    </select>
+
+    <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"></i>
+</div>
                                 <label class="text-[12px] font-semibold uppercase tracking-[0.08em] text-slate-700">Tanggal Dimulainya Pekerjaan</label>
                                 <div aria-hidden="true"></div>
                                 <input type="date" name="tanggal_mulai_pekerjaan" value="{{ $tanggalMulaiPekerjaan }}" :value="resolvedWorkStartDate()" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none">
@@ -182,7 +202,7 @@
                                     <div class="flex items-start gap-2.5">
                                         <div class="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-700">1</div>
                                         <div class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                            <div class="text-[11px] font-bold text-slate-900">Manager Peminta</div>
+                                            <div class="text-[11px] font-bold text-slate-900">Manager PKM</div>
                                         </div>
                                     </div>
 
@@ -200,6 +220,15 @@
                                     <div class="flex items-start gap-2.5">
                                         <div class="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-700">3</div>
                                         <div class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                                            <div class="text-[11px] font-bold text-slate-900">Manager Peminta</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="ml-3 h-3 w-px bg-slate-300"></div>
+
+                                    <div class="flex items-start gap-2.5">
+                                        <div class="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-700">4</div>
+                                        <div class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                                             <div class="text-[11px] font-bold text-slate-900">GM Pengendali</div>
                                         </div>
                                     </div>
@@ -208,7 +237,7 @@
                                         <div>
                                             <div class="ml-3 h-3 w-px bg-slate-300"></div>
                                             <div class="flex items-start gap-2.5">
-                                                <div class="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#fde9db] text-[10px] font-black text-[#ca642f]">4</div>
+                                                <div class="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#fde9db] text-[10px] font-black text-[#ca642f]">5</div>
                                                 <div class="min-w-0 flex-1 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2">
                                                     <div class="text-[11px] font-bold text-[#9a4f28]">Dirops</div>
                                                 </div>
@@ -682,6 +711,10 @@
                         this.serviceRows.push(this.emptyRow());
                     },
                     resolveThreshold() {
+                        if (this.terminType === 'termin_2') {
+                            return this.approvalThreshold;
+                        }
+
                         const thresholdBase = this.terminType === 'termin_2'
                             ? Number(this.calculation.termin_2_nilai || 0)
                             : Number(this.calculation.termin_1_nilai || 0);

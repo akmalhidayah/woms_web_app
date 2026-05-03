@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light only">
     <title>Dashboard Pekerjaan Bengkel</title>
     <link rel="icon" type="image/png" href="{{ asset('assets/branding/logos/logo-bms2.png') }}">
 
@@ -15,7 +16,11 @@
     <script defer src="https://unpkg.com/lucide@latest"></script>
 
     <style>
-        body { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+        :root { color-scheme: light only; }
+        body {
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+            background: #f1f5f9;
+        }
         .ticker { position: relative; background:#7f1d1d; color:#fff; overflow:hidden; height:46px; }
         .ticker-track {
             display: flex;

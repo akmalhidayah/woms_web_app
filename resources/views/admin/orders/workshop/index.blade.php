@@ -86,13 +86,16 @@
                                 ], true);
                                 $showEkorin = $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY;
                                 $workshopSummary = match (true) {
-                                    $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_DONE => 'Selesai',
+                                    filled($workshop?->progress_status) => $progressOptions[$workshop?->progress_status] ?? 'Progress Bengkel',
                                     $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_READY => 'Material Ready',
                                     $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY => 'E-Korin',
                                     default => 'Belum Konfirmasi',
                                 };
                                 $workshopSummaryClasses = match (true) {
                                     $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_DONE => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+                                    $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL => 'border-violet-200 bg-violet-50 text-violet-700',
+                                    $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_IN_PROGRESS => 'border-blue-200 bg-blue-50 text-blue-700',
+                                    $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL => 'border-amber-200 bg-amber-50 text-amber-700',
                                     $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_READY => 'border-sky-200 bg-sky-50 text-sky-700',
                                     $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY => 'border-amber-200 bg-amber-50 text-amber-700',
                                     default => 'border-slate-200 bg-slate-50 text-slate-500',

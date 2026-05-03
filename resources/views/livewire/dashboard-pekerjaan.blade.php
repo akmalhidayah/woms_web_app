@@ -93,11 +93,45 @@
             'badge_class' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
         ];
     };
+
+    $progressBadge = function (?string $status, ?string $label = null): array {
+        return match ($status) {
+            \App\Models\OrderWorkshop::PROGRESS_DONE => [
+                'label' => 'Selesai',
+                'class' => 'border-emerald-200 bg-emerald-100 text-emerald-800',
+            ],
+            \App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL => [
+                'label' => 'Quality Control',
+                'class' => 'border-violet-200 bg-violet-100 text-violet-800',
+            ],
+            \App\Models\OrderWorkshop::PROGRESS_IN_PROGRESS => [
+                'label' => 'Sementara Proses',
+                'class' => 'border-blue-200 bg-blue-100 text-blue-800',
+            ],
+            \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL => [
+                'label' => 'Menunggu Jadwal',
+                'class' => 'border-amber-200 bg-amber-100 text-amber-800',
+            ],
+            default => [
+                'label' => $label ?: 'Menunggu Jadwal',
+                'class' => 'border-slate-200 bg-slate-100 text-slate-700',
+            ],
+        };
+    };
+    $progressShortLabel = function (?string $status, string $label): string {
+    return match ($status) {
+        \App\Models\OrderWorkshop::PROGRESS_IN_PROGRESS => 'Proses',
+        \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL => 'Jadwal',
+        \App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL => 'QC',
+        \App\Models\OrderWorkshop::PROGRESS_DONE => 'Selesai',
+        default => $label,
+    };
+};
 @endphp
 
 <div>
     @if (($mode ?? 'admin') === 'display')
-        <div wire:poll.keep-alive.5s="tickDisplay" class="flex h-screen w-screen flex-col overflow-hidden">
+        <div wire:poll.keep-alive.5s="tickDisplay" class="flex h-screen w-screen flex-col overflow-hidden bg-slate-100 text-slate-950" style="color-scheme: light only;">
             <div class="mb-3 grid grid-cols-[auto_1fr_auto] items-center gap-4 border border-red-950 bg-red-900 px-6 py-4 text-white shadow-sm">
                 <div class="flex items-center gap-4">
                     <span class="inline-flex h-16 items-center rounded-2xl bg-white px-4 shadow-sm">
@@ -133,7 +167,7 @@
             </div>
 
             <div class="grid min-h-0 flex-1 gap-4 xl:grid-cols-[1.45fr_1fr]">
-                <section class="flex min-h-0 flex-col border border-blue-950 bg-blue-950 p-4 shadow-sm">
+                <section class="flex min-h-0 flex-col border border-red-950 bg-red-900 p-4 shadow-sm">
                     <div class="relative mb-3 flex items-center justify-center gap-3">
                         <div class="text-center text-[1.25rem] font-black uppercase tracking-[0.08em] text-white drop-shadow-[0_1px_0_rgba(0,0,0,0.25)]">Regu Fabrikasi</div>
                         <span class="absolute right-0 rounded-full bg-white px-3 py-1 text-[11px] font-bold text-blue-800 ring-1 ring-blue-200">{{ $fabrikasiTasks->count() }} item</span>
@@ -145,6 +179,7 @@
                                 $profiles = collect($task['person_in_charge_profiles'] ?? []);
                                 $targetMeta = $targetStatus($task['usage_plan_date'] ?? null);
                                 $isCompleted = (bool) ($task['is_completed'] ?? false);
+                                $progressMeta = $progressBadge($task['progress_status'] ?? null, $task['progress_label'] ?? null);
                             @endphp
                             <article wire:key="fabrikasi-display-{{ $task['id'] }}" class="flex h-fit min-h-[138px] flex-col rounded-[1.1rem] border p-3 shadow-sm {{ $isCompleted ? 'border-emerald-300 bg-emerald-50' : 'border-blue-200 bg-white' }}">
                                 <div class="flex items-start justify-between gap-3">
@@ -153,16 +188,18 @@
                                         {{ $task['job_name'] ?? '-' }}
                                     </div>
 
-                                    <span class="inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-[10px] font-extrabold tracking-[0.08em] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.65)] {{ $isCompleted ? 'border-emerald-200 bg-white text-emerald-700' : 'border-blue-200 bg-blue-50 text-blue-800' }}">
-                                        {{ $task['notification_number'] ?: '-' }}
-                                    </span>
+                        <div class="flex shrink-0 items-center gap-1">
+    <span class="inline-flex items-center rounded-full border px-1.5 py-0.5 text-[12px] font-black uppercase tracking-[0.02em] leading-none {{ $progressMeta['class'] }}">
+        {{ $progressShortLabel($task['progress_status'] ?? null, $progressMeta['label']) }}
+    </span>
+
+    <span class="inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-[10px] font-extrabold tracking-[0.08em] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.65)] {{ $isCompleted ? 'border-emerald-200 bg-white text-emerald-700' : 'border-blue-200 bg-blue-50 text-blue-800' }}">
+        {{ $task['notification_number'] ?: '-' }}
+    </span>
+</div>
                                 </div>
 
-                                @if ($isCompleted)
-                                    <div class="mt-2 inline-flex w-fit items-center gap-1 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-emerald-700">
-                                        Selesai
-                                    </div>
-                                @endif
+                                
 
                                 <div class="mt-2.5 rounded-[1rem] border px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] {{ $isCompleted ? 'border-emerald-100 bg-white/85' : 'border-blue-100 bg-blue-50' }}">
                                     <div class="space-y-1.5 text-[12px] font-bold leading-[1.2rem] text-slate-800">
@@ -237,7 +274,7 @@
                     </div>
                 </section>
 
-                <section class="flex min-h-0 flex-col border border-blue-950 bg-[#1a3270] p-4 shadow-sm">
+                <section class="flex min-h-0 flex-col border border-red-950 bg-red-900 p-4 shadow-sm">
                     <div class="relative mb-3 flex items-center justify-center gap-3">
                         <div class="text-center text-[1.1rem] font-black uppercase tracking-[0.07em] text-white drop-shadow-[0_1px_0_rgba(0,0,0,0.25)]">Regu Bengkel (Refurbish)</div>
                         <span class="absolute right-0 rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-blue-800 ring-1 ring-blue-200">{{ $refurbishTasks->count() }} item</span>
@@ -249,6 +286,7 @@
                                 $profiles = collect($task['person_in_charge_profiles'] ?? []);
                                 $targetMeta = $targetStatus($task['usage_plan_date'] ?? null);
                                 $isCompleted = (bool) ($task['is_completed'] ?? false);
+                                $progressMeta = $progressBadge($task['progress_status'] ?? null, $task['progress_label'] ?? null);
                             @endphp
                             <article wire:key="refurbish-display-{{ $task['id'] }}" class="flex h-fit min-h-[172px] flex-col rounded-[1.1rem] border p-3 shadow-sm {{ $isCompleted ? 'border-emerald-300 bg-emerald-50' : 'border-blue-200 bg-white' }}">
                                 <div class="flex items-start justify-between gap-2.5">
@@ -257,16 +295,18 @@
                                         {{ $task['job_name'] ?? '-' }}
                                     </div>
 
-                                    <span class="inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[9px] font-extrabold tracking-[0.08em] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.65)] {{ $isCompleted ? 'border-emerald-200 bg-white text-emerald-700' : 'border-blue-200 bg-blue-50 text-blue-800' }}">
-                                        {{ $task['notification_number'] ?: '-' }}
-                                    </span>
+               <div class="flex shrink-0 items-center gap-1">
+    <span class="inline-flex items-center rounded-full border px-1.5 py-0.5 text-[7px] font-black uppercase tracking-[0.02em] leading-none {{ $progressMeta['class'] }}">
+        {{ $progressShortLabel($task['progress_status'] ?? null, $progressMeta['label']) }}
+    </span>
+
+    <span class="inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[9px] font-extrabold tracking-[0.08em] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.65)] {{ $isCompleted ? 'border-emerald-200 bg-white text-emerald-700' : 'border-blue-200 bg-blue-50 text-blue-800' }}">
+        {{ $task['notification_number'] ?: '-' }}
+    </span>
+</div>
                                 </div>
 
-                                @if ($isCompleted)
-                                    <div class="mt-2 inline-flex w-fit items-center gap-1 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-emerald-700">
-                                        Selesai
-                                    </div>
-                                @endif
+                        
 
                                 <div class="mt-2.5 rounded-[0.95rem] border px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] {{ $isCompleted ? 'border-emerald-100 bg-white/85' : 'border-blue-100 bg-blue-50' }}">
                                     <div class="space-y-1.5 text-[11px] font-bold leading-[1.15rem] text-slate-800">
@@ -371,8 +411,10 @@
                             @php
                                 $profiles = collect($task['person_in_charge_profiles'] ?? []);
                                 $targetMeta = $targetStatus($task['usage_plan_date'] ?? null);
+                                $isCompleted = (bool) ($task['is_completed'] ?? false);
+                                $progressMeta = $progressBadge($task['progress_status'] ?? null, $task['progress_label'] ?? null);
                             @endphp
-                            <article wire:key="fabrikasi-admin-{{ $task['id'] }}" class="rounded-[1.1rem] border border-sky-100 bg-white p-3 shadow-sm">
+                            <article wire:key="fabrikasi-admin-{{ $task['id'] }}" class="rounded-[1.1rem] border p-3 shadow-sm {{ $isCompleted ? 'border-emerald-300 bg-emerald-50' : 'border-sky-100 bg-white' }}">
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="min-w-0 text-[15px] font-black leading-[1.15] tracking-[-0.03em] text-slate-950"
                                          style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
@@ -381,6 +423,12 @@
 
                                     <span class="inline-flex shrink-0 items-center rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-extrabold tracking-[0.08em] text-sky-700 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.65)]">
                                         {{ $task['notification_number'] ?: '-' }}
+                                    </span>
+                                </div>
+
+                                <div class="mt-2 flex justify-end">
+                                    <span class="inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] {{ $progressMeta['class'] }}">
+                                        {{ $progressMeta['label'] }}
                                     </span>
                                 </div>
 
@@ -457,8 +505,10 @@
                             @php
                                 $profiles = collect($task['person_in_charge_profiles'] ?? []);
                                 $targetMeta = $targetStatus($task['usage_plan_date'] ?? null);
+                                $isCompleted = (bool) ($task['is_completed'] ?? false);
+                                $progressMeta = $progressBadge($task['progress_status'] ?? null, $task['progress_label'] ?? null);
                             @endphp
-                            <article wire:key="refurbish-admin-{{ $task['id'] }}" class="rounded-[1.1rem] border border-orange-100 bg-white p-3 shadow-sm">
+                            <article wire:key="refurbish-admin-{{ $task['id'] }}" class="rounded-[1.1rem] border p-3 shadow-sm {{ $isCompleted ? 'border-emerald-300 bg-emerald-50' : 'border-orange-100 bg-white' }}">
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="min-w-0 text-[15px] font-black leading-[1.15] tracking-[-0.03em] text-slate-950"
                                          style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
@@ -467,6 +517,12 @@
 
                                     <span class="inline-flex shrink-0 items-center rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-[10px] font-extrabold tracking-[0.08em] text-orange-700 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.65)]">
                                         {{ $task['notification_number'] ?: '-' }}
+                                    </span>
+                                </div>
+
+                                <div class="mt-2 flex justify-end">
+                                    <span class="inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] {{ $progressMeta['class'] }}">
+                                        {{ $progressMeta['label'] }}
                                     </span>
                                 </div>
 

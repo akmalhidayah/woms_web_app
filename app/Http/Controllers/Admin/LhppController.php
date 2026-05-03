@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\LhppBast;
+use App\Models\LhppBastSignature;
+use App\Support\BastApprovalSignatureBuilder;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use setasign\Fpdi\Fpdi;
 use Symfony\Component\HttpFoundation\Response;
@@ -14,10 +17,17 @@ use Throwable;
 
 class LhppController extends Controller
 {
+    public function __construct(
+        private readonly BastApprovalSignatureBuilder $signatureBuilder,
+    ) {
+    }
+
     public function updateQualityControl(Request $request, int $lhppId)
     {
         try {
-            $lhpp = LhppBast::query()->findOrFail($lhppId);
+            $lhpp = LhppBast::query()
+                ->with('childLhppBasts')
+                ->findOrFail($lhppId);
 
             $validated = $request->validate([
                 'quality_control_status' => ['required', 'in:pending,approved,rejected'],
@@ -27,10 +37,16 @@ class LhppController extends Controller
             $lhpp->updated_by = $request->user()?->id;
             $lhpp->save();
 
-            $lhpp->childLhppBasts()->update([
-                'quality_control_status' => $validated['quality_control_status'],
-                'updated_by' => $request->user()?->id,
-            ]);
+            if ($validated['quality_control_status'] === 'approved') {
+                $this->activateBastApprovalAfterQualityControl($lhpp);
+
+                foreach ($lhpp->childLhppBasts as $childLhpp) {
+                    $childLhpp->quality_control_status = 'approved';
+                    $childLhpp->updated_by = $request->user()?->id;
+                    $childLhpp->save();
+                    $this->activateBastApprovalAfterQualityControl($childLhpp);
+                }
+            }
 
             return redirect()
                 ->route('admin.lhpp.index', $request->only('search', 'page'))
@@ -39,7 +55,7 @@ class LhppController extends Controller
             Log::error('Failed to update admin BAST quality control.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'user_id' => $request->user()?->id,
-                'lhpp_id' => $lhpp->id,
+                'lhpp_id' => $lhppId,
                 'error' => $exception->getMessage(),
                 'file' => $exception->getFile(),
                 'line' => $exception->getLine(),
@@ -51,6 +67,18 @@ class LhppController extends Controller
         }
     }
 
+    private function activateBastApprovalAfterQualityControl(LhppBast $lhpp): void
+    {
+        $lhpp->loadMissing('signatures');
+
+        if ($lhpp->approval_status === LhppBast::APPROVAL_REJECTED) {
+            return;
+        }
+
+        $this->signatureBuilder->ensureSignatures($lhpp);
+        $this->signatureBuilder->activateFirstSignature($lhpp);
+    }
+
     public function index(Request $request): View
     {
         try {
@@ -60,8 +88,11 @@ class LhppController extends Controller
                 ->with([
                     'order:id,nomor_order,unit_kerja,seksi',
                     'purchaseOrder:id,order_id,purchase_order_number',
-                    'terminTwo',
+                    'terminTwo.signatures.signer:id,name',
+                    'terminTwo.activeSignature.signer:id,name',
                     'garansi',
+                    'signatures.signer:id,name',
+                    'activeSignature.signer:id,name',
                 ])
                 ->where('termin_type', 'termin_1')
                 ->when($search !== '', function ($query) use ($search): void {
@@ -102,7 +133,9 @@ class LhppController extends Controller
 
             $lhpp->loadMissing([
                 'images',
+                'signatures',
                 'parentLhppBast.images',
+                'parentLhppBast.signatures',
                 'parentLhppBast.purchaseOrder:id,order_id,purchase_order_number',
                 'parentLhppBast.order.purchaseOrder:id,order_id,purchase_order_number',
                 'hpp.order',
@@ -114,6 +147,27 @@ class LhppController extends Controller
                 'order.latestHpp.outlineAgreement.unitWork.department',
                 'order.latestHpp.creator',
             ]);
+
+            $finalDocumentSignature = $lhpp->finalSignedDocumentSignature();
+
+            if ($finalDocumentSignature?->hasUploadedSignedDocument()) {
+                abort_unless(
+                    Storage::disk('public')->exists($finalDocumentSignature->signed_document_path),
+                    Response::HTTP_NOT_FOUND
+                );
+
+                return response()->file(
+                    Storage::disk('public')->path($finalDocumentSignature->signed_document_path),
+                    [
+                        'Content-Type' => $finalDocumentSignature->signed_document_mime_type
+                            ?: (Storage::disk('public')->mimeType($finalDocumentSignature->signed_document_path) ?: 'application/octet-stream'),
+                        'Content-Disposition' => 'inline; filename="'.$this->safeFilename(
+                            $finalDocumentSignature->signed_document_original_name
+                                ?: basename($finalDocumentSignature->signed_document_path)
+                        ).'"',
+                    ],
+                );
+            }
 
             $bastPdf = Pdf::loadView('pkm.lhpp.pdf', [
                 'lhpp' => $lhpp,
@@ -204,6 +258,25 @@ class LhppController extends Controller
         }
     }
 
+    public function diropsSignedDocument(int $lhppId): Response
+    {
+        $lhpp = LhppBast::query()->findOrFail($lhppId);
+        $signature = $this->resolveDiropsSignature($lhpp);
+
+        abort_unless($signature?->hasUploadedSignedDocument(), Response::HTTP_NOT_FOUND);
+        abort_unless(Storage::disk('public')->exists($signature->signed_document_path), Response::HTTP_NOT_FOUND);
+
+        return response()->file(
+            Storage::disk('public')->path($signature->signed_document_path),
+            [
+                'Content-Type' => $signature->signed_document_mime_type ?: (Storage::disk('public')->mimeType($signature->signed_document_path) ?: 'application/octet-stream'),
+                'Content-Disposition' => 'inline; filename="'.$this->safeFilename(
+                    $signature->signed_document_original_name ?: basename($signature->signed_document_path)
+                ).'"',
+            ],
+        );
+    }
+
     /**
      * @param array<int, string> $pdfOutputs
      */
@@ -279,5 +352,21 @@ class LhppController extends Controller
             'Pragma' => 'no-cache',
             'Expires' => '0',
         ];
+    }
+
+    private function resolveDiropsSignature(LhppBast $lhpp): ?LhppBastSignature
+    {
+        $lhpp->loadMissing('signatures');
+
+        return $lhpp->signatures->first(function (LhppBastSignature $signature): bool {
+            return $signature->role_key === 'dirops';
+        });
+    }
+
+    private function safeFilename(?string $filename): string
+    {
+        $filename = trim((string) $filename);
+
+        return $filename !== '' ? str_replace('"', '', $filename) : 'document';
     }
 }

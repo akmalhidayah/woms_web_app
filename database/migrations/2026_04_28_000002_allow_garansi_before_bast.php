@@ -21,10 +21,24 @@ return new class extends Migration
             });
         }
 
-        DB::table('garansis')
-            ->join('lhpp_basts', 'garansis.lhpp_bast_id', '=', 'lhpp_basts.id')
-            ->whereNull('garansis.order_id')
-            ->update(['garansis.order_id' => DB::raw('lhpp_basts.order_id')]);
+        if (Schema::hasTable('lhpp_basts') && Schema::hasColumn('lhpp_basts', 'order_id')) {
+            if (DB::getDriverName() === 'sqlite') {
+                DB::statement('
+                    UPDATE garansis
+                    SET order_id = (
+                        SELECT order_id
+                        FROM lhpp_basts
+                        WHERE lhpp_basts.id = garansis.lhpp_bast_id
+                    )
+                    WHERE order_id IS NULL
+                ');
+            } else {
+                DB::table('garansis')
+                    ->join('lhpp_basts', 'garansis.lhpp_bast_id', '=', 'lhpp_basts.id')
+                    ->whereNull('garansis.order_id')
+                    ->update(['garansis.order_id' => DB::raw('lhpp_basts.order_id')]);
+            }
+        }
 
         if (DB::getDriverName() === 'mysql') {
             DB::statement('ALTER TABLE garansis MODIFY lhpp_bast_id BIGINT UNSIGNED NULL');

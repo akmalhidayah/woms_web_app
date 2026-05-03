@@ -154,44 +154,46 @@
                                     $terminTwo = $row->terminTwo;
                                     $isWithoutWarranty = (int) ($row->garansi?->garansi_months ?? -1) === 0;
 
-                                    $hasUserSign = ! empty($row->manager_signature_requesting) || ! empty($row->manager_signature_requesting_user_id);
-                                    $hasWsSign = ! empty($row->manager_signature) || ! empty($row->manager_signature_user_id);
-                                    $hasPkmSign = ! empty($row->manager_pkm_signature) || ! empty($row->manager_pkm_signature_user_id);
+                                    $activeSignature = $row->activeSignature ?: $row->signatures->first(fn (\App\Models\LhppBastSignature $signature): bool => $signature->isPending());
+                                    $activeApprovalLink = $activeSignature?->approvalUrl();
+                                    $isExpired = $activeSignature?->tokenExpired() ?? false;
+                                    $approvalStatus = $row->approval_status ?? \App\Models\LhppBast::APPROVAL_IN_REVIEW;
+                                    $isDiropsPending = $activeSignature?->role_key === 'dirops' && ! $isExpired;
+                                    $qualityControlStatus = $row->quality_control_status ?: 'pending';
+                                    $diropsSignedDocumentSignature = $row->signatures->first(
+                                        fn (\App\Models\LhppBastSignature $signature): bool => $signature->role_key === 'dirops' && $signature->hasUploadedSignedDocument()
+                                    );
+                                    $diropsSignedDocumentUrl = $diropsSignedDocumentSignature
+                                        ? route('pkm.lhpp.dirops-document.show', ['lhppId' => $row->id])
+                                        : null;
 
-                                    if (! $hasUserSign && ! $hasWsSign && ! $hasPkmSign) {
-                                        $signStage = 'waiting_user';
-                                    } elseif ($hasUserSign && ! $hasWsSign && ! $hasPkmSign) {
-                                        $signStage = 'waiting_workshop';
-                                    } elseif ($hasUserSign && $hasWsSign && ! $hasPkmSign) {
-                                        $signStage = 'waiting_pkm';
-                                    } elseif ($hasUserSign && $hasWsSign && $hasPkmSign) {
-                                        $signStage = 'completed';
-                                    } else {
-                                        $signStage = 'partial';
-                                    }
+                                    $terminTwoActiveSignature = $terminTwo?->activeSignature ?: ($terminTwo?->signatures?->first(fn (\App\Models\LhppBastSignature $signature): bool => $signature->isPending()));
+                                    $terminTwoActiveApprovalLink = $terminTwoActiveSignature?->approvalUrl();
+                                    $terminTwoIsExpired = $terminTwoActiveSignature?->tokenExpired() ?? false;
+                                    $terminTwoIsDiropsPending = $terminTwoActiveSignature?->role_key === 'dirops' && ! $terminTwoIsExpired;
+                                    $terminTwoApprovalStatus = $terminTwo?->approval_status ?? \App\Models\LhppBast::APPROVAL_IN_REVIEW;
+                                    $terminTwoDiropsSignedDocumentSignature = $terminTwo?->signatures?->first(
+                                        fn (\App\Models\LhppBastSignature $signature): bool => $signature->role_key === 'dirops' && $signature->hasUploadedSignedDocument()
+                                    );
+                                    $terminTwoDiropsSignedDocumentUrl = $terminTwoDiropsSignedDocumentSignature
+                                        ? route('pkm.lhpp.dirops-document.show', ['lhppId' => $terminTwo->id])
+                                        : null;
 
-                                    $signLabel = match ($signStage) {
-                                        'waiting_user' => 'Menunggu TTD Manager User',
-                                        'waiting_workshop' => 'Menunggu TTD Manager Workshop',
-                                        'waiting_pkm' => 'Menunggu TTD Manager PKM',
-                                        'completed' => 'Dokumen Telah di Tandatangani',
-                                        'partial' => 'Proses Tanda Tangan',
-                                        default => 'Proses Tanda Tangan',
+                                    $signLabel = match ($approvalStatus) {
+                                        \App\Models\LhppBast::APPROVAL_APPROVED => 'Dokumen Telah di Tandatangani',
+                                        \App\Models\LhppBast::APPROVAL_REJECTED => 'Dokumen Ditolak',
+                                        default => $activeSignature
+                                            ? 'Menunggu TTD '.$activeSignature->role_label
+                                            : ($qualityControlStatus === 'approved' ? 'Proses Tanda Tangan' : 'Menunggu QC Admin'),
                                     };
 
-                                    $signClr = match ($signStage) {
-                                        'waiting_user' => 'bg-slate-100 text-slate-800 ring-slate-200',
-                                        'waiting_workshop' => 'bg-amber-100 text-amber-800 ring-amber-200',
-                                        'waiting_pkm' => 'bg-indigo-100 text-indigo-800 ring-indigo-200',
-                                        'completed' => 'bg-emerald-100 text-emerald-800 ring-emerald-200',
-                                        'partial' => 'bg-sky-100 text-sky-800 ring-sky-200',
-                                        default => 'bg-slate-100 text-slate-800 ring-slate-200',
+                                    $signClr = match ($approvalStatus) {
+                                        \App\Models\LhppBast::APPROVAL_APPROVED => 'bg-emerald-100 text-emerald-800 ring-emerald-200',
+                                        \App\Models\LhppBast::APPROVAL_REJECTED => 'bg-rose-100 text-rose-800 ring-rose-200',
+                                        default => $activeSignature?->role_key === 'dirops'
+                                            ? 'bg-orange-100 text-orange-800 ring-orange-200'
+                                            : 'bg-sky-100 text-sky-800 ring-sky-200',
                                     };
-
-                                    $key = (string) $row->nomor_order;
-                                    $tok = $activeTokens->get($key);
-                                    $hasTok = (bool) $tok;
-                                    $isExpired = $hasTok && $tok->expires_at && $tok->expires_at->isPast();
 
                                     $waktuPengerjaan = null;
                                     if ($row->tanggal_mulai_pekerjaan && $row->tanggal_selesai_pekerjaan) {
@@ -265,19 +267,84 @@
                                             {{ $signLabel }}
                                         </div>
 
-                                        @if ($hasTok && $signStage !== 'completed')
-                                            @if (! $isExpired)
-                                                <div class="mt-1 flex items-center gap-2 text-[10px]">
-                                                    <button type="button" class="copy-next-link inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-slate-700 ring-1 ring-slate-200 hover:bg-slate-200" data-link="{{ route('pkm.lhpp.index') }}">
-                                                        <i data-lucide="copy" class="h-3 w-3"></i> Salin Link Approve
-                                                    </button>
-                                                    <span class="font-medium text-slate-700">kadaluarsa: {{ $tok->expires_at?->format('d/m H:i') }}</span>
+                                        @if ($activeSignature?->role_key === 'dirops')
+                                            <div class="mt-1 inline-flex items-center gap-1 rounded-md bg-orange-100 px-2 py-0.5 text-[10px] text-orange-800 ring-1 ring-orange-200">
+                                                <i data-lucide="upload" class="h-3 w-3"></i> Menunggu upload final PKM
+                                            </div>
+                                        @endif
+
+                                        @if ($isExpired && $activeSignature && $approvalStatus !== \App\Models\LhppBast::APPROVAL_APPROVED)
+                                            <form action="{{ route('pkm.lhpp.approval-token.regenerate', ['lhppId' => $row->id]) }}" method="POST" class="mt-1">
+                                                @csrf
+                                                <button type="submit" class="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200 hover:bg-amber-200">
+                                                    <i data-lucide="refresh-cw" class="h-3 w-3"></i> Token Baru
+                                                </button>
+                                            </form>
+                                        @endif
+
+                                        @if ($isDiropsPending)
+                                            <form action="{{ route('pkm.lhpp.dirops-document.upload', ['lhppId' => $row->id]) }}" method="POST" enctype="multipart/form-data" class="mt-2 w-[190px] space-y-1 rounded-lg border border-orange-200 bg-orange-50 p-2">
+                                                @csrf
+                                                <input type="file" name="signed_document" accept=".pdf,.png,.jpg,.jpeg" class="w-full text-[9px] text-orange-700">
+                                                <button type="submit" class="inline-flex w-full items-center justify-center gap-1 rounded-md bg-orange-600 px-2 py-1 text-[9px] font-semibold text-white transition hover:bg-orange-700">
+                                                    <i data-lucide="upload" class="h-3 w-3"></i>
+                                                    Upload Final DIROPS
+                                                </button>
+                                            </form>
+                                        @endif
+
+                                        @if ($diropsSignedDocumentUrl)
+                                            <a href="{{ $diropsSignedDocumentUrl }}" target="_blank" rel="noopener" class="mt-1 inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 ring-1 ring-emerald-200 hover:bg-emerald-200">
+                                                <i data-lucide="file-check-2" class="h-3 w-3"></i> Final DIROPS
+                                            </a>
+                                        @endif
+
+                                        @if ($activeSignature && $approvalStatus !== \App\Models\LhppBast::APPROVAL_APPROVED)
+                                            <div class="mt-2 w-[230px] rounded-xl border border-blue-100 bg-blue-50 p-2 text-left shadow-sm">
+                                                <div class="flex items-center justify-between gap-2">
+                                                    <div class="inline-flex items-center gap-1 text-[10px] font-bold text-blue-800">
+                                                        <i data-lucide="signature" class="h-3 w-3"></i>
+                                                        Link TTD Termin 1
+                                                    </div>
+                                                    @if ($activeSignature->token_expires_at)
+                                                        <span class="text-[8px] font-semibold text-blue-600">{{ $activeSignature->token_expires_at->format('d/m H:i') }}</span>
+                                                    @endif
                                                 </div>
-                                            @else
-                                                <div class="mt-1 inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] text-amber-800 ring-1 ring-amber-200">
-                                                    <i data-lucide="clock-3" class="h-3 w-3"></i> Token kedaluwarsa
+                                                <div class="mt-1 text-[9px] font-medium text-blue-700">
+                                                    {{ $activeSignature->role_label }} - {{ $activeSignature->signer_name_snapshot ?: '-' }}
                                                 </div>
-                                            @endif
+                                                @if ($activeApprovalLink && $activeSignature?->role_key !== 'dirops' && ! $isExpired)
+                                                    <div class="mt-2">
+                                                        <button type="button" class="copy-next-link inline-flex w-full items-center justify-center gap-1 rounded-lg bg-white px-2 py-1.5 text-[10px] font-semibold text-blue-700 ring-1 ring-blue-200 hover:bg-blue-100" data-link="{{ $activeApprovalLink }}">
+                                                            <i data-lucide="copy" class="h-3 w-3"></i> Salin
+                                                        </button>
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        @endif
+
+                                        @if ($terminTwoActiveSignature && $terminTwoApprovalStatus !== \App\Models\LhppBast::APPROVAL_APPROVED)
+                                            <div class="mt-2 w-[230px] rounded-xl border border-sky-100 bg-sky-50 p-2 text-left shadow-sm">
+                                                <div class="flex items-center justify-between gap-2">
+                                                    <div class="inline-flex items-center gap-1 text-[10px] font-bold text-sky-800">
+                                                        <i data-lucide="signature" class="h-3 w-3"></i>
+                                                        Link TTD Termin 2
+                                                    </div>
+                                                    @if ($terminTwoActiveSignature->token_expires_at)
+                                                        <span class="text-[8px] font-semibold text-sky-600">{{ $terminTwoActiveSignature->token_expires_at->format('d/m H:i') }}</span>
+                                                    @endif
+                                                </div>
+                                                <div class="mt-1 text-[9px] font-medium text-sky-700">
+                                                    {{ $terminTwoActiveSignature->role_label }} - {{ $terminTwoActiveSignature->signer_name_snapshot ?: '-' }}
+                                                </div>
+                                                @if ($terminTwoActiveApprovalLink && $terminTwoActiveSignature?->role_key !== 'dirops' && ! $terminTwoIsExpired)
+                                                    <div class="mt-2">
+                                                        <button type="button" class="copy-next-link inline-flex w-full items-center justify-center gap-1 rounded-lg bg-white px-2 py-1.5 text-[10px] font-semibold text-sky-700 ring-1 ring-sky-200 hover:bg-sky-100" data-link="{{ $terminTwoActiveApprovalLink }}">
+                                                            <i data-lucide="copy" class="h-3 w-3"></i> Salin
+                                                        </button>
+                                                    </div>
+                                                @endif
+                                            </div>
                                         @endif
                                     </td>
 
@@ -350,6 +417,31 @@
                                                             </button>
                                                         </form>
                                                     </div>
+                                                    @if ($terminTwoIsExpired && $terminTwoActiveSignature)
+                                                        <form action="{{ route('pkm.lhpp.approval-token.regenerate', ['lhppId' => $terminTwo->id]) }}" method="POST" class="mt-1">
+                                                            @csrf
+                                                            <button type="submit" class="inline-flex w-full items-center justify-center gap-1 rounded-md bg-amber-100 px-2 py-1 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200 hover:bg-amber-200">
+                                                                <i data-lucide="refresh-cw" class="h-3 w-3"></i> Token Baru T2
+                                                            </button>
+                                                        </form>
+                                                    @endif
+
+                                                    @if ($terminTwoIsDiropsPending)
+                                                        <form action="{{ route('pkm.lhpp.dirops-document.upload', ['lhppId' => $terminTwo->id]) }}" method="POST" enctype="multipart/form-data" class="mt-2 space-y-1 rounded-lg border border-orange-200 bg-orange-50 p-2">
+                                                            @csrf
+                                                            <input type="file" name="signed_document" accept=".pdf,.png,.jpg,.jpeg" class="w-full text-[9px] text-orange-700">
+                                                            <button type="submit" class="inline-flex w-full items-center justify-center gap-1 rounded-md bg-orange-600 px-2 py-1 text-[9px] font-semibold text-white transition hover:bg-orange-700">
+                                                                <i data-lucide="upload" class="h-3 w-3"></i>
+                                                                Upload DIROPS T2
+                                                            </button>
+                                                        </form>
+                                                    @endif
+
+                                                    @if ($terminTwoDiropsSignedDocumentUrl)
+                                                        <a href="{{ $terminTwoDiropsSignedDocumentUrl }}" target="_blank" rel="noopener" class="mt-1 inline-flex w-full items-center justify-center gap-1 rounded-md bg-emerald-100 px-2 py-1 text-[10px] font-semibold text-emerald-800 ring-1 ring-emerald-200 hover:bg-emerald-200">
+                                                            <i data-lucide="file-check-2" class="h-3 w-3"></i> Final DIROPS T2
+                                                        </a>
+                                                    @endif
                                                 @elseif ($termin1Paid)
                                                     <a href="{{ route('pkm.lhpp.termin2.create', ['nomorOrder' => $row->nomor_order]) }}" class="block w-full rounded-md bg-[#ca642f] px-3 py-1.5 text-center text-[10px] font-bold text-white transition hover:bg-[#b85b2b]">
                                                         Buat BAST Termin 2

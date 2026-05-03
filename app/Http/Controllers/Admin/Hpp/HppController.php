@@ -97,7 +97,7 @@ class HppController extends Controller
             'order',
             'outlineAgreement.unitWork.department',
             'creator',
-            'signatures',
+            'signatures.signer:id,name,inisial',
         ]);
 
         $finalDocumentSignature = $hpp->finalSignedDocumentSignature();
@@ -110,14 +110,14 @@ class HppController extends Controller
 
             return response()->file(
                 Storage::disk('public')->path($finalDocumentSignature->signed_document_path),
-                [
+                $this->pdfNoCacheHeaders([
                     'Content-Type' => $finalDocumentSignature->signed_document_mime_type
                         ?: (Storage::disk('public')->mimeType($finalDocumentSignature->signed_document_path) ?: 'application/octet-stream'),
                     'Content-Disposition' => 'inline; filename="'.$this->safeFilename(
                         $finalDocumentSignature->signed_document_original_name
                             ?: basename($finalDocumentSignature->signed_document_path)
                     ).'"',
-                ],
+                ]),
             );
         }
 
@@ -125,7 +125,13 @@ class HppController extends Controller
             'hpp' => $hpp,
         ])->setPaper('a4', 'landscape');
 
-        return $pdf->stream('hpp-'.$hpp->nomor_order.'.pdf');
+        $response = $pdf->stream('hpp-'.$hpp->nomor_order.'.pdf');
+
+        foreach ($this->pdfNoCacheHeaders() as $key => $value) {
+            $response->headers->set($key, $value);
+        }
+
+        return $response;
     }
 
     public function diropsSignedDocument(Hpp $hpp): Response
@@ -136,12 +142,12 @@ class HppController extends Controller
 
         return response()->file(
             Storage::disk('public')->path($signature->signed_document_path),
-            [
+            $this->pdfNoCacheHeaders([
                 'Content-Type' => $signature->signed_document_mime_type ?: (Storage::disk('public')->mimeType($signature->signed_document_path) ?: 'application/octet-stream'),
                 'Content-Disposition' => 'inline; filename="'.$this->safeFilename(
                     $signature->signed_document_original_name ?: basename($signature->signed_document_path)
                 ).'"',
-            ],
+            ]),
         );
     }
 
@@ -448,6 +454,19 @@ class HppController extends Controller
         $filename = trim((string) $filename);
 
         return $filename !== '' ? str_replace('"', '', $filename) : 'document';
+    }
+
+    /**
+     * @param array<string, string> $headers
+     * @return array<string, string>
+     */
+    private function pdfNoCacheHeaders(array $headers = []): array
+    {
+        return array_merge($headers, [
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
     }
 
     /**

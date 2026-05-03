@@ -2,13 +2,11 @@
 
 namespace App\Http\Controllers\Approval;
 
-use App\Http\Controllers\Admin\Hpp\HppController as AdminHppController;
-use App\Http\Controllers\Admin\Orders\OrderDocumentController;
-use App\Domain\Orders\Enums\OrderDocumentType;
+use App\Http\Controllers\Admin\LhppController as AdminLhppController;
 use App\Http\Controllers\Controller;
-use App\Models\Hpp;
-use App\Models\HppSignature;
-use App\Support\HppApprovalSignatureBuilder;
+use App\Models\LhppBast;
+use App\Models\LhppBastSignature;
+use App\Support\BastApprovalSignatureBuilder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,10 +14,10 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
-class HppSignatureController extends Controller
+class BastSignatureController extends Controller
 {
     public function __construct(
-        private readonly HppApprovalSignatureBuilder $signatureBuilder,
+        private readonly BastApprovalSignatureBuilder $signatureBuilder,
     ) {
     }
 
@@ -28,14 +26,11 @@ class HppSignatureController extends Controller
         $signature = $this->resolveSignatureByToken($token);
 
         if (! $signature) {
-            return view('approval.hpp-signature', [
+            return view('approval.bast-signature', [
                 'signature' => null,
                 'token' => $token,
                 'isExpired' => false,
-                'nextApprovalUrl' => null,
-                'hppPdfUrl' => null,
-                'abnormalitasUrl' => null,
-                'gambarTeknikUrl' => null,
+                'bastPdfUrl' => null,
                 'progressPercent' => 0,
                 'signedCount' => 0,
                 'totalSteps' => 0,
@@ -45,8 +40,8 @@ class HppSignatureController extends Controller
         $this->authorizeSigner($request, $signature);
 
         $signature->loadMissing([
-            'hpp.order.documents',
-            'hpp.signatures',
+            'lhppBast.signatures',
+            'lhppBast.order',
             'signer',
         ]);
 
@@ -54,67 +49,46 @@ class HppSignatureController extends Controller
             $signature->update(['opened_at' => now()]);
         }
 
-        return view('approval.hpp-signature', [
+        return view('approval.bast-signature', [
             'signature' => $signature,
             'token' => $token,
             'isExpired' => $signature->isPending() && $signature->tokenExpired(),
-            'nextApprovalUrl' => session('next_approval_url'),
-            'hppPdfUrl' => route('approval.hpp.pdf', $token),
-            'abnormalitasUrl' => route('approval.hpp.abnormalitas', $token),
-            'gambarTeknikUrl' => route('approval.hpp.gambar-teknik', $token),
-            'progressPercent' => $signature->hpp->approvalProgressPercent(),
-            'signedCount' => $signature->hpp->approvalSignedCount(),
-            'totalSteps' => $signature->hpp->approvalStepCount(),
+            'bastPdfUrl' => route('approval.bast.pdf', $token),
+            'progressPercent' => $signature->lhppBast->approvalProgressPercent(),
+            'signedCount' => $signature->lhppBast->approvalSignedCount(),
+            'totalSteps' => $signature->lhppBast->approvalStepCount(),
         ]);
     }
 
     public function pdf(Request $request, string $token): Response
     {
         $signature = $this->resolveSignatureByToken($token);
-        abort_unless($signature, 404, 'Token approval HPP tidak valid.');
+        abort_unless($signature, 404, 'Token approval BAST tidak valid.');
         $this->authorizeSigner($request, $signature);
 
-        $signature->loadMissing('hpp');
-
-        return app(AdminHppController::class)->pdf($signature->hpp);
-    }
-
-    public function previewAbnormalitas(Request $request, string $token): Response
-    {
-        return $this->previewOrderDocument($request, $token, OrderDocumentType::Abnormalitas);
-    }
-
-    public function previewGambarTeknik(Request $request, string $token): Response
-    {
-        return $this->previewOrderDocument($request, $token, OrderDocumentType::GambarTeknik);
+        return app(AdminLhppController::class)->pdf($request, $signature->lhpp_bast_id);
     }
 
     public function sign(Request $request, string $token): RedirectResponse
     {
         $signature = $this->resolveSignatureByToken($token);
-        abort_unless($signature, 404, 'Token approval HPP tidak valid.');
+        abort_unless($signature, 404, 'Token approval BAST tidak valid.');
         $this->authorizeSigner($request, $signature);
 
         if ($signature->isSigned()) {
             return redirect()
-                ->route('approval.hpp.show', $token)
-                ->with('status', 'Dokumen HPP ini sudah ditandatangani.');
+                ->route('approval.bast.show', $token)
+                ->with('status', 'Dokumen BAST ini sudah ditandatangani.');
         }
 
-        if ($signature->hpp?->status === Hpp::STATUS_REJECTED) {
+        if ($signature->lhppBast?->approval_status === LhppBast::APPROVAL_REJECTED) {
             return redirect()
-                ->route('approval.hpp.show', $token)
-                ->with('status', 'Dokumen HPP ini sudah ditolak.');
+                ->route('approval.bast.show', $token)
+                ->with('status', 'Dokumen BAST ini sudah ditolak.');
         }
 
-        abort_unless($signature->isPending(), 403, 'Tahap tanda tangan HPP ini belum aktif.');
-        abort_unless(! $signature->tokenExpired(), 403, 'Token approval HPP sudah kedaluwarsa.');
-
-        if ($signature->role_key === 'dirops') {
-            return redirect()
-                ->route('approval.hpp.show', $token)
-                ->with('status', 'Tahap DIROPS HPP diselesaikan melalui upload dokumen final oleh admin.');
-        }
+        abort_unless($signature->isPending(), 403, 'Tahap tanda tangan BAST ini belum aktif.');
+        abort_unless(! $signature->tokenExpired(), 403, 'Token approval BAST sudah kedaluwarsa.');
 
         $approvalAction = (string) $request->input('approval_action', 'sign');
 
@@ -127,32 +101,38 @@ class HppSignatureController extends Controller
 
             DB::transaction(function () use ($request, $signature, $validated): void {
                 $signature->update([
-                    'status' => HppSignature::STATUS_SKIPPED,
+                    'status' => LhppBastSignature::STATUS_SKIPPED,
                     'opened_at' => $signature->opened_at ?: now(),
                     'approval_note' => $this->normalizeNullableString($validated['approval_note'] ?? null),
                     'signed_ip' => $request->ip(),
                     'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
                 ]);
 
-                HppSignature::query()
-                    ->where('hpp_id', $signature->hpp_id)
+                LhppBastSignature::query()
+                    ->where('lhpp_bast_id', $signature->lhpp_bast_id)
                     ->where('step_order', '>', $signature->step_order)
-                    ->whereIn('status', [HppSignature::STATUS_LOCKED, HppSignature::STATUS_PENDING])
+                    ->whereIn('status', [LhppBastSignature::STATUS_LOCKED, LhppBastSignature::STATUS_PENDING])
                     ->update([
-                        'status' => HppSignature::STATUS_SKIPPED,
+                        'status' => LhppBastSignature::STATUS_SKIPPED,
                         'token' => null,
                         'token_hash' => null,
                         'token_expires_at' => null,
                     ]);
 
-                $signature->hpp()->update([
-                    'status' => Hpp::STATUS_REJECTED,
+                $signature->lhppBast()->update([
+                    'approval_status' => LhppBast::APPROVAL_REJECTED,
                 ]);
             });
 
             return redirect()
-                ->route('approval.hpp.show', $token)
-                ->with('status', 'Dokumen HPP berhasil ditolak.');
+                ->route('approval.bast.show', $token)
+                ->with('status', 'Dokumen BAST berhasil ditolak.');
+        }
+
+        if ($signature->role_key === 'dirops') {
+            return redirect()
+                ->route('approval.bast.show', $token)
+                ->with('status', 'Tahap DIROPS BAST diselesaikan melalui upload dokumen final oleh PKM.');
         }
 
         $validated = $request->validate([
@@ -162,9 +142,9 @@ class HppSignatureController extends Controller
 
         $this->validateSignatureData((string) $validated['signature_data']);
 
-        $nextApprovalUrl = DB::transaction(function () use ($request, $signature, $validated): ?string {
+        DB::transaction(function () use ($request, $signature, $validated): void {
             $signature->update([
-                'status' => HppSignature::STATUS_SIGNED,
+                'status' => LhppBastSignature::STATUS_SIGNED,
                 'opened_at' => $signature->opened_at ?: now(),
                 'signed_at' => now(),
                 'signature_data' => (string) $validated['signature_data'],
@@ -173,58 +153,32 @@ class HppSignatureController extends Controller
                 'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
             ]);
 
-            return $this->signatureBuilder->activateNextSignature($signature);
+            $this->signatureBuilder->activateNextSignature($signature);
         });
 
-        $redirect = redirect()
-            ->route('approval.hpp.show', $token)
+        return redirect()
+            ->route('approval.bast.show', $token)
             ->with('approval_signed', true)
-            ->with('status', $nextApprovalUrl
-                ? 'Tanda tangan HPP berhasil disimpan.'
-                : 'Tanda tangan HPP berhasil disimpan. Approval HPP selesai.');
-
-        return $redirect;
+            ->with('status', $signature->fresh()->lhppBast?->approval_status === LhppBast::APPROVAL_APPROVED
+                ? 'Tanda tangan BAST berhasil disimpan. Approval BAST selesai.'
+                : 'Tanda tangan BAST berhasil disimpan.');
     }
 
-    private function resolveSignatureByToken(string $token): ?HppSignature
+    private function resolveSignatureByToken(string $token): ?LhppBastSignature
     {
-        return HppSignature::query()
+        return LhppBastSignature::query()
             ->where('token_hash', hash('sha256', $token))
             ->first();
     }
 
-    private function authorizeSigner(Request $request, HppSignature $signature): void
+    private function authorizeSigner(Request $request, LhppBastSignature $signature): void
     {
         abort_unless(
             $signature->signer_user_id !== null
                 && $request->user()?->id === $signature->signer_user_id,
             403,
-            'Link approval HPP ini hanya untuk penanda tangan yang ditetapkan.'
+            'Link approval BAST ini hanya untuk penanda tangan yang ditetapkan.'
         );
-    }
-
-    private function previewOrderDocument(Request $request, string $token, OrderDocumentType $type): Response
-    {
-        $signature = $this->resolveSignatureByToken($token);
-        abort_unless($signature, 404, 'Token approval HPP tidak valid.');
-        $this->authorizeSigner($request, $signature);
-
-        $signature->loadMissing(['hpp.order.documents']);
-
-        $order = $signature->hpp->order;
-        abort_unless($order, 404, 'Order sumber HPP tidak ditemukan.');
-
-        $document = $order->documents->first(function ($document) use ($type): bool {
-            $documentType = $document->jenis_dokumen;
-
-            return $documentType instanceof OrderDocumentType
-                ? $documentType === $type
-                : (string) $documentType === $type->value;
-        });
-
-        abort_unless($document, 404, 'Dokumen '.$type->label().' tidak ditemukan.');
-
-        return app(OrderDocumentController::class)->preview($order, $document);
     }
 
     private function validateSignatureData(string $signatureData): void

@@ -8,6 +8,7 @@ use App\Models\BengkelDisplaySetting;
 use App\Models\BengkelPic;
 use App\Models\BengkelTask;
 use App\Models\Order;
+use App\Models\OrderWorkshop;
 use App\Models\UnitWork;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,7 +35,10 @@ class BengkelTaskController extends Controller
             $perPage = 100;
         }
 
-        $query = BengkelTask::query()->latest();
+        $query = BengkelTask::query()
+            ->with('order.orderWorkshop')
+            ->latest('created_at')
+            ->latest('id');
 
         if ($q !== '') {
             $query->where(function ($sub) use ($q): void {
@@ -68,6 +72,7 @@ class BengkelTaskController extends Controller
 
         $tasks->setCollection(
             $tasks->getCollection()->map(function (BengkelTask $task) use ($picsById, $picsByName): BengkelTask {
+                $this->syncTaskCompletionFromWorkshop($task);
                 $profiles = collect(is_array($task->person_in_charge_profiles) ? $task->person_in_charge_profiles : [])
                     ->map(function ($profile) use ($picsById, $picsByName): ?array {
                         if (! is_array($profile)) {
@@ -143,12 +148,14 @@ class BengkelTaskController extends Controller
         $catatanOptions = self::CATATAN_REGU_ALLOWED;
         $units = UnitWork::with('sections')->orderBy('name')->get();
         $workshopOrders = $this->workshopOrderOptions();
+        $progressOptions = OrderWorkshop::progressOptions();
 
         return view('admin.bengkel-tasks.create', compact(
             'picOptions',
             'catatanOptions',
             'units',
             'workshopOrders',
+            'progressOptions',
         ));
     }
 
@@ -156,7 +163,8 @@ class BengkelTaskController extends Controller
     {
         $data = $this->validateData($request);
 
-        BengkelTask::create($data);
+        $task = BengkelTask::create($data);
+        $this->syncWorkshopProgressFromTask($task);
 
         return redirect()
             ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
@@ -168,7 +176,8 @@ class BengkelTaskController extends Controller
         $picOptions = BengkelPic::query()->orderBy('name')->get();
         $catatanOptions = self::CATATAN_REGU_ALLOWED;
         $units = UnitWork::with('sections')->orderBy('name')->get();
-        $workshopOrders = $this->workshopOrderOptions();
+        $workshopOrders = $this->workshopOrderOptions($bengkel_task->order_id);
+        $progressOptions = OrderWorkshop::progressOptions();
 
         $selectedPicIds = collect($bengkel_task->person_in_charge_profiles ?? [])
             ->pluck('id')
@@ -213,6 +222,7 @@ class BengkelTaskController extends Controller
             'catatanOptions',
             'units',
             'workshopOrders',
+            'progressOptions',
         ));
     }
 
@@ -221,6 +231,7 @@ class BengkelTaskController extends Controller
         $data = $this->validateData($request);
 
         $bengkel_task->update($data);
+        $this->syncWorkshopProgressFromTask($bengkel_task->fresh('order.orderWorkshop'));
 
         return redirect()
             ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
@@ -240,7 +251,9 @@ class BengkelTaskController extends Controller
     {
         $bengkel_task->update([
             'is_completed' => true,
+            'progress_status' => OrderWorkshop::PROGRESS_DONE,
         ]);
+        $this->syncWorkshopProgressFromTask($bengkel_task->fresh('order.orderWorkshop'));
 
         return redirect()
             ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
@@ -288,11 +301,13 @@ class BengkelTaskController extends Controller
     {
         $validated = $request->validate([
             'job_name' => ['required', 'string', 'max:255'],
+            'order_id' => ['nullable', 'integer', 'exists:orders,id'],
             'notification_number' => ['nullable', 'string', 'max:50'],
             'unit_work' => ['nullable', 'string', 'max:255'],
             'seksi' => ['nullable', 'string', 'max:255'],
             'usage_plan_date' => ['nullable', 'date'],
             'catatan' => ['nullable', 'string', 'in:'.implode(',', self::CATATAN_REGU_ALLOWED)],
+            'progress_status' => ['nullable', 'string', 'in:'.implode(',', array_keys(OrderWorkshop::progressOptions()))],
             'pic_ids' => ['nullable', 'array'],
             'pic_ids.*' => ['nullable', 'integer', 'exists:bengkel_pics,id'],
             'pic_assignments' => ['nullable', 'array'],
@@ -305,6 +320,10 @@ class BengkelTaskController extends Controller
             $catatan = trim((string) ($validated['catatan'] ?? ''));
             $validated['catatan'] = $catatan === '' ? null : $catatan;
         }
+
+        $validated['progress_status'] = ($validated['progress_status'] ?? null)
+            ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
+        $validated['is_completed'] = $validated['progress_status'] === OrderWorkshop::PROGRESS_DONE;
 
         $assignments = collect($validated['pic_assignments'] ?? [])
             ->filter(fn ($row): bool => is_array($row) && ! empty($row['pic_id']))
@@ -403,13 +422,42 @@ class BengkelTaskController extends Controller
     /**
      * @return \Illuminate\Support\Collection<int, array<string, mixed>>
      */
-    private function workshopOrderOptions()
+    private function workshopOrderOptions(?int $currentOrderId = null)
     {
+        $completedOrderIds = BengkelTask::query()
+            ->where('is_completed', true)
+            ->whereNotNull('order_id')
+            ->pluck('order_id')
+            ->all();
+
         return Order::query()
+            ->with('orderWorkshop:id,order_id,progress_status')
             ->whereIn('catatan_status', [
                 OrderUserNoteStatus::ApprovedWorkshop->value,
                 OrderUserNoteStatus::ApprovedWorkshopJasa->value,
             ])
+            ->when($completedOrderIds !== [], function ($query) use ($completedOrderIds, $currentOrderId): void {
+                $query->where(function ($builder) use ($completedOrderIds, $currentOrderId): void {
+                    $builder->whereNotIn('id', $completedOrderIds);
+
+                    if ($currentOrderId) {
+                        $builder->orWhere('id', $currentOrderId);
+                    }
+                });
+            })
+            ->where(function ($query) use ($currentOrderId): void {
+                $query
+                    ->whereDoesntHave('orderWorkshop')
+                    ->orWhereHas('orderWorkshop', fn ($builder) => $builder->where(function ($progress): void {
+                        $progress
+                            ->whereNull('progress_status')
+                            ->orWhere('progress_status', '!=', OrderWorkshop::PROGRESS_DONE);
+                    }));
+
+                if ($currentOrderId) {
+                    $query->orWhere('id', $currentOrderId);
+                }
+            })
             ->orderByDesc('id')
             ->get(['id', 'nomor_order', 'notifikasi', 'nama_pekerjaan', 'unit_kerja', 'seksi', 'target_selesai'])
             ->map(fn (Order $order): array => [
@@ -420,8 +468,49 @@ class BengkelTaskController extends Controller
                 'unit_kerja' => $order->unit_kerja,
                 'seksi' => $order->seksi,
                 'target_selesai' => optional($order->target_selesai)->format('Y-m-d'),
+                'progress_status' => $order->orderWorkshop?->progress_status ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
                 'label' => trim($order->nomor_order.' - '.$order->nama_pekerjaan),
             ])
             ->values();
+    }
+
+    private function syncWorkshopProgressFromTask(?BengkelTask $task): void
+    {
+        if (! $task?->order_id) {
+            return;
+        }
+
+        $progressStatus = $task->progress_status ?: (
+            $task->is_completed ? OrderWorkshop::PROGRESS_DONE : OrderWorkshop::PROGRESS_MENUNGGU_JADWAL
+        );
+
+        $workshop = $task->order?->orderWorkshop ?: $task->order?->orderWorkshop()->firstOrNew();
+
+        if (! $workshop) {
+            return;
+        }
+
+        $workshop->progress_status = $progressStatus;
+        $workshop->save();
+    }
+
+    private function syncTaskCompletionFromWorkshop(BengkelTask $task): void
+    {
+        $workshopProgress = $task->order?->orderWorkshop?->progress_status;
+
+        if (! $workshopProgress) {
+            return;
+        }
+
+        $shouldBeCompleted = $workshopProgress === OrderWorkshop::PROGRESS_DONE;
+
+        if ($task->progress_status === $workshopProgress && (bool) $task->is_completed === $shouldBeCompleted) {
+            return;
+        }
+
+        $task->forceFill([
+            'progress_status' => $workshopProgress,
+            'is_completed' => $shouldBeCompleted,
+        ])->save();
     }
 }

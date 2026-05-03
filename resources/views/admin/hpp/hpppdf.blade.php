@@ -290,6 +290,7 @@
 </head>
 @php
     use App\Models\UnitWork;
+    use App\Models\User;
     use App\Support\HppApprovalFlow;
     use Illuminate\Support\Facades\Storage;
 
@@ -390,7 +391,7 @@
     $controllingDepartmentLabel = $outlineAgreement?->unitWork?->department?->name ?: $unitPengendaliLabel;
     $periodeOA = $hpp->periode_outline_agreement ?: '-';
     $creatorName = $hpp->creator?->name ?: 'N/A';
-    $requestingInitials = $initials($hpp->creator?->name);
+    $requestingInitials = $hpp->creator?->initials() ?: $initials($hpp->creator?->name);
     $controllingInitials = 'N/A';
 
     $logoSigPath = $resolvePublicImage([
@@ -406,8 +407,14 @@
         ?: HppApprovalFlow::resolvePreviewCase($hpp->kategori_pekerjaan, $hpp->area_pekerjaan, $hpp->nilai_hpp_bucket)
         ?: '';
 
-    $hppSignatures = ($hpp->relationLoaded('signatures') ? $hpp->signatures : $hpp->signatures()->get())
-        ->keyBy('role_key');
+    $hppSignaturesCollection = $hpp->relationLoaded('signatures')
+        ? $hpp->signatures
+        : $hpp->signatures()->with('signer:id,name,inisial')->get();
+    $hppSignaturesCollection->loadMissing('signer:id,name,inisial');
+    $hppSignatures = $hppSignaturesCollection->keyBy('role_key');
+    $signatureInitialsByUserId = User::query()
+        ->whereIn('id', $hppSignaturesCollection->pluck('signer_user_id')->filter()->unique()->values())
+        ->pluck('inisial', 'id');
     $isWorkshopCase = str_starts_with($approvalCase, 'FAB-WORKSHOP');
     $controllerManagerRole = $isWorkshopCase ? 'workshop_manager_pengendali' : 'manager_pengendali';
     $controllerSmRole = $isWorkshopCase ? 'workshop_sm_pengendali' : 'sm_pengendali';
@@ -504,15 +511,19 @@
         $signatureFor,
         $signatureImage,
         $signatureDate,
+        $signatureInitialsByUserId,
         $initials,
     ): array {
         $signature = $signatureFor($roleKey);
         $name = $signature?->signer_name_snapshot;
+        $userInitial = trim((string) ($signature?->signer_user_id
+            ? $signatureInitialsByUserId->get($signature->signer_user_id)
+            : null));
 
         return [
             'label' => $signature?->role_label ?: $fallbackLabel,
             'signature' => $signatureImage($signature),
-            'value' => $name ? $initials($name) : $fallbackValue,
+            'value' => $userInitial !== '' ? mb_strtoupper($userInitial) : ($name ? $initials($name) : $fallbackValue),
             'date' => $signatureDate($signature),
             'signed' => (bool) $signature?->isSigned(),
         ];

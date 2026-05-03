@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Orders;
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Orders\UpdateOrderWorkshopRequest;
+use App\Models\BengkelTask;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
 use Illuminate\Http\JsonResponse;
@@ -99,10 +100,27 @@ class OrderWorkshopController extends Controller
         }
 
         $order->orderWorkshop()->save($workshop);
+        $this->syncBengkelTaskProgress($order, $workshop);
 
         return response()->json([
             'message' => 'Status order bengkel berhasil diperbarui.',
             'updated' => $workshop->fresh()->toArray(),
         ]);
+    }
+
+    private function syncBengkelTaskProgress(Order $order, OrderWorkshop $workshop): void
+    {
+        $progressStatus = $workshop->progress_status;
+
+        if (! $progressStatus) {
+            return;
+        }
+
+        BengkelTask::query()
+            ->where('order_id', $order->id)
+            ->update([
+                'progress_status' => $progressStatus,
+                'is_completed' => $progressStatus === OrderWorkshop::PROGRESS_DONE,
+            ]);
     }
 }

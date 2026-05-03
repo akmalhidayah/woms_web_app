@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -31,13 +30,7 @@ return new class extends Migration
             });
         }
 
-        $indexExists = DB::table('information_schema.statistics')
-            ->where('table_schema', DB::raw('DATABASE()'))
-            ->where('table_name', 'outline_agreement_histories')
-            ->where('index_name', 'oa_histories_oa_rev_unique')
-            ->exists();
-
-        if (! $indexExists) {
+        if (! Schema::hasIndex('outline_agreement_histories', 'oa_histories_oa_rev_unique')) {
             Schema::table('outline_agreement_histories', function (Blueprint $table) {
                 $table->unique(['outline_agreement_id', 'revision_no'], 'oa_histories_oa_rev_unique');
             });

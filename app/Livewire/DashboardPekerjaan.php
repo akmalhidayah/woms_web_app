@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\BengkelDisplaySetting;
 use App\Models\BengkelPic;
 use App\Models\BengkelTask;
+use App\Models\OrderWorkshop;
 use Livewire\Component;
 
 class DashboardPekerjaan extends Component
@@ -74,8 +75,10 @@ class DashboardPekerjaan extends Component
             ->keyBy(fn (BengkelPic $pic) => mb_strtolower(trim($pic->name)));
 
         $tasks = BengkelTask::query()
+            ->with('order.orderWorkshop')
             ->select([
                 'id',
+                'order_id',
                 'notification_number',
                 'unit_work',
                 'seksi',
@@ -85,6 +88,7 @@ class DashboardPekerjaan extends Component
                 'person_in_charge_profiles',
                 'catatan',
                 'is_completed',
+                'progress_status',
                 'created_at',
             ])
             ->orderByDesc('created_at')
@@ -136,8 +140,12 @@ class DashboardPekerjaan extends Component
                     ->values();
             }
 
+            $progressStatus = $task->effectiveProgressStatus() ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
+            $isCompleted = $progressStatus === OrderWorkshop::PROGRESS_DONE || (bool) $task->is_completed;
+
             return [
                 'id' => $task->id,
+                'order_id' => $task->order_id,
                 'notification_number' => $task->notification_number,
                 'unit_work' => $task->unit_work,
                 'seksi' => $task->seksi,
@@ -146,7 +154,9 @@ class DashboardPekerjaan extends Component
                 'person_in_charge' => $names->all(),
                 'person_in_charge_profiles' => $profiles->all(),
                 'catatan' => $task->catatan,
-                'is_completed' => (bool) $task->is_completed,
+                'is_completed' => $isCompleted,
+                'progress_status' => $progressStatus,
+                'progress_label' => OrderWorkshop::progressOptions()[$progressStatus] ?? 'Menunggu Jadwal',
             ];
         })->all();
 

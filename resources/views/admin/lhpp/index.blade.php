@@ -40,25 +40,20 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full table-fixed bg-white text-[11px] text-slate-700">
                     <colgroup>
-                        <col class="w-[10%]">
-                        <col class="w-[8%]">
-                        <col class="w-[16%]">
-                        <col class="w-[9%]">
-                        <col class="w-[7%]">
-                        <col class="w-[14%]">
+                        <col class="w-[15%]">
+                        <col class="w-[18%]">
                         <col class="w-[12%]">
-                        <col class="w-[12%]">
+                        <col class="w-[18%]">
+                        <col class="w-[17%]">
+                        <col class="w-[20%]">
                         <col class="w-[12%]">
                     </colgroup>
                     <thead class="bg-slate-100 text-slate-700 uppercase tracking-wide">
                         <tr>
-                            <th class="px-4 py-2 text-left font-semibold">Nomor Order</th>
-                            <th class="px-4 py-2 text-left font-semibold">Nomor PO</th>
+                            <th class="px-4 py-2 text-left font-semibold">Order / PO</th>
                             <th class="px-4 py-2 text-left font-semibold">Unit Kerja</th>
-                            <th class="px-4 py-2 text-left font-semibold">Tanggal Selesai</th>
-                            <th class="px-4 py-2 text-left font-semibold">Waktu</th>
-                            <th class="px-4 py-2 text-right font-semibold">Total Biaya</th>
-                            <th class="px-4 py-2 text-left font-semibold">Garansi</th>
+                            <th class="px-4 py-2 text-left font-semibold">Selesai / Waktu</th>
+                            <th class="px-4 py-2 text-left font-semibold">Biaya / Garansi</th>
                             <th class="px-4 py-2 text-left font-semibold">Quality Control</th>
                             <th class="px-4 py-2 text-center font-semibold">PDF BAST</th>
                         </tr>
@@ -106,17 +101,48 @@
                                     ? (float) ($lhpp->termin_2_nilai ?? round($totalBiaya * 0.05))
                                     : null;
                                 $hasTerminTwo = ! $isWithoutWarranty && filled($terminTwo?->id);
+                                $activeSignature = $lhpp->activeSignature ?: $lhpp->signatures->first(fn (\App\Models\LhppBastSignature $signature): bool => $signature->isPending());
+                                $activeApprovalLink = $activeSignature?->approvalUrl();
+                                $isActiveApprovalExpired = $activeSignature?->tokenExpired() ?? false;
+                                $isDiropsPending = $activeSignature?->role_key === 'dirops';
+                                $terminTwoActiveSignature = $terminTwo?->activeSignature ?: ($terminTwo?->signatures?->first(fn (\App\Models\LhppBastSignature $signature): bool => $signature->isPending()));
+                                $terminTwoActiveApprovalLink = $terminTwoActiveSignature?->approvalUrl();
+                                $terminTwoIsActiveApprovalExpired = $terminTwoActiveSignature?->tokenExpired() ?? false;
+                                $terminTwoIsDiropsPending = $terminTwoActiveSignature?->role_key === 'dirops';
+                                $terminTwoDiropsSignedDocumentSignature = $terminTwo?->signatures?->first(
+                                    fn (\App\Models\LhppBastSignature $signature): bool => $signature->role_key === 'dirops' && $signature->hasUploadedSignedDocument()
+                                );
+                                $terminTwoDiropsSignedDocumentUrl = $terminTwoDiropsSignedDocumentSignature
+                                    ? route('admin.lhpp.dirops-document.show', ['lhppId' => $terminTwo->id])
+                                    : null;
+                                $diropsSignedDocumentSignature = $lhpp->signatures->first(
+                                    fn (\App\Models\LhppBastSignature $signature): bool => $signature->role_key === 'dirops' && $signature->hasUploadedSignedDocument()
+                                );
+                                $diropsSignedDocumentUrl = $diropsSignedDocumentSignature
+                                    ? route('admin.lhpp.dirops-document.show', ['lhppId' => $lhpp->id])
+                                    : null;
+                                $approvalStatus = $lhpp->approval_status ?? \App\Models\LhppBast::APPROVAL_IN_REVIEW;
+                                $approvalLabel = match ($approvalStatus) {
+                                    \App\Models\LhppBast::APPROVAL_APPROVED => 'Approval selesai',
+                                    \App\Models\LhppBast::APPROVAL_REJECTED => 'Approval ditolak',
+                                    default => $activeSignature
+                                        ? 'Menunggu '.$activeSignature->role_label
+                                        : ($qualityControlStatus === 'approved' ? 'Menunggu approval' : 'Menunggu QC Admin'),
+                                };
+                                $approvalClass = match ($approvalStatus) {
+                                    \App\Models\LhppBast::APPROVAL_APPROVED => 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+                                    \App\Models\LhppBast::APPROVAL_REJECTED => 'bg-rose-50 text-rose-700 ring-rose-200',
+                                    default => 'bg-blue-50 text-blue-700 ring-blue-200',
+                                };
                             @endphp
 
                             <tr class="transition duration-150 hover:bg-slate-50">
                                 <td class="px-4 py-3 align-top">
-                                    <div class="inline-flex min-w-[92px] items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-bold text-slate-900 shadow-sm">
-                                        {{ $nomorOrder }}
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3 align-top">
-                                    <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 shadow-sm">
-                                        {{ $nomorPo }}
+                                    <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+                                        <div class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Order</div>
+                                        <div class="mt-1 break-words text-[13px] font-bold leading-tight text-slate-900">{{ $nomorOrder }}</div>
+                                        <div class="mt-2 border-t border-slate-100 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">PO</div>
+                                        <div class="mt-1 break-words text-[11px] font-semibold leading-tight text-slate-700">{{ $nomorPo }}</div>
                                     </div>
                                 </td>
                                 <td class="px-4 py-3">
@@ -125,41 +151,49 @@
                                         <div class="mt-1 border-t border-slate-200 pt-1.5 leading-snug">{{ $unitKerja }}</div>
                                     </div>
                                 </td>
-                                <td class="px-4 py-3 align-top font-medium">{{ $tanggalSelesai }}</td>
-                                <td class="px-4 py-3 align-top font-medium">{{ $waktuPengerjaan }}</td>
-                                <td class="px-4 py-3 align-top text-right">
-                                    <div class="font-semibold text-slate-900">Rp{{ number_format($totalBiaya, 0, ',', '.') }}</div>
-                                    @if (!is_null($termin1Amount))
-                                        <div class="mt-1 text-[10px] font-medium text-emerald-600">
-                                            {{ $isWithoutWarranty ? 'Total Dibayar' : 'Termin 1' }}: Rp{{ number_format($termin1Amount, 0, ',', '.') }}
-                                        </div>
-                                    @endif
-                                    @if (!is_null($termin2Amount))
-                                        <div class="mt-1 text-[10px] font-medium text-sky-600">
-                                            Termin 2: Rp{{ number_format($termin2Amount, 0, ',', '.') }}
-                                        </div>
-                                    @endif
-                                </td>
-
                                 <td class="px-4 py-3 align-top">
-                                    @if ($garansiMonths === null)
-                                        <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200">
-                                            <i data-lucide="clock-3" class="h-3 w-3"></i>
-                                            Belum diatur
-                                        </span>
-                                    @elseif ($isWithoutWarranty)
-                                        <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200">
-                                            <i data-lucide="ban" class="h-3 w-3"></i>
-                                            Tanpa Garansi
-                                        </span>
-                                        <div class="mt-1 text-[10px] text-slate-500">Pembayaran cukup 1 termin.</div>
-                                    @else
-                                        <span class="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700 ring-1 ring-indigo-200">
-                                            <i data-lucide="shield-check" class="h-3 w-3"></i>
-                                            {{ $garansiMonths }} Bulan
-                                        </span>
-                                        <div class="mt-1 text-[10px] text-slate-500">Menggunakan Termin 1 & 2.</div>
-                                    @endif
+                                    <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] shadow-sm">
+                                        <div class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Tanggal</div>
+                                        <div class="mt-1 font-bold text-slate-900">{{ $tanggalSelesai }}</div>
+                                        <div class="mt-2 border-t border-slate-100 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Waktu</div>
+                                        <div class="mt-1 font-semibold text-slate-700">{{ $waktuPengerjaan }}</div>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 align-top">
+                                    <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+                                        <div class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Total Biaya</div>
+                                        <div class="mt-1 font-bold text-slate-900">Rp{{ number_format($totalBiaya, 0, ',', '.') }}</div>
+                                        @if (!is_null($termin1Amount))
+                                            <div class="mt-1 text-[10px] font-medium text-emerald-600">
+                                                {{ $isWithoutWarranty ? 'Total Dibayar' : 'Termin 1' }}: Rp{{ number_format($termin1Amount, 0, ',', '.') }}
+                                            </div>
+                                        @endif
+                                        @if (!is_null($termin2Amount))
+                                            <div class="mt-1 text-[10px] font-medium text-sky-600">
+                                                Termin 2: Rp{{ number_format($termin2Amount, 0, ',', '.') }}
+                                            </div>
+                                        @endif
+
+                                        <div class="mt-2 border-t border-slate-100 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Garansi</div>
+                                        @if ($garansiMonths === null)
+                                            <span class="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200">
+                                                <i data-lucide="clock-3" class="h-3 w-3"></i>
+                                                Belum diatur
+                                            </span>
+                                        @elseif ($isWithoutWarranty)
+                                            <span class="mt-1 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200">
+                                                <i data-lucide="ban" class="h-3 w-3"></i>
+                                                Tanpa Garansi
+                                            </span>
+                                            <div class="mt-1 text-[10px] text-slate-500">Pembayaran cukup 1 termin.</div>
+                                        @else
+                                            <span class="mt-1 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700 ring-1 ring-indigo-200">
+                                                <i data-lucide="shield-check" class="h-3 w-3"></i>
+                                                {{ $garansiMonths }} Bulan
+                                            </span>
+                                            <div class="mt-1 text-[10px] text-slate-500">Menggunakan Termin 1 & 2.</div>
+                                        @endif
+                                    </div>
                                 </td>
 
                                 <td class="px-4 py-3 align-top">
@@ -175,6 +209,16 @@
                                         </select>
                                         <p class="text-[10px] leading-snug {{ $qualityControlHelperClass }}">{{ $qualityControlHelper }}</p>
                                     </form>
+                                    <div class="mt-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2">
+                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold ring-1 {{ $approvalClass }}">
+                                            {{ $approvalLabel }}
+                                        </span>
+                                        @if ($activeSignature)
+                                            <div class="mt-1 text-[9px] text-slate-500">
+                                                {{ $activeSignature->signer_name_snapshot ?: '-' }}
+                                            </div>
+                                        @endif
+                                    </div>
                                 </td>
 
                                 <td class="px-4 py-3 align-top">
@@ -204,12 +248,92 @@
                                         @else
                                             <span class="text-center text-[10px] font-medium text-slate-400">Termin 2 belum dibuat</span>
                                         @endif
+
+                                        @if ($activeSignature && $approvalStatus !== \App\Models\LhppBast::APPROVAL_APPROVED)
+                                            <div class="w-[170px] rounded-xl border border-blue-100 bg-blue-50 p-2 text-left shadow-sm">
+                                                <div class="flex items-center gap-1 text-[10px] font-bold text-blue-800">
+                                                    <i data-lucide="signature" class="h-3 w-3"></i>
+                                                    TTD Termin 1
+                                                </div>
+                                                <div class="mt-1 truncate text-[9px] font-medium text-blue-700">
+                                                    {{ $activeSignature->role_label }} - {{ $activeSignature->signer_name_snapshot ?: '-' }}
+                                                </div>
+                                                @if ($activeApprovalLink && ! $isDiropsPending && ! $isActiveApprovalExpired)
+                                                    <div class="mt-2">
+                                                        <button type="button" data-copy-bast-approval-link="{{ $activeApprovalLink }}" class="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-white px-2 py-1.5 text-[9px] font-semibold text-blue-700 ring-1 ring-blue-200 transition hover:bg-blue-100">
+                                                            <i data-lucide="copy" class="h-3 w-3"></i>
+                                                            Salin
+                                                        </button>
+                                                    </div>
+                                                    <div class="mt-1 text-[8px] text-blue-600">Exp: {{ $activeSignature->token_expires_at?->format('d/m H:i') }}</div>
+                                                @elseif ($isActiveApprovalExpired)
+                                                    <div class="mt-2 inline-flex items-center gap-1 rounded-lg bg-amber-100 px-2 py-1 text-[9px] font-semibold text-amber-800 ring-1 ring-amber-200">
+                                                        <i data-lucide="clock-3" class="h-3 w-3"></i>
+                                                        Token expired
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        @endif
+
+                                        @if ($terminTwoActiveSignature && $terminTwo?->approval_status !== \App\Models\LhppBast::APPROVAL_APPROVED)
+                                            <div class="w-[170px] rounded-xl border border-sky-100 bg-sky-50 p-2 text-left shadow-sm">
+                                                <div class="flex items-center gap-1 text-[10px] font-bold text-sky-800">
+                                                    <i data-lucide="signature" class="h-3 w-3"></i>
+                                                    TTD Termin 2
+                                                </div>
+                                                <div class="mt-1 truncate text-[9px] font-medium text-sky-700">
+                                                    {{ $terminTwoActiveSignature->role_label }} - {{ $terminTwoActiveSignature->signer_name_snapshot ?: '-' }}
+                                                </div>
+                                                @if ($terminTwoActiveApprovalLink && ! $terminTwoIsDiropsPending && ! $terminTwoIsActiveApprovalExpired)
+                                                    <div class="mt-2">
+                                                        <button type="button" data-copy-bast-approval-link="{{ $terminTwoActiveApprovalLink }}" class="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-white px-2 py-1.5 text-[9px] font-semibold text-sky-700 ring-1 ring-sky-200 transition hover:bg-sky-100">
+                                                            <i data-lucide="copy" class="h-3 w-3"></i>
+                                                            Salin
+                                                        </button>
+                                                    </div>
+                                                    <div class="mt-1 text-[8px] text-sky-600">Exp: {{ $terminTwoActiveSignature->token_expires_at?->format('d/m H:i') }}</div>
+                                                @elseif ($terminTwoIsActiveApprovalExpired)
+                                                    <div class="mt-2 inline-flex items-center gap-1 rounded-lg bg-amber-100 px-2 py-1 text-[9px] font-semibold text-amber-800 ring-1 ring-amber-200">
+                                                        <i data-lucide="clock-3" class="h-3 w-3"></i>
+                                                        Token T2 expired
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        @endif
+
+                                        @if ($isDiropsPending)
+                                            <span class="inline-flex w-[116px] items-center justify-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-[9px] font-semibold text-orange-700">
+                                                <i data-lucide="upload" class="h-3 w-3"></i>
+                                                Menunggu PKM
+                                            </span>
+                                        @endif
+
+                                        @if ($diropsSignedDocumentUrl)
+                                            <a href="{{ $diropsSignedDocumentUrl }}" target="_blank" rel="noopener" class="inline-flex w-[116px] items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[9px] font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100">
+                                                <i data-lucide="file-check-2" class="h-3 w-3"></i>
+                                                Final DIROPS
+                                            </a>
+                                        @endif
+
+                                        @if ($terminTwoIsDiropsPending)
+                                            <span class="inline-flex w-[116px] items-center justify-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-[9px] font-semibold text-orange-700">
+                                                <i data-lucide="upload" class="h-3 w-3"></i>
+                                                PKM DIROPS T2
+                                            </span>
+                                        @endif
+
+                                        @if ($terminTwoDiropsSignedDocumentUrl)
+                                            <a href="{{ $terminTwoDiropsSignedDocumentUrl }}" target="_blank" rel="noopener" class="inline-flex w-[116px] items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[9px] font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100">
+                                                <i data-lucide="file-check-2" class="h-3 w-3"></i>
+                                                DIROPS T2
+                                            </a>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="px-4 py-8 text-center text-[11px] text-slate-500">Belum ada data BAST yang tersedia.</td>
+                                <td colspan="6" class="px-4 py-8 text-center text-[11px] text-slate-500">Belum ada data BAST yang tersedia.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -238,6 +362,51 @@
                     showConfirmButton: false,
                 });
             }
+
+            const copyToClipboard = async (text) => {
+                if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(text);
+                    return;
+                }
+
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.setAttribute('readonly', '');
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            };
+
+            document.querySelectorAll('[data-copy-bast-approval-link]').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    const link = button.dataset.copyBastApprovalLink || '';
+
+                    if (!link) {
+                        return;
+                    }
+
+                    const originalHtml = button.innerHTML;
+
+                    try {
+                        await copyToClipboard(link);
+                        button.innerHTML = '<i data-lucide="check" class="h-3 w-3"></i> Disalin';
+                        if (window.lucide) {
+                            window.lucide.createIcons();
+                        }
+                        setTimeout(() => {
+                            button.innerHTML = originalHtml;
+                            if (window.lucide) {
+                                window.lucide.createIcons();
+                            }
+                        }, 1600);
+                    } catch (error) {
+                        button.innerHTML = originalHtml;
+                    }
+                });
+            });
         });
     </script>
 </x-layouts.admin>

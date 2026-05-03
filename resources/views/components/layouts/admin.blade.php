@@ -34,6 +34,14 @@
             $isOrdersSection = $orderMenu && ($orderMenu['active'] ?? false);
             $isOtherSection = collect($otherMenus)->contains(fn (array $menu) => $menu['active'] ?? false);
             $roleBadge = $user?->isSuperAdmin() ? 'SUPER ADMIN' : strtoupper($user?->role ?? 'admin');
+            $adminNotifications = \App\Support\AdminNotificationCenter::signatureNotifications(5);
+            $adminNotificationCount = \App\Support\AdminNotificationCenter::signatureNotificationCount();
+            $adminNotificationBadge = $adminNotificationCount > 9 ? '9+' : (string) $adminNotificationCount;
+            $notificationToneClasses = [
+                'blue' => 'bg-blue-50 text-blue-700 ring-blue-100',
+                'amber' => 'bg-amber-50 text-amber-700 ring-amber-100',
+                'emerald' => 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+            ];
         @endphp
 
         <div
@@ -41,6 +49,7 @@
                 sidebarOpen: true,
                 mobileOpen: false,
                 profileOpen: false,
+                notificationsOpen: false,
                 orderOpen: {{ $isOrdersSection ? 'true' : 'false' }},
                 otherOpen: {{ $isOtherSection ? 'true' : 'false' }},
                 toggleSidebar() {
@@ -283,13 +292,64 @@
                         </div>
 
                         <div class="flex items-center gap-3">
-                            <button
-                                class="relative inline-flex h-10 w-10 items-center justify-center rounded-xl text-white transition hover:bg-white/10"
-                                aria-label="Notifications"
-                            >
-                                <i data-lucide="bell" class="h-5 w-5"></i>
-                                <span class="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] text-white">3</span>
-                            </button>
+                            <div class="relative" @click.outside="notificationsOpen = false">
+                                <button
+                                    type="button"
+                                    @click="notificationsOpen = !notificationsOpen"
+                                    class="relative inline-flex h-10 w-10 items-center justify-center rounded-xl text-white transition hover:bg-white/10"
+                                    aria-label="Notifications"
+                                >
+                                    <i data-lucide="bell" class="h-5 w-5"></i>
+                                    @if ($adminNotificationCount > 0)
+                                        <span class="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">{{ $adminNotificationBadge }}</span>
+                                    @endif
+                                </button>
+
+                                <div
+                                    x-show="notificationsOpen"
+                                    x-transition.origin.top.right
+                                    x-cloak
+                                    class="absolute right-0 z-50 mt-2 w-[min(92vw,24rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+                                >
+                                    <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
+                                        <div>
+                                            <div class="text-sm font-bold text-slate-900">Pemberitahuan</div>
+                                            <div class="mt-0.5 text-xs text-slate-500">Aktivitas terbaru</div>
+                                        </div>
+                                        @if ($adminNotificationCount > 0)
+                                            <span class="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-700 ring-1 ring-red-100">{{ $adminNotificationBadge }}</span>
+                                        @endif
+                                    </div>
+
+                                    <div class="max-h-[24rem] overflow-y-auto">
+                                        @forelse ($adminNotifications as $notification)
+                                            @php($toneClass = $notificationToneClasses[$notification['tone'] ?? 'blue'] ?? $notificationToneClasses['blue'])
+                                            <a href="{{ $notification['url'] }}" class="flex gap-3 border-b border-slate-100 px-4 py-3 text-left transition last:border-b-0 hover:bg-slate-50">
+                                                <span class="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 {{ $toneClass }}">
+                                                    <i data-lucide="{{ $notification['icon'] }}" class="h-4 w-4"></i>
+                                                </span>
+                                                <span class="min-w-0 flex-1">
+                                                    <span class="block text-xs font-bold uppercase tracking-[0.14em] text-slate-400">{{ $notification['type'] }}</span>
+                                                    <span class="mt-1 block text-sm font-semibold leading-5 text-slate-900">{{ $notification['message'] }}</span>
+                                                    <span class="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                                                        <span>{{ $notification['meta'] ?: '-' }}</span>
+                                                        <span class="text-slate-300">/</span>
+                                                        <span>{{ optional($notification['signed_at'])->diffForHumans() }}</span>
+                                                    </span>
+                                                </span>
+                                            </a>
+                                        @empty
+                                            <div class="px-4 py-8 text-center">
+                                                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-400 ring-1 ring-slate-100">
+                                                    <i data-lucide="bell-off" class="h-5 w-5"></i>
+                                                </div>
+                                                <div class="mt-3 text-sm font-semibold text-slate-700">Belum ada aktivitas terbaru</div>
+                                                <div class="mt-1 text-xs leading-5 text-slate-500">Notifikasi hanya menampilkan beberapa aktivitas terbaru.</div>
+                                            </div>
+                                        @endforelse
+                                    </div>
+                                </div>
+                            </div>
 
                             <div class="relative" @click.outside="profileOpen = false">
                                 <button

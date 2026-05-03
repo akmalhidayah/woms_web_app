@@ -240,9 +240,15 @@
             line-height: 1.2;
         }
 
+        .signature-organization {
+            margin-top: 4px;
+            font-size: 7px;
+            line-height: 1.15;
+        }
+
         .signature-space {
             height: 110px;
-            vertical-align: bottom;
+            vertical-align: middle;
             text-align: center;
         }
 
@@ -253,9 +259,13 @@
         }
 
         .signature-initial {
-            height: 16px;
             display: inline-block;
-            margin-right: 4px;
+            width: auto;
+            max-width: 88%;
+            max-height: 86px;
+            height: 78px;
+            margin: 0;
+            object-fit: contain;
             vertical-align: middle;
         }
 
@@ -386,35 +396,67 @@
         ->unique(fn (array $image): string => (string) ($image['name'].'|'.$image['src']))
         ->values();
 
-    $approvalRoles = $isOver250
-        ? [
-            'DIRECTOR OF OPERATION',
-            'GM OF PROJECT MANAG. & MAINT.SUPPORT',
-            'MGR.OF MACHINE WORKSHOP',
-            'MANAGER OF (USER)',
-        ]
-        : [
-            'GM OF PROJECT MANAG. & MAINT.SUPPORT',
-            'MGR.OF MACHINE WORKSHOP',
-            'MANAGER OF (USER)',
-        ];
+    $lhppSignatures = ($lhpp->relationLoaded('signatures') ? $lhpp->signatures : $lhpp->signatures()->get())
+        ->keyBy('role_key');
+    $signatureFor = fn (string $roleKey) => $lhppSignatures->get($roleKey);
+    $signatureImage = fn ($signature): ?string => $signature?->isSigned() ? $signature->signature_data : null;
+    $signatureName = fn ($signature): string => $signature?->signer_name_snapshot ?: '';
+    $signatureTitle = fn ($signature, string $fallback): string => trim((string) ($signature?->signer_position_snapshot ?: $fallback));
+    $signatureDate = static function ($signature): string {
+        if (! $signature?->signed_at) {
+            return 'Tanggal :';
+        }
 
-    $signatureNames = $isOver250
+        return 'Tanggal : '.\Illuminate\Support\Carbon::parse($signature->signed_at)->format('d/m/Y');
+    };
+    $approvalCellFromRole = function (string $roleKey, string $fallbackTitle) use (
+        $signatureFor,
+        $signatureImage,
+        $signatureName,
+        $signatureDate,
+        $signatureTitle,
+    ): array {
+        $signature = $signatureFor($roleKey);
+
+        return [
+            'role' => $signatureTitle($signature, $fallbackTitle),
+            'signature' => $signatureImage($signature),
+            'name' => $signatureName($signature),
+            'date' => $signatureDate($signature),
+        ];
+    };
+
+    $approvalCells = $isOver250
         ? [
-            null,
-            null,
-            $lhpp->manager_signature ?: null,
-            $lhpp->manager_signature_requesting ?: null,
+            $approvalCellFromRole('dirops', 'Director of Operation'),
+            $approvalCellFromRole('gm_pengendali', 'GM Pengendali'),
+            $approvalCellFromRole('manager_pengendali', 'Manager Pengendali'),
+            $approvalCellFromRole('manager_peminta', 'Manager Peminta'),
         ]
         : [
-            null,
-            $lhpp->manager_signature ?: null,
-            $lhpp->manager_signature_requesting ?: null,
+            $approvalCellFromRole('gm_pengendali', 'GM Pengendali'),
+            $approvalCellFromRole('manager_pengendali', 'Manager Pengendali'),
+            $approvalCellFromRole('manager_peminta', 'Manager Peminta'),
         ];
+    $managerPkmSignature = $signatureFor('manager_pkm');
+    $managerPkmTitle = preg_replace(
+        '/^manager\s+of\s+/i',
+        'Manager ',
+        $signatureTitle($managerPkmSignature, 'Manager PKM')
+    ) ?: $signatureTitle($managerPkmSignature, 'Manager PKM');
+    $managerPkmOrganization = trim((string) (
+        $managerPkmSignature?->signer_unit_snapshot
+        ?: $managerPkmSignature?->signer_department_snapshot
+        ?: ''
+    ));
 
     $renderSignature = static function ($value) use ($resolveImageSource) {
         if (! $value) {
             return '';
+        }
+
+        if (str_starts_with((string) $value, 'data:image')) {
+            return '<img src="'.$value.'" class="signature-initial" alt="ttd">';
         }
 
         if (preg_match('/\.(png|jpg|jpeg|webp)$/i', (string) $value)) {
@@ -610,26 +652,26 @@
                         @endif
                     </colgroup>
                     <tr>
-                        <td colspan="{{ count($approvalRoles) }}" class="signed-header">Menyetujui,</td>
+                        <td colspan="{{ count($approvalCells) }}" class="signed-header">Menyetujui,</td>
                     </tr>
                     <tr class="date-row">
-                        @foreach ($approvalRoles as $role)
-                            <td>Tanggal :</td>
+                        @foreach ($approvalCells as $cell)
+                            <td>{{ $cell['date'] }}</td>
                         @endforeach
                     </tr>
                     <tr>
-                        @foreach ($approvalRoles as $role)
-                            <td class="signature-role">{{ $role }}</td>
+                        @foreach ($approvalCells as $cell)
+                            <td class="signature-role">{{ $cell['role'] }}</td>
                         @endforeach
                     </tr>
                     <tr>
-                        @foreach ($signatureNames as $signatureName)
-                            <td class="signature-space">{!! $renderSignature($signatureName) !!}</td>
+                        @foreach ($approvalCells as $cell)
+                            <td class="signature-space">{!! $renderSignature($cell['signature']) !!}</td>
                         @endforeach
                     </tr>
                     <tr>
-                        @foreach ($signatureNames as $signatureName)
-                            <td class="signature-name">{{ is_string($signatureName) ? $signatureName : '' }}</td>
+                        @foreach ($approvalCells as $cell)
+                            <td class="signature-name">{{ $cell['name'] }}</td>
                         @endforeach
                     </tr>
                 </table>
@@ -638,16 +680,21 @@
             <div class="signature-pkm">
                 <table class="signature-pkm-table">
                     <tr class="date-row">
-                        <td>Tanggal :</td>
+                        <td>{{ $signatureDate($managerPkmSignature) }}</td>
                     </tr>
                     <tr>
-                        <td class="signature-role">PT. PKM</td>
+                        <td class="signature-role">
+                            <div>{{ $managerPkmTitle }}</div>
+                            @if ($managerPkmOrganization !== '')
+                                <div class="signature-organization">{{ $managerPkmOrganization }}</div>
+                            @endif
+                        </td>
                     </tr>
                     <tr>
-                        <td class="signature-space">{!! $renderSignature($lhpp->manager_pkm_signature) !!}</td>
+                        <td class="signature-space">{!! $renderSignature($signatureImage($managerPkmSignature)) !!}</td>
                     </tr>
                     <tr>
-                        <td class="signature-name">{{ is_string($lhpp->manager_pkm_signature) ? $lhpp->manager_pkm_signature : '' }}</td>
+                        <td class="signature-name">{{ $signatureName($managerPkmSignature) }}</td>
                     </tr>
                 </table>
             </div>

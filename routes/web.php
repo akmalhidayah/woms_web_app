@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\HppApprovalSettingController;
 use App\Http\Controllers\Admin\UserPanelController;
 use App\Http\Controllers\Approval\HppSignatureController;
 use App\Http\Controllers\Approval\InitialWorkSignatureController;
+use App\Http\Controllers\Approval\BastSignatureController;
 use App\Http\Controllers\Pkm\DashboardController as PkmDashboardController;
 use App\Http\Controllers\Pkm\DocumentsController as PkmDocumentsController;
 use App\Http\Controllers\Pkm\JobWaitingController;
@@ -74,6 +75,12 @@ Route::middleware(['auth'])->group(function () {
         ->name('approval.hpp.abnormalitas');
     Route::get('approval/hpp/{token}/gambar-teknik', [HppSignatureController::class, 'previewGambarTeknik'])
         ->name('approval.hpp.gambar-teknik');
+    Route::get('approval/bast/{token}', [BastSignatureController::class, 'show'])
+        ->name('approval.bast.show');
+    Route::post('approval/bast/{token}', [BastSignatureController::class, 'sign'])
+        ->name('approval.bast.sign');
+    Route::get('approval/bast/{token}/pdf', [BastSignatureController::class, 'pdf'])
+        ->name('approval.bast.pdf');
 
     Route::view('admin/dashboard', 'dashboards.admin')
         ->middleware('role:admin')
@@ -134,7 +141,10 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
         ->whereNumber('lhppId')
         ->name('admin.lhpp.pdf.legacy');
-
+    Route::get('admin/lhpp/{lhppId}/dirops-signed-document', [AdminLhppController::class, 'diropsSignedDocument'])
+        ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
+        ->whereNumber('lhppId')
+        ->name('admin.lhpp.dirops-document.show');
     Route::get('admin/lpj', [LpjPplController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:lpj_ppl'])
         ->name('admin.lpj.index');
@@ -290,33 +300,33 @@ Route::delete('admin/struktur-organisasi/{unitWork}', [StructureOrganizationCont
         ->name('admin.fabrication-construction-contracts.destroy');
 
     Route::get('user/dashboard', [OrderTrackingController::class, 'index'])
-        ->middleware('role:user')
+        ->middleware('role:user,approver')
         ->name('user.dashboard');
     Route::get('user/orders/{order}', [OrderTrackingController::class, 'show'])
-        ->middleware('role:user')
+        ->middleware('role:user,approver')
         ->name('user.orders.show');
     Route::get('user/orders/{order}/documents/{document}', [OrderTrackingController::class, 'previewDocument'])
-        ->middleware('role:user')
+        ->middleware('role:user,approver')
         ->whereNumber('document')
         ->name('user.orders.documents.preview');
     Route::get('user/orders/{order}/scope-of-work/pdf', [OrderTrackingController::class, 'scopeOfWorkPdf'])
-        ->middleware('role:user')
+        ->middleware('role:user,approver')
         ->name('user.orders.scope-of-work.pdf');
     Route::get('user/orders/{order}/initial-work/pdf', [OrderTrackingController::class, 'initialWorkPdf'])
-        ->middleware('role:user')
+        ->middleware('role:user,approver')
         ->name('user.orders.initial-work.pdf');
     Route::get('user/orders/{order}/hpp/pdf', [OrderTrackingController::class, 'hppPdf'])
-        ->middleware('role:user')
+        ->middleware('role:user,approver')
         ->name('user.orders.hpp.pdf');
     Route::get('user/orders/{order}/purchase-order/document', [OrderTrackingController::class, 'purchaseOrderDocument'])
-        ->middleware('role:user')
+        ->middleware('role:user,approver')
         ->name('user.orders.purchase-order.document');
     Route::get('user/orders/{order}/{termin}/bast/pdf', [OrderTrackingController::class, 'bastPdf'])
-        ->middleware('role:user')
+        ->middleware('role:user,approver')
         ->where('termin', 'termin-1|termin-2')
         ->name('user.orders.bast.pdf');
     Route::get('user/orders/{order}/laporan/{kind}/{termin}', [OrderTrackingController::class, 'previewLpjPpl'])
-        ->middleware('role:user')
+        ->middleware('role:user,approver')
         ->where('kind', 'lpj|ppl')
         ->whereNumber('termin')
         ->name('user.orders.laporan.preview');
@@ -379,6 +389,18 @@ Route::delete('admin/struktur-organisasi/{unitWork}', [StructureOrganizationCont
         ->middleware('role:pkm')
         ->where('termin', 'termin-[12]')
         ->name('pkm.lhpp.destroy');
+    Route::get('pkm/lhpp/{lhppId}/dirops-signed-document', [LhppController::class, 'diropsSignedDocument'])
+        ->middleware('role:pkm')
+        ->whereNumber('lhppId')
+        ->name('pkm.lhpp.dirops-document.show');
+    Route::post('pkm/lhpp/{lhppId}/dirops-signed-document', [LhppController::class, 'uploadDiropsSignedDocument'])
+        ->middleware('role:pkm')
+        ->whereNumber('lhppId')
+        ->name('pkm.lhpp.dirops-document.upload');
+    Route::post('pkm/lhpp/{lhppId}/regenerate-active-approval-token', [LhppController::class, 'regenerateActiveApprovalToken'])
+        ->middleware('role:pkm')
+        ->whereNumber('lhppId')
+        ->name('pkm.lhpp.approval-token.regenerate');
     Route::get('pkm/lhpp/{nomorOrder}/{termin}/pdf', [LhppController::class, 'pdf'])
         ->middleware('role:pkm')
         ->where('termin', 'termin-[12]')
@@ -394,11 +416,9 @@ Route::delete('admin/struktur-organisasi/{unitWork}', [StructureOrganizationCont
         ->where('termin', '[12]')
         ->name('pkm.laporan.preview');
 
-    Route::view('approver/dashboard', 'dashboards.placeholder', [
-        'title' => 'Approver Dashboard',
-        'role' => User::ROLE_APPROVER,
-        'description' => 'Placeholder area for approvals, verification queues, and decision history.',
-    ])->middleware('role:approver')->name('approver.dashboard');
+    Route::redirect('approver/dashboard', 'user/dashboard')
+        ->middleware('role:approver')
+        ->name('approver.dashboard');
 
     Route::redirect('settings', 'settings/profile');
 

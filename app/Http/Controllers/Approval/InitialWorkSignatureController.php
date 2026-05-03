@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\InitialWorks\InitialWorkSignatureService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -79,18 +80,27 @@ class InitialWorkSignatureController extends Controller
 
         $signaturePath = $this->storeSignatureImage((string) $validated['signature_data'], $signature);
 
-        $signature->update([
-            'status' => InitialWorkSignature::STATUS_SIGNED,
-            'signature_path' => $signaturePath,
-            'signed_at' => now(),
-            'signed_ip' => $request->ip(),
-            'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
-        ]);
+        try {
+            $nextApprovalUrl = DB::transaction(function () use ($request, $signature, $signaturePath): ?string {
+                $signature->update([
+                    'status' => InitialWorkSignature::STATUS_SIGNED,
+                    'signature_path' => $signaturePath,
+                    'signed_at' => now(),
+                    'signed_ip' => $request->ip(),
+                    'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
+                ]);
 
-        $nextApprovalUrl = $this->signatureService->activateNextSignature($signature);
+                return $this->signatureService->activateNextSignature($signature);
+            });
+        } catch (\Throwable $exception) {
+            Storage::disk('public')->delete($signaturePath);
+
+            throw $exception;
+        }
 
         $redirect = redirect()
             ->route('approval.initial-work.show', $token)
+            ->with('approval_signed', true)
             ->with('status', $nextApprovalUrl
                 ? 'Tanda tangan berhasil disimpan. Approval berikutnya sudah diaktifkan.'
                 : 'Tanda tangan berhasil disimpan.');

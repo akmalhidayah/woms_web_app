@@ -320,6 +320,72 @@
                             <div class="mt-1 text-sm text-slate-600">
                                 {{ $order['hpp']['total'] !== null ? 'Rp '.number_format((float) $order['hpp']['total'], 2, ',', '.') : 'Nilai belum tersedia' }}
                             </div>
+                            @if ($order['hpp']['approval'])
+                                @php
+                                    $hppApproval = $order['hpp']['approval'];
+                                    $approvalBadgeClasses = match ($hppApproval['state']) {
+                                        'pending' => 'bg-blue-100 text-blue-700 ring-blue-200',
+                                        'expired' => 'bg-amber-100 text-amber-700 ring-amber-200',
+                                        'completed' => 'bg-emerald-100 text-emerald-700 ring-emerald-200',
+                                        default => 'bg-stone-100 text-slate-600 ring-stone-200',
+                                    };
+                                @endphp
+                                <div class="mt-4 rounded-2xl border border-red-100 bg-white px-4 py-3">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <div class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Token TTD HPP</div>
+                                        <span class="inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ring-1 {{ $approvalBadgeClasses }}">
+                                            {{ $hppApproval['label'] }}
+                                        </span>
+                                    </div>
+
+                                    @if ($hppApproval['signer_name'])
+                                        <div class="mt-3 text-sm font-bold text-slate-900">{{ $hppApproval['signer_name'] }}</div>
+                                        <div class="mt-1 text-xs leading-5 text-slate-500">
+                                            {{ $hppApproval['role_label'] ?: '-' }}
+                                            @if ($hppApproval['step'])
+                                                <span class="mx-1 text-slate-300">/</span>
+                                                Step {{ $hppApproval['step'] }} dari {{ $hppApproval['total_steps'] }}
+                                            @endif
+                                        </div>
+                                        <div class="mt-1 text-xs leading-5 text-slate-500">Berlaku sampai: {{ $hppApproval['expires_at'] ?: '-' }}</div>
+                                    @endif
+
+                                    @if (($hppApproval['links'] ?? []) !== [])
+                                        <div class="mt-3 space-y-2">
+                                            @foreach ($hppApproval['links'] as $approvalLink)
+                                                <div class="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2">
+                                                    <div class="flex flex-wrap items-start justify-between gap-2">
+                                                        <div class="min-w-0">
+                                                            <div class="text-xs font-bold text-slate-900">
+                                                                Step {{ $approvalLink['step'] }} - {{ $approvalLink['role_label'] }}
+                                                            </div>
+                                                            <div class="mt-0.5 text-xs text-slate-500">{{ $approvalLink['signer_name'] ?: '-' }}</div>
+                                                            @if ($approvalLink['expires_at'])
+                                                                <div class="mt-0.5 text-[11px] text-slate-400">Berlaku sampai {{ $approvalLink['expires_at'] }}</div>
+                                                            @endif
+                                                        </div>
+                                                        <span class="inline-flex shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 ring-1 ring-blue-200">
+                                                            {{ $approvalLink['status_label'] }}
+                                                        </span>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        data-copy-approval-link="{{ $approvalLink['link'] }}"
+                                                        class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white transition hover:bg-slate-700"
+                                                    >
+                                                        <i data-lucide="copy" class="h-3.5 w-3.5"></i>
+                                                        Salin Link TTD
+                                                    </button>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @elseif ($hppApproval['state'] === 'expired')
+                                        <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                                            Token sudah kedaluwarsa. Admin perlu regenerate token aktif dari halaman HPP.
+                                        </div>
+                                    @endif
+                                </div>
+                            @endif
                         </div>
                         <div class="rounded-2xl border border-amber-200 bg-amber-50/50 p-4">
                             <div class="text-[11px] font-bold uppercase tracking-[0.2em] text-red-700">Verifikasi Anggaran</div>
@@ -387,6 +453,48 @@
             const tabs = Array.from(document.querySelectorAll('[data-document-tab]'));
             const isMobileBrowser = window.matchMedia('(max-width: 1024px)').matches
                 || /Android|iPhone|iPad|iPod|Mobile/i.test(window.navigator.userAgent);
+
+            const copyTextToClipboard = async (text) => {
+                if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(text);
+                    return;
+                }
+
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.setAttribute('readonly', '');
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            };
+
+            document.querySelectorAll('[data-copy-approval-link]').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    const link = button.dataset.copyApprovalLink || '';
+
+                    if (!link) {
+                        return;
+                    }
+
+                    const originalText = button.textContent.trim();
+
+                    try {
+                        await copyTextToClipboard(link);
+                        button.textContent = 'Link TTD Disalin';
+                        setTimeout(() => {
+                            button.innerHTML = '<i data-lucide="copy" class="h-3.5 w-3.5"></i> Salin Link TTD';
+                            if (window.lucide) {
+                                window.lucide.createIcons();
+                            }
+                        }, 1800);
+                    } catch (error) {
+                        button.textContent = originalText || 'Gagal Menyalin';
+                    }
+                });
+            });
 
             if (! previewFrame || tabs.length === 0) {
                 return;

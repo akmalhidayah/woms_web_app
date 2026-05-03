@@ -3,20 +3,26 @@
 namespace App\Http\Controllers\Pkm;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Pkm\Lhpp\UploadBastDiropsSignedDocumentRequest;
 use App\Http\Requests\Pkm\StoreLhppBastRequest;
 use App\Models\FabricationConstructionContract;
 use App\Models\Garansi;
 use App\Models\Hpp;
 use App\Models\LhppBast;
 use App\Models\LhppBastImage;
+use App\Models\LhppBastSignature;
 use App\Models\Order;
+use App\Support\BastApprovalFlow;
+use App\Support\BastApprovalSignatureBuilder;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use setasign\Fpdi\Fpdi;
 use Symfony\Component\HttpFoundation\Response;
@@ -25,6 +31,11 @@ use Throwable;
 
 class LhppController extends Controller
 {
+    public function __construct(
+        private readonly BastApprovalSignatureBuilder $signatureBuilder,
+    ) {
+    }
+
     public function index(Request $request): View
     {
         try {
@@ -37,8 +48,11 @@ class LhppController extends Controller
 
             $baseQuery = LhppBast::query()
                 ->with([
-                    'terminTwo',
+                    'terminTwo.signatures.signer:id,name',
+                    'terminTwo.activeSignature.signer:id,name',
                     'garansi',
+                    'signatures.signer:id,name',
+                    'activeSignature.signer:id,name',
                     'order:id,nomor_order,notifikasi',
                 ])
                 ->where('termin_type', 'termin_1')
@@ -274,46 +288,70 @@ class LhppController extends Controller
                 $materialRowsPayload,
                 $serviceRowsPayload,
             );
-            $qualityControlStatus = $terminType === 'termin_2'
-                ? ($parentLhpp?->quality_control_status ?? 'pending')
-                : 'pending';
+            $qualityControlStatus = $terminType === 'termin_2' ? 'approved' : 'pending';
+            $approvalPayload = $this->resolveApprovalPayload($terminType, $parentLhpp, $calculation['totals']);
 
-            $lhpp = LhppBast::query()->updateOrCreate(
-                [
-                    'order_id' => $order->id,
-                    'termin_type' => $terminType,
-                ],
-                [
-                    'parent_lhpp_bast_id' => $terminType === 'termin_2' ? $parentLhpp?->id : null,
-                    'hpp_id' => $latestHpp?->id,
-                    'purchase_order_id' => $purchaseOrder?->id,
-                    'nomor_order' => $order->nomor_order,
-                    'notifikasi' => $order->notifikasi,
-                    'purchase_order_number' => $purchaseOrder?->purchase_order_number,
-                    'deskripsi_pekerjaan' => $order->nama_pekerjaan,
-                    'tipe_pekerjaan' => $tipePekerjaan,
-                    'unit_kerja' => $order->unit_kerja,
-                    'seksi' => $order->seksi,
-                    'tanggal_bast' => $request->date('tanggal_bast'),
-                    'tanggal_mulai_pekerjaan' => $tanggalMulaiPekerjaan,
-                    'tanggal_selesai_pekerjaan' => $tanggalSelesaiPekerjaan,
-                    'approval_threshold' => $this->resolveThresholdFromTotals($terminType, $calculation['totals']),
-                    'nilai_hpp' => $latestHpp?->total_keseluruhan ?? 0,
-                    'material_items' => $calculation['material_rows'],
-                    'service_items' => $calculation['service_rows'],
-                    'subtotal_material' => $calculation['totals']['subtotal_material'],
-                    'subtotal_jasa' => $calculation['totals']['subtotal_jasa'],
-                    'total_aktual_biaya' => $calculation['totals']['total_aktual_biaya'],
-                    'termin_1_nilai' => $calculation['totals']['termin_1_nilai'],
-                    'termin_2_nilai' => $calculation['totals']['termin_2_nilai'],
-                    'quality_control_status' => $qualityControlStatus,
-                    'updated_by' => $request->user()?->id,
-                    'created_by' => $request->user()?->id,
-                ]
-            );
+            $lhpp = DB::transaction(function () use (
+                $order,
+                $terminType,
+                $parentLhpp,
+                $latestHpp,
+                $purchaseOrder,
+                $tipePekerjaan,
+                $request,
+                $tanggalMulaiPekerjaan,
+                $tanggalSelesaiPekerjaan,
+                $approvalPayload,
+                $calculation,
+                $qualityControlStatus,
+            ): LhppBast {
+                $lhpp = LhppBast::query()->updateOrCreate(
+                    [
+                        'order_id' => $order->id,
+                        'termin_type' => $terminType,
+                    ],
+                    [
+                        'parent_lhpp_bast_id' => $terminType === 'termin_2' ? $parentLhpp?->id : null,
+                        'hpp_id' => $latestHpp?->id,
+                        'purchase_order_id' => $purchaseOrder?->id,
+                        'nomor_order' => $order->nomor_order,
+                        'notifikasi' => $order->notifikasi,
+                        'purchase_order_number' => $purchaseOrder?->purchase_order_number,
+                        'deskripsi_pekerjaan' => $order->nama_pekerjaan,
+                        'tipe_pekerjaan' => $tipePekerjaan,
+                        'unit_kerja' => $order->unit_kerja,
+                        'seksi' => $order->seksi,
+                        'tanggal_bast' => $request->date('tanggal_bast'),
+                        'tanggal_mulai_pekerjaan' => $tanggalMulaiPekerjaan,
+                        'tanggal_selesai_pekerjaan' => $tanggalSelesaiPekerjaan,
+                        'approval_threshold' => $approvalPayload['approval_threshold'],
+                        'approval_case' => $approvalPayload['approval_case'],
+                        'approval_flow' => $approvalPayload['approval_flow'],
+                        'approval_status' => LhppBast::APPROVAL_IN_REVIEW,
+                        'nilai_hpp' => $latestHpp?->total_keseluruhan ?? 0,
+                        'material_items' => $calculation['material_rows'],
+                        'service_items' => $calculation['service_rows'],
+                        'subtotal_material' => $calculation['totals']['subtotal_material'],
+                        'subtotal_jasa' => $calculation['totals']['subtotal_jasa'],
+                        'total_aktual_biaya' => $calculation['totals']['total_aktual_biaya'],
+                        'termin_1_nilai' => $calculation['totals']['termin_1_nilai'],
+                        'termin_2_nilai' => $calculation['totals']['termin_2_nilai'],
+                        'quality_control_status' => $qualityControlStatus,
+                        'updated_by' => $request->user()?->id,
+                        'created_by' => $request->user()?->id,
+                    ]
+                );
 
-            $this->syncParentTipePekerjaanIfMissing($terminType, $parentLhpp, $tipePekerjaan);
-            $this->syncGaransiToTerminOne($terminType, $order, $lhpp);
+                $this->syncParentTipePekerjaanIfMissing($terminType, $parentLhpp, $tipePekerjaan);
+                $this->syncGaransiToTerminOne($terminType, $order, $lhpp);
+                $this->signatureBuilder->ensureSignatures($lhpp);
+                if ($terminType === 'termin_2' || $lhpp->quality_control_status === 'approved') {
+                    $this->signatureBuilder->activateFirstSignature($lhpp);
+                }
+
+                return $lhpp->refresh();
+            });
+
             $this->storeUploadedImages($request, $lhpp);
 
             return redirect()
@@ -324,6 +362,10 @@ class LhppController extends Controller
                     $lhpp->nomor_order,
                     number_format((float) $lhpp->total_aktual_biaya, 0, ',', '.'),
                 ));
+        } catch (ValidationException $exception) {
+            return back()
+                ->withInput()
+                ->withErrors($exception->errors());
         } catch (Throwable $exception) {
             Log::error('Failed to store PKM LHPP form.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
@@ -362,11 +404,21 @@ class LhppController extends Controller
                 $request->date('tanggal_mulai_pekerjaan'),
                 $request->date('tanggal_selesai_pekerjaan'),
             );
-            $tipePekerjaan = $this->resolveTipePekerjaanForBast(
-                $terminType,
-                $parentLhpp,
-                $request->input('tipe_pekerjaan'),
-            );
+          $requestedTipePekerjaan = $request->input('tipe_pekerjaan');
+
+if (blank($requestedTipePekerjaan) && filled($lhpp->tipe_pekerjaan)) {
+    $requestedTipePekerjaan = $lhpp->tipe_pekerjaan;
+}
+
+if (blank($requestedTipePekerjaan) && filled($parentLhpp?->tipe_pekerjaan)) {
+    $requestedTipePekerjaan = $parentLhpp->tipe_pekerjaan;
+}
+
+$tipePekerjaan = $this->resolveTipePekerjaanForBast(
+    $terminType,
+    $parentLhpp,
+    $requestedTipePekerjaan,
+);
             [$materialRowsPayload, $serviceRowsPayload] = $this->resolveActualRowsPayload(
                 $terminType,
                 $parentLhpp,
@@ -377,41 +429,69 @@ class LhppController extends Controller
                 $materialRowsPayload,
                 $serviceRowsPayload,
             );
+            $approvalPayload = $this->resolveApprovalPayload($terminType, $parentLhpp, $calculation['totals']);
+            $hasSignatures = $lhpp->signatures()->exists();
 
-            $lhpp->fill([
-                'order_id' => $order->id,
-                'termin_type' => $terminType,
-                'parent_lhpp_bast_id' => $terminType === 'termin_2' ? $parentLhpp?->id : null,
-                'hpp_id' => $latestHpp?->id,
-                'purchase_order_id' => $purchaseOrder?->id,
-                'nomor_order' => $order->nomor_order,
-                'notifikasi' => $order->notifikasi,
-                'purchase_order_number' => $purchaseOrder?->purchase_order_number,
-                'deskripsi_pekerjaan' => $order->nama_pekerjaan,
-                'tipe_pekerjaan' => $tipePekerjaan,
-                'unit_kerja' => $order->unit_kerja,
-                'seksi' => $order->seksi,
-                'tanggal_bast' => $request->date('tanggal_bast'),
-                'tanggal_mulai_pekerjaan' => $tanggalMulaiPekerjaan,
-                'tanggal_selesai_pekerjaan' => $tanggalSelesaiPekerjaan,
-                'approval_threshold' => $this->resolveThresholdFromTotals($terminType, $calculation['totals']),
-                'nilai_hpp' => $latestHpp?->total_keseluruhan ?? 0,
-                'material_items' => $calculation['material_rows'],
-                'service_items' => $calculation['service_rows'],
-                'subtotal_material' => $calculation['totals']['subtotal_material'],
-                'subtotal_jasa' => $calculation['totals']['subtotal_jasa'],
-                'total_aktual_biaya' => $calculation['totals']['total_aktual_biaya'],
-                'termin_1_nilai' => $calculation['totals']['termin_1_nilai'],
-                'termin_2_nilai' => $calculation['totals']['termin_2_nilai'],
-                'quality_control_status' => $terminType === 'termin_2'
-                    ? ($parentLhpp?->quality_control_status ?? $lhpp->quality_control_status)
-                    : $lhpp->quality_control_status,
-                'updated_by' => $request->user()?->id,
-            ]);
+            $lhpp = DB::transaction(function () use (
+                $lhpp,
+                $order,
+                $terminType,
+                $parentLhpp,
+                $latestHpp,
+                $purchaseOrder,
+                $tipePekerjaan,
+                $request,
+                $tanggalMulaiPekerjaan,
+                $tanggalSelesaiPekerjaan,
+                $hasSignatures,
+                $approvalPayload,
+                $calculation,
+            ): LhppBast {
+                $lhpp->fill([
+                    'order_id' => $order->id,
+                    'termin_type' => $terminType,
+                    'parent_lhpp_bast_id' => $terminType === 'termin_2' ? $parentLhpp?->id : null,
+                    'hpp_id' => $latestHpp?->id,
+                    'purchase_order_id' => $purchaseOrder?->id,
+                    'nomor_order' => $order->nomor_order,
+                    'notifikasi' => $order->notifikasi,
+                    'purchase_order_number' => $purchaseOrder?->purchase_order_number,
+                    'deskripsi_pekerjaan' => $order->nama_pekerjaan,
+                    'tipe_pekerjaan' => $tipePekerjaan,
+                    'unit_kerja' => $order->unit_kerja,
+                    'seksi' => $order->seksi,
+                    'tanggal_bast' => $request->date('tanggal_bast'),
+                    'tanggal_mulai_pekerjaan' => $tanggalMulaiPekerjaan,
+                    'tanggal_selesai_pekerjaan' => $tanggalSelesaiPekerjaan,
+                    'approval_threshold' => $hasSignatures ? $lhpp->approval_threshold : $approvalPayload['approval_threshold'],
+                    'approval_case' => $hasSignatures ? $lhpp->approval_case : $approvalPayload['approval_case'],
+                    'approval_flow' => $hasSignatures ? $lhpp->approval_flow : $approvalPayload['approval_flow'],
+                    'approval_status' => $hasSignatures ? $lhpp->approval_status : LhppBast::APPROVAL_IN_REVIEW,
+                    'nilai_hpp' => $latestHpp?->total_keseluruhan ?? 0,
+                    'material_items' => $calculation['material_rows'],
+                    'service_items' => $calculation['service_rows'],
+                    'subtotal_material' => $calculation['totals']['subtotal_material'],
+                    'subtotal_jasa' => $calculation['totals']['subtotal_jasa'],
+                    'total_aktual_biaya' => $calculation['totals']['total_aktual_biaya'],
+                    'termin_1_nilai' => $calculation['totals']['termin_1_nilai'],
+                    'termin_2_nilai' => $calculation['totals']['termin_2_nilai'],
+                    'quality_control_status' => $terminType === 'termin_2'
+                        ? 'approved'
+                        : $lhpp->quality_control_status,
+                    'updated_by' => $request->user()?->id,
+                ]);
 
-            $lhpp->save();
-            $this->syncParentTipePekerjaanIfMissing($terminType, $parentLhpp, $tipePekerjaan);
-            $this->syncGaransiToTerminOne($terminType, $order, $lhpp);
+                $lhpp->save();
+                $this->syncParentTipePekerjaanIfMissing($terminType, $parentLhpp, $tipePekerjaan);
+                $this->syncGaransiToTerminOne($terminType, $order, $lhpp);
+                $this->signatureBuilder->ensureSignatures($lhpp);
+                if ($terminType === 'termin_2' || $lhpp->quality_control_status === 'approved') {
+                    $this->signatureBuilder->activateFirstSignature($lhpp);
+                }
+
+                return $lhpp->refresh();
+            });
+
             $this->storeUploadedImages($request, $lhpp);
 
             return redirect()
@@ -421,6 +501,10 @@ class LhppController extends Controller
                     $this->terminLabel($terminType),
                     $lhpp->nomor_order,
                 ));
+        } catch (ValidationException $exception) {
+            return back()
+                ->withInput()
+                ->withErrors($exception->errors());
         } catch (Throwable $exception) {
             Log::error('Failed to update PKM LHPP form.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
@@ -496,7 +580,9 @@ class LhppController extends Controller
             $lhpp->loadMissing([
                 'images',
                 'garansi',
+                'signatures',
                 'parentLhppBast.images',
+                'parentLhppBast.signatures',
                 'parentLhppBast.purchaseOrder:id,order_id,purchase_order_number',
                 'parentLhppBast.order.purchaseOrder:id,order_id,purchase_order_number',
                 'hpp.order',
@@ -508,6 +594,28 @@ class LhppController extends Controller
                 'order.latestHpp.outlineAgreement.unitWork.department',
                 'order.latestHpp.creator',
             ]);
+
+            $finalDocumentSignature = $lhpp->finalSignedDocumentSignature();
+
+            if ($finalDocumentSignature?->hasUploadedSignedDocument()) {
+                abort_unless(
+                    Storage::disk('public')->exists($finalDocumentSignature->signed_document_path),
+                    Response::HTTP_NOT_FOUND
+                );
+
+                return response()->file(
+                    Storage::disk('public')->path($finalDocumentSignature->signed_document_path),
+                    [
+                        'Content-Type' => $finalDocumentSignature->signed_document_mime_type
+                            ?: (Storage::disk('public')->mimeType($finalDocumentSignature->signed_document_path) ?: 'application/octet-stream'),
+                        'Content-Disposition' => sprintf(
+                            'inline; filename="%s"',
+                            $finalDocumentSignature->signed_document_original_name
+                                ?: basename($finalDocumentSignature->signed_document_path)
+                        ),
+                    ],
+                );
+            }
 
             $bastPdf = Pdf::loadView('pkm.lhpp.pdf', [
                 'lhpp' => $lhpp,
@@ -558,6 +666,101 @@ class LhppController extends Controller
 
             abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Terjadi kesalahan saat membuat PDF LHPP PKM.');
         }
+    }
+
+    public function diropsSignedDocument(int $lhppId): Response
+    {
+        $lhpp = LhppBast::query()->findOrFail($lhppId);
+        $signature = $this->resolveDiropsSignature($lhpp);
+
+        abort_unless($signature?->hasUploadedSignedDocument(), Response::HTTP_NOT_FOUND);
+        abort_unless(Storage::disk('public')->exists($signature->signed_document_path), Response::HTTP_NOT_FOUND);
+
+        return response()->file(
+            Storage::disk('public')->path($signature->signed_document_path),
+            [
+                'Content-Type' => $signature->signed_document_mime_type ?: (Storage::disk('public')->mimeType($signature->signed_document_path) ?: 'application/octet-stream'),
+                'Content-Disposition' => 'inline; filename="'.$this->safeFilename(
+                    $signature->signed_document_original_name ?: basename($signature->signed_document_path)
+                ).'"',
+            ],
+        );
+    }
+
+    public function uploadDiropsSignedDocument(UploadBastDiropsSignedDocumentRequest $request, int $lhppId): RedirectResponse
+    {
+        $lhpp = LhppBast::query()->findOrFail($lhppId);
+        $signature = $this->resolvePendingDiropsSignature($lhpp);
+
+        if (! $signature) {
+            throw ValidationException::withMessages([
+                'signed_document' => 'Upload dokumen hanya tersedia saat tahap DIROPS BAST sedang aktif.',
+            ]);
+        }
+
+        $file = $request->file('signed_document');
+        $storedPath = $file->storeAs(
+            'bast/dirops-signed/'.$lhpp->nomor_order.'/'.$lhpp->termin_type,
+            'dirops-signed-'.now()->format('YmdHis').'.'.$file->getClientOriginalExtension(),
+            'public',
+        );
+
+        try {
+            DB::transaction(function () use ($request, $signature, $file, $storedPath): void {
+                $signature->update([
+                    'status' => LhppBastSignature::STATUS_SIGNED,
+                    'opened_at' => $signature->opened_at ?: now(),
+                    'signed_at' => now(),
+                    'signed_document_path' => $storedPath,
+                    'signed_document_original_name' => $file->getClientOriginalName(),
+                    'signed_document_mime_type' => $file->getClientMimeType(),
+                    'signed_document_uploaded_at' => now(),
+                    'signed_ip' => $request->ip(),
+                    'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
+                ]);
+
+                $this->signatureBuilder->activateNextSignature($signature);
+            });
+        } catch (Throwable $exception) {
+            Storage::disk('public')->delete($storedPath);
+
+            throw $exception;
+        }
+
+        return redirect()
+            ->route('pkm.lhpp.index')
+            ->with('status', sprintf(
+                'Dokumen final DIROPS BAST %s untuk order %s berhasil diunggah.',
+                $lhpp->termin_type === 'termin_2' ? 'Termin 2' : 'Termin 1',
+                $lhpp->nomor_order,
+            ));
+    }
+
+    public function regenerateActiveApprovalToken(int $lhppId): RedirectResponse
+    {
+        $lhpp = LhppBast::query()->findOrFail($lhppId);
+        $signature = $this->resolveCurrentPendingSignature($lhpp);
+
+        if (! $signature) {
+            throw ValidationException::withMessages([
+                'approval' => 'Tidak ada step approval BAST aktif yang bisa diperbarui tokennya.',
+            ]);
+        }
+
+        if (! $signature->tokenExpired()) {
+            throw ValidationException::withMessages([
+                'approval' => 'Token approval BAST aktif belum kedaluwarsa.',
+            ]);
+        }
+
+        $this->signatureBuilder->issueToken($signature);
+
+        return redirect()
+            ->route('pkm.lhpp.index')
+            ->with('status', sprintf(
+                'Token approval BAST untuk order %s berhasil diperbarui.',
+                $lhpp->nomor_order,
+            ));
     }
 
     /**
@@ -635,6 +838,40 @@ class LhppController extends Controller
             'Pragma' => 'no-cache',
             'Expires' => '0',
         ];
+    }
+
+    private function resolvePendingDiropsSignature(LhppBast $lhpp): ?LhppBastSignature
+    {
+        $lhpp->loadMissing('signatures');
+
+        return $lhpp->signatures->first(function (LhppBastSignature $signature): bool {
+            return $signature->role_key === 'dirops' && $signature->isPending();
+        });
+    }
+
+    private function resolveCurrentPendingSignature(LhppBast $lhpp): ?LhppBastSignature
+    {
+        $lhpp->loadMissing('signatures');
+
+        return $lhpp->signatures->first(function (LhppBastSignature $signature): bool {
+            return $signature->isPending();
+        });
+    }
+
+    private function resolveDiropsSignature(LhppBast $lhpp): ?LhppBastSignature
+    {
+        $lhpp->loadMissing('signatures');
+
+        return $lhpp->signatures->first(function (LhppBastSignature $signature): bool {
+            return $signature->role_key === 'dirops';
+        });
+    }
+
+    private function safeFilename(?string $filename): string
+    {
+        $filename = trim((string) $filename);
+
+        return $filename !== '' ? str_replace('"', '', $filename) : 'document';
     }
 
     private function eligibleOrders(?int $exceptOrderId = null): Collection
@@ -965,14 +1202,24 @@ class LhppController extends Controller
             $materialRows->all(),
             $serviceRows->all(),
         );
+$selectedTipePekerjaan = old('tipe_pekerjaan');
 
+if ($selectedTipePekerjaan === null) {
+    if (filled($lhpp?->tipe_pekerjaan)) {
+        $selectedTipePekerjaan = $lhpp->tipe_pekerjaan;
+    } elseif (filled($parentLhpp?->tipe_pekerjaan)) {
+        $selectedTipePekerjaan = $parentLhpp->tipe_pekerjaan;
+    } else {
+        $selectedTipePekerjaan = '';
+    }
+}
         return view('dashboards.pkm', [
             'pageTitle' => $meta['pageTitle'],
             'pageDescription' => $meta['pageDescription'],
             'bastOrderOptions' => $orderOptions,
             'selectedBastOrder' => $selectedOrder,
-            'selectedThreshold' => old('approval_threshold', $lhpp?->approval_threshold ?? $this->resolveThresholdFromTotals($terminType, $calculation['totals'])),
-            'selectedTipePekerjaan' => old('tipe_pekerjaan', $lhpp?->tipe_pekerjaan ?? $parentLhpp?->tipe_pekerjaan ?? ''),
+            'selectedThreshold' => old('approval_threshold', $lhpp?->approval_threshold ?? $parentLhpp?->approval_threshold ?? $this->resolveThresholdFromTotals($terminType, $calculation['totals'])),
+        'selectedTipePekerjaan' => $selectedTipePekerjaan,
             'tipePekerjaanOptions' => LhppBast::tipePekerjaanOptions(),
             'bastDate' => old('tanggal_bast', optional($lhpp?->tanggal_bast)->format('Y-m-d') ?? now()->format('Y-m-d')),
             'tanggalMulaiPekerjaan' => old('tanggal_mulai_pekerjaan', optional($lhpp?->tanggal_mulai_pekerjaan)->format('Y-m-d') ?? optional($parentLhpp?->tanggal_mulai_pekerjaan)->format('Y-m-d')),
@@ -1026,6 +1273,30 @@ class LhppController extends Controller
             : (float) ($totals['termin_1_nilai'] ?? 0);
 
         return $amount > 250000000 ? 'over_250' : 'under_250';
+    }
+
+    /**
+     * @param array<string, mixed> $totals
+     * @return array{approval_threshold: string, approval_case: ?string, approval_flow: list<string>}
+     */
+    private function resolveApprovalPayload(string $terminType, ?LhppBast $parentLhpp, array $totals): array
+    {
+        $threshold = $terminType === 'termin_2' && $parentLhpp
+            ? (string) ($parentLhpp->approval_threshold ?: $this->resolveThresholdFromTotals('termin_1', $totals))
+            : $this->resolveThresholdFromTotals($terminType, $totals);
+
+        $flow = $terminType === 'termin_2'
+            && $parentLhpp
+            && is_array($parentLhpp->approval_flow)
+            && $parentLhpp->approval_flow !== []
+                ? array_values($parentLhpp->approval_flow)
+                : BastApprovalFlow::resolveApprovalFlow($threshold);
+
+        return [
+            'approval_threshold' => $threshold,
+            'approval_case' => BastApprovalFlow::resolveApprovalCase($terminType, $threshold),
+            'approval_flow' => $flow,
+        ];
     }
 
     private function normalizeTerminType(string $termin): string

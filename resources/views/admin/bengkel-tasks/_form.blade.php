@@ -42,6 +42,9 @@
     ])->values()->all();
     $selectedUnit = old('unit_work', $task?->unit_work);
     $selectedSection = old('seksi', $task?->seksi);
+    $selectedOrderId = (string) old('order_id', $task?->order_id ?? '');
+    $selectedProgressStatus = old('progress_status', $task?->progress_status ?? \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL);
+    $progressOptions = $progressOptions ?? \App\Models\OrderWorkshop::progressOptions();
     $unitsPayload = $units->map(fn ($unit) => [
         'name' => $unit->name,
         'sections' => $unit->sections->pluck('name')->values()->all(),
@@ -66,11 +69,12 @@
         <div class="grid gap-5 lg:grid-cols-2">
             <div class="space-y-4">
                 <div class="rounded-2xl border border-blue-100 bg-blue-50/70 p-3">
+                    <input id="order_id" type="hidden" name="order_id" value="{{ $selectedOrderId }}">
                     <label for="workshop_order_source" class="mb-1.5 block text-[11px] font-semibold text-slate-700">Sumber Data Pekerjaan</label>
                     <select id="workshop_order_source" class="w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
                         <option value="">Manual / isi sendiri</option>
                         @foreach ($workshopOrdersPayload as $order)
-                            <option value="{{ $order['id'] }}">
+                            <option value="{{ $order['id'] }}" @selected($selectedOrderId !== '' && (string) $order['id'] === $selectedOrderId)>
                                 {{ $order['nomor_order'] }} - {{ \Illuminate\Support\Str::limit($order['nama_pekerjaan'], 80) }}
                             </option>
                         @endforeach
@@ -122,6 +126,16 @@
                             @endforeach
                         </select>
                     </div>
+                </div>
+
+                <div>
+                    <label for="progress_status" class="mb-1.5 block text-[11px] font-semibold text-slate-700">Progress Pekerjaan</label>
+                    <select id="progress_status" name="progress_status" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
+                        @foreach ($progressOptions as $value => $label)
+                            <option value="{{ $value }}" @selected($selectedProgressStatus === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <div class="mt-1 text-[10px] text-slate-500">Jika pekerjaan dari order bengkel, status ini ikut tersinkron ke progress order.</div>
                 </div>
             </div>
 
@@ -323,6 +337,8 @@
         const jobNameInput = document.getElementById('job_name');
         const notificationInput = document.getElementById('notification_number');
         const usagePlanInput = document.getElementById('usage_plan_date');
+        const orderIdInput = document.getElementById('order_id');
+        const progressStatusSelect = document.getElementById('progress_status');
 
         if (! unitSelect || ! sectionSelect) {
             return;
@@ -360,7 +376,15 @@
             const selected = workshopOrders.find((order) => String(order.id) === workshopOrderSelect.value);
 
             if (! selected) {
+                if (orderIdInput) {
+                    orderIdInput.value = '';
+                }
+
                 return;
+            }
+
+            if (orderIdInput) {
+                orderIdInput.value = selected.id || '';
             }
 
             if (jobNameInput) {
@@ -388,6 +412,10 @@
 
             if (usagePlanInput) {
                 usagePlanInput.value = selected.target_selesai || '';
+            }
+
+            if (progressStatusSelect && selected.progress_status) {
+                progressStatusSelect.value = selected.progress_status;
             }
         });
     });

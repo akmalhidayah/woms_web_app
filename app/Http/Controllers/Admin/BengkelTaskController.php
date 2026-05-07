@@ -163,6 +163,12 @@ class BengkelTaskController extends Controller
     {
         $data = $this->validateData($request);
 
+        if (! empty($data['order_id']) && in_array((int) $data['order_id'], $this->unavailableWorkshopOrderIds(), true)) {
+            return back()
+                ->withErrors(['order_id' => 'Order ini sudah tampil di display atau sudah selesai.'])
+                ->withInput();
+        }
+
         $task = BengkelTask::create($data);
         $this->syncWorkshopProgressFromTask($task);
 
@@ -230,6 +236,12 @@ class BengkelTaskController extends Controller
     {
         $data = $this->validateData($request);
 
+        if (! empty($data['order_id']) && in_array((int) $data['order_id'], $this->unavailableWorkshopOrderIds($bengkel_task->order_id), true)) {
+            return back()
+                ->withErrors(['order_id' => 'Order ini sudah tampil di display atau sudah selesai.'])
+                ->withInput();
+        }
+
         $bengkel_task->update($data);
         $this->syncWorkshopProgressFromTask($bengkel_task->fresh('order.orderWorkshop'));
 
@@ -258,6 +270,25 @@ class BengkelTaskController extends Controller
         return redirect()
             ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
             ->with('status', 'Pekerjaan bengkel ditandai selesai.');
+    }
+
+    public function updateProgress(Request $request, BengkelTask $bengkel_task): RedirectResponse
+    {
+        $validated = $request->validate([
+            'progress_status' => ['required', 'string', 'in:'.implode(',', array_keys(OrderWorkshop::progressOptions()))],
+        ]);
+
+        $progressStatus = $validated['progress_status'];
+
+        $bengkel_task->update([
+            'progress_status' => $progressStatus,
+            'is_completed' => $progressStatus === OrderWorkshop::PROGRESS_DONE,
+        ]);
+        $this->syncWorkshopProgressFromTask($bengkel_task->fresh('order.orderWorkshop'));
+
+        return redirect()
+            ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
+            ->with('status', 'Status pekerjaan bengkel diperbarui.');
     }
 
     public function bulkDestroy(Request $request): RedirectResponse
@@ -424,11 +455,7 @@ class BengkelTaskController extends Controller
      */
     private function workshopOrderOptions(?int $currentOrderId = null)
     {
-        $completedOrderIds = BengkelTask::query()
-            ->where('is_completed', true)
-            ->whereNotNull('order_id')
-            ->pluck('order_id')
-            ->all();
+        $unavailableOrderIds = $this->unavailableWorkshopOrderIds($currentOrderId);
 
         return Order::query()
             ->with('orderWorkshop:id,order_id,progress_status')
@@ -436,14 +463,8 @@ class BengkelTaskController extends Controller
                 OrderUserNoteStatus::ApprovedWorkshop->value,
                 OrderUserNoteStatus::ApprovedWorkshopJasa->value,
             ])
-            ->when($completedOrderIds !== [], function ($query) use ($completedOrderIds, $currentOrderId): void {
-                $query->where(function ($builder) use ($completedOrderIds, $currentOrderId): void {
-                    $builder->whereNotIn('id', $completedOrderIds);
-
-                    if ($currentOrderId) {
-                        $builder->orWhere('id', $currentOrderId);
-                    }
-                });
+            ->when($unavailableOrderIds !== [], function ($query) use ($unavailableOrderIds): void {
+                $query->whereNotIn('id', $unavailableOrderIds);
             })
             ->where(function ($query) use ($currentOrderId): void {
                 $query
@@ -472,6 +493,41 @@ class BengkelTaskController extends Controller
                 'label' => trim($order->nomor_order.' - '.$order->nama_pekerjaan),
             ])
             ->values();
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function unavailableWorkshopOrderIds(?int $currentOrderId = null): array
+    {
+        return BengkelTask::query()
+            ->whereNotNull('order_id')
+            ->get(['order_id', 'is_completed', 'progress_status', 'person_in_charge', 'person_in_charge_profiles'])
+            ->filter(function (BengkelTask $task): bool {
+                return (bool) $task->is_completed
+                    || $task->progress_status === OrderWorkshop::PROGRESS_DONE
+                    || $this->taskHasAssignedPic($task);
+            })
+            ->pluck('order_id')
+            ->map(fn ($orderId): int => (int) $orderId)
+            ->reject(fn (int $orderId): bool => $currentOrderId !== null && $orderId === (int) $currentOrderId)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function taskHasAssignedPic(BengkelTask $task): bool
+    {
+        $profiles = collect(is_array($task->person_in_charge_profiles) ? $task->person_in_charge_profiles : [])
+            ->filter(fn ($profile): bool => is_array($profile) && (! empty($profile['id']) || trim((string) ($profile['name'] ?? '')) !== ''));
+
+        if ($profiles->isNotEmpty()) {
+            return true;
+        }
+
+        return collect(is_array($task->person_in_charge) ? $task->person_in_charge : [])
+            ->filter(fn ($name): bool => trim((string) $name) !== '')
+            ->isNotEmpty();
     }
 
     private function syncWorkshopProgressFromTask(?BengkelTask $task): void

@@ -43,6 +43,7 @@
     $selectedUnit = old('unit_work', $task?->unit_work);
     $selectedSection = old('seksi', $task?->seksi);
     $selectedOrderId = (string) old('order_id', $task?->order_id ?? '');
+    $selectedNotificationNumber = old('notification_number', $task?->notification_number);
     $selectedProgressStatus = old('progress_status', $task?->progress_status ?? \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL);
     $progressOptions = $progressOptions ?? \App\Models\OrderWorkshop::progressOptions();
     $unitsPayload = $units->map(fn ($unit) => [
@@ -68,28 +69,31 @@
     <section class="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
         <div class="grid gap-5 lg:grid-cols-2">
             <div class="space-y-4">
-                <div class="rounded-2xl border border-blue-100 bg-blue-50/70 p-3">
+                <div>
                     <input id="order_id" type="hidden" name="order_id" value="{{ $selectedOrderId }}">
-                    <label for="workshop_order_source" class="mb-1.5 block text-[11px] font-semibold text-slate-700">Sumber Data Pekerjaan</label>
-                    <select id="workshop_order_source" class="w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
-                        <option value="">Manual / isi sendiri</option>
+                    <input id="notification_number" type="hidden" name="notification_number" value="{{ $selectedNotificationNumber }}">
+                    <label for="workshop_order_source" class="mb-1.5 block text-[11px] font-semibold text-slate-700">Nomor Order / Notifikasi</label>
+                    <select id="workshop_order_source" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
+                        <option value="">+ Isi manual / tambah nomor</option>
                         @foreach ($workshopOrdersPayload as $order)
                             <option value="{{ $order['id'] }}" @selected($selectedOrderId !== '' && (string) $order['id'] === $selectedOrderId)>
                                 {{ $order['nomor_order'] }} - {{ \Illuminate\Support\Str::limit($order['nama_pekerjaan'], 80) }}
                             </option>
                         @endforeach
                     </select>
-                    <div class="mt-1 text-[10px] text-slate-500">Pilih order bengkel untuk mengisi nama pekerjaan, nomor order, unit, seksi, dan target otomatis.</div>
+                    <input id="notification_number_manual" type="text" value="{{ $selectedNotificationNumber }}" class="{{ $selectedOrderId !== '' ? 'hidden' : '' }} mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none" placeholder="Ketik nomor order / notifikasi manual">
+                    <div class="mt-1 text-[10px] text-slate-500">Pilih order untuk mengisi data otomatis, atau pilih isi manual jika nomor belum ada di daftar.</div>
+                    @error('order_id')
+                        <div class="mt-1 text-[11px] font-medium text-rose-600">{{ $message }}</div>
+                    @enderror
+                    @error('notification_number')
+                        <div class="mt-1 text-[11px] font-medium text-rose-600">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div>
                     <label for="job_name" class="mb-1.5 block text-[11px] font-semibold text-slate-700">Nama Pekerjaan</label>
                     <input id="job_name" type="text" name="job_name" value="{{ old('job_name', $task?->job_name) }}" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none" required>
-                </div>
-
-                <div>
-                    <label for="notification_number" class="mb-1.5 block text-[11px] font-semibold text-slate-700">Nomor Order / Notifikasi</label>
-                    <input id="notification_number" type="text" name="notification_number" value="{{ old('notification_number', $task?->notification_number) }}" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
                 </div>
 
                 <div class="grid gap-4 sm:grid-cols-2">
@@ -336,6 +340,7 @@
         const workshopOrders = @json($workshopOrdersPayload);
         const jobNameInput = document.getElementById('job_name');
         const notificationInput = document.getElementById('notification_number');
+        const notificationManualInput = document.getElementById('notification_number_manual');
         const usagePlanInput = document.getElementById('usage_plan_date');
         const orderIdInput = document.getElementById('order_id');
         const progressStatusSelect = document.getElementById('progress_status');
@@ -380,6 +385,15 @@
                     orderIdInput.value = '';
                 }
 
+                if (notificationManualInput) {
+                    notificationManualInput.classList.remove('hidden');
+                    notificationManualInput.focus();
+                }
+
+                if (notificationInput && notificationManualInput) {
+                    notificationInput.value = notificationManualInput.value || '';
+                }
+
                 return;
             }
 
@@ -393,6 +407,11 @@
 
             if (notificationInput) {
                 notificationInput.value = selected.nomor_order || selected.notifikasi || '';
+            }
+
+            if (notificationManualInput) {
+                notificationManualInput.value = selected.nomor_order || selected.notifikasi || '';
+                notificationManualInput.classList.add('hidden');
             }
 
             if (unitSelect) {
@@ -416,6 +435,12 @@
 
             if (progressStatusSelect && selected.progress_status) {
                 progressStatusSelect.value = selected.progress_status;
+            }
+        });
+
+        notificationManualInput?.addEventListener('input', () => {
+            if (notificationInput) {
+                notificationInput.value = notificationManualInput.value || '';
             }
         });
     });

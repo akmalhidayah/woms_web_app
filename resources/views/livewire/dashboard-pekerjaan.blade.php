@@ -383,30 +383,30 @@
             </div>
         </div>
     @else
-        <div wire:poll.keep-alive.5s="refreshBoard" class="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
-            <div class="mb-4 flex items-center justify-between gap-3">
+        <div wire:poll.keep-alive.5s="refreshBoard" class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <div class="mb-3 flex items-center justify-between gap-3">
                 <div>
-                    <h2 class="text-[1.1rem] font-bold text-slate-900">Preview Display Bengkel</h2>
-                    <p class="text-[11px] text-slate-500">
+                    <h2 class="text-[0.98rem] font-bold text-slate-900">Preview Display Bengkel</h2>
+                    <p class="text-[10px] text-slate-500">
                         Fabrikasi {{ $fabrikasiSlideCount > 0 ? ($fabrikasiSlideIndex + 1) : 0 }} / {{ $fabrikasiSlideCount }}
                         | Refurbish {{ $refurbishSlideCount > 0 ? ($refurbishSlideIndex + 1) : 0 }} / {{ $refurbishSlideCount }}
                     </p>
                 </div>
 
-                <button type="button" wire:click="nextSlide" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
-                    <i data-lucide="chevrons-right" class="h-4 w-4"></i>
+                <button type="button" wire:click="nextSlide" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50">
+                    <i data-lucide="chevrons-right" class="h-3.5 w-3.5"></i>
                     Geser
                 </button>
             </div>
 
-            <div class="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-                <section class="rounded-[1.25rem] border border-sky-200 bg-sky-50 p-4">
-                    <div class="mb-3 flex items-center justify-between">
-                        <div class="text-sm font-bold text-sky-950">Regu Fabrikasi</div>
-                        <span class="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-sky-700 ring-1 ring-sky-200">{{ $fabrikasiTasks->count() }} item</span>
+            <div class="grid gap-3 xl:grid-cols-[1.4fr_1fr]">
+                <section class="rounded-xl border border-sky-200 bg-sky-50 p-3">
+                    <div class="mb-2.5 flex items-center justify-between">
+                        <div class="text-xs font-bold text-sky-950">Regu Fabrikasi</div>
+                        <span class="rounded-full bg-white px-2 py-0.5 text-[9px] font-semibold text-sky-700 ring-1 ring-sky-200">{{ $fabrikasiTasks->count() }} item</span>
                     </div>
 
-                    <div class="grid gap-3 md:grid-cols-2">
+                    <div class="grid gap-2.5 md:grid-cols-2">
                         @forelse ($fabrikasiPage as $task)
                             @php
                                 $profiles = collect($task['person_in_charge_profiles'] ?? []);
@@ -414,39 +414,39 @@
                                 $isCompleted = (bool) ($task['is_completed'] ?? false);
                                 $progressMeta = $progressBadge($task['progress_status'] ?? null, $task['progress_label'] ?? null);
                             @endphp
-                            <article wire:key="fabrikasi-admin-{{ $task['id'] }}" class="rounded-[1.1rem] border p-3 shadow-sm {{ $isCompleted ? 'border-emerald-300 bg-emerald-50' : 'border-sky-100 bg-white' }}">
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="min-w-0 text-[15px] font-black leading-[1.15] tracking-[-0.03em] text-slate-950"
+                            <article wire:key="fabrikasi-admin-{{ $task['id'] }}" class="rounded-xl border p-2.5 shadow-sm {{ $isCompleted ? 'border-emerald-300 bg-emerald-50' : 'border-sky-100 bg-white' }}">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="min-w-0 text-[13px] font-black leading-[1.15] text-slate-950"
                                          style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
                                         {{ $task['job_name'] ?? '-' }}
                                     </div>
 
-                                    <span class="inline-flex shrink-0 items-center rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-extrabold tracking-[0.08em] text-sky-700 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.65)]">
+                                    <span class="inline-flex shrink-0 items-center rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[9px] font-extrabold tracking-[0.04em] text-sky-700 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.65)]">
                                         {{ $task['notification_number'] ?: '-' }}
                                     </span>
                                 </div>
 
-                                <div class="mt-2 flex justify-end">
-                                    <span class="inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] {{ $progressMeta['class'] }}">
+                                <div class="mt-1.5 flex justify-end">
+                                    <span class="inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.04em] {{ $progressMeta['class'] }}">
                                         {{ $progressMeta['label'] }}
                                     </span>
                                 </div>
 
-                                <div class="mt-3 rounded-[1rem] border border-sky-100 bg-sky-50/50 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-                                    <div class="space-y-1.5 text-[12px] leading-[1.2rem] text-slate-700">
+                                <div class="mt-2 rounded-lg border border-sky-100 bg-sky-50/50 px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                                    <div class="space-y-1 text-[11px] leading-[1rem] text-slate-700">
                                         <div class="flex items-start gap-1.5">
-                                            <span class="shrink-0 text-[12px] font-black text-sky-700">Seksi :</span>
-                                            <span class="text-[12px] font-semibold">{{ $task['seksi'] ?: '-' }}</span>
+                                            <span class="shrink-0 text-[11px] font-black text-sky-700">Seksi :</span>
+                                            <span class="text-[11px] font-semibold">{{ $task['seksi'] ?: '-' }}</span>
                                         </div>
 
-                                        <div class="flex items-start gap-1.5 border-t border-sky-100 pt-1.5">
+                                        <div class="flex items-start gap-1.5 border-t border-sky-100 pt-1">
                                             <div class="flex min-w-0 items-start gap-1.5">
-                                                <span class="shrink-0 text-[12px] font-black text-sky-700">Target :</span>
-                                                <span class="text-[12px] font-black text-sky-950">{{ $task['usage_plan_date'] ?: '-' }}</span>
+                                                <span class="shrink-0 text-[11px] font-black text-sky-700">Target :</span>
+                                                <span class="text-[11px] font-black text-sky-950">{{ $task['usage_plan_date'] ?: '-' }}</span>
                                             </div>
 
                                             @if ($targetMeta['badge_text'])
-                                                <span class="ml-auto inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[9px] font-black {{ $targetMeta['badge_class'] }}">
+                                                <span class="ml-auto inline-flex shrink-0 items-center rounded-full border px-1.5 py-0.5 text-[8px] font-black {{ $targetMeta['badge_class'] }}">
                                                     {{ $targetMeta['badge_text'] }}
                                                 </span>
                                             @endif
@@ -454,116 +454,22 @@
                                     </div>
                                 </div>
 
-                                <div class="mt-3 flex flex-wrap gap-2">
+                                <div class="mt-2.5 flex flex-wrap gap-2">
                                     @foreach ($profiles as $profile)
                                         @php
                                             $name = is_array($profile) ? ($profile['name'] ?? '') : '';
                                             $avatar = is_array($profile) ? ($profile['avatar_url'] ?? null) : null;
                                             $descriptions = collect(is_array($profile) ? ($profile['work_descriptions'] ?? []) : [])->filter()->values();
                                         @endphp
-                                        <div class="grid min-w-[220px] grid-cols-[68px_1fr] gap-2 rounded-xl bg-slate-50 px-2 py-1.5 ring-1 ring-slate-200">
-                                            <div class="h-[88px] overflow-hidden rounded-lg border border-slate-200 bg-white text-center">
+                                        <div class="grid min-w-[190px] grid-cols-[58px_1fr] gap-2 rounded-lg bg-slate-50 px-2 py-1.5 ring-1 ring-slate-200">
+                                            <div class="h-[76px] overflow-hidden rounded-md border border-slate-200 bg-white text-center">
                                                 @if ($avatar)
-                                                    <img src="{{ $avatar }}" alt="" class="h-[66px] w-full object-cover" style="object-position: {{ $avatarObjectPosition($profile) }};" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                                    <span style="display:none" class="h-[66px] w-full items-center justify-center bg-slate-200 text-[13px] font-black text-slate-700">{{ $initials($name) }}</span>
+                                                    <img src="{{ $avatar }}" alt="" class="h-[56px] w-full object-cover" style="object-position: {{ $avatarObjectPosition($profile) }};" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                                    <span style="display:none" class="h-[56px] w-full items-center justify-center bg-slate-200 text-[12px] font-black text-slate-700">{{ $initials($name) }}</span>
                                                 @else
-                                                    <span class="flex h-[66px] w-full items-center justify-center bg-slate-200 text-[13px] font-black text-slate-700">{{ $initials($name) }}</span>
+                                                    <span class="flex h-[56px] w-full items-center justify-center bg-slate-200 text-[12px] font-black text-slate-700">{{ $initials($name) }}</span>
                                                 @endif
-                                                <div class="flex h-[22px] items-center justify-center border-t border-slate-200 bg-white px-1 text-[8px] font-black leading-tight text-slate-800">{{ $name }}</div>
-                                            </div>
-                                            <div class="min-w-0 border-l border-slate-200 pl-2">
-                                                @if ($descriptions->isNotEmpty())
-                                                <ul class="list-disc space-y-1 pl-4 text-[11px] font-semibold leading-snug text-slate-700">
-                                                    @foreach ($descriptions as $description)
-                                                        <li>{{ $description }}</li>
-                                                    @endforeach
-                                                </ul>
-                                                @else
-                                                    <div class="text-[11px] font-medium text-slate-400">Belum ada uraian.</div>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            </article>
-                        @empty
-                            <div class="rounded-[1.1rem] border border-dashed border-blue-200 bg-white/80 px-4 py-10 text-center text-sm text-slate-500 md:col-span-2">
-                                Belum ada data regu fabrikasi.
-                            </div>
-                        @endforelse
-                    </div>
-                </section>
-
-                <section class="rounded-[1.25rem] border border-orange-200 bg-orange-50 p-4">
-                    <div class="mb-3 flex items-center justify-between">
-                        <div class="text-sm font-bold text-orange-950">Regu Bengkel (Refurbish)</div>
-                        <span class="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-orange-700 ring-1 ring-orange-200">{{ $refurbishTasks->count() }} item</span>
-                    </div>
-
-                    <div class="space-y-3">
-                        @forelse ($refurbishPage as $task)
-                            @php
-                                $profiles = collect($task['person_in_charge_profiles'] ?? []);
-                                $targetMeta = $targetStatus($task['usage_plan_date'] ?? null);
-                                $isCompleted = (bool) ($task['is_completed'] ?? false);
-                                $progressMeta = $progressBadge($task['progress_status'] ?? null, $task['progress_label'] ?? null);
-                            @endphp
-                            <article wire:key="refurbish-admin-{{ $task['id'] }}" class="rounded-[1.1rem] border p-3 shadow-sm {{ $isCompleted ? 'border-emerald-300 bg-emerald-50' : 'border-orange-100 bg-white' }}">
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="min-w-0 text-[15px] font-black leading-[1.15] tracking-[-0.03em] text-slate-950"
-                                         style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
-                                        {{ $task['job_name'] ?? '-' }}
-                                    </div>
-
-                                    <span class="inline-flex shrink-0 items-center rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-[10px] font-extrabold tracking-[0.08em] text-orange-700 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.65)]">
-                                        {{ $task['notification_number'] ?: '-' }}
-                                    </span>
-                                </div>
-
-                                <div class="mt-2 flex justify-end">
-                                    <span class="inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] {{ $progressMeta['class'] }}">
-                                        {{ $progressMeta['label'] }}
-                                    </span>
-                                </div>
-
-                                <div class="mt-3 rounded-[1rem] border border-orange-100 bg-orange-50/50 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-                                    <div class="space-y-1.5 text-[12px] leading-[1.2rem] text-slate-700">
-                                        <div class="flex items-start gap-1.5">
-                                            <span class="shrink-0 text-[12px] font-black text-orange-700">Seksi :</span>
-                                            <span class="text-[12px] font-semibold">{{ $task['seksi'] ?: '-' }}</span>
-                                        </div>
-
-                                        <div class="flex items-start gap-1.5 border-t border-orange-100 pt-1.5">
-                                            <div class="flex min-w-0 items-start gap-1.5">
-                                                <span class="shrink-0 text-[12px] font-black text-orange-700">Target :</span>
-                                                <span class="text-[12px] font-black text-orange-950">{{ $task['usage_plan_date'] ?: '-' }}</span>
-                                            </div>
-
-                                            @if ($targetMeta['badge_text'])
-                                                <span class="ml-auto inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[9px] font-black {{ $targetMeta['badge_class'] }}">
-                                                    {{ $targetMeta['badge_text'] }}
-                                                </span>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="mt-3 flex flex-wrap gap-2">
-                                    @foreach ($profiles as $profile)
-                                        @php
-                                            $name = is_array($profile) ? ($profile['name'] ?? '') : '';
-                                            $avatar = is_array($profile) ? ($profile['avatar_url'] ?? null) : null;
-                                            $descriptions = collect(is_array($profile) ? ($profile['work_descriptions'] ?? []) : [])->filter()->values();
-                                        @endphp
-                                        <div class="grid min-w-[200px] grid-cols-[64px_1fr] gap-2 rounded-xl bg-slate-50 px-2 py-1.5 ring-1 ring-slate-200">
-                                            <div class="h-[84px] overflow-hidden rounded-lg border border-slate-200 bg-white text-center">
-                                                @if ($avatar)
-                                                    <img src="{{ $avatar }}" alt="" class="h-[62px] w-full object-cover" style="object-position: {{ $avatarObjectPosition($profile) }};" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                                    <span style="display:none" class="h-[62px] w-full items-center justify-center bg-slate-200 text-[12px] font-black text-slate-700">{{ $initials($name) }}</span>
-                                                @else
-                                                    <span class="flex h-[62px] w-full items-center justify-center bg-slate-200 text-[12px] font-black text-slate-700">{{ $initials($name) }}</span>
-                                                @endif
-                                                <div class="flex h-[22px] items-center justify-center border-t border-slate-200 bg-white px-1 text-[8px] font-black leading-tight text-slate-800">{{ $name }}</div>
+                                                <div class="flex h-[20px] items-center justify-center border-t border-slate-200 bg-white px-1 text-[7.5px] font-black leading-tight text-slate-800">{{ $name }}</div>
                                             </div>
                                             <div class="min-w-0 border-l border-slate-200 pl-2">
                                                 @if ($descriptions->isNotEmpty())
@@ -581,7 +487,101 @@
                                 </div>
                             </article>
                         @empty
-                            <div class="rounded-[1.1rem] border border-dashed border-amber-200 bg-white/80 px-4 py-10 text-center text-sm text-slate-500">
+                            <div class="rounded-xl border border-dashed border-blue-200 bg-white/80 px-4 py-8 text-center text-xs text-slate-500 md:col-span-2">
+                                Belum ada data regu fabrikasi.
+                            </div>
+                        @endforelse
+                    </div>
+                </section>
+
+                <section class="rounded-xl border border-orange-200 bg-orange-50 p-3">
+                    <div class="mb-2.5 flex items-center justify-between">
+                        <div class="text-xs font-bold text-orange-950">Regu Bengkel (Refurbish)</div>
+                        <span class="rounded-full bg-white px-2 py-0.5 text-[9px] font-semibold text-orange-700 ring-1 ring-orange-200">{{ $refurbishTasks->count() }} item</span>
+                    </div>
+
+                    <div class="space-y-2.5">
+                        @forelse ($refurbishPage as $task)
+                            @php
+                                $profiles = collect($task['person_in_charge_profiles'] ?? []);
+                                $targetMeta = $targetStatus($task['usage_plan_date'] ?? null);
+                                $isCompleted = (bool) ($task['is_completed'] ?? false);
+                                $progressMeta = $progressBadge($task['progress_status'] ?? null, $task['progress_label'] ?? null);
+                            @endphp
+                            <article wire:key="refurbish-admin-{{ $task['id'] }}" class="rounded-xl border p-2.5 shadow-sm {{ $isCompleted ? 'border-emerald-300 bg-emerald-50' : 'border-orange-100 bg-white' }}">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="min-w-0 text-[13px] font-black leading-[1.15] text-slate-950"
+                                         style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+                                        {{ $task['job_name'] ?? '-' }}
+                                    </div>
+
+                                    <span class="inline-flex shrink-0 items-center rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[9px] font-extrabold tracking-[0.04em] text-orange-700 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.65)]">
+                                        {{ $task['notification_number'] ?: '-' }}
+                                    </span>
+                                </div>
+
+                                <div class="mt-1.5 flex justify-end">
+                                    <span class="inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.04em] {{ $progressMeta['class'] }}">
+                                        {{ $progressMeta['label'] }}
+                                    </span>
+                                </div>
+
+                                <div class="mt-2 rounded-lg border border-orange-100 bg-orange-50/50 px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                                    <div class="space-y-1 text-[11px] leading-[1rem] text-slate-700">
+                                        <div class="flex items-start gap-1.5">
+                                            <span class="shrink-0 text-[11px] font-black text-orange-700">Seksi :</span>
+                                            <span class="text-[11px] font-semibold">{{ $task['seksi'] ?: '-' }}</span>
+                                        </div>
+
+                                        <div class="flex items-start gap-1.5 border-t border-orange-100 pt-1">
+                                            <div class="flex min-w-0 items-start gap-1.5">
+                                                <span class="shrink-0 text-[11px] font-black text-orange-700">Target :</span>
+                                                <span class="text-[11px] font-black text-orange-950">{{ $task['usage_plan_date'] ?: '-' }}</span>
+                                            </div>
+
+                                            @if ($targetMeta['badge_text'])
+                                                <span class="ml-auto inline-flex shrink-0 items-center rounded-full border px-1.5 py-0.5 text-[8px] font-black {{ $targetMeta['badge_class'] }}">
+                                                    {{ $targetMeta['badge_text'] }}
+                                                </span>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-2.5 flex flex-wrap gap-2">
+                                    @foreach ($profiles as $profile)
+                                        @php
+                                            $name = is_array($profile) ? ($profile['name'] ?? '') : '';
+                                            $avatar = is_array($profile) ? ($profile['avatar_url'] ?? null) : null;
+                                            $descriptions = collect(is_array($profile) ? ($profile['work_descriptions'] ?? []) : [])->filter()->values();
+                                        @endphp
+                                        <div class="grid min-w-[180px] grid-cols-[56px_1fr] gap-2 rounded-lg bg-slate-50 px-2 py-1.5 ring-1 ring-slate-200">
+                                            <div class="h-[74px] overflow-hidden rounded-md border border-slate-200 bg-white text-center">
+                                                @if ($avatar)
+                                                    <img src="{{ $avatar }}" alt="" class="h-[54px] w-full object-cover" style="object-position: {{ $avatarObjectPosition($profile) }};" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                                    <span style="display:none" class="h-[54px] w-full items-center justify-center bg-slate-200 text-[11px] font-black text-slate-700">{{ $initials($name) }}</span>
+                                                @else
+                                                    <span class="flex h-[54px] w-full items-center justify-center bg-slate-200 text-[11px] font-black text-slate-700">{{ $initials($name) }}</span>
+                                                @endif
+                                                <div class="flex h-[20px] items-center justify-center border-t border-slate-200 bg-white px-1 text-[7.5px] font-black leading-tight text-slate-800">{{ $name }}</div>
+                                            </div>
+                                            <div class="min-w-0 border-l border-slate-200 pl-2">
+                                                @if ($descriptions->isNotEmpty())
+                                                <ul class="list-disc space-y-0.5 pl-4 text-[10px] font-semibold leading-tight text-slate-700">
+                                                    @foreach ($descriptions as $description)
+                                                        <li>{{ $description }}</li>
+                                                    @endforeach
+                                                </ul>
+                                                @else
+                                                    <div class="text-[10px] font-medium text-slate-400">Belum ada uraian.</div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </article>
+                        @empty
+                            <div class="rounded-xl border border-dashed border-amber-200 bg-white/80 px-4 py-8 text-center text-xs text-slate-500">
                                 Belum ada data regu refurbish.
                             </div>
                         @endforelse

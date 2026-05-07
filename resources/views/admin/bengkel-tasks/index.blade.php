@@ -40,91 +40,50 @@
         <div id="bengkel-task-status-alert" data-message="{{ session('status') }}" class="hidden"></div>
     @endif
 
-    <div class="space-y-4 sm:space-y-6">
-        <section class="rounded-[1.25rem] border border-blue-100 px-4 py-4 shadow-sm sm:rounded-[1.35rem] sm:px-5" style="background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 48%, #e6f1ff 100%);">
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div class="flex items-start gap-3 sm:items-center sm:gap-4">
-                    <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm ring-1 ring-blue-200 sm:h-12 sm:w-12">
-                        <i data-lucide="monitor" class="h-5 w-5"></i>
+    <div x-data="{ runningTextModal: {{ ($errors->has('ticker_text') || $errors->has('ticker_speed_seconds')) ? 'true' : 'false' }} }" class="space-y-3 sm:space-y-4">
+        <section class="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:px-5">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div class="flex items-start gap-3 sm:items-center">
+                    <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-900 text-white shadow-sm">
+                        <i data-lucide="monitor" class="h-4 w-4"></i>
                     </span>
                     <div class="min-w-0">
-                        <h1 class="text-xl font-bold leading-tight tracking-tight text-slate-900 sm:text-[1.45rem]">Display Pekerjaan Bengkel</h1>
-                        <p class="mt-1.5 max-w-2xl text-[12px] leading-5 text-slate-500">Kelola daftar pekerjaan bengkel yang tampil di dashboard display dan pembagian regunya.</p>
+                        <h1 class="text-[1.05rem] font-bold leading-tight text-slate-900 sm:text-[1.18rem]">Display Pekerjaan Bengkel</h1>
+                        <p class="mt-1 max-w-2xl text-[11px] leading-4 text-slate-500">Kelola pekerjaan yang tampil di layar display bengkel dan pembagian regunya.</p>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-                    <a href="{{ route('display.bengkel') }}" target="_blank" rel="noopener" class="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 sm:px-4 sm:text-sm">
-                        <i data-lucide="monitor-play" class="h-4 w-4"></i>
+                    <a href="{{ route('display.bengkel') }}" target="_blank" rel="noopener" class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50">
+                        <i data-lucide="external-link" class="h-3.5 w-3.5"></i>
                         Buka Display
                     </a>
-                    <a href="{{ route('admin.bengkel-pics.index') }}" class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 sm:px-4 sm:text-sm">
-                        <i data-lucide="users" class="h-4 w-4"></i>
+                    <button type="button" @click="runningTextModal = true" class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50">
+                        <i data-lucide="settings-2" class="h-3.5 w-3.5"></i>
+                        Running Text
+                    </button>
+                    <a href="{{ route('admin.bengkel-pics.index') }}" class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50">
+                        <i data-lucide="user-round-cog" class="h-3.5 w-3.5"></i>
                         Master PIC
                     </a>
-                    <a href="{{ route('admin.bengkel-tasks.create') }}" class="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 sm:col-span-1">
-                        <i data-lucide="plus" class="h-4 w-4"></i>
+                    <a href="{{ route('admin.bengkel-tasks.create') }}" class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-900 px-3 py-2 text-[11px] font-semibold text-white transition hover:bg-blue-800">
+                        <i data-lucide="plus" class="h-3.5 w-3.5"></i>
                         Tambah Pekerjaan
                     </a>
                 </div>
             </div>
         </section>
 
-        <section class="rounded-[1.25rem] border border-slate-200 bg-white p-4 shadow-sm sm:rounded-[1.5rem] sm:p-5">
-            <div class="mb-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
-                <div>
-                    <h2 class="text-[1.05rem] font-bold text-slate-900 sm:text-[1.1rem]">Pengaturan Running Text</h2>
-                    <p class="mt-1 text-[12px] leading-5 text-slate-500">Ubah isi running text dan kecepatan geraknya untuk layar display bengkel.</p>
-                </div>
-                <div class="rounded-xl bg-slate-50 px-3 py-2 text-[11px] leading-5 text-slate-500">
-                    Semakin kecil nilai detik, running text akan bergerak lebih cepat.
-                </div>
-            </div>
-
-            <form method="POST" action="{{ route('admin.bengkel-tasks.display-settings.update', $indexQuery) }}" class="grid gap-4 lg:grid-cols-[1.2fr_0.45fr_auto] lg:items-end">
-                @csrf
-                @method('PATCH')
-
-                <div>
-                    <label for="ticker_text" class="mb-1.5 block text-[11px] font-semibold text-slate-700">Isi Running Text</label>
-                    <textarea id="ticker_text" name="ticker_text" rows="3" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none" placeholder="Contoh: Bengkel siap support pekerjaan prioritas minggu ini.">{{ old('ticker_text', $displaySetting->ticker_text ?? '') }}</textarea>
-                    <div class="mt-1 text-[11px] leading-5 text-slate-500">Kosongkan jika ingin kembali memakai teks default otomatis.</div>
-                    @error('ticker_text')
-                        <div class="mt-1 text-[11px] font-medium text-rose-600">{{ $message }}</div>
-                    @enderror
-                </div>
-
-                <div>
-                    <label for="ticker_speed_seconds" class="mb-1.5 block text-[11px] font-semibold text-slate-700">Kecepatan</label>
-                    <div class="relative">
-                        <input id="ticker_speed_seconds" type="number" name="ticker_speed_seconds" min="5" max="60" value="{{ old('ticker_speed_seconds', $displaySetting->ticker_speed_seconds ?? 18) }}" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 pr-14 text-sm text-slate-700 focus:border-blue-500 focus:outline-none" required>
-                        <span class="pointer-events-none absolute inset-y-0 right-3 inline-flex items-center text-xs font-semibold text-slate-400">detik</span>
-                    </div>
-                    @error('ticker_speed_seconds')
-                        <div class="mt-1 text-[11px] font-medium text-rose-600">{{ $message }}</div>
-                    @enderror
-                </div>
-
-                <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 lg:w-auto">
-                    <i data-lucide="save" class="h-4 w-4"></i>
-                    Simpan Running Text
-                </button>
-            </form>
-        </section>
-
-        <section class="rounded-[1.25rem] border border-slate-200 bg-white p-4 shadow-sm sm:rounded-[1.5rem]">
+        <section class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
             <form method="GET" action="{{ route('admin.bengkel-tasks.index') }}" class="grid grid-cols-1 gap-3 md:grid-cols-12 md:items-end">
                 <div class="md:col-span-5">
-                    <div class="mb-1.5 flex items-center justify-between">
-                        <label class="block text-[11px] font-semibold text-slate-700">Cari</label>
-                        <a href="{{ route('admin.bengkel-tasks.index') }}" class="text-xs font-medium text-slate-500 underline transition hover:text-slate-800">Reset</a>
-                    </div>
-                    <input type="text" name="q" value="{{ $q }}" placeholder="Cari nama pekerjaan / nomor order / unit / seksi" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
+                    <label class="mb-1.5 block text-[11px] font-semibold leading-none text-slate-700">Cari</label>
+                    <input type="text" name="q" value="{{ $q }}" placeholder="Nama pekerjaan, nomor order, unit, atau seksi" class="h-9 w-full rounded-lg border border-slate-300 px-3 text-xs text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none">
                 </div>
 
                 <div class="md:col-span-3">
-                    <label class="mb-1.5 block text-[11px] font-semibold text-slate-700">Filter Regu</label>
-                    <select name="regu" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
+                    <label class="mb-1.5 block text-[11px] font-semibold leading-none text-slate-700">Filter Regu</label>
+                    <select name="regu" class="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs text-slate-700 focus:border-blue-500 focus:outline-none">
                         <option value="" @selected($regu === '')>Semua Regu</option>
                         <option value="fabrikasi" @selected($regu === 'fabrikasi')>Regu Fabrikasi</option>
                         <option value="refurbish" @selected($regu === 'refurbish')>Regu Bengkel (Refurbish)</option>
@@ -132,17 +91,20 @@
                 </div>
 
                 <div class="md:col-span-2">
-                    <label class="mb-1.5 block text-[11px] font-semibold text-slate-700">Per Halaman</label>
-                    <select name="per_page" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
+                    <label class="mb-1.5 block text-[11px] font-semibold leading-none text-slate-700">Per Halaman</label>
+                    <select name="per_page" class="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs text-slate-700 focus:border-blue-500 focus:outline-none">
                         @foreach ([10, 25, 50] as $option)
                             <option value="{{ $option }}" @selected((int) $perPage === $option)>{{ $option }}</option>
                         @endforeach
                     </select>
                 </div>
 
-                <div class="md:col-span-2">
-                    <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800">
-                        <i data-lucide="filter" class="h-4 w-4"></i>
+                <div class="grid grid-cols-2 gap-2 md:col-span-2">
+                    <a href="{{ route('admin.bengkel-tasks.index') }}" class="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+                        Reset
+                    </a>
+                    <button type="submit" class="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-blue-900 px-3 text-xs font-semibold text-white transition hover:bg-slate-800">
+                        <i data-lucide="filter" class="h-3.5 w-3.5"></i>
                         Terapkan
                     </button>
                 </div>
@@ -156,6 +118,59 @@
             'reguBadge' => $reguBadge,
             'avatarObjectPosition' => $avatarObjectPosition,
         ])
+
+        <div x-cloak x-show="runningTextModal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6" @keydown.escape.window="runningTextModal = false">
+            <div x-show="runningTextModal" x-transition @click.outside="runningTextModal = false" class="w-full max-w-xl overflow-hidden rounded-xl bg-white shadow-xl">
+                <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900">Pengaturan Running Text</h2>
+                        <p class="mt-1 text-xs leading-5 text-slate-500">Ubah teks dan kecepatan gerak untuk layar display bengkel.</p>
+                    </div>
+                    <button type="button" @click="runningTextModal = false" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50">
+                        <i data-lucide="x" class="h-4 w-4"></i>
+                    </button>
+                </div>
+
+                <form method="POST" action="{{ route('admin.bengkel-tasks.display-settings.update', $indexQuery) }}" class="space-y-4 px-5 py-4">
+                    @csrf
+                    @method('PATCH')
+
+                    <div class="rounded-lg bg-slate-50 px-3 py-2 text-[11px] leading-5 text-slate-500">
+                        Semakin kecil nilai detik, running text akan bergerak lebih cepat.
+                    </div>
+
+                    <div>
+                        <label for="ticker_text" class="mb-1.5 block text-[11px] font-semibold text-slate-700">Isi Running Text</label>
+                        <textarea id="ticker_text" name="ticker_text" rows="4" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none" placeholder="Contoh: Bengkel siap support pekerjaan prioritas minggu ini.">{{ old('ticker_text', $displaySetting->ticker_text ?? '') }}</textarea>
+                        <div class="mt-1 text-[11px] leading-5 text-slate-500">Kosongkan jika ingin kembali memakai teks default otomatis.</div>
+                        @error('ticker_text')
+                            <div class="mt-1 text-[11px] font-medium text-rose-600">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="ticker_speed_seconds" class="mb-1.5 block text-[11px] font-semibold text-slate-700">Kecepatan</label>
+                        <div class="relative max-w-[180px]">
+                            <input id="ticker_speed_seconds" type="number" name="ticker_speed_seconds" min="5" max="60" value="{{ old('ticker_speed_seconds', $displaySetting->ticker_speed_seconds ?? 18) }}" class="w-full rounded-lg border border-slate-300 px-3 py-2 pr-14 text-sm text-slate-700 focus:border-blue-500 focus:outline-none" required>
+                            <span class="pointer-events-none absolute inset-y-0 right-3 inline-flex items-center text-xs font-semibold text-slate-400">detik</span>
+                        </div>
+                        @error('ticker_speed_seconds')
+                            <div class="mt-1 text-[11px] font-medium text-rose-600">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="flex flex-col-reverse gap-2 border-t border-slate-200 pt-4 sm:flex-row sm:justify-end">
+                        <button type="button" @click="runningTextModal = false" class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+                            Batal
+                        </button>
+                        <button type="submit" class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-800">
+                            <i data-lucide="save" class="h-3.5 w-3.5"></i>
+                            Simpan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <script>

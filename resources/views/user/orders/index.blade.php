@@ -152,20 +152,40 @@
                                     </a>
                                 </div>
 
-                                <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                                    <a href="{{ $order['quick_links']['abnormalitas'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['abnormalitas'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
-                                        Abnormalitas
-                                    </a>
-                                    <a href="{{ $order['quick_links']['hpp'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['hpp'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
-                                        HPP
-                                    </a>
-                                    <a href="{{ $order['quick_links']['bast_termin_1'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['bast_termin_1'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
-                                        BAST Termin 1
-                                    </a>
-                                    <a href="{{ $order['quick_links']['bast_termin_2'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['bast_termin_2'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
-                                        BAST Termin 2
-                                    </a>
-                                </div>
+                                @if ($order['is_workshop_only'])
+                                    <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                                        <a href="{{ $order['quick_links']['abnormalitas'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['abnormalitas'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
+                                            Abnormalitas
+                                        </a>
+                                        <a href="{{ $order['quick_links']['gambar_teknik'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['gambar_teknik'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
+                                            Gambar Teknik
+                                        </a>
+                                        <a href="{{ $order['quick_links']['scope_of_work'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['scope_of_work'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
+                                            Scope of Work
+                                        </a>
+                                        <a href="{{ $order['quick_links']['quality_control'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['quality_control'] ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
+                                            PDF QC
+                                        </a>
+                                    </div>
+                                @else
+                                    <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+                                        <a href="{{ $order['quick_links']['abnormalitas'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['abnormalitas'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
+                                            Abnormalitas
+                                        </a>
+                                        <a href="{{ $order['quick_links']['hpp'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['hpp'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
+                                            HPP
+                                        </a>
+                                        <a href="{{ $order['quick_links']['bast_termin_1'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['bast_termin_1'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
+                                            BAST Termin 1
+                                        </a>
+                                        <a href="{{ $order['quick_links']['bast_termin_2'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['bast_termin_2'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
+                                            BAST Termin 2
+                                        </a>
+                                        <a href="{{ $order['quick_links']['quality_control'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['quality_control'] ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
+                                            PDF QC
+                                        </a>
+                                    </div>
+                                @endif
 
                                 @if ($order['garansi'])
                                     <div class="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-700">

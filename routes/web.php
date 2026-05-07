@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\UserPanelController;
 use App\Http\Controllers\Approval\HppSignatureController;
 use App\Http\Controllers\Approval\InitialWorkSignatureController;
 use App\Http\Controllers\Approval\BastSignatureController;
+use App\Http\Controllers\Approval\QualityControlSignatureController;
 use App\Http\Controllers\Pkm\DashboardController as PkmDashboardController;
 use App\Http\Controllers\Pkm\DocumentsController as PkmDocumentsController;
 use App\Http\Controllers\Pkm\JobWaitingController;
@@ -65,6 +66,12 @@ Route::middleware(['auth'])->group(function () {
         ->name('approval.initial-work.abnormalitas');
     Route::get('approval/initial-work/{token}/gambar-teknik', [InitialWorkSignatureController::class, 'previewGambarTeknik'])
         ->name('approval.initial-work.gambar-teknik');
+    Route::get('approval/quality-control/{token}', [QualityControlSignatureController::class, 'show'])
+        ->name('approval.quality-control.show');
+    Route::post('approval/quality-control/{token}', [QualityControlSignatureController::class, 'sign'])
+        ->name('approval.quality-control.sign');
+    Route::get('approval/quality-control/{token}/pdf', [QualityControlSignatureController::class, 'pdf'])
+        ->name('approval.quality-control.pdf');
     Route::get('approval/hpp/{token}', [HppSignatureController::class, 'show'])
         ->name('approval.hpp.show');
     Route::post('approval/hpp/{token}', [HppSignatureController::class, 'sign'])
@@ -181,6 +188,10 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
         ->whereNumber('bengkel_task')
         ->name('admin.bengkel-tasks.update');
+    Route::patch('admin/display-pekerjaan-bengkel/{bengkel_task}/progress', [BengkelTaskController::class, 'updateProgress'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->whereNumber('bengkel_task')
+        ->name('admin.bengkel-tasks.progress.update');
     Route::patch('admin/display-pekerjaan-bengkel/{bengkel_task}/complete', [BengkelTaskController::class, 'complete'])
         ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
         ->whereNumber('bengkel_task')
@@ -321,6 +332,9 @@ Route::delete('admin/struktur-organisasi/{unitWork}', [StructureOrganizationCont
     Route::get('user/orders/{order}/purchase-order/document', [OrderTrackingController::class, 'purchaseOrderDocument'])
         ->middleware('role:user,approver')
         ->name('user.orders.purchase-order.document');
+    Route::get('user/orders/{order}/quality-control/pdf', [OrderTrackingController::class, 'qualityControlPdf'])
+        ->middleware('role:user,approver')
+        ->name('user.orders.quality-control.pdf');
     Route::get('user/orders/{order}/{termin}/bast/pdf', [OrderTrackingController::class, 'bastPdf'])
         ->middleware('role:user,approver')
         ->where('termin', 'termin-1|termin-2')

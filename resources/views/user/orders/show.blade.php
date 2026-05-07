@@ -128,6 +128,9 @@
 
                             <div class="mt-4 rounded-[20px] border p-4 {{ $timelineToneClasses[$item['tone']] ?? $timelineToneClasses['waiting'] }}">
                                 <div class="text-sm font-bold leading-6 text-slate-900">{{ $item['value'] }}</div>
+                                @if (filled($item['detail'] ?? null))
+                                    <div class="mt-1 text-[11px] font-semibold leading-5 text-slate-500">{{ $item['detail'] }}</div>
+                                @endif
                             </div>
                         </article>
                     @endforeach
@@ -171,7 +174,9 @@
                     <div class="rounded-[20px] border border-stone-200 bg-stone-50/80 p-3">
                         <div class="px-1">
                             <div class="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Panel Toggle</div>
-                            <div class="mt-1 text-sm text-slate-500">Dokumen HPP final DIROPS akan otomatis diprioritaskan bila tersedia.</div>
+                            <div class="mt-1 text-sm text-slate-500">
+                                {{ $order['is_workshop_only'] ? 'Order workshop hanya menampilkan dokumen awal yang relevan.' : 'Dokumen HPP final DIROPS akan otomatis diprioritaskan bila tersedia.' }}
+                            </div>
                         </div>
 
                         <div class="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
@@ -311,6 +316,180 @@
             </div>
 
             <div class="space-y-5">
+                @if ($order['is_workshop_only'])
+                    @php
+                        $qcApproval = $order['quality_control']['approval'] ?? null;
+                        $qcApprovalBadgeClasses = match ($qcApproval['state'] ?? 'none') {
+                            'pending' => 'bg-blue-100 text-blue-700 ring-blue-200',
+                            'expired' => 'bg-amber-100 text-amber-700 ring-amber-200',
+                            'completed' => 'bg-emerald-100 text-emerald-700 ring-emerald-200',
+                            'missing' => 'bg-rose-100 text-rose-700 ring-rose-200',
+                            default => 'bg-stone-100 text-slate-600 ring-stone-200',
+                        };
+                        $qcStepDotClasses = [
+                            \App\Models\QualityControlSignature::STATUS_SIGNED => 'bg-emerald-500',
+                            \App\Models\QualityControlSignature::STATUS_PENDING => 'bg-blue-500',
+                            \App\Models\QualityControlSignature::STATUS_LOCKED => 'bg-stone-300',
+                            \App\Models\QualityControlSignature::STATUS_MISSING => 'bg-rose-500',
+                        ];
+                    @endphp
+                    <section class="rounded-[22px] border border-red-200 bg-white p-5 shadow-sm sm:p-6">
+                        <div class="flex items-start gap-3">
+                            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-red-800 text-white">
+                                <i data-lucide="wrench" class="h-5 w-5"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-black text-slate-900">Ringkasan Pekerjaan Bengkel</h2>
+                                <p class="mt-1 text-sm leading-6 text-slate-500">Langsung dikerjakan oleh Bengkel Mesin.</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-5 space-y-3">
+                            <div class="rounded-2xl border border-red-200 bg-red-50 p-4">
+                                <div class="text-[11px] font-bold uppercase tracking-[0.2em] text-red-800">Status Bengkel</div>
+                                <div class="mt-2 text-base font-bold text-slate-900">{{ $order['workshop']['status'] }}</div>
+                                <div class="mt-2 text-sm leading-6 text-slate-700">
+                                    {{ $order['workshop']['keterangan_progress'] ?: $order['workshop']['catatan'] ?: 'Belum ada catatan progress dari bengkel.' }}
+                                </div>
+                            </div>
+
+                            @if ($qcApproval)
+                                <div class="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4">
+                                    <div class="flex flex-wrap items-start justify-between gap-3">
+                                        <div>
+                                            <div class="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-800">Token TTD QC</div>
+                                            <div class="mt-2 text-base font-bold text-slate-900">{{ $qcApproval['label'] }}</div>
+                                            <div class="mt-1 text-xs leading-5 text-slate-600">
+                                                {{ $qcApproval['completed_steps'] }} dari {{ $qcApproval['total_steps'] }} tanda tangan selesai.
+                                            </div>
+                                        </div>
+                                        <span class="inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ring-1 {{ $qcApprovalBadgeClasses }}">
+                                            {{ $qcApproval['label'] }}
+                                        </span>
+                                    </div>
+
+                                    <div class="mt-3 rounded-xl border border-emerald-100 bg-white px-3 py-2">
+                                        <div class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Selanjutnya</div>
+                                        <div class="mt-1 text-sm font-bold leading-6 text-slate-900">{{ $qcApproval['next_text'] }}</div>
+                                    </div>
+
+                                    @if (($qcApproval['links'] ?? []) !== [])
+                                        <div class="mt-3 space-y-2">
+                                            @foreach ($qcApproval['links'] as $approvalLink)
+                                                <div class="rounded-xl border border-stone-200 bg-white px-3 py-2">
+                                                    <div class="flex flex-wrap items-start justify-between gap-2">
+                                                        <div class="min-w-0">
+                                                            <div class="text-xs font-bold text-slate-900">
+                                                                Step {{ $approvalLink['step'] }} - {{ $approvalLink['role_label'] }}
+                                                            </div>
+                                                            <div class="mt-0.5 text-xs text-slate-500">{{ $approvalLink['signer_name'] ?: '-' }}</div>
+                                                            @if ($approvalLink['expires_at'])
+                                                                <div class="mt-0.5 text-[11px] text-slate-400">Berlaku sampai {{ $approvalLink['expires_at'] }}</div>
+                                                            @endif
+                                                        </div>
+                                                        <span class="inline-flex shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 ring-1 ring-blue-200">
+                                                            {{ $approvalLink['status_label'] }}
+                                                        </span>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        data-copy-approval-link="{{ $approvalLink['link'] }}"
+                                                        class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white transition hover:bg-slate-700"
+                                                    >
+                                                        <i data-lucide="copy" class="h-3.5 w-3.5"></i>
+                                                        Salin Link TTD
+                                                    </button>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @elseif (($qcApproval['state'] ?? null) === 'expired')
+                                        <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                                            Token sudah kedaluwarsa. Admin perlu membuka ulang proses token QC.
+                                        </div>
+                                    @elseif (($qcApproval['state'] ?? null) === 'missing')
+                                        <div class="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs leading-5 text-rose-800">
+                                            Struktur organisasi belum lengkap untuk signer QC berikutnya.
+                                        </div>
+                                    @endif
+
+                                    <div class="mt-3 grid gap-2">
+                                        @foreach (($qcApproval['steps'] ?? []) as $approvalStep)
+                                            <div class="flex items-start gap-3 rounded-xl border border-stone-200 bg-white px-3 py-2">
+                                                <span class="mt-1 inline-flex h-2.5 w-2.5 shrink-0 rounded-full {{ $qcStepDotClasses[$approvalStep['status']] ?? 'bg-stone-300' }}"></span>
+                                                <div class="min-w-0 flex-1">
+                                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                                        <div class="text-xs font-bold text-slate-900">
+                                                            Step {{ $approvalStep['step'] }} - {{ $approvalStep['role_label'] }}
+                                                        </div>
+                                                        <span class="text-[10px] font-bold text-slate-500">{{ $approvalStep['status_label'] }}</span>
+                                                    </div>
+                                                    <div class="mt-0.5 text-xs text-slate-500">{{ $approvalStep['signer_name'] ?: '-' }}</div>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+
+                            <div class="rounded-2xl border border-stone-300 bg-white p-4">
+                                <div class="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Uraian Pekerjaan</div>
+                                <div class="mt-2 text-base font-bold leading-6 text-slate-900">{{ $order['workshop']['task_name'] ?: '-' }}</div>
+                                <div class="mt-2 text-sm text-slate-600">Regu: {{ $order['workshop']['regu'] ?: '-' }}</div>
+                            </div>
+
+                            <div class="rounded-2xl border border-stone-300 bg-stone-50 p-4">
+                                <div class="mb-3 text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">PIC & Detail Uraian</div>
+                                @forelse ($order['workshop']['pics'] as $pic)
+                                    <div class="rounded-2xl border border-stone-200 bg-white p-3 {{ $loop->first ? '' : 'mt-2' }}">
+                                        <div class="flex items-center gap-3">
+                                            <span class="relative inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-900 text-xs font-bold text-white">
+                                                @if ($pic['avatar_url'])
+                                                    <img src="{{ $pic['avatar_url'] }}" alt="{{ $pic['name'] }}" class="h-full w-full object-cover" style="object-position: {{ $pic['avatar_position'] }};" onerror="this.remove(); this.nextElementSibling.classList.remove('hidden');">
+                                                    <span class="hidden">{{ $pic['initials'] }}</span>
+                                                @else
+                                                    {{ $pic['initials'] }}
+                                                @endif
+                                            </span>
+                                            <div class="min-w-0">
+                                                <div class="truncate text-sm font-bold text-slate-900">{{ $pic['name'] }}</div>
+                                                <div class="text-xs text-slate-500">PIC Bengkel</div>
+                                            </div>
+                                        </div>
+
+                                        @if (($pic['work_descriptions'] ?? []) !== [])
+                                            <div class="mt-3 space-y-1">
+                                                @foreach ($pic['work_descriptions'] as $description)
+                                                    <div class="rounded-xl bg-slate-100 px-3 py-2 text-xs leading-5 text-slate-700">{{ $description }}</div>
+                                                @endforeach
+                                            </div>
+                                        @else
+                                            <div class="mt-3 rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-500">Belum ada uraian khusus untuk PIC ini.</div>
+                                        @endif
+                                    </div>
+                                @empty
+                                    <div class="rounded-xl border border-dashed border-stone-300 bg-white px-3 py-4 text-center text-sm text-slate-500">
+                                        PIC belum ditambahkan pada display pekerjaan bengkel.
+                                    </div>
+                                @endforelse
+                            </div>
+
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <div class="rounded-2xl border border-stone-300 bg-stone-50 p-4">
+                                    <div class="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Konfirmasi</div>
+                                    <div class="mt-2 text-sm font-bold text-slate-900">{{ $order['workshop']['konfirmasi_anggaran'] ?: '-' }}</div>
+                                    <div class="mt-1 text-xs leading-5 text-slate-600">{{ $order['workshop']['keterangan_konfirmasi'] ?: '-' }}</div>
+                                </div>
+
+                                <div class="rounded-2xl border border-stone-300 bg-stone-50 p-4">
+                                    <div class="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Material</div>
+                                    <div class="mt-2 text-sm font-bold text-slate-900">{{ $order['workshop']['status_material'] ?: '-' }}</div>
+                                    <div class="mt-1 text-xs leading-5 text-slate-600">{{ $order['workshop']['keterangan_material'] ?: '-' }}</div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </section>
+                @else
                 <section class="rounded-[22px] border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
                     <h2 class="text-xl font-black text-slate-900">Ringkasan HPP & Anggaran</h2>
                     <div class="mt-5 space-y-3">
@@ -429,6 +608,7 @@
                         </div>
                     </div>
                 </section>
+                @endif
             </div>
         </section>
     </div>

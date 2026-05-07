@@ -28,8 +28,8 @@ class UpdateOrderRequest extends FormRequest
         $order = $this->route('order');
 
         return [
-            'nomor_order' => ['required', 'string', 'max:100', Rule::unique('orders', 'nomor_order')->ignore($order->id)],
-            'notifikasi' => ['nullable', 'string', 'max:255', Rule::unique('orders', 'notifikasi')->ignore($order->id)],
+            'nomor_order' => ['required', 'string', 'max:100', Rule::in([$order->nomor_order])],
+            'notifikasi' => ['nullable', 'string', 'max:255', Rule::in([$order->notifikasi])],
             'nama_pekerjaan' => ['required', 'string', 'max:255'],
             'unit_kerja' => ['required', 'string', 'max:255'],
             'seksi' => ['required', 'string', 'max:255'],
@@ -46,7 +46,9 @@ class UpdateOrderRequest extends FormRequest
     {
         return [
             'nomor_order.required' => 'Nomor order wajib diisi.',
+            'nomor_order.in' => 'Nomor order tidak dapat diubah.',
             'nomor_order.unique' => 'Nomor order ini sudah digunakan.',
+            'notifikasi.in' => 'Nomor notifikasi tidak dapat diubah.',
             'notifikasi.unique' => 'Nomor notifikasi ini sudah digunakan.',
             'target_selesai.after_or_equal' => 'Target selesai tidak boleh lebih awal dari tanggal order.',
         ];

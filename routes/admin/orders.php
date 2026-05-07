@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\Orders\OrderDocumentController;
 use App\Http\Controllers\Admin\Orders\InitialWorkController;
 use App\Http\Controllers\Admin\Orders\OrderScopeOfWorkController;
 use App\Http\Controllers\Admin\Orders\OrderWorkshopController;
+use App\Http\Controllers\Admin\Orders\OrderWorkshopQualityControlController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin/orders')
@@ -18,6 +19,11 @@ Route::prefix('admin/orders')
         Route::patch('/{order}/priority', [OrderController::class, 'updatePriority'])->name('priority.update');
         Route::patch('/{order}/user-note', [OrderController::class, 'updateUserNote'])->name('user-note.update');
         Route::patch('/workshop/{order}', [OrderWorkshopController::class, 'update'])->name('workshop.update');
+        Route::get('/workshop/{order}/quality-control/create', [OrderWorkshopQualityControlController::class, 'create'])->name('workshop.quality-control.create');
+        Route::post('/workshop/{order}/quality-control', [OrderWorkshopQualityControlController::class, 'store'])->name('workshop.quality-control.store');
+        Route::get('/workshop/{order}/quality-control/{qualityControlReport}/edit', [OrderWorkshopQualityControlController::class, 'edit'])->name('workshop.quality-control.edit');
+        Route::put('/workshop/{order}/quality-control/{qualityControlReport}', [OrderWorkshopQualityControlController::class, 'update'])->name('workshop.quality-control.update');
+        Route::get('/workshop/{order}/quality-control/{qualityControlReport}/pdf', [OrderWorkshopQualityControlController::class, 'pdf'])->name('workshop.quality-control.pdf');
         Route::get('/{order}', [OrderController::class, 'show'])->name('show');
         Route::get('/{order}/edit', [OrderController::class, 'edit'])->name('edit');
         Route::put('/{order}', [OrderController::class, 'update'])->name('update');
@@ -35,3 +41,11 @@ Route::prefix('admin/orders')
         Route::put('/{order}/scope-of-work/{scopeOfWork}', [OrderScopeOfWorkController::class, 'update'])->name('scope-of-work.update');
         Route::get('/{order}/scope-of-work/{scopeOfWork}/pdf', [OrderScopeOfWorkController::class, 'pdf'])->name('scope-of-work.pdf');
     });
+
+Route::delete('admin/quality-control/{qualityControlReport}/files/{file}', [OrderWorkshopQualityControlController::class, 'destroyFile'])
+    ->middleware(['auth', 'role:admin', 'admin_menu:orders'])
+    ->name('admin.quality-control.files.destroy');
+
+Route::get('admin/quality-control/{qualityControlReport}/files/{file}/preview', [OrderWorkshopQualityControlController::class, 'showFile'])
+    ->middleware(['auth', 'role:admin', 'admin_menu:orders'])
+    ->name('admin.quality-control.files.preview');

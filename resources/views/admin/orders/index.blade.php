@@ -677,7 +677,7 @@ $initialWorkSeniorSignature = $order->initialWork?->signatures
                 <div class="mt-6 grid gap-5 md:grid-cols-2">
                     <div>
                         <label class="mb-2 block text-sm text-slate-700">Nomor Order</label>
-                        <input id="editNomorOrder" name="nomor_order" type="text" value="{{ old('form_context') === 'edit' ? old('nomor_order') : '' }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                        <input id="editNomorOrder" name="nomor_order" type="text" value="{{ old('form_context') === 'edit' ? old('nomor_order') : '' }}" class="w-full cursor-not-allowed rounded-lg border border-slate-300 bg-slate-100 px-4 py-3 text-sm text-slate-600 focus:outline-none" required readonly>
                         @if (old('form_context') === 'edit')
                             @error('nomor_order')
                                 <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
@@ -686,7 +686,7 @@ $initialWorkSeniorSignature = $order->initialWork?->signatures
                     </div>
                     <div>
                         <label class="mb-2 block text-sm text-slate-700">Notifikasi</label>
-                        <input id="editNotifikasi" name="notifikasi" type="text" value="{{ old('form_context') === 'edit' ? old('notifikasi') : '' }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none">
+                        <input id="editNotifikasi" name="notifikasi" type="text" value="{{ old('form_context') === 'edit' ? old('notifikasi') : '' }}" class="w-full cursor-not-allowed rounded-lg border border-slate-300 bg-slate-100 px-4 py-3 text-sm text-slate-600 focus:outline-none" readonly>
                         @if (old('form_context') === 'edit')
                             @error('notifikasi')
                                 <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>

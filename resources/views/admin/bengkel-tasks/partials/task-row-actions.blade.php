@@ -1,31 +1,34 @@
 @php
     $isMobile = (bool) ($mobile ?? false);
-    $buttonWidth = $isMobile ? 'flex-1 justify-center' : '';
+    $progressOptions = \App\Models\OrderWorkshop::progressOptions();
+    $currentProgress = method_exists($task, 'effectiveProgressStatus')
+        ? $task->effectiveProgressStatus()
+        : ($task->progress_status ?? \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL);
+    $progressLabel = method_exists($task, 'effectiveProgressLabel')
+        ? $task->effectiveProgressLabel()
+        : ($progressOptions[$currentProgress] ?? 'Berjalan');
 @endphp
 
-<div class="flex flex-wrap items-center {{ $isMobile ? 'gap-2' : 'justify-end gap-2' }}">
-    @unless ($isCompleted)
-        <form action="{{ route('admin.bengkel-tasks.complete', array_merge(['bengkel_task' => $task], $indexQuery)) }}" method="POST" class="{{ $isMobile ? 'flex flex-1' : 'inline-block' }} complete-bengkel-task-form">
+<div class="flex flex-col gap-2 {{ $isMobile ? 'w-full' : 'items-end' }}">
+    <div class="{{ $isMobile ? 'w-full' : 'w-[150px]' }} flex {{ $isMobile ? 'justify-start' : 'justify-end' }}">
+        @include('admin.bengkel-tasks.partials.task-status-badge', [
+            'isCompleted' => $isCompleted,
+            'progressStatus' => $currentProgress,
+            'progressLabel' => $progressLabel,
+        ])
+    </div>
+
+    <div class="flex items-center gap-2">
+        <a href="{{ route('admin.bengkel-tasks.edit', array_merge(['bengkel_task' => $task], $indexQuery)) }}" title="Edit" aria-label="Edit pekerjaan" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50">
+            <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
+        </a>
+
+        <form action="{{ route('admin.bengkel-tasks.destroy', array_merge(['bengkel_task' => $task], $indexQuery)) }}" method="POST" class="delete-bengkel-task-form">
             @csrf
-            @method('PATCH')
-            <button type="submit" class="inline-flex {{ $buttonWidth }} items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">
-                <i data-lucide="check" class="h-3.5 w-3.5"></i>
-                Selesai
+            @method('DELETE')
+            <button type="submit" title="Hapus" aria-label="Hapus pekerjaan" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-white text-rose-600 transition hover:bg-slate-50">
+                <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
             </button>
         </form>
-    @endunless
-
-    <a href="{{ route('admin.bengkel-tasks.edit', array_merge(['bengkel_task' => $task], $indexQuery)) }}" class="inline-flex {{ $buttonWidth }} items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100">
-        <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
-        Edit
-    </a>
-
-    <form action="{{ route('admin.bengkel-tasks.destroy', array_merge(['bengkel_task' => $task], $indexQuery)) }}" method="POST" class="{{ $isMobile ? 'flex flex-1' : 'inline-block' }} delete-bengkel-task-form">
-        @csrf
-        @method('DELETE')
-        <button type="submit" class="inline-flex {{ $buttonWidth }} items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100">
-            <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
-            Hapus
-        </button>
-    </form>
+    </div>
 </div>

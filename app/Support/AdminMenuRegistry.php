@@ -52,7 +52,7 @@ class AdminMenuRegistry
                     [
                         'label' => 'Order Pekerjaan Jasa',
                         'route_name' => 'admin.orders.index',
-                        'active_patterns' => ['admin.orders.index', 'admin.orders.show', 'admin.orders.edit', 'admin.orders.create', 'admin.orders.documents.*', 'admin.orders.scope-of-work.*'],
+                        'active_patterns' => ['admin.orders.index', 'admin.orders.show', 'admin.orders.edit', 'admin.orders.create', 'admin.orders.scope-of-work.*'],
                     ],
                     [
                         'label' => 'Order Pekerjaan Bengkel',

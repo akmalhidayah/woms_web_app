@@ -274,6 +274,16 @@ class Order extends Model
         return $this->hasOne(OrderWorkshop::class);
     }
 
+    public function qualityControlReports(): HasMany
+    {
+        return $this->hasMany(QualityControlReport::class);
+    }
+
+    public function latestQualityControlReport(): HasOne
+    {
+        return $this->hasOne(QualityControlReport::class)->latestOfMany();
+    }
+
     /**
      * Get budget verification data for the order.
      */

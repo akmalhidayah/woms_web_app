@@ -8,12 +8,19 @@ use App\Http\Requests\Admin\Orders\UpdateOrderWorkshopRequest;
 use App\Models\BengkelTask;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
+use App\Models\UnitWork;
+use App\Services\QualityControl\QualityControlSignatureService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class OrderWorkshopController extends Controller
 {
+    public function __construct(
+        private readonly QualityControlSignatureService $qualityControlSignatureService,
+    ) {
+    }
+
     public function index(Request $request): View
     {
         $search = trim((string) $request->string('search'));
@@ -22,7 +29,12 @@ class OrderWorkshopController extends Controller
         $perPage = max(10, min((int) $request->integer('perPage', 10), 50));
 
         $orders = Order::query()
-            ->with(['documents:id,order_id,jenis_dokumen,nama_file_asli', 'scopeOfWork:id,order_id', 'orderWorkshop'])
+            ->with([
+                'documents:id,order_id,jenis_dokumen,nama_file_asli',
+                'scopeOfWork:id,order_id',
+                'orderWorkshop',
+                'latestQualityControlReport.signatures',
+            ])
             ->whereIn('catatan_status', [
                 OrderUserNoteStatus::ApprovedWorkshop->value,
                 OrderUserNoteStatus::ApprovedWorkshopJasa->value,
@@ -44,6 +56,13 @@ class OrderWorkshopController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
+        $orders->getCollection()->each(function (Order $order): void {
+            if ($order->latestQualityControlReport) {
+                $this->qualityControlSignatureService->ensureSignatureChain($order->latestQualityControlReport);
+                $order->latestQualityControlReport->load('signatures');
+            }
+        });
+
         return view('admin.orders.workshop.index', [
             'orders' => $orders,
             'search' => $search,
@@ -59,6 +78,12 @@ class OrderWorkshopController extends Controller
                 'Regu Fabrikasi',
                 'Regu Bengkel (Refurbish)',
             ],
+            'structureUnitOptions' => UnitWork::query()
+                ->with(['sections:id,unit_work_id,name'])
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'userNoteStatusOptions' => OrderUserNoteStatus::options(),
+            'userNoteDetailOptions' => Order::userNoteDetailOptions(),
         ]);
     }
 

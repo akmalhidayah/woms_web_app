@@ -40,7 +40,6 @@
 
         $outstandingNotifications = $outstandingNotifications ?? 0;
         $pendingProcessJasa = $pendingProcessJasa ?? 0;
-        $documentOnProcessHPPCount = $documentOnProcessHPPCount ?? 0;
         $approvalProcessHPPCount = $approvalProcessHPPCount ?? 0;
         $documentOnProcessPOCount = $documentOnProcessPOCount ?? 0;
 
@@ -55,6 +54,8 @@
         $totalKuotaKontrak = $totalKuotaKontrak ?? 0;
         $sisaKuotaKontrak = $sisaKuotaKontrak ?? 0;
         $targetPemeliharaan = $targetPemeliharaan ?? null;
+        $totalJasaPemeliharaan = $totalJasaPemeliharaan ?? 0;
+        $sisaBiayaPemeliharaan = $sisaBiayaPemeliharaan ?? 0;
         $totalRealisasiBiaya = $totalRealisasiBiaya ?? 0;
         $latestKuotaAnggaran = $latestKuotaAnggaran ?? null;
         $periodeKontrak = $periodeKontrak ?? ['start' => null, 'end' => null, 'adendum' => null];
@@ -67,22 +68,16 @@
                 'wrap' => 'bg-[#5f9ae8]',
                 'iconColor' => 'text-[#2453d4]',
                 'valueColor' => 'text-[#2453d4]',
+                'url' => route('admin.hpp.index'),
             ],
             [
-                'title' => 'Pending Process (Jasa)',
+                'title' => 'Document On Process (HPP)',
                 'value' => $pendingProcessJasa,
                 'icon' => 'hourglass',
                 'wrap' => 'bg-[#ffca19]',
                 'iconColor' => 'text-[#ab7700]',
                 'valueColor' => 'text-[#ab7700]',
-            ],
-            [
-                'title' => 'Document On Process (HPP)',
-                'value' => $documentOnProcessHPPCount,
-                'icon' => 'file-text',
-                'wrap' => 'bg-[#9da6b2]',
-                'iconColor' => 'text-[#31435e]',
-                'valueColor' => 'text-[#25344d]',
+                'url' => route('admin.hpp.index', ['status' => \App\Models\Hpp::STATUS_IN_REVIEW]),
             ],
             [
                 'title' => 'Approval Process (HPP)',
@@ -91,6 +86,7 @@
                 'wrap' => 'bg-[#49d97a]',
                 'iconColor' => 'text-[#0b8a57]',
                 'valueColor' => 'text-[#0b7d4f]',
+                'url' => route('admin.budget-verification.index'),
             ],
             [
                 'title' => 'PR/PO Process (HPP Approved)',
@@ -99,6 +95,7 @@
                 'wrap' => 'bg-[#fb6a6f]',
                 'iconColor' => 'text-[#a71922]',
                 'valueColor' => 'text-[#a71922]',
+                'url' => route('admin.purchase-order.index'),
             ],
         ];
     @endphp
@@ -121,7 +118,7 @@
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:hidden">
                 @foreach ($processCards as $card)
-                    <a href="#" class="flex h-40 min-w-0 flex-col items-center justify-center rounded-2xl px-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md {{ $card['wrap'] }}">
+                    <a href="{{ $card['url'] }}" class="flex h-40 min-w-0 flex-col items-center justify-center rounded-2xl px-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md {{ $card['wrap'] }}">
                         <i data-lucide="{{ $card['icon'] }}" class="h-8 w-8 {{ $card['iconColor'] }}"></i>
                         <div class="mt-4 text-[13px] font-medium leading-5 text-slate-800">{{ $card['title'] }}</div>
                         <div class="mt-2 text-2xl font-bold {{ $card['valueColor'] }}">{{ $card['value'] }}</div>
@@ -131,7 +128,7 @@
 
             <div class="hidden gap-4 md:flex md:flex-nowrap">
                 @foreach ($processCards as $card)
-                    <a href="#" class="flex h-40 min-w-0 flex-1 flex-col items-center justify-center rounded-2xl px-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md {{ $card['wrap'] }}">
+                    <a href="{{ $card['url'] }}" class="flex h-40 min-w-0 flex-1 flex-col items-center justify-center rounded-2xl px-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md {{ $card['wrap'] }}">
                         <i data-lucide="{{ $card['icon'] }}" class="h-8 w-8 {{ $card['iconColor'] }}"></i>
                         <div class="mt-4 text-[13px] font-medium leading-5 text-slate-800">{{ $card['title'] }}</div>
                         <div class="mt-2 text-2xl font-bold {{ $card['valueColor'] }}">{{ $card['value'] }}</div>
@@ -157,7 +154,7 @@
                         <div class="mt-4 text-right text-sm font-semibold text-slate-900">{{ $rp($approvalProcessHPPAmount) }}</div>
                     </div>
                     <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                        <div class="text-xs leading-5 text-slate-700">On Process PR/PO</div>
+                        <div class="text-xs leading-5 text-slate-700">PR/PO On Process</div>
                         <div class="mt-4 text-right text-sm font-semibold text-slate-900">{{ $rp($documentOnProcessPOAmount) }}</div>
                     </div>
                 </div>
@@ -186,15 +183,27 @@
                 </div>
 
                 <div class="mt-4 flex justify-end gap-2 text-xs">
-                    <span class="text-slate-500">Subtotal potensi</span>
+                    <span class="text-slate-500">Subtotal realisasi</span>
                     <span class="font-bold text-slate-900">{{ $rp($totalAmount2) }}</span>
                 </div>
             </article>
 
             <article class="rounded-[1.5rem] border border-slate-200 bg-white p-6 shadow-sm">
-                <div class="mb-4 flex items-center gap-2">
-                    <i data-lucide="badge-info" class="h-4 w-4 text-slate-600"></i>
-                    <h3 class="text-base font-semibold text-slate-800">Ringkasan Kuota Anggaran</h3>
+                <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="badge-info" class="h-4 w-4 text-slate-600"></i>
+                        <h3 class="text-base font-semibold text-slate-800">Ringkasan Kuota Anggaran</h3>
+                    </div>
+                    <div class="text-right text-[11px] leading-5 text-slate-500">
+                        <div class="font-semibold uppercase tracking-[0.12em] text-slate-500">Kuota Anggaran</div>
+                        <div class="text-sm font-bold text-slate-900">Rp. {{ number_format($totalKuotaKontrak, 0, ',', '.') }}</div>
+                        <div>
+                            Periode:
+                            {{ $periodeKontrak['start'] ? \Carbon\Carbon::parse($periodeKontrak['start'])->format('d M Y') : '-' }}
+                            s/d
+                            {{ $periodeKontrak['end'] ? \Carbon\Carbon::parse($periodeKontrak['end'])->format('d M Y') : '-' }}
+                        </div>
+                    </div>
                 </div>
 
                 <div class="space-y-4">
@@ -207,57 +216,30 @@
 
                     @php
                         $kuotaKontrakActual = ($totalKuotaKontrak ?? 0) - ($totalSeluruhAmount ?? 0);
+                        $totalBiayaPemeliharaan = $cleanNumber($targetPemeliharaan);
                     @endphp
                     <div class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-4">
-                        <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-700">Kuota Kontrak Actual</div>
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-700">Kuota Anggaran Actual</div>
                         <div class="mt-1 text-2xl font-bold text-slate-900">Rp. {{ number_format($kuotaKontrakActual, 0, ',', '.') }}</div>
                         <div class="mt-1 text-xs leading-5 text-sky-700">
-                            = Total Kuota (Rp. {{ number_format($totalKuotaKontrak, 0, ',', '.') }}) - (Potensi + Realisasi) (Rp. {{ number_format($totalSeluruhAmount, 0, ',', '.') }})
+                            = Kuota Anggaran (Rp. {{ number_format($totalKuotaKontrak, 0, ',', '.') }}) - (Potensi + Realisasi) (Rp. {{ number_format($totalSeluruhAmount, 0, ',', '.') }})
                         </div>
                     </div>
 
                     <div class="rounded-xl border border-slate-200 bg-white px-4 py-4">
-                        <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-700">Total Kuota Kontrak</div>
-                        <div class="mt-1 text-2xl font-bold text-slate-900">Rp. {{ number_format($totalKuotaKontrak, 0, ',', '.') }}</div>
-                        <div class="mt-1 text-xs text-slate-500">
-                            Periode:
-                            {{ $periodeKontrak['start'] ? \Carbon\Carbon::parse($periodeKontrak['start'])->format('d M Y') : '-' }}
-                            s/d
-                            {{ $periodeKontrak['end'] ? \Carbon\Carbon::parse($periodeKontrak['end'])->format('d M Y') : '-' }}
-                            @if (!empty($periodeKontrak['adendum']))
-                                <span>, adendum s/d {{ \Carbon\Carbon::parse($periodeKontrak['adendum'])->format('d M Y') }}</span>
-                            @endif
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-700">Total Biaya Pemeliharaan</div>
+                        <div class="mt-1 text-2xl font-bold text-slate-900">Rp. {{ number_format($totalBiayaPemeliharaan, 0, ',', '.') }}</div>
+                        <div class="mt-3 grid gap-1 text-xs text-slate-500">
+                            <div class="flex items-center justify-between gap-3">
+                                <span>Total Jasa Pemeliharaan</span>
+                                <span class="font-semibold text-slate-800">Rp. {{ number_format($totalJasaPemeliharaan, 0, ',', '.') }}</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-3">
+                                <span>Sisa Biaya Pemeliharaan</span>
+                                <span class="font-semibold text-slate-800">Rp. {{ number_format($sisaBiayaPemeliharaan, 0, ',', '.') }}</span>
+                            </div>
                         </div>
                     </div>
-
-                    @if (!is_null($targetPemeliharaan))
-                        @php
-                            $isArrayTarget = is_array($targetPemeliharaan);
-                            if ($isArrayTarget) {
-                                $totalTargetInt = 0;
-                                foreach ($targetPemeliharaan as $x) {
-                                    $totalTargetInt += $cleanNumber($x);
-                                }
-                            } else {
-                                $totalTargetInt = $cleanNumber($targetPemeliharaan);
-                            }
-                        @endphp
-                        <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4">
-                            <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700">Target Biaya Pemeliharaan</div>
-                            <div class="mt-1 text-2xl font-bold text-slate-900">{{ $rp($totalTargetInt) }}</div>
-
-                            @if ($isArrayTarget)
-                                @php $years = $latestKuotaAnggaran->tahun ?? null; @endphp
-                                @if (is_array($years) && count($years) === count($targetPemeliharaan))
-                                    <div class="mt-2 grid gap-1 text-xs text-emerald-800">
-                                        @foreach ($targetPemeliharaan as $i => $val)
-                                            <div>{{ $years[$i] }}: {{ $rp($val) }}</div>
-                                        @endforeach
-                                    </div>
-                                @endif
-                            @endif
-                        </div>
-                    @endif
 
                     <div class="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-4">
                         <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-yellow-700">Sisa Kuota Kontrak</div>
@@ -317,9 +299,18 @@
                     </div>
                 </div>
 
-                <div class="mt-6 flex flex-col gap-5 lg:flex-row lg:items-center">
-                    <canvas id="realisasiBiayaPieChart" class="max-h-[180px] max-w-[180px]"></canvas>
-                    <div id="chartLegend" class="grid flex-1 gap-2 text-xs text-slate-700"></div>
+                <div class="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="text-sm font-semibold text-slate-800">Grafik Realisasi Biaya</div>
+                        <div id="chartTotal" class="text-xs font-bold text-slate-600">Rp 0</div>
+                    </div>
+                    <div class="mt-4 h-72">
+                        <canvas id="realisasiBiayaPieChart" class="h-full w-full"></canvas>
+                    </div>
+                    <div id="chartEmptyState" class="hidden rounded-lg border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-sm text-slate-500">
+                        Belum ada data realisasi biaya pada rentang ini.
+                    </div>
+                    <div id="chartLegend" class="mt-4 grid gap-2 text-xs text-slate-700 md:grid-cols-2"></div>
                 </div>
             </article>
         </section>
@@ -333,9 +324,24 @@
             const startMonthSelect = document.getElementById('startMonth');
             const endMonthSelect = document.getElementById('endMonth');
             const applyFiltersButton = document.getElementById('applyFilters');
+            const chartLegend = document.getElementById('chartLegend');
+            const chartTotal = document.getElementById('chartTotal');
+            const chartEmptyState = document.getElementById('chartEmptyState');
+            const chartCanvas = document.getElementById('realisasiBiayaPieChart');
+            const initialChartData = @json($realizationChartData ?? []);
+            const yearsEndpoint = @json(route('admin.dashboard.years'));
+            const chartEndpoint = @json(route('admin.dashboard.realization-chart'));
+            const chartColors = {
+                normal: '#2563eb',
+                urgent: '#f97316',
+            };
+            const monthNames = {
+                1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'Mei', 6: 'Jun',
+                7: 'Jul', 8: 'Agu', 9: 'Sep', 10: 'Okt', 11: 'Nov', 12: 'Des',
+            };
 
             function fetchYears() {
-                fetch('/admin/get-years')
+                fetch(yearsEndpoint)
                     .then(response => response.json())
                     .then(data => {
                         startYearSelect.innerHTML = '<option value="" selected disabled>Pilih Tahun</option>';
@@ -380,7 +386,10 @@
 
                 if (savedStartYear && savedEndYear) {
                     fetchData(savedStartYear, savedEndYear, savedStartMonth, savedEndMonth);
+                    return;
                 }
+
+                renderChart(initialChartData);
             }
 
             function fetchData(startYear, endYear, startMonth = null, endMonth = null) {
@@ -391,40 +400,11 @@
                     ...(endMonth && { endMonth })
                 }).toString();
 
-                fetch(`/admin/realisasi-biaya?${queryParams}`)
+                fetch(`${chartEndpoint}?${queryParams}`)
                     .then(response => response.json())
                     .then(data => {
                         if (!Array.isArray(data)) throw new Error('Format data tidak valid.');
-
-                        const labels = data.map(item => `${item.year}-${item.month || 'N/A'}`);
-                        const values = data.map(item => item.total);
-
-                        const ctx = document.getElementById('realisasiBiayaPieChart');
-                        if (window.realisasiBiayaChart) window.realisasiBiayaChart.destroy();
-                        window.realisasiBiayaChart = new Chart(ctx, {
-                            type: 'pie',
-                            data: {
-                                labels,
-                                datasets: [{
-                                    data: values,
-                                    backgroundColor: ['#4CAF50', '#2196F3', '#FF5722', '#FFC107']
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                plugins: {
-                                    tooltip: {
-                                        callbacks: {
-                                            label: function (context) {
-                                                return `${context.label}: Rp ${context.raw.toLocaleString('id-ID')}`;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        });
-
-                        updateLegend(labels, values);
+                        renderChart(data);
                     })
                     .catch(error => {
                         console.error('Error saat memproses data:', error);
@@ -432,17 +412,110 @@
                     });
             }
 
-            function updateLegend(labels, values) {
-                const legend = document.getElementById('chartLegend');
-                legend.innerHTML = '';
-                labels.forEach((label, index) => {
-                    legend.innerHTML += `
-                        <div class="grid grid-cols-[12px_1fr_auto] items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                            <span class="h-2.5 w-2.5 rounded-full" style="background-color: ${window.realisasiBiayaChart.data.datasets[0].backgroundColor[index]};"></span>
-                            <span>${label}</span>
-                            <span class="font-semibold">Rp ${values[index].toLocaleString('id-ID')}</span>
+            function renderChart(rows) {
+                const labels = rows.map(item => item.label || `${monthNames[item.month] || item.month} ${item.year}`);
+                const normalValues = rows.map(item => Number(item.normal_total || 0));
+                const urgentValues = rows.map(item => Number(item.urgent_total || 0));
+                const total = rows.reduce((sum, item) => sum + Number(item.total || 0), 0);
+
+                chartTotal.textContent = formatRupiah(total);
+                chartEmptyState.classList.toggle('hidden', rows.length > 0);
+                chartCanvas.classList.toggle('hidden', rows.length === 0);
+
+                if (window.realisasiBiayaChart) window.realisasiBiayaChart.destroy();
+
+                if (rows.length > 0) {
+                    window.realisasiBiayaChart = new Chart(chartCanvas, {
+                        type: 'bar',
+                        data: {
+                            labels,
+                            datasets: [
+                                {
+                                    label: 'Document PR/PO (LHPP)',
+                                    data: normalValues,
+                                    backgroundColor: chartColors.normal,
+                                    borderRadius: 8,
+                                },
+                                {
+                                    label: 'Pekerjaan Urgent',
+                                    data: urgentValues,
+                                    backgroundColor: chartColors.urgent,
+                                    borderRadius: 8,
+                                },
+                            ],
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: {
+                                    stacked: true,
+                                    grid: { display: false },
+                                },
+                                y: {
+                                    stacked: true,
+                                    beginAtZero: true,
+                                    ticks: {
+                                        callback: value => compactRupiah(value),
+                                    },
+                                },
+                            },
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'bottom',
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: context => `${context.dataset.label}: ${formatRupiah(context.raw)}`,
+                                        footer: items => {
+                                            const index = items[0]?.dataIndex ?? 0;
+                                            return `Total: ${formatRupiah(rows[index]?.total || 0)}`;
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    });
+                }
+
+                updateLegend(rows);
+            }
+
+            function updateLegend(rows) {
+                chartLegend.innerHTML = '';
+
+                rows.forEach(item => {
+                    chartLegend.innerHTML += `
+                        <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="font-semibold text-slate-700">${item.label || `${monthNames[item.month] || item.month} ${item.year}`}</span>
+                                <span class="font-bold text-slate-900">${formatRupiah(item.total || 0)}</span>
+                            </div>
+                            <div class="mt-2 grid gap-1 text-[11px] text-slate-500">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span><span class="mr-1 inline-block h-2 w-2 rounded-full" style="background-color:${chartColors.normal}"></span>Document PR/PO</span>
+                                    <span>${formatRupiah(item.normal_total || 0)}</span>
+                                </div>
+                                <div class="flex items-center justify-between gap-2">
+                                    <span><span class="mr-1 inline-block h-2 w-2 rounded-full" style="background-color:${chartColors.urgent}"></span>Urgent</span>
+                                    <span>${formatRupiah(item.urgent_total || 0)}</span>
+                                </div>
+                            </div>
                         </div>`;
                 });
+            }
+
+            function formatRupiah(value) {
+                return `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
+            }
+
+            function compactRupiah(value) {
+                const number = Number(value || 0);
+                if (number >= 1000000000) return `Rp ${(number / 1000000000).toLocaleString('id-ID')} M`;
+                if (number >= 1000000) return `Rp ${(number / 1000000).toLocaleString('id-ID')} jt`;
+                if (number >= 1000) return `Rp ${(number / 1000).toLocaleString('id-ID')} rb`;
+                return `Rp ${number.toLocaleString('id-ID')}`;
             }
 
             applyFiltersButton.addEventListener('click', function () {

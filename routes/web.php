@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AccessControlController;
 use App\Http\Controllers\Admin\BudgetVerificationController;
 use App\Http\Controllers\Admin\BengkelPicController;
 use App\Http\Controllers\Admin\BengkelTaskController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\Hpp\HppController;
 use App\Http\Controllers\Admin\InformationUploadController;
 use App\Http\Controllers\Admin\GaransiController;
@@ -89,9 +90,15 @@ Route::middleware(['auth'])->group(function () {
     Route::get('approval/bast/{token}/pdf', [BastSignatureController::class, 'pdf'])
         ->name('approval.bast.pdf');
 
-    Route::view('admin/dashboard', 'dashboards.admin')
+    Route::get('admin/dashboard', AdminDashboardController::class)
         ->middleware('role:admin')
         ->name('admin.dashboard');
+    Route::get('admin/get-years', [AdminDashboardController::class, 'years'])
+        ->middleware('role:admin')
+        ->name('admin.dashboard.years');
+    Route::get('admin/realisasi-biaya', [AdminDashboardController::class, 'realizationChart'])
+        ->middleware('role:admin')
+        ->name('admin.dashboard.realization-chart');
 
     Route::get('admin/access-control', [AccessControlController::class, 'index'])
         ->middleware(['role:admin', 'admin_role:super_admin'])

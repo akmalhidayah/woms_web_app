@@ -7,6 +7,9 @@
         <meta name="theme-color" content="#0b4db3">
 
         <title>{{ $title ?? config('app.name', 'WOMS') }}</title>
+        <link rel="icon" type="image/png" href="{{ asset('assets/branding/logos/logo-st2.png') }}?v=tonasa">
+        <link rel="shortcut icon" type="image/png" href="{{ asset('assets/branding/logos/logo-st2.png') }}?v=tonasa">
+        <link rel="apple-touch-icon" href="{{ asset('assets/branding/logos/logo-st2.png') }}?v=tonasa">
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         @livewireStyles

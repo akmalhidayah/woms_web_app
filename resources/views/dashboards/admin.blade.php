@@ -329,8 +329,8 @@
             const chartEmptyState = document.getElementById('chartEmptyState');
             const chartCanvas = document.getElementById('realisasiBiayaPieChart');
             const initialChartData = @json($realizationChartData ?? []);
-            const yearsEndpoint = @json(route('admin.dashboard.years'));
-            const chartEndpoint = @json(route('admin.dashboard.realization-chart'));
+            const yearsEndpoint = @json(url('/admin/get-years'));
+            const chartEndpoint = @json(url('/admin/realisasi-biaya'));
             const chartColors = {
                 normal: '#2563eb',
                 urgent: '#f97316',

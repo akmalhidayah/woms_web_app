@@ -27,19 +27,19 @@ class AppServiceProvider extends ServiceProvider
         View::composer('dashboards.admin', function ($view): void {
             $data = $view->getData();
 
-            $totalKuotaKontrak = $data['totalKuotaKontrak'] ?? (int) OutlineAgreement::query()
+            $totalKuotaKontrak = $data['totalKuotaKontrak'] ?? $this->moneyInt(OutlineAgreement::query()
                 ->where('status', OutlineAgreement::STATUS_ACTIVE)
-                ->sum('current_total_nilai');
+                ->sum('current_total_nilai'));
 
-            $targetPemeliharaan = $data['targetPemeliharaan'] ?? (int) OutlineAgreementTarget::query()
+            $targetPemeliharaan = $data['targetPemeliharaan'] ?? $this->moneyInt(OutlineAgreementTarget::query()
                 ->whereHas('outlineAgreement', fn (Builder $query) => $query->where('status', OutlineAgreement::STATUS_ACTIVE))
-                ->sum('nilai_target');
+                ->sum('nilai_target'));
 
-            $totalJasaPemeliharaan = $data['totalJasaPemeliharaan'] ?? (int) Hpp::query()
+            $totalJasaPemeliharaan = $data['totalJasaPemeliharaan'] ?? $this->moneyInt(Hpp::query()
                 ->whereHas('budgetVerification', fn (Builder $query) => $query
                     ->where('kategori_item', 'jasa')
                     ->where('kategori_biaya', 'pemeliharaan'))
-                ->sum('total_keseluruhan');
+                ->sum('total_keseluruhan'));
 
             $periodStart = OutlineAgreement::query()
                 ->where('status', OutlineAgreement::STATUS_ACTIVE)
@@ -63,5 +63,10 @@ class AppServiceProvider extends ServiceProvider
                 ],
             ]);
         });
+    }
+
+    private function moneyInt(mixed $value): int
+    {
+        return (int) round((float) $value);
     }
 }

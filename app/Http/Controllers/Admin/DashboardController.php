@@ -112,49 +112,49 @@ class DashboardController extends Controller
 
     private function sumPendingHppApprovalAmount(): int
     {
-        return (int) Hpp::query()
+        return $this->moneyInt(Hpp::query()
             ->where('status', Hpp::STATUS_IN_REVIEW)
             ->whereNotNull('submitted_at')
-            ->sum('total_keseluruhan');
+            ->sum('total_keseluruhan'));
     }
 
     private function sumApprovedHppsWaitingForPoAmount(): int
     {
-        return (int) Hpp::query()
+        return $this->moneyInt(Hpp::query()
             ->where('status', Hpp::STATUS_APPROVED)
             ->whereDoesntHave('purchaseOrder', fn (Builder $query) => $query
                 ->whereNotNull('purchase_order_number')
                 ->whereRaw("TRIM(purchase_order_number) <> ''")
                 ->whereNotNull('po_document_path')
                 ->whereRaw("TRIM(po_document_path) <> ''"))
-            ->sum('total_keseluruhan');
+            ->sum('total_keseluruhan'));
     }
 
     private function sumPurchaseOrdersWithNumberAndDocumentAmount(): int
     {
-        return (int) Hpp::query()
+        return $this->moneyInt(Hpp::query()
             ->whereHas('purchaseOrder', fn (Builder $query) => $query
                 ->whereNotNull('purchase_order_number')
                 ->whereRaw("TRIM(purchase_order_number) <> ''")
                 ->whereNotNull('po_document_path')
-            ->whereRaw("TRIM(po_document_path) <> ''"))
-            ->sum('total_keseluruhan');
+                ->whereRaw("TRIM(po_document_path) <> ''"))
+            ->sum('total_keseluruhan'));
     }
 
     private function sumNormalLhppBastAmount(): int
     {
-        return (int) $this->baseLhppBastRealizationQuery()
+        return $this->moneyInt($this->baseLhppBastRealizationQuery()
             ->whereHas('order', fn (Builder $query) => $query->whereNotIn('prioritas', $this->emergencyPriorities()))
             ->whereNotNull('purchase_order_number')
             ->whereRaw("TRIM(purchase_order_number) <> ''")
-            ->sum('total_aktual_biaya');
+            ->sum('total_aktual_biaya'));
     }
 
     private function sumEmergencyLhppBastAmount(): int
     {
-        return (int) $this->baseLhppBastRealizationQuery()
+        return $this->moneyInt($this->baseLhppBastRealizationQuery()
             ->whereHas('order', fn (Builder $query) => $query->whereIn('prioritas', $this->emergencyPriorities()))
-            ->sum('total_aktual_biaya');
+            ->sum('total_aktual_biaya'));
     }
 
     private function baseLhppBastRealizationQuery(): Builder
@@ -177,25 +177,25 @@ class DashboardController extends Controller
 
     private function sumActiveOutlineAgreementBudget(): int
     {
-        return (int) OutlineAgreement::query()
+        return $this->moneyInt(OutlineAgreement::query()
             ->where('status', OutlineAgreement::STATUS_ACTIVE)
-            ->sum('current_total_nilai');
+            ->sum('current_total_nilai'));
     }
 
     private function sumActiveOutlineAgreementMaintenanceTargets(): int
     {
-        return (int) OutlineAgreementTarget::query()
+        return $this->moneyInt(OutlineAgreementTarget::query()
             ->whereHas('outlineAgreement', fn (Builder $query) => $query->where('status', OutlineAgreement::STATUS_ACTIVE))
-            ->sum('nilai_target');
+            ->sum('nilai_target'));
     }
 
     private function sumVerifiedMaintenanceServiceAmount(): int
     {
-        return (int) Hpp::query()
+        return $this->moneyInt(Hpp::query()
             ->whereHas('budgetVerification', fn (Builder $query) => $query
                 ->where('kategori_item', 'jasa')
                 ->where('kategori_biaya', 'pemeliharaan'))
-            ->sum('total_keseluruhan');
+            ->sum('total_keseluruhan'));
     }
 
     /**
@@ -275,14 +275,16 @@ class DashboardController extends Controller
                 $urgentTotal = $group
                     ->filter(fn (LhppBast $row): bool => in_array($row->order?->prioritas, $this->emergencyPriorities(), true))
                     ->sum(fn (LhppBast $row): float => (float) $row->total_aktual_biaya);
+                $normalTotal = $this->moneyInt($normalTotal);
+                $urgentTotal = $this->moneyInt($urgentTotal);
 
                 return [
                     'year' => $year,
                     'month' => $month,
                     'label' => Carbon::create($year, $month, 1)->translatedFormat('M Y'),
-                    'total' => (int) ($normalTotal + $urgentTotal),
-                    'normal_total' => (int) $normalTotal,
-                    'urgent_total' => (int) $urgentTotal,
+                    'total' => $normalTotal + $urgentTotal,
+                    'normal_total' => $normalTotal,
+                    'urgent_total' => $urgentTotal,
                 ];
             })
             ->sortBy([['year', 'asc'], ['month', 'asc']])
@@ -297,5 +299,10 @@ class DashboardController extends Controller
         }
 
         return $month;
+    }
+
+    private function moneyInt(mixed $value): int
+    {
+        return (int) round((float) $value);
     }
 }

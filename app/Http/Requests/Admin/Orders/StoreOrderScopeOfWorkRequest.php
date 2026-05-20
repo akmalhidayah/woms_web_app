@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Admin\Orders;
 
+use App\Models\Order;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StoreOrderScopeOfWorkRequest extends FormRequest
 {
@@ -34,7 +36,23 @@ class StoreOrderScopeOfWorkRequest extends FormRequest
             'keterangan' => ['nullable', 'array'],
             'keterangan.*' => ['nullable', 'string', 'max:255'],
             'catatan' => ['nullable', 'string'],
-            'tanda_tangan' => ['required', 'string'],
+            'tanda_tangan' => ['nullable', 'string'],
+            'tanda_tangan_file' => ['nullable', 'file', 'mimetypes:image/png,image/jpeg', 'max:2048'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $order = $this->route('order');
+            $hasExistingSignature = $order instanceof Order
+                && $order->scopeOfWork()
+                    ->whereNotNull('tanda_tangan')
+                    ->exists();
+
+            if (! $hasExistingSignature && ! $this->hasFile('tanda_tangan_file') && ! filled($this->input('tanda_tangan'))) {
+                $validator->errors()->add('tanda_tangan_file', 'Tanda tangan pembuat wajib diisi.');
+            }
+        });
     }
 }

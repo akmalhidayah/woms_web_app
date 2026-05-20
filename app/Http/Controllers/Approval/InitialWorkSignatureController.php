@@ -8,11 +8,11 @@ use App\Http\Controllers\Controller;
 use App\Models\InitialWorkSignature;
 use App\Models\User;
 use App\Services\InitialWorks\InitialWorkSignatureService;
+use App\Support\SignatureImageStorage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -75,10 +75,15 @@ class InitialWorkSignatureController extends Controller
         abort_unless(! $signature->tokenExpired(), 403, 'Token approval sudah kedaluwarsa.');
 
         $validated = $request->validate([
-            'signature_data' => ['required', 'string'],
+            'signature_file' => ['nullable', 'file', 'mimetypes:image/png,image/jpeg', 'max:2048'],
+            'signature_data' => ['nullable', 'string'],
         ]);
 
-        $signaturePath = $this->storeSignatureImage((string) $validated['signature_data'], $signature);
+        $signaturePath = SignatureImageStorage::storeFromRequest(
+            $request,
+            'initial-work-signatures/'.$signature->initial_work_id,
+            $signature->role_key,
+        );
 
         try {
             $nextApprovalUrl = DB::transaction(function () use ($request, $signature, $signaturePath): ?string {
@@ -128,41 +133,6 @@ class InitialWorkSignatureController extends Controller
             403,
             'Link approval ini hanya untuk penanda tangan yang ditetapkan.'
         );
-    }
-
-    private function storeSignatureImage(string $signatureData, InitialWorkSignature $signature): string
-    {
-        if (! str_starts_with($signatureData, 'data:image/png;base64,')) {
-            throw ValidationException::withMessages([
-                'signature_data' => 'Format tanda tangan tidak valid.',
-            ]);
-        }
-
-        $base64 = substr($signatureData, strlen('data:image/png;base64,'));
-        $binary = base64_decode($base64, true);
-
-        if ($binary === false || strlen($binary) < 100) {
-            throw ValidationException::withMessages([
-                'signature_data' => 'Tanda tangan belum terbaca. Silakan tanda tangani ulang.',
-            ]);
-        }
-
-        if (strlen($binary) > 1024 * 1024) {
-            throw ValidationException::withMessages([
-                'signature_data' => 'Ukuran tanda tangan terlalu besar.',
-            ]);
-        }
-
-        $path = sprintf(
-            'initial-work-signatures/%s/%s-%s.png',
-            $signature->initial_work_id,
-            $signature->role_key,
-            now()->format('YmdHis')
-        );
-
-        Storage::disk('public')->put($path, $binary);
-
-        return $path;
     }
 
     public function previewAbnormalitas(Request $request, string $token): Response

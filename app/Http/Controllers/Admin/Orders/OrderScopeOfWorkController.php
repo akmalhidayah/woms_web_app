@@ -8,8 +8,8 @@ use App\Http\Requests\Admin\Orders\StoreOrderScopeOfWorkRequest;
 use App\Http\Requests\Admin\Orders\UpdateOrderScopeOfWorkRequest;
 use App\Models\Order;
 use App\Models\OrderScopeOfWork;
+use App\Support\SignatureImageStorage;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\File;
 use Symfony\Component\HttpFoundation\Response;
 
 class OrderScopeOfWorkController extends Controller
@@ -19,16 +19,15 @@ class OrderScopeOfWorkController extends Controller
      */
     public function store(StoreOrderScopeOfWorkRequest $request, Order $order): RedirectResponse
     {
+        $scopeOfWork = $order->scopeOfWork()->first();
         $attributes = [
             'nama_penginput' => $request->validated('nama_penginput'),
             'tanggal_dokumen' => $request->validated('tanggal_dokumen'),
             'tanggal_pemakaian' => $request->validated('tanggal_pemakaian'),
             'scope_items' => $this->scopeItemsFromRequest($request->validated()),
             'catatan' => $request->validated('catatan'),
-            'tanda_tangan' => $request->validated('tanda_tangan'),
+            'tanda_tangan' => $this->storeSignature($request, $order, $scopeOfWork?->tanda_tangan),
         ];
-
-        $scopeOfWork = $order->scopeOfWork()->first();
 
         if ($scopeOfWork) {
             $scopeOfWork->update($attributes);
@@ -59,7 +58,7 @@ class OrderScopeOfWorkController extends Controller
             'tanggal_pemakaian' => $request->validated('tanggal_pemakaian'),
             'scope_items' => $this->scopeItemsFromRequest($request->validated()),
             'catatan' => $request->validated('catatan'),
-            'tanda_tangan' => $request->validated('tanda_tangan'),
+            'tanda_tangan' => $this->storeSignature($request, $order, $scopeOfWork->tanda_tangan),
         ]);
 
         return redirect()
@@ -76,31 +75,30 @@ class OrderScopeOfWorkController extends Controller
 
         $scopeOfWork->loadMissing('creator');
         $order->loadMissing('creator');
-        $signaturePath = null;
-
-        if ($scopeOfWork->tanda_tangan && str_starts_with($scopeOfWork->tanda_tangan, 'data:image')) {
-            $signatureDirectory = storage_path('app/public/signatures');
-
-            if (! File::exists($signatureDirectory)) {
-                File::makeDirectory($signatureDirectory, 0755, true);
-            }
-
-            $imageData = explode(',', $scopeOfWork->tanda_tangan)[1] ?? null;
-
-            if ($imageData) {
-                $signaturePath = $signatureDirectory.DIRECTORY_SEPARATOR.'scope-of-work-'.$scopeOfWork->id.'.png';
-                file_put_contents($signaturePath, base64_decode($imageData));
-            }
-        }
 
         $pdf = Pdf::loadView('admin.orders.scope-of-work-pdf', [
             'order' => $order,
             'scopeOfWork' => $scopeOfWork,
             'scopeItems' => $scopeOfWork->scope_items ?? [],
-            'signaturePath' => $signaturePath,
+            'signaturePath' => SignatureImageStorage::imageSource($scopeOfWork->tanda_tangan),
         ])->setPaper('a4', 'portrait');
 
         return $pdf->stream('scope-of-work-'.$order->nomor_order.'.pdf');
+    }
+
+    private function storeSignature(StoreOrderScopeOfWorkRequest|UpdateOrderScopeOfWorkRequest $request, Order $order, ?string $existingSignature): ?string
+    {
+        if ($request->hasFile('tanda_tangan_file') || filled($request->input('tanda_tangan'))) {
+            return SignatureImageStorage::storeFromRequest(
+                $request,
+                'signatures',
+                'scope-of-work-'.$order->id,
+                'tanda_tangan_file',
+                'tanda_tangan',
+            );
+        }
+
+        return $existingSignature;
     }
 
     /**

@@ -364,11 +364,12 @@
 
             const context = canvas.getContext('2d');
             let drawing = false;
+            let hasStroke = false;
 
             const resizeCanvas = () => {
                 const ratio = window.devicePixelRatio || 1;
                 const rect = canvas.getBoundingClientRect();
-                const existing = dataInput.value;
+                const existing = pad.dataset.existingSignature;
                 canvas.width = rect.width * ratio;
                 canvas.height = rect.height * ratio;
                 context.setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -384,6 +385,15 @@
                     };
                     image.src = existing;
                 }
+            };
+
+            const syncSignatureFile = async () => {
+                const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+                if (!blob) return;
+
+                const transfer = new DataTransfer();
+                transfer.items.add(new File([blob], 'qc-maker-signature.png', { type: 'image/png' }));
+                dataInput.files = transfer.files;
             };
 
             const point = (event) => {
@@ -412,13 +422,15 @@
                 const current = point(event);
                 context.lineTo(current.x, current.y);
                 context.stroke();
-                dataInput.value = canvas.toDataURL('image/png');
+                hasStroke = true;
             };
 
-            const stop = () => {
+            const stop = async () => {
                 if (!drawing) return;
                 drawing = false;
-                dataInput.value = canvas.toDataURL('image/png');
+                if (hasStroke) {
+                    await syncSignatureFile();
+                }
             };
 
             resizeCanvas();
@@ -432,6 +444,7 @@
             clearButton?.addEventListener('click', () => {
                 const rect = canvas.getBoundingClientRect();
                 context.clearRect(0, 0, rect.width, rect.height);
+                hasStroke = false;
                 dataInput.value = '';
             });
         });

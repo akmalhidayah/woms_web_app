@@ -422,7 +422,9 @@
     $requesterManagerRole = $isWorkshopCase ? 'workshop_manager_pengendali' : 'manager_peminta';
 
     $signatureFor = fn (string $roleKey) => $hppSignatures->get($roleKey);
-    $signatureImage = fn ($signature): ?string => $signature?->isSigned() ? $signature->signature_data : null;
+    $signatureImage = fn ($signature): ?string => $signature?->isSigned()
+        ? \App\Support\SignatureImageStorage::imageSource($signature->signature_data)
+        : null;
     $signatureDate = function ($signature): string {
         if (! $signature?->signed_at) {
             return '-';

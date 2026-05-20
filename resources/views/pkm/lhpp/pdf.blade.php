@@ -399,7 +399,9 @@
     $lhppSignatures = ($lhpp->relationLoaded('signatures') ? $lhpp->signatures : $lhpp->signatures()->get())
         ->keyBy('role_key');
     $signatureFor = fn (string $roleKey) => $lhppSignatures->get($roleKey);
-    $signatureImage = fn ($signature): ?string => $signature?->isSigned() ? $signature->signature_data : null;
+    $signatureImage = fn ($signature): ?string => $signature?->isSigned()
+        ? \App\Support\SignatureImageStorage::imageSource($signature->signature_data)
+        : null;
     $signatureName = fn ($signature): string => $signature?->signer_name_snapshot ?: '';
     $signatureTitle = fn ($signature, string $fallback): string => trim((string) ($signature?->signer_position_snapshot ?: $fallback));
     $signatureDate = static function ($signature): string {

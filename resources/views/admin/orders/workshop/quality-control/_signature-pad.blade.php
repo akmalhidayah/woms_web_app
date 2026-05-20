@@ -4,6 +4,14 @@
     $theme = $theme ?? 'blue';
     $roleLabel = $roleLabel ?? 'Tanda tangan';
     $signatureData = old('signature.signature_data', $signature['signature_data'] ?? '');
+    $signaturePreview = $signatureData;
+
+    if ($signaturePreview && ! str_starts_with($signaturePreview, 'data:image')) {
+        $signaturePreview = \Illuminate\Support\Facades\Storage::disk('public')->exists($signaturePreview)
+            ? \Illuminate\Support\Facades\Storage::disk('public')->url($signaturePreview)
+            : '';
+    }
+
     $signerName = old('signature.signer_name', $signature['signer_name'] ?? auth()->user()?->name ?? '');
     $signedAt = old('signature.signed_at', $signature['signed_at'] ?? now()->format('Y-m-d'));
     $themeClasses = $theme === 'emerald'
@@ -45,9 +53,11 @@
             data-qc-signature-pad
             data-current-signer="{{ auth()->user()?->name ?? '' }}"
             data-current-date="{{ now()->format('Y-m-d') }}"
+            data-existing-signature="{{ $signaturePreview }}"
         >
             <canvas class="h-44 w-full rounded-xl bg-white ring-1 {{ $themeClasses['ring'] }}" data-qc-signature-canvas></canvas>
-            <input type="hidden" name="signature[signature_data]" value="{{ $signatureData }}" data-qc-signature-data>
+            <input type="hidden" name="signature[signature_existing]" value="{{ $signatureData }}" data-qc-signature-existing>
+            <input type="file" name="signature[signature_file]" accept="image/png,image/jpeg" class="hidden" data-qc-signature-data>
             <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
                 <div class="text-[11px] font-medium text-slate-500">Gunakan mouse/touchpad untuk tanda tangan.</div>
                 <button type="button" class="rounded-lg border px-3 py-1.5 text-xs font-semibold transition {{ $themeClasses['button'] }}" data-qc-signature-clear>
@@ -72,4 +82,3 @@
         </div>
     </div>
 </section>
-

@@ -7,10 +7,10 @@ use App\Http\Controllers\Controller;
 use App\Models\QualityControlSignature;
 use App\Models\User;
 use App\Services\QualityControl\QualityControlSignatureService;
+use App\Support\SignatureImageStorage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -73,15 +73,20 @@ class QualityControlSignatureController extends Controller
         abort_unless(! $signature->tokenExpired(), 403, 'Token approval QC sudah kedaluwarsa.');
 
         $validated = $request->validate([
-            'signature_data' => ['required', 'string'],
+            'signature_file' => ['nullable', 'file', 'mimetypes:image/png,image/jpeg', 'max:2048'],
+            'signature_data' => ['nullable', 'string'],
         ]);
 
-        $signatureData = $this->validatedSignatureData((string) $validated['signature_data']);
+        $signaturePath = SignatureImageStorage::storeFromRequest(
+            $request,
+            'quality-control-signatures/'.$signature->quality_control_report_id,
+            $signature->role_key,
+        );
 
-        $nextApprovalUrl = DB::transaction(function () use ($request, $signature, $signatureData): ?string {
+        $nextApprovalUrl = DB::transaction(function () use ($request, $signature, $signaturePath): ?string {
             $signature->update([
                 'status' => QualityControlSignature::STATUS_SIGNED,
-                'signature_data' => $signatureData,
+                'signature_data' => $signaturePath,
                 'signed_at' => now(),
                 'signed_ip' => $request->ip(),
                 'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
@@ -122,29 +127,4 @@ class QualityControlSignatureController extends Controller
         );
     }
 
-    private function validatedSignatureData(string $signatureData): string
-    {
-        if (! str_starts_with($signatureData, 'data:image/png;base64,')) {
-            throw ValidationException::withMessages([
-                'signature_data' => 'Format tanda tangan tidak valid.',
-            ]);
-        }
-
-        $base64 = substr($signatureData, strlen('data:image/png;base64,'));
-        $binary = base64_decode($base64, true);
-
-        if ($binary === false || strlen($binary) < 100) {
-            throw ValidationException::withMessages([
-                'signature_data' => 'Tanda tangan belum terbaca. Silakan tanda tangani ulang.',
-            ]);
-        }
-
-        if (strlen($binary) > 1024 * 1024) {
-            throw ValidationException::withMessages([
-                'signature_data' => 'Ukuran tanda tangan terlalu besar.',
-            ]);
-        }
-
-        return $signatureData;
-    }
 }

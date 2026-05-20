@@ -5,13 +5,15 @@
     $beforeFiles = collect($filesByCategory->get('fabrication_before', collect()));
     $afterFiles = collect($filesByCategory->get('fabrication_after', collect()));
     $signature = collect($payload['signature'] ?? []);
-    $signatureData = (string) $signature->get('signature_data', '');
+    $signatureData = \App\Support\SignatureImageStorage::imageSource((string) $signature->get('signature_data', '')) ?: '';
     $signatureName = (string) $signature->get('signer_name', '');
     $signatureDate = (string) $signature->get('signed_at', '');
     $qcSignatures = ($report->relationLoaded('signatures') ? $report->signatures : $report->signatures()->get())
         ->keyBy('role_key');
     $approvalSignatureFor = fn (string $roleKey) => $qcSignatures->get($roleKey);
-    $approvalSignatureData = fn ($approvalSignature): string => $approvalSignature?->isSigned() ? (string) $approvalSignature->signature_data : '';
+    $approvalSignatureData = fn ($approvalSignature): string => $approvalSignature?->isSigned()
+        ? (string) (\App\Support\SignatureImageStorage::imageSource((string) $approvalSignature->signature_data) ?: '')
+        : '';
     $approvalSignatureName = fn ($approvalSignature): string => $approvalSignature?->isSigned() ? (string) $approvalSignature->signer_name : '';
     $approvalSignatureRole = fn ($approvalSignature): string => $approvalSignature?->isSigned() ? (string) ($approvalSignature->signer_position ?: $approvalSignature->role_label) : '';
     $approvalSignatureDate = static function ($approvalSignature): string {

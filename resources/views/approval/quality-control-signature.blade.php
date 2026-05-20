@@ -132,9 +132,9 @@
                                 </p>
                             </div>
                         @else
-                            <form method="POST" action="{{ route('approval.quality-control.sign', $token) }}" id="signatureForm" class="rounded-[1.75rem] border border-slate-200 bg-slate-50 p-5 shadow-sm">
+                            <form method="POST" action="{{ route('approval.quality-control.sign', $token) }}" id="signatureForm" enctype="multipart/form-data" class="rounded-[1.75rem] border border-slate-200 bg-slate-50 p-5 shadow-sm">
                                 @csrf
-                                <input type="hidden" name="signature_data" id="signatureData">
+                                <input type="file" name="signature_file" id="signatureFile" accept="image/png,image/jpeg" class="hidden">
                                 <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Tanda Tangan Digital</div>
                                 <div class="mt-3 rounded-2xl border border-dashed border-slate-300 bg-white p-3">
                                     <canvas id="signatureCanvas" width="620" height="260" class="h-60 w-full rounded-xl bg-white sm:h-72"></canvas>
@@ -161,16 +161,17 @@
         document.addEventListener('DOMContentLoaded', () => {
             const canvas = document.getElementById('signatureCanvas');
             const form = document.getElementById('signatureForm');
-            const signatureData = document.getElementById('signatureData');
+            const signatureFile = document.getElementById('signatureFile');
             const clearButton = document.getElementById('clearSignature');
 
-            if (!canvas || !form || !signatureData) {
+            if (!canvas || !form || !signatureFile) {
                 return;
             }
 
             const ctx = canvas.getContext('2d');
             let drawing = false;
             let touched = false;
+            let preparedSubmit = false;
 
             const resizeCanvas = () => {
                 const rect = canvas.getBoundingClientRect();
@@ -234,17 +235,33 @@
                 const rect = canvas.getBoundingClientRect();
                 ctx.clearRect(0, 0, rect.width, rect.height);
                 touched = false;
-                signatureData.value = '';
+                signatureFile.value = '';
             });
 
-            form.addEventListener('submit', (event) => {
+            form.addEventListener('submit', async (event) => {
+                if (preparedSubmit) {
+                    return;
+                }
+
                 if (!touched) {
                     event.preventDefault();
                     alert('Silakan isi tanda tangan terlebih dahulu.');
                     return;
                 }
 
-                signatureData.value = canvas.toDataURL('image/png');
+                event.preventDefault();
+                const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+
+                if (!blob) {
+                    alert('Tanda tangan belum terbaca. Silakan tanda tangani ulang.');
+                    return;
+                }
+
+                const transfer = new DataTransfer();
+                transfer.items.add(new File([blob], 'signature.png', { type: 'image/png' }));
+                signatureFile.files = transfer.files;
+                preparedSubmit = true;
+                form.submit();
             });
 
             resizeCanvas();

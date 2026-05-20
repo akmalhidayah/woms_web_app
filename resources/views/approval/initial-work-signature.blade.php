@@ -241,9 +241,9 @@
                             </div>
                         @else
                             <div class="rounded-[1.75rem] border border-stone-200 bg-[#fbfaf7] p-4 shadow-sm sm:p-5">
-                                <form method="POST" action="{{ route('approval.initial-work.sign', $token) }}" id="signatureForm" class="space-y-4">
+                                <form method="POST" action="{{ route('approval.initial-work.sign', $token) }}" id="signatureForm" enctype="multipart/form-data" class="space-y-4">
                                     @csrf
-                                    <input type="hidden" name="signature_data" id="signatureData">
+                                    <input type="file" name="signature_file" id="signatureFile" accept="image/png,image/jpeg" class="hidden">
 
                                     <div class="rounded-2xl border border-stone-200 bg-white px-4 py-4">
                                         <div class="flex flex-col gap-2">
@@ -368,13 +368,14 @@
             @if ($canSign)
                 const canvas = document.getElementById('signatureCanvas');
                 const form = document.getElementById('signatureForm');
-                const signatureData = document.getElementById('signatureData');
+                const signatureFile = document.getElementById('signatureFile');
                 const clearButton = document.getElementById('clearSignature');
 
-                if (canvas && form && signatureData) {
+                if (canvas && form && signatureFile) {
                     const context = canvas.getContext('2d');
                     let drawing = false;
                     let hasStroke = false;
+                    let preparedSubmit = false;
 
                     const setupCanvasStyle = () => {
                         context.lineWidth = 2.4;
@@ -452,16 +453,33 @@
                         context.clearRect(0, 0, canvas.width, canvas.height);
                         setupCanvasStyle();
                         hasStroke = false;
+                        signatureFile.value = '';
                     });
 
-                    form.addEventListener('submit', (event) => {
+                    form.addEventListener('submit', async (event) => {
+                        if (preparedSubmit) {
+                            return;
+                        }
+
                         if (!hasStroke) {
                             event.preventDefault();
                             alert('Silakan isi tanda tangan terlebih dahulu.');
                             return;
                         }
 
-                        signatureData.value = canvas.toDataURL('image/png');
+                        event.preventDefault();
+                        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+
+                        if (!blob) {
+                            alert('Tanda tangan belum terbaca. Silakan tanda tangani ulang.');
+                            return;
+                        }
+
+                        const transfer = new DataTransfer();
+                        transfer.items.add(new File([blob], 'signature.png', { type: 'image/png' }));
+                        signatureFile.files = transfer.files;
+                        preparedSubmit = true;
+                        form.submit();
                     });
                 }
             @endif

@@ -13,7 +13,7 @@
         x-data="initScopeOfWorkModal({
             showOnLoad: @js((bool) $showSowOnLoad),
             scopeRows: @js($scopeItems ?: [['scope_pekerjaan' => '', 'qty' => '', 'satuan' => '', 'keterangan' => '']]),
-            signatureData: @js(old('tanda_tangan', $scopeOfWork?->tanda_tangan ?? '')),
+            signatureData: '',
         })"
         class="space-y-6"
     >

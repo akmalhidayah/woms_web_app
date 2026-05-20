@@ -7,10 +7,10 @@ use App\Http\Controllers\Controller;
 use App\Models\LhppBast;
 use App\Models\LhppBastSignature;
 use App\Support\BastApprovalSignatureBuilder;
+use App\Support\SignatureImageStorage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -136,18 +136,23 @@ class BastSignatureController extends Controller
         }
 
         $validated = $request->validate([
-            'signature_data' => ['required', 'string'],
+            'signature_file' => ['nullable', 'file', 'mimetypes:image/png,image/jpeg', 'max:2048'],
+            'signature_data' => ['nullable', 'string'],
             'approval_note' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $this->validateSignatureData((string) $validated['signature_data']);
+        $signaturePath = SignatureImageStorage::storeFromRequest(
+            $request,
+            'bast-signatures/'.$signature->lhpp_bast_id,
+            $signature->role_key,
+        );
 
-        DB::transaction(function () use ($request, $signature, $validated): void {
+        DB::transaction(function () use ($request, $signature, $validated, $signaturePath): void {
             $signature->update([
                 'status' => LhppBastSignature::STATUS_SIGNED,
                 'opened_at' => $signature->opened_at ?: now(),
                 'signed_at' => now(),
-                'signature_data' => (string) $validated['signature_data'],
+                'signature_data' => $signaturePath,
                 'approval_note' => $this->normalizeNullableString($validated['approval_note'] ?? null),
                 'signed_ip' => $request->ip(),
                 'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
@@ -179,30 +184,6 @@ class BastSignatureController extends Controller
             403,
             'Link approval BAST ini hanya untuk penanda tangan yang ditetapkan.'
         );
-    }
-
-    private function validateSignatureData(string $signatureData): void
-    {
-        if (! str_starts_with($signatureData, 'data:image/png;base64,')) {
-            throw ValidationException::withMessages([
-                'signature_data' => 'Format tanda tangan tidak valid.',
-            ]);
-        }
-
-        $base64 = substr($signatureData, strlen('data:image/png;base64,'));
-        $binary = base64_decode($base64, true);
-
-        if ($binary === false || strlen($binary) < 100) {
-            throw ValidationException::withMessages([
-                'signature_data' => 'Tanda tangan belum terbaca. Silakan tanda tangani ulang.',
-            ]);
-        }
-
-        if (strlen($binary) > 1024 * 1024) {
-            throw ValidationException::withMessages([
-                'signature_data' => 'Ukuran tanda tangan terlalu besar.',
-            ]);
-        }
     }
 
     private function normalizeNullableString(mixed $value): ?string

@@ -14,11 +14,11 @@ use App\Models\OrderWorkshop;
 use App\Models\QualityControlReport;
 use App\Models\QualityControlSignature;
 use App\Services\QualityControl\QualityControlSignatureService;
+use App\Support\SignatureImageStorage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use setasign\Fpdi\Fpdi;
 use Symfony\Component\HttpFoundation\Response;
@@ -118,28 +118,12 @@ class OrderTrackingController extends Controller
 
         $scopeOfWork->loadMissing('creator');
         $order->loadMissing('creator');
-        $signaturePath = null;
-
-        if ($scopeOfWork->tanda_tangan && str_starts_with($scopeOfWork->tanda_tangan, 'data:image')) {
-            $signatureDirectory = storage_path('app/public/signatures');
-
-            if (! File::exists($signatureDirectory)) {
-                File::makeDirectory($signatureDirectory, 0755, true);
-            }
-
-            $imageData = explode(',', $scopeOfWork->tanda_tangan)[1] ?? null;
-
-            if ($imageData) {
-                $signaturePath = $signatureDirectory.DIRECTORY_SEPARATOR.'scope-of-work-'.$scopeOfWork->id.'.png';
-                file_put_contents($signaturePath, base64_decode($imageData));
-            }
-        }
 
         $pdf = Pdf::loadView('admin.orders.scope-of-work-pdf', [
             'order' => $order,
             'scopeOfWork' => $scopeOfWork,
             'scopeItems' => $scopeOfWork->scope_items ?? [],
-            'signaturePath' => $signaturePath,
+            'signaturePath' => SignatureImageStorage::imageSource($scopeOfWork->tanda_tangan),
         ])->setPaper('a4', 'portrait');
 
         return $pdf->stream('scope-of-work-'.$order->nomor_order.'.pdf');

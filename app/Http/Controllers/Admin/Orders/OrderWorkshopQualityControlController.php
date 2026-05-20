@@ -10,6 +10,7 @@ use App\Models\OrderWorkshop;
 use App\Models\QualityControlReport;
 use App\Models\QualityControlReportFile;
 use App\Services\QualityControl\QualityControlSignatureService;
+use App\Support\SignatureImageStorage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -252,6 +253,8 @@ class OrderWorkshopQualityControlController extends Controller
             'status' => ['nullable', Rule::in([QualityControlReport::STATUS_DRAFT, QualityControlReport::STATUS_SUBMITTED])],
             'signature' => ['nullable', 'array'],
             'signature.signature_data' => ['nullable', 'string', 'max:500000'],
+            'signature.signature_existing' => ['nullable', 'string', 'max:500000'],
+            'signature.signature_file' => ['nullable', 'file', 'mimetypes:image/png,image/jpeg', 'max:2048'],
             'signature.signer_name' => ['nullable', 'string', 'max:191'],
             'signature.signed_at' => ['nullable', 'date'],
         ];
@@ -379,10 +382,26 @@ class OrderWorkshopQualityControlController extends Controller
      */
     private function signaturePayloadFromRequest(Request $request): array
     {
-        $signatureData = trim((string) $request->input('signature.signature_data', ''));
+        $signatureData = '';
+        $order = $request->route('order');
+        $orderId = $order instanceof Order ? $order->id : 'manual';
 
-        if ($signatureData !== '' && ! str_starts_with($signatureData, 'data:image/png;base64,')) {
-            $signatureData = '';
+        if ($request->hasFile('signature.signature_file')) {
+            $signatureData = SignatureImageStorage::storeUploadedFile(
+                $request->file('signature.signature_file'),
+                'quality-control-maker-signatures/'.$orderId,
+                'maker',
+            );
+        } else {
+            $legacySignatureData = trim((string) $request->input('signature.signature_data', ''));
+
+            if ($legacySignatureData !== '') {
+                $signatureData = str_starts_with($legacySignatureData, 'data:image/png;base64,')
+                    ? SignatureImageStorage::storeDataUri($legacySignatureData, 'quality-control-maker-signatures/'.$orderId, 'maker')
+                    : '';
+            } else {
+                $signatureData = trim((string) $request->input('signature.signature_existing', ''));
+            }
         }
 
         $signerName = trim((string) $request->input('signature.signer_name', ''));

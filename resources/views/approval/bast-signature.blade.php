@@ -212,9 +212,10 @@
                                 </div>
                             @else
                                 <div class="rounded-[1.75rem] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                                    <form method="POST" action="{{ route('approval.bast.sign', $token) }}" id="signatureForm" class="space-y-4">
+                                    <form method="POST" action="{{ route('approval.bast.sign', $token) }}" id="signatureForm" enctype="multipart/form-data" class="space-y-4">
                                         @csrf
-                                        <input type="hidden" name="signature_data" id="signatureData">
+                                        <input type="hidden" name="approval_action" id="approvalAction" value="sign">
+                                        <input type="file" name="signature_file" id="signatureFile" accept="image/png,image/jpeg" class="hidden">
 
                                         <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                                             <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -238,8 +239,8 @@
                                                 <button type="button" id="clearSignature" class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">Hapus</button>
 
                                                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                                                    <button type="submit" name="approval_action" value="reject" class="rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700">Reject</button>
-                                                    <button type="submit" name="approval_action" value="sign" class="rounded-xl bg-[#ca642f] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#b85b2b]">Simpan Tanda Tangan</button>
+                                                    <button type="submit" data-action="reject" class="rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700">Reject</button>
+                                                    <button type="submit" data-action="sign" class="rounded-xl bg-[#ca642f] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#b85b2b]">Simpan Tanda Tangan</button>
                                                 </div>
                                             </div>
                                         </div>
@@ -259,20 +260,22 @@
         document.addEventListener('DOMContentLoaded', () => {
             const canvas = document.getElementById('signatureCanvas');
             const form = document.getElementById('signatureForm');
-            const signatureData = document.getElementById('signatureData');
+            const signatureFile = document.getElementById('signatureFile');
+            const approvalAction = document.getElementById('approvalAction');
             const clearButton = document.getElementById('clearSignature');
 
             if (window.lucide) {
                 window.lucide.createIcons();
             }
 
-            if (!canvas || !form || !signatureData) {
+            if (!canvas || !form || !signatureFile || !approvalAction) {
                 return;
             }
 
             const ctx = canvas.getContext('2d');
             let drawing = false;
             let hasDrawn = false;
+            let preparedSubmit = false;
 
             const resizeCanvas = () => {
                 const rect = canvas.getBoundingClientRect();
@@ -342,14 +345,18 @@
             clearButton?.addEventListener('click', () => {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 hasDrawn = false;
-                signatureData.value = '';
+                signatureFile.value = '';
             });
 
-            form.addEventListener('submit', (event) => {
-                const submitter = event.submitter;
+            form.addEventListener('submit', async (event) => {
+                if (preparedSubmit) {
+                    return;
+                }
 
-                if (submitter?.value === 'reject') {
-                    signatureData.value = '';
+                const action = event.submitter?.dataset.action || 'sign';
+                approvalAction.value = action;
+
+                if (action === 'reject') {
                     return;
                 }
 
@@ -359,7 +366,19 @@
                     return;
                 }
 
-                signatureData.value = canvas.toDataURL('image/png');
+                event.preventDefault();
+                const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+
+                if (!blob) {
+                    alert('Tanda tangan belum terbaca. Silakan tanda tangani ulang.');
+                    return;
+                }
+
+                const transfer = new DataTransfer();
+                transfer.items.add(new File([blob], 'signature.png', { type: 'image/png' }));
+                signatureFile.files = transfer.files;
+                preparedSubmit = true;
+                form.submit();
             });
         });
     </script>

@@ -9,6 +9,13 @@
             ];
         })->values()->all()
         : ($scopeOfWork?->scope_items ?? [['scope_pekerjaan' => '', 'qty' => '', 'satuan' => '', 'keterangan' => '']]);
+    $signaturePreview = $scopeOfWork?->tanda_tangan ?? '';
+
+    if ($signaturePreview && ! str_starts_with($signaturePreview, 'data:image')) {
+        $signaturePreview = \Illuminate\Support\Facades\Storage::disk('public')->exists($signaturePreview)
+            ? \Illuminate\Support\Facades\Storage::disk('public')->url($signaturePreview)
+            : '';
+    }
 @endphp
 
 <div
@@ -29,14 +36,16 @@
         <form
             method="POST"
             action="{{ $scopeOfWork ? route('admin.orders.scope-of-work.update', [$order, $scopeOfWork]) : route('admin.orders.scope-of-work.store', $order) }}"
+            enctype="multipart/form-data"
             class="max-h-[90vh] overflow-y-auto p-6"
+            @submit.prevent="submitSowForm($event)"
         >
             @csrf
             @if ($scopeOfWork)
                 @method('PUT')
             @endif
 
-            <input type="hidden" name="tanda_tangan" x-model="signatureData">
+            <input type="file" name="tanda_tangan_file" accept="image/png,image/jpeg" x-ref="signatureFile" class="hidden">
 
             <div class="flex items-center justify-between gap-4">
                 <div>
@@ -169,7 +178,7 @@
                 <div class="mt-4 rounded-2xl border border-slate-300 bg-white p-3">
                     <canvas
                         x-ref="signatureCanvas"
-                        data-existing-signature="{{ old('tanda_tangan', $scopeOfWork?->tanda_tangan ?? '') }}"
+                        data-existing-signature="{{ $signaturePreview }}"
                         class="h-52 w-full touch-none rounded-xl border border-dashed border-slate-300 bg-slate-50"
                     ></canvas>
                 </div>
@@ -289,6 +298,23 @@
                 if (!this.ctx || !this.canvas) return;
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 this.signatureData = '';
+                if (this.$refs.signatureFile) {
+                    this.$refs.signatureFile.value = '';
+                }
+            },
+
+            async submitSowForm(event) {
+                if (this.canvas && this.signatureData && this.$refs.signatureFile) {
+                    const blob = await new Promise((resolve) => this.canvas.toBlob(resolve, 'image/png'));
+
+                    if (blob) {
+                        const transfer = new DataTransfer();
+                        transfer.items.add(new File([blob], 'scope-of-work-signature.png', { type: 'image/png' }));
+                        this.$refs.signatureFile.files = transfer.files;
+                    }
+                }
+
+                event.target.submit();
             },
 
             init() {

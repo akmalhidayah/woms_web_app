@@ -30,7 +30,7 @@ class RegistrationTest extends TestCase
 
         $response
             ->assertHasNoErrors()
-            ->assertRedirect(route('user.dashboard', absolute: false));
+            ->assertRedirect(route('user.dashboard'));
 
         $this->assertAuthenticated();
         $this->assertSame(User::ROLE_APPROVER, auth()->user()->role);

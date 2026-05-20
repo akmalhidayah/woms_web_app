@@ -16,14 +16,18 @@ class EnsureAdminHasSubrole
     {
         $user = $request->user();
 
-        if (! $user || ! $user->hasRole(User::ROLE_ADMIN)) {
+        if (! $user) {
             return redirect()->route('login');
+        }
+
+        if (! $user->hasRole(User::ROLE_ADMIN)) {
+            abort(403, 'Anda tidak memiliki hak akses untuk membuka halaman ini.');
         }
 
         if (in_array($user->resolvedAdminRole(), $subroles, true)) {
             return $next($request);
         }
 
-        return redirect()->route('admin.dashboard');
+        abort(403, 'Anda tidak memiliki hak akses untuk membuka halaman ini.');
     }
 }

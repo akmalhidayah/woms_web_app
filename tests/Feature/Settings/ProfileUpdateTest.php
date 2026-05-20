@@ -66,7 +66,7 @@ class ProfileUpdateTest extends TestCase
 
         $response
             ->assertHasNoErrors()
-            ->assertRedirect('/');
+            ->assertRedirect(route('login'));
 
         $this->assertNull($user->fresh());
         $this->assertFalse(auth()->check());

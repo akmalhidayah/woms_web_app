@@ -17,16 +17,18 @@ class EnsureAdminMenuAccess
     {
         $user = $request->user();
 
-        if (! $user || ! $user->hasRole(User::ROLE_ADMIN)) {
+        if (! $user) {
             return redirect()->route('login');
+        }
+
+        if (! $user->hasRole(User::ROLE_ADMIN)) {
+            abort(403, 'Anda tidak memiliki hak akses untuk membuka halaman ini.');
         }
 
         if (AdminMenuRegistry::canAccess($user, $menuKey)) {
             return $next($request);
         }
 
-        return redirect()
-            ->route('admin.dashboard')
-            ->with('status', 'Anda tidak memiliki akses ke menu tersebut.');
+        abort(403, 'Anda tidak memiliki hak akses untuk membuka halaman ini.');
     }
 }

@@ -39,10 +39,7 @@ public function login(): void
     RateLimiter::clear($this->throttleKey());
     Session::regenerate();
 
-    $this->redirectIntended(
-        route(Auth::user()->dashboardRouteName(), absolute: false),
-        navigate: true
-    );
+    $this->redirectRoute(Auth::user()->dashboardRouteName(), navigate: true);
 }
 
     /**

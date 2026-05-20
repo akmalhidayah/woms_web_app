@@ -437,11 +437,11 @@ Route::delete('admin/struktur-organisasi/{unitWork}', [StructureOrganizationCont
         ->where('termin', '[12]')
         ->name('pkm.laporan.preview');
 
-    Route::redirect('approver/dashboard', 'user/dashboard')
+    Route::get('approver/dashboard', fn () => redirect()->route('user.dashboard'))
         ->middleware('role:approver')
         ->name('approver.dashboard');
 
-    Route::redirect('settings', 'settings/profile');
+    Route::get('settings', fn () => redirect()->route('settings.profile'));
 
     Volt::route('settings/profile', 'settings.profile')->name('settings.profile');
     Volt::route('settings/password', 'settings.password')->name('settings.password');

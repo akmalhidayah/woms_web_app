@@ -23,6 +23,6 @@ class EnsureUserHasRole
             return $next($request);
         }
 
-        return redirect()->route($user->dashboardRouteName());
+        abort(403, 'Anda tidak memiliki hak akses untuk membuka halaman ini.');
     }
 }

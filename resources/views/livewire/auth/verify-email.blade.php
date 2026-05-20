@@ -13,7 +13,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
     public function sendVerification(): void
     {
         if (Auth::user()->hasVerifiedEmail()) {
-            $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+            $this->redirectIntended(default: route('dashboard'), navigate: true);
 
             return;
         }
@@ -30,7 +30,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
     {
         $logout();
 
-        $this->redirect('/', navigate: true);
+        $this->redirect(route('login'), navigate: true);
     }
 }; ?>
 

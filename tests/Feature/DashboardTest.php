@@ -25,13 +25,13 @@ class DashboardTest extends TestCase
         $response->assertRedirect('/user/dashboard');
     }
 
-    public function test_users_are_redirected_to_their_own_dashboard_when_visiting_a_role_they_do_not_have(): void
+    public function test_users_are_forbidden_when_visiting_a_role_they_do_not_have(): void
     {
         $user = User::factory()->create(['role' => User::ROLE_USER]);
         $this->actingAs($user);
 
         $response = $this->get('/admin/dashboard');
 
-        $response->assertRedirect('/user/dashboard');
+        $response->assertForbidden();
     }
 }

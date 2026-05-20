@@ -263,7 +263,7 @@ class RoleDashboardAccessTest extends TestCase
 
         $response = $this->actingAs($user)->get('/approver/dashboard');
 
-        $response->assertRedirect('/user/dashboard');
+        $response->assertRedirect(route('user.dashboard'));
     }
 
     public function test_approver_can_open_user_order_detail_from_dashboard(): void

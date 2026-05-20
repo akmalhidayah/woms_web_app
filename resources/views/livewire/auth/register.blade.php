@@ -34,7 +34,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
 
         Auth::login($user);
 
-        $this->redirect(route($user->dashboardRouteName()), navigate: true);
+        $this->redirectRoute($user->dashboardRouteName(), navigate: true);
     }
 }; ?>
 

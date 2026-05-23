@@ -22,7 +22,7 @@ class RegistrationTest extends TestCase
     {
         $response = Volt::test('auth.register')
             ->set('name', 'Test User')
-            ->set('email', 'test@example.com')
+            ->set('email', ' TEST@EXAMPLE.COM ')
             ->set('role', User::ROLE_APPROVER)
             ->set('password', 'password')
             ->set('password_confirmation', 'password')
@@ -34,5 +34,6 @@ class RegistrationTest extends TestCase
 
         $this->assertAuthenticated();
         $this->assertSame(User::ROLE_APPROVER, auth()->user()->role);
+        $this->assertSame('test@example.com', auth()->user()->email);
     }
 }

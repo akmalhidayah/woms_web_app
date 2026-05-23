@@ -185,36 +185,63 @@ class BengkelTaskController extends Controller
         $workshopOrders = $this->workshopOrderOptions($bengkel_task->order_id);
         $progressOptions = OrderWorkshop::progressOptions();
 
-        $selectedPicIds = collect($bengkel_task->person_in_charge_profiles ?? [])
-            ->pluck('id')
+        $picsById = $picOptions->keyBy('id');
+        $picsByName = $picOptions->keyBy(static fn (BengkelPic $pic): string => mb_strtolower(trim($pic->name)));
+        $picsByPath = $picOptions
+            ->filter(fn (BengkelPic $pic): bool => filled($pic->avatar_path))
+            ->keyBy('avatar_path');
+
+        $picAssignments = collect($bengkel_task->person_in_charge_profiles ?? [])
+            ->filter(fn ($profile): bool => is_array($profile))
+            ->map(function (array $profile) use ($picsById, $picsByName, $picsByPath): ?array {
+                $pic = ! empty($profile['id']) ? $picsById->get((int) $profile['id']) : null;
+
+                if (! $pic && filled($profile['name'] ?? null)) {
+                    $pic = $picsByName->get(mb_strtolower(trim((string) $profile['name'])));
+                }
+
+                if (! $pic && filled($profile['avatar_path'] ?? null)) {
+                    $pic = $picsByPath->get(trim((string) $profile['avatar_path']));
+                }
+
+                if (! $pic) {
+                    return null;
+                }
+
+                return [
+                    'pic_id' => $pic->id,
+                    'descriptions' => $this->normalizeWorkDescriptions($profile['work_descriptions'] ?? []),
+                ];
+            })
             ->filter()
             ->values()
             ->all();
 
-        $picAssignments = collect($bengkel_task->person_in_charge_profiles ?? [])
-            ->filter(fn ($profile): bool => is_array($profile) && ! empty($profile['id']))
-            ->map(fn (array $profile): array => [
-                'pic_id' => (int) $profile['id'],
-                'descriptions' => $this->normalizeWorkDescriptions($profile['work_descriptions'] ?? []),
-            ])
+        $selectedPicIds = collect($picAssignments)
+            ->pluck('pic_id')
             ->values()
             ->all();
 
-        if ($selectedPicIds === []) {
+        if ($picAssignments === []) {
             $names = collect($bengkel_task->person_in_charge ?? [])->filter()->values();
 
             if ($names->isNotEmpty()) {
-                $selectedPicIds = BengkelPic::query()
-                    ->whereIn('name', $names->all())
-                    ->pluck('id')
+                $matchedPics = $names
+                    ->map(fn ($name) => $picsByName->get(mb_strtolower(trim((string) $name))))
+                    ->filter()
                     ->values()
                     ->all();
 
-                $picAssignments = collect($selectedPicIds)
-                    ->map(fn ($picId): array => [
-                        'pic_id' => (int) $picId,
+                $picAssignments = collect($matchedPics)
+                    ->map(fn (BengkelPic $pic): array => [
+                        'pic_id' => $pic->id,
                         'descriptions' => [],
                     ])
+                    ->values()
+                    ->all();
+
+                $selectedPicIds = collect($picAssignments)
+                    ->pluck('pic_id')
                     ->values()
                     ->all();
             }

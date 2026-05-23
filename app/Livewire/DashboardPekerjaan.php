@@ -67,12 +67,14 @@ class DashboardPekerjaan extends Component
     {
         $this->loadDisplaySettings();
 
-        $picDirectory = BengkelPic::query()
-            ->get(['id', 'name', 'avatar_path', 'avatar_position_x', 'avatar_position_y'])
-            ->keyBy('id');
-        $picDirectoryByName = BengkelPic::query()
-            ->get(['id', 'name', 'avatar_path', 'avatar_position_x', 'avatar_position_y'])
-            ->keyBy(fn (BengkelPic $pic) => mb_strtolower(trim($pic->name)));
+        $pics = BengkelPic::query()
+            ->get(['id', 'name', 'avatar_path', 'avatar_position_x', 'avatar_position_y']);
+
+        $picDirectory = $pics->keyBy('id');
+        $picDirectoryByName = $pics->keyBy(fn (BengkelPic $pic) => mb_strtolower(trim($pic->name)));
+        $picDirectoryByPath = $pics
+            ->filter(fn (BengkelPic $pic): bool => filled($pic->avatar_path))
+            ->keyBy('avatar_path');
 
         $tasks = BengkelTask::query()
             ->with('order.orderWorkshop')
@@ -94,13 +96,13 @@ class DashboardPekerjaan extends Component
             ->orderByDesc('created_at')
             ->get();
 
-        $this->tasks = $tasks->map(static function (BengkelTask $task) use ($picDirectory, $picDirectoryByName): array {
+        $this->tasks = $tasks->map(static function (BengkelTask $task) use ($picDirectory, $picDirectoryByName, $picDirectoryByPath): array {
             $names = collect(is_array($task->person_in_charge) ? $task->person_in_charge : [])
                 ->filter(fn ($name) => filled($name))
                 ->values();
 
             $profiles = collect(is_array($task->person_in_charge_profiles) ? $task->person_in_charge_profiles : [])
-                ->map(function ($profile) use ($picDirectory): array {
+                ->map(function ($profile) use ($picDirectory, $picDirectoryByName, $picDirectoryByPath): array {
                     if (! is_array($profile)) {
                         return [];
                     }
@@ -108,8 +110,16 @@ class DashboardPekerjaan extends Component
                     $picId = isset($profile['id']) ? (int) $profile['id'] : null;
                     $currentPic = $picId ? $picDirectory->get($picId) : null;
 
+                    if (! $currentPic && filled($profile['name'] ?? null)) {
+                        $currentPic = $picDirectoryByName->get(mb_strtolower(trim((string) $profile['name'])));
+                    }
+
+                    if (! $currentPic && filled($profile['avatar_path'] ?? null)) {
+                        $currentPic = $picDirectoryByPath->get(trim((string) $profile['avatar_path']));
+                    }
+
                     return [
-                        'id' => $picId,
+                        'id' => $currentPic?->id ?? $picId,
                         'name' => $currentPic?->name ?: ($profile['name'] ?? ''),
                         'avatar_path' => $currentPic?->avatar_path ?: ($profile['avatar_path'] ?? null),
                         'avatar_url' => $currentPic?->avatar_url,

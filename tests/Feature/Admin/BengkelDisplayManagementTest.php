@@ -126,6 +126,67 @@ class BengkelDisplayManagementTest extends TestCase
         $this->assertSame(40, $pic->avatar_position_y);
     }
 
+    public function test_bengkel_task_edit_resolves_stale_pic_profile_id_by_name(): void
+    {
+        $user = $this->adminUser();
+        $pic = BengkelPic::create([
+            'name' => 'Akbar',
+            'avatar_path' => 'bengkel-pics/akbar.jpg',
+            'avatar_position_x' => 50,
+            'avatar_position_y' => 50,
+        ]);
+        $task = BengkelTask::create([
+            'job_name' => 'Repair Bucket Reject',
+            'notification_number' => 'WO-003',
+            'unit_work' => 'Machine Maintenance 2',
+            'seksi' => 'Line 4/5 RM Machine Maint',
+            'usage_plan_date' => '2026-05-26',
+            'catatan' => 'Regu Fabrikasi',
+            'person_in_charge' => ['Akbar'],
+            'person_in_charge_profiles' => [
+                [
+                    'id' => 99999,
+                    'name' => 'Akbar',
+                    'avatar_path' => 'bengkel-pics/old-akbar.jpg',
+                    'work_descriptions' => ['Las bucket'],
+                ],
+            ],
+        ]);
+
+        $editUrl = route('admin.bengkel-tasks.edit', $task);
+        $updateUrl = route('admin.bengkel-tasks.update', $task);
+
+        $this->actingAs($user)
+            ->get($editUrl)
+            ->assertOk()
+            ->assertSee('"pic_id":'.$pic->id, false)
+            ->assertDontSee('99999');
+
+        $this->actingAs($user)
+            ->put($updateUrl, [
+                'job_name' => 'Repair Bucket Reject Update',
+                'notification_number' => 'WO-003',
+                'unit_work' => 'Machine Maintenance 2',
+                'seksi' => 'Line 4/5 RM Machine Maint',
+                'usage_plan_date' => '2026-05-26',
+                'catatan' => 'Regu Fabrikasi',
+                'pic_assignments' => [
+                    [
+                        'pic_id' => $pic->id,
+                        'descriptions' => ['Las bucket'],
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('admin.bengkel-tasks.index'))
+            ->assertSessionHas('status', 'Pekerjaan bengkel diperbarui.');
+
+        $task->refresh();
+
+        $this->assertSame(['Akbar'], $task->person_in_charge);
+        $this->assertSame($pic->id, $task->person_in_charge_profiles[0]['id']);
+        $this->assertSame(['Las bucket'], $task->person_in_charge_profiles[0]['work_descriptions']);
+    }
+
     private function adminUser(): User
     {
         return User::factory()->create([

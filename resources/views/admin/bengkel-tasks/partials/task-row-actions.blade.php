@@ -2,17 +2,6 @@
     $attachmentPayload = $attachmentPayload ?? null;
     $isMobile = (bool) ($mobile ?? false);
     $badge = $badge ?? null;
-    $progressOptions = \App\Models\OrderWorkshop::progressOptions();
-    $currentProgress = $progressStatus ?? (
-        method_exists($task, 'effectiveProgressStatus')
-            ? $task->effectiveProgressStatus()
-            : ($task->progress_status ?? \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL)
-    );
-    $currentProgressLabel = $progressLabel ?? (
-        method_exists($task, 'effectiveProgressLabel')
-            ? $task->effectiveProgressLabel()
-            : ($progressOptions[$currentProgress] ?? 'Berjalan')
-    );
 @endphp
 
 <div class="flex flex-col gap-2 {{ $isMobile ? 'w-full items-start' : 'items-end' }}">
@@ -21,11 +10,6 @@
             <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold {{ $badge['class'] }}">
                 {{ $badge['label'] }}
             </span>
-            @include('admin.bengkel-tasks.partials.task-status-badge', [
-                'isCompleted' => $isCompleted,
-                'progressStatus' => $currentProgress,
-                'progressLabel' => $currentProgressLabel,
-            ])
         </div>
     @endif
 

@@ -76,7 +76,7 @@ class BengkelDisplayManagementTest extends TestCase
 
         $this->assertDatabaseHas('bengkel_tasks', [
             'id' => $pageTwoTask->id,
-            'job_name' => 'Bucket Repair Lama Update',
+            'job_name' => 'BUCKET REPAIR LAMA UPDATE',
             'notification_number' => 'WO-001-REV',
         ]);
     }

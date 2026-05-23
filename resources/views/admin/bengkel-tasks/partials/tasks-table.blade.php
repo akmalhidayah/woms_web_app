@@ -90,7 +90,14 @@
                         </td>
 
                         <td class="px-3 py-2.5">
-                            {{ optional($task->usage_plan_date)->format('d-m-Y') ?: '-' }}
+                            <div class="flex flex-col items-start gap-1.5">
+                                @include('admin.bengkel-tasks.partials.task-status-badge', [
+                                    'isCompleted' => $isCompleted,
+                                    'progressStatus' => $progressStatus,
+                                    'progressLabel' => $progressLabel,
+                                ])
+                                <span>{{ optional($task->usage_plan_date)->format('d-m-Y') ?: '-' }}</span>
+                            </div>
                         </td>
 
                         <td class="px-3 py-2.5 text-right">
@@ -154,7 +161,14 @@
                             </div>
                             <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                                 <div class="font-semibold uppercase tracking-[0.12em] text-slate-400">Target</div>
-                                <div class="mt-1 font-bold text-slate-900">{{ optional($task->usage_plan_date)->format('d-m-Y') ?: '-' }}</div>
+                                <div class="mt-1 flex flex-col items-start gap-1.5">
+                                    @include('admin.bengkel-tasks.partials.task-status-badge', [
+                                        'isCompleted' => $isCompleted,
+                                        'progressStatus' => $progressStatus,
+                                        'progressLabel' => $progressLabel,
+                                    ])
+                                    <span class="font-bold text-slate-900">{{ optional($task->usage_plan_date)->format('d-m-Y') ?: '-' }}</span>
+                                </div>
                             </div>
                         </div>
 

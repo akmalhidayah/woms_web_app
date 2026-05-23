@@ -28,8 +28,8 @@ class DashboardPekerjaanTest extends TestCase
         ]);
 
         $component = Livewire::test(DashboardPekerjaan::class, ['mode' => 'display'])
-            ->assertSee('Perbaikan Bucket Awal')
-            ->assertDontSee('Perbaikan Bucket Baru');
+            ->assertSee('PERBAIKAN BUCKET AWAL')
+            ->assertDontSee('PERBAIKAN BUCKET BARU');
 
         BengkelTask::create([
             'job_name' => 'Perbaikan Bucket Baru',
@@ -44,7 +44,7 @@ class DashboardPekerjaanTest extends TestCase
 
         $component
             ->call('refreshBoard')
-            ->assertSee('Perbaikan Bucket Baru');
+            ->assertSee('PERBAIKAN BUCKET BARU');
     }
 
     public function test_display_mode_uses_keep_alive_polling(): void

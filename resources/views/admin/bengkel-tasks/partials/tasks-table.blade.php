@@ -38,8 +38,6 @@
                     <th class="w-10 px-3 py-2.5 text-left font-semibold">Pilih</th>
                     <th class="px-3 py-2.5 text-left font-semibold">Nama Pekerjaan</th>
                     <th class="px-3 py-2.5 text-left font-semibold">Nomor Order</th>
-                    <th class="px-3 py-2.5 text-left font-semibold">Regu</th>
-                    <th class="px-3 py-2.5 text-left font-semibold">Status</th>
                     <th class="px-3 py-2.5 text-left font-semibold">Penanggung Jawab</th>
                     <th class="px-3 py-2.5 text-left font-semibold">Target</th>
                     <th class="px-3 py-2.5 text-right font-semibold">Aksi</th>
@@ -72,6 +70,16 @@
                                 <div class="truncate">{{ $task->unit_work ?: '-' }}</div>
                                 <div class="truncate text-[10px] text-slate-500">Seksi: {{ $task->seksi ?: '-' }}</div>
                             </div>
+                            <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold {{ $badge['class'] }}">
+                                    {{ $badge['label'] }}
+                                </span>
+                                @include('admin.bengkel-tasks.partials.task-status-badge', [
+                                    'isCompleted' => $isCompleted,
+                                    'progressStatus' => $progressStatus,
+                                    'progressLabel' => $progressLabel,
+                                ])
+                            </div>
                             @if ($attachmentPayload)
                                 <button type="button" @click="openAttachment(@js($attachmentPayload))" class="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10px] font-semibold text-blue-700 transition hover:bg-blue-100">
                                     <i data-lucide="{{ $task->attachment_is_image ? 'image' : 'file-text' }}" class="h-3.5 w-3.5 shrink-0"></i>
@@ -85,20 +93,6 @@
                             @if ($task->notification_number)
                                 <div class="text-[10px] text-slate-500">Notification</div>
                             @endif
-                        </td>
-
-                        <td class="px-3 py-2.5">
-                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $badge['class'] }}">
-                                {{ $badge['label'] }}
-                            </span>
-                        </td>
-
-                        <td class="px-3 py-2.5">
-                            @include('admin.bengkel-tasks.partials.task-status-badge', [
-                                'isCompleted' => $isCompleted,
-                                'progressStatus' => $progressStatus,
-                                'progressLabel' => $progressLabel,
-                            ])
                         </td>
 
                         <td class="px-3 py-2.5">
@@ -124,7 +118,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-4 py-7 text-center text-xs text-slate-500">Belum ada pekerjaan bengkel.</td>
+                        <td colspan="6" class="px-4 py-7 text-center text-xs text-slate-500">Belum ada pekerjaan bengkel.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -167,12 +161,6 @@
                                     </button>
                                 @endif
                             </div>
-
-                            @include('admin.bengkel-tasks.partials.task-status-badge', [
-                                'isCompleted' => $isCompleted,
-                                'progressStatus' => $progressStatus,
-                                'progressLabel' => $progressLabel,
-                            ])
                         </div>
 
                         <div class="mt-3 grid grid-cols-2 gap-2 text-[10px]">
@@ -190,6 +178,11 @@
                             <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold {{ $badge['class'] }}">
                                 {{ $badge['label'] }}
                             </span>
+                            @include('admin.bengkel-tasks.partials.task-status-badge', [
+                                'isCompleted' => $isCompleted,
+                                'progressStatus' => $progressStatus,
+                                'progressLabel' => $progressLabel,
+                            ])
                         </div>
 
                         <div class="mt-3">

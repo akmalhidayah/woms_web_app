@@ -159,7 +159,7 @@ class DashboardPekerjaan extends Component
                 'notification_number' => $task->notification_number,
                 'unit_work' => $task->unit_work,
                 'seksi' => $task->seksi,
-                'job_name' => $task->job_name,
+                'job_name' => mb_strtoupper((string) $task->job_name),
                 'usage_plan_date' => $task->usage_plan_date?->format('Y-m-d'),
                 'person_in_charge' => $names->all(),
                 'person_in_charge_profiles' => $profiles->all(),

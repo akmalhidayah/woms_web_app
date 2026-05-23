@@ -419,6 +419,7 @@ class BengkelTaskController extends Controller
             $validated['catatan'] = $catatan === '' ? null : $catatan;
         }
 
+        $validated['job_name'] = mb_strtoupper(trim((string) $validated['job_name']));
         $validated['progress_status'] = ($validated['progress_status'] ?? null)
             ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
         $validated['is_completed'] = $validated['progress_status'] === OrderWorkshop::PROGRESS_DONE;

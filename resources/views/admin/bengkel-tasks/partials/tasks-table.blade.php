@@ -47,6 +47,7 @@
                 @forelse ($tasks as $task)
                     @php
                         $badge = $reguBadge($task->catatan ?? null);
+                        $jobName = mb_strtoupper((string) $task->job_name);
                         $profiles = is_array($task->person_in_charge_profiles) ? $task->person_in_charge_profiles : [];
                         $names = is_array($task->person_in_charge) ? $task->person_in_charge : [];
                         $progressStatus = $task->effectiveProgressStatus();
@@ -65,20 +66,10 @@
                         </td>
 
                         <td class="px-3 py-2.5">
-                            <div class="font-semibold text-slate-900">{{ $task->job_name }}</div>
+                            <div class="font-semibold text-slate-900">{{ $jobName }}</div>
                             <div class="mt-1 text-[11px] leading-snug text-slate-600">
                                 <div class="truncate">{{ $task->unit_work ?: '-' }}</div>
                                 <div class="truncate text-[10px] text-slate-500">Seksi: {{ $task->seksi ?: '-' }}</div>
-                            </div>
-                            <div class="mt-2 flex flex-wrap items-center gap-1.5">
-                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold {{ $badge['class'] }}">
-                                    {{ $badge['label'] }}
-                                </span>
-                                @include('admin.bengkel-tasks.partials.task-status-badge', [
-                                    'isCompleted' => $isCompleted,
-                                    'progressStatus' => $progressStatus,
-                                    'progressLabel' => $progressLabel,
-                                ])
                             </div>
                         </td>
 
@@ -107,6 +98,9 @@
                                 'task' => $task,
                                 'indexQuery' => $indexQuery,
                                 'isCompleted' => $isCompleted,
+                                'badge' => $badge,
+                                'progressStatus' => $progressStatus,
+                                'progressLabel' => $progressLabel,
                                 'attachmentPayload' => $attachmentPayload,
                             ])
                         </td>
@@ -124,6 +118,7 @@
         @forelse ($tasks as $task)
             @php
                 $badge = $reguBadge($task->catatan ?? null);
+                $jobName = mb_strtoupper((string) $task->job_name);
                 $profiles = is_array($task->person_in_charge_profiles) ? $task->person_in_charge_profiles : [];
                 $names = is_array($task->person_in_charge) ? $task->person_in_charge : [];
                 $progressStatus = $task->effectiveProgressStatus();
@@ -144,7 +139,7 @@
                     <div class="min-w-0 flex-1">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
-                                <h3 class="break-words text-[13px] font-bold leading-snug text-slate-950">{{ $task->job_name }}</h3>
+                                <h3 class="break-words text-[13px] font-bold leading-snug text-slate-950">{{ $jobName }}</h3>
                                 <div class="mt-1 text-[10px] leading-snug text-slate-600">
                                     <div>{{ $task->unit_work ?: '-' }}</div>
                                     <div class="text-slate-500">Seksi: {{ $task->seksi ?: '-' }}</div>
@@ -163,17 +158,6 @@
                             </div>
                         </div>
 
-                        <div class="mt-3 flex flex-wrap items-center gap-2">
-                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold {{ $badge['class'] }}">
-                                {{ $badge['label'] }}
-                            </span>
-                            @include('admin.bengkel-tasks.partials.task-status-badge', [
-                                'isCompleted' => $isCompleted,
-                                'progressStatus' => $progressStatus,
-                                'progressLabel' => $progressLabel,
-                            ])
-                        </div>
-
                         <div class="mt-3">
                             @include('admin.bengkel-tasks.partials.task-pic-list', [
                                 'profiles' => $profiles,
@@ -188,6 +172,9 @@
                                 'task' => $task,
                                 'indexQuery' => $indexQuery,
                                 'isCompleted' => $isCompleted,
+                                'badge' => $badge,
+                                'progressStatus' => $progressStatus,
+                                'progressLabel' => $progressLabel,
                                 'attachmentPayload' => $attachmentPayload,
                                 'mobile' => true,
                             ])

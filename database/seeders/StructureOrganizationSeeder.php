@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Department;
 use App\Models\UnitWork;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -222,9 +223,9 @@ class StructureOrganizationSeeder extends Seeder
             ['id' => 59, 'name' => 'H. Syahruddin', 'jabatan' => 'Manager', 'dept' => 'Maintenance', 'unit_kerja' => 'Machine Maintenance 1', 'seksi' => 'Line 2/3 RKC Machine Maint'],
             ['id' => 60, 'name' => 'Kaharuddin', 'jabatan' => 'Manager', 'dept' => 'Maintenance', 'unit_kerja' => 'Machine Maintenance 1', 'seksi' => 'Crusher Machine & Conveyor Maint'],
             ['id' => 61, 'name' => 'Abd. Salam', 'jabatan' => 'Manager', 'dept' => 'Maintenance', 'unit_kerja' => 'Machine Maintenance 1', 'seksi' => 'Packer Machine Maintenance'],
-            ['id' => 113, 'name' => 'Fahrul Arifianto', 'jabatan' => 'Manager', 'dept' => 'Maintenance', 'unit_kerja' => 'Machine Maintenance 2', 'seksi' => 'Line 4/5 Kiln & CM Mach Maint'],
-            ['id' => 114, 'name' => 'Irvan Afiat ST', 'jabatan' => 'Manager', 'dept' => 'Maintenance', 'unit_kerja' => 'Machine Maintenance 2', 'seksi' => 'Line 4/5 RM Machine Maint'],
-            ['id' => 115, 'name' => 'Akhmad Miftakhul Ulum', 'jabatan' => 'Manager', 'dept' => 'Maintenance', 'unit_kerja' => 'Machine Maintenance 2', 'seksi' => 'Line 4/5 FM Machine Maint'],
+            ['email' => 'fahrul.arifianto@sig.id', 'name' => 'Fahrul Arifianto', 'jabatan' => 'Manager', 'dept' => 'Maintenance', 'unit_kerja' => 'Machine Maintenance 2', 'seksi' => 'Line 4/5 Kiln & CM Mach Maint'],
+            ['email' => 'irvan.afiat@sig.id', 'name' => 'Irvan Afiat ST', 'jabatan' => 'Manager', 'dept' => 'Maintenance', 'unit_kerja' => 'Machine Maintenance 2', 'seksi' => 'Line 4/5 RM Machine Maint'],
+            ['email' => 'akhmad.ulum@sig.id', 'name' => 'Akhmad Miftakhul Ulum', 'jabatan' => 'Manager', 'dept' => 'Maintenance', 'unit_kerja' => 'Machine Maintenance 2', 'seksi' => 'Line 4/5 FM Machine Maint'],
             ['id' => 62, 'name' => 'MZ Sukma Hastika', 'jabatan' => 'Manager', 'dept' => 'Maintenance', 'unit_kerja' => 'Port Product Discharge Maintenance', 'seksi' => 'Port Facility Elins Maintenance'],
 
             ['id' => 63, 'name' => 'Asriyanto Nasir', 'jabatan' => 'Manager', 'dept' => 'Project Management & Maintenance Support', 'unit_kerja' => 'Engineering', 'seksi' => 'Elins Design Engineering'],
@@ -288,19 +289,22 @@ class StructureOrganizationSeeder extends Seeder
 
         foreach ($approvalUsers as $approvalUser) {
             $jabatan = $approvalUser['jabatan'];
+            $userId = isset($approvalUser['email'])
+                ? User::query()->where('email', $approvalUser['email'])->value('id')
+                : $approvalUser['id'];
 
             if ($jabatan === 'General Manager') {
-                $generalManagers[$approvalUser['dept']] = $approvalUser['id'];
+                $generalManagers[$approvalUser['dept']] = $userId;
                 continue;
             }
 
             if ($jabatan === 'Senior Manager') {
-                $seniorManagers[$approvalUser['dept'].'|'.$approvalUser['unit_kerja']] = $approvalUser['id'];
+                $seniorManagers[$approvalUser['dept'].'|'.$approvalUser['unit_kerja']] = $userId;
                 continue;
             }
 
             if ($jabatan === 'Manager') {
-                $managers[$approvalUser['dept'].'|'.$approvalUser['unit_kerja'].'|'.$approvalUser['seksi']] = $approvalUser['id'];
+                $managers[$approvalUser['dept'].'|'.$approvalUser['unit_kerja'].'|'.$approvalUser['seksi']] = $userId;
             }
         }
 

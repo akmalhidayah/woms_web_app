@@ -80,12 +80,6 @@
                                     'progressLabel' => $progressLabel,
                                 ])
                             </div>
-                            @if ($attachmentPayload)
-                                <button type="button" @click="openAttachment(@js($attachmentPayload))" class="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10px] font-semibold text-blue-700 transition hover:bg-blue-100">
-                                    <i data-lucide="{{ $task->attachment_is_image ? 'image' : 'file-text' }}" class="h-3.5 w-3.5 shrink-0"></i>
-                                    <span class="truncate">Preview Lampiran</span>
-                                </button>
-                            @endif
                         </td>
 
                         <td class="px-3 py-2.5">
@@ -113,6 +107,7 @@
                                 'task' => $task,
                                 'indexQuery' => $indexQuery,
                                 'isCompleted' => $isCompleted,
+                                'attachmentPayload' => $attachmentPayload,
                             ])
                         </td>
                     </tr>
@@ -154,12 +149,6 @@
                                     <div>{{ $task->unit_work ?: '-' }}</div>
                                     <div class="text-slate-500">Seksi: {{ $task->seksi ?: '-' }}</div>
                                 </div>
-                                @if ($attachmentPayload)
-                                    <button type="button" @click="openAttachment(@js($attachmentPayload))" class="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10px] font-semibold text-blue-700 transition hover:bg-blue-100">
-                                        <i data-lucide="{{ $task->attachment_is_image ? 'image' : 'file-text' }}" class="h-3.5 w-3.5 shrink-0"></i>
-                                        <span class="truncate">Preview Lampiran</span>
-                                    </button>
-                                @endif
                             </div>
                         </div>
 
@@ -199,6 +188,7 @@
                                 'task' => $task,
                                 'indexQuery' => $indexQuery,
                                 'isCompleted' => $isCompleted,
+                                'attachmentPayload' => $attachmentPayload,
                                 'mobile' => true,
                             ])
                         </div>

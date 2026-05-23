@@ -1,5 +1,15 @@
+@php
+    $attachmentPayload = $attachmentPayload ?? null;
+@endphp
+
 <div class="flex {{ ($mobile ?? false) ? 'w-full justify-start' : 'justify-end' }}">
     <div class="flex items-center gap-2">
+        @if ($attachmentPayload)
+            <button type="button" @click="openAttachment(@js($attachmentPayload))" title="Preview Lampiran" aria-label="Preview lampiran" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-white text-blue-600 transition hover:bg-slate-50">
+                <i data-lucide="{{ ($attachmentPayload['is_image'] ?? false) ? 'image' : 'file-text' }}" class="h-3.5 w-3.5"></i>
+            </button>
+        @endif
+
         <a href="{{ route('admin.bengkel-tasks.edit', array_merge(['bengkel_task' => $task], $indexQuery)) }}" title="Edit" aria-label="Edit pekerjaan" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50">
             <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
         </a>

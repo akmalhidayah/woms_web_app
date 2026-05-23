@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class BengkelTask extends Model
 {
@@ -25,6 +26,19 @@ class BengkelTask extends Model
         'progress_status',
         'person_in_charge',
         'person_in_charge_profiles',
+        'attachment_path',
+        'attachment_original_name',
+        'attachment_mime_type',
+        'attachment_size',
+    ];
+
+    /**
+     * @var list<string>
+     */
+    protected $appends = [
+        'attachment_url',
+        'attachment_display_name',
+        'attachment_is_image',
     ];
 
     public function order(): BelongsTo
@@ -42,6 +56,28 @@ class BengkelTask extends Model
         return OrderWorkshop::progressOptions()[$this->effectiveProgressStatus()] ?? 'Menunggu Jadwal';
     }
 
+    public function getAttachmentUrlAttribute(): ?string
+    {
+        if (! $this->attachment_path || ! Storage::disk('public')->exists($this->attachment_path)) {
+            return null;
+        }
+
+        return route('admin.bengkel-tasks.attachment', [
+            'bengkel_task' => $this,
+            'v' => substr(md5($this->attachment_path.'|'.($this->updated_at?->toIso8601String() ?? '')), 0, 12),
+        ], false);
+    }
+
+    public function getAttachmentDisplayNameAttribute(): ?string
+    {
+        return $this->attachment_original_name ?: ($this->attachment_path ? basename($this->attachment_path) : null);
+    }
+
+    public function getAttachmentIsImageAttribute(): bool
+    {
+        return in_array($this->attachment_mime_type, ['image/jpeg', 'image/png'], true);
+    }
+
     /**
      * @return array<string, string>
      */
@@ -52,6 +88,7 @@ class BengkelTask extends Model
             'is_completed' => 'boolean',
             'person_in_charge' => 'array',
             'person_in_charge_profiles' => 'array',
+            'attachment_size' => 'integer',
         ];
     }
 }

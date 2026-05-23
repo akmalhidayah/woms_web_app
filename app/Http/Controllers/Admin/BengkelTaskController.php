@@ -12,10 +12,15 @@ use App\Models\OrderWorkshop;
 use App\Models\UnitWork;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 class BengkelTaskController extends Controller
 {
+    private const ATTACHMENT_DISK = 'public';
+    private const ATTACHMENT_DIRECTORY = 'bengkel-task-attachments';
+
     private const CATATAN_REGU_ALLOWED = [
         'Regu Fabrikasi',
         'Regu Bengkel (Refurbish)',
@@ -169,6 +174,8 @@ class BengkelTaskController extends Controller
                 ->withInput();
         }
 
+        $data = $this->mergeUploadedAttachment($request, $data);
+
         $task = BengkelTask::create($data);
         $this->syncWorkshopProgressFromTask($task);
 
@@ -269,6 +276,8 @@ class BengkelTaskController extends Controller
                 ->withInput();
         }
 
+        $data = $this->mergeUploadedAttachment($request, $data, $bengkel_task);
+
         $bengkel_task->update($data);
         $this->syncWorkshopProgressFromTask($bengkel_task->fresh('order.orderWorkshop'));
 
@@ -279,6 +288,7 @@ class BengkelTaskController extends Controller
 
     public function destroy(Request $request, BengkelTask $bengkel_task): RedirectResponse
     {
+        $this->deleteAttachment($bengkel_task->attachment_path);
         $bengkel_task->delete();
 
         return redirect()
@@ -325,13 +335,37 @@ class BengkelTaskController extends Controller
             'task_ids.*' => ['integer', 'exists:bengkel_tasks,id'],
         ]);
 
-        $deleted = BengkelTask::query()
+        $tasks = BengkelTask::query()
             ->whereIn('id', collect($validated['task_ids'])->map(fn ($id): int => (int) $id)->all())
+            ->get(['id', 'attachment_path']);
+
+        $tasks->each(fn (BengkelTask $task) => $this->deleteAttachment($task->attachment_path));
+
+        $deleted = BengkelTask::query()
+            ->whereIn('id', $tasks->pluck('id')->all())
             ->delete();
 
         return redirect()
             ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
             ->with('status', $deleted.' pekerjaan bengkel dihapus.');
+    }
+
+    public function attachment(BengkelTask $bengkel_task): Response
+    {
+        abort_unless(
+            $bengkel_task->attachment_path && Storage::disk(self::ATTACHMENT_DISK)->exists($bengkel_task->attachment_path),
+            404
+        );
+
+        $filename = str_replace('"', '', $bengkel_task->attachment_display_name ?: basename($bengkel_task->attachment_path));
+
+        return response()->file(
+            Storage::disk(self::ATTACHMENT_DISK)->path($bengkel_task->attachment_path),
+            [
+                'Content-Type' => $bengkel_task->attachment_mime_type ?: (Storage::disk(self::ATTACHMENT_DISK)->mimeType($bengkel_task->attachment_path) ?: 'application/octet-stream'),
+                'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            ]
+        );
     }
 
     public function updateDisplaySettings(Request $request): RedirectResponse
@@ -372,6 +406,7 @@ class BengkelTaskController extends Controller
             'pic_assignments.*.pic_id' => ['nullable', 'integer', 'exists:bengkel_pics,id', 'distinct'],
             'pic_assignments.*.descriptions' => ['nullable', 'array'],
             'pic_assignments.*.descriptions.*' => ['nullable', 'string', 'max:255'],
+            'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
         if (array_key_exists('catatan', $validated)) {
@@ -445,8 +480,40 @@ class BengkelTaskController extends Controller
 
         unset($validated['pic_ids']);
         unset($validated['pic_assignments']);
+        unset($validated['attachment']);
 
         return $validated;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function mergeUploadedAttachment(Request $request, array $data, ?BengkelTask $task = null): array
+    {
+        if (! $request->hasFile('attachment')) {
+            return $data;
+        }
+
+        $file = $request->file('attachment');
+
+        if ($task?->attachment_path) {
+            $this->deleteAttachment($task->attachment_path);
+        }
+
+        $data['attachment_path'] = $file->store(self::ATTACHMENT_DIRECTORY, self::ATTACHMENT_DISK);
+        $data['attachment_original_name'] = $file->getClientOriginalName();
+        $data['attachment_mime_type'] = $file->getClientMimeType();
+        $data['attachment_size'] = $file->getSize();
+
+        return $data;
+    }
+
+    private function deleteAttachment(?string $path): void
+    {
+        if ($path) {
+            Storage::disk(self::ATTACHMENT_DISK)->delete($path);
+        }
     }
 
     /**

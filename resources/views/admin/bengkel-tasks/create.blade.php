@@ -1,5 +1,5 @@
 <x-layouts.admin title="Tambah Pekerjaan Bengkel">
-    <form method="POST" action="{{ route('admin.bengkel-tasks.store') }}">
+    <form method="POST" action="{{ route('admin.bengkel-tasks.store') }}" enctype="multipart/form-data">
         @csrf
         @include('admin.bengkel-tasks._form', [
             'title' => 'Tambah Pekerjaan Bengkel',

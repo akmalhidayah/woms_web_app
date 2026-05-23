@@ -141,6 +141,49 @@
                     </select>
                     <div class="mt-1 text-[10px] text-slate-500">Jika pekerjaan dari order bengkel, status ini ikut tersinkron ke progress order.</div>
                 </div>
+
+                <div x-data="{ filename: '' }" class="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <label for="attachment" class="block text-[11px] font-semibold text-slate-700">Lampiran / Foto</label>
+                            <div class="mt-1 text-[10px] text-slate-500">JPG, PNG, atau PDF. Maksimal 5 MB.</div>
+                        </div>
+
+                        <input
+                            id="attachment"
+                            type="file"
+                            name="attachment"
+                            accept="image/jpeg,image/png,application/pdf,.jpg,.jpeg,.png,.pdf"
+                            class="sr-only"
+                            @change="filename = $event.target.files[0]?.name || ''"
+                        >
+                        <label for="attachment" class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700">
+                            <i data-lucide="camera" class="h-4 w-4"></i>
+                            Upload / Foto
+                        </label>
+                    </div>
+
+                    <div x-show="filename" x-cloak class="mt-3 rounded-xl border border-blue-100 bg-white px-3 py-2 text-xs font-semibold text-blue-700">
+                        <span x-text="filename"></span>
+                    </div>
+
+                    @if ($task?->attachment_path)
+                        @if ($task->attachment_url)
+                            <a href="{{ $task->attachment_url }}" target="_blank" class="mt-3 inline-flex max-w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+                                <i data-lucide="{{ $task->attachment_is_image ? 'image' : 'file-text' }}" class="h-4 w-4 shrink-0 text-blue-600"></i>
+                                <span class="truncate">{{ $task->attachment_display_name }}</span>
+                            </a>
+                        @else
+                            <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                                File lama tercatat, tapi belum ditemukan di storage.
+                            </div>
+                        @endif
+                    @endif
+
+                    @error('attachment')
+                        <div class="mt-2 text-[11px] font-medium text-rose-600">{{ $message }}</div>
+                    @enderror
+                </div>
             </div>
 
             <div x-data="bengkelTaskPicAssignments(@js($picAssignmentsPayload->all()), @js($picOptionsPayload))">

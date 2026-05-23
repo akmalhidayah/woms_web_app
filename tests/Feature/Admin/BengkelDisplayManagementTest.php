@@ -187,6 +187,48 @@ class BengkelDisplayManagementTest extends TestCase
         $this->assertSame(['Las bucket'], $task->person_in_charge_profiles[0]['work_descriptions']);
     }
 
+    public function test_bengkel_task_update_stores_attachment(): void
+    {
+        Storage::fake('public');
+
+        $user = $this->adminUser();
+        $task = BengkelTask::create([
+            'job_name' => 'Repair Bucket',
+            'notification_number' => 'WO-004',
+            'unit_work' => 'Machine Maintenance 2',
+            'seksi' => 'Line 4/5 RM Machine Maint',
+            'usage_plan_date' => '2026-05-26',
+            'catatan' => 'Regu Fabrikasi',
+            'person_in_charge' => [],
+            'person_in_charge_profiles' => [],
+        ]);
+        $file = UploadedFile::fake()->create('bukti-pekerjaan.pdf', 256, 'application/pdf');
+
+        $this->actingAs($user)
+            ->put(route('admin.bengkel-tasks.update', $task), [
+                'job_name' => 'Repair Bucket Update',
+                'notification_number' => 'WO-004',
+                'unit_work' => 'Machine Maintenance 2',
+                'seksi' => 'Line 4/5 RM Machine Maint',
+                'usage_plan_date' => '2026-05-26',
+                'catatan' => 'Regu Fabrikasi',
+                'attachment' => $file,
+            ])
+            ->assertRedirect(route('admin.bengkel-tasks.index'))
+            ->assertSessionHas('status', 'Pekerjaan bengkel diperbarui.');
+
+        $task->refresh();
+
+        $this->assertSame('bukti-pekerjaan.pdf', $task->attachment_original_name);
+        $this->assertSame('application/pdf', $task->attachment_mime_type);
+        $this->assertNotNull($task->attachment_path);
+        Storage::disk('public')->assertExists($task->attachment_path);
+
+        $this->actingAs($user)
+            ->get(route('admin.bengkel-tasks.attachment', $task))
+            ->assertOk();
+    }
+
     private function adminUser(): User
     {
         return User::factory()->create([

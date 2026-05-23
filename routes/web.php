@@ -191,6 +191,10 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
         ->whereNumber('bengkel_task')
         ->name('admin.bengkel-tasks.edit');
+    Route::get('admin/display-pekerjaan-bengkel/{bengkel_task}/attachment', [BengkelTaskController::class, 'attachment'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->whereNumber('bengkel_task')
+        ->name('admin.bengkel-tasks.attachment');
     Route::put('admin/display-pekerjaan-bengkel/{bengkel_task}', [BengkelTaskController::class, 'update'])
         ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
         ->whereNumber('bengkel_task')

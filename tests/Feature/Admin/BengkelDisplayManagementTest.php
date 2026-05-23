@@ -159,7 +159,7 @@ class BengkelDisplayManagementTest extends TestCase
         $this->actingAs($user)
             ->get($editUrl)
             ->assertOk()
-            ->assertSee('"pic_id":'.$pic->id, false)
+            ->assertSee('\u0022pic_id\u0022:'.$pic->id, false)
             ->assertDontSee('99999');
 
         $this->actingAs($user)

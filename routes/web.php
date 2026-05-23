@@ -207,6 +207,13 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
         ->whereNumber('bengkel_task')
         ->name('admin.bengkel-tasks.complete');
+    Route::patch('admin/display-pekerjaan-bengkel/bulk-archive', [BengkelTaskController::class, 'bulkArchive'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->name('admin.bengkel-tasks.bulk-archive');
+    Route::patch('admin/display-pekerjaan-bengkel/{bengkel_task}/archive', [BengkelTaskController::class, 'archive'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->whereNumber('bengkel_task')
+        ->name('admin.bengkel-tasks.archive');
     Route::delete('admin/display-pekerjaan-bengkel/bulk-destroy', [BengkelTaskController::class, 'bulkDestroy'])
         ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
         ->name('admin.bengkel-tasks.bulk-destroy');

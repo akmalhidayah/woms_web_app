@@ -86,4 +86,34 @@ class DashboardPekerjaanTest extends TestCase
         Livewire::test(DashboardPekerjaan::class, ['mode' => 'display'])
             ->assertSeeHtml(route('bengkel-pics.avatar', ['bengkel_pic' => $pic], false));
     }
+
+    public function test_display_does_not_show_archived_tasks(): void
+    {
+        BengkelTask::create([
+            'job_name' => 'Pekerjaan Aktif',
+            'notification_number' => 'WO-ACTIVE',
+            'unit_work' => 'Workshop A',
+            'seksi' => 'Mekanik',
+            'usage_plan_date' => '2026-04-20',
+            'catatan' => 'Regu Fabrikasi',
+            'person_in_charge' => [],
+            'person_in_charge_profiles' => [],
+        ]);
+
+        BengkelTask::create([
+            'job_name' => 'Pekerjaan Arsip',
+            'notification_number' => 'WO-ARCHIVED',
+            'unit_work' => 'Workshop B',
+            'seksi' => 'Las',
+            'usage_plan_date' => '2026-04-21',
+            'catatan' => 'Regu Fabrikasi',
+            'person_in_charge' => [],
+            'person_in_charge_profiles' => [],
+            'archived_at' => now(),
+        ]);
+
+        Livewire::test(DashboardPekerjaan::class, ['mode' => 'display'])
+            ->assertSee('PEKERJAAN AKTIF')
+            ->assertDontSee('PEKERJAAN ARSIP');
+    }
 }

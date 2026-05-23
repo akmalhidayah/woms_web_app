@@ -2,8 +2,12 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Domain\Orders\Enums\OrderDocumentType;
+use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\BengkelPic;
 use App\Models\BengkelTask;
+use App\Models\Order;
+use App\Models\OrderWorkshop;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -280,6 +284,146 @@ class BengkelDisplayManagementTest extends TestCase
         $this->actingAs($user)
             ->get(route('admin.bengkel-tasks.attachment', $task))
             ->assertOk();
+    }
+
+    public function test_bengkel_task_archive_creates_workshop_order_and_hides_task_from_display_admin(): void
+    {
+        $user = $this->adminUser();
+        $task = BengkelTask::create([
+            'job_name' => 'Fabrikasi Air Slide',
+            'notification_number' => 'WO-ARCHIVE-001',
+            'unit_work' => 'Machine Maintenance 2',
+            'seksi' => 'Line 4/5 FM Machine Maint',
+            'usage_plan_date' => '2026-05-26',
+            'catatan' => 'Regu Fabrikasi',
+            'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
+            'person_in_charge' => ['Dahlan'],
+            'person_in_charge_profiles' => [
+                [
+                    'name' => 'Dahlan',
+                    'work_descriptions' => ['Potong material'],
+                ],
+            ],
+        ]);
+
+        $this->actingAs($user)
+            ->patch(route('admin.bengkel-tasks.archive', $task))
+            ->assertRedirect(route('admin.bengkel-tasks.index'))
+            ->assertSessionHas('status', 'Pekerjaan bengkel diarsipkan ke Order Pekerjaan Bengkel.');
+
+        $task->refresh();
+        $order = Order::query()->findOrFail($task->archived_order_id);
+
+        $this->assertNotNull($task->archived_at);
+        $this->assertSame($order->id, $task->order_id);
+        $this->assertSame('WO-ARCHIVE-001', $order->nomor_order);
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'nama_pekerjaan' => 'FABRIKASI AIR SLIDE',
+            'unit_kerja' => 'Machine Maintenance 2',
+            'seksi' => 'Line 4/5 FM Machine Maint',
+            'catatan_status' => OrderUserNoteStatus::ApprovedWorkshop->value,
+            'catatan' => 'Regu Fabrikasi',
+        ]);
+
+        $this->assertDatabaseHas('order_workshops', [
+            'order_id' => $order->id,
+            'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
+            'catatan' => 'Regu Fabrikasi',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('admin.bengkel-tasks.index'))
+            ->assertOk()
+            ->assertDontSee('FABRIKASI AIR SLIDE');
+
+        $this->actingAs($user)
+            ->get(route('admin.orders.workshop.index'))
+            ->assertOk()
+            ->assertSee('FABRIKASI AIR SLIDE');
+    }
+
+    public function test_bengkel_task_archive_copies_attachment_to_order_gambar_teknik(): void
+    {
+        Storage::fake('public');
+        Storage::fake('local');
+
+        $user = $this->adminUser();
+        Storage::disk('public')->put('bengkel-task-attachments/manual.pdf', 'pdf-content');
+
+        $task = BengkelTask::create([
+            'job_name' => 'Repair Bucket',
+            'notification_number' => null,
+            'unit_work' => 'Machine Maintenance 2',
+            'seksi' => 'Line 4/5 RM Machine Maint',
+            'usage_plan_date' => '2026-05-26',
+            'catatan' => 'Regu Bengkel (Refurbish)',
+            'person_in_charge' => [],
+            'person_in_charge_profiles' => [],
+            'attachment_path' => 'bengkel-task-attachments/manual.pdf',
+            'attachment_original_name' => 'gambar-teknik-awal.pdf',
+            'attachment_mime_type' => 'application/pdf',
+            'attachment_size' => 1024,
+        ]);
+
+        $this->actingAs($user)
+            ->patch(route('admin.bengkel-tasks.archive', $task))
+            ->assertRedirect(route('admin.bengkel-tasks.index'));
+
+        $task->refresh();
+        $order = Order::query()->findOrFail($task->archived_order_id);
+        $document = $order->documents()
+            ->where('jenis_dokumen', OrderDocumentType::GambarTeknik->value)
+            ->firstOrFail();
+
+        $this->assertSame('gambar-teknik-awal.pdf', $document->nama_file_asli);
+        $this->assertSame($user->id, $document->uploaded_by);
+        Storage::disk('local')->assertExists($document->path_file);
+    }
+
+    public function test_archived_workshop_order_number_and_notification_can_be_completed_later(): void
+    {
+        $user = $this->adminUser();
+        $task = BengkelTask::create([
+            'job_name' => 'Manual Urgent Work',
+            'notification_number' => null,
+            'unit_work' => 'Machine Maintenance 2',
+            'seksi' => 'Line 4/5 FM Machine Maint',
+            'usage_plan_date' => '2026-05-26',
+            'catatan' => 'Regu Fabrikasi',
+            'person_in_charge' => [],
+            'person_in_charge_profiles' => [],
+        ]);
+
+        $this->actingAs($user)
+            ->patch(route('admin.bengkel-tasks.archive', $task))
+            ->assertRedirect(route('admin.bengkel-tasks.index'));
+
+        $order = Order::query()->findOrFail($task->fresh()->archived_order_id);
+
+        $this->actingAs($user)
+            ->put(route('admin.orders.update', $order), [
+                'nomor_order' => '3000000001234567',
+                'notifikasi' => '100000123',
+                'nama_pekerjaan' => $order->nama_pekerjaan,
+                'unit_kerja' => $order->unit_kerja,
+                'seksi' => $order->seksi,
+                'deskripsi' => $order->deskripsi,
+                'prioritas' => $order->prioritas,
+                'tanggal_order' => $order->tanggal_order->format('Y-m-d'),
+                'target_selesai' => $order->target_selesai->format('Y-m-d'),
+                'catatan_status' => OrderUserNoteStatus::ApprovedWorkshop->value,
+                'catatan' => $order->catatan,
+            ])
+            ->assertRedirect(route('admin.orders.show', '3000000001234567'))
+            ->assertSessionHas('status', 'Order pekerjaan berhasil diperbarui.');
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'nomor_order' => '3000000001234567',
+            'notifikasi' => '100000123',
+        ]);
     }
 
     private function adminUser(): User

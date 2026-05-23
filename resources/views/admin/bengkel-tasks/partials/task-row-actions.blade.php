@@ -24,11 +24,11 @@
             <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
         </a>
 
-        <form action="{{ route('admin.bengkel-tasks.destroy', array_merge(['bengkel_task' => $task], $indexQuery)) }}" method="POST" class="delete-bengkel-task-form">
+        <form action="{{ route('admin.bengkel-tasks.archive', array_merge(['bengkel_task' => $task], $indexQuery)) }}" method="POST" class="archive-bengkel-task-form">
             @csrf
-            @method('DELETE')
-            <button type="submit" title="Hapus" aria-label="Hapus pekerjaan" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-white text-rose-600 transition hover:bg-slate-50">
-                <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+            @method('PATCH')
+            <button type="submit" title="Arsipkan" aria-label="Arsipkan pekerjaan" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-white text-blue-600 transition hover:bg-slate-50">
+                <i data-lucide="archive" class="h-3.5 w-3.5"></i>
             </button>
         </form>
     </div>

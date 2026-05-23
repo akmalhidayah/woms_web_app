@@ -187,18 +187,18 @@
                 });
             }
 
-            document.querySelectorAll('.delete-bengkel-task-form').forEach((form) => {
+            document.querySelectorAll('.archive-bengkel-task-form').forEach((form) => {
                 form.addEventListener('submit', (event) => {
                     event.preventDefault();
 
                     window.Swal?.fire({
-                        icon: 'warning',
-                        title: 'Hapus pekerjaan?',
-                        text: 'Data pekerjaan bengkel yang dihapus tidak bisa dikembalikan.',
+                        icon: 'question',
+                        title: 'Arsipkan pekerjaan?',
+                        text: 'Data akan dipindahkan ke Order Pekerjaan Bengkel dan tidak tampil lagi di display.',
                         showCancelButton: true,
-                        confirmButtonText: 'Hapus',
+                        confirmButtonText: 'Arsipkan',
                         cancelButtonText: 'Batal',
-                        confirmButtonColor: '#dc2626',
+                        confirmButtonColor: '#1d4ed8',
                     }).then((result) => {
                         if (result.isConfirmed) {
                             form.submit();
@@ -230,7 +230,7 @@
             const selectAll = document.getElementById('select-all-bengkel-tasks');
             const allCheckboxes = () => Array.from(document.querySelectorAll('.bengkel-task-checkbox'));
             const visibleCheckboxes = () => allCheckboxes().filter((checkbox) => checkbox.offsetParent !== null);
-            const bulkDeleteForm = document.getElementById('bulk-delete-bengkel-tasks-form');
+            const bulkArchiveForm = document.getElementById('bulk-archive-bengkel-tasks-form');
             const syncSelectAllState = () => {
                 if (! selectAll) {
                     return;
@@ -251,7 +251,7 @@
                 checkbox.addEventListener('change', syncSelectAllState);
             });
 
-            bulkDeleteForm?.addEventListener('submit', (event) => {
+            bulkArchiveForm?.addEventListener('submit', (event) => {
                 const checkedCount = visibleCheckboxes().filter((checkbox) => checkbox.checked).length;
 
                 if (checkedCount === 0) {
@@ -259,7 +259,7 @@
                     window.Swal?.fire({
                         icon: 'info',
                         title: 'Belum ada data dipilih',
-                        text: 'Centang pekerjaan yang ingin dihapus terlebih dahulu.',
+                        text: 'Centang pekerjaan yang ingin diarsipkan terlebih dahulu.',
                         confirmButtonText: 'OK',
                     });
                     return;
@@ -268,16 +268,16 @@
                 event.preventDefault();
 
                 window.Swal?.fire({
-                    icon: 'warning',
-                    title: 'Hapus pekerjaan terpilih?',
-                    text: `${checkedCount} pekerjaan bengkel akan dihapus dari display.`,
+                    icon: 'question',
+                    title: 'Arsipkan pekerjaan terpilih?',
+                    text: `${checkedCount} pekerjaan bengkel akan dipindahkan ke Order Pekerjaan Bengkel.`,
                     showCancelButton: true,
-                    confirmButtonText: 'Hapus',
+                    confirmButtonText: 'Arsipkan',
                     cancelButtonText: 'Batal',
-                    confirmButtonColor: '#dc2626',
+                    confirmButtonColor: '#1d4ed8',
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        bulkDeleteForm.submit();
+                        bulkArchiveForm.submit();
                     }
                 });
             });

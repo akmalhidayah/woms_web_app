@@ -30,6 +30,8 @@ class BengkelTask extends Model
         'attachment_original_name',
         'attachment_mime_type',
         'attachment_size',
+        'archived_at',
+        'archived_order_id',
     ];
 
     /**
@@ -44,6 +46,11 @@ class BengkelTask extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function archivedOrder(): BelongsTo
+    {
+        return $this->belongsTo(Order::class, 'archived_order_id');
     }
 
     public function effectiveProgressStatus(): ?string
@@ -89,6 +96,7 @@ class BengkelTask extends Model
             'person_in_charge' => 'array',
             'person_in_charge_profiles' => 'array',
             'attachment_size' => 'integer',
+            'archived_at' => 'datetime',
         ];
     }
 }

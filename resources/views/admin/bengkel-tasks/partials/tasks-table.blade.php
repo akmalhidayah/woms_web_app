@@ -15,18 +15,18 @@
     @keydown.escape.window="closeAttachment()"
     class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
 >
-    <form id="bulk-delete-bengkel-tasks-form" action="{{ route('admin.bengkel-tasks.bulk-destroy', $indexQuery) }}" method="POST" class="border-b border-slate-200 bg-slate-50 px-3 py-2.5 sm:px-4">
+    <form id="bulk-archive-bengkel-tasks-form" action="{{ route('admin.bengkel-tasks.bulk-archive', $indexQuery) }}" method="POST" class="border-b border-slate-200 bg-slate-50 px-3 py-2.5 sm:px-4">
         @csrf
-        @method('DELETE')
+        @method('PATCH')
         <div class="flex items-center justify-between gap-2">
             <label class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700">
                 <input id="select-all-bengkel-tasks" type="checkbox" class="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
                 Pilih Semua
             </label>
 
-            <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-rose-700 transition hover:bg-slate-50 sm:px-4">
-                <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
-                Hapus Terpilih
+            <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-blue-700 transition hover:bg-slate-50 sm:px-4">
+                <i data-lucide="archive" class="h-3.5 w-3.5"></i>
+                Arsipkan Terpilih
             </button>
         </div>
     </form>
@@ -62,7 +62,7 @@
                     @endphp
                     <tr class="{{ $isCompleted ? 'bg-emerald-50/70 hover:bg-emerald-50' : 'hover:bg-slate-50/80' }}">
                         <td class="px-3 py-2.5">
-                            <input form="bulk-delete-bengkel-tasks-form" type="checkbox" name="task_ids[]" value="{{ $task->id }}" class="bengkel-task-checkbox h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                            <input form="bulk-archive-bengkel-tasks-form" type="checkbox" name="task_ids[]" value="{{ $task->id }}" class="bengkel-task-checkbox h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
                         </td>
 
                         <td class="px-3 py-2.5">
@@ -141,7 +141,7 @@
 
             <article class="{{ $isCompleted ? 'bg-emerald-50/60' : 'bg-white' }} px-4 py-3">
                 <div class="flex items-start gap-3">
-                    <input form="bulk-delete-bengkel-tasks-form" type="checkbox" name="task_ids[]" value="{{ $task->id }}" class="bengkel-task-checkbox mt-1 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                    <input form="bulk-archive-bengkel-tasks-form" type="checkbox" name="task_ids[]" value="{{ $task->id }}" class="bengkel-task-checkbox mt-1 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
 
                     <div class="min-w-0 flex-1">
                         <div class="flex items-start justify-between gap-3">

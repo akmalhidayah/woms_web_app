@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\BengkelDisplaySetting;
 use App\Models\BengkelPic;
@@ -12,6 +13,7 @@ use App\Models\OrderWorkshop;
 use App\Models\UnitWork;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,6 +22,7 @@ class BengkelTaskController extends Controller
 {
     private const ATTACHMENT_DISK = 'public';
     private const ATTACHMENT_DIRECTORY = 'bengkel-task-attachments';
+    private const ARCHIVE_ORDER_PREFIX = 'MANUAL-BENGKEL-';
 
     private const CATATAN_REGU_ALLOWED = [
         'Regu Fabrikasi',
@@ -42,6 +45,7 @@ class BengkelTaskController extends Controller
 
         $query = BengkelTask::query()
             ->with('order.orderWorkshop')
+            ->whereNull('archived_at')
             ->latest('created_at')
             ->latest('id');
 
@@ -353,6 +357,192 @@ class BengkelTaskController extends Controller
         return redirect()
             ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
             ->with('status', $deleted.' pekerjaan bengkel dihapus.');
+    }
+
+    public function archive(Request $request, BengkelTask $bengkel_task): RedirectResponse
+    {
+        $this->archiveTaskToWorkshopOrder($bengkel_task, $request->user()?->id);
+
+        return redirect()
+            ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
+            ->with('status', 'Pekerjaan bengkel diarsipkan ke Order Pekerjaan Bengkel.');
+    }
+
+    public function bulkArchive(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'task_ids' => ['required', 'array', 'min:1'],
+            'task_ids.*' => ['integer', 'exists:bengkel_tasks,id'],
+        ]);
+
+        $tasks = BengkelTask::query()
+            ->whereNull('archived_at')
+            ->whereIn('id', collect($validated['task_ids'])->map(fn ($id): int => (int) $id)->all())
+            ->orderBy('id')
+            ->get();
+
+        $tasks->each(fn (BengkelTask $task) => $this->archiveTaskToWorkshopOrder($task, $request->user()?->id));
+
+        return redirect()
+            ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
+            ->with('status', $tasks->count().' pekerjaan bengkel diarsipkan ke Order Pekerjaan Bengkel.');
+    }
+
+    private function archiveTaskToWorkshopOrder(BengkelTask $task, ?int $userId): Order
+    {
+        return DB::transaction(function () use ($task, $userId): Order {
+            $lockedTask = BengkelTask::query()
+                ->with('order.orderWorkshop')
+                ->lockForUpdate()
+                ->findOrFail($task->id);
+
+            if ($lockedTask->archived_order_id) {
+                return $lockedTask->archivedOrder ?: Order::query()->findOrFail($lockedTask->archived_order_id);
+            }
+
+            $order = $lockedTask->order;
+            $tanggalOrder = optional($lockedTask->created_at)->format('Y-m-d') ?: now()->toDateString();
+            $targetSelesai = optional($lockedTask->usage_plan_date)->format('Y-m-d') ?: $tanggalOrder;
+
+            if ($targetSelesai < $tanggalOrder) {
+                $tanggalOrder = $targetSelesai;
+            }
+
+            $orderData = [
+                'nama_pekerjaan' => mb_strtoupper(trim((string) $lockedTask->job_name)),
+                'unit_kerja' => filled($lockedTask->unit_work) ? $lockedTask->unit_work : '-',
+                'seksi' => filled($lockedTask->seksi) ? $lockedTask->seksi : '-',
+                'deskripsi' => $this->archiveDescription($lockedTask),
+                'prioritas' => Order::PRIORITY_LOW,
+                'tanggal_order' => $tanggalOrder,
+                'target_selesai' => $targetSelesai,
+                'catatan_status' => OrderUserNoteStatus::ApprovedWorkshop->value,
+                'catatan' => $this->archiveRegu($lockedTask),
+            ];
+
+            if (! $order) {
+                $nomorOrder = $this->archiveOrderNumber($lockedTask);
+
+                $order = Order::create([
+                    ...$orderData,
+                    'nomor_order' => $nomorOrder,
+                    'notifikasi' => $this->archiveNotificationNumber($lockedTask, $nomorOrder),
+                    'created_by' => $userId,
+                ]);
+            } else {
+                $order->update($orderData);
+            }
+
+            $workshop = $order->orderWorkshop()->firstOrNew();
+            $workshop->fill([
+                'progress_status' => $lockedTask->progress_status ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
+                'catatan' => $this->archiveRegu($lockedTask),
+            ]);
+            $order->orderWorkshop()->save($workshop);
+
+            $this->copyTaskAttachmentToOrderGambarTeknik($lockedTask, $order, $userId);
+
+            $lockedTask->forceFill([
+                'order_id' => $order->id,
+                'archived_order_id' => $order->id,
+                'archived_at' => now(),
+            ])->save();
+
+            return $order;
+        });
+    }
+
+    private function archiveOrderNumber(BengkelTask $task): string
+    {
+        $candidate = trim((string) $task->notification_number);
+
+        if ($candidate !== '' && ! Order::query()->where('nomor_order', $candidate)->exists()) {
+            return $candidate;
+        }
+
+        $base = self::ARCHIVE_ORDER_PREFIX.str_pad((string) $task->id, 6, '0', STR_PAD_LEFT);
+
+        if (! Order::query()->where('nomor_order', $base)->exists()) {
+            return $base;
+        }
+
+        for ($counter = 2; $counter < 100; $counter++) {
+            $number = $base.'-'.$counter;
+
+            if (! Order::query()->where('nomor_order', $number)->exists()) {
+                return $number;
+            }
+        }
+
+        return $base.'-'.now()->format('YmdHis');
+    }
+
+    private function archiveNotificationNumber(BengkelTask $task, string $nomorOrder): ?string
+    {
+        $candidate = trim((string) $task->notification_number);
+
+        if ($candidate === '' || $candidate === $nomorOrder) {
+            return null;
+        }
+
+        if (Order::query()->where('notifikasi', $candidate)->exists()) {
+            return null;
+        }
+
+        return $candidate;
+    }
+
+    private function archiveRegu(BengkelTask $task): string
+    {
+        $regu = trim((string) ($task->catatan ?? ''));
+
+        return $regu !== '' ? $regu : 'Regu Fabrikasi';
+    }
+
+    private function archiveDescription(BengkelTask $task): string
+    {
+        $lines = ['Arsip dari Display Pekerjaan Bengkel.'];
+        $profiles = collect(is_array($task->person_in_charge_profiles) ? $task->person_in_charge_profiles : [])
+            ->filter(fn ($profile): bool => is_array($profile) && trim((string) ($profile['name'] ?? '')) !== '')
+            ->map(function (array $profile): string {
+                $descriptions = $this->normalizeWorkDescriptions($profile['work_descriptions'] ?? []);
+                $descriptionText = $descriptions !== [] ? ' - '.implode(', ', $descriptions) : '';
+
+                return trim((string) $profile['name']).$descriptionText;
+            })
+            ->values();
+
+        if ($profiles->isNotEmpty()) {
+            $lines[] = 'PIC: '.$profiles->implode('; ');
+        }
+
+        return implode("\n", $lines);
+    }
+
+    private function copyTaskAttachmentToOrderGambarTeknik(BengkelTask $task, Order $order, ?int $userId): void
+    {
+        if (! $task->attachment_path || ! Storage::disk(self::ATTACHMENT_DISK)->exists($task->attachment_path)) {
+            return;
+        }
+
+        if ($order->documents()->where('jenis_dokumen', OrderDocumentType::GambarTeknik->value)->exists()) {
+            return;
+        }
+
+        $sourcePath = $task->attachment_path;
+        $extension = pathinfo($sourcePath, PATHINFO_EXTENSION);
+        $filename = uniqid('gambar-teknik-', true).($extension ? '.'.$extension : '');
+        $targetPath = 'orders/'.$order->id.'/documents/'.OrderDocumentType::GambarTeknik->value.'/'.$filename;
+
+        Storage::disk('local')->put($targetPath, Storage::disk(self::ATTACHMENT_DISK)->get($sourcePath));
+
+        $order->documents()->create([
+            'jenis_dokumen' => OrderDocumentType::GambarTeknik->value,
+            'nama_file_asli' => $task->attachment_original_name ?: basename($sourcePath),
+            'path_file' => $targetPath,
+            'uploaded_by' => $userId,
+            'uploaded_at' => now(),
+        ]);
     }
 
     public function attachment(BengkelTask $bengkel_task): Response

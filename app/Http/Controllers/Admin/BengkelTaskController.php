@@ -268,12 +268,17 @@ class BengkelTaskController extends Controller
 
     public function update(Request $request, BengkelTask $bengkel_task): RedirectResponse
     {
+        $hasPicInput = $request->exists('pic_assignments') || $request->exists('pic_ids');
         $data = $this->validateData($request);
 
         if (! empty($data['order_id']) && in_array((int) $data['order_id'], $this->unavailableWorkshopOrderIds($bengkel_task->order_id), true)) {
             return back()
                 ->withErrors(['order_id' => 'Order ini sudah tampil di display atau sudah selesai.'])
                 ->withInput();
+        }
+
+        if (! $hasPicInput) {
+            unset($data['person_in_charge'], $data['person_in_charge_profiles']);
         }
 
         $data = $this->mergeUploadedAttachment($request, $data, $bengkel_task);

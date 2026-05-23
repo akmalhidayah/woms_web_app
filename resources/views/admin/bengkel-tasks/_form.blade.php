@@ -206,9 +206,9 @@
                                                 class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
                                             >
                                                 <option value="">Pilih PIC</option>
-                                                <template x-for="pic in picOptions" :key="pic.id">
-                                                    <option :value="String(pic.id)" x-text="pic.name"></option>
-                                                </template>
+                                                @foreach ($picOptions as $pic)
+                                                    <option value="{{ $pic->id }}">{{ $pic->name }}</option>
+                                                @endforeach
                                             </select>
 
                                             <div class="mt-2 flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2" x-show="selectedPic(assignment.pic_id)">

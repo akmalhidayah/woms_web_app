@@ -160,6 +160,7 @@ class BengkelDisplayManagementTest extends TestCase
             ->get($editUrl)
             ->assertOk()
             ->assertSee('\u0022pic_id\u0022:'.$pic->id, false)
+            ->assertSee('<option value="'.$pic->id.'">Akbar</option>', false)
             ->assertDontSee('99999');
 
         $this->actingAs($user)
@@ -185,6 +186,52 @@ class BengkelDisplayManagementTest extends TestCase
         $this->assertSame(['Akbar'], $task->person_in_charge);
         $this->assertSame($pic->id, $task->person_in_charge_profiles[0]['id']);
         $this->assertSame(['Las bucket'], $task->person_in_charge_profiles[0]['work_descriptions']);
+    }
+
+    public function test_bengkel_task_update_without_pic_fields_preserves_existing_pic(): void
+    {
+        $user = $this->adminUser();
+        $pic = BengkelPic::create([
+            'name' => 'Dahlan',
+            'avatar_path' => null,
+            'avatar_position_x' => 50,
+            'avatar_position_y' => 50,
+        ]);
+        $task = BengkelTask::create([
+            'job_name' => 'Fabrikasi Air Slide',
+            'notification_number' => 'WO-005',
+            'unit_work' => 'Machine Maintenance 2',
+            'seksi' => 'Line 4/5 FM Machine Maint',
+            'usage_plan_date' => '2026-05-26',
+            'catatan' => 'Regu Fabrikasi',
+            'person_in_charge' => ['Dahlan'],
+            'person_in_charge_profiles' => [
+                [
+                    'id' => $pic->id,
+                    'name' => 'Dahlan',
+                    'avatar_path' => null,
+                    'work_descriptions' => ['Potong material'],
+                ],
+            ],
+        ]);
+
+        $this->actingAs($user)
+            ->put(route('admin.bengkel-tasks.update', $task), [
+                'job_name' => 'Fabrikasi Air Slide Update',
+                'notification_number' => 'WO-005',
+                'unit_work' => 'Machine Maintenance 2',
+                'seksi' => 'Line 4/5 FM Machine Maint',
+                'usage_plan_date' => '2026-05-26',
+                'catatan' => 'Regu Fabrikasi',
+            ])
+            ->assertRedirect(route('admin.bengkel-tasks.index'))
+            ->assertSessionHas('status', 'Pekerjaan bengkel diperbarui.');
+
+        $task->refresh();
+
+        $this->assertSame(['Dahlan'], $task->person_in_charge);
+        $this->assertSame($pic->id, $task->person_in_charge_profiles[0]['id']);
+        $this->assertSame(['Potong material'], $task->person_in_charge_profiles[0]['work_descriptions']);
     }
 
     public function test_bengkel_task_update_stores_attachment(): void
@@ -223,6 +270,12 @@ class BengkelDisplayManagementTest extends TestCase
         $this->assertSame('application/pdf', $task->attachment_mime_type);
         $this->assertNotNull($task->attachment_path);
         Storage::disk('public')->assertExists($task->attachment_path);
+
+        $this->actingAs($user)
+            ->get(route('admin.bengkel-tasks.index'))
+            ->assertOk()
+            ->assertSee('Preview Lampiran')
+            ->assertSee('bukti-pekerjaan.pdf');
 
         $this->actingAs($user)
             ->get(route('admin.bengkel-tasks.attachment', $task))

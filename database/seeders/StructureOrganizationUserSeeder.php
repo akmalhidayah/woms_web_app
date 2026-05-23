@@ -129,6 +129,9 @@ class StructureOrganizationUserSeeder extends Seeder
             ['id' => 110, 'name' => 'Irfan', 'email' => 'irfan@sig.id'],
             ['id' => 111, 'name' => 'Andi Kasman Saransi', 'email' => 'andi.saransi@sig.id'],
             ['id' => 112, 'name' => 'Muh. Daris Danial', 'email' => 'muh.danial@sig.id'],
+            ['id' => 113, 'name' => 'Fahrul Arifianto', 'email' => 'fahrul.arifianto@sig.id'],
+            ['id' => 114, 'name' => 'Irvan Afiat ST', 'email' => 'irvan.afiat@sig.id'],
+            ['id' => 115, 'name' => 'Akhmad Miftakhul Ulum', 'email' => 'akhmad.ulum@sig.id'],
         ];
 
         foreach ($users as $item) {

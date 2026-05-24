@@ -3,9 +3,10 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
+use App\Notifications\ResetPasswordNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Volt\Volt;
 use Tests\TestCase;
 
@@ -28,9 +29,19 @@ class PasswordResetTest extends TestCase
 
         Volt::test('auth.forgot-password')
             ->set('email', $user->email)
-            ->call('sendPasswordResetLink');
+            ->call('sendPasswordResetLink')
+            ->assertHasNoErrors();
 
-        Notification::assertSentTo($user, ResetPassword::class);
+        Notification::assertSentTo($user, ResetPasswordNotification::class, function (ResetPasswordNotification $notification) use ($user): bool {
+            $html = (string) $notification->toMail($user)->render();
+
+            $this->assertStringContainsString('Workshop Order Management System', $html);
+            $this->assertStringContainsString('Reset Password', $html);
+            $this->assertStringNotContainsString('logo-st.png', $html);
+            $this->assertStringNotContainsString('logo-bms2.png', $html);
+
+            return true;
+        });
     }
 
     public function test_reset_password_screen_can_be_rendered(): void
@@ -43,7 +54,7 @@ class PasswordResetTest extends TestCase
             ->set('email', $user->email)
             ->call('sendPasswordResetLink');
 
-        Notification::assertSentTo($user, ResetPassword::class, function ($notification) {
+        Notification::assertSentTo($user, ResetPasswordNotification::class, function (ResetPasswordNotification $notification) {
             $response = $this->get('/reset-password/'.$notification->token);
 
             $response->assertStatus(200);
@@ -62,7 +73,7 @@ class PasswordResetTest extends TestCase
             ->set('email', $user->email)
             ->call('sendPasswordResetLink');
 
-        Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user) {
+        Notification::assertSentTo($user, ResetPasswordNotification::class, function (ResetPasswordNotification $notification) use ($user) {
             $response = Volt::test('auth.reset-password', ['token' => $notification->token])
                 ->set('email', $user->email)
                 ->set('password', 'password')
@@ -75,5 +86,26 @@ class PasswordResetTest extends TestCase
 
             return true;
         });
+    }
+
+    public function test_reset_password_link_requests_are_limited_after_three_attempts(): void
+    {
+        Notification::fake();
+        RateLimiter::clear('password-reset:limited@example.com|127.0.0.1');
+
+        $user = User::factory()->create([
+            'email' => 'limited@example.com',
+        ]);
+
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            Volt::test('auth.forgot-password')
+                ->set('email', $user->email)
+                ->call('sendPasswordResetLink');
+        }
+
+        Volt::test('auth.forgot-password')
+            ->set('email', $user->email)
+            ->call('sendPasswordResetLink')
+            ->assertHasErrors('email');
     }
 }

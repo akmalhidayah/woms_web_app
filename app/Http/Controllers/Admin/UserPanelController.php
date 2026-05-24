@@ -12,6 +12,8 @@ use Illuminate\View\View;
 
 class UserPanelController extends Controller
 {
+    private const DEFAULT_NEW_USER_PASSWORD = 'bengkelmesin123';
+
     public function index(Request $request): View
     {
         $role = $request->string('role')->toString();
@@ -45,6 +47,7 @@ class UserPanelController extends Controller
             'search' => $search,
             'roleLabels' => User::roleLabels(),
             'adminRoleOptions' => User::adminRoleOptions(),
+            'defaultPassword' => self::DEFAULT_NEW_USER_PASSWORD,
             'summaryCounts' => collect(User::roleLabels())->mapWithKeys(
                 fn (string $label, string $value) => [$value => User::where('role', $value)->count()]
             ),
@@ -101,7 +104,7 @@ class UserPanelController extends Controller
             'inisial' => $this->nullableTrim($validated['inisial'] ?? null),
             'role' => $validated['role'],
             'admin_role' => $validated['role'] === User::ROLE_ADMIN ? $validated['admin_role'] : null,
-            'password' => $validated['password'],
+            'password' => self::DEFAULT_NEW_USER_PASSWORD,
         ]);
 
         return redirect()
@@ -199,8 +202,6 @@ class UserPanelController extends Controller
             $emailRule = $emailRule->ignore($user->id);
         }
 
-        $isCreate = $user === null;
-
         $rules = [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', $emailRule],
@@ -213,10 +214,6 @@ class UserPanelController extends Controller
                 Rule::in(array_keys(User::adminRoleOptions())),
             ],
         ];
-
-        if ($isCreate) {
-            $rules['password'] = ['required', 'string', 'min:8', 'confirmed'];
-        }
 
         return $rules;
     }

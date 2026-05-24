@@ -9,8 +9,10 @@ Route::middleware('guest')->group(function () {
     Volt::route('login', 'auth.login')
         ->name('login');
 
-    Volt::route('register', 'auth.register')
-        ->name('register');
+    // REGISTRATION_DISABLED: akun baru sementara hanya dibuat dari Admin > User Panel.
+    // Aktifkan lagi public register dengan membuka komentar route di bawah ini.
+    // Volt::route('register', 'auth.register')
+    //     ->name('register');
 
     Volt::route('forgot-password', 'auth.forgot-password')
         ->name('password.request');

@@ -4,36 +4,34 @@ namespace Tests\Feature\Auth;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Volt\Volt;
 use Tests\TestCase;
 
 class RegistrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_registration_screen_can_be_rendered(): void
+    public function test_public_registration_screen_is_disabled(): void
     {
         $response = $this->get('/register');
 
-        $response->assertStatus(200);
+        $response->assertNotFound();
     }
 
-    public function test_new_users_can_register(): void
+    public function test_public_registration_submission_is_disabled(): void
     {
-        $response = Volt::test('auth.register')
-            ->set('name', 'Test User')
-            ->set('email', ' TEST@EXAMPLE.COM ')
-            ->set('role', User::ROLE_APPROVER)
-            ->set('password', 'password')
-            ->set('password_confirmation', 'password')
-            ->call('register');
+        $response = $this->post('/register', [
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+            'role' => User::ROLE_APPROVER,
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
 
-        $response
-            ->assertHasNoErrors()
-            ->assertRedirect(route('user.dashboard'));
+        $response->assertNotFound();
 
-        $this->assertAuthenticated();
-        $this->assertSame(User::ROLE_APPROVER, auth()->user()->role);
-        $this->assertSame('test@example.com', auth()->user()->email);
+        $this->assertGuest();
+        $this->assertDatabaseMissing('users', [
+            'email' => 'test@example.com',
+        ]);
     }
 }

@@ -140,8 +140,10 @@ new #[Layout('components.layouts.auth')] class extends Component {
         </button>
     </form>
 
-    <div class="auth-note auth-reveal auth-delay-5 text-center text-slate-600">
+    {{-- REGISTRATION_DISABLED: tombol daftar dinonaktifkan sementara.
+         Aktifkan lagi setelah route register di routes/auth.php dibuka. --}}
+    {{-- <div class="auth-note auth-reveal auth-delay-5 text-center text-slate-600">
         Belum punya akun?
         <a href="{{ route('register') }}" class="auth-link" wire:navigate>Daftar sekarang</a>
-    </div>
+    </div> --}}
 </div>

@@ -266,13 +266,11 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <div>
-                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Password</label>
-                                    <input type="password" name="password" class="w-full rounded-xl border border-slate-300 px-3 py-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
-                                </div>
-                                <div>
-                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Konfirmasi Password</label>
-                                    <input type="password" name="password_confirmation" class="w-full rounded-xl border border-slate-300 px-3 py-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
+                                <div class="md:col-span-2">
+                                    <div class="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                                        <div class="font-semibold">Password awal akun baru</div>
+                                        <div class="mt-1">Setiap akun baru otomatis dibuat dengan password <span class="font-mono font-bold">{{ $defaultPassword }}</span>.</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

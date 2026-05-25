@@ -1095,6 +1095,7 @@ class OrderTrackingController extends Controller
         return match ($order->orderWorkshop?->progress_status) {
             OrderWorkshop::PROGRESS_DONE => 'emerald',
             OrderWorkshop::PROGRESS_QUALITY_CONTROL, OrderWorkshop::PROGRESS_IN_PROGRESS => 'blue',
+            OrderWorkshop::PROGRESS_PENDING => 'orange',
             OrderWorkshop::PROGRESS_MENUNGGU_JADWAL => 'amber',
             default => 'slate',
         };

@@ -5,6 +5,7 @@ namespace Tests\Feature\Livewire;
 use App\Livewire\DashboardPekerjaan;
 use App\Models\BengkelPic;
 use App\Models\BengkelTask;
+use App\Models\OrderWorkshop;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -115,5 +116,26 @@ class DashboardPekerjaanTest extends TestCase
         Livewire::test(DashboardPekerjaan::class, ['mode' => 'display'])
             ->assertSee('PEKERJAAN AKTIF')
             ->assertDontSee('PEKERJAAN ARSIP');
+    }
+
+    public function test_display_shows_pending_status_without_pending_reason(): void
+    {
+        BengkelTask::create([
+            'job_name' => 'Pekerjaan Pending',
+            'notification_number' => 'WO-PENDING',
+            'unit_work' => 'Workshop A',
+            'seksi' => 'Mekanik',
+            'usage_plan_date' => '2026-04-20',
+            'catatan' => 'Regu Fabrikasi',
+            'progress_status' => OrderWorkshop::PROGRESS_PENDING,
+            'pending_reason' => 'Menunggu spare part rahasia.',
+            'person_in_charge' => [],
+            'person_in_charge_profiles' => [],
+        ]);
+
+        Livewire::test(DashboardPekerjaan::class, ['mode' => 'display'])
+            ->assertSee('PEKERJAAN PENDING')
+            ->assertSee('Pending')
+            ->assertDontSee('Menunggu spare part rahasia.');
     }
 }

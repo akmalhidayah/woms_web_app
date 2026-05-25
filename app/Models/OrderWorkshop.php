@@ -23,6 +23,7 @@ class OrderWorkshop extends Model
     public const PROGRESS_MENUNGGU_JADWAL = 'menunggu_jadwal';
     public const PROGRESS_IN_PROGRESS = 'in_progress';
     public const PROGRESS_QUALITY_CONTROL = 'quality_control';
+    public const PROGRESS_PENDING = 'pending';
     public const PROGRESS_DONE = 'done';
 
     /**
@@ -74,6 +75,7 @@ class OrderWorkshop extends Model
             self::PROGRESS_MENUNGGU_JADWAL => 'Menunggu Jadwal',
             self::PROGRESS_IN_PROGRESS => 'Sementara Proses',
             self::PROGRESS_QUALITY_CONTROL => 'Proses Quality Control',
+            self::PROGRESS_PENDING => 'Pending',
             self::PROGRESS_DONE => 'Selesai',
         ];
     }

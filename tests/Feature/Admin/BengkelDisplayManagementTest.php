@@ -286,6 +286,38 @@ class BengkelDisplayManagementTest extends TestCase
             ->assertOk();
     }
 
+    public function test_bengkel_task_can_store_pending_status_with_reason_visible_on_admin_index(): void
+    {
+        $user = $this->adminUser();
+
+        $this->actingAs($user)
+            ->post(route('admin.bengkel-tasks.store'), [
+                'job_name' => 'Repair Conveyor',
+                'notification_number' => 'WO-PENDING',
+                'unit_work' => 'Machine Maintenance 2',
+                'seksi' => 'Line 4/5 RM Machine Maint',
+                'usage_plan_date' => '2026-05-26',
+                'catatan' => 'Regu Fabrikasi',
+                'progress_status' => OrderWorkshop::PROGRESS_PENDING,
+                'pending_reason' => 'Menunggu spare part dari gudang.',
+                'pic_ids' => [],
+            ])
+            ->assertRedirect(route('admin.bengkel-tasks.index'))
+            ->assertSessionHas('status', 'Pekerjaan bengkel ditambahkan.');
+
+        $this->assertDatabaseHas('bengkel_tasks', [
+            'job_name' => 'REPAIR CONVEYOR',
+            'progress_status' => OrderWorkshop::PROGRESS_PENDING,
+            'pending_reason' => 'Menunggu spare part dari gudang.',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('admin.bengkel-tasks.index'))
+            ->assertOk()
+            ->assertSee('Pending')
+            ->assertSee('Menunggu spare part dari gudang.');
+    }
+
     public function test_bengkel_task_archive_creates_workshop_order_and_hides_task_from_display_admin(): void
     {
         $user = $this->adminUser();

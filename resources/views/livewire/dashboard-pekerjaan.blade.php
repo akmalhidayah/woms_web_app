@@ -104,6 +104,10 @@
                 'label' => 'Quality Control',
                 'class' => 'border-violet-200 bg-violet-100 text-violet-800',
             ],
+            \App\Models\OrderWorkshop::PROGRESS_PENDING => [
+                'label' => 'Pending',
+                'class' => 'border-orange-200 bg-orange-100 text-orange-800',
+            ],
             \App\Models\OrderWorkshop::PROGRESS_IN_PROGRESS => [
                 'label' => 'Sementara Proses',
                 'class' => 'border-blue-200 bg-blue-100 text-blue-800',
@@ -123,6 +127,7 @@
         \App\Models\OrderWorkshop::PROGRESS_IN_PROGRESS => 'Proses',
         \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL => 'Jadwal',
         \App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL => 'QC',
+        \App\Models\OrderWorkshop::PROGRESS_PENDING => 'Pending',
         \App\Models\OrderWorkshop::PROGRESS_DONE => 'Selesai',
         default => $label,
     };

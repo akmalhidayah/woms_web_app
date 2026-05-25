@@ -146,6 +146,9 @@ class OrderWorkshopController extends Controller
             ->update([
                 'progress_status' => $progressStatus,
                 'is_completed' => $progressStatus === OrderWorkshop::PROGRESS_DONE,
+                'pending_reason' => $progressStatus === OrderWorkshop::PROGRESS_PENDING
+                    ? $workshop->keterangan_progress
+                    : null,
             ]);
     }
 }

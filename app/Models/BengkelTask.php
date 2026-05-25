@@ -24,6 +24,7 @@ class BengkelTask extends Model
         'catatan',
         'is_completed',
         'progress_status',
+        'pending_reason',
         'person_in_charge',
         'person_in_charge_profiles',
         'attachment_path',

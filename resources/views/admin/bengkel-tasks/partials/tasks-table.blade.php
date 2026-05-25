@@ -96,6 +96,11 @@
                                     'progressStatus' => $progressStatus,
                                     'progressLabel' => $progressLabel,
                                 ])
+                                @if ($progressStatus === \App\Models\OrderWorkshop::PROGRESS_PENDING && filled($task->pending_reason))
+                                    <div class="max-w-[220px] rounded-lg border border-orange-100 bg-orange-50 px-2.5 py-1.5 text-left text-[10px] leading-snug text-orange-800">
+                                        <span class="font-bold">Alasan:</span> {{ \Illuminate\Support\Str::limit($task->pending_reason, 120) }}
+                                    </div>
+                                @endif
                                 <span>{{ optional($task->usage_plan_date)->format('d-m-Y') ?: '-' }}</span>
                             </div>
                         </td>
@@ -167,6 +172,11 @@
                                         'progressStatus' => $progressStatus,
                                         'progressLabel' => $progressLabel,
                                     ])
+                                    @if ($progressStatus === \App\Models\OrderWorkshop::PROGRESS_PENDING && filled($task->pending_reason))
+                                        <div class="mt-1 rounded-lg border border-orange-100 bg-orange-50 px-2 py-1 text-[10px] leading-snug text-orange-800">
+                                            <span class="font-bold">Alasan:</span> {{ \Illuminate\Support\Str::limit($task->pending_reason, 100) }}
+                                        </div>
+                                    @endif
                                     <span class="font-bold text-slate-900">{{ optional($task->usage_plan_date)->format('d-m-Y') ?: '-' }}</span>
                                 </div>
                             </div>

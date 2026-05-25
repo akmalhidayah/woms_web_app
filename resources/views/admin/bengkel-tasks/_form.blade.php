@@ -45,6 +45,7 @@
     $selectedOrderId = (string) old('order_id', $task?->order_id ?? '');
     $selectedNotificationNumber = old('notification_number', $task?->notification_number);
     $selectedProgressStatus = old('progress_status', $task?->progress_status ?? \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL);
+    $selectedPendingReason = old('pending_reason', $task?->pending_reason);
     $progressOptions = $progressOptions ?? \App\Models\OrderWorkshop::progressOptions();
     $unitsPayload = $units->map(fn ($unit) => [
         'name' => $unit->name,
@@ -132,14 +133,23 @@
                     </div>
                 </div>
 
-                <div>
+                <div x-data="{ progressStatus: @js($selectedProgressStatus) }">
                     <label for="progress_status" class="mb-1.5 block text-[11px] font-semibold text-slate-700">Progress Pekerjaan</label>
-                    <select id="progress_status" name="progress_status" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
+                    <select id="progress_status" name="progress_status" x-model="progressStatus" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
                         @foreach ($progressOptions as $value => $label)
                             <option value="{{ $value }}" @selected($selectedProgressStatus === $value)>{{ $label }}</option>
                         @endforeach
                     </select>
                     <div class="mt-1 text-[10px] text-slate-500">Jika pekerjaan dari order bengkel, status ini ikut tersinkron ke progress order.</div>
+
+                    <div x-show="progressStatus === @js(\App\Models\OrderWorkshop::PROGRESS_PENDING)" x-cloak class="mt-3">
+                        <label for="pending_reason" class="mb-1.5 block text-[11px] font-semibold text-slate-700">Alasan Pending</label>
+                        <textarea id="pending_reason" name="pending_reason" rows="3" class="w-full rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-amber-400 focus:outline-none" placeholder="Contoh: menunggu material / approval / spare part">{{ $selectedPendingReason }}</textarea>
+                        <div class="mt-1 text-[10px] text-slate-500">Alasan ini tampil di index admin saja, tidak ditampilkan di display Livewire.</div>
+                        @error('pending_reason')
+                            <div class="mt-1 text-[11px] font-medium text-rose-600">{{ $message }}</div>
+                        @enderror
+                    </div>
                 </div>
 
                 <div x-data="{ filename: '' }" class="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4">
@@ -478,6 +488,7 @@
 
             if (progressStatusSelect && selected.progress_status) {
                 progressStatusSelect.value = selected.progress_status;
+                progressStatusSelect.dispatchEvent(new Event('change', { bubbles: true }));
             }
         });
 

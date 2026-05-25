@@ -55,7 +55,8 @@ class BengkelTaskController extends Controller
                     ->orWhere('notification_number', 'like', "%{$q}%")
                     ->orWhere('unit_work', 'like', "%{$q}%")
                     ->orWhere('seksi', 'like', "%{$q}%")
-                    ->orWhere('catatan', 'like', "%{$q}%");
+                    ->orWhere('catatan', 'like', "%{$q}%")
+                    ->orWhere('pending_reason', 'like', "%{$q}%");
             });
         }
 
@@ -310,6 +311,7 @@ class BengkelTaskController extends Controller
         $bengkel_task->update([
             'is_completed' => true,
             'progress_status' => OrderWorkshop::PROGRESS_DONE,
+            'pending_reason' => null,
         ]);
         $this->syncWorkshopProgressFromTask($bengkel_task->fresh('order.orderWorkshop'));
 
@@ -322,13 +324,18 @@ class BengkelTaskController extends Controller
     {
         $validated = $request->validate([
             'progress_status' => ['required', 'string', 'in:'.implode(',', array_keys(OrderWorkshop::progressOptions()))],
+            'pending_reason' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $progressStatus = $validated['progress_status'];
+        $pendingReason = $progressStatus === OrderWorkshop::PROGRESS_PENDING
+            ? trim((string) ($validated['pending_reason'] ?? ''))
+            : null;
 
         $bengkel_task->update([
             'progress_status' => $progressStatus,
             'is_completed' => $progressStatus === OrderWorkshop::PROGRESS_DONE,
+            'pending_reason' => $pendingReason !== '' ? $pendingReason : null,
         ]);
         $this->syncWorkshopProgressFromTask($bengkel_task->fresh('order.orderWorkshop'));
 
@@ -595,6 +602,7 @@ class BengkelTaskController extends Controller
             'usage_plan_date' => ['nullable', 'date'],
             'catatan' => ['nullable', 'string', 'in:'.implode(',', self::CATATAN_REGU_ALLOWED)],
             'progress_status' => ['nullable', 'string', 'in:'.implode(',', array_keys(OrderWorkshop::progressOptions()))],
+            'pending_reason' => ['required_if:progress_status,'.OrderWorkshop::PROGRESS_PENDING, 'nullable', 'string', 'max:1000'],
             'pic_ids' => ['nullable', 'array'],
             'pic_ids.*' => ['nullable', 'integer', 'exists:bengkel_pics,id'],
             'pic_assignments' => ['nullable', 'array'],
@@ -613,6 +621,10 @@ class BengkelTaskController extends Controller
         $validated['progress_status'] = ($validated['progress_status'] ?? null)
             ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
         $validated['is_completed'] = $validated['progress_status'] === OrderWorkshop::PROGRESS_DONE;
+        $pendingReason = trim((string) ($validated['pending_reason'] ?? ''));
+        $validated['pending_reason'] = $validated['progress_status'] === OrderWorkshop::PROGRESS_PENDING && $pendingReason !== ''
+            ? $pendingReason
+            : null;
 
         $assignments = collect($validated['pic_assignments'] ?? [])
             ->filter(fn ($row): bool => is_array($row) && ! empty($row['pic_id']))
@@ -837,6 +849,9 @@ class BengkelTaskController extends Controller
         }
 
         $workshop->progress_status = $progressStatus;
+        if ($progressStatus === OrderWorkshop::PROGRESS_PENDING) {
+            $workshop->keterangan_progress = $task->pending_reason;
+        }
         $workshop->save();
     }
 
@@ -849,14 +864,22 @@ class BengkelTaskController extends Controller
         }
 
         $shouldBeCompleted = $workshopProgress === OrderWorkshop::PROGRESS_DONE;
+        $pendingReason = $workshopProgress === OrderWorkshop::PROGRESS_PENDING
+            ? $task->order?->orderWorkshop?->keterangan_progress
+            : null;
 
-        if ($task->progress_status === $workshopProgress && (bool) $task->is_completed === $shouldBeCompleted) {
+        if (
+            $task->progress_status === $workshopProgress
+            && (bool) $task->is_completed === $shouldBeCompleted
+            && $task->pending_reason === $pendingReason
+        ) {
             return;
         }
 
         $task->forceFill([
             'progress_status' => $workshopProgress,
             'is_completed' => $shouldBeCompleted,
+            'pending_reason' => $pendingReason,
         ])->save();
     }
 }

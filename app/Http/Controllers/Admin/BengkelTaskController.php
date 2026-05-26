@@ -10,6 +10,7 @@ use App\Models\BengkelPic;
 use App\Models\BengkelTask;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
+use App\Models\QualityControlReport;
 use App\Models\UnitWork;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -448,6 +449,7 @@ class BengkelTaskController extends Controller
             $order->orderWorkshop()->save($workshop);
 
             $this->copyTaskAttachmentToOrderGambarTeknik($lockedTask, $order, $userId);
+            $this->moveTaskQualityControlReportsToOrder($lockedTask, $order);
 
             $lockedTask->forceFill([
                 'order_id' => $order->id,
@@ -457,6 +459,16 @@ class BengkelTaskController extends Controller
 
             return $order;
         });
+    }
+
+    private function moveTaskQualityControlReportsToOrder(BengkelTask $task, Order $order): void
+    {
+        QualityControlReport::query()
+            ->where('bengkel_task_id', $task->id)
+            ->where('order_id', '!=', $order->id)
+            ->update([
+                'order_id' => $order->id,
+            ]);
     }
 
     private function archiveOrderNumber(BengkelTask $task): string

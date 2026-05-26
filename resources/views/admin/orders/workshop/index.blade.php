@@ -176,6 +176,12 @@
                                     ] : null,
                                 ])->filter()->values();
                                 $qcReport = $order->latestQualityControlReport;
+                                if ($qcReport) {
+                                    $detailDocuments->push([
+                                        'label' => 'PDF Quality Control',
+                                        'url' => route('admin.orders.workshop.quality-control.pdf', [$order, $qcReport]),
+                                    ]);
+                                }
                                 $showQcActions = $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL;
                                 $activeQcSignature = $qcReport?->signatures
                                     ?->firstWhere('status', \App\Models\QualityControlSignature::STATUS_PENDING);
@@ -333,7 +339,14 @@
                                             </div>
                                         </div>
                                     @else
-                                        <div class="italic text-slate-400">-</div>
+                                        @if ($qcReport)
+                                            <a href="{{ route('admin.orders.workshop.quality-control.pdf', [$order, $qcReport]) }}" target="_blank" title="PDF QC" aria-label="PDF QC" class="inline-flex items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-100">
+                                                <i data-lucide="file-text" class="h-3 w-3"></i>
+                                                PDF QC
+                                            </a>
+                                        @else
+                                            <div class="italic text-slate-400">-</div>
+                                        @endif
                                     @endif
                                 </td>
                                 <td class="px-3 py-3">
@@ -387,6 +400,13 @@
                                                             Tambah QC
                                                         </a>
                                                     @endif
+                                                </div>
+                                            @elseif ($qcReport)
+                                                <div class="flex items-center gap-1.5">
+                                                    <a href="{{ route('admin.orders.workshop.quality-control.pdf', [$order, $qcReport]) }}" target="_blank" title="PDF QC" aria-label="PDF QC" class="inline-flex items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-100">
+                                                        <i data-lucide="file-text" class="h-3 w-3"></i>
+                                                        PDF QC
+                                                    </a>
                                                 </div>
                                             @endif
                                         </div>

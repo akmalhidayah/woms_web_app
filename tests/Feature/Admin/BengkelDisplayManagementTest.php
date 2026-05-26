@@ -8,6 +8,7 @@ use App\Models\BengkelPic;
 use App\Models\BengkelTask;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
+use App\Models\QualityControlReport;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -412,6 +413,60 @@ class BengkelDisplayManagementTest extends TestCase
         $this->assertSame('gambar-teknik-awal.pdf', $document->nama_file_asli);
         $this->assertSame($user->id, $document->uploaded_by);
         Storage::disk('local')->assertExists($document->path_file);
+    }
+
+    public function test_bengkel_task_archive_moves_quality_control_report_to_archived_order(): void
+    {
+        $user = $this->adminUser();
+        $temporaryOrder = Order::create([
+            'nomor_order' => 'TEMP-QC-001',
+            'nama_pekerjaan' => 'TEMP QC',
+            'unit_kerja' => 'Temporary',
+            'seksi' => 'Temporary',
+            'deskripsi' => 'Temporary order for QC draft',
+            'prioritas' => Order::PRIORITY_LOW,
+            'tanggal_order' => '2026-05-20',
+            'target_selesai' => '2026-05-26',
+            'catatan_status' => OrderUserNoteStatus::ApprovedWorkshop->value,
+            'catatan' => 'Regu Fabrikasi',
+            'created_by' => $user->id,
+        ]);
+        $task = BengkelTask::create([
+            'job_name' => 'Fabrikasi Ducting QC',
+            'notification_number' => 'WO-QC-ARCHIVE',
+            'unit_work' => 'Machine Maintenance 2',
+            'seksi' => 'Line 4/5 FM Machine Maint',
+            'usage_plan_date' => '2026-05-26',
+            'catatan' => 'Regu Fabrikasi',
+            'progress_status' => OrderWorkshop::PROGRESS_DONE,
+            'person_in_charge' => [],
+            'person_in_charge_profiles' => [],
+        ]);
+        $report = QualityControlReport::create([
+            'order_id' => $temporaryOrder->id,
+            'bengkel_task_id' => $task->id,
+            'type' => QualityControlReport::TYPE_FABRICATION,
+            'report_no' => '001/QC/25.10/05-2026',
+            'report_date' => '2026-05-25',
+            'status' => QualityControlReport::STATUS_SUBMITTED,
+            'payload' => ['notes' => 'QC selesai'],
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+
+        $this->actingAs($user)
+            ->patch(route('admin.bengkel-tasks.archive', $task))
+            ->assertRedirect(route('admin.bengkel-tasks.index'));
+
+        $archivedOrder = Order::query()->findOrFail($task->fresh()->archived_order_id);
+
+        $this->assertSame($archivedOrder->id, $report->fresh()->order_id);
+        $this->assertSame($report->id, $archivedOrder->latestQualityControlReport()->first()?->id);
+
+        $this->actingAs($user)
+            ->get(route('admin.orders.workshop.index'))
+            ->assertOk()
+            ->assertSee('PDF QC');
     }
 
     public function test_archived_workshop_order_number_and_notification_can_be_completed_later(): void

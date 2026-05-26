@@ -173,16 +173,24 @@ class DashboardPekerjaan extends Component
 
         $collection = collect($this->tasks);
 
-        $fabrikasiCount = $collection
+        $fabrikasiRows = $collection
             ->filter(fn (array $row): bool => (($row['catatan'] ?? null) === 'Regu Fabrikasi') || empty($row['catatan']))
-            ->count();
+            ->values();
 
-        $refurbishCount = $collection
+        $refurbishRows = $collection
             ->filter(fn (array $row): bool => ($row['catatan'] ?? null) === 'Regu Bengkel (Refurbish)')
-            ->count();
+            ->values();
 
-        $fabrikasiPages = (int) ceil($fabrikasiCount / max(1, $this->perPageFabrikasi));
-        $refurbishPages = (int) ceil($refurbishCount / max(1, $this->perPageRefurbish));
+        $fabrikasiPerPage = $fabrikasiRows->contains(fn (array $row): bool => count($row['person_in_charge_profiles'] ?? []) > 2)
+            ? 4
+            : $this->perPageFabrikasi;
+
+        $refurbishPerPage = $refurbishRows->contains(fn (array $row): bool => count($row['person_in_charge_profiles'] ?? []) > 2)
+            ? 2
+            : $this->perPageRefurbish;
+
+        $fabrikasiPages = (int) ceil($fabrikasiRows->count() / max(1, $fabrikasiPerPage));
+        $refurbishPages = (int) ceil($refurbishRows->count() / max(1, $refurbishPerPage));
 
         $this->maxPages = max(1, $fabrikasiPages, $refurbishPages);
         $this->pageSlide = (int) ($this->pageSlide % $this->maxPages);

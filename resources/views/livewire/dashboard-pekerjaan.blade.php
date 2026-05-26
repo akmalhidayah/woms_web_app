@@ -9,8 +9,16 @@
         ->filter(fn ($row) => ($row['catatan'] ?? null) === 'Regu Bengkel (Refurbish)')
         ->values();
 
-    $fabrikasiChunks = $fabrikasiTasks->chunk(max(1, (int) $perPageFabrikasi));
-    $refurbishChunks = $refurbishTasks->chunk(max(1, (int) $perPageRefurbish));
+    $fabrikasiPerPage = $fabrikasiTasks->contains(fn ($row) => count($row['person_in_charge_profiles'] ?? []) > 2)
+        ? 4
+        : max(1, (int) $perPageFabrikasi);
+
+    $refurbishPerPage = $refurbishTasks->contains(fn ($row) => count($row['person_in_charge_profiles'] ?? []) > 2)
+        ? 2
+        : max(1, (int) $perPageRefurbish);
+
+    $fabrikasiChunks = $fabrikasiTasks->chunk($fabrikasiPerPage);
+    $refurbishChunks = $refurbishTasks->chunk($refurbishPerPage);
 
     $fabrikasiSlideCount = $fabrikasiChunks->count();
     $refurbishSlideCount = $refurbishChunks->count();
@@ -186,7 +194,7 @@
                                 $isCompleted = (bool) ($task['is_completed'] ?? false);
                                 $progressMeta = $progressBadge($task['progress_status'] ?? null, $task['progress_label'] ?? null);
                             @endphp
-                            <article wire:key="fabrikasi-display-{{ $task['id'] }}" class="flex h-fit min-h-[138px] flex-col rounded-[1.1rem] border p-3 shadow-sm {{ $isCompleted ? 'border-emerald-300 bg-emerald-50' : 'border-blue-200 bg-white' }}">
+                            <article wire:key="fabrikasi-display-{{ $task['id'] }}" class="flex h-full min-h-[138px] flex-col rounded-[1.1rem] border p-3 shadow-sm {{ $isCompleted ? 'border-emerald-300 bg-emerald-50' : 'border-blue-200 bg-white' }}">
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="min-w-0 text-[1.1rem] font-black leading-[1.15] tracking-[-0.03em] text-slate-950 drop-shadow-[0_1px_0_rgba(255,255,255,0.7)]"
                                          style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">

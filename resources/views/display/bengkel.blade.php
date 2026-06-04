@@ -174,7 +174,8 @@
             height: 100%;
             gap: 0.32rem;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            grid-auto-rows: minmax(0, 1fr);
+            align-content: start;
+            grid-auto-rows: max-content;
         }
         .tv-pic-item {
             display: grid;
@@ -185,10 +186,10 @@
             border: 1px solid #dbeafe;
             background: #fff;
             padding: 0.25rem;
-            grid-template-columns: 44px minmax(0, 1fr);
+            grid-template-columns: 56px minmax(0, 1fr);
         }
         .tv-pic-photo {
-            height: 54px;
+            height: 70px;
             overflow: hidden;
             border-radius: 0.38rem;
             border: 1px solid #e2e8f0;
@@ -197,37 +198,37 @@
         }
         .tv-pic-img,
         .tv-pic-fallback {
-            height: 40px;
+            height: 54px;
         }
         .tv-pic-name {
             display: flex;
-            height: 14px;
+            height: 16px;
             align-items: center;
             justify-content: center;
             border-top: 1px solid #e2e8f0;
             background: #fff;
             padding: 0 0.15rem;
-            font-size: 5.8px;
+            font-size: 6.4px;
             font-weight: 900;
             line-height: 1;
             color: #1e293b;
         }
         .tv-pic-desc {
             min-width: 0;
-            max-height: 54px;
+            max-height: 70px;
             overflow: hidden;
             border-left: 1px solid #dbeafe;
             padding-left: 0.34rem;
         }
         .tv-pic-desc-list {
             display: -webkit-box;
-            -webkit-line-clamp: 3;
+            -webkit-line-clamp: 4;
             -webkit-box-orient: vertical;
             overflow: hidden;
             padding-left: 0.78rem;
-            font-size: clamp(0.46rem, 0.5vw, 0.58rem);
-            font-weight: 700;
-            line-height: 1.25;
+            font-size: clamp(0.56rem, 0.62vw, 0.72rem);
+            font-weight: 800;
+            line-height: 1.3;
             color: #334155;
         }
         @media (max-width: 900px) {

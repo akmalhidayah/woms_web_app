@@ -145,32 +145,32 @@
 <div>
     @if (($mode ?? 'admin') === 'display')
         <div wire:poll.keep-alive.5s="tickDisplay" class="flex h-screen w-screen flex-col overflow-hidden bg-slate-100 text-slate-950" style="color-scheme: light only;">
-            <div class="mb-3 grid grid-cols-[auto_1fr_auto] items-center gap-4 border border-red-950 bg-red-900 px-6 py-4 text-white shadow-sm">
-                <div class="flex items-center gap-4">
-                    <span class="inline-flex h-16 items-center rounded-2xl bg-white px-4 shadow-sm">
-                        <img src="{{ asset('assets/branding/logos/logo-sig.png') }}" alt="SIG" class="h-11 w-auto object-contain">
+            <div class="tv-board-header mb-2 border border-red-950 bg-red-900 text-white shadow-sm">
+                <div class="flex items-center gap-3">
+                    <span class="tv-logo-box">
+                        <img src="{{ asset('assets/branding/logos/logo-sig.png') }}" alt="SIG" class="h-8 w-auto object-contain">
                     </span>
-                    <span class="inline-flex h-16 items-center rounded-2xl bg-white px-3 shadow-sm">
-                        <img src="{{ asset('assets/branding/logos/logo-st2.png') }}" alt="ST" class="h-12 w-auto object-contain">
+                    <span class="tv-logo-box">
+                        <img src="{{ asset('assets/branding/logos/logo-st2.png') }}" alt="ST" class="h-9 w-auto object-contain">
                     </span>
                 </div>
 
                 <div class="text-center">
-                    <h1 class="mt-2 text-[2.2rem] font-black tracking-tight text-white">Dashboard Pekerjaan Bengkel</h1>
-                    <div id="dateDisplay" class="mt-2 text-[1rem] font-semibold text-slate-300"></div>
+                    <h1 class="tv-board-title text-white">Dashboard Pekerjaan Bengkel</h1>
+                    <div id="dateDisplay" class="tv-board-date text-slate-300"></div>
                 </div>
 
                 <div class="text-right">
-                    <div class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-300">Jam</div>
-                    <div id="timeDisplay" class="mt-2 text-[2rem] font-black tracking-tight text-white"></div>
-                    <div class="mt-2 text-[11px] font-semibold text-slate-300">
+                    <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-slate-300">Jam</div>
+                    <div id="timeDisplay" class="tv-board-time tracking-tight text-white"></div>
+                    <div class="mt-1 text-[9px] font-semibold text-slate-300">
                         Fabrikasi {{ $fabrikasiSlideCount > 0 ? ($fabrikasiSlideIndex + 1) : 0 }} / {{ $fabrikasiSlideCount }}
                         | Refurbish {{ $refurbishSlideCount > 0 ? ($refurbishSlideIndex + 1) : 0 }} / {{ $refurbishSlideCount }}
                     </div>
                 </div>
             </div>
 
-            <div class="ticker mb-3 border border-red-950 bg-red-900 text-white shadow-sm" style="--ticker-duration: {{ $tickerDuration }}s;">
+            <div class="ticker mb-2 border border-red-950 bg-red-900 text-white shadow-sm" style="--ticker-duration: {{ $tickerDuration }}s;">
                 <div class="ticker-track">
                     <span class="ticker-item">{{ $tickerMessage }}</span>
                     <span class="ticker-item">{{ $tickerMessage }}</span>
@@ -179,14 +179,14 @@
                 </div>
             </div>
 
-            <div class="grid min-h-0 flex-1 gap-4 xl:grid-cols-[1.45fr_1fr]">
-                <section class="flex min-h-0 flex-col border border-red-950 bg-red-900 p-4 shadow-sm">
-                    <div class="relative mb-3 flex items-center justify-center gap-3">
-                        <div class="text-center text-[1.25rem] font-black uppercase tracking-[0.08em] text-white drop-shadow-[0_1px_0_rgba(0,0,0,0.25)]">Regu Fabrikasi</div>
+            <div class="tv-board-main">
+                <section class="tv-regu-section">
+                    <div class="tv-regu-heading">
+                        <div class="tv-regu-title drop-shadow-[0_1px_0_rgba(0,0,0,0.25)]">Regu Fabrikasi</div>
                         <span class="absolute right-0 rounded-full bg-white px-3 py-1 text-[11px] font-bold text-blue-800 ring-1 ring-blue-200">{{ $fabrikasiTasks->count() }} item</span>
                     </div>
 
-                    <div class="grid min-h-0 flex-1 content-start gap-3 xl:grid-cols-2">
+                    <div class="tv-task-grid tv-task-grid-fabrikasi">
                         @forelse ($fabrikasiPage as $task)
                             @php
                                 $profiles = collect($task['person_in_charge_profiles'] ?? []);
@@ -194,10 +194,9 @@
                                 $isCompleted = (bool) ($task['is_completed'] ?? false);
                                 $progressMeta = $progressBadge($task['progress_status'] ?? null, $task['progress_label'] ?? null);
                             @endphp
-                            <article wire:key="fabrikasi-display-{{ $task['id'] }}" class="flex h-full min-h-[138px] flex-col rounded-[1.1rem] border p-3 shadow-sm {{ $isCompleted ? 'border-emerald-300 bg-emerald-50' : 'border-blue-200 bg-white' }}">
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="min-w-0 text-[1.1rem] font-black leading-[1.15] tracking-[-0.03em] text-slate-950 drop-shadow-[0_1px_0_rgba(255,255,255,0.7)]"
-                                         style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+                            <article wire:key="fabrikasi-display-{{ $task['id'] }}" class="tv-task-card border {{ $isCompleted ? 'border-emerald-300 bg-emerald-50' : 'border-blue-200 bg-white' }}">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="tv-card-title tracking-[-0.03em] text-slate-950 drop-shadow-[0_1px_0_rgba(255,255,255,0.7)]">
                                         {{ $task['job_name'] ?? '-' }}
                                     </div>
 
@@ -214,11 +213,11 @@
 
                                 
 
-                                <div class="mt-2.5 rounded-[1rem] border px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] {{ $isCompleted ? 'border-emerald-100 bg-white/85' : 'border-blue-100 bg-blue-50' }}">
-                                    <div class="space-y-1.5 text-[12px] font-bold leading-[1.2rem] text-slate-800">
+                                <div class="tv-card-meta border shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] {{ $isCompleted ? 'border-emerald-100 bg-white/85' : 'border-blue-100 bg-blue-50' }}">
+                                    <div class="tv-card-meta-text space-y-1 text-slate-800">
                                         <div class="flex items-start gap-1.5">
-                                            <span class="shrink-0 text-[12px] font-black text-blue-800">Seksi :</span>
-                                            <span class="text-[12px] font-bold"
+                                            <span class="shrink-0 font-black text-blue-800">Seksi :</span>
+                                            <span class="font-bold"
                                                   style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
                                                 {{ $task['seksi'] ?: '-' }}
                                             </span>
@@ -226,8 +225,8 @@
 
                                         <div class="flex items-start gap-1.5 border-t border-blue-100 pt-1.5">
                                             <div class="flex min-w-0 items-start gap-1.5">
-                                                <span class="shrink-0 text-[12px] font-black text-blue-800">Target :</span>
-                                                <span class="text-[12px] font-black text-blue-950">{{ $task['usage_plan_date'] ?: '-' }}</span>
+                                                <span class="shrink-0 font-black text-blue-800">Target :</span>
+                                                <span class="font-black text-blue-950">{{ $task['usage_plan_date'] ?: '-' }}</span>
                                             </div>
 
                                             @if ($targetMeta['badge_text'])
@@ -239,34 +238,34 @@
                                     </div>
                                 </div>
 
-                                <div class="mt-3 border-t border-blue-100 pt-2">
+                                <div class="tv-pic-wrap">
                                     @if ($profiles->isNotEmpty())
-                                        <div class="grid gap-2 sm:grid-cols-2">
+                                        <div class="tv-pic-grid">
                                             @foreach ($profiles as $profile)
                                                 @php
                                                     $name = is_array($profile) ? ($profile['name'] ?? '') : '';
                                                     $avatar = is_array($profile) ? ($profile['avatar_url'] ?? null) : null;
                                                     $descriptions = collect(is_array($profile) ? ($profile['work_descriptions'] ?? []) : [])->filter()->values();
                                                 @endphp
-                                                <div class="grid gap-2 rounded-xl border border-blue-100 bg-white px-2 py-2 shadow-[0_1px_4px_rgba(30,64,175,0.08)]" style="grid-template-columns: 64px minmax(0, 1fr);">
-                                                    <div class="overflow-hidden rounded-lg border border-slate-200 bg-white text-center" style="height: 78px;">
+                                                <div class="tv-pic-item shadow-[0_1px_4px_rgba(30,64,175,0.08)]">
+                                                    <div class="tv-pic-photo">
                                                         @if ($avatar)
-                                                            <img src="{{ $avatar }}" alt="" class="w-full bg-slate-100" style="height: 58px; object-fit: contain; object-position: {{ $avatarObjectPosition($profile) }};" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                                            <span style="display:none; height:58px;" class="w-full items-center justify-center bg-slate-200 text-[14px] font-black text-slate-700">{{ $initials($name) }}</span>
+                                                            <img src="{{ $avatar }}" alt="" class="tv-pic-img w-full bg-slate-100 object-contain" style="object-position: {{ $avatarObjectPosition($profile) }};" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                                            <span style="display:none;" class="tv-pic-fallback w-full items-center justify-center bg-slate-200 text-[12px] font-black text-slate-700">{{ $initials($name) }}</span>
                                                         @else
-                                                            <span class="flex w-full items-center justify-center bg-slate-200 text-[14px] font-black text-slate-700" style="height:58px;">{{ $initials($name) }}</span>
+                                                            <span class="tv-pic-fallback flex w-full items-center justify-center bg-slate-200 text-[12px] font-black text-slate-700">{{ $initials($name) }}</span>
                                                         @endif
-                                                        <div class="flex items-center justify-center border-t border-slate-200 bg-white px-1 font-black leading-tight text-slate-800" style="height:20px; font-size:7.5px;">{{ $name }}</div>
+                                                        <div class="tv-pic-name">{{ $name }}</div>
                                                     </div>
-                                                    <div class="min-w-0 border-l border-blue-100 pl-2">
+                                                    <div class="tv-pic-desc">
                                                         @if ($descriptions->isNotEmpty())
-                                                        <ul class="list-disc space-y-1 pl-4 text-[11px] font-semibold leading-snug text-slate-700">
+                                                        <ul class="tv-pic-desc-list list-disc">
                                                             @foreach ($descriptions as $description)
                                                                 <li>{{ $description }}</li>
                                                             @endforeach
                                                         </ul>
                                                         @else
-                                                            <div class="text-[11px] font-medium text-slate-400">Belum ada uraian.</div>
+                                                            <div class="text-[9px] font-medium text-slate-400">Belum ada uraian.</div>
                                                         @endif
                                                     </div>
                                                 </div>
@@ -287,13 +286,13 @@
                     </div>
                 </section>
 
-                <section class="flex min-h-0 flex-col border border-red-950 bg-red-900 p-4 shadow-sm">
-                    <div class="relative mb-3 flex items-center justify-center gap-3">
-                        <div class="text-center text-[1.1rem] font-black uppercase tracking-[0.07em] text-white drop-shadow-[0_1px_0_rgba(0,0,0,0.25)]">Regu Bengkel (Refurbish)</div>
+                <section class="tv-regu-section">
+                    <div class="tv-regu-heading">
+                        <div class="tv-regu-title drop-shadow-[0_1px_0_rgba(0,0,0,0.25)]">Regu Bengkel (Refurbish)</div>
                         <span class="absolute right-0 rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-blue-800 ring-1 ring-blue-200">{{ $refurbishTasks->count() }} item</span>
                     </div>
 
-                    <div class="grid min-h-0 flex-1 content-start gap-3">
+                    <div class="tv-task-grid">
                         @forelse ($refurbishPage as $task)
                             @php
                                 $profiles = collect($task['person_in_charge_profiles'] ?? []);
@@ -301,10 +300,9 @@
                                 $isCompleted = (bool) ($task['is_completed'] ?? false);
                                 $progressMeta = $progressBadge($task['progress_status'] ?? null, $task['progress_label'] ?? null);
                             @endphp
-                            <article wire:key="refurbish-display-{{ $task['id'] }}" class="flex h-fit min-h-[172px] flex-col rounded-[1.1rem] border p-3 shadow-sm {{ $isCompleted ? 'border-emerald-300 bg-emerald-50' : 'border-blue-200 bg-white' }}">
-                                <div class="flex items-start justify-between gap-2.5">
-                                    <div class="min-w-0 text-[1.05rem] font-black leading-[1.15] tracking-[-0.03em] text-slate-950 drop-shadow-[0_1px_0_rgba(255,255,255,0.7)]"
-                                         style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+                            <article wire:key="refurbish-display-{{ $task['id'] }}" class="tv-task-card border {{ $isCompleted ? 'border-emerald-300 bg-emerald-50' : 'border-blue-200 bg-white' }}">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="tv-card-title tracking-[-0.03em] text-slate-950 drop-shadow-[0_1px_0_rgba(255,255,255,0.7)]">
                                         {{ $task['job_name'] ?? '-' }}
                                     </div>
 
@@ -321,11 +319,11 @@
 
                         
 
-                                <div class="mt-2.5 rounded-[0.95rem] border px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] {{ $isCompleted ? 'border-emerald-100 bg-white/85' : 'border-blue-100 bg-blue-50' }}">
-                                    <div class="space-y-1.5 text-[11px] font-bold leading-[1.15rem] text-slate-800">
+                                <div class="tv-card-meta border shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] {{ $isCompleted ? 'border-emerald-100 bg-white/85' : 'border-blue-100 bg-blue-50' }}">
+                                    <div class="tv-card-meta-text space-y-1 text-slate-800">
                                         <div class="flex items-start gap-1.5">
-                                            <span class="shrink-0 text-[11px] font-black text-blue-800">Seksi :</span>
-                                            <span class="text-[11px] font-bold"
+                                            <span class="shrink-0 font-black text-blue-800">Seksi :</span>
+                                            <span class="font-bold"
                                                   style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
                                                 {{ $task['seksi'] ?: '-' }}
                                             </span>
@@ -333,8 +331,8 @@
 
                                         <div class="flex items-start gap-1.5 border-t border-blue-100 pt-1.5">
                                             <div class="flex min-w-0 items-start gap-1.5">
-                                                <span class="shrink-0 text-[11px] font-black text-blue-800">Target :</span>
-                                                <span class="text-[11px] font-black text-blue-950">{{ $task['usage_plan_date'] ?: '-' }}</span>
+                                                <span class="shrink-0 font-black text-blue-800">Target :</span>
+                                                <span class="font-black text-blue-950">{{ $task['usage_plan_date'] ?: '-' }}</span>
                                             </div>
 
                                             @if ($targetMeta['badge_text'])
@@ -346,28 +344,28 @@
                                     </div>
                                 </div>
 
-                                <div class="mt-2.5 border-t border-blue-100 pt-2">
+                                <div class="tv-pic-wrap">
                                     @if ($profiles->isNotEmpty())
-                                        <div class="grid gap-2 sm:grid-cols-2">
+                                        <div class="tv-pic-grid">
                                             @foreach ($profiles as $profile)
                                                 @php
                                                     $name = is_array($profile) ? ($profile['name'] ?? '') : '';
                                                     $avatar = is_array($profile) ? ($profile['avatar_url'] ?? null) : null;
                                                     $descriptions = collect(is_array($profile) ? ($profile['work_descriptions'] ?? []) : [])->filter()->values();
                                                 @endphp
-                                                <div class="grid gap-2 rounded-xl border border-blue-100 bg-white px-2 py-2 shadow-[0_1px_4px_rgba(30,64,175,0.08)]" style="grid-template-columns: 64px minmax(0, 1fr);">
-                                                    <div class="overflow-hidden rounded-lg border border-slate-200 bg-white text-center" style="height: 78px;">
+                                                <div class="tv-pic-item shadow-[0_1px_4px_rgba(30,64,175,0.08)]">
+                                                    <div class="tv-pic-photo">
                                                         @if ($avatar)
-                                                            <img src="{{ $avatar }}" alt="" class="w-full bg-slate-100" style="height: 58px; object-fit: contain; object-position: {{ $avatarObjectPosition($profile) }};" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                                            <span style="display:none; height:58px;" class="w-full items-center justify-center bg-slate-200 text-[14px] font-black text-slate-700">{{ $initials($name) }}</span>
+                                                            <img src="{{ $avatar }}" alt="" class="tv-pic-img w-full bg-slate-100 object-contain" style="object-position: {{ $avatarObjectPosition($profile) }};" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                                            <span style="display:none;" class="tv-pic-fallback w-full items-center justify-center bg-slate-200 text-[12px] font-black text-slate-700">{{ $initials($name) }}</span>
                                                         @else
-                                                            <span class="flex w-full items-center justify-center bg-slate-200 text-[14px] font-black text-slate-700" style="height:58px;">{{ $initials($name) }}</span>
+                                                            <span class="tv-pic-fallback flex w-full items-center justify-center bg-slate-200 text-[12px] font-black text-slate-700">{{ $initials($name) }}</span>
                                                         @endif
-                                                        <div class="flex items-center justify-center border-t border-slate-200 bg-white px-1 font-black leading-tight text-slate-800" style="height:20px; font-size:7.5px;">{{ $name }}</div>
+                                                        <div class="tv-pic-name">{{ $name }}</div>
                                                     </div>
-                                                    <div class="min-w-0 border-l border-blue-100 pl-2">
+                                                    <div class="tv-pic-desc">
                                                         @if ($descriptions->isNotEmpty())
-                                                        <ul class="list-disc space-y-1 pl-4 text-[11px] font-semibold leading-snug text-slate-700">
+                                                        <ul class="tv-pic-desc-list list-disc">
                                                             @foreach ($descriptions as $description)
                                                                 <li>{{ $description }}</li>
                                                             @endforeach

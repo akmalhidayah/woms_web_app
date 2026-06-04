@@ -232,26 +232,35 @@
             color: #334155;
         }
         .tv-task-grid-fabrikasi .tv-pic-item {
-            padding: 0.22rem;
-            grid-template-columns: 52px minmax(0, 1fr);
+            min-height: 48px;
+            padding: 0.16rem;
+            grid-template-columns: 38px minmax(0, 1fr);
         }
         .tv-task-grid-fabrikasi .tv-pic-photo {
-            height: 62px;
+            height: 44px;
         }
         .tv-task-grid-fabrikasi .tv-pic-img,
         .tv-task-grid-fabrikasi .tv-pic-fallback {
-            height: 47px;
+            height: 31px;
         }
         .tv-task-grid-fabrikasi .tv-pic-name {
-            height: 15px;
-            font-size: 6px;
+            height: 13px;
+            font-size: 5.4px;
         }
         .tv-task-grid-fabrikasi .tv-pic-desc {
-            max-height: 62px;
+            max-height: 44px;
         }
         .tv-task-grid-fabrikasi .tv-pic-desc-list {
-            font-size: clamp(0.52rem, 0.57vw, 0.66rem);
-            line-height: 1.22;
+            -webkit-line-clamp: 3;
+            font-size: clamp(0.46rem, 0.5vw, 0.58rem);
+            line-height: 1.16;
+        }
+        .tv-task-grid-fabrikasi .tv-pic-wrap {
+            margin-top: 0.22rem;
+            padding-top: 0.2rem;
+        }
+        .tv-board-main > section:nth-child(2) .tv-pic-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
         }
         @media (max-height: 820px) {
             .ticker {
@@ -316,31 +325,32 @@
                 padding-top: 0.18rem !important;
             }
             .tv-task-grid-fabrikasi .tv-pic-wrap {
-                margin-top: 0.25rem;
-                padding-top: 0.24rem;
+                margin-top: 0.16rem;
+                padding-top: 0.16rem;
             }
             .tv-task-grid-fabrikasi .tv-pic-item {
-                padding: 0.18rem;
-                grid-template-columns: 46px minmax(0, 1fr);
+                min-height: 42px;
+                padding: 0.14rem;
+                grid-template-columns: 34px minmax(0, 1fr);
             }
             .tv-task-grid-fabrikasi .tv-pic-photo {
-                height: 54px;
+                height: 39px;
             }
             .tv-task-grid-fabrikasi .tv-pic-img,
             .tv-task-grid-fabrikasi .tv-pic-fallback {
-                height: 40px;
+                height: 27px;
             }
             .tv-task-grid-fabrikasi .tv-pic-name {
-                height: 14px;
-                font-size: 5.6px;
+                height: 12px;
+                font-size: 5px;
             }
             .tv-task-grid-fabrikasi .tv-pic-desc {
-                max-height: 54px;
+                max-height: 39px;
             }
             .tv-task-grid-fabrikasi .tv-pic-desc-list {
-                -webkit-line-clamp: 3;
-                font-size: clamp(0.46rem, 0.5vw, 0.58rem);
-                line-height: 1.18;
+                -webkit-line-clamp: 2;
+                font-size: clamp(0.42rem, 0.46vw, 0.52rem);
+                line-height: 1.12;
             }
         }
         @media (max-width: 900px) {

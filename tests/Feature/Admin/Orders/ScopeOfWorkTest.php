@@ -122,6 +122,13 @@ class ScopeOfWorkTest extends TestCase
                 'uploaded_at' => now(),
             ]);
 
+            $document->setRawAttributes([
+                ...$document->getAttributes(),
+                'order_id' => (string) $order->id,
+            ], true);
+
+            $this->assertSame($order->id, $document->order_id);
+
             $this->actingAs($admin)
                 ->get(route('admin.orders.documents.preview', [$order, $document]))
                 ->assertOk()

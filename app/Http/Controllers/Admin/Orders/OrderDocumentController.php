@@ -79,7 +79,7 @@ class OrderDocumentController extends Controller
      */
     public function preview(Order $order, OrderDocument $document)
     {
-        abort_unless($document->order_id === $order->id, 404);
+        abort_unless((int) $document->order_id === (int) $order->getKey(), 404);
 
         return $this->documentService->preview($document);
     }
@@ -89,7 +89,7 @@ class OrderDocumentController extends Controller
      */
     public function download(Order $order, OrderDocument $document)
     {
-        abort_unless($document->order_id === $order->id, 404);
+        abort_unless((int) $document->order_id === (int) $order->getKey(), 404);
 
         return $this->documentService->download($document);
     }
@@ -99,7 +99,7 @@ class OrderDocumentController extends Controller
      */
     public function destroy(Order $order, OrderDocument $document): RedirectResponse
     {
-        abort_unless($document->order_id === $order->id, 404);
+        abort_unless((int) $document->order_id === (int) $order->getKey(), 404);
 
         $this->documentService->delete($document);
 

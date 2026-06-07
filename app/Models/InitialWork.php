@@ -53,6 +53,10 @@ class InitialWork extends Model
     protected function casts(): array
     {
         return [
+            'order_id' => 'integer',
+            'outline_agreement_id' => 'integer',
+            'unit_work_id' => 'integer',
+            'unit_work_section_id' => 'integer',
             'tanggal_initial_work' => 'date',
             'target_penyelesaian' => 'date',
             'functional_location' => 'array',
@@ -63,6 +67,7 @@ class InitialWork extends Model
             'progress_pekerjaan' => 'integer',
             'tanggal_mulai_pekerjaan' => 'date',
             'tanggal_selesai_pekerjaan' => 'date',
+            'created_by' => 'integer',
         ];
     }
 

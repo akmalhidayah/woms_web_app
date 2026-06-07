@@ -34,9 +34,11 @@ class OrderScopeOfWork extends Model
     protected function casts(): array
     {
         return [
+            'order_id' => 'integer',
             'tanggal_dokumen' => 'date',
             'tanggal_pemakaian' => 'date',
             'scope_items' => 'array',
+            'created_by' => 'integer',
         ];
     }
 

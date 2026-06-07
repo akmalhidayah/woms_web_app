@@ -50,7 +50,7 @@ class OrderScopeOfWorkController extends Controller
      */
     public function update(UpdateOrderScopeOfWorkRequest $request, Order $order, OrderScopeOfWork $scopeOfWork): RedirectResponse
     {
-        abort_unless($scopeOfWork->order_id === $order->id, 404);
+        abort_unless((int) $scopeOfWork->order_id === (int) $order->getKey(), 404);
 
         $scopeOfWork->update([
             'nama_penginput' => $request->validated('nama_penginput'),
@@ -71,7 +71,7 @@ class OrderScopeOfWorkController extends Controller
      */
     public function pdf(Order $order, OrderScopeOfWork $scopeOfWork): Response
     {
-        abort_unless($scopeOfWork->order_id === $order->id, 404);
+        abort_unless((int) $scopeOfWork->order_id === (int) $order->getKey(), 404);
 
         $scopeOfWork->loadMissing('creator');
         $order->loadMissing('creator');

@@ -100,7 +100,7 @@ class OrderTrackingController extends Controller
     {
         $order = $this->ownedOrder($order);
 
-        abort_unless($document->order_id === $order->id, 404);
+        abort_unless((int) $document->order_id === (int) $order->getKey(), 404);
 
         return $this->orderDocumentService->preview($document);
     }

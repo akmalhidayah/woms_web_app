@@ -33,7 +33,9 @@ class OrderDocument extends Model
     protected function casts(): array
     {
         return [
+            'order_id' => 'integer',
             'jenis_dokumen' => OrderDocumentType::class,
+            'uploaded_by' => 'integer',
             'uploaded_at' => 'datetime',
         ];
     }

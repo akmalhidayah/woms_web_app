@@ -91,7 +91,7 @@ class InitialWorkController extends Controller
      */
     public function update(UpdateInitialWorkRequest $request, Order $order, InitialWork $initialWork): RedirectResponse
     {
-        abort_unless($initialWork->order_id === $order->id, 404);
+        abort_unless((int) $initialWork->order_id === (int) $order->getKey(), 404);
 
         if ($initialWork->hasSignedApproval()) {
             Log::warning('Blocked update to signed Initial Work document.', [
@@ -152,7 +152,7 @@ class InitialWorkController extends Controller
      */
     public function pdf(Order $order, InitialWork $initialWork): Response
     {
-        abort_unless($initialWork->order_id === $order->id, 404);
+        abort_unless((int) $initialWork->order_id === (int) $order->getKey(), 404);
 
         $initialWork->loadMissing(['signatures', 'unitWork']);
 
@@ -166,7 +166,7 @@ class InitialWorkController extends Controller
 
     public function resendApproval(Request $request, Order $order, InitialWork $initialWork): RedirectResponse
     {
-        abort_unless($initialWork->order_id === $order->id, Response::HTTP_NOT_FOUND);
+        abort_unless((int) $initialWork->order_id === (int) $order->getKey(), Response::HTTP_NOT_FOUND);
 
         $signature = $initialWork->signatures()
             ->where('status', InitialWorkSignature::STATUS_PENDING)

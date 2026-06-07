@@ -12,6 +12,7 @@ use App\Support\SignatureImageStorage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
@@ -126,11 +127,28 @@ class InitialWorkSignatureController extends Controller
 
     private function authorizeSigner(Request $request, InitialWorkSignature $signature): void
     {
+        $authenticatedUserId = $request->user()?->id;
+        $expectedSignerUserId = $signature->signer_user_id;
+        $authorized = $request->user()?->role === User::ROLE_APPROVER
+            && $expectedSignerUserId !== null
+            && (int) $authenticatedUserId === (int) $expectedSignerUserId;
+
+        if (! $authorized) {
+            Log::warning('Initial Work approval signer authorization denied.', [
+                'status_code' => Response::HTTP_FORBIDDEN,
+                'initial_work_signature_id' => $signature->id,
+                'initial_work_id' => $signature->initial_work_id,
+                'role_key' => $signature->role_key,
+                'role_label' => $signature->role_label,
+                'authenticated_user_id' => $authenticatedUserId,
+                'authenticated_user_role' => $request->user()?->role,
+                'expected_signer_user_id' => $expectedSignerUserId,
+            ]);
+        }
+
         abort_unless(
-            $request->user()?->role === User::ROLE_APPROVER
-                && $signature->signer_user_id !== null
-                && $request->user()?->id === $signature->signer_user_id,
-            403,
+            $authorized,
+            Response::HTTP_FORBIDDEN,
             'Link approval ini hanya untuk penanda tangan yang ditetapkan.'
         );
     }

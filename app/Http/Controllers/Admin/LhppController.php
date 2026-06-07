@@ -90,11 +90,11 @@ class LhppController extends Controller
                 ->with([
                     'order:id,nomor_order,unit_kerja,seksi',
                     'purchaseOrder:id,order_id,purchase_order_number',
-                    'terminTwo.signatures.signer:id,name',
-                    'terminTwo.activeSignature.signer:id,name',
+                    'terminTwo.signatures.signer:id,name,nomor_hp',
+                    'terminTwo.activeSignature.signer:id,name,nomor_hp',
                     'garansi',
-                    'signatures.signer:id,name',
-                    'activeSignature.signer:id,name',
+                    'signatures.signer:id,name,nomor_hp',
+                    'activeSignature.signer:id,name,nomor_hp',
                 ])
                 ->where('termin_type', 'termin_1')
                 ->when($search !== '', function ($query) use ($search): void {

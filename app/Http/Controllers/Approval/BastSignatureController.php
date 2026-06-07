@@ -11,6 +11,8 @@ use App\Support\SignatureImageStorage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -147,19 +149,25 @@ class BastSignatureController extends Controller
             $signature->role_key,
         );
 
-        DB::transaction(function () use ($request, $signature, $validated, $signaturePath): void {
-            $signature->update([
-                'status' => LhppBastSignature::STATUS_SIGNED,
-                'opened_at' => $signature->opened_at ?: now(),
-                'signed_at' => now(),
-                'signature_data' => $signaturePath,
-                'approval_note' => $this->normalizeNullableString($validated['approval_note'] ?? null),
-                'signed_ip' => $request->ip(),
-                'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
-            ]);
+        try {
+            DB::transaction(function () use ($request, $signature, $validated, $signaturePath): void {
+                $signature->update([
+                    'status' => LhppBastSignature::STATUS_SIGNED,
+                    'opened_at' => $signature->opened_at ?: now(),
+                    'signed_at' => now(),
+                    'signature_data' => $signaturePath,
+                    'approval_note' => $this->normalizeNullableString($validated['approval_note'] ?? null),
+                    'signed_ip' => $request->ip(),
+                    'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
+                ]);
 
-            $this->signatureBuilder->activateNextSignature($signature);
-        });
+                $this->signatureBuilder->activateNextSignature($signature);
+            });
+        } catch (\Throwable $exception) {
+            Storage::disk('public')->delete($signaturePath);
+
+            throw $exception;
+        }
 
         return redirect()
             ->route('approval.bast.show', $token)
@@ -178,10 +186,27 @@ class BastSignatureController extends Controller
 
     private function authorizeSigner(Request $request, LhppBastSignature $signature): void
     {
+        $authenticatedUserId = $request->user()?->id;
+        $expectedSignerUserId = $signature->signer_user_id;
+        $authorized = $expectedSignerUserId !== null
+            && (int) $authenticatedUserId === (int) $expectedSignerUserId;
+
+        if (! $authorized) {
+            Log::warning('BAST approval signer authorization denied.', [
+                'status_code' => Response::HTTP_FORBIDDEN,
+                'lhpp_bast_signature_id' => $signature->id,
+                'lhpp_bast_id' => $signature->lhpp_bast_id,
+                'role_key' => $signature->role_key,
+                'role_label' => $signature->role_label,
+                'authenticated_user_id' => $authenticatedUserId,
+                'authenticated_user_role' => $request->user()?->role,
+                'expected_signer_user_id' => $expectedSignerUserId,
+            ]);
+        }
+
         abort_unless(
-            $signature->signer_user_id !== null
-                && $request->user()?->id === $signature->signer_user_id,
-            403,
+            $authorized,
+            Response::HTTP_FORBIDDEN,
             'Link approval BAST ini hanya untuk penanda tangan yang ditetapkan.'
         );
     }

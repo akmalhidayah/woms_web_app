@@ -13,6 +13,7 @@ use App\Support\SignatureImageStorage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -200,10 +201,26 @@ class HppSignatureController extends Controller
 
     private function authorizeSigner(Request $request, HppSignature $signature): void
     {
+        $authenticatedUserId = $request->user()?->id;
+        $expectedSignerUserId = $signature->signer_user_id;
+        $authorized = $expectedSignerUserId !== null
+            && (int) $authenticatedUserId === (int) $expectedSignerUserId;
+
+        if (! $authorized) {
+            Log::warning('HPP approval signer authorization denied.', [
+                'status_code' => Response::HTTP_FORBIDDEN,
+                'hpp_signature_id' => $signature->id,
+                'hpp_id' => $signature->hpp_id,
+                'role_key' => $signature->role_key,
+                'role_label' => $signature->role_label,
+                'authenticated_user_id' => $authenticatedUserId,
+                'expected_signer_user_id' => $expectedSignerUserId,
+            ]);
+        }
+
         abort_unless(
-            $signature->signer_user_id !== null
-                && $request->user()?->id === $signature->signer_user_id,
-            403,
+            $authorized,
+            Response::HTTP_FORBIDDEN,
             'Link approval HPP ini hanya untuk penanda tangan yang ditetapkan.'
         );
     }

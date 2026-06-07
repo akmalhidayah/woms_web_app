@@ -26,7 +26,6 @@ class ApprovalWhatsappLink
             (string) $signature->role_label,
             $signature->approvalUrl(),
             $signature->token_expires_at,
-            $signature->signer_name,
         );
     }
 
@@ -45,7 +44,6 @@ class ApprovalWhatsappLink
             (string) $signature->role_label,
             $signature->approvalUrl(),
             $signature->token_expires_at,
-            $signature->signer_name_snapshot,
         );
     }
 
@@ -65,7 +63,6 @@ class ApprovalWhatsappLink
             (string) $signature->role_label,
             $signature->approvalUrl(),
             $signature->token_expires_at,
-            $signature->signer_name_snapshot,
         );
     }
 
@@ -85,7 +82,6 @@ class ApprovalWhatsappLink
             (string) $signature->role_label,
             $signature->approvalUrl(),
             $signature->token_expires_at,
-            $signature->signer_name,
         );
     }
 
@@ -96,17 +92,15 @@ class ApprovalWhatsappLink
         string $roleLabel,
         ?string $approvalUrl,
         ?Carbon $expiresAt,
-        ?string $fallbackName = null,
     ): ?string {
-        $recipientWithPhone = self::resolveRecipientWithPhone($recipient, $fallbackName);
-        $phone = self::normalizePhone($recipientWithPhone?->nomor_hp);
+        $phone = self::normalizePhone($recipient?->nomor_hp);
 
-        if (! $recipientWithPhone || blank($phone) || blank($approvalUrl)) {
+        if (! $recipient || blank($phone) || blank($approvalUrl)) {
             return null;
         }
 
         $message = self::message(
-            $recipientWithPhone->name ?: ($fallbackName ?: 'Pengguna'),
+            $recipient->name ?: 'Pengguna',
             $documentType,
             $documentNumber,
             $roleLabel,
@@ -115,26 +109,6 @@ class ApprovalWhatsappLink
         );
 
         return 'https://wa.me/'.$phone.'?text='.rawurlencode($message);
-    }
-
-    private static function resolveRecipientWithPhone(?User $recipient, ?string $fallbackName): ?User
-    {
-        if ($recipient && filled(self::normalizePhone($recipient->nomor_hp))) {
-            return $recipient;
-        }
-
-        $name = trim((string) $fallbackName);
-
-        if ($name === '') {
-            return $recipient;
-        }
-
-        return User::query()
-            ->where('role', User::ROLE_APPROVER)
-            ->where('name', $name)
-            ->whereNotNull('nomor_hp')
-            ->first()
-            ?: $recipient;
     }
 
     public static function normalizePhone(?string $phone): ?string

@@ -48,6 +48,9 @@ class QualityControlSignature extends Model
     protected function casts(): array
     {
         return [
+            'quality_control_report_id' => 'integer',
+            'step_order' => 'integer',
+            'signer_user_id' => 'integer',
             'token_encrypted' => 'encrypted',
             'token_expires_at' => 'datetime',
             'signed_at' => 'datetime',

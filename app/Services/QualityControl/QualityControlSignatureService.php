@@ -444,7 +444,8 @@ class QualityControlSignatureService
             return $signature;
         }
 
-        $signature->update([
+        $signerChanged = $signature->signer_user_id !== $signer?->id;
+        $updates = [
             'step_order' => $stepOrder,
             'role_label' => $roleLabel,
             'signer_user_id' => $signer?->id,
@@ -456,7 +457,18 @@ class QualityControlSignatureService
             'status' => $signer ? (
                 $signature->status === QualityControlSignature::STATUS_MISSING ? $defaultStatus : $signature->status
             ) : QualityControlSignature::STATUS_MISSING,
-        ]);
+        ];
+
+        if ($signerChanged) {
+            $updates = [
+                ...$updates,
+                'token_hash' => null,
+                'token_encrypted' => null,
+                'token_expires_at' => null,
+            ];
+        }
+
+        $signature->update($updates);
 
         return $signature->fresh();
     }

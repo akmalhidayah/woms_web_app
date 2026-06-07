@@ -42,8 +42,8 @@ class HppController extends Controller
                 'order:id,seksi,unit_kerja',
                 'outlineAgreement:id,nomor_oa',
                 'unitWork:id,name',
-                'signatures.signer:id,name',
-                'activeSignature.signer:id,name',
+                'signatures.signer:id,name,nomor_hp',
+                'activeSignature.signer:id,name,nomor_hp',
             ])
             ->search($search)
             ->when($status !== '', fn ($query) => $query->where('status', $status))

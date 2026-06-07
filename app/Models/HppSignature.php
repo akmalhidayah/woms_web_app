@@ -52,6 +52,9 @@ class HppSignature extends Model
     protected function casts(): array
     {
         return [
+            'hpp_id' => 'integer',
+            'step_order' => 'integer',
+            'signer_user_id' => 'integer',
             'token' => 'encrypted',
             'token_expires_at' => 'datetime',
             'opened_at' => 'datetime',

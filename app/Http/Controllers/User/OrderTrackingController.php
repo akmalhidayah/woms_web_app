@@ -152,7 +152,7 @@ class OrderTrackingController extends Controller
 
         abort_if(! $hpp, 404);
 
-        $hpp->loadMissing(['order', 'outlineAgreement', 'creator', 'signatures.signer:id,name,inisial']);
+        $hpp->loadMissing(['order', 'outlineAgreement', 'creator', 'signatures.signer:id,name,inisial,nomor_hp']);
 
         $finalSignedDocument = $hpp->finalSignedDocumentSignature();
 

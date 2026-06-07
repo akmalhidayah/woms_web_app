@@ -48,6 +48,9 @@ class InitialWorkSignature extends Model
     protected function casts(): array
     {
         return [
+            'initial_work_id' => 'integer',
+            'step_order' => 'integer',
+            'signer_user_id' => 'integer',
             'token_expires_at' => 'datetime',
             'signed_at' => 'datetime',
             'token_encrypted' => 'encrypted',

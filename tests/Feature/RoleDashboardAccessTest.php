@@ -16,6 +16,7 @@ use App\Models\OrderDocument;
 use App\Models\OrderScopeOfWork;
 use App\Models\PurchaseOrder;
 use App\Models\UnitWork;
+use App\Support\ApprovalWhatsappLink;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -287,12 +288,13 @@ class RoleDashboardAccessTest extends TestCase
         $response->assertSee($order->nomor_order);
     }
 
-    public function test_user_order_detail_shows_active_hpp_approval_token(): void
+    public function test_user_order_detail_shows_active_hpp_approval_whatsapp_action(): void
     {
         $user = User::factory()->create(['role' => User::ROLE_USER]);
         $signer = User::factory()->create([
             'role' => User::ROLE_APPROVER,
             'name' => 'Manager Approval Test',
+            'nomor_hp' => '081234567890',
         ]);
         $order = Order::query()->create([
             'nomor_order' => 'ORD-HPP-TOKEN',
@@ -352,7 +354,9 @@ class RoleDashboardAccessTest extends TestCase
         $response->assertOk();
         $response->assertSee('Token TTD HPP');
         $response->assertSee('Manager Approval Test');
-        $response->assertSee(route('approval.hpp.show', $token));
+        $response->assertSee(ApprovalWhatsappLink::forHpp(
+            HppSignature::query()->where('token_hash', hash('sha256', $token))->firstOrFail()
+        ));
         $response->assertDontSee(route('approval.hpp.show', $signedToken));
     }
 

@@ -51,6 +51,9 @@ class LhppBastSignature extends Model
     protected function casts(): array
     {
         return [
+            'lhpp_bast_id' => 'integer',
+            'step_order' => 'integer',
+            'signer_user_id' => 'integer',
             'token' => 'encrypted',
             'token_expires_at' => 'datetime',
             'opened_at' => 'datetime',

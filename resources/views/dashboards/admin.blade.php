@@ -189,16 +189,16 @@
             </article>
         </section>
 
-        <section class="dashboard-compact-grid grid gap-3 xl:grid-cols-2">
-            <article class="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
-                <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+        <section class="dashboard-compact-grid grid gap-2 lg:grid-cols-2">
+            <article class="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+                <div class="mb-1.5 flex flex-wrap items-start justify-between gap-2">
                     <div class="flex items-center gap-2">
                         <i data-lucide="badge-info" class="h-3.5 w-3.5 text-slate-600"></i>
                         <h3 class="text-[13px] font-semibold text-slate-800">Ringkasan Kuota Anggaran</h3>
                     </div>
-                    <div class="text-right text-[10px] leading-4 text-slate-500">
+                    <div class="text-right text-[9px] leading-3 text-slate-500">
                         <div class="font-semibold uppercase tracking-[0.12em] text-slate-500">Kuota Anggaran</div>
-                        <div class="text-xs font-bold text-slate-900">Rp. {{ number_format($totalKuotaKontrak, 0, ',', '.') }}</div>
+                        <div class="text-[11px] font-bold text-slate-900">Rp. {{ number_format($totalKuotaKontrak, 0, ',', '.') }}</div>
                         <div>
                             Periode:
                             {{ $periodeKontrak['start'] ? \Carbon\Carbon::parse($periodeKontrak['start'])->format('d M Y') : '-' }}
@@ -208,9 +208,9 @@
                     </div>
                 </div>
 
-                <div class="grid gap-2 sm:grid-cols-2">
-                    <div class="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2">
-                        <div class="text-[12px] font-bold text-blue-900">
+                <div class="grid gap-1.5 sm:grid-cols-2">
+                    <div class="min-h-[76px] rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5">
+                        <div class="text-[11px] font-bold leading-5 text-blue-900">
                             Potensi Biaya + Realisasi Biaya:
                             <span class="text-slate-900">Rp. {{ number_format($totalSeluruhAmount, 0, ',', '.') }}</span>
                         </div>
@@ -220,18 +220,18 @@
                         $kuotaKontrakActual = ($totalKuotaKontrak ?? 0) - ($totalSeluruhAmount ?? 0);
                         $totalBiayaPemeliharaan = $cleanNumber($targetPemeliharaan);
                     @endphp
-                    <div class="rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-2">
-                        <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-700">Kuota Anggaran Actual</div>
-                        <div class="mt-0.5 text-[1rem] font-bold text-slate-900">Rp. {{ number_format($kuotaKontrakActual, 0, ',', '.') }}</div>
-                        <div class="mt-0.5 text-[10px] leading-4 text-sky-700">
+                    <div class="min-h-[76px] rounded-lg border border-sky-200 bg-sky-50 px-2 py-1.5">
+                        <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-sky-700">Kuota Anggaran Actual</div>
+                        <div class="mt-0.5 text-sm font-bold text-slate-900">Rp. {{ number_format($kuotaKontrakActual, 0, ',', '.') }}</div>
+                        <div class="mt-0.5 text-[9px] leading-3 text-sky-700">
                             = Kuota Anggaran (Rp. {{ number_format($totalKuotaKontrak, 0, ',', '.') }}) - (Potensi + Realisasi) (Rp. {{ number_format($totalSeluruhAmount, 0, ',', '.') }})
                         </div>
                     </div>
 
-                    <div class="rounded-lg border border-slate-200 bg-white px-2.5 py-2">
-                        <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-700">Total Biaya Pemeliharaan</div>
-                        <div class="mt-0.5 text-[1rem] font-bold text-slate-900">Rp. {{ number_format($totalBiayaPemeliharaan, 0, ',', '.') }}</div>
-                        <div class="mt-1 grid gap-0.5 text-[10px] text-slate-500">
+                    <div class="min-h-[76px] rounded-lg border border-slate-200 bg-white px-2 py-1.5">
+                        <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-700">Total Biaya Pemeliharaan</div>
+                        <div class="mt-0.5 text-sm font-bold text-slate-900">Rp. {{ number_format($totalBiayaPemeliharaan, 0, ',', '.') }}</div>
+                        <div class="mt-1 grid gap-0.5 text-[9px] text-slate-500">
                             <div class="flex items-center justify-between gap-3">
                                 <span>Total Jasa Pemeliharaan</span>
                                 <span class="font-semibold text-slate-800">Rp. {{ number_format($totalJasaPemeliharaan, 0, ',', '.') }}</span>
@@ -243,32 +243,32 @@
                         </div>
                     </div>
 
-                    <div class="rounded-lg border border-yellow-200 bg-yellow-50 px-2.5 py-2">
-                        <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-yellow-700">Sisa Kuota Kontrak</div>
-                        <div class="mt-0.5 text-[1rem] font-bold text-yellow-900">Rp. {{ number_format($sisaKuotaKontrak, 0, ',', '.') }}</div>
+                    <div class="min-h-[76px] rounded-lg border border-yellow-200 bg-yellow-50 px-2 py-1.5">
+                        <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-yellow-700">Sisa Kuota Kontrak</div>
+                        <div class="mt-0.5 text-sm font-bold text-yellow-900">Rp. {{ number_format($sisaKuotaKontrak, 0, ',', '.') }}</div>
                     </div>
                 </div>
             </article>
 
-            <article class="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
-                <div class="rounded-lg bg-emerald-100 px-2.5 py-1.5 text-center text-[11px] font-bold text-slate-900">
+            <article class="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+                <div class="rounded-lg bg-emerald-100 px-2.5 py-1 text-center text-[10px] font-bold text-slate-900">
                     Total Realisasi Biaya: Rp {{ number_format($totalRealisasiBiaya, 0, ',', '.') }}
                 </div>
 
-                <div class="mt-2 grid gap-2 text-[11px] text-slate-700 lg:grid-cols-2">
+                <div class="mt-1.5 grid gap-2 text-[10px] text-slate-700 xl:grid-cols-2">
                     <div>
-                        <p class="mb-1.5 text-[10px] text-slate-500">Sortir per rentang tahun.</p>
+                        <p class="mb-1 text-[9px] text-slate-500">Sortir per rentang tahun.</p>
                         <div class="grid gap-1.5 md:grid-cols-[1fr_auto_1fr] md:items-center">
                             <div class="grid gap-1">
-                                <label for="startYear" class="text-[10px] text-slate-600">Dari Tahun</label>
-                                <select id="startYear" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] focus:border-blue-500 focus:outline-none">
+                                <label for="startYear" class="text-[9px] text-slate-600">Dari Tahun</label>
+                                <select id="startYear" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] focus:border-blue-500 focus:outline-none">
                                     <option value="" selected disabled>Pilih Tahun</option>
                                 </select>
                             </div>
-                            <span class="hidden text-[10px] text-slate-600 md:block">sampai</span>
+                            <span class="hidden text-[9px] text-slate-600 md:block">sampai</span>
                             <div class="grid gap-1">
-                                <label for="endYear" class="text-[10px] text-slate-600">Sampai Tahun</label>
-                                <select id="endYear" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] focus:border-blue-500 focus:outline-none">
+                                <label for="endYear" class="text-[9px] text-slate-600">Sampai Tahun</label>
+                                <select id="endYear" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] focus:border-blue-500 focus:outline-none">
                                     <option value="" selected disabled>Pilih Tahun</option>
                                 </select>
                             </div>
@@ -276,18 +276,18 @@
                     </div>
 
                     <div>
-                        <p class="mb-1.5 text-[10px] text-slate-500">Sortir per rentang bulan.</p>
+                        <p class="mb-1 text-[9px] text-slate-500">Sortir per rentang bulan.</p>
                         <div class="grid gap-1.5 md:grid-cols-[1fr_auto_1fr] md:items-center">
                             <div class="grid gap-1">
-                                <label for="startMonth" class="text-[10px] text-slate-600">Dari Bulan</label>
-                                <select id="startMonth" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] focus:border-blue-500 focus:outline-none">
+                                <label for="startMonth" class="text-[9px] text-slate-600">Dari Bulan</label>
+                                <select id="startMonth" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] focus:border-blue-500 focus:outline-none">
                                     <option value="" selected disabled>Pilih Bulan</option>
                                 </select>
                             </div>
-                            <span class="hidden text-[10px] text-slate-600 md:block">sampai</span>
+                            <span class="hidden text-[9px] text-slate-600 md:block">sampai</span>
                             <div class="grid gap-1">
-                                <label for="endMonth" class="text-[10px] text-slate-600">Sampai Bulan</label>
-                                <select id="endMonth" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] focus:border-blue-500 focus:outline-none">
+                                <label for="endMonth" class="text-[9px] text-slate-600">Sampai Bulan</label>
+                                <select id="endMonth" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] focus:border-blue-500 focus:outline-none">
                                     <option value="" selected disabled>Pilih Bulan</option>
                                 </select>
                             </div>
@@ -295,24 +295,24 @@
                     </div>
 
                     <div class="flex items-end justify-start lg:col-span-2">
-                        <button id="applyFilters" class="rounded-md bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700">
+                        <button id="applyFilters" class="rounded-md bg-blue-600 px-2.5 py-1.5 text-[10px] font-semibold text-white transition hover:bg-blue-700">
                             Terapkan
                         </button>
                     </div>
                 </div>
 
-                <div class="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                <div class="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
                     <div class="flex flex-wrap items-center justify-between gap-2">
                         <div class="text-[11px] font-semibold text-slate-800">Grafik Realisasi Biaya</div>
                         <div id="chartTotal" class="text-[11px] font-bold text-slate-600">Rp 0</div>
                     </div>
-                    <div class="mt-2 h-36">
+                    <div class="mt-1.5 h-28">
                         <canvas id="realisasiBiayaPieChart" class="h-full w-full"></canvas>
                     </div>
                     <div id="chartEmptyState" class="hidden rounded-lg border border-dashed border-slate-300 bg-white px-3 py-4 text-center text-xs text-slate-500">
                         Belum ada data realisasi biaya pada rentang ini.
                     </div>
-                    <div id="chartLegend" class="mt-3 grid gap-1.5 text-[11px] text-slate-700 md:grid-cols-2"></div>
+                    <div id="chartLegend" class="mt-2 grid gap-1.5 text-[10px] text-slate-700 md:grid-cols-2"></div>
                 </div>
             </article>
         </section>
@@ -464,8 +464,7 @@
                             },
                             plugins: {
                                 legend: {
-                                    display: true,
-                                    position: 'bottom',
+                                    display: false,
                                 },
                                 tooltip: {
                                     callbacks: {
@@ -489,12 +488,12 @@
 
                 rows.forEach(item => {
                     chartLegend.innerHTML += `
-                        <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                        <div class="rounded-lg border border-slate-200 bg-white px-2 py-1.5">
                             <div class="flex items-center justify-between gap-2">
                                 <span class="font-semibold text-slate-700">${item.label || `${monthNames[item.month] || item.month} ${item.year}`}</span>
                                 <span class="font-bold text-slate-900">${formatRupiah(item.total || 0)}</span>
                             </div>
-                            <div class="mt-2 grid gap-1 text-[11px] text-slate-500">
+                            <div class="mt-1 grid gap-0.5 text-[10px] text-slate-500">
                                 <div class="flex items-center justify-between gap-2">
                                     <span><span class="mr-1 inline-block h-2 w-2 rounded-full" style="background-color:${chartColors.normal}"></span>Document PR/PO</span>
                                     <span>${formatRupiah(item.normal_total || 0)}</span>

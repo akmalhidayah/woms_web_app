@@ -161,11 +161,13 @@
 
                             <tr class="transition duration-150 hover:bg-slate-50">
                                 <td class="px-4 py-3 align-top">
-                                    <div class="flex items-start gap-3">
+                                    <div class="space-y-1">
                                         <div class="break-words text-[12px] font-black leading-tight text-slate-900">{{ $nomorOrder }}</div>
-                                        <div class="min-w-0 space-y-1 text-[9px] leading-tight text-blue-600">
-                                            <div class="break-words"><span class="font-semibold">Notif:</span> {{ $notifikasi }}</div>
-                                            <div class="break-words"><span class="font-semibold">PO:</span> {{ $nomorPo }}</div>
+                                        <div class="break-words text-[9px] font-medium leading-tight text-blue-600">
+                                            <span class="font-semibold">Notif :</span> {{ $notifikasi }}
+                                        </div>
+                                        <div class="break-words text-[9px] font-medium leading-tight text-blue-600">
+                                            <span class="font-semibold">PO :</span> {{ $nomorPo }}
                                         </div>
                                     </div>
                                 </td>

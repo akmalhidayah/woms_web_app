@@ -45,7 +45,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
             ];
         @endphp
 
-        <div class="space-y-4">
+        <div>
             <section class="overflow-hidden rounded-[1.2rem] border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm">
                 <h1 class="text-[1.15rem] font-black leading-none tracking-tight text-slate-900">{{ $formTitle }}</h1>
             </section>
@@ -73,31 +73,9 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     hppValueMatchesBast: false,
                 })"
                 x-init="recalculate()"
-                class="rounded-[1.6rem] border border-slate-200 bg-white p-5 shadow-sm"
+                class="mt-4 rounded-[1.2rem] border border-slate-200 bg-white p-4 shadow-sm"
             >
-                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
-                    <div>
-                        <h2 class="text-[16px] font-black text-slate-900">{{ $formTitle }}</h2>
-                        <p class="mt-1 text-[12px] text-slate-500">Versi front-end ini mengikuti struktur dokumen asli, tapi saya buat lebih nyaman untuk input di web.</p>
-                    </div>
-                    <div class="flex flex-wrap items-end gap-3">
-                        <div class="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                            <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Rule Approval &amp; PDF</div>
-                            <div class="mt-1.5 min-w-[210px] rounded-xl border border-slate-300 bg-white px-4 py-2 text-[12px] font-bold text-slate-700">
-                                <span x-text="approvalThresholdLabel()"></span>
-                            </div>
-                            <div class="mt-1.5 text-[10px] leading-snug text-slate-500">
-                                Menentukan alur approval dan format PDF BAST
-                            </div>
-                        </div>
-                        <button type="submit" form="pkm-lhpp-create-form" class="inline-flex items-center gap-2 rounded-xl bg-[#ca642f] px-4 py-2 text-[12px] font-bold text-white transition hover:bg-[#b85b2b]">
-                            <i data-lucide="save" class="h-4 w-4"></i>
-                            {{ $submitLabel }}
-                        </button>
-                    </div>
-                </div>
-
-                <form id="pkm-lhpp-create-form" method="POST" action="{{ $formAction }}" enctype="multipart/form-data" class="mt-5 space-y-5">
+                <form id="pkm-lhpp-create-form" method="POST" action="{{ $formAction }}" enctype="multipart/form-data" class="space-y-4">
                     @csrf
                     @if (strtoupper($formMethod) !== 'POST')
                         @method($formMethod)
@@ -109,17 +87,15 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                             {{ $errors->first('form') }}
                         </div>
                     @endif
-                    <div class="grid gap-4 xl:grid-cols-[1.42fr_0.58fr]">
-                        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                            <div class="grid gap-3 sm:grid-cols-[190px_16px_minmax(0,1fr)]">
-                                <label class="text-[12px] font-semibold uppercase tracking-[0.08em] text-slate-700">Tanggal BAST</label>
-                                <div aria-hidden="true"></div>
-                                <input type="date" name="tanggal_bast" value="{{ $bastDate }}" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none">
+                    <div class="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
+                        <div class="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                            <div class="grid items-center gap-x-3 gap-y-2 sm:grid-cols-[150px_minmax(0,1fr)]">
+                                <label class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-700">Tanggal BAST</label>
+                                <input type="date" name="tanggal_bast" value="{{ $bastDate }}" class="h-9 min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none">
 
-                                <label class="text-[12px] font-semibold uppercase tracking-[0.08em] text-slate-700">Nomor Order</label>
-                                <div aria-hidden="true"></div>
+                                <label class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-700">Nomor Order</label>
                                 <div class="relative">
-                                    <select name="nomor_order" x-model="selectedOrder" x-init="$nextTick(() => { $el.value = selectedOrder; })" @change="applyHppSyncIfChecked()" class="w-full appearance-none rounded-xl border border-slate-300 bg-white px-3 py-2 pr-10 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none">
+                                    <select name="nomor_order" x-model="selectedOrder" x-init="$nextTick(() => { $el.value = selectedOrder; })" @change="applyHppSyncIfChecked()" class="h-9 w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 pr-9 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none">
                                         <option value="">Pilih Nomor Order</option>
                                         <template x-for="order in orderOptions" :key="order.nomor_order">
                                             <option :value="order.nomor_order" :selected="order.nomor_order === selectedOrder" x-text="order.nomor_order"></option>
@@ -128,118 +104,107 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                     <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"></i>
                                 </div>
 
-                                <label class="text-[12px] font-semibold uppercase tracking-[0.08em] text-slate-700">Nomor Notifikasi</label>
-                                <div aria-hidden="true"></div>
-                                <input type="text" x-bind:value="currentOrder().notifikasi" readonly class="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:outline-none">
+                                <label class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-700">Nomor Notifikasi</label>
+                                <input type="text" x-bind:value="currentOrder().notifikasi" readonly class="h-9 min-w-0 rounded-lg border border-slate-300 bg-slate-50 px-3 text-[12px] text-slate-700 focus:outline-none">
 
-                                <label class="text-[12px] font-semibold uppercase tracking-[0.08em] text-slate-700">Deskripsi Pekerjaan</label>
-                                <div aria-hidden="true"></div>
-                                <input type="text" x-bind:value="currentOrder().deskripsi_pekerjaan" readonly class="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:outline-none">
+                                <label class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-700">Deskripsi Pekerjaan</label>
+                                <input type="text" x-bind:value="currentOrder().deskripsi_pekerjaan" readonly class="h-9 min-w-0 rounded-lg border border-slate-300 bg-slate-50 px-3 text-[12px] text-slate-700 focus:outline-none">
 
-                                <label class="text-[12px] font-semibold uppercase tracking-[0.08em] text-slate-700">Unit Kerja Peminta (User)</label>
-                                <div aria-hidden="true"></div>
-                                <input type="text" x-bind:value="currentOrder().unit_kerja_peminta" readonly class="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:outline-none">
+                                <label class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-700">Unit Kerja Peminta</label>
+                                <input type="text" x-bind:value="currentOrder().unit_kerja_peminta" readonly class="h-9 min-w-0 rounded-lg border border-slate-300 bg-slate-50 px-3 text-[12px] text-slate-700 focus:outline-none">
 
-                                <label class="text-[12px] font-semibold uppercase tracking-[0.08em] text-slate-700">Purchasing Order (P.O)</label>
-                                <div aria-hidden="true"></div>
-                                <input type="text" x-bind:value="currentOrder().purchase_order_number" readonly class="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:outline-none">
+                                <label class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-700">Purchase Order</label>
+                                <input type="text" x-bind:value="currentOrder().purchase_order_number" readonly class="h-9 min-w-0 rounded-lg border border-slate-300 bg-slate-50 px-3 text-[12px] text-slate-700 focus:outline-none">
 
-                            <label class="text-[12px] font-semibold uppercase tracking-[0.08em] text-slate-700">Tipe Pekerjaan</label>
-<div aria-hidden="true"></div>
-<div class="relative">
-    @if ($isTipePekerjaanLocked)
-        <input type="hidden" name="tipe_pekerjaan" value="{{ $selectedTipePekerjaan }}">
-    @endif
+                                <label class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-700">Tipe Pekerjaan</label>
+                                <div class="relative">
+                                    @if ($isTipePekerjaanLocked)
+                                        <input type="hidden" name="tipe_pekerjaan" value="{{ $selectedTipePekerjaan }}">
+                                    @endif
 
-    <select
-        @if (! $isTipePekerjaanLocked)
-            name="tipe_pekerjaan"
-        @endif
-        x-model="selectedTipePekerjaan"
-        :disabled="isTipePekerjaanLocked"
-        class="w-full appearance-none rounded-xl border border-slate-300 bg-white px-3 py-2 pr-10 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
-    >
-        <option value="">Pilih Tipe Pekerjaan</option>
+                                    <select
+                                        @if (! $isTipePekerjaanLocked)
+                                            name="tipe_pekerjaan"
+                                        @endif
+                                        x-model="selectedTipePekerjaan"
+                                        :disabled="isTipePekerjaanLocked"
+                                        class="h-9 w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 pr-9 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+                                    >
+                                        <option value="">Pilih Tipe Pekerjaan</option>
 
-        @foreach ($tipePekerjaanOptions as $option)
-            <option
-                value="{{ $option['value'] }}"
-                @selected($selectedTipePekerjaan === $option['value'])
-            >
-                {{ $option['label'] }}
-            </option>
-        @endforeach
-    </select>
+                                        @foreach ($tipePekerjaanOptions as $option)
+                                            <option
+                                                value="{{ $option['value'] }}"
+                                                @selected($selectedTipePekerjaan === $option['value'])
+                                            >
+                                                {{ $option['label'] }}
+                                            </option>
+                                        @endforeach
+                                    </select>
 
-    <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"></i>
-</div>
-                                <label class="text-[12px] font-semibold uppercase tracking-[0.08em] text-slate-700">Tanggal Dimulainya Pekerjaan</label>
-                                <div aria-hidden="true"></div>
-                                <input type="date" name="tanggal_mulai_pekerjaan" value="{{ $tanggalMulaiPekerjaan }}" :value="resolvedWorkStartDate()" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none">
+                                    <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"></i>
+                                </div>
+                                <label class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-700">Tanggal Mulai</label>
+                                <input type="date" name="tanggal_mulai_pekerjaan" value="{{ $tanggalMulaiPekerjaan }}" :value="resolvedWorkStartDate()" class="h-9 min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none">
 
-                                <label class="text-[12px] font-semibold uppercase tracking-[0.08em] text-slate-700">Tanggal Selesainya Pekerjaan</label>
-                                <div aria-hidden="true"></div>
-                                <input type="date" name="tanggal_selesai_pekerjaan" value="{{ $tanggalSelesaiPekerjaan }}" :value="resolvedWorkFinishDate()" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none">
+                                <label class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-700">Tanggal Selesai</label>
+                                <input type="date" name="tanggal_selesai_pekerjaan" value="{{ $tanggalSelesaiPekerjaan }}" :value="resolvedWorkFinishDate()" class="h-9 min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none">
                             </div>
                         </div>
 
-                        <div class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                            <div class="rounded-2xl border border-slate-300 bg-slate-50 p-3">
-                                <div class="text-center text-[11px] font-black uppercase tracking-[0.14em] text-slate-700">Nilai HPP</div>
-                                <div class="mt-3 rounded-xl border border-slate-300 bg-white px-3 py-3 text-right text-[16px] font-black text-slate-900" x-text="`Rp. ${formatCurrency(currentOrder().nilai_ece)}`"></div>
+                        <div class="min-w-0 space-y-2">
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-2.5 shadow-sm">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-500">Rule Approval</span>
+                                    <span class="rounded-md bg-white px-2 py-1 text-[9px] font-bold text-slate-700 ring-1 ring-slate-200" x-text="approvalThresholdLabel()"></span>
+                                </div>
+                                <div class="mt-2 flex items-center justify-between border-t border-slate-200 pt-2">
+                                    <span class="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-500">Nilai HPP</span>
+                                    <span class="text-[12px] font-black text-slate-900" x-text="`Rp. ${formatCurrency(currentOrder().nilai_ece)}`"></span>
+                                </div>
                             </div>
 
-                            <div class="mt-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                            <div class="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
                                 <div class="flex items-start justify-between gap-3">
                                     <div>
-                                        <div class="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Flow Approval</div>
-                                        <div class="mt-1 text-[13px] font-black text-slate-900">BAST {{ $terminLabel }}</div>
+                                        <div class="text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-500">Flow Approval</div>
+                                        <div class="mt-0.5 text-[11px] font-black text-slate-900">BAST {{ $terminLabel }}</div>
                                     </div>
-                                    <span class="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-[10px] font-bold text-[#ca642f] ring-1 ring-orange-200" x-text="approvalThreshold === 'over_250' ? 'Diatas 250 JT' : 'Dibawah 250 JT'"></span>
+                                    <span class="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-[8px] font-bold text-[#ca642f] ring-1 ring-orange-200" x-text="approvalThreshold === 'over_250' ? '> 250 JT' : '< 250 JT'"></span>
                                 </div>
 
-                                <div class="mt-3 space-y-2.5">
-                                    <div class="flex items-start gap-2.5">
-                                        <div class="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-700">1</div>
-                                        <div class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                            <div class="text-[11px] font-bold text-slate-900">Manager PKM</div>
+                                <div class="mt-2 space-y-1">
+                                    <div class="flex items-center gap-1.5">
+                                        <div class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[8px] font-black text-slate-700">1</div>
+                                        <div class="min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
+                                            <div class="truncate text-[9px] font-bold text-slate-900">Manager PKM</div>
                                         </div>
                                     </div>
-
-                                    <div class="ml-3 h-3 w-px bg-slate-300"></div>
-
-                                    <div class="flex items-start gap-2.5">
-                                        <div class="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-700">2</div>
-                                        <div class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                            <div class="text-[11px] font-bold text-slate-900">Manager Pengendali</div>
+                                    <div class="flex items-center gap-1.5">
+                                        <div class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[8px] font-black text-slate-700">2</div>
+                                        <div class="min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
+                                            <div class="truncate text-[9px] font-bold text-slate-900">Manager Pengendali</div>
                                         </div>
                                     </div>
-
-                                    <div class="ml-3 h-3 w-px bg-slate-300"></div>
-
-                                    <div class="flex items-start gap-2.5">
-                                        <div class="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-700">3</div>
-                                        <div class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                            <div class="text-[11px] font-bold text-slate-900">Manager Peminta</div>
+                                    <div class="flex items-center gap-1.5">
+                                        <div class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[8px] font-black text-slate-700">3</div>
+                                        <div class="min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
+                                            <div class="truncate text-[9px] font-bold text-slate-900">Manager Peminta</div>
                                         </div>
                                     </div>
-
-                                    <div class="ml-3 h-3 w-px bg-slate-300"></div>
-
-                                    <div class="flex items-start gap-2.5">
-                                        <div class="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-700">4</div>
-                                        <div class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                            <div class="text-[11px] font-bold text-slate-900">GM Pengendali</div>
+                                    <div class="flex items-center gap-1.5">
+                                        <div class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[8px] font-black text-slate-700">4</div>
+                                        <div class="min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
+                                            <div class="truncate text-[9px] font-bold text-slate-900">GM Pengendali</div>
                                         </div>
                                     </div>
 
                                     <template x-if="approvalThreshold === 'over_250'">
                                         <div>
-                                            <div class="ml-3 h-3 w-px bg-slate-300"></div>
-                                            <div class="flex items-start gap-2.5">
-                                                <div class="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#fde9db] text-[10px] font-black text-[#ca642f]">5</div>
-                                                <div class="min-w-0 flex-1 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2">
-                                                    <div class="text-[11px] font-bold text-[#9a4f28]">Dirops</div>
+                                            <div class="flex items-center gap-1.5">
+                                                <div class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#fde9db] text-[8px] font-black text-[#ca642f]">5</div>
+                                                <div class="min-w-0 flex-1 rounded-md border border-orange-200 bg-orange-50 px-2 py-1.5">
+                                                    <div class="truncate text-[9px] font-bold text-[#9a4f28]">Dirops</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -490,6 +455,13 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                 </div>
                             @endif
                         </div>
+                    </div>
+
+                    <div class="flex justify-end border-t border-slate-200 pt-4">
+                        <button type="submit" class="inline-flex h-9 items-center gap-2 rounded-lg bg-[#ca642f] px-4 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#b85b2b]">
+                            <i data-lucide="save" class="h-3.5 w-3.5"></i>
+                            {{ $submitLabel }}
+                        </button>
                     </div>
                 </form>
             </section>

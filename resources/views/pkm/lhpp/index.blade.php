@@ -44,38 +44,31 @@
                 </div>
 
                 @if ($pendingTerminOneOrders->isNotEmpty())
-                    <div class="mb-3 rounded-[1.2rem] border border-amber-200 bg-gradient-to-r from-amber-50 to-white px-3 py-3 text-slate-800 shadow-sm">
-                        <div class="flex flex-wrap items-center gap-2">
-                            <div class="min-w-0">
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-700">
-                                        <i data-lucide="triangle-alert" class="h-3.5 w-3.5"></i>
-                                    </span>
-                                    <div class="text-[12px] font-black text-amber-950">Order Belum Dibuatkan BAST Termin 1</div>
-                                    <span class="inline-flex rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                                        {{ $pendingTerminOneOrders->count() }} order
-                                    </span>
-                                </div>
-                                <p class="mt-1 pl-9 text-[10px] leading-5 text-amber-800">
-                                    Sudah memenuhi syarat BAST, tapi Termin 1-nya belum dibuat.
-                                </p>
-                            </div>
+                    <div class="mb-3 overflow-hidden rounded-lg border border-amber-200 bg-white">
+                        <div class="flex items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-3 py-2">
+                            <div class="text-[10px] font-bold text-amber-900">Belum Dibuatkan BAST T1</div>
+                            <span class="rounded-full bg-white px-2 py-0.5 text-[9px] font-bold text-amber-800 ring-1 ring-amber-200">
+                                {{ $pendingTerminOneOrders->count() }} order
+                            </span>
                         </div>
-
-                        <div class="mt-2 flex flex-wrap gap-2">
+                        <div class="grid grid-cols-[150px_minmax(0,1fr)] bg-slate-100 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-600">
+                            <div>Order</div>
+                            <div>Detail Pekerjaan</div>
+                        </div>
+                        <div class="divide-y divide-slate-100">
                             @foreach ($pendingTerminOneOrders as $pendingOrder)
-                                <div class="min-w-[210px] rounded-xl border border-amber-200 bg-white px-2.5 py-2 text-[10px] shadow-sm">
-                                    <div class="font-black text-slate-900">{{ $pendingOrder['nomor_order'] }}</div>
-                                    @if (! empty($pendingOrder['deskripsi_pekerjaan']))
-                                        <div class="mt-0.5 line-clamp-2 font-semibold leading-snug text-slate-700">
-                                            {{ $pendingOrder['deskripsi_pekerjaan'] }}
-                                        </div>
-                                    @endif
-                                    <div class="mt-1 text-slate-600">
-                                        {{ $pendingOrder['purchase_order_number'] !== '' ? 'PO: '.$pendingOrder['purchase_order_number'] : 'PO belum terbaca' }}
+                                <div class="grid grid-cols-[150px_minmax(0,1fr)] gap-3 px-3 py-2 text-[9px]">
+                                    <div class="space-y-0.5">
+                                        <div class="font-black text-slate-900">{{ $pendingOrder['nomor_order'] }}</div>
+                                        <div class="text-blue-600">Notif : {{ $pendingOrder['notifikasi'] !== '' ? $pendingOrder['notifikasi'] : '-' }}</div>
+                                        <div class="text-blue-600">PO : {{ $pendingOrder['purchase_order_number'] !== '' ? $pendingOrder['purchase_order_number'] : '-' }}</div>
                                     </div>
-                                    <div class="mt-0.5 truncate text-slate-500">
-                                        {{ $pendingOrder['seksi'] !== '' ? $pendingOrder['seksi'] : ($pendingOrder['unit_kerja'] !== '' ? $pendingOrder['unit_kerja'] : '-') }}
+                                    <div class="min-w-0">
+                                        <div class="truncate text-[10px] font-bold text-slate-900">
+                                            {{ $pendingOrder['deskripsi_pekerjaan'] !== '' ? $pendingOrder['deskripsi_pekerjaan'] : '-' }}
+                                        </div>
+                                        <div class="mt-0.5 text-slate-500">Unit: {{ $pendingOrder['unit_kerja'] !== '' ? $pendingOrder['unit_kerja'] : '-' }}</div>
+                                        <div class="mt-0.5 truncate text-blue-600">Seksi: {{ $pendingOrder['seksi'] !== '' ? $pendingOrder['seksi'] : '-' }}</div>
                                     </div>
                                 </div>
                             @endforeach
@@ -134,11 +127,20 @@
 
             <div class="overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white shadow-sm">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full border border-slate-200 text-[11px] text-slate-800">
+                    <table class="min-w-full table-fixed border border-slate-200 text-[11px] text-slate-800">
+                        <colgroup>
+                            <col class="w-[14%]">
+                            <col class="w-[18%]">
+                            <col class="w-[11%]">
+                            <col class="w-[12%]">
+                            <col class="w-[20%]">
+                            <col class="w-[14%]">
+                            <col class="w-[11%]">
+                        </colgroup>
                         <thead class="border-b border-slate-200 bg-slate-50 uppercase text-slate-600">
                             <tr>
-                                <th class="px-3 py-2 text-left font-semibold">Order / PO</th>
-                                <th class="px-3 py-2 text-left font-semibold">Unit Kerja</th>
+                                <th class="px-3 py-2 text-left font-semibold">Order</th>
+                                <th class="px-3 py-2 text-left font-semibold">Detail Pekerjaan</th>
                                 <th class="px-3 py-2 text-left font-semibold">Tanggal Selesai</th>
                                 <th class="px-3 py-2 text-right font-semibold">Total Biaya</th>
                                 <th class="px-3 py-2 text-left font-semibold">Status LHPP</th>
@@ -254,26 +256,18 @@
 
                                 <tr class="transition hover:bg-slate-50">
                                     <td class="px-3 py-2">
-                                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] text-slate-600 shadow-sm">
-                                            <div class="font-semibold leading-tight text-slate-900">{{ $row->nomor_order }}</div>
-                                            @if (filled($row->deskripsi_pekerjaan))
-                                                <div class="mt-1 line-clamp-2 text-[10px] font-medium leading-snug text-slate-700">
-                                                    {{ $row->deskripsi_pekerjaan }}
-                                                </div>
-                                            @endif
-                                            @if (filled($row->order?->notifikasi))
-                                                <div class="mt-1 leading-tight text-slate-900">Notif: {{ $row->order?->notifikasi }}</div>
-                                            @endif
-                                            <div class="mt-1 border-t border-slate-200 pt-1 leading-tight">
-                                                <span class="font-medium text-slate-700">PO: {{ $row->purchase_order_number ?? '-' }}</span>
-                                            </div>
+                                        <div class="space-y-0.5 text-[9px] leading-tight">
+                                            <div class="text-[11px] font-black text-slate-900">{{ $row->nomor_order }}</div>
+                                            <div class="font-medium text-blue-600">Notif : {{ $row->order?->notifikasi ?: '-' }}</div>
+                                            <div class="font-medium text-blue-600">PO : {{ $row->purchase_order_number ?: '-' }}</div>
                                         </div>
                                     </td>
 
                                     <td class="px-3 py-2">
-                                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] text-slate-600 shadow-sm">
-                                            <div class="font-semibold leading-tight text-slate-700">{{ $row->seksi ?: '-' }}</div>
-                                            <div class="mt-1 border-t border-slate-200 pt-1 leading-tight">{{ $row->unit_kerja ?: '-' }}</div>
+                                        <div class="space-y-1 text-[9px] leading-snug text-slate-600">
+                                            <div class="text-[10px] font-bold text-slate-900">{{ $row->deskripsi_pekerjaan ?: '-' }}</div>
+                                            <div>Unit: {{ $row->unit_kerja ?: '-' }}</div>
+                                            <div class="text-blue-600">Seksi: {{ $row->seksi ?: '-' }}</div>
                                         </div>
                                     </td>
 

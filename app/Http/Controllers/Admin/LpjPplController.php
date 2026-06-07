@@ -117,6 +117,20 @@ class LpjPplController extends Controller
 
             $storageDirectory = 'lpj-ppl/'.$lhpp->nomor_order;
 
+            foreach (['lpj', 'ppl'] as $documentType) {
+                if (! ($validated["remove_{$documentType}_document"] ?? false)) {
+                    continue;
+                }
+
+                $pathAttribute = "{$documentType}_document_path_termin{$selectedTermin}";
+                $existingPath = $lpjPpl->{$pathAttribute};
+
+                if ($existingPath) {
+                    Storage::disk('public')->delete($existingPath);
+                    $lpjPpl->{$pathAttribute} = null;
+                }
+            }
+
             if ($request->hasFile('lpj_document')) {
                 $existingPath = $selectedTermin === 1
                     ? $lpjPpl->lpj_document_path_termin1

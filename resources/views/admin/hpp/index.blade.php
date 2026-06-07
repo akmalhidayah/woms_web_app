@@ -142,7 +142,7 @@
                                 $currentSignerName = $row->currentApprovalSignerName();
                                 $currentSignerLabel = $row->currentApprovalSignerLabel();
                                 $isApprovalComplete = $row->approvalCompleted();
-                                $approvalSummaryCaption = $isApprovalComplete ? 'Approval selesai' : 'Sudah sampai TTD';
+                                $approvalSummaryCaption = $isApprovalComplete ? 'Approval selesai' : 'Approval berjalan';
                                 $approvalSummaryLabel = $isApprovalComplete
                                     ? 'Semua approver selesai'
                                     : ($currentSignerLabel ?: 'Menunggu approver aktif');
@@ -401,48 +401,7 @@
                         <span id="hppApprovalFlowModalPercent" class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600">0%</span>
                     </div>
 
-                    <div class="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2">
-                        <div id="hppApprovalFlowModalCaption" class="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">Sudah sampai TTD</div>
-                        <div id="hppApprovalFlowModalSummary" class="mt-1 text-[13px] font-semibold text-slate-900">-</div>
-                        <div id="hppApprovalFlowModalName" class="mt-1 text-[11px] text-slate-500"></div>
-                    </div>
-
                     <div id="hppApprovalFlowModalChecklist" class="space-y-2"></div>
-
-                    <div id="hppApprovalFlowModalActions" class="hidden rounded-xl border border-blue-100 bg-blue-50 px-3 py-2">
-                        <div class="text-[9px] font-semibold uppercase tracking-[0.16em] text-blue-600">Aksi Approval Aktif</div>
-                        <div id="hppApprovalFlowModalActionsText" class="mt-1 text-[11px] font-semibold text-slate-700">-</div>
-                        <div class="mt-2 flex flex-wrap items-center gap-1.5">
-                            <button
-                                type="button"
-                                id="hppApprovalFlowCopyButton"
-                                class="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-blue-700 transition hover:bg-blue-100"
-                            >
-                                <i data-lucide="copy" class="h-3 w-3"></i>
-                                Salin Link
-                            </button>
-                            <a
-                                id="hppApprovalFlowWhatsappButton"
-                                href="#"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                class="hidden items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
-                            >
-                                <i data-lucide="message-circle" class="h-3 w-3"></i>
-                                WhatsApp
-                            </a>
-                            <form id="hppApprovalFlowResendForm" method="POST" action="#" class="hidden">
-                                @csrf
-                                <button
-                                    type="submit"
-                                    class="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-sky-700 transition hover:bg-sky-100"
-                                >
-                                    <i data-lucide="send" class="h-3 w-3"></i>
-                                    Resend
-                                </button>
-                            </form>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -513,15 +472,7 @@
             const approvalFlowModalCount = document.getElementById('hppApprovalFlowModalCount');
             const approvalFlowModalPercent = document.getElementById('hppApprovalFlowModalPercent');
             const approvalFlowModalChecklist = document.getElementById('hppApprovalFlowModalChecklist');
-            const approvalFlowModalCaption = document.getElementById('hppApprovalFlowModalCaption');
-            const approvalFlowModalSummary = document.getElementById('hppApprovalFlowModalSummary');
-            const approvalFlowModalName = document.getElementById('hppApprovalFlowModalName');
             const approvalFlowModalClose = document.getElementById('hppApprovalFlowModalClose');
-            const approvalFlowModalActions = document.getElementById('hppApprovalFlowModalActions');
-            const approvalFlowModalActionsText = document.getElementById('hppApprovalFlowModalActionsText');
-            const approvalFlowCopyButton = document.getElementById('hppApprovalFlowCopyButton');
-            const approvalFlowWhatsappButton = document.getElementById('hppApprovalFlowWhatsappButton');
-            const approvalFlowResendForm = document.getElementById('hppApprovalFlowResendForm');
             const diropsUploadModal = document.getElementById('diropsUploadModal');
             const diropsUploadModalTitle = document.getElementById('diropsUploadModalTitle');
             const diropsUploadModalClose = document.getElementById('diropsUploadModalClose');
@@ -599,18 +550,22 @@
                 signed: {
                     label: 'OK',
                     badgeClass: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+                    rowClass: 'border-emerald-200 bg-emerald-50',
                 },
                 pending: {
                     label: 'Aktif',
                     badgeClass: 'border-blue-200 bg-blue-50 text-blue-700',
+                    rowClass: 'border-blue-200 bg-blue-50',
                 },
                 locked: {
                     label: 'Menunggu',
                     badgeClass: 'border-slate-200 bg-slate-100 text-slate-500',
+                    rowClass: 'border-slate-200 bg-slate-50',
                 },
                 skipped: {
                     label: 'Skip',
                     badgeClass: 'border-amber-200 bg-amber-50 text-amber-700',
+                    rowClass: 'border-amber-200 bg-amber-50',
                 },
             };
 
@@ -623,9 +578,6 @@
                 const progress = button.dataset.progress || '0';
                 const signedCount = button.dataset.signedCount || '0';
                 const totalSteps = button.dataset.totalSteps || '0';
-                const caption = button.dataset.caption || 'Sudah sampai TTD';
-                const summary = button.dataset.summary || '-';
-                const currentName = button.dataset.currentName || '-';
                 const actions = parseObjectData(button.dataset.actions);
                 const approvalLink = actions.link || '';
                 const whatsappUrl = actions.whatsapp_url || '';
@@ -634,59 +586,99 @@
                 approvalFlowModalTitle.textContent = button.dataset.title || '-';
                 approvalFlowModalCount.textContent = `${signedCount}/${totalSteps} TTD`;
                 approvalFlowModalPercent.textContent = `${progress}%`;
-                approvalFlowModalCaption.textContent = caption;
-                approvalFlowModalSummary.textContent = summary;
-                approvalFlowModalName.textContent = currentName && currentName !== '-' ? currentName : '';
 
                 approvalFlowModalChecklist.innerHTML = checklist.map((item) => {
                     const config = approvalStatusConfig[item.status] || approvalStatusConfig.locked;
+                    const isActive = item.status === 'pending' && approvalLink;
+                    const actionButtons = isActive
+                        ? `
+                            <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                <button
+                                    type="button"
+                                    class="hpp-modal-copy-link inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-blue-700 transition hover:bg-blue-100"
+                                    data-link="${escapeHtml(approvalLink)}"
+                                >
+                                    <i data-lucide="copy" class="h-3 w-3"></i>
+                                    Salin Link
+                                </button>
+                                ${whatsappUrl ? `
+                                    <a
+                                        href="${escapeHtml(whatsappUrl)}"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                                    >
+                                        <i data-lucide="message-circle" class="h-3 w-3"></i>
+                                        WhatsApp
+                                    </a>
+                                ` : `
+                                    <span
+                                        class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-400"
+                                        title="Nomor WhatsApp approver belum tersedia di user panel"
+                                    >
+                                        <i data-lucide="message-circle-off" class="h-3 w-3"></i>
+                                        No WA
+                                    </span>
+                                `}
+                                ${resendUrl ? `
+                                    <form method="POST" action="${escapeHtml(resendUrl)}" class="inline-block">
+                                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                        <button
+                                            type="submit"
+                                            class="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-sky-700 transition hover:bg-sky-100"
+                                        >
+                                            <i data-lucide="send" class="h-3 w-3"></i>
+                                            Resend
+                                        </button>
+                                    </form>
+                                ` : ''}
+                            </div>
+                        `
+                        : '';
 
                     return `
-                        <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                            <div class="min-w-0">
+                        <div class="rounded-xl border px-3 py-2.5 ${config.rowClass}">
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="min-w-0">
                                 <div class="truncate text-[13px] font-medium text-slate-800">${escapeHtml(item.label || '-')}</div>
                                 <div class="mt-1 truncate text-[11px] text-slate-500">${escapeHtml(item.name || '-')}</div>
+                                </div>
+                                <span class="inline-flex shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${config.badgeClass}">
+                                    ${config.label}
+                                </span>
                             </div>
-                            <span class="inline-flex shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${config.badgeClass}">
-                                ${config.label}
-                            </span>
+                            ${actionButtons}
                         </div>
                     `;
                 }).join('');
 
-                approvalFlowModalActions?.classList.toggle('hidden', !approvalLink);
-                approvalFlowCopyButton?.classList.toggle('hidden', !approvalLink);
-                approvalFlowWhatsappButton?.classList.toggle('hidden', !whatsappUrl);
-                approvalFlowWhatsappButton?.classList.toggle('inline-flex', Boolean(whatsappUrl));
-                approvalFlowResendForm?.classList.toggle('hidden', !resendUrl);
-                approvalFlowResendForm?.classList.toggle('inline-block', Boolean(resendUrl));
-
-                if (approvalFlowModalActionsText) {
-                    approvalFlowModalActionsText.textContent = approvalLink
-                        ? `${actions.role_label || 'Approval'} - ${actions.signer_name || '-'}`
-                        : '-';
-                }
-
-                if (approvalFlowWhatsappButton && whatsappUrl) {
-                    approvalFlowWhatsappButton.href = whatsappUrl;
-                }
-
-                if (approvalFlowResendForm && resendUrl) {
-                    approvalFlowResendForm.action = resendUrl;
-                }
-
-                if (approvalFlowCopyButton && approvalLink) {
-                    approvalFlowCopyButton.dataset.link = approvalLink;
-                    approvalFlowCopyButton.innerHTML = '<i data-lucide="copy" class="h-3 w-3"></i> Salin Link';
-                }
-
                 approvalFlowModal.classList.remove('hidden');
                 approvalFlowModal.setAttribute('aria-hidden', 'false');
                 syncBodyScrollLock();
+
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
             };
 
-            approvalFlowCopyButton?.addEventListener('click', async () => {
-                const link = approvalFlowCopyButton.dataset.link || '';
+            const closeApprovalFlowModal = () => {
+                if (!approvalFlowModal) {
+                    return;
+                }
+
+                approvalFlowModal.classList.add('hidden');
+                approvalFlowModal.setAttribute('aria-hidden', 'true');
+                syncBodyScrollLock();
+            };
+
+            approvalFlowModalChecklist?.addEventListener('click', async (event) => {
+                const copyButton = event.target.closest('.hpp-modal-copy-link');
+
+                if (!copyButton) {
+                    return;
+                }
+
+                const link = copyButton.dataset.link || '';
 
                 if (!link) {
                     return;
@@ -694,10 +686,10 @@
 
                 try {
                     await copyToClipboard(link);
-                    approvalFlowCopyButton.innerHTML = '<i data-lucide="check" class="h-3 w-3"></i> Disalin';
+                    copyButton.innerHTML = '<i data-lucide="check" class="h-3 w-3"></i> Disalin';
                     window.lucide?.createIcons();
                     setTimeout(() => {
-                        approvalFlowCopyButton.innerHTML = '<i data-lucide="copy" class="h-3 w-3"></i> Salin Link';
+                        copyButton.innerHTML = '<i data-lucide="copy" class="h-3 w-3"></i> Salin Link';
                         window.lucide?.createIcons();
                     }, 1400);
                 } catch (error) {
@@ -710,16 +702,6 @@
                     }
                 }
             });
-
-            const closeApprovalFlowModal = () => {
-                if (!approvalFlowModal) {
-                    return;
-                }
-
-                approvalFlowModal.classList.add('hidden');
-                approvalFlowModal.setAttribute('aria-hidden', 'true');
-                syncBodyScrollLock();
-            };
 
             const openDiropsUploadModal = (order, action) => {
                 if (!diropsUploadModal || !diropsUploadForm) {

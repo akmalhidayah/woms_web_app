@@ -6,18 +6,31 @@ use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Pkm\UpdateJobWaitingRequest;
+use App\Models\Hpp;
 use App\Models\InitialWork;
 use App\Models\Order;
+use App\Services\Orders\OrderDocumentService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use setasign\Fpdi\Fpdi;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
+use Symfony\Component\Process\Process;
 use Throwable;
 
 class JobWaitingController extends Controller
 {
+    public function __construct(
+        private readonly OrderDocumentService $documentService,
+    ) {
+    }
+
     public function index(Request $request): View
     {
         try {
@@ -286,6 +299,68 @@ class JobWaitingController extends Controller
         }
     }
 
+    public function mergedHppDocument(Hpp $hpp): Response
+    {
+        try {
+            $hpp->loadMissing([
+                'order.documents',
+                'purchaseOrder:id,order_id,hpp_id,po_document_path,purchase_order_number',
+                'outlineAgreement.unitWork.department',
+                'creator',
+                'signatures.signer:id,name,inisial',
+            ]);
+
+            $abnormalitas = $this->findDocument($hpp->order, OrderDocumentType::Abnormalitas);
+
+            abort_unless($abnormalitas, Response::HTTP_NOT_FOUND, 'Dokumen Abnormalitas belum tersedia.');
+
+            $abnormalitasPath = $this->documentService->absolutePath($abnormalitas);
+            $abnormalitasMime = (string) $this->documentService->mimeType($abnormalitas);
+
+            abort_unless($abnormalitasPath && is_file($abnormalitasPath), Response::HTTP_NOT_FOUND, 'File Abnormalitas tidak ditemukan di storage.');
+            abort_unless(
+                $this->isPdfPath($abnormalitasPath, $abnormalitasMime),
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+                'Dokumen Abnormalitas harus PDF agar bisa digabung dengan HPP.'
+            );
+
+            $pdfOutputs = [
+                $this->hppPdfOutput($hpp),
+                file_get_contents($abnormalitasPath) ?: '',
+            ];
+
+            $poPath = $hpp->purchaseOrder?->po_document_path;
+
+            if ($poPath && Storage::disk('public')->exists($poPath)) {
+                $absolutePoPath = Storage::disk('public')->path($poPath);
+                $poMime = (string) Storage::disk('public')->mimeType($poPath);
+
+                if ($this->isPdfPath($absolutePoPath, $poMime)) {
+                    $pdfOutputs[] = Storage::disk('public')->get($poPath) ?: '';
+                }
+            }
+
+            $mergedPdf = $this->mergePdfOutputs($pdfOutputs);
+
+            abort_if($mergedPdf === '', Response::HTTP_INTERNAL_SERVER_ERROR, 'PDF gabungan tidak berhasil dibuat.');
+
+            return response($mergedPdf, Response::HTTP_OK, $this->pdfInlineHeaders('hpp-abnormalitas-po-'.$hpp->nomor_order.'.pdf'));
+        } catch (Throwable $exception) {
+            $statusCode = $this->statusCodeFromThrowable($exception);
+
+            Log::error('Failed to merge PKM HPP document.', [
+                'status_code' => $statusCode,
+                'hpp_id' => $hpp->id,
+                'nomor_order' => $hpp->nomor_order,
+                'error' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+            ]);
+
+            abort($statusCode, $exception->getMessage());
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -335,18 +410,13 @@ class JobWaitingController extends Controller
             'is_initial_work_flow' => $isEmergencyInitialWorkFlow,
             'documents' => [
                 [
-                    'label' => 'Abnormalitas',
-                    'icon' => 'alert-circle',
-                    'tone' => 'rose',
-                    'ready' => (bool) $abnormalDocument,
-                    'url' => $abnormalDocument ? route('pkm.jobwaiting.documents.preview', ['order' => $order, 'document' => $abnormalDocument]) : null,
-                ],
-                [
-                    'label' => 'Scope of Work',
-                    'icon' => 'clipboard-list',
-                    'tone' => 'emerald',
-                    'ready' => (bool) $order->scopeOfWork,
-                    'url' => $order->scopeOfWork ? route('pkm.jobwaiting.scope-of-work.pdf', ['order' => $order, 'scopeOfWork' => $order->scopeOfWork]) : null,
+                    'label' => 'HPP + Abnormalitas + PO',
+                    'icon' => 'file-stack',
+                    'tone' => 'orange',
+                    'ready' => (bool) ($latestHpp && $abnormalDocument),
+                    'url' => ($latestHpp && $abnormalDocument)
+                        ? route('pkm.jobwaiting.hpp.merged-document', ['hpp' => $latestHpp->nomor_order])
+                        : null,
                 ],
                 [
                     'label' => 'Gambar Teknik',
@@ -356,32 +426,19 @@ class JobWaitingController extends Controller
                     'url' => $gambarDocument ? route('pkm.jobwaiting.documents.preview', ['order' => $order, 'document' => $gambarDocument]) : null,
                 ],
                 [
-                    'label' => 'HPP',
-                    'icon' => 'file-text',
-                    'tone' => 'orange',
-                    'ready' => (bool) $latestHpp,
-                    'url' => $latestHpp ? route('pkm.jobwaiting.hpp.pdf', ['hpp' => $latestHpp->nomor_order]) : null,
+                    'label' => 'Scope of Work',
+                    'icon' => 'clipboard-list',
+                    'tone' => 'emerald',
+                    'ready' => (bool) $order->scopeOfWork,
+                    'url' => $order->scopeOfWork ? route('pkm.jobwaiting.scope-of-work.pdf', ['order' => $order, 'scopeOfWork' => $order->scopeOfWork]) : null,
                 ],
-                [
-                    'label' => $latestPurchaseOrder?->purchase_order_number
-                        ? 'PO : '.$latestPurchaseOrder->purchase_order_number
-                        : 'PO',
-                    'icon' => 'receipt',
-                    'tone' => 'indigo',
-                    'ready' => (bool) ($latestHpp && $latestPurchaseOrder?->po_document_path),
-                    'url' => ($latestHpp && $latestPurchaseOrder?->po_document_path)
-                        ? route('pkm.jobwaiting.purchase-order.document', ['hpp' => $latestHpp->nomor_order])
-                        : null,
-                ],
-                [
+                ...($initialWork ? [[
                     'label' => 'Initial Work',
                     'icon' => 'file-badge',
                     'tone' => 'violet',
-                    'ready' => (bool) $initialWork,
-                    'url' => $initialWork
-                        ? route('pkm.jobwaiting.initial-work.pdf', ['order' => $order, 'initialWork' => $initialWork])
-                        : null,
-                ],
+                    'ready' => true,
+                    'url' => route('pkm.jobwaiting.initial-work.pdf', ['order' => $order, 'initialWork' => $initialWork]),
+                ]] : []),
             ],
         ];
     }
@@ -427,5 +484,164 @@ class JobWaitingController extends Controller
         }
 
         return Response::HTTP_INTERNAL_SERVER_ERROR;
+    }
+
+    private function hppPdfOutput(Hpp $hpp): string
+    {
+        $finalDocumentSignature = $hpp->finalSignedDocumentSignature();
+
+        if ($finalDocumentSignature?->hasUploadedSignedDocument()) {
+            abort_unless(
+                Storage::disk('public')->exists($finalDocumentSignature->signed_document_path),
+                Response::HTTP_NOT_FOUND,
+                'File HPP final tidak ditemukan di storage.'
+            );
+
+            return Storage::disk('public')->get($finalDocumentSignature->signed_document_path) ?: '';
+        }
+
+        return Pdf::loadView('admin.hpp.hpppdf', [
+            'hpp' => $hpp,
+        ])->setPaper('a4', 'landscape')->output();
+    }
+
+    /**
+     * @param  array<int, string>  $pdfOutputs
+     */
+    private function mergePdfOutputs(array $pdfOutputs): string
+    {
+        $pdfOutputs = array_values(array_filter(
+            $pdfOutputs,
+            static fn ($pdfOutput): bool => is_string($pdfOutput) && trim($pdfOutput) !== ''
+        ));
+
+        if ($pdfOutputs === []) {
+            return '';
+        }
+
+        $temporaryFiles = [];
+        $mergedFile = null;
+
+        try {
+            foreach ($pdfOutputs as $pdfOutput) {
+                $temporaryFile = tempnam(sys_get_temp_dir(), 'woms-pkm-pdf-');
+
+                if ($temporaryFile === false) {
+                    continue;
+                }
+
+                file_put_contents($temporaryFile, $pdfOutput);
+                $temporaryFiles[] = $temporaryFile;
+            }
+
+            $mergedFile = tempnam(sys_get_temp_dir(), 'woms-pkm-merged-');
+
+            if ($mergedFile !== false) {
+                $externalMerge = $this->mergePdfFilesWithSystemTool($temporaryFiles, $mergedFile);
+
+                if ($externalMerge !== null) {
+                    return $externalMerge;
+                }
+            }
+
+            if (count($temporaryFiles) === 1) {
+                return file_get_contents($temporaryFiles[0]) ?: '';
+            }
+
+            $pdf = new Fpdi();
+
+            foreach ($temporaryFiles as $temporaryFile) {
+                $pageCount = $pdf->setSourceFile($temporaryFile);
+
+                for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
+                    $templateId = $pdf->importPage($pageNumber);
+                    $size = $pdf->getTemplateSize($templateId);
+                    $orientation = ($size['width'] ?? 0) > ($size['height'] ?? 0) ? 'L' : 'P';
+
+                    $pdf->AddPage($orientation, [$size['width'], $size['height']]);
+                    $pdf->useTemplate($templateId);
+                }
+            }
+
+            return $pdf->Output('S');
+        } catch (Throwable $exception) {
+            if ($exception instanceof UnprocessableEntityHttpException) {
+                throw $exception;
+            }
+
+            throw new UnprocessableEntityHttpException(
+                'PDF tidak bisa digabung dengan parser bawaan. Pastikan server memiliki qpdf, pdfunite, atau ghostscript (gs), atau upload Abnormalitas sebagai PDF standar.',
+                $exception
+            );
+        } finally {
+            foreach ($temporaryFiles as $temporaryFile) {
+                if (is_file($temporaryFile)) {
+                    @unlink($temporaryFile);
+                }
+            }
+
+            if (is_string($mergedFile) && is_file($mergedFile)) {
+                @unlink($mergedFile);
+            }
+        }
+    }
+
+    private function mergePdfFilesWithSystemTool(array $inputFiles, string $outputFile): ?string
+    {
+        $commands = [
+            array_merge(['qpdf', '--empty', '--pages'], $inputFiles, ['--', $outputFile]),
+            array_merge(['pdfunite'], $inputFiles, [$outputFile]),
+            array_merge(['gs', '-dBATCH', '-dNOPAUSE', '-q', '-sDEVICE=pdfwrite', '-sOutputFile='.$outputFile], $inputFiles),
+            array_merge(['gswin64c', '-dBATCH', '-dNOPAUSE', '-q', '-sDEVICE=pdfwrite', '-sOutputFile='.$outputFile], $inputFiles),
+        ];
+
+        foreach ($commands as $command) {
+            try {
+                $process = new Process($command, null, null, null, 30);
+                $process->run();
+
+                if ($process->isSuccessful() && is_file($outputFile) && filesize($outputFile) > 0) {
+                    return file_get_contents($outputFile) ?: null;
+                }
+            } catch (Throwable $exception) {
+                Log::debug('PKM PDF merge system tool failed.', [
+                    'tool' => $command[0] ?? 'unknown',
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        return null;
+    }
+
+    private function isPdfPath(string $path, ?string $mimeType): bool
+    {
+        return str_contains(strtolower((string) $mimeType), 'pdf')
+            || strtolower(pathinfo($path, PATHINFO_EXTENSION)) === 'pdf';
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function pdfInlineHeaders(string $filename): array
+    {
+        return [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => sprintf('inline; filename="%s"', $filename),
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ];
+    }
+
+    private function statusCodeFromThrowable(Throwable $exception): int
+    {
+        if ($exception instanceof HttpExceptionInterface) {
+            return $exception->getStatusCode();
+        }
+
+        $code = (int) $exception->getCode();
+
+        return $code >= 400 && $code < 600 ? $code : Response::HTTP_INTERNAL_SERVER_ERROR;
     }
 }

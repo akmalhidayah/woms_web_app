@@ -386,6 +386,9 @@ Route::delete('admin/struktur-organisasi/{unitWork}', [StructureOrganizationCont
     Route::get('pkm/jobwaiting/{order}/scope-of-work/{scopeOfWork}/pdf', [OrderScopeOfWorkController::class, 'pdf'])
         ->middleware('role:pkm')
         ->name('pkm.jobwaiting.scope-of-work.pdf');
+    Route::get('pkm/jobwaiting/{hpp:nomor_order}/hpp-merged-document', [JobWaitingController::class, 'mergedHppDocument'])
+        ->middleware('role:pkm')
+        ->name('pkm.jobwaiting.hpp.merged-document');
     Route::get('pkm/jobwaiting/{hpp:nomor_order}/hpp', [HppController::class, 'pdf'])
         ->middleware('role:pkm')
         ->name('pkm.jobwaiting.hpp.pdf');

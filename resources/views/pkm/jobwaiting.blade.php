@@ -44,35 +44,33 @@
                 </div>
             </section>
 
-            <section class="rounded-[1.6rem] border border-slate-200 bg-white p-4 shadow-sm">
-                <form method="GET" action="{{ route('pkm.jobwaiting') }}" class="flex flex-col gap-3 xl:flex-row xl:items-center">
-                    <div class="flex flex-1 flex-col gap-3 md:flex-row md:items-center">
-                        <div class="w-full md:w-[220px]">
-                            <label class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Prioritas</label>
-                            <select name="priority" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none">
+            <section class="rounded-[1.1rem] border border-slate-200 bg-white p-2.5 shadow-sm">
+                <form method="GET" action="{{ route('pkm.jobwaiting') }}" class="flex flex-wrap items-end gap-2 lg:flex-nowrap">
+                    <div class="w-full sm:w-[180px]">
+                        <label class="mb-1 block text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-500">Prioritas</label>
+                        <select name="priority" class="h-8 w-full rounded-lg border border-slate-300 px-2.5 text-[11px] text-slate-700 focus:border-[#ca642f] focus:outline-none">
                                 <option value="">Semua Prioritas</option>
                                 <option value="Emergency" @selected($selectedPriority === 'Emergency')>Emergency</option>
                                 <option value="High" @selected($selectedPriority === 'High')>High</option>
                                 <option value="Medium" @selected($selectedPriority === 'Medium')>Medium</option>
                             </select>
-                        </div>
+                    </div>
 
-                        <div class="min-w-0 flex-1">
-                            <label class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Pencarian</label>
-                            <div class="relative">
-                                <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
-                                <input type="text" name="search" value="{{ $search }}" placeholder="Cari nomor order, nama pekerjaan, atau unit..." class="w-full rounded-xl border border-slate-300 py-2 pl-10 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-[#ca642f] focus:outline-none">
-                            </div>
+                    <div class="min-w-[240px] flex-1">
+                        <label class="mb-1 block text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-500">Pencarian</label>
+                        <div class="relative">
+                            <i data-lucide="search" class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"></i>
+                            <input type="text" name="search" value="{{ $search }}" placeholder="Cari nomor order, nama pekerjaan, atau unit..." class="h-8 w-full rounded-lg border border-slate-300 pl-8 pr-2.5 text-[11px] text-slate-700 placeholder:text-slate-400 focus:border-[#ca642f] focus:outline-none">
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-2 xl:justify-end">
-                        <button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-[#ca642f] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#b85b2b]">
-                            <i data-lucide="filter" class="h-4 w-4"></i>
+                    <div class="flex items-center gap-2">
+                        <button type="submit" class="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#ca642f] px-3 text-[11px] font-bold text-white transition hover:bg-[#b85b2b]">
+                            <i data-lucide="filter" class="h-3.5 w-3.5"></i>
                             Filter
                         </button>
-                        <a href="{{ route('pkm.jobwaiting') }}" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
-                            <i data-lucide="rotate-ccw" class="h-4 w-4"></i>
+                        <a href="{{ route('pkm.jobwaiting') }}" class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50">
+                            <i data-lucide="rotate-ccw" class="h-3.5 w-3.5"></i>
                             Reset
                         </a>
                     </div>
@@ -89,7 +87,7 @@
             </div>
 
             @if ($notifications->count())
-                <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                     @foreach ($notifications as $notification)
                         @php
                             $approval = $approvalLabel($notification['approval_target']);
@@ -100,28 +98,28 @@
                             $isTargetPenyelesaianLocked = (bool) ($notification['target_penyelesaian_locked'] ?? false);
                         @endphp
 
-                        <article class="pkm-jobwaiting-card flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
-                            <div class="bg-gradient-to-r from-[#ca642f] to-[#e18e4d] px-4 py-3 text-white">
+                        <article class="pkm-jobwaiting-card flex h-full flex-col overflow-hidden rounded-[1.1rem] border border-slate-200 bg-white shadow-sm">
+                            <div class="bg-gradient-to-r from-[#ca642f] to-[#e18e4d] px-3 py-2.5 text-white">
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="min-w-0">
                                         <div class="text-[8px] font-semibold uppercase tracking-[0.14em] text-white/80">Order / Notifikasi</div>
-                                        <div class="mt-1 truncate text-[13px] font-black">
-                                            <i data-lucide="file-text" class="mr-1 inline h-4 w-4"></i>{{ $notification['nomor_order'] }}
+                                        <div class="mt-1 truncate text-[12px] font-black">
+                                            <i data-lucide="file-text" class="mr-1 inline h-3.5 w-3.5"></i>{{ $notification['nomor_order'] }}
                                         </div>
                                         @if (! empty($notification['notification_number']))
-                                            <div class="mt-1 truncate text-[15px] font-black">
-                                                <i data-lucide="bell-ring" class="mr-1 inline h-4 w-4"></i>{{ $notification['notification_number'] }}
+                                            <div class="mt-0.5 truncate text-[13px] font-black">
+                                                <i data-lucide="bell-ring" class="mr-1 inline h-3.5 w-3.5"></i>{{ $notification['notification_number'] }}
                                             </div>
                                         @endif
                                     </div>
 
                                     <div class="text-right">
                                         <div class="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/80">Prioritas</div>
-                                        <span class="mt-1 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] {{ $priorityBadgeClasses($notification['priority']) }}">
+                                        <span class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] {{ $priorityBadgeClasses($notification['priority']) }}">
                                             {{ $notification['priority'] }}
                                         </span>
                                         @if (! empty($notification['jobwaiting_since']))
-                                            <div class="mt-3 text-[10px] font-medium text-white/80">
+                                            <div class="mt-2 text-[9px] font-medium text-white/80">
                                                 {{ $notification['jobwaiting_since'] }}
                                             </div>
                                         @endif
@@ -129,41 +127,39 @@
                                 </div>
                             </div>
 
-                            <div class="flex min-w-0 flex-1 flex-col p-4 text-[12px] text-slate-700">
-                                <div class="mb-3 flex items-start gap-2">
-                                    <span class="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
-                                        <i data-lucide="pin" class="h-4 w-4"></i>
+                            <div class="flex min-w-0 flex-1 flex-col p-3 text-[11px] text-slate-700">
+                                <div class="mb-2.5 flex items-start gap-2">
+                                    <span class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
+                                        <i data-lucide="pin" class="h-3.5 w-3.5"></i>
                                     </span>
                                     <div class="min-w-0">
-                                        <div class="text-[14px] font-bold leading-5 text-slate-900">{{ $notification['job_name'] }}</div>
-                                        <div class="mt-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+                                        <div class="text-[12px] font-bold leading-4 text-slate-900">{{ $notification['job_name'] }}</div>
+                                        <div class="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[10px] text-slate-600">
                                             <div class="font-semibold text-slate-700">{{ $notification['seksi'] ?: '-' }}</div>
-                                            <div class="mt-1 border-t border-slate-200 pt-1">{{ $notification['unit'] ?: '-' }}</div>
+                                            <div class="mt-1 border-t border-slate-200 pt-1 leading-snug">{{ $notification['unit'] ?: '-' }}</div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div class="mb-3 grid grid-cols-2 gap-2">
+                                <div class="mb-2.5 flex flex-wrap gap-2">
                                     @foreach ($notification['documents'] as $document)
                                         @if ($document['ready'] && $document['url'])
-                                            <a href="{{ $document['url'] }}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 rounded-xl border px-3 py-2 text-left text-[11px] font-medium {{ $documentTone($document['tone'], $document['ready']) }}">
-                                                <i data-lucide="{{ $document['icon'] }}" class="h-3.5 w-3.5 shrink-0"></i>
-                                                <span class="truncate">{{ $document['label'] }}</span>
+                                            <a href="{{ $document['url'] }}" target="_blank" rel="noopener noreferrer" title="{{ $document['label'] }}" aria-label="{{ $document['label'] }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border transition {{ $documentTone($document['tone'], $document['ready']) }}">
+                                                <i data-lucide="{{ $document['icon'] }}" class="h-3.5 w-3.5"></i>
                                             </a>
                                         @else
-                                            <button type="button" class="flex items-center gap-2 rounded-xl border px-3 py-2 text-left text-[11px] font-medium {{ $documentTone($document['tone'], $document['ready']) }}">
-                                                <i data-lucide="{{ $document['icon'] }}" class="h-3.5 w-3.5 shrink-0"></i>
-                                                <span class="truncate">{{ $document['label'] }} -</span>
+                                            <button type="button" title="{{ $document['label'] }} belum tersedia" aria-label="{{ $document['label'] }} belum tersedia" class="inline-flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-lg border {{ $documentTone($document['tone'], $document['ready']) }}">
+                                                <i data-lucide="{{ $document['icon'] }}" class="h-3.5 w-3.5"></i>
                                             </button>
                                         @endif
                                     @endforeach
                                 </div>
 
-                                <div class="mb-3 rounded-xl border px-3 py-2 text-[11px] {{ $approval['class'] }}">
+                                <div class="mb-2.5 rounded-lg border px-2.5 py-1.5 text-[10px] {{ $approval['class'] }}">
                                     {{ $approval['label'] }}
                                 </div>
 
-                                <div class="mb-3">
+                                <div class="mb-2.5">
                                     <form method="POST" action="{{ route('pkm.jobwaiting.update', ['order' => $notification['nomor_order']]) }}">
                                         @csrf
                                         @method('PATCH')
@@ -171,15 +167,15 @@
                                         <input type="hidden" name="_filter_priority" value="{{ $selectedPriority }}">
                                         <input type="hidden" name="_filter_search" value="{{ $search }}">
                                         <input type="hidden" name="_filter_page" value="{{ $notifications->currentPage() }}">
-                                        <button type="submit" class="inline-flex w-full items-center justify-center rounded-xl bg-amber-500 px-3 py-2 text-[11px] font-bold text-white transition hover:bg-amber-600 {{ ($started || $isFinished || ! $canUpdate) ? 'opacity-50' : '' }}" @disabled($started || $isFinished || ! $canUpdate)>
+                                        <button type="submit" class="inline-flex h-8 w-full items-center justify-center rounded-lg bg-amber-500 px-3 text-[10px] font-bold text-white transition hover:bg-amber-600 {{ ($started || $isFinished || ! $canUpdate) ? 'opacity-50' : '' }}" @disabled($started || $isFinished || ! $canUpdate)>
                                             {{ $isFinished ? 'Selesai' : ($canUpdate ? ($started ? 'Dimulai' : 'Start') : 'Initial Work') }}
                                         </button>
                                     </form>
                                 </div>
 
-                                <button type="button" class="pkm-jobwaiting-toggle inline-flex items-center gap-2 text-[11px] font-bold text-[#ca642f]" data-target="details-{{ $notification['nomor_order'] }}">
+                                <button type="button" class="pkm-jobwaiting-toggle inline-flex items-center gap-1.5 text-[10px] font-bold text-[#ca642f]" data-target="details-{{ $notification['nomor_order'] }}">
                                     Show details
-                                    <i data-lucide="chevron-down" class="h-3.5 w-3.5"></i>
+                                    <i data-lucide="chevron-down" class="h-3 w-3"></i>
                                 </button>
 
                                 <form id="details-{{ $notification['nomor_order'] }}" method="POST" action="{{ route('pkm.jobwaiting.update', ['order' => $notification['nomor_order']]) }}" class="pkm-jobwaiting-details mt-3 hidden min-w-0 space-y-3 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-3">

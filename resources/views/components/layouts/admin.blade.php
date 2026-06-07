@@ -241,6 +241,152 @@
                 height: 1.65rem !important;
             }
 
+            .orders-index-compact {
+                font-size: 0.68rem !important;
+            }
+
+            .orders-index-compact.space-y-4 > :not([hidden]) ~ :not([hidden]),
+            .orders-index-compact > .space-y-4 > :not([hidden]) ~ :not([hidden]) {
+                margin-top: 0.65rem !important;
+            }
+
+            .orders-index-compact .order-list-hero {
+                padding: 0.6rem 0.8rem !important;
+            }
+
+            .orders-index-compact .order-list-hero > div {
+                gap: 0.55rem !important;
+            }
+
+            .orders-index-compact .order-list-hero span[class*="h-12"] {
+                width: 2rem !important;
+                height: 2rem !important;
+                border-radius: 0.65rem !important;
+            }
+
+            .orders-index-compact .order-list-hero h1 {
+                font-size: 0.95rem !important;
+                line-height: 1.05rem !important;
+            }
+
+            .orders-index-compact .order-list-hero p {
+                margin-top: 0.15rem !important;
+                font-size: 0.64rem !important;
+            }
+
+            .orders-index-compact .order-list-hero button {
+                padding: 0.36rem 0.65rem !important;
+                font-size: 0.66rem !important;
+            }
+
+            .orders-index-compact .order-list-panel > .border-b {
+                padding: 0.55rem 0.65rem !important;
+            }
+
+            .orders-index-compact .order-list-panel form,
+            .orders-index-compact .order-list-panel .gap-2\.5 {
+                gap: 0.38rem !important;
+            }
+
+            .orders-index-compact .order-list-panel label {
+                margin-bottom: 0.2rem !important;
+                font-size: 0.56rem !important;
+            }
+
+            .orders-index-compact .order-list-panel input:not([type="checkbox"]):not([type="radio"]),
+            .orders-index-compact .order-list-panel select {
+                min-height: 1.75rem !important;
+                padding-top: 0.25rem !important;
+                padding-bottom: 0.25rem !important;
+                font-size: 0.66rem !important;
+            }
+
+            .orders-index-compact .order-list-panel th {
+                padding: 0.32rem 0.55rem !important;
+                font-size: 0.55rem !important;
+                line-height: 0.8rem !important;
+            }
+
+            .orders-index-compact .order-list-panel td {
+                padding: 0.38rem 0.55rem !important;
+                font-size: 0.64rem !important;
+                line-height: 0.95rem !important;
+            }
+
+            .orders-index-compact .order-list-panel .min-w-\[165px\] {
+                min-width: 8rem !important;
+            }
+
+            .orders-index-compact .order-list-panel td > div[class*="rounded"],
+            .orders-index-compact .order-list-panel td div[class*="rounded-xl"],
+            .orders-index-compact .order-list-panel td div[class*="rounded-2xl"] {
+                padding: 0.45rem 0.55rem !important;
+            }
+
+            .orders-index-compact .order-list-panel td [class*="mt-2"] {
+                margin-top: 0.35rem !important;
+            }
+
+            .orders-index-compact .order-list-panel td [class*="mt-1"] {
+                margin-top: 0.2rem !important;
+            }
+
+            .orders-index-compact .order-list-panel td [class*="pt-2"] {
+                padding-top: 0.35rem !important;
+            }
+
+            .orders-index-compact .order-list-panel td .grid {
+                gap: 0.35rem !important;
+            }
+
+            .orders-index-compact .order-list-panel td .flex[class*="gap-2"],
+            .orders-index-compact .order-list-panel td .flex[class*="gap-1.5"] {
+                gap: 0.32rem !important;
+            }
+
+            .orders-index-compact .order-list-panel td:nth-child(2) > div > div:first-child {
+                padding: 0.5rem 0.65rem !important;
+            }
+
+            .orders-index-compact .order-list-panel td:nth-child(3) > div {
+                gap: 0.35rem !important;
+                justify-content: flex-start !important;
+            }
+
+            .orders-index-compact .order-list-panel td:nth-child(3) > div > div:first-child {
+                padding: 0.45rem 0.55rem !important;
+            }
+
+            .orders-index-compact .order-list-panel :is(a, button, span)[class*="rounded"] {
+                border-radius: 0.45rem !important;
+            }
+
+            .orders-index-compact .order-list-panel :is(a, button, span)[class*="px-2"],
+            .orders-index-compact .order-list-panel :is(a, button, span)[class*="px-2.5"],
+            .orders-index-compact .order-list-panel :is(a, button, span)[class*="px-3"] {
+                padding-left: 0.36rem !important;
+                padding-right: 0.36rem !important;
+            }
+
+            .orders-index-compact .order-list-panel :is(a, button, span)[class*="py-1"],
+            .orders-index-compact .order-list-panel :is(a, button, span)[class*="py-1.5"],
+            .orders-index-compact .order-list-panel :is(a, button, span)[class*="py-2"] {
+                padding-top: 0.18rem !important;
+                padding-bottom: 0.18rem !important;
+            }
+
+            .orders-index-compact .order-list-panel :is(a, button)[class*="h-9"][class*="w-9"],
+            .orders-index-compact .order-list-panel :is(a, button)[class*="h-8"][class*="w-8"] {
+                width: 1.55rem !important;
+                height: 1.55rem !important;
+            }
+
+            .orders-index-compact .order-list-panel svg,
+            .orders-index-compact .order-list-hero svg {
+                width: 0.72rem !important;
+                height: 0.72rem !important;
+            }
+
             .lpj-compact .order-list-panel table {
                 font-size: 0.62rem !important;
             }

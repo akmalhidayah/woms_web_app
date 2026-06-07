@@ -11,7 +11,7 @@
         <div id="flash-error" data-message="{{ implode(' • ', $errors->all()) }}" class="hidden"></div>
     @endif
 
-    <div class="order-list-compact space-y-4">
+    <div class="order-list-compact orders-index-compact space-y-4">
         @if (session('initial_work_manager_approval_url'))
             <section class="rounded-[1.25rem] border border-emerald-200 bg-emerald-50 px-5 py-4 shadow-sm">
                 <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">

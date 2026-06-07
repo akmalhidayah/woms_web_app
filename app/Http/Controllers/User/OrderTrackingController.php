@@ -13,6 +13,7 @@ use App\Models\OrderDocument;
 use App\Models\OrderWorkshop;
 use App\Models\QualityControlReport;
 use App\Models\QualityControlSignature;
+use App\Services\Orders\OrderDocumentService;
 use App\Services\QualityControl\QualityControlSignatureService;
 use App\Support\ApprovalWhatsappLink;
 use App\Support\SignatureImageStorage;
@@ -28,6 +29,7 @@ class OrderTrackingController extends Controller
 {
     public function __construct(
         private readonly QualityControlSignatureService $qualityControlSignatureService,
+        private readonly OrderDocumentService $orderDocumentService,
     ) {}
 
     public function index(Request $request): View
@@ -99,15 +101,8 @@ class OrderTrackingController extends Controller
         $order = $this->ownedOrder($order);
 
         abort_unless($document->order_id === $order->id, 404);
-        abort_unless(Storage::disk('local')->exists($document->path_file), 404);
 
-        return response()->file(
-            Storage::disk('local')->path($document->path_file),
-            [
-                'Content-Type' => Storage::disk('local')->mimeType($document->path_file) ?: 'application/octet-stream',
-                'Content-Disposition' => 'inline; filename="'.$document->nama_file_asli.'"',
-            ],
-        );
+        return $this->orderDocumentService->preview($document);
     }
 
     public function scopeOfWorkPdf(Order $order): Response

@@ -9,7 +9,6 @@ use App\Models\Order;
 use App\Models\OrderDocument;
 use App\Services\Orders\OrderDocumentService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class OrderDocumentController extends Controller
@@ -81,15 +80,8 @@ class OrderDocumentController extends Controller
     public function preview(Order $order, OrderDocument $document)
     {
         abort_unless($document->order_id === $order->id, 404);
-        abort_unless(Storage::disk('local')->exists($document->path_file), 404);
 
-        return response()->file(
-            Storage::disk('local')->path($document->path_file),
-            [
-                'Content-Type' => Storage::disk('local')->mimeType($document->path_file) ?: 'application/octet-stream',
-                'Content-Disposition' => 'inline; filename="'.$document->nama_file_asli.'"',
-            ],
-        );
+        return $this->documentService->preview($document);
     }
 
     /**

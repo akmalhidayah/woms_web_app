@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Admin\Orders;
 
+use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Models\Order;
+use App\Models\OrderDocument;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -77,5 +79,53 @@ class ScopeOfWorkTest extends TestCase
         $this->assertStringStartsWith('signatures/scope-of-work-', $scopeOfWork->tanda_tangan);
         $this->assertFalse(str_starts_with($scopeOfWork->tanda_tangan, 'data:image'));
         Storage::disk('public')->assertExists($scopeOfWork->tanda_tangan);
+
+        $this->actingAs($admin)
+            ->get(route('admin.orders.scope-of-work.pdf', [$order, $scopeOfWork]))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
+
+    public function test_admin_can_preview_order_documents_from_legacy_public_storage(): void
+    {
+        Storage::fake('public');
+
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+        $order = Order::query()->create([
+            'nomor_order' => 'ORD-DOC-PREVIEW-001',
+            'nama_pekerjaan' => 'Preview Dokumen Lama',
+            'unit_kerja' => 'Unit Test',
+            'seksi' => 'Seksi Test',
+            'deskripsi' => 'Detail pekerjaan test',
+            'prioritas' => Order::PRIORITY_MEDIUM,
+            'tanggal_order' => '2026-06-01',
+            'target_selesai' => '2026-06-10',
+            'created_by' => $admin->id,
+        ]);
+
+        foreach ([
+            OrderDocumentType::Abnormalitas->value => 'abnormalitas.pdf',
+            OrderDocumentType::GambarTeknik->value => 'gambar-teknik.pdf',
+        ] as $type => $filename) {
+            $path = "orders/legacy/{$filename}";
+            Storage::disk('public')->put($path, '%PDF-1.4 test');
+
+            $document = OrderDocument::query()->create([
+                'order_id' => $order->id,
+                'jenis_dokumen' => $type,
+                'nama_file_asli' => $filename,
+                'path_file' => $path,
+                'uploaded_by' => $admin->id,
+                'uploaded_at' => now(),
+            ]);
+
+            $this->actingAs($admin)
+                ->get(route('admin.orders.documents.preview', [$order, $document]))
+                ->assertOk()
+                ->assertHeader('content-disposition', 'inline; filename="'.$filename.'"');
+        }
     }
 }

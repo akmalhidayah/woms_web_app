@@ -31,8 +31,7 @@ class OrderController extends Controller
     public function index(Request $request): View
     {
         $search = trim((string) $request->string('search'));
-        $seksi = trim((string) $request->string('seksi'));
-        $catatanStatus = trim((string) $request->string('catatan_status'));
+        $documentStatus = trim((string) $request->string('document_status'));
         $perPage = 10;
         $structureUnits = UnitWork::query()
             ->with(['sections:id,unit_work_id,name'])
@@ -49,8 +48,20 @@ class OrderController extends Controller
                 'initialWork.signatures:id,initial_work_id,role_key,status,signer_name,token_encrypted,token_expires_at,signed_at',
             ])
             ->search($search)
-            ->when($seksi !== '', fn ($query) => $query->where('seksi', $seksi))
-            ->when($catatanStatus !== '', fn ($query) => $query->where('catatan_status', $catatanStatus))
+            ->when($documentStatus === 'complete', function ($query): void {
+                $query
+                    ->whereHas('documents', fn ($documentQuery) => $documentQuery->where('jenis_dokumen', 'abnormalitas'))
+                    ->whereHas('documents', fn ($documentQuery) => $documentQuery->where('jenis_dokumen', 'gambar_teknik'))
+                    ->whereHas('scopeOfWork');
+            })
+            ->when($documentStatus === 'incomplete', function ($query): void {
+                $query->where(function ($incompleteQuery): void {
+                    $incompleteQuery
+                        ->whereDoesntHave('documents', fn ($documentQuery) => $documentQuery->where('jenis_dokumen', 'abnormalitas'))
+                        ->orWhereDoesntHave('documents', fn ($documentQuery) => $documentQuery->where('jenis_dokumen', 'gambar_teknik'))
+                        ->orWhereDoesntHave('scopeOfWork');
+                });
+            })
             ->where('catatan_status', '!=', OrderUserNoteStatus::ApprovedWorkshop->value)
             ->latest('id')
             ->paginate($perPage)
@@ -59,14 +70,7 @@ class OrderController extends Controller
         return view('admin.orders.index', [
             'orders' => $orders,
             'search' => $search,
-            'selectedSeksi' => $seksi,
-            'selectedCatatanStatus' => $catatanStatus,
-            'seksiOptions' => Order::query()
-                ->select('seksi')
-                ->whereNotNull('seksi')
-                ->distinct()
-                ->orderBy('seksi')
-                ->pluck('seksi'),
+            'selectedDocumentStatus' => $documentStatus,
             'unitKerjaOptions' => Order::query()
                 ->select('unit_kerja')
                 ->whereNotNull('unit_kerja')

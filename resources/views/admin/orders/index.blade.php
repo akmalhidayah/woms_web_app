@@ -65,53 +65,39 @@
             </section>
 
             <section class="order-list-panel overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
-                    <div class="border-b border-slate-200 px-5 py-4">
-                        <form method="GET" action="{{ route('admin.orders.index') }}" class="flex flex-col gap-2.5 xl:flex-row xl:items-end xl:justify-between">
-                            <div class="grid flex-1 gap-2.5 md:grid-cols-3 xl:grid-cols-[1.15fr_1fr_1fr]">
+                    <div class="border-b border-slate-200 px-4 py-3">
+                        <form method="GET" action="{{ route('admin.orders.index') }}" class="flex flex-col gap-2 md:flex-row md:items-end">
+                            <div class="grid flex-1 gap-2 md:grid-cols-[minmax(0,1.7fr)_minmax(220px,0.8fr)]">
                                 <div class="flex flex-col">
-                                    <label for="search" class="mb-1.5 text-[10px] font-semibold text-slate-700">Pencarian</label>
+                                    <label for="search" class="mb-1 text-[10px] font-semibold text-slate-700">Pencarian</label>
                                     <input
                                         id="search"
                                         name="search"
                                         type="text"
                                         value="{{ $search }}"
                                         placeholder="Cari nomor order atau pekerjaan..."
-                                        class="rounded-lg border border-slate-300 px-3 py-2 text-[13px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
+                                        class="h-9 rounded-lg border border-slate-300 px-3 text-[12px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
                                     >
                                 </div>
 
                                 <div class="flex flex-col">
-                                    <label for="seksi" class="mb-1.5 text-[10px] font-semibold text-slate-700">Regu</label>
+                                    <label for="document_status" class="mb-1 text-[10px] font-semibold text-slate-700">Kelengkapan Dokumen</label>
                                     <select
-                                        id="seksi"
-                                        name="seksi"
-                                        class="rounded-lg border border-slate-300 px-3 py-2 text-[13px] text-slate-700 focus:border-blue-500 focus:outline-none"
+                                        id="document_status"
+                                        name="document_status"
+                                        class="h-9 rounded-lg border border-slate-300 px-3 text-[12px] text-slate-700 focus:border-blue-500 focus:outline-none"
                                     >
-                                        <option value="">-- Semua --</option>
-                                        @foreach ($seksiOptions as $option)
-                                            <option value="{{ $option }}" @selected($selectedSeksi === $option)>{{ $option }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-
-                                <div class="flex flex-col">
-                                    <label for="catatan_status" class="mb-1.5 text-[10px] font-semibold text-slate-700">Status Catatan</label>
-                                    <select
-                                        id="catatan_status"
-                                        name="catatan_status"
-                                        class="rounded-lg border border-slate-300 px-3 py-2 text-[13px] text-slate-700 focus:border-blue-500 focus:outline-none"
-                                    >
-                                        <option value="">-- Semua --</option>
-                                        @foreach ($userNoteStatusOptions as $value => $label)
-                                            <option value="{{ $value }}" @selected($selectedCatatanStatus === $value)>{{ $label }}</option>
-                                        @endforeach
+                                        <option value="">Semua Dokumen</option>
+                                        <option value="complete" @selected($selectedDocumentStatus === 'complete')>Dokumen Lengkap</option>
+                                        <option value="incomplete" @selected($selectedDocumentStatus === 'incomplete')>Dokumen Belum Lengkap</option>
                                     </select>
                                 </div>
                             </div>
 
-                            <div class="flex items-center gap-2">
-                                <button type="submit" class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-700" title="Filter">
-                                    <i data-lucide="filter" class="h-[13px] w-[13px]"></i>
+                            <div class="flex items-center gap-1.5">
+                                <button type="submit" class="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 text-[11px] font-semibold text-white transition hover:bg-blue-700" title="Cari dan filter">
+                                    <i data-lucide="search" class="h-[13px] w-[13px]"></i>
+                                    Cari
                                 </button>
 
                                 <a href="{{ route('admin.orders.index') }}" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50" title="Reset">
@@ -127,7 +113,7 @@
                                 <tr>
                                     <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase">Nomor Order</th>
                                     <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase">Detail Pekerjaan</th>
-                                    <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase">Status & Aksi</th>
+                                    <th class="w-[230px] px-4 py-3 text-left text-[11px] font-semibold uppercase">Status & Aksi</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-200">
@@ -258,57 +244,74 @@ $initialWorkSeniorSignature = $order->initialWork?->signatures
                                     @endphp
 
                                     <tr class="{{ $index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60' }} align-top transition hover:bg-slate-50">
-                                        <td class="px-3 py-3 text-[11px] font-semibold text-slate-600">
-                                            <div class="min-w-[165px] rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
-                                                <div class="text-[13px] font-bold tracking-[0.01em] text-slate-900">{{ $order->nomor_order }}</div>
+                                        <td class="px-3 py-2 text-[11px] font-semibold text-slate-600">
+                                            <div class="min-w-[150px] rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+                                                <div class="text-[12px] font-bold tracking-[0.01em] text-slate-900">{{ $order->nomor_order }}</div>
                                                 @if ($order->notifikasi)
-                                                    <div class="mt-1 text-[11px] font-medium text-blue-600">Notif: {{ $order->notifikasi }}</div>
+                                                    <div class="mt-0.5 text-[10px] font-medium text-blue-600">Notif: {{ $order->notifikasi }}</div>
                                                 @endif
-                                                <div class="mt-2 border-t border-slate-100 pt-2">
-                                                    <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Tanggal Order</div>
-                                                    <div class="mt-1 text-[11px] font-semibold text-slate-700">{{ $order->tanggal_order->format('Y-m-d') }}</div>
+                                                <div class="mt-1.5 border-t border-slate-100 pt-1.5">
+                                                    <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">Tanggal Order</div>
+                                                    <div class="mt-0.5 text-[10px] font-semibold text-slate-700">{{ $order->tanggal_order->format('Y-m-d') }}</div>
                                                 </div>
                                             </div>
                                         </td>
 
-                                        <td class="px-3 py-3">
-                                            <div class="grid gap-2.5">
-                                                <div class="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                                                    <div class="text-[14px] font-semibold leading-snug text-slate-900">{{ $order->nama_pekerjaan }}</div>
-                                                    <div class="mt-2 grid gap-2 md:grid-cols-2">
+                                        <td class="px-3 py-2">
+                                            <div class="grid gap-2">
+                                                <div class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+                                                    <div class="flex items-start justify-between gap-3">
+                                                        <div class="min-w-0">
+                                                            <div class="text-[13px] font-semibold leading-snug text-slate-900">{{ $order->nama_pekerjaan }}</div>
+                                                            <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                                                <span class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold {{ $noteStatusClasses }}">
+                                                                    {{ $order->catatan_status?->label() ?? 'Pending' }}
+                                                                </span>
+                                                                @if ($order->catatan)
+                                                                    <span class="inline-flex max-w-[260px] truncate rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-medium text-slate-600" title="{{ $order->catatan }}">
+                                                                        {{ $order->catatan }}
+                                                                    </span>
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                        <span class="shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] {{ $priorityTextClasses }}">
+                                                            {{ $priorityLabel }}
+                                                        </span>
+                                                    </div>
+                                                    <div class="mt-2 grid gap-2 border-t border-slate-100 pt-2 md:grid-cols-2">
                                                         <div>
-                                                            <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Unit Kerja</div>
-                                                            <div class="mt-1 text-[12px] font-medium leading-5 text-slate-700">{{ $order->unit_kerja }}</div>
+                                                            <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">Unit Kerja</div>
+                                                            <div class="mt-0.5 text-[11px] font-medium leading-4 text-slate-700">{{ $order->unit_kerja }}</div>
                                                         </div>
 
                                                         <div>
-                                                            <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-blue-400">Seksi</div>
-                                                            <div class="mt-1 text-[12px] font-medium leading-5 text-blue-700">{{ $order->seksi }}</div>
+                                                            <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-blue-400">Seksi</div>
+                                                            <div class="mt-0.5 text-[11px] font-medium leading-4 text-blue-700">{{ $order->seksi }}</div>
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                <div class="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                                <div class="flex flex-wrap items-center gap-1">
                                                     @foreach ($documentIndicators as $indicator)
                                                         @if ($indicator['available'] && $indicator['url'])
                                                             <a
                                                                 href="{{ $indicator['url'] }}"
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
-                                                                class="inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[12px] font-semibold transition hover:-translate-y-0.5 hover:shadow-sm {{ $indicator['classes'] }}"
+                                                                class="inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-semibold transition hover:-translate-y-0.5 hover:shadow-sm {{ $indicator['classes'] }}"
                                                                 title="Buka {{ $indicator['label'] }}"
                                                             >
                                                                 <i data-lucide="{{ $indicator['icon'] }}" class="h-3 w-3"></i>
                                                                 <span>{{ $indicator['label'] }}</span>
-                                                                <span class="rounded-full bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold">
+                                                                <span class="rounded-full bg-white/80 px-1 py-0.5 text-[8px] font-semibold">
                                                                     Ada
                                                                 </span>
                                                             </a>
                                                         @else
-                                                            <span class="inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[12px] font-semibold {{ $indicator['classes'] }}">
+                                                            <span class="inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-semibold {{ $indicator['classes'] }}">
                                                                 <i data-lucide="{{ $indicator['icon'] }}" class="h-3 w-3"></i>
                                                                 <span>{{ $indicator['label'] }}</span>
-                                                                <span class="rounded-full bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold">
+                                                                <span class="rounded-full bg-white/80 px-1 py-0.5 text-[8px] font-semibold">
                                                                     Belum
                                                                 </span>
                                                             </span>
@@ -317,7 +320,7 @@ $initialWorkSeniorSignature = $order->initialWork?->signatures
 
                                                     <a
                                                         href="{{ route('admin.orders.show', $order) }}"
-                                                        class="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                                                        class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                                                         title="Edit Dokumen"
                                                     >
                                                         <i data-lucide="folder-open" class="h-3 w-3"></i>
@@ -447,46 +450,28 @@ $initialWorkSeniorSignature = $order->initialWork?->signatures
                                             </div>
                                         </td>
 
-                                        <td class="px-3 py-3">
-                                            <div class="flex h-full flex-col justify-between gap-2.5">
-                                                <div class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-                                                    <div class="flex flex-wrap items-center justify-between gap-2">
-                                                        <div class="text-[10px] font-semibold uppercase tracking-[0.14em] {{ $priorityTextClasses }}">{{ $priorityLabel }}</div>
-                                                        <div class="flex flex-col items-end gap-1">
-                                                            <span class="inline-flex w-max items-center rounded-full px-2 py-1 text-[10px] font-semibold {{ $noteStatusClasses }}">
-                                                                {{ $order->catatan_status?->label() ?? 'Pending' }}
-                                                            </span>
-                                                            @if ($order->catatan)
-                                                                <span class="max-w-[150px] truncate text-[10px] font-medium text-slate-500" title="{{ $order->catatan }}">
-                                                                    {{ $order->catatan }}
-                                                                </span>
-                                                            @endif
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="mt-2 border-t border-slate-100 pt-2">
-                                                        <div class="mb-1.5 flex items-center justify-between gap-2">
-                                                            <span class="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">Alur</span>
-                                                            <button
-                                                                type="button"
-                                                                class="order-flow-trigger inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-semibold text-slate-500 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-                                                                data-title="{{ $order->nomor_order }}"
-                                                                data-route="{{ $routeLabel }}"
-                                                                data-next="{{ $flowNextStep }}"
-                                                                data-checklist='@json($flowChecklist)'
-                                                            >
-                                                                Detail
-                                                            </button>
-                                                        </div>
-                                                        <div class="flex flex-wrap gap-1">
-                                                            <span class="inline-flex rounded-full border px-2 py-0.5 text-[9px] font-semibold {{ $routeBadgeClasses }}">{{ $routeLabel }}</span>
-                                                            <span class="inline-flex rounded-full border px-2 py-0.5 text-[9px] font-semibold {{ $hppBadgeClasses }}">{{ $hppBadgeLabel }}</span>
-                                                            <span class="inline-flex rounded-full border px-2 py-0.5 text-[9px] font-semibold {{ $initialWorkBadgeClasses }}">{{ $initialWorkBadgeLabel }}</span>
-                                                        </div>
-                                                    </div>
+                                        <td class="px-3 py-2">
+                                            <div class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+                                                <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">Alur</div>
+                                                <div class="mt-1.5 flex flex-wrap gap-1">
+                                                    <span class="inline-flex rounded-full border px-2 py-0.5 text-[9px] font-semibold {{ $routeBadgeClasses }}">{{ $routeLabel }}</span>
+                                                    <span class="inline-flex rounded-full border px-2 py-0.5 text-[9px] font-semibold {{ $hppBadgeClasses }}">{{ $hppBadgeLabel }}</span>
+                                                    <span class="inline-flex rounded-full border px-2 py-0.5 text-[9px] font-semibold {{ $initialWorkBadgeClasses }}">{{ $initialWorkBadgeLabel }}</span>
                                                 </div>
 
-                                                <div class="flex justify-end gap-2 pt-0.5">
+                                                <div class="mt-2 flex items-center justify-end gap-1.5 border-t border-slate-100 pt-2">
+                                                    <button
+                                                        type="button"
+                                                        class="order-flow-trigger inline-flex h-8 w-8 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100"
+                                                        data-title="{{ $order->nomor_order }}"
+                                                        data-route="{{ $routeLabel }}"
+                                                        data-next="{{ $flowNextStep }}"
+                                                        data-checklist='@json($flowChecklist)'
+                                                        title="Detail alur"
+                                                    >
+                                                        <i data-lucide="info" class="h-[13px] w-[13px]"></i>
+                                                    </button>
+
                                                     <button
                                                         type="button"
                                                         class="edit-order-trigger inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm transition hover:bg-emerald-700"

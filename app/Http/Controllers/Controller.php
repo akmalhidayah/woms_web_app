@@ -2,8 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Throwable;
 
@@ -53,6 +57,18 @@ abstract class Controller extends BaseController
 
     private function resolveStatusCode(Throwable $exception): int
     {
+        $frameworkStatusCode = match (true) {
+            $exception instanceof ModelNotFoundException => SymfonyResponse::HTTP_NOT_FOUND,
+            $exception instanceof ValidationException => SymfonyResponse::HTTP_UNPROCESSABLE_ENTITY,
+            $exception instanceof AuthorizationException => SymfonyResponse::HTTP_FORBIDDEN,
+            $exception instanceof AuthenticationException => SymfonyResponse::HTTP_UNAUTHORIZED,
+            default => null,
+        };
+
+        if ($frameworkStatusCode !== null) {
+            return $frameworkStatusCode;
+        }
+
         if (method_exists($exception, 'getStatusCode')) {
             $statusCode = (int) $exception->getStatusCode();
 

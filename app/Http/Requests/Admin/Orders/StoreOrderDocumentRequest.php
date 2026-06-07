@@ -23,8 +23,20 @@ class StoreOrderDocumentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'abnormalitas_file' => ['nullable', 'file', 'max:10240', 'mimes:pdf,doc,docx'],
+            'abnormalitas_file' => ['nullable', 'file', 'max:10240', 'mimes:pdf'],
             'gambar_teknik_file' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,pdf,doc,docx'],
+        ];
+    }
+
+    /**
+     * Get custom validation messages.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'abnormalitas_file.mimes' => 'Dokumen Abnormalitas wajib berupa file PDF.',
         ];
     }
 

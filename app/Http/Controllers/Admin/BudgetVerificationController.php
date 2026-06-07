@@ -20,6 +20,8 @@ use Illuminate\View\View;
 use setasign\Fpdi\Fpdi;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
+use Symfony\Component\Process\Process;
 use Throwable;
 
 class BudgetVerificationController extends Controller
@@ -307,17 +309,8 @@ class BudgetVerificationController extends Controller
             return '';
         }
 
-        if (! class_exists(Fpdi::class)) {
-            Log::warning('FPDI package is unavailable. Returning the first PDF output without merge.', [
-                'controller' => static::class,
-                'pdf_count' => count($pdfOutputs),
-            ]);
-
-            return $pdfOutputs[0];
-        }
-
-        $fpdi = new Fpdi();
         $temporaryFiles = [];
+        $mergedFile = null;
 
         try {
             foreach ($pdfOutputs as $pdfOutput) {
@@ -329,7 +322,25 @@ class BudgetVerificationController extends Controller
 
                 file_put_contents($temporaryFile, $pdfOutput);
                 $temporaryFiles[] = $temporaryFile;
+            }
 
+            $mergedFile = tempnam(sys_get_temp_dir(), 'woms-budget-merged-');
+
+            if ($mergedFile !== false) {
+                $externalMerge = $this->mergePdfFilesWithSystemTool($temporaryFiles, $mergedFile);
+
+                if ($externalMerge !== null) {
+                    return $externalMerge;
+                }
+            }
+
+            if (! class_exists(Fpdi::class)) {
+                throw new UnprocessableEntityHttpException('Server belum memiliki tool merge PDF yang mendukung file ini.');
+            }
+
+            $fpdi = new Fpdi();
+
+            foreach ($temporaryFiles as $temporaryFile) {
                 $pageCount = $fpdi->setSourceFile($temporaryFile);
 
                 for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
@@ -343,13 +354,53 @@ class BudgetVerificationController extends Controller
             }
 
             return $fpdi->Output('S');
+        } catch (Throwable $exception) {
+            throw new UnprocessableEntityHttpException(
+                'PDF tidak bisa digabung dengan parser bawaan. Pastikan server memiliki qpdf, pdfunite, atau ghostscript (gs), atau upload Abnormalitas sebagai PDF standar.',
+                $exception
+            );
         } finally {
             foreach ($temporaryFiles as $temporaryFile) {
                 if (is_string($temporaryFile) && is_file($temporaryFile)) {
                     @unlink($temporaryFile);
                 }
             }
+
+            if (is_string($mergedFile) && is_file($mergedFile)) {
+                @unlink($mergedFile);
+            }
         }
+    }
+
+    /**
+     * @param  list<string>  $inputFiles
+     */
+    private function mergePdfFilesWithSystemTool(array $inputFiles, string $outputFile): ?string
+    {
+        $commands = [
+            array_merge(['qpdf', '--empty', '--pages'], $inputFiles, ['--', $outputFile]),
+            array_merge(['pdfunite'], $inputFiles, [$outputFile]),
+            array_merge(['gs', '-dBATCH', '-dNOPAUSE', '-q', '-sDEVICE=pdfwrite', '-sOutputFile='.$outputFile], $inputFiles),
+            array_merge(['gswin64c', '-dBATCH', '-dNOPAUSE', '-q', '-sDEVICE=pdfwrite', '-sOutputFile='.$outputFile], $inputFiles),
+        ];
+
+        foreach ($commands as $command) {
+            try {
+                $process = new Process($command, null, null, null, 30);
+                $process->run();
+
+                if ($process->isSuccessful() && is_file($outputFile) && filesize($outputFile) > 0) {
+                    return file_get_contents($outputFile) ?: null;
+                }
+            } catch (Throwable $exception) {
+                Log::debug('PDF merge system tool failed.', [
+                    'tool' => $command[0] ?? 'unknown',
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        return null;
     }
 
     /**

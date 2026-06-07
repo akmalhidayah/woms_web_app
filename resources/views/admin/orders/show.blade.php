@@ -4,7 +4,7 @@
         $gambarTeknik = $documentMap->get('gambar_teknik');
         $scopeItems = $scopeOfWork?->scope_items ?? [];
         $showSowOnLoad = old('scope_pekerjaan') || old('nama_penginput');
-        $abnormalitasUploadHint = 'Maks. 10 MB - PDF, DOC, DOCX';
+        $abnormalitasUploadHint = 'Maks. 10 MB - PDF';
         $gambarTeknikUploadHint = 'Maks. 10 MB - JPG, JPEG, PDF, DOC, DOCX';
     @endphp
 
@@ -78,7 +78,7 @@
                             <input
                                 name="abnormalitas_file"
                                 type="file"
-                                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                accept=".pdf,application/pdf"
                                 class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-[9px] text-slate-700 file:mr-2 file:rounded-md file:border-0 file:bg-slate-700 file:px-2.5 file:py-1 file:text-[9px] file:font-semibold file:text-white hover:file:bg-slate-800"
                             >
                             <div class="mt-1 text-[8px] text-slate-400">{{ $abnormalitasUploadHint }}</div>

@@ -135,4 +135,44 @@ class ScopeOfWorkTest extends TestCase
                 ->assertHeader('content-disposition', 'inline; filename="'.$filename.'"');
         }
     }
+
+    public function test_abnormalitas_upload_accepts_pdf_only(): void
+    {
+        Storage::fake('local');
+
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+        $order = Order::query()->create([
+            'nomor_order' => 'ORD-DOC-PDF-ONLY',
+            'nama_pekerjaan' => 'Validasi PDF Abnormalitas',
+            'unit_kerja' => 'Unit Test',
+            'seksi' => 'Seksi Test',
+            'deskripsi' => 'Detail pekerjaan test',
+            'prioritas' => Order::PRIORITY_MEDIUM,
+            'tanggal_order' => '2026-06-01',
+            'target_selesai' => '2026-06-10',
+            'created_by' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('admin.orders.show', $order))
+            ->post(route('admin.orders.documents.store', $order), [
+                'abnormalitas_file' => UploadedFile::fake()->create('abnormalitas.docx', 24, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+            ])
+            ->assertRedirect(route('admin.orders.show', $order))
+            ->assertSessionHasErrors('abnormalitas_file');
+
+        $this->assertFalse($order->documents()->where('jenis_dokumen', OrderDocumentType::Abnormalitas->value)->exists());
+
+        $this->actingAs($admin)
+            ->post(route('admin.orders.documents.store', $order), [
+                'abnormalitas_file' => UploadedFile::fake()->create('abnormalitas.pdf', 24, 'application/pdf'),
+            ])
+            ->assertRedirect(route('admin.orders.show', $order))
+            ->assertSessionHasNoErrors();
+
+        $this->assertTrue($order->documents()->where('jenis_dokumen', OrderDocumentType::Abnormalitas->value)->exists());
+    }
 }

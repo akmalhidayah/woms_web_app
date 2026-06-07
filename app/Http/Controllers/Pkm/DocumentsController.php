@@ -277,12 +277,13 @@ class DocumentsController extends Controller
                 $pdfOutputs[] = $this->bastPdfOutput($terminTwo);
             }
 
-            $mergedPdf = $this->mergePdfOutputs($pdfOutputs);
+            $documentTitle = trim($order->nomor_order.' - '.$order->nama_pekerjaan);
+            $mergedPdf = $this->mergePdfOutputs($pdfOutputs, $documentTitle);
 
             abort_if($mergedPdf === '', Response::HTTP_INTERNAL_SERVER_ERROR, 'PDF gabungan tidak berhasil dibuat.');
 
             return response($mergedPdf, Response::HTTP_OK, $this->pdfInlineHeaders(
-                'dokumen-pekerjaan-'.$order->nomor_order.'.pdf'
+                $order->nomor_order.'-'.$order->nama_pekerjaan.'.pdf'
             ));
         } catch (Throwable $exception) {
             $statusCode = $exception instanceof HttpExceptionInterface
@@ -355,7 +356,7 @@ class DocumentsController extends Controller
     /**
      * @param  array<int, string>  $pdfOutputs
      */
-    private function mergePdfOutputs(array $pdfOutputs): string
+    private function mergePdfOutputs(array $pdfOutputs, string $title = ''): string
     {
         $pdfOutputs = array_values(array_filter(
             $pdfOutputs,
@@ -383,7 +384,7 @@ class DocumentsController extends Controller
 
             $mergedFile = tempnam(sys_get_temp_dir(), 'woms-documents-merged-');
 
-            if ($mergedFile !== false) {
+            if ($title === '' && $mergedFile !== false) {
                 $externalMerge = $this->mergePdfFilesWithSystemTool($temporaryFiles, $mergedFile);
 
                 if ($externalMerge !== null) {
@@ -396,6 +397,7 @@ class DocumentsController extends Controller
             }
 
             $pdf = new Fpdi();
+            $pdf->SetTitle($title, true);
 
             foreach ($temporaryFiles as $temporaryFile) {
                 $pageCount = $pdf->setSourceFile($temporaryFile);
@@ -465,9 +467,11 @@ class DocumentsController extends Controller
      */
     private function pdfInlineHeaders(string $filename): array
     {
+        $safeFilename = preg_replace('/[^A-Za-z0-9._-]+/', '-', $filename) ?: 'dokumen-pekerjaan.pdf';
+
         return [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => sprintf('inline; filename="%s"', $filename),
+            'Content-Disposition' => sprintf('inline; filename="%s"', trim($safeFilename, '-')),
             'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
             'Pragma' => 'no-cache',
             'Expires' => '0',

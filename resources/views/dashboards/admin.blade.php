@@ -191,16 +191,17 @@
 
         <section class="dashboard-compact-grid grid gap-2 lg:grid-cols-2">
             <article class="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-                <div class="mb-1.5 flex flex-wrap items-start justify-between gap-2">
+                <div class="mb-1.5 space-y-1.5">
                     <div class="flex items-center gap-2">
                         <i data-lucide="badge-info" class="h-3.5 w-3.5 text-slate-600"></i>
                         <h3 class="text-[13px] font-semibold text-slate-800">Ringkasan Kuota Anggaran</h3>
                     </div>
-                    <div class="text-right text-[9px] leading-3 text-slate-500">
-                        <div class="font-semibold uppercase tracking-[0.12em] text-slate-500">Kuota Anggaran</div>
-                        <div class="text-[11px] font-bold text-slate-900">Rp. {{ number_format($totalKuotaKontrak, 0, ',', '.') }}</div>
+                    <div class="flex flex-wrap items-end justify-between gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5">
                         <div>
-                            Periode:
+                            <div class="text-[8px] font-semibold uppercase tracking-[0.14em] text-slate-500">Kuota Anggaran</div>
+                            <div class="text-[11px] font-bold leading-4 text-slate-900">Rp. {{ number_format($totalKuotaKontrak, 0, ',', '.') }}</div>
+                        </div>
+                        <div class="text-[8.5px] leading-3 text-slate-500">
                             {{ $periodeKontrak['start'] ? \Carbon\Carbon::parse($periodeKontrak['start'])->format('d M Y') : '-' }}
                             s/d
                             {{ $periodeKontrak['end'] ? \Carbon\Carbon::parse($periodeKontrak['end'])->format('d M Y') : '-' }}
@@ -223,8 +224,9 @@
                     <div class="min-h-[76px] rounded-lg border border-sky-200 bg-sky-50 px-2 py-1.5">
                         <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-sky-700">Kuota Anggaran Actual</div>
                         <div class="mt-0.5 text-sm font-bold text-slate-900">Rp. {{ number_format($kuotaKontrakActual, 0, ',', '.') }}</div>
-                        <div class="mt-0.5 text-[9px] leading-3 text-sky-700">
-                            = Kuota Anggaran (Rp. {{ number_format($totalKuotaKontrak, 0, ',', '.') }}) - (Potensi + Realisasi) (Rp. {{ number_format($totalSeluruhAmount, 0, ',', '.') }})
+                        <div class="mt-1 grid gap-0.5 text-[8.5px] leading-3 text-sky-700">
+                            <div>Kuota: Rp. {{ number_format($totalKuotaKontrak, 0, ',', '.') }}</div>
+                            <div>Potensi + Realisasi: Rp. {{ number_format($totalSeluruhAmount, 0, ',', '.') }}</div>
                         </div>
                     </div>
 

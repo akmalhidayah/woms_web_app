@@ -157,6 +157,13 @@
                                         'status' => $signature->status,
                                     ];
                                 })->values();
+                                $activeApprovalModalActions = [
+                                    'link' => $activeApprovalLink && ! $isDiropsPending ? $activeApprovalLink : '',
+                                    'whatsapp_url' => $activeApprovalLink && ! $isDiropsPending ? $activeApprovalWhatsappUrl : '',
+                                    'resend_url' => $activeApprovalLink && ! $isDiropsPending ? route('admin.hpp.approval.resend', ['hpp' => $row->nomor_order]) : '',
+                                    'role_label' => $activeSignature?->role_label ?: '',
+                                    'signer_name' => $activeSignature?->signer_name_snapshot ?: '',
+                                ];
                             @endphp
                             <tr class="align-top hover:bg-slate-50">
                                 <td class="px-5 py-4 text-[11px] font-semibold text-slate-800">
@@ -215,6 +222,7 @@
                                                     data-summary="{{ $rejectedSignature?->role_label ?: 'Approver menolak HPP' }}"
                                                     data-current-name="{{ $rejectedSignature?->signer_name_snapshot ?: '-' }}"
                                                     data-checklist='@json($approvalChecklist)'
+                                                    data-actions='@json([])'
                                                 >
                                                     Detail
                                                 </button>
@@ -269,6 +277,7 @@
                                                     data-summary="{{ $approvalSummaryLabel }}"
                                                     data-current-name="{{ $currentSignerName ?: '-' }}"
                                                     data-checklist='@json($approvalChecklist)'
+                                                    data-actions='@json($activeApprovalModalActions)'
                                                 >
                                                     Detail
                                                 </button>
@@ -283,44 +292,10 @@
                                                 </div>
                                             </div>
 
-                                            @if ($activeApprovalLink || $isActiveApprovalExpired || $isDiropsPending || $diropsSignedDocumentUrl)
+                                            @if ($isActiveApprovalExpired || $isDiropsPending || $diropsSignedDocumentUrl)
                                                 <div class="mt-2 border-t border-blue-100 pt-2">
                                                     <div class="mb-1 text-[8px] font-bold uppercase tracking-[0.14em] text-slate-400">Aksi Approval</div>
                                                     <div class="flex flex-wrap gap-1.5">
-                                                        @if ($activeApprovalLink)
-                                                            @if ($activeApprovalWhatsappUrl)
-                                                                <a
-                                                                    href="{{ $activeApprovalWhatsappUrl }}"
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2 py-1 text-[8px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
-                                                                    title="Kirim link approval HPP via WhatsApp"
-                                                                >
-                                                                    <i data-lucide="message-circle" class="h-2.5 w-2.5"></i>
-                                                                    WhatsApp
-                                                                </a>
-                                                            @else
-                                                                <span
-                                                                    class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 text-[8px] font-semibold text-slate-400"
-                                                                    title="Nomor WhatsApp approver belum tersedia di user panel"
-                                                                >
-                                                                    <i data-lucide="message-circle-off" class="h-2.5 w-2.5"></i>
-                                                                    No WA
-                                                                </span>
-                                                            @endif
-                                                            <form method="POST" action="{{ route('admin.hpp.approval.resend', ['hpp' => $row->nomor_order]) }}">
-                                                                @csrf
-                                                                <button
-                                                                    type="submit"
-                                                                    class="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-white px-2 py-1 text-[8px] font-semibold text-sky-700 transition hover:bg-sky-100"
-                                                                    title="Kirim ulang email approval HPP"
-                                                                >
-                                                                    <i data-lucide="send" class="h-2.5 w-2.5"></i>
-                                                                    Resend
-                                                                </button>
-                                                            </form>
-                                                        @endif
-
                                                         @if ($isActiveApprovalExpired)
                                                             <form method="POST" action="{{ route('admin.hpp.approval-token.regenerate', ['hpp' => $row->nomor_order]) }}">
                                                                 @csrf
@@ -433,6 +408,41 @@
                     </div>
 
                     <div id="hppApprovalFlowModalChecklist" class="space-y-2"></div>
+
+                    <div id="hppApprovalFlowModalActions" class="hidden rounded-xl border border-blue-100 bg-blue-50 px-3 py-2">
+                        <div class="text-[9px] font-semibold uppercase tracking-[0.16em] text-blue-600">Aksi Approval Aktif</div>
+                        <div id="hppApprovalFlowModalActionsText" class="mt-1 text-[11px] font-semibold text-slate-700">-</div>
+                        <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                            <button
+                                type="button"
+                                id="hppApprovalFlowCopyButton"
+                                class="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-blue-700 transition hover:bg-blue-100"
+                            >
+                                <i data-lucide="copy" class="h-3 w-3"></i>
+                                Salin Link
+                            </button>
+                            <a
+                                id="hppApprovalFlowWhatsappButton"
+                                href="#"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="hidden items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                            >
+                                <i data-lucide="message-circle" class="h-3 w-3"></i>
+                                WhatsApp
+                            </a>
+                            <form id="hppApprovalFlowResendForm" method="POST" action="#" class="hidden">
+                                @csrf
+                                <button
+                                    type="submit"
+                                    class="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-sky-700 transition hover:bg-sky-100"
+                                >
+                                    <i data-lucide="send" class="h-3 w-3"></i>
+                                    Resend
+                                </button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -507,6 +517,11 @@
             const approvalFlowModalSummary = document.getElementById('hppApprovalFlowModalSummary');
             const approvalFlowModalName = document.getElementById('hppApprovalFlowModalName');
             const approvalFlowModalClose = document.getElementById('hppApprovalFlowModalClose');
+            const approvalFlowModalActions = document.getElementById('hppApprovalFlowModalActions');
+            const approvalFlowModalActionsText = document.getElementById('hppApprovalFlowModalActionsText');
+            const approvalFlowCopyButton = document.getElementById('hppApprovalFlowCopyButton');
+            const approvalFlowWhatsappButton = document.getElementById('hppApprovalFlowWhatsappButton');
+            const approvalFlowResendForm = document.getElementById('hppApprovalFlowResendForm');
             const diropsUploadModal = document.getElementById('diropsUploadModal');
             const diropsUploadModalTitle = document.getElementById('diropsUploadModalTitle');
             const diropsUploadModalClose = document.getElementById('diropsUploadModalClose');
@@ -545,6 +560,36 @@
                 }
             };
 
+            const parseObjectData = (rawValue) => {
+                if (!rawValue) {
+                    return {};
+                }
+
+                try {
+                    const parsed = JSON.parse(rawValue);
+                    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+                } catch (error) {
+                    return {};
+                }
+            };
+
+            const copyToClipboard = async (text) => {
+                if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(text);
+                    return;
+                }
+
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.setAttribute('readonly', 'readonly');
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            };
+
             const syncBodyScrollLock = () => {
                 const shouldLock = [approvalFlowModal, diropsUploadModal].some((modal) => modal && !modal.classList.contains('hidden'));
                 document.body.classList.toggle('overflow-hidden', shouldLock);
@@ -581,6 +626,10 @@
                 const caption = button.dataset.caption || 'Sudah sampai TTD';
                 const summary = button.dataset.summary || '-';
                 const currentName = button.dataset.currentName || '-';
+                const actions = parseObjectData(button.dataset.actions);
+                const approvalLink = actions.link || '';
+                const whatsappUrl = actions.whatsapp_url || '';
+                const resendUrl = actions.resend_url || '';
 
                 approvalFlowModalTitle.textContent = button.dataset.title || '-';
                 approvalFlowModalCount.textContent = `${signedCount}/${totalSteps} TTD`;
@@ -605,10 +654,62 @@
                     `;
                 }).join('');
 
+                approvalFlowModalActions?.classList.toggle('hidden', !approvalLink);
+                approvalFlowCopyButton?.classList.toggle('hidden', !approvalLink);
+                approvalFlowWhatsappButton?.classList.toggle('hidden', !whatsappUrl);
+                approvalFlowWhatsappButton?.classList.toggle('inline-flex', Boolean(whatsappUrl));
+                approvalFlowResendForm?.classList.toggle('hidden', !resendUrl);
+                approvalFlowResendForm?.classList.toggle('inline-block', Boolean(resendUrl));
+
+                if (approvalFlowModalActionsText) {
+                    approvalFlowModalActionsText.textContent = approvalLink
+                        ? `${actions.role_label || 'Approval'} - ${actions.signer_name || '-'}`
+                        : '-';
+                }
+
+                if (approvalFlowWhatsappButton && whatsappUrl) {
+                    approvalFlowWhatsappButton.href = whatsappUrl;
+                }
+
+                if (approvalFlowResendForm && resendUrl) {
+                    approvalFlowResendForm.action = resendUrl;
+                }
+
+                if (approvalFlowCopyButton && approvalLink) {
+                    approvalFlowCopyButton.dataset.link = approvalLink;
+                    approvalFlowCopyButton.innerHTML = '<i data-lucide="copy" class="h-3 w-3"></i> Salin Link';
+                }
+
                 approvalFlowModal.classList.remove('hidden');
                 approvalFlowModal.setAttribute('aria-hidden', 'false');
                 syncBodyScrollLock();
             };
+
+            approvalFlowCopyButton?.addEventListener('click', async () => {
+                const link = approvalFlowCopyButton.dataset.link || '';
+
+                if (!link) {
+                    return;
+                }
+
+                try {
+                    await copyToClipboard(link);
+                    approvalFlowCopyButton.innerHTML = '<i data-lucide="check" class="h-3 w-3"></i> Disalin';
+                    window.lucide?.createIcons();
+                    setTimeout(() => {
+                        approvalFlowCopyButton.innerHTML = '<i data-lucide="copy" class="h-3 w-3"></i> Salin Link';
+                        window.lucide?.createIcons();
+                    }, 1400);
+                } catch (error) {
+                    if (window.Swal) {
+                        window.Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal menyalin',
+                            text: 'Browser memblokir akses clipboard.',
+                        });
+                    }
+                }
+            });
 
             const closeApprovalFlowModal = () => {
                 if (!approvalFlowModal) {

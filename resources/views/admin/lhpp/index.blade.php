@@ -391,6 +391,10 @@
                     <i data-lucide="message-circle" class="h-3.5 w-3.5"></i>
                     Kirim WhatsApp
                 </a>
+                <button id="bastSignatureCopyButton" type="button" class="hidden items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">
+                    <i data-lucide="copy" class="h-3.5 w-3.5"></i>
+                    Salin Link
+                </button>
                 <form id="bastSignatureResendForm" method="POST" action="#" class="hidden">
                     @csrf
                     <button type="submit" class="inline-flex items-center justify-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-100">
@@ -426,7 +430,25 @@
             const signatureStatus = document.getElementById('bastSignatureModalStatus');
             const signatureNote = document.getElementById('bastSignatureModalNote');
             const signatureWhatsappButton = document.getElementById('bastSignatureWhatsappButton');
+            const signatureCopyButton = document.getElementById('bastSignatureCopyButton');
             const signatureResendForm = document.getElementById('bastSignatureResendForm');
+
+            const copyToClipboard = async (text) => {
+                if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(text);
+                    return;
+                }
+
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.setAttribute('readonly', 'readonly');
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            };
 
             const openSignatureModal = (button) => {
                 if (!signatureModal) {
@@ -477,6 +499,13 @@
                     signatureWhatsappButton.href = whatsappUrl;
                 }
 
+                signatureCopyButton?.classList.toggle('hidden', !link);
+                signatureCopyButton?.classList.toggle('inline-flex', Boolean(link));
+                if (signatureCopyButton && link) {
+                    signatureCopyButton.dataset.link = link;
+                    signatureCopyButton.innerHTML = '<i data-lucide="copy" class="h-3.5 w-3.5"></i> Salin Link';
+                }
+
                 signatureResendForm?.classList.toggle('hidden', !resendUrl);
                 signatureResendForm?.classList.toggle('block', Boolean(resendUrl));
                 if (signatureResendForm && resendUrl) {
@@ -507,6 +536,26 @@
             signatureModal?.addEventListener('click', (event) => {
                 if (event.target === signatureModal) {
                     closeSignatureModal();
+                }
+            });
+
+            signatureCopyButton?.addEventListener('click', async () => {
+                const link = signatureCopyButton.dataset.link || '';
+
+                if (!link) {
+                    return;
+                }
+
+                try {
+                    await copyToClipboard(link);
+                    signatureCopyButton.innerHTML = '<i data-lucide="check" class="h-3.5 w-3.5"></i> Disalin';
+                    window.lucide?.createIcons();
+                    setTimeout(() => {
+                        signatureCopyButton.innerHTML = '<i data-lucide="copy" class="h-3.5 w-3.5"></i> Salin Link';
+                        window.lucide?.createIcons();
+                    }, 1400);
+                } catch (error) {
+                    signatureCopyButton.innerHTML = '<i data-lucide="copy" class="h-3.5 w-3.5"></i> Salin Link';
                 }
             });
 

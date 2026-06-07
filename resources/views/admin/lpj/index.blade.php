@@ -1,8 +1,4 @@
 <x-layouts.admin title="LPJ / PPL">
-    @php
-        $lpjPplUploadHint = 'Maks. 10 MB • Format: PDF, DOC, DOCX';
-    @endphp
-
     <div class="order-list-compact lpj-compact space-y-4">
         <section class="order-list-hero rounded-[1.25rem] border border-sky-100 px-4 py-3.5 shadow-sm" style="background: linear-gradient(135deg, #f2f9ff 0%, #fbfdff 48%, #ecf6ff 100%);">
             <div class="flex items-center gap-4">
@@ -51,20 +47,20 @@
             </div>
 
             <div class="overflow-x-auto">
-                <table class="min-w-full table-fixed border-collapse text-[10px] text-slate-700">
+                <table class="min-w-[1180px] table-fixed border-collapse text-[10px] text-slate-700">
                     <colgroup>
+                        <col class="w-[13%]">
+                        <col class="w-[18%]">
+                        <col class="w-[25%]">
                         <col class="w-[12%]">
-                        <col class="w-[11%]">
-                        <col class="w-[23%]">
-                        <col class="w-[15%]">
+                        <col class="w-[13%]">
                         <col class="w-[12%]">
-                        <col class="w-[19%]">
-                        <col class="w-[8%]">
+                        <col class="w-[7%]">
                     </colgroup>
                     <thead class="border-b border-slate-200 bg-slate-50 text-slate-600 uppercase tracking-wide">
                         <tr>
                             <th class="px-3 py-2.5 text-left font-semibold">Nomor Order</th>
-                            <th class="px-3 py-2.5 text-left font-semibold">Tanggal Update</th>
+                            <th class="px-3 py-2.5 text-left font-semibold">Detail Pekerjaan</th>
                             <th class="px-3 py-2.5 text-left font-semibold">Nomor LPJ / PPL</th>
                             <th class="px-3 py-2.5 text-left font-semibold">Dokumen (Termin)</th>
                             <th class="px-3 py-2.5 text-left font-semibold">Pembayaran</th>
@@ -78,7 +74,10 @@
                                 $lpj = $row->lpjPpl;
                                 $nomorOrder = $row->nomor_order ?: ($row->order?->nomor_order ?? '-');
                                 $nomorPo = $row->purchase_order_number ?: ($row->purchaseOrder?->purchase_order_number ?? '-');
-                                $updatedAt = $lpj?->updated_at?->format('Y-m-d H:i') ?? '-';
+                                $notifikasi = $row->order?->notifikasi ?? '-';
+                                $namaPekerjaan = $row->deskripsi_pekerjaan ?: ($row->order?->nama_pekerjaan ?? '-');
+                                $unitKerja = $row->unit_kerja ?: ($row->order?->unit_kerja ?? '-');
+                                $seksi = $row->seksi ?: ($row->order?->seksi ?? '-');
                                 $waktuPengerjaan = ($row->tanggal_mulai_pekerjaan && $row->tanggal_selesai_pekerjaan)
                                     ? ($row->tanggal_mulai_pekerjaan->diffInDays($row->tanggal_selesai_pekerjaan) + 1).' Hari'
                                     : '-';
@@ -86,8 +85,6 @@
                                 $isWithoutWarranty = (int) ($row->garansi?->garansi_months ?? -1) === 0;
                                 $termin1Paid = ($row->termin1_status ?? 'belum') === 'sudah';
                                 $termin2Paid = ! $isWithoutWarranty && ($row->termin2_status ?? 'belum') === 'sudah';
-                                $unitRingkas = $row->seksi ?: ($row->order?->seksi ?? '-');
-                                $poLabel = $nomorPo !== '-' ? 'PO-'.$nomorPo : 'PO belum ada';
                                 $initialTermin = ! $isWithoutWarranty && (filled($lpj?->lpj_number_termin2)
                                     || filled($lpj?->ppl_number_termin2)
                                     || filled($lpj?->lpj_document_path_termin2)
@@ -110,134 +107,119 @@
                                 data-without-warranty="{{ $isWithoutWarranty ? '1' : '0' }}">
                                 <td class="px-3 py-3 align-top">
                                     <div class="space-y-1">
-                                        <div class="text-[13px] font-bold text-slate-900">{{ $nomorOrder }}</div>
-                                        <div class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700 ring-1 ring-emerald-200">
-                                            {{ $poLabel }}
+                                        <div class="break-words text-[12px] font-black leading-tight text-slate-900">{{ $nomorOrder }}</div>
+                                        <div class="break-words text-[9px] font-medium leading-tight text-blue-600">
+                                            <span class="font-semibold">Notif :</span> {{ $notifikasi }}
+                                        </div>
+                                        <div class="break-words text-[9px] font-medium leading-tight text-blue-600">
+                                            <span class="font-semibold">PO :</span> {{ $nomorPo }}
                                         </div>
                                     </div>
                                 </td>
 
-                                <td class="px-3 py-3 align-top text-[10px] font-medium text-slate-700">
-                                    {{ $updatedAt }}
+                                <td class="px-3 py-3 align-top">
+                                    <div class="space-y-1 text-[9px] leading-snug text-slate-600">
+                                        <div class="text-[11px] font-bold text-slate-900">{{ $namaPekerjaan }}</div>
+                                        <div>Unit: {{ $unitKerja }}</div>
+                                        <div class="text-blue-600">Seksi: {{ $seksi }}</div>
+                                    </div>
                                 </td>
 
                                 <td class="px-3 py-3 align-top">
-                                    <form id="lpj-form-{{ $row->id }}" action="{{ route('admin.lpj.update', ['lhppId' => $row->id]) }}" method="POST" enctype="multipart/form-data" class="space-y-1.5">
+                                    <form id="lpj-form-{{ $row->id }}" action="{{ route('admin.lpj.update', ['lhppId' => $row->id]) }}" method="POST" enctype="multipart/form-data">
                                         @csrf
                                         @method('PATCH')
                                         <input type="hidden" name="search" value="{{ $search }}">
                                         <input type="hidden" name="po" value="{{ $selectedPo }}">
                                         <input type="hidden" name="page" value="{{ $lpjRows->currentPage() }}">
 
-                                        <div class="flex items-center justify-between gap-2">
-                                            <label class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Termin</label>
-                                            <select id="termin-select-{{ $row->id }}" name="selected_termin" class="h-8 rounded-lg border border-slate-300 bg-white px-2 py-1 text-[10px] text-slate-700 focus:border-sky-500 focus:outline-none" onchange="window.adminLpjApplyTermin('{{ $row->id }}', this.value)">
+                                        <div class="grid grid-cols-[82px_minmax(0,1fr)_minmax(0,1fr)] gap-1.5">
+                                            <select id="termin-select-{{ $row->id }}" name="selected_termin" title="Pilih termin" aria-label="Pilih termin" class="h-8 w-full rounded-lg border border-slate-300 bg-white px-1.5 py-1 text-[9px] text-slate-700 focus:border-sky-500 focus:outline-none" onchange="window.adminLpjApplyTermin('{{ $row->id }}', this.value)">
                                                 <option value="1">Termin 1</option>
                                                 @unless ($isWithoutWarranty)
                                                     <option value="2">Termin 2</option>
                                                 @endunless
                                             </select>
-                                        </div>
-
-                                        <div class="grid grid-cols-2 gap-2">
-                                            <div class="space-y-1">
-                                                <label class="block text-[9px] font-medium text-slate-500">Nomor LPJ</label>
-                                                <input id="lpj-number-{{ $row->id }}" type="text" name="lpj_number" placeholder="Nomor LPJ" class="h-8 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-700 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none">
-                                            </div>
-                                            <div class="space-y-1">
-                                                <label class="block text-[9px] font-medium text-slate-500">Nomor PPL</label>
-                                                <input id="ppl-number-{{ $row->id }}" type="text" name="ppl_number" placeholder="Nomor PPL" class="h-8 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-700 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none">
-                                            </div>
+                                            <input id="lpj-number-{{ $row->id }}" type="text" name="lpj_number" aria-label="Nomor LPJ" placeholder="Nomor LPJ" class="h-8 min-w-0 w-full rounded-lg border border-slate-300 px-2 py-1 text-[9px] text-slate-700 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none">
+                                            <input id="ppl-number-{{ $row->id }}" type="text" name="ppl_number" aria-label="Nomor PPL" placeholder="Nomor PPL" class="h-8 min-w-0 w-full rounded-lg border border-slate-300 px-2 py-1 text-[9px] text-slate-700 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none">
                                         </div>
                                     </form>
                                 </td>
 
                                 <td class="px-3 py-3 align-top">
-                                    <div class="space-y-1.5">
-                                        <div class="rounded-lg border border-slate-200 bg-white px-2.5 py-2 shadow-sm">
-                                            <div class="flex items-center justify-between gap-2">
-                                                <div class="min-w-0">
-                                                    <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">LPJ</div>
-                                                    <a id="lpj-link-{{ $row->id }}" href="#" target="_blank" rel="noopener" class="mt-0.5 hidden truncate text-[9px] font-semibold text-rose-600 hover:underline">Lihat dokumen</a>
-                                                    <div id="lpj-empty-{{ $row->id }}" class="mt-0.5 text-[9px] text-slate-400">Belum ada file</div>
-                                                    <div id="lpj-file-name-{{ $row->id }}" class="mt-0.5 truncate text-[9px] text-slate-500"></div>
-                                                </div>
-                                                <label class="inline-flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-[9px] font-semibold text-white transition hover:bg-emerald-700">
-                                                    <i data-lucide="upload" class="h-3 w-3"></i>
-                                                    <span id="lpj-upload-text-{{ $row->id }}">Upload T1</span>
-                                                    <input type="file" name="lpj_document" form="lpj-form-{{ $row->id }}" accept=".pdf,.doc,.docx" class="hidden" onchange="window.adminLpjSetFileName('{{ $row->id }}', 'lpj', this)">
+                                    <div class="flex items-start gap-1.5">
+                                        <div class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white p-1.5 text-center shadow-sm">
+                                            <div class="mb-1 text-[8px] font-bold text-slate-500">LPJ</div>
+                                            <div class="flex justify-center gap-1">
+                                                <a id="lpj-link-{{ $row->id }}" href="#" target="_blank" rel="noopener" title="Lihat PDF LPJ" aria-label="Lihat PDF LPJ" class="hidden h-7 w-7 items-center justify-center rounded-md border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 [&:not(.hidden)]:inline-flex">
+                                                    <i data-lucide="file-text" class="h-3.5 w-3.5"></i>
+                                                </a>
+                                                <span id="lpj-empty-{{ $row->id }}" title="PDF LPJ belum tersedia" class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-300">
+                                                    <i data-lucide="file-x" class="h-3.5 w-3.5"></i>
+                                                </span>
+                                                <label title="Upload PDF LPJ" aria-label="Upload PDF LPJ" class="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md bg-emerald-600 text-white transition hover:bg-emerald-700">
+                                                    <i data-lucide="upload" class="h-3.5 w-3.5"></i>
+                                                    <input type="file" name="lpj_document" form="lpj-form-{{ $row->id }}" accept=".pdf,application/pdf" class="hidden" onchange="window.adminLpjSetFileName('{{ $row->id }}', 'lpj', this)">
                                                 </label>
                                             </div>
-                                            <div class="mt-1 text-[9px] text-slate-500">
-                                                {{ $lpjPplUploadHint }}
-                                            </div>
+                                            <div id="lpj-file-name-{{ $row->id }}" class="mt-1 truncate text-[8px] text-slate-500"></div>
                                         </div>
 
-                                        <div class="rounded-lg border border-slate-200 bg-white px-2.5 py-2 shadow-sm">
-                                            <div class="flex items-center justify-between gap-2">
-                                                <div class="min-w-0">
-                                                    <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">PPL</div>
-                                                    <a id="ppl-link-{{ $row->id }}" href="#" target="_blank" rel="noopener" class="mt-0.5 hidden truncate text-[9px] font-semibold text-rose-600 hover:underline">Lihat dokumen</a>
-                                                    <div id="ppl-empty-{{ $row->id }}" class="mt-0.5 text-[9px] text-slate-400">Belum ada file</div>
-                                                    <div id="ppl-file-name-{{ $row->id }}" class="mt-0.5 truncate text-[9px] text-slate-500"></div>
-                                                </div>
-                                                <label class="inline-flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-[9px] font-semibold text-white transition hover:bg-emerald-700">
-                                                    <i data-lucide="upload" class="h-3 w-3"></i>
-                                                    <span id="ppl-upload-text-{{ $row->id }}">Upload T1</span>
-                                                    <input type="file" name="ppl_document" form="lpj-form-{{ $row->id }}" accept=".pdf,.doc,.docx" class="hidden" onchange="window.adminLpjSetFileName('{{ $row->id }}', 'ppl', this)">
+                                        <div class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white p-1.5 text-center shadow-sm">
+                                            <div class="mb-1 text-[8px] font-bold text-slate-500">PPL</div>
+                                            <div class="flex justify-center gap-1">
+                                                <a id="ppl-link-{{ $row->id }}" href="#" target="_blank" rel="noopener" title="Lihat PDF PPL" aria-label="Lihat PDF PPL" class="hidden h-7 w-7 items-center justify-center rounded-md border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 [&:not(.hidden)]:inline-flex">
+                                                    <i data-lucide="file-text" class="h-3.5 w-3.5"></i>
+                                                </a>
+                                                <span id="ppl-empty-{{ $row->id }}" title="PDF PPL belum tersedia" class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-300">
+                                                    <i data-lucide="file-x" class="h-3.5 w-3.5"></i>
+                                                </span>
+                                                <label title="Upload PDF PPL" aria-label="Upload PDF PPL" class="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md bg-emerald-600 text-white transition hover:bg-emerald-700">
+                                                    <i data-lucide="upload" class="h-3.5 w-3.5"></i>
+                                                    <input type="file" name="ppl_document" form="lpj-form-{{ $row->id }}" accept=".pdf,application/pdf" class="hidden" onchange="window.adminLpjSetFileName('{{ $row->id }}', 'ppl', this)">
                                                 </label>
                                             </div>
-                                            <div class="mt-1 text-[9px] text-slate-500">
-                                                {{ $lpjPplUploadHint }}
-                                            </div>
+                                            <div id="ppl-file-name-{{ $row->id }}" class="mt-1 truncate text-[8px] text-slate-500"></div>
                                         </div>
                                     </div>
                                 </td>
 
                                 <td class="px-3 py-3 align-top">
-                                    <div class="space-y-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 shadow-sm">
-                                        <div class="flex items-center justify-between gap-2 text-[9px]">
-                                            <span class="whitespace-nowrap font-medium text-slate-500">Termin 1</span>
-                                            <select id="termin1-status-{{ $row->id }}" name="termin1_status" form="lpj-form-{{ $row->id }}" class="h-7 rounded-lg border px-2 py-1 text-[9px] font-semibold {{ $termin1Paid ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-amber-300 bg-amber-50 text-amber-700' }}" onchange="window.adminLpjApplyPaymentState(this)">
+                                    <div class="space-y-1">
+                                        <div class="grid grid-cols-[22px_1fr] items-center gap-1 text-[9px]">
+                                            <span class="font-bold text-slate-500">T1</span>
+                                            <select id="termin1-status-{{ $row->id }}" name="termin1_status" form="lpj-form-{{ $row->id }}" aria-label="Pembayaran termin 1" class="h-7 w-full rounded-md border px-1.5 py-1 text-[9px] font-semibold {{ $termin1Paid ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-amber-300 bg-amber-50 text-amber-700' }}" onchange="window.adminLpjApplyPaymentState(this)">
                                                 <option value="belum" @selected(! $termin1Paid)>Belum</option>
                                                 <option value="sudah" @selected($termin1Paid)>Sudah</option>
                                             </select>
                                         </div>
                                         @unless ($isWithoutWarranty)
-                                        <div class="flex items-center justify-between gap-2 text-[9px]">
-                                            <span class="whitespace-nowrap font-medium text-slate-500">Termin 2</span>
-                                            <select id="termin2-status-{{ $row->id }}" name="termin2_status" form="lpj-form-{{ $row->id }}" class="h-7 rounded-lg border px-2 py-1 text-[9px] font-semibold {{ $termin2Paid ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-amber-300 bg-amber-50 text-amber-700' }}" onchange="window.adminLpjApplyPaymentState(this)">
+                                        <div class="grid grid-cols-[22px_1fr] items-center gap-1 text-[9px]">
+                                            <span class="font-bold text-slate-500">T2</span>
+                                            <select id="termin2-status-{{ $row->id }}" name="termin2_status" form="lpj-form-{{ $row->id }}" aria-label="Pembayaran termin 2" class="h-7 w-full rounded-md border px-1.5 py-1 text-[9px] font-semibold {{ $termin2Paid ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-amber-300 bg-amber-50 text-amber-700' }}" onchange="window.adminLpjApplyPaymentState(this)">
                                                 <option value="belum" @selected(! $termin2Paid)>Belum</option>
                                                 <option value="sudah" @selected($termin2Paid)>Sudah</option>
                                             </select>
                                         </div>
                                         @else
                                             <input type="hidden" name="termin2_status" form="lpj-form-{{ $row->id }}" value="belum">
-                                            <div class="rounded-md bg-slate-100 px-2 py-1 text-[9px] font-semibold text-slate-500">Tanpa Termin 2</div>
+                                            <div class="rounded-md bg-slate-100 px-2 py-1 text-center text-[8px] font-semibold text-slate-500">Tanpa T2</div>
                                         @endunless
                                     </div>
                                 </td>
 
                                 <td class="px-3 py-3 align-top">
-                                    <div class="space-y-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 shadow-sm">
-                                        <div>
-                                            <div class="text-[10px] font-medium leading-snug text-slate-700">{{ $unitRingkas }}</div>
-                                        </div>
-                                        <div class="border-t border-slate-200 pt-1.5">
-                                            <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Total BAST</div>
-                                            <div class="mt-1 text-[11px] font-bold text-slate-900">Rp {{ number_format($totalBiaya, 0, ',', '.') }}</div>
-                                        </div>
-                                        <div class="border-t border-slate-200 pt-1.5">
-                                            <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Waktu Pengerjaan</div>
-                                            <div class="mt-1 text-[10px] font-medium text-slate-700">{{ $waktuPengerjaan }}</div>
+                                    <div class="space-y-1.5">
+                                        <div class="text-[11px] font-black text-slate-900">Rp {{ number_format($totalBiaya, 0, ',', '.') }}</div>
+                                        <div class="inline-flex rounded-full bg-sky-50 px-2 py-0.5 text-[9px] font-semibold text-sky-700 ring-1 ring-sky-200">
+                                            {{ $waktuPengerjaan }}
                                         </div>
                                     </div>
                                 </td>
 
                                 <td class="px-3 py-3 text-center align-top">
-                                    <button type="submit" form="lpj-form-{{ $row->id }}" class="inline-flex h-8 items-center gap-1 rounded-lg bg-sky-600 px-2.5 py-1.5 text-[10px] font-semibold text-white transition hover:bg-sky-700">
-                                        <i data-lucide="save" class="h-3 w-3"></i>
-                                        Simpan
+                                    <button type="submit" form="lpj-form-{{ $row->id }}" title="Simpan LPJ / PPL" aria-label="Simpan LPJ / PPL" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sky-600 text-white transition hover:bg-sky-700">
+                                        <i data-lucide="save" class="h-3.5 w-3.5"></i>
                                     </button>
                                 </td>
                             </tr>
@@ -285,7 +267,7 @@
             }
 
             target.textContent = inputElement.files && inputElement.files[0]
-                ? `File: ${inputElement.files[0].name}`
+                ? inputElement.files[0].name
                 : '';
         };
 
@@ -301,8 +283,6 @@
             const pplLink = document.getElementById(`ppl-link-${rowId}`);
             const lpjEmpty = document.getElementById(`lpj-empty-${rowId}`);
             const pplEmpty = document.getElementById(`ppl-empty-${rowId}`);
-            const lpjUploadText = document.getElementById(`lpj-upload-text-${rowId}`);
-            const pplUploadText = document.getElementById(`ppl-upload-text-${rowId}`);
             const lpjFileName = document.getElementById(`lpj-file-name-${rowId}`);
             const pplFileName = document.getElementById(`ppl-file-name-${rowId}`);
 
@@ -320,14 +300,6 @@
                 pplNumber.value = pplNumberValue;
             }
 
-            if (lpjUploadText) {
-                lpjUploadText.textContent = termin === '2' ? 'Upload T2' : 'Upload T1';
-            }
-
-            if (pplUploadText) {
-                pplUploadText.textContent = termin === '2' ? 'Upload T2' : 'Upload T1';
-            }
-
             if (lpjFileName) {
                 lpjFileName.textContent = '';
             }
@@ -339,7 +311,8 @@
             if (lpjLink && lpjEmpty) {
                 if (lpjUrl) {
                     lpjLink.href = lpjUrl;
-                    lpjLink.textContent = `Lihat LPJ T${termin}`;
+                    lpjLink.title = `Lihat PDF LPJ T${termin}`;
+                    lpjLink.setAttribute('aria-label', `Lihat PDF LPJ T${termin}`);
                     lpjLink.classList.remove('hidden');
                     lpjEmpty.classList.add('hidden');
                 } else {
@@ -351,7 +324,8 @@
             if (pplLink && pplEmpty) {
                 if (pplUrl) {
                     pplLink.href = pplUrl;
-                    pplLink.textContent = `Lihat PPL T${termin}`;
+                    pplLink.title = `Lihat PDF PPL T${termin}`;
+                    pplLink.setAttribute('aria-label', `Lihat PDF PPL T${termin}`);
                     pplLink.classList.remove('hidden');
                     pplEmpty.classList.add('hidden');
                 } else {

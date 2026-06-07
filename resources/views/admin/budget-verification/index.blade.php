@@ -32,22 +32,22 @@
         </section>
 
         <section class="order-list-panel overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-sm">
-            <div class="border-b border-slate-200 px-4 py-3 overflow-x-auto">
-                <form method="GET" action="{{ route('admin.budget-verification.index') }}" class="flex min-w-[980px] items-center gap-2.5">
-                    <input id="search" name="search" type="text" value="{{ $search }}" placeholder="Cari nomor order / cost element..." class="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-[10px] text-slate-700 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none">
-                    <select id="unit" name="unit" class="w-[210px] rounded-lg border border-slate-300 px-3 py-2 text-[10px] text-slate-700 focus:border-emerald-500 focus:outline-none">
+            <div class="border-b border-slate-200 px-4 py-3">
+                <form method="GET" action="{{ route('admin.budget-verification.index') }}" class="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1.6fr)_minmax(150px,0.7fr)_minmax(140px,0.65fr)_auto] xl:items-center">
+                    <input id="search" name="search" type="text" value="{{ $search }}" placeholder="Cari nomor order / cost element..." class="min-w-0 w-full rounded-lg border border-slate-300 px-3 py-2 text-[10px] text-slate-700 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none">
+                    <select id="unit" name="unit" class="min-w-0 w-full rounded-lg border border-slate-300 px-3 py-2 text-[10px] text-slate-700 focus:border-emerald-500 focus:outline-none">
                             <option value="">Semua Unit</option>
                             @foreach ($units as $unit)
                                 <option value="{{ $unit }}" @selected($selectedUnit === $unit)>{{ $unit }}</option>
                             @endforeach
                     </select>
-                    <select id="kategori_item" name="kategori_item" class="w-[190px] rounded-lg border border-slate-300 px-3 py-2 text-[10px] text-slate-700 focus:border-emerald-500 focus:outline-none">
+                    <select id="kategori_item" name="kategori_item" class="min-w-0 w-full rounded-lg border border-slate-300 px-3 py-2 text-[10px] text-slate-700 focus:border-emerald-500 focus:outline-none">
                         <option value="">Semua Kategori</option>
                         <option value="spare part" @selected($selectedKategoriItem === 'spare part')>Spare Part</option>
                         <option value="jasa" @selected($selectedKategoriItem === 'jasa')>Jasa</option>
                     </select>
 
-                    <div class="ml-auto flex items-center gap-2">
+                    <div class="flex items-center gap-1.5 sm:justify-end">
                         <button type="submit" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white transition hover:bg-emerald-700" title="Filter">
                             <i data-lucide="filter" class="h-[12px] w-[12px]"></i>
                         </button>

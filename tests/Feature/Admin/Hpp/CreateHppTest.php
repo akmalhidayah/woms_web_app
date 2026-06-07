@@ -21,6 +21,50 @@ class CreateHppTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_hpp_index_uses_compact_order_and_detail_layout(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+
+        $order = Order::query()->create([
+            'nomor_order' => 'ORD-HPP-INDEX-001',
+            'notifikasi' => 'NOTIF-HPP-001',
+            'nama_pekerjaan' => 'Pekerjaan HPP Ringkas',
+            'unit_kerja' => 'Unit Test',
+            'seksi' => 'Seksi Test',
+            'deskripsi' => 'Detail pekerjaan test',
+            'prioritas' => Order::PRIORITY_MEDIUM,
+            'tanggal_order' => '2026-06-01',
+            'target_selesai' => '2026-06-10',
+            'created_by' => $admin->id,
+        ]);
+
+        Hpp::query()->create([
+            'order_id' => $order->id,
+            'nomor_order' => $order->nomor_order,
+            'nama_pekerjaan' => $order->nama_pekerjaan,
+            'unit_kerja' => $order->unit_kerja,
+            'kategori_pekerjaan' => 'Fabrikasi',
+            'area_pekerjaan' => 'Dalam',
+            'nilai_hpp_bucket' => 'under',
+            'item_groups' => [],
+            'total_keseluruhan' => 25000000,
+            'status' => Hpp::STATUS_DRAFT,
+            'created_by' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.hpp.index'))
+            ->assertOk()
+            ->assertSee('ORD-HPP-INDEX-001')
+            ->assertSee('Notif: NOTIF-HPP-001')
+            ->assertSee('Nilai HPP / Status')
+            ->assertDontSee('>Case<', false)
+            ->assertDontSee('Dibuat:');
+    }
+
     public function test_create_hpp_page_includes_order_seksi_in_livewire_payload(): void
     {
         $admin = User::factory()->create([

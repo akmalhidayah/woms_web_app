@@ -39,7 +39,7 @@ class HppController extends Controller
 
         $rows = Hpp::query()
             ->with([
-                'order:id,seksi,unit_kerja',
+                'order:id,seksi,unit_kerja,notifikasi',
                 'outlineAgreement:id,nomor_oa',
                 'unitWork:id,name',
                 'signatures.signer:id,name,nomor_hp',

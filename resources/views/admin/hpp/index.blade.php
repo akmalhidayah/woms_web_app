@@ -9,8 +9,6 @@
 
             return rtrim(rtrim($normalized, '0'), ',');
         };
-        $bucketLabels = \App\Support\HppApprovalFlow::bucketOptions();
-        $displayArea = fn (?string $value): string => \App\Support\HppApprovalFlow::displayArea((string) $value);
         $pendingHppOrders = collect($pendingHppOrders ?? []);
     @endphp
 
@@ -41,32 +39,19 @@
         <section class="order-list-panel overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 px-5 py-4">
                 @if ($pendingHppOrders->isNotEmpty())
-                    <div class="mb-4 rounded-[1.2rem] border border-blue-200 bg-blue-50 px-3 py-3 text-slate-800 shadow-sm">
-                        <div class="flex flex-wrap items-center gap-2">
-                            <div class="min-w-0">
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-700">
-                                        <i data-lucide="triangle-alert" class="h-3.5 w-3.5"></i>
-                                    </span>
-                                    <div class="text-[12px] font-black text-blue-950">Order Belum Dibuatkan HPP</div>
-                                    <span class="inline-flex rounded-full border border-blue-200 bg-white px-2 py-0.5 text-[10px] font-bold text-blue-800">
-                                        {{ $pendingHppOrders->count() }} order
-                                    </span>
-                                </div>
-                                <p class="mt-1 pl-9 text-[10px] leading-5 text-blue-800">
-                                    Sudah memenuhi syarat create HPP, tapi dokumen HPP-nya belum dibuat.
-                                </p>
-                            </div>
+                    <div class="mb-3 border-b border-blue-100 pb-2.5 text-slate-700">
+                        <div class="flex flex-wrap items-center gap-1.5 text-[10px]">
+                            <i data-lucide="triangle-alert" class="h-3 w-3 text-blue-600"></i>
+                            <span class="font-bold text-blue-900">Order belum dibuatkan HPP</span>
+                            <span class="text-blue-600">({{ $pendingHppOrders->count() }})</span>
                         </div>
 
-                        <div class="mt-2 flex flex-wrap gap-2">
+                        <div class="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
                             @foreach ($pendingHppOrders as $pendingOrder)
-                                <div class="min-w-[210px] rounded-xl border border-blue-200 bg-white px-2.5 py-2 text-[10px] shadow-sm">
-                                    <div class="font-black text-slate-900">{{ $pendingOrder['nomor_order'] }}</div>
-                                    <div class="mt-0.5 truncate text-slate-700">{{ $pendingOrder['nama_pekerjaan'] !== '' ? $pendingOrder['nama_pekerjaan'] : '-' }}</div>
-                                    <div class="mt-0.5 truncate text-slate-500">
-                                        {{ $pendingOrder['seksi'] !== '' ? $pendingOrder['seksi'] : ($pendingOrder['unit_kerja'] !== '' ? $pendingOrder['unit_kerja'] : '-') }}
-                                    </div>
+                                <div class="flex min-w-0 items-center gap-1.5 text-[9px]">
+                                    <span class="font-bold text-slate-800">{{ $pendingOrder['nomor_order'] }}</span>
+                                    <span class="text-slate-400">-</span>
+                                    <span class="max-w-[260px] truncate text-slate-600">{{ $pendingOrder['nama_pekerjaan'] !== '' ? $pendingOrder['nama_pekerjaan'] : '-' }}</span>
                                 </div>
                             @endforeach
                         </div>
@@ -103,21 +88,17 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full table-fixed divide-y divide-slate-200 text-[11px] text-slate-700">
                     <colgroup>
-                        <col class="w-[14%]">
-                        <col class="w-[25%]">
-                        <col class="w-[13%]">
-                        <col class="w-[10%]">
-                        <col class="w-[10%]">
-                        <col class="w-[20%]">
-                        <col class="w-[8%]">
+                        <col class="w-[17%]">
+                        <col class="w-[29%]">
+                        <col class="w-[15%]">
+                        <col class="w-[30%]">
+                        <col class="w-[9%]">
                     </colgroup>
                     <thead class="bg-slate-200/80 text-slate-700">
                         <tr>
                             <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Order</th>
                             <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Detail Pekerjaan</th>
-                            <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Case</th>
-                            <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Nilai HPP</th>
-                            <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Status</th>
+                            <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Nilai HPP / Status</th>
                             <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Progress Approval</th>
                             <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Aksi</th>
                         </tr>
@@ -166,47 +147,34 @@
                                 ];
                             @endphp
                             <tr class="align-top hover:bg-slate-50">
-                                <td class="px-5 py-4 text-[11px] font-semibold text-slate-800">
-                                    <div class="inline-flex items-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-[16px] font-bold tracking-[0.04em] text-slate-900 shadow-sm">
-                                        {{ $row->nomor_order }}
+                                <td class="px-5 py-3 text-[10px] text-slate-800">
+                                    <div class="font-bold text-slate-900">{{ $row->nomor_order }}</div>
+                                    <div class="mt-0.5 text-[9px] font-medium text-blue-600">
+                                        Notif: {{ $row->order?->notifikasi ?: '-' }}
                                     </div>
                                 </td>
-                                <td class="px-5 py-4">
-                                    <div class="font-semibold text-slate-800">{{ $row->nama_pekerjaan }}</div>
-                                    <div class="mt-2 text-[9px]">
-                                        <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 font-semibold text-blue-700 ring-1 ring-blue-100">
-                                            Seksi: {{ $row->order?->seksi ?: '-' }}
-                                        </span>
-                                    </div>
-                                    <div class="mt-2 text-[9px]">
-                                        <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-600">
-                                            Unit: {{ $row->unit_kerja }}
-                                        </span>
-                                    </div>
-                                    <div class="mt-2 text-[9px] text-slate-400">Dibuat: {{ $row->created_at?->format('Y-m-d') }}</div>
-                                </td>
-                                <td class="px-5 py-4">
-                                    <div class="inline-flex flex-col rounded-2xl bg-slate-100 px-3 py-2 text-[9px] text-slate-700">
-                                        <span class="font-semibold">{{ $row->kategori_pekerjaan }} ({{ $displayArea($row->area_pekerjaan) }})</span>
-                                        <span class="mt-1 text-slate-500">{{ $bucketLabels[$row->nilai_hpp_bucket] ?? ($row->approval_case ?: '-') }}</span>
+                                <td class="px-5 py-3">
+                                    <div class="font-semibold leading-4 text-slate-800">{{ $row->nama_pekerjaan }}</div>
+                                    <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9px]">
+                                        <span class="text-slate-500">Unit: <strong class="font-semibold text-slate-700">{{ $row->unit_kerja }}</strong></span>
+                                        <span class="text-slate-300">|</span>
+                                        <span class="text-blue-500">Seksi: <strong class="font-semibold text-blue-700">{{ $row->order?->seksi ?: '-' }}</strong></span>
                                     </div>
                                 </td>
-                                <td class="px-5 py-4 text-[11px] font-semibold text-slate-800">
-                                    Rp {{ $formatRupiah($row->total_keseluruhan) }}
-                                </td>
-                                <td class="px-5 py-4">
-                                    <span class="inline-flex rounded-full px-3 py-1 text-[9px] font-semibold {{ $row->statusBadgeClasses() }}">
+                                <td class="px-5 py-3">
+                                    <div class="text-[10px] font-bold text-slate-800">Rp {{ $formatRupiah($row->total_keseluruhan) }}</div>
+                                    <span class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[8px] font-semibold {{ $row->statusBadgeClasses() }}">
                                         {{ \App\Models\Hpp::statusOptions()[$row->status] ?? ucfirst(str_replace('_', ' ', $row->status)) }}
                                     </span>
                                 </td>
-                                <td class="px-5 py-4 text-[11px] text-slate-700">
+                                <td class="px-5 py-3 text-[11px] text-slate-700">
                                     @if ($row->status === \App\Models\Hpp::STATUS_DRAFT)
-                                        <div class="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                                        <div class="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2">
                                             <div class="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-400">Draft</div>
-                                            <div class="mt-1 text-[10px] font-semibold text-slate-700">Belum submit approval</div>
+                                            <div class="mt-0.5 text-[9px] font-semibold text-slate-700">Belum submit approval</div>
                                         </div>
                                     @elseif ($row->status === \App\Models\Hpp::STATUS_REJECTED)
-                                        <div class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 shadow-sm">
+                                        <div class="rounded-xl border border-rose-200 bg-rose-50 px-2.5 py-2 shadow-sm">
                                             <div class="flex items-center justify-between gap-2">
                                                 <span class="inline-flex rounded-full bg-white px-2 py-0.5 text-[8px] font-bold text-rose-700 ring-1 ring-rose-200">
                                                     Rejected
@@ -223,8 +191,9 @@
                                                     data-current-name="{{ $rejectedSignature?->signer_name_snapshot ?: '-' }}"
                                                     data-checklist='@json($approvalChecklist)'
                                                     data-actions='@json([])'
+                                                    title="Detail approval"
                                                 >
-                                                    Detail
+                                                    <i data-lucide="info" class="h-3 w-3"></i>
                                                 </button>
                                             </div>
                                             <div class="mt-2 text-[8px] font-bold uppercase tracking-[0.14em] text-rose-500">
@@ -240,12 +209,12 @@
                                             @endif
                                         </div>
                                     @elseif ($totalSteps === 0)
-                                        <div class="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+                                        <div class="rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-2">
                                             <div class="text-[9px] font-bold uppercase tracking-[0.16em] text-amber-500">Approval</div>
-                                            <div class="mt-1 text-[10px] font-semibold text-amber-800">Signature belum dibuat</div>
+                                            <div class="mt-0.5 text-[9px] font-semibold text-amber-800">Signature belum dibuat</div>
                                         </div>
                                     @else
-                                        <div class="rounded-xl border border-blue-100 bg-blue-50 px-2.5 py-2 shadow-sm">
+                                        <div class="rounded-xl border border-blue-100 bg-blue-50 px-2 py-1.5 shadow-sm">
                                             <div class="flex items-center justify-between gap-2">
                                                 <div class="flex items-center gap-1.5">
                                                     <span class="inline-flex rounded-full bg-white px-1.5 py-0.5 text-[8px] font-bold text-blue-700 ring-1 ring-blue-100">
@@ -278,12 +247,13 @@
                                                     data-current-name="{{ $currentSignerName ?: '-' }}"
                                                     data-checklist='@json($approvalChecklist)'
                                                     data-actions='@json($activeApprovalModalActions)'
+                                                    title="Detail approval"
                                                 >
-                                                    Detail
+                                                    <i data-lucide="info" class="h-3 w-3"></i>
                                                 </button>
                                             </div>
 
-                                            <div class="mt-2">
+                                            <div class="mt-1.5">
                                                 <div class="text-[8px] font-bold uppercase tracking-[0.14em] text-slate-400">
                                                     {{ $approvalSummaryCaption }}
                                                 </div>
@@ -340,8 +310,8 @@
                                         </div>
                                     @endif
                                 </td>
-                                <td class="px-5 py-4">
-                                    <div class="flex flex-wrap items-center gap-1.5">
+                                <td class="px-5 py-3">
+                                    <div class="flex flex-nowrap items-center gap-1">
                                         <a href="{{ route('admin.hpp.pdf', ['hpp' => $row->nomor_order]) }}" target="_blank" rel="noopener noreferrer" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50" title="Lihat PDF HPP">
                                             <i data-lucide="file-text" class="h-3 w-3"></i>
                                         </a>
@@ -366,7 +336,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-10 text-center text-[12px] text-slate-500">Belum ada HPP yang dibuat.</td>
+                                <td colspan="5" class="px-4 py-10 text-center text-[12px] text-slate-500">Belum ada HPP yang dibuat.</td>
                             </tr>
                         @endforelse
                     </tbody>

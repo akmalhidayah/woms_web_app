@@ -28,31 +28,31 @@
         </section>
 
         <section class="order-list-panel overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-sm">
-            <div class="border-b border-slate-200 px-5 py-4 overflow-x-auto">
-                <form method="GET" action="{{ route('admin.purchase-order.index') }}" class="flex min-w-[980px] items-center gap-2">
-                    <div class="relative min-w-0 flex-1">
+            <div class="border-b border-slate-200 px-5 py-4">
+                <form method="GET" action="{{ route('admin.purchase-order.index') }}" class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[minmax(190px,1.45fr)_minmax(120px,0.7fr)_minmax(130px,0.8fr)_minmax(125px,0.7fr)_minmax(125px,0.7fr)_auto] xl:items-center">
+                    <div class="relative min-w-0">
                         <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 h-[12px] w-[12px] -translate-y-1/2 text-slate-400"></i>
                         <input id="search" type="text" name="search" value="{{ $search }}" placeholder="Nomor order atau nama pekerjaan" class="w-full rounded-lg border border-slate-300 px-8 py-1.5 text-[10px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none">
                     </div>
 
-                    <select id="status" name="status" class="w-[150px] rounded-lg border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-700 focus:border-blue-500 focus:outline-none">
+                    <select id="status" name="status" class="min-w-0 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-700 focus:border-blue-500 focus:outline-none">
                         <option value="">Semua Status</option>
                         @foreach ($statusOptions as $value => $label)
                             <option value="{{ $value }}" @selected($selectedStatus === $value)>{{ $label }}</option>
                         @endforeach
                     </select>
 
-                    <select id="unit" name="unit" class="w-[160px] rounded-lg border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-700 focus:border-blue-500 focus:outline-none">
+                    <select id="unit" name="unit" class="min-w-0 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-700 focus:border-blue-500 focus:outline-none">
                         <option value="">Semua Unit</option>
                         @foreach ($units as $unit)
                             <option value="{{ $unit }}" @selected($selectedUnit === $unit)>{{ $unit }}</option>
                         @endforeach
                     </select>
 
-                    <input id="from" type="date" name="from" value="{{ $selectedFrom }}" class="w-[130px] rounded-lg border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-700 focus:border-blue-500 focus:outline-none">
-                    <input id="to" type="date" name="to" value="{{ $selectedTo }}" class="w-[130px] rounded-lg border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-700 focus:border-blue-500 focus:outline-none">
+                    <input id="from" type="date" name="from" value="{{ $selectedFrom }}" class="min-w-0 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-700 focus:border-blue-500 focus:outline-none">
+                    <input id="to" type="date" name="to" value="{{ $selectedTo }}" class="min-w-0 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-700 focus:border-blue-500 focus:outline-none">
 
-                    <div class="ml-auto flex items-center gap-2">
+                    <div class="flex items-center gap-1.5 sm:justify-end">
                         <button type="submit" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-700" title="Filter">
                             <i data-lucide="filter" class="h-[12px] w-[12px]"></i>
                         </button>

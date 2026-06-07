@@ -131,6 +131,7 @@
                                 $activeSignature = $row->activeSignature ?: $row->signatures->first(fn (\App\Models\HppSignature $signature): bool => $signature->isPending());
                                 $isActiveApprovalExpired = $activeSignature?->isPending() && $activeSignature->tokenExpired();
                                 $activeApprovalLink = $isActiveApprovalExpired ? null : $row->latestActiveApprovalLink();
+                                $activeApprovalWhatsappUrl = $activeApprovalLink ? \App\Support\ApprovalWhatsappLink::forHpp($activeSignature) : null;
                                 $isDiropsPending = $activeSignature?->role_key === 'dirops';
                                 $diropsSignedDocumentSignature = $row->signatures->first(
                                     fn (\App\Models\HppSignature $signature): bool => $signature->role_key === 'dirops' && $signature->hasUploadedSignedDocument()
@@ -287,15 +288,26 @@
                                                     <div class="mb-1 text-[8px] font-bold uppercase tracking-[0.14em] text-slate-400">Aksi Approval</div>
                                                     <div class="flex flex-wrap gap-1.5">
                                                         @if ($activeApprovalLink)
-                                                            <button
-                                                                type="button"
-                                                                class="copy-hpp-approval-link inline-flex items-center gap-1 rounded-full border border-blue-200 bg-white px-2 py-1 text-[8px] font-semibold text-blue-700 transition hover:bg-blue-100"
-                                                                title="Salin link approval aktif"
-                                                                data-approval-url="{{ $activeApprovalLink }}"
-                                                            >
-                                                                <i data-lucide="copy" class="h-2.5 w-2.5"></i>
-                                                                Salin Link
-                                                            </button>
+                                                            @if ($activeApprovalWhatsappUrl)
+                                                                <a
+                                                                    href="{{ $activeApprovalWhatsappUrl }}"
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2 py-1 text-[8px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                                                                    title="Kirim link approval HPP via WhatsApp"
+                                                                >
+                                                                    <i data-lucide="message-circle" class="h-2.5 w-2.5"></i>
+                                                                    WhatsApp
+                                                                </a>
+                                                            @else
+                                                                <span
+                                                                    class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 text-[8px] font-semibold text-slate-400"
+                                                                    title="Nomor WhatsApp approver belum tersedia di user panel"
+                                                                >
+                                                                    <i data-lucide="message-circle-off" class="h-2.5 w-2.5"></i>
+                                                                    No WA
+                                                                </span>
+                                                            @endif
                                                             <form method="POST" action="{{ route('admin.hpp.approval.resend', ['hpp' => $row->nomor_order]) }}">
                                                                 @csrf
                                                                 <button
@@ -513,23 +525,6 @@
                 });
             }
 
-            const copyToClipboard = async (text) => {
-                if (navigator.clipboard?.writeText) {
-                    await navigator.clipboard.writeText(text);
-                    return;
-                }
-
-                const textarea = document.createElement('textarea');
-                textarea.value = text;
-                textarea.setAttribute('readonly', 'readonly');
-                textarea.style.position = 'fixed';
-                textarea.style.opacity = '0';
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
-            };
-
             const escapeHtml = (value) => String(value ?? '')
                 .replaceAll('&', '&amp;')
                 .replaceAll('<', '&lt;')
@@ -647,28 +642,6 @@
                 diropsUploadModal.setAttribute('aria-hidden', 'true');
                 syncBodyScrollLock();
             };
-
-            document.querySelectorAll('.copy-hpp-approval-link').forEach((button) => {
-                button.addEventListener('click', async () => {
-                    const url = button.dataset.approvalUrl;
-
-                    if (!url) {
-                        return;
-                    }
-
-                    await copyToClipboard(url);
-
-                    if (window.Swal) {
-                        window.Swal.fire({
-                            icon: 'success',
-                            title: 'Link approval disalin',
-                            text: 'Kirim link ini ke approver aktif.',
-                            timer: 1600,
-                            showConfirmButton: false,
-                        });
-                    }
-                });
-            });
 
             document.querySelectorAll('.hpp-approval-flow-trigger').forEach((button) => {
                 button.addEventListener('click', () => openApprovalFlowModal(button));

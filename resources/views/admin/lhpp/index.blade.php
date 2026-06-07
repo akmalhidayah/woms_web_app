@@ -103,10 +103,12 @@
                                 $hasTerminTwo = ! $isWithoutWarranty && filled($terminTwo?->id);
                                 $activeSignature = $lhpp->activeSignature ?: $lhpp->signatures->first(fn (\App\Models\LhppBastSignature $signature): bool => $signature->isPending());
                                 $activeApprovalLink = $activeSignature?->approvalUrl();
+                                $activeApprovalWhatsappUrl = $activeApprovalLink ? \App\Support\ApprovalWhatsappLink::forBast($activeSignature) : null;
                                 $isActiveApprovalExpired = $activeSignature?->tokenExpired() ?? false;
                                 $isDiropsPending = $activeSignature?->role_key === 'dirops';
                                 $terminTwoActiveSignature = $terminTwo?->activeSignature ?: ($terminTwo?->signatures?->first(fn (\App\Models\LhppBastSignature $signature): bool => $signature->isPending()));
                                 $terminTwoActiveApprovalLink = $terminTwoActiveSignature?->approvalUrl();
+                                $terminTwoActiveApprovalWhatsappUrl = $terminTwoActiveApprovalLink ? \App\Support\ApprovalWhatsappLink::forBast($terminTwoActiveSignature) : null;
                                 $terminTwoIsActiveApprovalExpired = $terminTwoActiveSignature?->tokenExpired() ?? false;
                                 $terminTwoIsDiropsPending = $terminTwoActiveSignature?->role_key === 'dirops';
                                 $terminTwoDiropsSignedDocumentSignature = $terminTwo?->signatures?->first(
@@ -261,6 +263,7 @@
                                                 data-dirops="{{ $isDiropsPending ? '1' : '0' }}"
                                                 data-expiry="{{ $activeSignature->token_expires_at?->format('d/m/Y H:i') ?: '-' }}"
                                                 data-link="{{ $activeApprovalLink && ! $isDiropsPending && ! $isActiveApprovalExpired ? $activeApprovalLink : '' }}"
+                                                data-wa-url="{{ $activeApprovalLink && ! $isDiropsPending && ! $isActiveApprovalExpired ? $activeApprovalWhatsappUrl : '' }}"
                                                 data-resend-url="{{ $activeApprovalLink && ! $isDiropsPending && ! $isActiveApprovalExpired ? route('admin.lhpp.approval.resend', ['lhppId' => $lhpp->id]) : '' }}"
                                             >
                                                 <i data-lucide="signature" class="h-3 w-3"></i>
@@ -280,6 +283,7 @@
                                                 data-dirops="{{ $terminTwoIsDiropsPending ? '1' : '0' }}"
                                                 data-expiry="{{ $terminTwoActiveSignature->token_expires_at?->format('d/m/Y H:i') ?: '-' }}"
                                                 data-link="{{ $terminTwoActiveApprovalLink && ! $terminTwoIsDiropsPending && ! $terminTwoIsActiveApprovalExpired ? $terminTwoActiveApprovalLink : '' }}"
+                                                data-wa-url="{{ $terminTwoActiveApprovalLink && ! $terminTwoIsDiropsPending && ! $terminTwoIsActiveApprovalExpired ? $terminTwoActiveApprovalWhatsappUrl : '' }}"
                                                 data-resend-url="{{ $terminTwoActiveApprovalLink && ! $terminTwoIsDiropsPending && ! $terminTwoIsActiveApprovalExpired ? route('admin.lhpp.approval.resend', ['lhppId' => $terminTwo->id]) : '' }}"
                                             >
                                                 <i data-lucide="signature" class="h-3 w-3"></i>
@@ -383,10 +387,10 @@
                 <button type="button" data-close-bast-signature-modal class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
                     Tutup
                 </button>
-                <button id="bastSignatureCopyButton" type="button" class="hidden items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">
-                    <i data-lucide="copy" class="h-3.5 w-3.5"></i>
-                    Salin Link
-                </button>
+                <a id="bastSignatureWhatsappButton" href="#" target="_blank" rel="noopener noreferrer" class="hidden items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">
+                    <i data-lucide="message-circle" class="h-3.5 w-3.5"></i>
+                    Kirim WhatsApp
+                </a>
                 <form id="bastSignatureResendForm" method="POST" action="#" class="hidden">
                     @csrf
                     <button type="submit" class="inline-flex items-center justify-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-100">
@@ -413,23 +417,6 @@
                 });
             }
 
-            const copyToClipboard = async (text) => {
-                if (navigator.clipboard?.writeText) {
-                    await navigator.clipboard.writeText(text);
-                    return;
-                }
-
-                const textarea = document.createElement('textarea');
-                textarea.value = text;
-                textarea.setAttribute('readonly', '');
-                textarea.style.position = 'fixed';
-                textarea.style.opacity = '0';
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
-            };
-
             const signatureModal = document.getElementById('bastSignatureModal');
             const signatureTitle = document.getElementById('bastSignatureModalTitle');
             const signatureDocument = document.getElementById('bastSignatureModalDocument');
@@ -438,10 +425,8 @@
             const signatureExpiry = document.getElementById('bastSignatureModalExpiry');
             const signatureStatus = document.getElementById('bastSignatureModalStatus');
             const signatureNote = document.getElementById('bastSignatureModalNote');
-            const signatureCopyButton = document.getElementById('bastSignatureCopyButton');
+            const signatureWhatsappButton = document.getElementById('bastSignatureWhatsappButton');
             const signatureResendForm = document.getElementById('bastSignatureResendForm');
-            let activeSignatureLink = '';
-            let originalCopyHtml = signatureCopyButton?.innerHTML || '';
 
             const openSignatureModal = (button) => {
                 if (!signatureModal) {
@@ -451,9 +436,9 @@
                 const isExpired = button.dataset.expired === '1';
                 const isDirops = button.dataset.dirops === '1';
                 const link = button.dataset.link || '';
+                const whatsappUrl = button.dataset.waUrl || '';
                 const resendUrl = button.dataset.resendUrl || '';
 
-                activeSignatureLink = link;
                 signatureTitle.textContent = button.dataset.title || 'Detail TTD';
                 signatureDocument.textContent = button.dataset.document || '-';
                 signatureRole.textContent = button.dataset.role || '-';
@@ -476,7 +461,9 @@
                     signatureStatus.classList.add('bg-emerald-100', 'text-emerald-800', 'ring-1', 'ring-emerald-200');
                     signatureStatus.textContent = 'Link aktif';
                     signatureNote.className = 'rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-blue-700';
-                    signatureNote.textContent = 'Link approval masih aktif. Anda bisa menyalin link atau mengirim ulang email approval.';
+                    signatureNote.textContent = whatsappUrl
+                        ? 'Link approval masih aktif. Anda bisa mengirim link via WhatsApp atau mengirim ulang email approval.'
+                        : 'Link approval masih aktif, tetapi nomor WhatsApp approver belum tersedia di user panel. Email approval masih bisa dikirim ulang.';
                 } else {
                     signatureStatus.classList.add('bg-slate-100', 'text-slate-700', 'ring-1', 'ring-slate-200');
                     signatureStatus.textContent = 'Tidak ada link aktif';
@@ -484,10 +471,10 @@
                     signatureNote.textContent = 'Belum ada link approval aktif untuk step ini.';
                 }
 
-                signatureCopyButton?.classList.toggle('hidden', !link);
-                signatureCopyButton?.classList.toggle('inline-flex', Boolean(link));
-                if (signatureCopyButton) {
-                    signatureCopyButton.innerHTML = originalCopyHtml;
+                signatureWhatsappButton?.classList.toggle('hidden', !whatsappUrl);
+                signatureWhatsappButton?.classList.toggle('inline-flex', Boolean(whatsappUrl));
+                if (signatureWhatsappButton && whatsappUrl) {
+                    signatureWhatsappButton.href = whatsappUrl;
                 }
 
                 signatureResendForm?.classList.toggle('hidden', !resendUrl);
@@ -523,51 +510,6 @@
                 }
             });
 
-            signatureCopyButton?.addEventListener('click', async () => {
-                if (!activeSignatureLink) {
-                    return;
-                }
-
-                try {
-                    await copyToClipboard(activeSignatureLink);
-                    signatureCopyButton.innerHTML = '<i data-lucide="check" class="h-3.5 w-3.5"></i> Disalin';
-                    window.lucide?.createIcons();
-                    setTimeout(() => {
-                        signatureCopyButton.innerHTML = originalCopyHtml;
-                        window.lucide?.createIcons();
-                    }, 1600);
-                } catch (error) {
-                    signatureCopyButton.innerHTML = originalCopyHtml;
-                }
-            });
-
-            document.querySelectorAll('[data-copy-bast-approval-link]').forEach((button) => {
-                button.addEventListener('click', async () => {
-                    const link = button.dataset.copyBastApprovalLink || '';
-
-                    if (!link) {
-                        return;
-                    }
-
-                    const originalHtml = button.innerHTML;
-
-                    try {
-                        await copyToClipboard(link);
-                        button.innerHTML = '<i data-lucide="check" class="h-3 w-3"></i> Disalin';
-                        if (window.lucide) {
-                            window.lucide.createIcons();
-                        }
-                        setTimeout(() => {
-                            button.innerHTML = originalHtml;
-                            if (window.lucide) {
-                                window.lucide.createIcons();
-                            }
-                        }, 1600);
-                    } catch (error) {
-                        button.innerHTML = originalHtml;
-                    }
-                });
-            });
         });
     </script>
 </x-layouts.admin>

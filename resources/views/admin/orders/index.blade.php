@@ -144,6 +144,7 @@ $activeInitialWorkSignature = $order->initialWork?->signatures
     ?->firstWhere('status', \App\Models\InitialWorkSignature::STATUS_PENDING);
 
 $activeInitialWorkApprovalUrl = $activeInitialWorkSignature?->approvalUrl();
+$activeInitialWorkWhatsappUrl = $activeInitialWorkApprovalUrl ? \App\Support\ApprovalWhatsappLink::forInitialWork($activeInitialWorkSignature) : null;
 $activeInitialWorkRoleLabel = $activeInitialWorkSignature?->role_label;
 $activeInitialWorkDisplayLabel = $activeInitialWorkRoleLabel ?: match ($activeInitialWorkSignature?->role_key) {
     \App\Models\InitialWorkSignature::ROLE_MANAGER => 'Manager',
@@ -369,16 +370,26 @@ $initialWorkSeniorSignature = $order->initialWork?->signatures
     </button>
 
     @if ($activeInitialWorkApprovalUrl)
-        <button
-            type="button"
-            class="copy-initial-work-approval inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[12px] font-semibold text-emerald-700 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-100 hover:shadow-sm"
-            data-link="{{ $activeInitialWorkApprovalUrl }}"
-            data-role-label="{{ $activeInitialWorkDisplayLabel }}"
-            title="Copy link TTD {{ $activeInitialWorkDisplayLabel }}"
-        >
-            <i data-lucide="copy" class="h-3 w-3"></i>
-            <span>TTD {{ $activeInitialWorkDisplayLabel }}</span>
-        </button>
+        @if ($activeInitialWorkWhatsappUrl)
+            <a
+                href="{{ $activeInitialWorkWhatsappUrl }}"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[12px] font-semibold text-emerald-700 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-100 hover:shadow-sm"
+                title="Kirim link TTD {{ $activeInitialWorkDisplayLabel }} via WhatsApp"
+            >
+                <i data-lucide="message-circle" class="h-3 w-3"></i>
+                <span>WA {{ $activeInitialWorkDisplayLabel }}</span>
+            </a>
+        @else
+            <span
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[12px] font-semibold text-slate-400"
+                title="Nomor WhatsApp approver belum tersedia di user panel"
+            >
+                <i data-lucide="message-circle-off" class="h-3 w-3"></i>
+                <span>No WA</span>
+            </span>
+        @endif
         <form method="POST" action="{{ route('admin.orders.initial-work.approval.resend', [$order, $order->initialWork]) }}">
             @csrf
             <button
@@ -1374,24 +1385,6 @@ $initialWorkSeniorSignature = $order->initialWork?->signatures
                     openModal(initialWorkModal);
                 });
             });
-
-document.querySelectorAll('.copy-initial-work-approval').forEach((button) => {
-    button.addEventListener('click', async () => {
-        const link = button.dataset.link || '';
-        const roleLabel = button.getAttribute('title')?.replace('Copy link TTD ', '') || 'Approval';
-
-        if (!link) {
-            return;
-        }
-
-        try {
-            await navigator.clipboard.writeText(link);
-            showToast(`Link TTD ${roleLabel} disalin`);
-        } catch (error) {
-            window.prompt(`Copy link TTD ${roleLabel}:`, link);
-        }
-    });
-});
 
             if (oldFormContext === 'create') {
                 syncSeksiSelect(createUnitKerja, createSeksi, @json(old('seksi')));

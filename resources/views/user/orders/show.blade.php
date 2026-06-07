@@ -391,14 +391,25 @@
                                                             {{ $approvalLink['status_label'] }}
                                                         </span>
                                                     </div>
-                                                    <button
-                                                        type="button"
-                                                        data-copy-approval-link="{{ $approvalLink['link'] }}"
-                                                        class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white transition hover:bg-slate-700"
-                                                    >
-                                                        <i data-lucide="copy" class="h-3.5 w-3.5"></i>
-                                                        Salin Link TTD
-                                                    </button>
+                                                    @if ($approvalLink['whatsapp_url'] ?? null)
+                                                        <a
+                                                            href="{{ $approvalLink['whatsapp_url'] }}"
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-700"
+                                                        >
+                                                            <i data-lucide="message-circle" class="h-3.5 w-3.5"></i>
+                                                            Kirim WhatsApp
+                                                        </a>
+                                                    @else
+                                                        <span
+                                                            class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-200 px-3 py-2 text-xs font-bold text-slate-500"
+                                                            title="Nomor WhatsApp approver belum tersedia di user panel"
+                                                        >
+                                                            <i data-lucide="message-circle-off" class="h-3.5 w-3.5"></i>
+                                                            No WA
+                                                        </span>
+                                                    @endif
                                                 </div>
                                             @endforeach
                                         </div>
@@ -547,14 +558,25 @@
                                                             {{ $approvalLink['status_label'] }}
                                                         </span>
                                                     </div>
-                                                    <button
-                                                        type="button"
-                                                        data-copy-approval-link="{{ $approvalLink['link'] }}"
-                                                        class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white transition hover:bg-slate-700"
-                                                    >
-                                                        <i data-lucide="copy" class="h-3.5 w-3.5"></i>
-                                                        Salin Link TTD
-                                                    </button>
+                                                    @if ($approvalLink['whatsapp_url'] ?? null)
+                                                        <a
+                                                            href="{{ $approvalLink['whatsapp_url'] }}"
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-700"
+                                                        >
+                                                            <i data-lucide="message-circle" class="h-3.5 w-3.5"></i>
+                                                            Kirim WhatsApp
+                                                        </a>
+                                                    @else
+                                                        <span
+                                                            class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-200 px-3 py-2 text-xs font-bold text-slate-500"
+                                                            title="Nomor WhatsApp approver belum tersedia di user panel"
+                                                        >
+                                                            <i data-lucide="message-circle-off" class="h-3.5 w-3.5"></i>
+                                                            No WA
+                                                        </span>
+                                                    @endif
                                                 </div>
                                             @endforeach
                                         </div>
@@ -633,48 +655,6 @@
             const tabs = Array.from(document.querySelectorAll('[data-document-tab]'));
             const isMobileBrowser = window.matchMedia('(max-width: 1024px)').matches
                 || /Android|iPhone|iPad|iPod|Mobile/i.test(window.navigator.userAgent);
-
-            const copyTextToClipboard = async (text) => {
-                if (navigator.clipboard?.writeText) {
-                    await navigator.clipboard.writeText(text);
-                    return;
-                }
-
-                const textarea = document.createElement('textarea');
-                textarea.value = text;
-                textarea.setAttribute('readonly', '');
-                textarea.style.position = 'fixed';
-                textarea.style.opacity = '0';
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
-            };
-
-            document.querySelectorAll('[data-copy-approval-link]').forEach((button) => {
-                button.addEventListener('click', async () => {
-                    const link = button.dataset.copyApprovalLink || '';
-
-                    if (!link) {
-                        return;
-                    }
-
-                    const originalText = button.textContent.trim();
-
-                    try {
-                        await copyTextToClipboard(link);
-                        button.textContent = 'Link TTD Disalin';
-                        setTimeout(() => {
-                            button.innerHTML = '<i data-lucide="copy" class="h-3.5 w-3.5"></i> Salin Link TTD';
-                            if (window.lucide) {
-                                window.lucide.createIcons();
-                            }
-                        }, 1800);
-                    } catch (error) {
-                        button.textContent = originalText || 'Gagal Menyalin';
-                    }
-                });
-            });
 
             if (! previewFrame || tabs.length === 0) {
                 return;

@@ -14,6 +14,7 @@ use App\Models\OrderWorkshop;
 use App\Models\QualityControlReport;
 use App\Models\QualityControlSignature;
 use App\Services\QualityControl\QualityControlSignatureService;
+use App\Support\ApprovalWhatsappLink;
 use App\Support\SignatureImageStorage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Contracts\View\View;
@@ -772,6 +773,7 @@ class OrderTrackingController extends Controller
                     default => ucfirst((string) $signature->status),
                 },
                 'link' => route('approval.hpp.show', $signature->token),
+                'whatsapp_url' => ApprovalWhatsappLink::forHpp($signature),
                 'expires_at' => $signature->token_expires_at?->format('d/m/Y H:i'),
                 'is_expired' => $signature->tokenExpired(),
                 'is_active' => $signature->isPending(),
@@ -853,6 +855,7 @@ class OrderTrackingController extends Controller
                 'status' => $signature->status,
                 'status_label' => 'Menunggu TTD',
                 'link' => $signature->approvalUrl(),
+                'whatsapp_url' => ApprovalWhatsappLink::forQualityControl($signature),
                 'expires_at' => $signature->token_expires_at?->format('d/m/Y H:i'),
                 'is_expired' => $signature->tokenExpired(),
                 'is_active' => $signature->isPending(),

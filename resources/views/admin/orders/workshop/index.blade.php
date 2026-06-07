@@ -186,6 +186,7 @@
                                 $activeQcSignature = $qcReport?->signatures
                                     ?->firstWhere('status', \App\Models\QualityControlSignature::STATUS_PENDING);
                                 $activeQcApprovalUrl = $activeQcSignature?->approvalUrl();
+                                $activeQcApprovalWhatsappUrl = $activeQcApprovalUrl ? \App\Support\ApprovalWhatsappLink::forQualityControl($activeQcSignature) : null;
                                 $activeQcRoleLabel = $activeQcSignature?->role_label ?: match ($activeQcSignature?->role_key) {
                                     \App\Models\QualityControlSignature::ROLE_WORKSHOP_MANAGER => 'Manager Bengkel',
                                     \App\Models\QualityControlSignature::ROLE_USER_MANAGER => 'Manager Unit',
@@ -377,9 +378,15 @@
                                                             <i data-lucide="file-text" class="h-3 w-3"></i>
                                                         </a>
                                                         @if ($activeQcApprovalUrl)
-                                                            <button type="button" title="Salin link TTD {{ $activeQcRoleLabel }}" aria-label="Salin link TTD {{ $activeQcRoleLabel }}" class="copy-qc-approval inline-flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100" data-link="{{ $activeQcApprovalUrl }}" data-role-label="{{ $activeQcRoleLabel }}">
-                                                                <i data-lucide="copy" class="h-3 w-3"></i>
-                                                            </button>
+                                                            @if ($activeQcApprovalWhatsappUrl)
+                                                                <a href="{{ $activeQcApprovalWhatsappUrl }}" target="_blank" rel="noopener noreferrer" title="Kirim link TTD {{ $activeQcRoleLabel }} via WhatsApp" aria-label="Kirim link TTD {{ $activeQcRoleLabel }} via WhatsApp" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100">
+                                                                    <i data-lucide="message-circle" class="h-3 w-3"></i>
+                                                                </a>
+                                                            @else
+                                                                <span title="Nomor WhatsApp approver belum tersedia di user panel" aria-label="Nomor WhatsApp approver belum tersedia di user panel" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-400">
+                                                                    <i data-lucide="message-circle-off" class="h-3 w-3"></i>
+                                                                </span>
+                                                            @endif
                                                             <form method="POST" action="{{ route('admin.orders.workshop.quality-control.approval.resend', [$order, $qcReport]) }}">
                                                                 @csrf
                                                                 <button type="submit" title="Kirim ulang email approval QC" aria-label="Kirim ulang email approval QC" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-700 transition hover:bg-sky-100">
@@ -1398,43 +1405,6 @@
                     closeWorkshopFlow();
                     closeRowActionMenus();
                 }
-            });
-
-            document.querySelectorAll('.copy-qc-approval').forEach((button) => {
-                button.addEventListener('click', async () => {
-                    const link = button.dataset.link || '';
-                    const roleLabel = button.dataset.roleLabel || 'Approval QC';
-                    const fallbackCopy = () => {
-                        const input = document.createElement('textarea');
-                        input.value = link;
-                        input.setAttribute('readonly', 'readonly');
-                        input.style.position = 'fixed';
-                        input.style.left = '-9999px';
-                        document.body.appendChild(input);
-                        input.select();
-                        const copied = document.execCommand('copy');
-                        input.remove();
-
-                        return copied;
-                    };
-
-                    try {
-                        if (navigator.clipboard?.writeText) {
-                            await navigator.clipboard.writeText(link);
-                        } else if (!fallbackCopy()) {
-                            throw new Error('Clipboard tidak tersedia.');
-                        }
-
-                        showToast(`Link TTD ${roleLabel} disalin.`);
-                    } catch (error) {
-                        if (fallbackCopy()) {
-                            showToast(`Link TTD ${roleLabel} disalin.`);
-                            return;
-                        }
-
-                        showToast('Browser memblokir akses clipboard.', 'error');
-                    }
-                });
             });
 
             const successFlash = document.getElementById('flash-success');

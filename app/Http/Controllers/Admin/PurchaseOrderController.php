@@ -31,7 +31,7 @@ class PurchaseOrderController extends Controller
 
             $notifications = Hpp::query()
                 ->with([
-                    'order:id,nomor_order,unit_kerja,seksi',
+                    'order:id,nomor_order,notifikasi,unit_kerja,seksi',
                     'budgetVerification:id,order_id,hpp_id,status_anggaran',
                     'purchaseOrder:id,order_id,hpp_id,purchase_order_number,target_penyelesaian,approval_target,approval_note,approve_manager,approve_senior_manager,approve_general_manager,approve_direktur_operasional,progress_pekerjaan,po_document_path,vendor_note,admin_note',
                 ])
@@ -224,6 +224,7 @@ class PurchaseOrderController extends Controller
 
         return [
             'nomor_order' => $hpp->nomor_order,
+            'notifikasi' => $order?->notifikasi,
             'nomor_po' => $purchaseOrder?->purchase_order_number,
             'nama_pekerjaan' => $hpp->nama_pekerjaan,
             'unit' => $hpp->unit_kerja,

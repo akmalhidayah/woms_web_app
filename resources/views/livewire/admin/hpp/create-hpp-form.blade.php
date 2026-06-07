@@ -9,12 +9,12 @@
         flowMatrix: @js($flowMatrix),
         initialState: @js($initialState),
     })"
-    class="space-y-6"
+    class="space-y-3"
 >
     @if ($errors->any())
-        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-[13px] text-rose-700">
+        <div class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
             <div class="font-semibold">Data HPP belum bisa disimpan.</div>
-            <ul class="mt-2 list-disc space-y-1 pl-5">
+            <ul class="mt-1 list-disc pl-4">
                 @foreach ($errors->all() as $error)
                     <li>{{ $error }}</li>
                 @endforeach
@@ -22,32 +22,32 @@
         </div>
     @endif
 
-    <section class="rounded-[1.5rem] border border-blue-100 px-6 py-5 shadow-sm" style="background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 48%, #e6f1ff 100%);">
-        <div class="flex items-center gap-4">
-            <span class="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm ring-1 ring-blue-200">
-                <i data-lucide="pencil-line" class="h-6 w-6"></i>
+    <section class="rounded-xl border border-blue-100 px-4 py-3 shadow-sm" style="background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 48%, #e6f1ff 100%);">
+        <div class="flex items-center gap-3">
+            <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white text-blue-600 shadow-sm ring-1 ring-blue-200">
+                <i data-lucide="pencil-line" class="h-4 w-4"></i>
             </span>
             <div>
-                <h1 class="text-[1.65rem] font-bold leading-none tracking-tight text-slate-900">{{ $isEdit ? 'Edit HPP' : 'Buat HPP' }}</h1>
-                <p class="mt-2 text-[13px] text-slate-500">
+                <h1 class="text-[18px] font-bold leading-none tracking-tight text-slate-900">{{ $isEdit ? 'Edit HPP' : 'Buat HPP' }}</h1>
+                <p class="mt-1 text-[10px] text-slate-500">
                     {{ $isEdit ? 'Perbarui snapshot HPP yang sudah dibuat beserta rincian item dan approval flow-nya.' : 'Order pekerjaan diambil langsung dari database order, lalu nama pekerjaan dan unit kerja terisi otomatis.' }}
                 </p>
             </div>
         </div>
     </section>
 
-    <form method="POST" action="{{ $submitRoute }}" class="space-y-6">
+    <form method="POST" action="{{ $submitRoute }}" class="space-y-3">
         @csrf
         @if ($isEdit)
             @method('PUT')
         @endif
 
-        <section class="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
-            <div class="mb-4 flex items-start justify-between gap-3">
+        <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="mb-3 flex items-start justify-between gap-3">
                 <div>
-                    <h2 class="text-[15px] font-semibold text-slate-900">Input HPP</h2>
+                    <h2 class="text-[13px] font-semibold text-slate-900">Input HPP</h2>
                 </div>
-                <span class="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-semibold text-emerald-700">Order DB Connected</span>
+                <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[8px] font-semibold text-emerald-700">Order DB Connected</span>
             </div>
 
             @if ($orderOptions === [])
@@ -62,10 +62,10 @@
                 </div>
             @endif
 
-            <div class="xl:flex xl:items-start xl:gap-6">
-                <div class="min-w-0 flex-1 space-y-4">
-                    <div class="space-y-1.5">
-                        <label for="order_id" class="text-[12px] font-semibold text-slate-700">Order Pekerjaan</label>
+            <div class="xl:flex xl:items-start xl:gap-4">
+                <div class="min-w-0 flex-1 space-y-3">
+                    <div class="space-y-1">
+                        <label for="order_id" class="text-[10px] font-semibold text-slate-700">Order Pekerjaan</label>
                         @if ($isEdit)
                             <input type="hidden" name="order_id" x-model="selectedOrder">
                         @endif
@@ -73,7 +73,7 @@
                             id="order_id"
                             @if (! $isEdit) name="order_id" @endif
                             x-model="selectedOrder"
-                            class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                            class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                             @disabled($orderOptions === [] || $isEdit)
                         >
                             <option value="">Pilih order pekerjaan</option>
@@ -83,14 +83,14 @@
                         </select>
                     </div>
 
-                    <div class="grid gap-4 md:grid-cols-2">
-                        <div class="space-y-1.5">
-                            <label for="nilai_hpp_bucket" class="text-[12px] font-semibold text-slate-700">Nilai HPP</label>
+                    <div class="grid gap-3 md:grid-cols-2">
+                        <div class="space-y-1">
+                            <label for="nilai_hpp_bucket" class="text-[10px] font-semibold text-slate-700">Nilai HPP</label>
                             <select
                                 id="nilai_hpp_bucket"
                                 name="nilai_hpp_bucket"
                                 x-model="nilaiBucket"
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                                class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                             >
                                 @foreach ($bucketOptions as $value => $label)
                                     <option value="{{ $value }}">{{ $label }}</option>
@@ -98,13 +98,13 @@
                             </select>
                         </div>
 
-                        <div class="space-y-1.5">
-                            <label for="kategori_pekerjaan" class="text-[12px] font-semibold text-slate-700">Kategori Pekerjaan</label>
+                        <div class="space-y-1">
+                            <label for="kategori_pekerjaan" class="text-[10px] font-semibold text-slate-700">Kategori Pekerjaan</label>
                             <select
                                 id="kategori_pekerjaan"
                                 name="kategori_pekerjaan"
                                 x-model="kategoriPekerjaan"
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                                class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                             >
                                 @foreach ($kategoriOptions as $option)
                                     <option value="{{ $option }}">{{ $option }}</option>
@@ -113,13 +113,13 @@
                         </div>
                     </div>
 
-                    <div class="space-y-1.5">
-                        <label for="area_pekerjaan" class="text-[12px] font-semibold text-slate-700">Area Pekerjaan</label>
+                    <div class="space-y-1">
+                        <label for="area_pekerjaan" class="text-[10px] font-semibold text-slate-700">Area Pekerjaan</label>
                         <select
                             id="area_pekerjaan"
                             name="area_pekerjaan"
                             x-model="areaPekerjaan"
-                            class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                            class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                         >
                             @foreach ($areaOptions as $value => $label)
                                 <option value="{{ $value }}">{{ $label }}</option>
@@ -127,71 +127,71 @@
                         </select>
                     </div>
 
-                    <div class="grid gap-4 border-t border-slate-200 pt-4 md:grid-cols-2">
-                        <div class="space-y-1.5">
-                            <label for="cost_centre" class="text-[12px] font-semibold text-slate-700">Cost Centre</label>
+                    <div class="grid gap-3 border-t border-slate-200 pt-3 md:grid-cols-2">
+                        <div class="space-y-1">
+                            <label for="cost_centre" class="text-[10px] font-semibold text-slate-700">Cost Centre</label>
                             <input
                                 id="cost_centre"
                                 type="text"
                                 name="cost_centre"
                                 x-model="costCentre"
-                                class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-[13px] text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                                class="w-full rounded-lg border border-slate-300 px-2.5 py-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                                 placeholder="Contoh: CC-WS-014"
                             >
                         </div>
 
-                        <div class="space-y-1.5 md:col-span-2">
-                            <label for="nama_pekerjaan_preview" class="text-[12px] font-semibold text-slate-700">Deskripsi / Nama Pekerjaan</label>
+                        <div class="space-y-1 md:col-span-2">
+                            <label for="nama_pekerjaan_preview" class="text-[10px] font-semibold text-slate-700">Deskripsi / Nama Pekerjaan</label>
                             <textarea
                                 id="nama_pekerjaan_preview"
-                                rows="3"
+                                rows="2"
                                 x-model="namaPekerjaan"
                                 readonly
-                                class="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-[13px] text-slate-700"
+                                class="w-full rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-2 text-[11px] text-slate-700"
                             ></textarea>
                         </div>
                     </div>
 
-                    <div class="grid gap-4 md:grid-cols-2">
-                        <div class="space-y-1.5">
-                            <label for="seksi_peminta_preview" class="text-[12px] font-semibold text-slate-700">Seksi Peminta</label>
+                    <div class="grid gap-3 md:grid-cols-2">
+                        <div class="space-y-1">
+                            <label for="seksi_peminta_preview" class="text-[10px] font-semibold text-slate-700">Seksi Peminta</label>
                             <input
                                 id="seksi_peminta_preview"
                                 type="text"
                                 x-model="seksiPeminta"
                                 readonly
-                                class="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-[13px] text-slate-700"
+                                class="w-full rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-2 text-[11px] text-slate-700"
                             >
-                            <p class="text-[11px] text-slate-500">
+                            <p class="text-[9px] text-slate-500">
                                 Unit Kerja:
                                 <span x-text="unitKerja || '-'"></span>
                             </p>
                         </div>
 
-                        <div class="space-y-1.5">
-                            <label for="seksi_pengendali_preview" class="text-[12px] font-semibold text-slate-700">Seksi Pengendali</label>
+                        <div class="space-y-1">
+                            <label for="seksi_pengendali_preview" class="text-[10px] font-semibold text-slate-700">Seksi Pengendali</label>
                             <textarea
                                 id="seksi_pengendali_preview"
                                 rows="2"
                                 x-model="seksiPengendali"
                                 readonly
-                                class="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-[13px] text-slate-700"
+                                class="w-full rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-2 text-[11px] text-slate-700"
                             ></textarea>
-                            <p class="text-[11px] text-slate-500">
+                            <p class="text-[9px] text-slate-500">
                                 Unit Kerja:
                                 <span x-text="unitKerjaPengendali || '-'"></span>
                             </p>
                         </div>
                     </div>
 
-                    <div class="grid gap-4 md:grid-cols-2">
-                        <div class="space-y-1.5">
-                            <label for="outline_agreement_id" class="text-[12px] font-semibold text-slate-700">Outline Agreement (OA)</label>
+                    <div class="grid gap-3 md:grid-cols-2">
+                        <div class="space-y-1">
+                            <label for="outline_agreement_id" class="text-[10px] font-semibold text-slate-700">Outline Agreement (OA)</label>
                             <select
                                 id="outline_agreement_id"
                                 name="outline_agreement_id"
                                 x-model="selectedOutlineAgreement"
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                                class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                                 @disabled($outlineAgreementOptions === [])
                             >
                                 <option value="">Pilih Outline Agreement</option>
@@ -201,52 +201,52 @@
                             </select>
                         </div>
 
-                        <div class="space-y-1.5">
-                            <label for="periode_outline_agreement" class="text-[12px] font-semibold text-slate-700">Periode OA</label>
+                        <div class="space-y-1">
+                            <label for="periode_outline_agreement" class="text-[10px] font-semibold text-slate-700">Periode OA</label>
                             <input
                                 id="periode_outline_agreement"
                                 type="text"
                                 x-model="periodeOutlineAgreement"
                                 readonly
-                                class="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-[13px] text-slate-700"
+                                class="w-full rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-2 text-[11px] text-slate-700"
                             >
                         </div>
                     </div>
                 </div>
 
-                <div class="mt-5 xl:mt-0 xl:w-[340px] xl:shrink-0">
-                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div class="mt-3 xl:mt-0 xl:w-[280px] xl:shrink-0">
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
                         <div class="flex items-start justify-between gap-2">
                             <div>
-                                <h3 class="text-[13px] font-semibold text-slate-900">Snapshot Approval Flow</h3>
+                                <h3 class="text-[11px] font-semibold text-slate-900">Snapshot Approval Flow</h3>
                             </div>
-                            <span class="rounded-full bg-white px-2.5 py-1 text-[10px] font-medium text-slate-600 ring-1 ring-slate-200" x-text="`${approvalFlow.length} step`"></span>
+                            <span class="rounded-full bg-white px-2 py-0.5 text-[8px] font-medium text-slate-600 ring-1 ring-slate-200" x-text="`${approvalFlow.length} step`"></span>
                         </div>
 
-                        <div class="mt-3 flex flex-wrap gap-2">
-                            <span class="rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-blue-700" x-text="previewCase || '-'"></span>
-                            <span class="rounded-full bg-white px-2.5 py-1 text-[10px] font-medium text-slate-600 ring-1 ring-slate-200" x-text="bucketOptions[nilaiBucket] || '-'"></span>
+                        <div class="mt-2 flex flex-wrap gap-1.5">
+                            <span class="rounded-full bg-blue-100 px-2 py-0.5 text-[8px] font-semibold tracking-wide text-blue-700" x-text="previewCase || '-'"></span>
+                            <span class="rounded-full bg-white px-2 py-0.5 text-[8px] font-medium text-slate-600 ring-1 ring-slate-200" x-text="bucketOptions[nilaiBucket] || '-'"></span>
                         </div>
 
-                        <div class="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
-                            <div class="text-[10px] uppercase tracking-[0.16em] text-slate-400">Kombinasi Aktif</div>
-                            <div class="mt-1 text-[11px] font-semibold text-slate-700" x-text="`${kategoriPekerjaan} / ${areaPekerjaan} / ${bucketOptions[nilaiBucket] || '-'}`"></div>
+                        <div class="mt-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2">
+                            <div class="text-[8px] uppercase tracking-[0.14em] text-slate-400">Kombinasi Aktif</div>
+                            <div class="mt-0.5 text-[9px] font-semibold text-slate-700" x-text="`${kategoriPekerjaan} / ${areaPekerjaan} / ${bucketOptions[nilaiBucket] || '-'}`"></div>
                         </div>
 
-                        <ol class="mt-3 space-y-2">
+                        <ol class="mt-2 space-y-1.5">
                             <template x-for="(step, index) in approvalFlow" :key="`${previewCase}-${index}`">
                                 <li
-                                    class="flex items-start gap-2.5 rounded-xl border px-3 py-2"
+                                    class="flex items-start gap-2 rounded-lg border px-2.5 py-1.5"
                                     :class="index === 0 ? 'border-emerald-100 bg-emerald-50' : 'border-slate-200 bg-white'"
                                 >
                                     <span
-                                        class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
+                                        class="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[8px] font-bold"
                                         :class="index === 0 ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'"
                                         x-text="index + 1"
                                     ></span>
                                     <div class="min-w-0">
-                                        <div class="text-[11px] font-semibold leading-5 text-slate-800" x-text="step"></div>
-                                        <div class="text-[10px]" :class="index === 0 ? 'text-emerald-700' : 'text-slate-500'" x-text="index === 0 ? 'Aktif pertama' : 'Waiting'"></div>
+                                        <div class="text-[9px] font-semibold leading-4 text-slate-800" x-text="step"></div>
+                                        <div class="text-[8px]" :class="index === 0 ? 'text-emerald-700' : 'text-slate-500'" x-text="index === 0 ? 'Aktif pertama' : 'Waiting'"></div>
                                     </div>
                                 </li>
                             </template>
@@ -256,16 +256,16 @@
             </div>
         </section>
 
-        <section class="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
-            <div class="mt-2 flex flex-col items-start gap-3 md:flex-row md:items-center">
+        <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="flex flex-col items-start gap-2 md:flex-row md:items-center">
                 <button
                     type="button"
                     id="tambah-jenis-btn"
-                    class="inline-flex items-center rounded-xl bg-blue-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-blue-700"
+                    class="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-[10px] font-semibold text-white transition hover:bg-blue-700"
                 >
                     Tambah Jenis
                 </button>
-                <span class="text-[12px] text-slate-500">Pilih jenis item dari master kontrak, lalu pilih sub jenis, kategori, dan nama item agar satuan serta harga satuan terisi otomatis.</span>
+                <span class="text-[9px] text-slate-500">Pilih jenis item dari master kontrak, lalu pilih detail item agar satuan dan harga terisi otomatis.</span>
             </div>
 
             @if (empty($contractCatalog))
@@ -274,27 +274,27 @@
                 </div>
             @endif
 
-            <div id="jenis-container" class="mt-6 space-y-6"></div>
+            <div id="jenis-container" class="mt-3 space-y-3"></div>
 
-            <div class="mt-6 border-t border-slate-200 pt-4">
-                <label for="total_keseluruhan" class="text-[12px] font-semibold text-slate-700">Total Keseluruhan (Rp)</label>
+            <div class="mt-3 border-t border-slate-200 pt-3">
+                <label for="total_keseluruhan" class="text-[10px] font-semibold text-slate-700">Total Keseluruhan (Rp)</label>
                 <input
                     type="text"
                     id="total_keseluruhan"
-                    class="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-[13px] font-semibold text-slate-700"
+                    class="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-2 text-[11px] font-semibold text-slate-700"
                     readonly
                 >
             </div>
         </section>
 
-        <div class="flex justify-end gap-3">
-            <a href="{{ route('admin.hpp.index') }}" class="inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-[13px] font-semibold text-slate-600 transition hover:bg-slate-50">
+        <div class="flex justify-end gap-2">
+            <a href="{{ route('admin.hpp.index') }}" class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-50">
                 Kembali
             </a>
-            <button type="submit" name="action" value="draft" class="inline-flex items-center rounded-xl bg-slate-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-slate-700" @disabled($orderOptions === [] || $outlineAgreementOptions === [])>
+            <button type="submit" name="action" value="draft" class="inline-flex items-center rounded-lg bg-slate-600 px-3 py-1.5 text-[10px] font-semibold text-white transition hover:bg-slate-700" @disabled($orderOptions === [] || $outlineAgreementOptions === [])>
                 {{ $isEdit ? 'Update Draft' : 'Simpan Draft' }}
             </button>
-            <button type="submit" name="action" value="submit" class="inline-flex items-center rounded-xl bg-blue-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-blue-700" @disabled($orderOptions === [] || $outlineAgreementOptions === [])>
+            <button type="submit" name="action" value="submit" class="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-[10px] font-semibold text-white transition hover:bg-blue-700" @disabled($orderOptions === [] || $outlineAgreementOptions === [])>
                 {{ $isEdit ? 'Update & Submit' : 'Submit' }}
             </button>
         </div>

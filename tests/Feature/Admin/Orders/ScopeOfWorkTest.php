@@ -13,6 +13,34 @@ class ScopeOfWorkTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_admin_order_document_page_uses_compact_layout(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+        $order = Order::query()->create([
+            'nomor_order' => 'ORD-DOC-001',
+            'nama_pekerjaan' => 'Pekerjaan Dokumen Ringkas',
+            'unit_kerja' => 'Unit Test',
+            'seksi' => 'Seksi Test',
+            'deskripsi' => 'Detail pekerjaan test',
+            'prioritas' => Order::PRIORITY_MEDIUM,
+            'tanggal_order' => '2026-06-01',
+            'target_selesai' => '2026-06-10',
+            'created_by' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.orders.show', $order))
+            ->assertOk()
+            ->assertSee('Lengkapi Dokumen')
+            ->assertSee('Upload Dokumen')
+            ->assertSee('Buat Scope of Work')
+            ->assertDontSee('Dokumen belum diunggah.')
+            ->assertDontSee('Pilih file jika ingin upload atau mengganti');
+    }
+
     public function test_admin_can_store_scope_of_work_with_signature_file(): void
     {
         Storage::fake('public');

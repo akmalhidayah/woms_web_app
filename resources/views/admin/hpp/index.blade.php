@@ -1,4 +1,18 @@
 <x-layouts.admin title="Create HPP">
+    <style>
+        .hpp-index-filter {
+            display: grid;
+            gap: 0.5rem;
+        }
+
+        @media (min-width: 640px) {
+            .hpp-index-filter {
+                grid-template-columns: minmax(0, 1.25fr) minmax(180px, 0.65fr) auto;
+                align-items: end;
+            }
+        }
+    </style>
+
     @php
         $formatRupiah = function ($value): string {
             $normalized = number_format((float) $value, 2, ',', '.');
@@ -58,23 +72,21 @@
                     </div>
                 @endif
 
-                <form method="GET" action="{{ route('admin.hpp.index') }}" class="flex flex-col gap-2.5 xl:flex-row xl:items-end xl:justify-between">
-                    <div class="grid flex-1 gap-2.5 md:grid-cols-2 xl:grid-cols-[1.2fr_0.6fr]">
-                        <div class="flex flex-col">
-                            <label for="search" class="mb-1.5 text-[10px] font-semibold text-slate-700">Pencarian</label>
-                            <input id="search" name="search" type="text" value="{{ $search }}" placeholder="Cari nomor order / pekerjaan / area..." class="rounded-lg border border-slate-300 px-3 py-2 text-[11px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none">
-                        </div>
-                        <div class="flex flex-col">
-                            <label for="status" class="mb-1.5 text-[10px] font-semibold text-slate-700">Status</label>
-                            <select id="status" name="status" class="rounded-lg border border-slate-300 px-3 py-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none">
-                                <option value="">Semua Status</option>
-                                @foreach ($statusOptions as $value => $label)
-                                    <option value="{{ $value }}" @selected($status === $value)>{{ $label }}</option>
-                                @endforeach
-                            </select>
-                        </div>
+                <form method="GET" action="{{ route('admin.hpp.index') }}" class="hpp-index-filter">
+                    <div class="flex min-w-0 flex-col">
+                        <label for="search" class="mb-1.5 text-[10px] font-semibold text-slate-700">Pencarian</label>
+                        <input id="search" name="search" type="text" value="{{ $search }}" placeholder="Cari nomor order / pekerjaan / area..." class="w-full rounded-lg border border-slate-300 px-3 py-2 text-[11px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none">
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex min-w-0 flex-col">
+                        <label for="status" class="mb-1.5 text-[10px] font-semibold text-slate-700">Status</label>
+                        <select id="status" name="status" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none">
+                            <option value="">Semua Status</option>
+                            @foreach ($statusOptions as $value => $label)
+                                <option value="{{ $value }}" @selected($status === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-1.5">
                         <button type="submit" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-700" title="Filter">
                             <i data-lucide="filter" class="h-[13px] w-[13px]"></i>
                         </button>
@@ -220,13 +232,12 @@
                                                     <span class="inline-flex rounded-full bg-white px-1.5 py-0.5 text-[8px] font-bold text-blue-700 ring-1 ring-blue-100">
                                                         {{ $signedCount }}/{{ $totalSteps }} TTD
                                                     </span>
+                                                    <span class="max-w-[130px] truncate text-[9px] font-semibold text-slate-800" title="{{ $approvalSummaryLabel }}">
+                                                        {{ $approvalSummaryLabel }}
+                                                    </span>
                                                     @if ($isApprovalComplete)
                                                         <span class="inline-flex rounded-full bg-emerald-100 px-1.5 py-0.5 text-[8px] font-bold text-emerald-700">
                                                             Complete
-                                                        </span>
-                                                    @else
-                                                        <span class="inline-flex rounded-full bg-blue-100 px-1.5 py-0.5 text-[8px] font-bold text-blue-700">
-                                                            Berjalan
                                                         </span>
                                                     @endif
                                                     @if ($isActiveApprovalExpired)
@@ -251,15 +262,6 @@
                                                 >
                                                     <i data-lucide="info" class="h-3 w-3"></i>
                                                 </button>
-                                            </div>
-
-                                            <div class="mt-1.5">
-                                                <div class="text-[8px] font-bold uppercase tracking-[0.14em] text-slate-400">
-                                                    {{ $approvalSummaryCaption }}
-                                                </div>
-                                                <div class="mt-0.5 truncate text-[9px] font-semibold text-slate-800" title="{{ $approvalSummaryLabel }}">
-                                                    {{ $approvalSummaryLabel }}
-                                                </div>
                                             </div>
 
                                             @if ($isActiveApprovalExpired || $isDiropsPending || $diropsSignedDocumentUrl)

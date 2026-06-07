@@ -1,4 +1,18 @@
 <x-layouts.admin title="Verifikasi Anggaran">
+    <style>
+        .budget-index-filter {
+            display: grid;
+            gap: 0.5rem;
+        }
+
+        @media (min-width: 760px) {
+            .budget-index-filter {
+                grid-template-columns: minmax(180px, 1.6fr) minmax(130px, 0.7fr) minmax(125px, 0.65fr) auto;
+                align-items: center;
+            }
+        }
+    </style>
+
     @if (session('status'))
         <div id="budget-verification-status-alert" data-message="{{ session('status') }}" class="hidden"></div>
     @endif
@@ -33,7 +47,7 @@
 
         <section class="order-list-panel overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 px-4 py-3">
-                <form method="GET" action="{{ route('admin.budget-verification.index') }}" class="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1.6fr)_minmax(150px,0.7fr)_minmax(140px,0.65fr)_auto] xl:items-center">
+                <form method="GET" action="{{ route('admin.budget-verification.index') }}" class="budget-index-filter">
                     <input id="search" name="search" type="text" value="{{ $search }}" placeholder="Cari nomor order / cost element..." class="min-w-0 w-full rounded-lg border border-slate-300 px-3 py-2 text-[10px] text-slate-700 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none">
                     <select id="unit" name="unit" class="min-w-0 w-full rounded-lg border border-slate-300 px-3 py-2 text-[10px] text-slate-700 focus:border-emerald-500 focus:outline-none">
                             <option value="">Semua Unit</option>
@@ -47,7 +61,7 @@
                         <option value="jasa" @selected($selectedKategoriItem === 'jasa')>Jasa</option>
                     </select>
 
-                    <div class="flex items-center gap-1.5 sm:justify-end">
+                    <div class="flex items-center justify-end gap-1.5">
                         <button type="submit" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white transition hover:bg-emerald-700" title="Filter">
                             <i data-lucide="filter" class="h-[12px] w-[12px]"></i>
                         </button>

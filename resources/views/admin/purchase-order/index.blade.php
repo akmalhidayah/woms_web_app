@@ -1,4 +1,24 @@
 <x-layouts.admin title="Purchase Order">
+    <style>
+        .purchase-order-index-filter {
+            display: grid;
+            gap: 0.5rem;
+        }
+
+        @media (min-width: 900px) {
+            .purchase-order-index-filter {
+                grid-template-columns:
+                    minmax(160px, 1.45fr)
+                    minmax(105px, 0.7fr)
+                    minmax(115px, 0.8fr)
+                    minmax(112px, 0.7fr)
+                    minmax(112px, 0.7fr)
+                    auto;
+                align-items: center;
+            }
+        }
+    </style>
+
     @if (session('status'))
         <div id="purchase-order-status-alert" data-message="{{ session('status') }}" class="hidden"></div>
     @endif
@@ -29,7 +49,7 @@
 
         <section class="order-list-panel overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 px-5 py-4">
-                <form method="GET" action="{{ route('admin.purchase-order.index') }}" class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[minmax(190px,1.45fr)_minmax(120px,0.7fr)_minmax(130px,0.8fr)_minmax(125px,0.7fr)_minmax(125px,0.7fr)_auto] xl:items-center">
+                <form method="GET" action="{{ route('admin.purchase-order.index') }}" class="purchase-order-index-filter">
                     <div class="relative min-w-0">
                         <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 h-[12px] w-[12px] -translate-y-1/2 text-slate-400"></i>
                         <input id="search" type="text" name="search" value="{{ $search }}" placeholder="Nomor order atau nama pekerjaan" class="w-full rounded-lg border border-slate-300 px-8 py-1.5 text-[10px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none">
@@ -52,7 +72,7 @@
                     <input id="from" type="date" name="from" value="{{ $selectedFrom }}" class="min-w-0 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-700 focus:border-blue-500 focus:outline-none">
                     <input id="to" type="date" name="to" value="{{ $selectedTo }}" class="min-w-0 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-700 focus:border-blue-500 focus:outline-none">
 
-                    <div class="flex items-center gap-1.5 sm:justify-end">
+                    <div class="flex items-center justify-end gap-1.5">
                         <button type="submit" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-700" title="Filter">
                             <i data-lucide="filter" class="h-[12px] w-[12px]"></i>
                         </button>

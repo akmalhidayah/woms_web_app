@@ -57,55 +57,55 @@
             ></div>
 
             <aside
-                class="fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-[#cb6b33]/35 bg-[#de773b] shadow-sm transition-all duration-300"
+                class="fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-[#cb6b33]/35 bg-[#de773b] shadow-sm transition-all duration-300"
                 :class="[
                     (mobileOpen ? 'translate-x-0' : '-translate-x-full') + ' lg:translate-x-0',
-                    sidebarOpen ? 'lg:w-72' : 'lg:w-20'
+                    sidebarOpen ? 'lg:w-60' : 'lg:w-16'
                 ]"
             >
                 <div class="sticky top-0 z-10 border-b border-[#cb6b33]/35 bg-[#de773b]">
-                    <div class="flex items-center justify-between gap-3 px-4 py-4">
-                        <div class="flex min-w-0 items-center gap-3">
-                            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white p-2 shadow-sm">
+                    <div class="flex items-center justify-between gap-2 px-3 py-3">
+                        <div class="flex min-w-0 items-center gap-2.5">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white p-1.5 shadow-sm">
                                 <img src="{{ $logoBms }}" alt="Logo BMS2" class="max-h-full w-auto object-contain">
                             </div>
 
-                            <div class="min-w-0 space-y-1" x-show="sidebarOpen" x-transition.opacity.duration.200ms>
-                                <div class="truncate font-extrabold leading-none tracking-tight text-white">Vendor BMS</div>
-                                <div class="truncate text-xs font-medium text-white/70">PKM Dashboard</div>
+                            <div class="min-w-0" x-show="sidebarOpen" x-transition.opacity.duration.200ms>
+                                <div class="truncate text-[13px] font-extrabold leading-none tracking-tight text-white">Vendor BMS</div>
+                                <div class="mt-0.5 truncate text-[10px] font-medium text-white/70">PKM Dashboard</div>
                             </div>
                         </div>
 
                         <button
                             @click="toggle()"
-                            class="inline-flex h-10 w-10 items-center justify-center rounded-xl text-white transition hover:bg-white/10 active:scale-[0.98]"
+                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-white transition hover:bg-white/10 active:scale-[0.98]"
                             aria-label="Toggle Sidebar"
                         >
-                            <i data-lucide="panel-left" class="h-5 w-5"></i>
+                            <i data-lucide="panel-left" class="h-4 w-4"></i>
                         </button>
                     </div>
 
-                    <div class="px-4 pb-4" x-show="sidebarOpen" x-transition.opacity.duration.200ms>
+                    <div class="px-3 pb-3" x-show="sidebarOpen" x-transition.opacity.duration.200ms>
                         <div class="relative">
-                            <i data-lucide="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60"></i>
+                            <i data-lucide="search" class="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/60"></i>
                             <input
                                 type="text"
                                 placeholder="Cari menu..."
-                                class="w-full rounded-xl border border-white/20 bg-white/12 py-2 pl-9 pr-3 text-sm text-white placeholder:text-white/55 focus:border-white/30 focus:outline-none focus:ring-2 focus:ring-white/20"
+                                class="w-full rounded-lg border border-white/20 bg-white/12 py-1.5 pl-8 pr-3 text-[12px] text-white placeholder:text-white/55 focus:border-white/30 focus:outline-none focus:ring-2 focus:ring-white/20"
                             >
                         </div>
                     </div>
                 </div>
 
-                <div class="no-scrollbar flex-1 overflow-y-auto px-3 py-4">
-                    <nav class="space-y-1 text-sm">
+                <div class="no-scrollbar flex-1 overflow-y-auto px-2 py-3">
+                    <nav class="space-y-1 text-[13px]">
                         @foreach ($pkmMenus as $menu)
                             <a
                                 href="{{ route($menu['route']) }}"
-                                class="group flex items-center gap-3 rounded-xl px-3 py-2.5 transition {{ request()->routeIs($menu['route']) ? 'bg-white text-[#c7612c] ring-1 ring-white/45' : 'text-white/95 hover:bg-white/12' }}"
+                                class="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ request()->routeIs($menu['route']) ? 'bg-white text-[#c7612c] ring-1 ring-white/45' : 'text-white/95 hover:bg-white/12' }}"
                             >
-                                <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl transition {{ request()->routeIs($menu['route']) ? 'bg-[#fde9db] text-[#c7612c]' : 'bg-white/12 text-white/90 group-hover:bg-white/16' }}">
-                                    <i data-lucide="{{ $menu['icon'] }}" class="h-5 w-5"></i>
+                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg transition {{ request()->routeIs($menu['route']) ? 'bg-[#fde9db] text-[#c7612c]' : 'bg-white/12 text-white/90 group-hover:bg-white/16' }}">
+                                    <i data-lucide="{{ $menu['icon'] }}" class="h-4 w-4"></i>
                                 </span>
                                 <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="font-medium">{{ $menu['label'] }}</span>
                             </a>
@@ -113,38 +113,38 @@
                     </nav>
                 </div>
 
-                <div class="border-t border-white/12 p-3">
-                    <div class="flex items-center gap-2 rounded-xl px-3 py-2 text-xs text-white/70">
-                        <i data-lucide="sparkles" class="h-4 w-4"></i>
-                        <span x-show="sidebarOpen" x-transition.opacity.duration.200ms>Vendor � PKM</span>
+                <div class="border-t border-white/12 p-2">
+                    <div class="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[11px] text-white/70">
+                        <i data-lucide="sparkles" class="h-3.5 w-3.5"></i>
+                        <span x-show="sidebarOpen" x-transition.opacity.duration.200ms>Vendor - PKM</span>
                     </div>
                 </div>
             </aside>
 
-            <div class="min-h-screen transition-all duration-300" :class="sidebarOpen ? 'lg:pl-72' : 'lg:pl-20'">
+            <div class="min-h-screen transition-all duration-300" :class="sidebarOpen ? 'lg:pl-60' : 'lg:pl-16'">
                 <header class="sticky top-0 z-20 border-b border-[#cb6b33]/35 bg-[#de773b]">
-                    <div class="flex items-center justify-between px-4 py-3 lg:px-6">
+                    <div class="flex items-center justify-between px-3 py-2.5 lg:px-4">
                         <div class="flex items-center gap-3">
                             <button
                                 @click="toggle()"
-                                class="inline-flex h-10 w-10 items-center justify-center rounded-xl text-white transition hover:bg-white/10 lg:hidden"
+                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-white transition hover:bg-white/10 lg:hidden"
                                 aria-label="Open Menu"
                             >
-                                <i data-lucide="menu" class="h-5 w-5"></i>
+                                <i data-lucide="menu" class="h-4 w-4"></i>
                             </button>
 
-                            <div class="flex items-center gap-2.5">
-                                <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-white p-1.5 shadow-sm">
+                            <div class="flex items-center gap-2">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-white p-1.5 shadow-sm">
                                     <img src="{{ $logoSig }}" alt="Logo SIG" class="max-h-full w-auto object-contain">
                                 </div>
-                                <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-[#ca6127] p-1.5 ring-1 ring-white/12">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#ca6127] p-1.5 ring-1 ring-white/12">
                                     <img src="{{ $logoSt }}" alt="Logo ST2" class="max-h-full w-auto object-contain">
                                 </div>
                             </div>
 
                             <div class="hidden flex-col leading-tight text-white md:flex">
-                                <span class="font-extrabold tracking-tight">Vendor Workshop Section</span>
-                                <span class="mt-0.5 text-xs text-white/80">Halaman Dashboard Vendor</span>
+                                <span class="text-[14px] font-extrabold tracking-tight">Vendor Workshop Section</span>
+                                <span class="mt-0.5 text-[10px] text-white/80">Dashboard Vendor</span>
                             </div>
                         </div>
 
@@ -152,16 +152,16 @@
                             <div class="relative" @click.outside="profileOpen = false">
                                 <button
                                     @click="profileOpen = !profileOpen"
-                                    class="inline-flex items-center gap-3 rounded-xl bg-white/96 px-3 py-2 text-[#c7612c] shadow-sm transition hover:bg-[#fff7f2]"
+                                    class="inline-flex items-center gap-2.5 rounded-lg bg-white/96 px-2.5 py-1.5 text-[#c7612c] shadow-sm transition hover:bg-[#fff7f2]"
                                 >
-                                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#fde9db] text-sm font-bold tracking-wide text-[#c7612c]">
+                                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#fde9db] text-[12px] font-bold tracking-wide text-[#c7612c]">
                                         {{ $userInitials }}
                                     </span>
                                     <span class="hidden min-w-0 text-left sm:block">
-                                        <span class="block truncate text-sm font-semibold">{{ $user?->name ?? 'Vendor' }}</span>
-                                        <span class="block text-xs text-[#d88858]">{{ strtoupper($user?->role ?? 'pkm') }}</span>
+                                        <span class="block truncate text-[12px] font-semibold">{{ $user?->name ?? 'Vendor' }}</span>
+                                        <span class="block text-[10px] text-[#d88858]">{{ strtoupper($user?->role ?? 'pkm') }}</span>
                                     </span>
-                                    <i data-lucide="chevron-down" class="h-4 w-4 text-[#dd9b72]"></i>
+                                    <i data-lucide="chevron-down" class="h-3.5 w-3.5 text-[#dd9b72]"></i>
                                 </button>
 
                                 <div
@@ -191,8 +191,8 @@
                     </div>
                 </header>
 
-                <main class="p-4 lg:p-6">
-                    <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:p-6">
+                <main class="p-3 lg:p-4">
+                    <div class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:p-4">
                         {{ $slot }}
                     </div>
                 </main>

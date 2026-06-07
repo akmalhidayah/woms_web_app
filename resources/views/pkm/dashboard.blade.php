@@ -172,32 +172,29 @@
     ];
 @endphp
 
-<div class="space-y-5">
-    <section class="rounded-[1.7rem] border border-[#eadfd2] bg-white px-5 py-4 shadow-sm">
+<div class="space-y-4">
+    <section class="rounded-[1.2rem] border border-[#eadfd2] bg-white px-4 py-3 shadow-sm">
         <div class="min-w-0">
-            <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-[#b86c43]">Dashboard PKM</p>
-            <h1 class="mt-2 text-[1.75rem] font-black leading-none tracking-tight text-slate-900">Selamat Datang, Admin PKM</h1>
+            <h1 class="text-[1.05rem] font-black leading-none tracking-tight text-slate-900">Dashboard PKM</h1>
         </div>
     </section>
 
-    <section class="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+    <section class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         @foreach ($topCards as $card)
-            <article class="rounded-[1.35rem] border p-3.5 shadow-sm {{ $card['tone'] }}">
-                <div class="flex items-start justify-between gap-3">
+            <article class="rounded-[1rem] border px-3 py-2.5 shadow-sm {{ $card['tone'] }}">
+                <div class="flex items-center justify-between gap-3">
                     <div class="min-w-0">
-                        <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{{ $card['label'] }}</div>
-                        <div class="mt-2 text-[26px] font-black leading-none {{ $card['accent'] }}">{{ $card['value'] }}</div>
-                        <div class="mt-2 text-[11px] leading-5 text-slate-700">{{ $card['description'] }}</div>
-                        <div class="mt-3 text-[10px] font-medium text-slate-500">{{ $card['meta'] }}</div>
+                        <div class="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">{{ $card['label'] }}</div>
+                        <div class="mt-1 text-[21px] font-black leading-none {{ $card['accent'] }}">{{ $card['value'] }}</div>
                     </div>
 
-                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-2xl {{ $card['icon_tone'] }}">
-                        <i data-lucide="{{ $card['icon'] }}" class="h-4.5 w-4.5"></i>
+                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl {{ $card['icon_tone'] }}">
+                        <i data-lucide="{{ $card['icon'] }}" class="h-3.5 w-3.5"></i>
                     </span>
                 </div>
 
                 @if ($card['label'] === 'Total Progress')
-                    <div class="mt-3 h-2 overflow-hidden rounded-full bg-white/90">
+                    <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-white/90">
                         <div class="h-full rounded-full bg-[#6f59d9]" style="width: {{ max(0, min(100, $totalProgress)) }}%"></div>
                     </div>
                 @endif
@@ -208,22 +205,20 @@
     <section class="space-y-3">
         <div class="flex items-center justify-between gap-3">
             <div>
-                <h2 class="text-[18px] font-black text-slate-900">Prioritas Hari Ini</h2>
-                <p class="mt-1 text-[12px] text-slate-500">Fokus cepat untuk pekerjaan yang perlu perhatian segera.</p>
+                <h2 class="text-[14px] font-black text-slate-900">Prioritas Hari Ini</h2>
             </div>
             <a href="{{ route('pkm.jobwaiting') }}" class="text-[12px] font-bold text-[#4c79dd] hover:text-[#395fb0]">Lihat Semua</a>
         </div>
 
-        <div class="grid gap-2.5 lg:grid-cols-3">
+        <div class="grid gap-2 lg:grid-cols-3">
             @foreach ($priorityCards as $priority)
-                <article class="rounded-[1.2rem] border px-3.5 py-3 shadow-sm {{ $priority['tone'] }}">
-                    <div class="flex items-center gap-3">
-                        <span class="inline-flex h-9 w-9 items-center justify-center rounded-2xl {{ $priority['icon_tone'] }}">
-                            <i data-lucide="{{ $priority['icon'] }}" class="h-4 w-4"></i>
+                <article class="rounded-[1rem] border px-3 py-2.5 shadow-sm {{ $priority['tone'] }}">
+                    <div class="flex items-center gap-2.5">
+                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl {{ $priority['icon_tone'] }}">
+                            <i data-lucide="{{ $priority['icon'] }}" class="h-3.5 w-3.5"></i>
                         </span>
                         <div class="min-w-0">
-                            <div class="text-[12px] font-bold text-slate-900">{{ $priority['title'] }}</div>
-                            <div class="mt-1 text-[11px] text-slate-600">{{ $priority['subtitle'] }}</div>
+                            <div class="text-[11px] font-bold text-slate-900">{{ $priority['title'] }}</div>
                         </div>
                     </div>
                 </article>
@@ -231,19 +226,18 @@
         </div>
     </section>
 
-    <section class="grid gap-2.5 xl:grid-cols-[1.4fr_1fr]">
-        <article class="overflow-hidden rounded-[1.55rem] border border-slate-200 bg-white shadow-sm">
-            <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3.5">
+    <section class="grid gap-2 xl:grid-cols-[1.4fr_1fr]">
+        <article class="overflow-hidden rounded-[1.2rem] border border-slate-200 bg-white shadow-sm">
+            <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-3 py-2.5">
                 <div>
-                    <h2 class="text-[14px] font-black text-slate-900">Progress 7 Data Terakhir</h2>
-                    <p class="mt-1 text-[11px] text-slate-500">Gambaran cepat progres order terbaru yang sedang dipantau.</p>
+                    <h2 class="text-[13px] font-black text-slate-900">Progress Terakhir</h2>
                 </div>
-                <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-600">7 data</div>
+                <div class="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold text-slate-600">7 data</div>
             </div>
 
-            <div class="p-3.5">
+            <div class="p-3">
                 @if ($chartPoints->isNotEmpty())
-                    <svg viewBox="0 0 {{ $chartWidth }} {{ $chartHeight }}" class="h-[228px] w-full">
+                    <svg viewBox="0 0 {{ $chartWidth }} {{ $chartHeight }}" class="h-[170px] w-full">
                         @for ($i = 0; $i <= 4; $i++)
                             @php
                                 $y = $chartPaddingY + ($plotHeight / 4) * $i;
@@ -261,44 +255,43 @@
                         @endforeach
                     </svg>
                 @else
-                    <div class="flex h-[228px] items-center justify-center rounded-[1.4rem] border border-dashed border-slate-200 bg-slate-50 text-[12px] text-slate-500">
-                        Belum ada data progress untuk divisualisasikan.
+                    <div class="flex h-[170px] items-center justify-center rounded-[1rem] border border-dashed border-slate-200 bg-slate-50 text-[11px] text-slate-500">
+                        Belum ada data.
                     </div>
                 @endif
             </div>
         </article>
 
-        <article class="overflow-hidden rounded-[1.55rem] border border-slate-200 bg-white shadow-sm">
-            <div class="border-b border-slate-200 px-4 py-3.5">
-                <h2 class="text-[14px] font-black text-slate-900">Status Pekerjaan</h2>
-                <p class="mt-1 text-[11px] text-slate-500">Distribusi status dari seluruh pekerjaan PKM saat ini.</p>
+        <article class="overflow-hidden rounded-[1.2rem] border border-slate-200 bg-white shadow-sm">
+            <div class="border-b border-slate-200 px-3 py-2.5">
+                <h2 class="text-[13px] font-black text-slate-900">Status Pekerjaan</h2>
             </div>
 
-            <div class="grid gap-3 p-3.5 lg:grid-cols-[150px_1fr] lg:items-center">
+            <div class="grid gap-3 p-3 lg:grid-cols-[120px_1fr] lg:items-center">
                 <div class="flex justify-center">
-                    <div class="relative h-32 w-32 rounded-full" style="{{ $donutStyle }}">
-                        <div class="absolute inset-[16px] flex flex-col items-center justify-center rounded-full bg-white text-center">
-                            <div class="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Total</div>
-                            <div class="mt-1 text-[22px] font-black text-slate-900">{{ $totalPekerjaan }}</div>
+                    <div class="relative h-24 w-24 rounded-full" style="{{ $donutStyle }}">
+                        <div class="absolute inset-[13px] flex flex-col items-center justify-center rounded-full bg-white text-center">
+                            <div class="text-[8px] font-semibold uppercase tracking-[0.14em] text-slate-400">Total</div>
+                            <div class="mt-0.5 text-[18px] font-black text-slate-900">{{ $totalPekerjaan }}</div>
                         </div>
                     </div>
                 </div>
 
-                <div class="space-y-3">
+                <div class="space-y-2">
                     @forelse ($statusBreakdown as $item)
-                        <div class="flex items-center justify-between gap-3 rounded-[1rem] border border-slate-100 bg-slate-50 px-3 py-2">
-                            <div class="flex items-center gap-3">
-                                <span class="inline-flex h-3 w-3 rounded-full {{ $item['class'] }}"></span>
-                                <span class="text-[11px] font-medium text-slate-700">{{ $item['label'] }}</span>
+                        <div class="flex items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5">
+                            <div class="flex items-center gap-2">
+                                <span class="inline-flex h-2.5 w-2.5 rounded-full {{ $item['class'] }}"></span>
+                                <span class="text-[10px] font-medium text-slate-700">{{ $item['label'] }}</span>
                             </div>
                             <div class="text-right">
-                                <div class="text-[11px] font-bold text-slate-900">{{ $item['count'] }}</div>
-                                <div class="text-[10px] text-slate-500">{{ $item['percentage'] }}%</div>
+                                <div class="text-[10px] font-bold text-slate-900">{{ $item['count'] }}</div>
+                                <div class="text-[9px] text-slate-500">{{ $item['percentage'] }}%</div>
                             </div>
                         </div>
                     @empty
-                        <div class="rounded-[1.2rem] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-[12px] text-slate-500">
-                            Belum ada status pekerjaan.
+                        <div class="rounded-[1rem] border border-dashed border-slate-200 bg-slate-50 px-3 py-6 text-center text-[11px] text-slate-500">
+                            Belum ada status.
                         </div>
                     @endforelse
                 </div>
@@ -306,72 +299,69 @@
         </article>
     </section>
 
-    <section class="grid gap-2.5 xl:grid-cols-[1.45fr_1fr]">
-        <article class="overflow-hidden rounded-[1.55rem] border border-slate-200 bg-white shadow-sm">
-            <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3.5">
+    <section class="grid gap-2 xl:grid-cols-[1.45fr_1fr]">
+        <article class="overflow-hidden rounded-[1.2rem] border border-slate-200 bg-white shadow-sm">
+            <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-3 py-2.5">
                 <div>
-                    <h2 class="text-[14px] font-black text-slate-900">Daftar Pekerjaan</h2>
-                    <p class="mt-1 text-[11px] text-slate-500">Ringkasan dari tiga menu utama PKM dengan status terkininya.</p>
+                    <h2 class="text-[13px] font-black text-slate-900">Daftar Pekerjaan</h2>
                 </div>
                 <a href="{{ route('pkm.jobwaiting') }}" class="text-[12px] font-bold text-[#4c79dd] hover:text-[#395fb0]">Lihat Semua</a>
             </div>
 
-            <div class="space-y-2.5 p-3.5">
+            <div class="space-y-2 p-3">
                 @forelse ($jobHighlights as $job)
                     @php
                         $tone = $statusToneClasses[$job['status_key']] ?? $statusToneClasses['menunggu'];
                     @endphp
-                    <div class="rounded-[1.15rem] border border-slate-200 bg-[#fbfcfd] px-3.5 py-3">
-                        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div class="rounded-[1rem] border border-slate-200 bg-[#fbfcfd] px-3 py-2.5">
+                        <div class="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
                             <div class="min-w-0 flex-1">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <div class="text-[13px] font-bold text-slate-900">{{ $job['label'] }}</div>
-                                    <span class="inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold {{ $tone['badge'] }}">{{ $job['status_label'] }}</span>
+                                    <div class="text-[12px] font-bold text-slate-900">{{ $job['label'] }}</div>
+                                    <span class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold {{ $tone['badge'] }}">{{ $job['status_label'] }}</span>
                                 </div>
 
-                                <div class="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+                                <div class="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] text-slate-600">
                                     <span class="inline-flex items-center gap-1.5">
-                                        <i data-lucide="calendar" class="h-3.5 w-3.5"></i>{{ $job['date'] }}
+                                        <i data-lucide="calendar" class="h-3 w-3"></i>{{ $job['date'] }}
                                     </span>
                                     <span class="text-slate-300">|</span>
                                     <span>{{ $job['status_text'] }}</span>
                                 </div>
-
-                                <div class="mt-1 text-[10px] font-medium text-slate-500">Sumber: {{ $job['source_menu'] }}</div>
                             </div>
 
-                            <div class="flex min-w-[200px] items-center gap-3">
+                            <div class="flex min-w-[180px] items-center gap-2.5">
                                 <div class="flex-1">
-                                    <div class="mb-1 flex items-center justify-between text-[11px]">
+                                    <div class="mb-1 flex items-center justify-between text-[10px]">
                                         <span class="text-slate-500">Progress</span>
                                         <span class="font-bold text-slate-700">{{ $job['progress'] }}%</span>
                                     </div>
-                                    <div class="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                                    <div class="h-2 overflow-hidden rounded-full bg-slate-100">
                                         <div class="h-full rounded-full {{ $tone['bar'] }}" style="width: {{ max(0, min(100, $job['progress'])) }}%"></div>
                                     </div>
                                 </div>
 
-                                <a href="{{ $job['action_url'] }}" class="inline-flex items-center justify-center rounded-xl border px-4 py-1.5 text-[11px] font-bold transition {{ $tone['button'] }}">
+                                <a href="{{ $job['action_url'] }}" class="inline-flex items-center justify-center rounded-lg border px-3 py-1.5 text-[10px] font-bold transition {{ $tone['button'] }}">
                                     {{ $job['action_label'] }}
                                 </a>
                             </div>
                         </div>
                     </div>
                 @empty
-                    <div class="rounded-[1.35rem] border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-[12px] text-slate-500">
-                        Belum ada pekerjaan untuk ditampilkan.
+                    <div class="rounded-[1rem] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-[11px] text-slate-500">
+                        Belum ada pekerjaan.
                     </div>
                 @endforelse
             </div>
         </article>
 
-        <article class="overflow-hidden rounded-[1.55rem] border border-slate-200 bg-white shadow-sm">
-            <div class="border-b border-slate-200 px-4 py-3.5">
-                <h2 class="text-[14px] font-black text-slate-900">Kalender Target</h2>
-                <p class="mt-1 text-[11px] text-slate-500">{{ $calendarMonth->translatedFormat('F Y') }}</p>
+        <article class="overflow-hidden rounded-[1.2rem] border border-slate-200 bg-white shadow-sm">
+            <div class="border-b border-slate-200 px-3 py-2.5">
+                <h2 class="text-[13px] font-black text-slate-900">Kalender Target</h2>
+                <p class="mt-0.5 text-[10px] text-slate-500">{{ $calendarMonth->translatedFormat('F Y') }}</p>
             </div>
 
-            <div class="p-3.5">
+            <div class="p-3">
                 <table class="min-w-full border-separate border-spacing-2">
                     <thead>
                         <tr class="text-[10px] text-slate-500">
@@ -404,7 +394,7 @@
                                         }
                                     @endphp
                                     <td class="align-top">
-                                        <div class="h-[78px] rounded-2xl border px-2 py-2 {{ $inMonth ? 'border-slate-200 bg-white' : 'border-transparent bg-slate-50' }} {{ $isTodayDate ? 'ring-2 ring-[#ead7c6]' : '' }}">
+                                        <div class="h-[58px] rounded-xl border px-2 py-1.5 {{ $inMonth ? 'border-slate-200 bg-white' : 'border-transparent bg-slate-50' }} {{ $isTodayDate ? 'ring-2 ring-[#ead7c6]' : '' }}">
                                             <div class="flex items-center justify-between">
                                                 <span class="text-[10px] font-bold {{ $inMonth ? 'text-slate-800' : 'text-slate-300' }}">{{ $inMonth ? $cursor->day : '' }}</span>
                                                 @if ($targetForDate)

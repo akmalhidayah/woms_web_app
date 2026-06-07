@@ -128,36 +128,31 @@
 
                                 <td class="px-4 py-3">
                                     <div class="text-[9px] font-semibold leading-5 text-slate-800">{{ $notification['nama_pekerjaan'] }}</div>
-                                    <div class="mt-2.5 flex items-center gap-1.5">
-                                        @foreach ([
-                                            'abnormalitas' => ['label' => 'Abnormalitas', 'icon' => 'triangle-alert', 'class' => 'border-rose-200 bg-rose-50 text-rose-700'],
-                                            'gambar_teknik' => ['label' => 'Gambar Teknik', 'icon' => 'image', 'class' => 'border-blue-200 bg-blue-50 text-blue-700'],
-                                            'scope_of_work' => ['label' => 'Scope of Work', 'icon' => 'clipboard-list', 'class' => 'border-emerald-200 bg-emerald-50 text-emerald-700'],
-                                            'hpp' => ['label' => 'HPP', 'icon' => 'file-text', 'class' => 'border-indigo-200 bg-indigo-50 text-indigo-700'],
-                                        ] as $key => $meta)
-                                            @php
-                                                $document = $notification['dokumen'][$key];
-                                            @endphp
+                                    <div class="mt-2.5">
+                                        @php
+                                            $mergedDocument = $notification['dokumen']['hpp_abnormalitas'];
+                                        @endphp
 
-                                            @if ($document['available'] && $document['url'])
-                                                <a
-                                                    href="{{ $document['url'] }}"
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    title="{{ $meta['label'] }}"
-                                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg border transition {{ $meta['class'] }}"
-                                                >
-                                                    <i data-lucide="{{ $meta['icon'] }}" class="h-[12px] w-[12px]"></i>
-                                                </a>
-                                            @else
-                                                <span
-                                                    title="{{ $meta['label'] }}"
-                                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-300"
-                                                >
-                                                    <i data-lucide="{{ $meta['icon'] }}" class="h-[12px] w-[12px]"></i>
-                                                </span>
-                                            @endif
-                                        @endforeach
+                                        @if ($mergedDocument['available'] && $mergedDocument['url'])
+                                            <a
+                                                href="{{ $mergedDocument['url'] }}"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                class="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-[9px] font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                                                title="Buka PDF gabungan HPP dan Abnormalitas"
+                                            >
+                                                <i data-lucide="files" class="h-[12px] w-[12px]"></i>
+                                                HPP + Abnormalitas
+                                            </a>
+                                        @else
+                                            <span
+                                                class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[9px] font-semibold text-slate-400"
+                                                title="Dokumen Abnormalitas belum tersedia"
+                                            >
+                                                <i data-lucide="files" class="h-[12px] w-[12px]"></i>
+                                                HPP + Abnormalitas
+                                            </span>
+                                        @endif
                                     </div>
                                 </td>
 

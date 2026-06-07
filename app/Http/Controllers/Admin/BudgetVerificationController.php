@@ -9,16 +9,26 @@ use App\Models\BudgetVerification;
 use App\Models\Hpp;
 use App\Models\Order;
 use App\Models\OrderDocument;
+use App\Services\Orders\OrderDocumentService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
+use setasign\Fpdi\Fpdi;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class BudgetVerificationController extends Controller
 {
+    public function __construct(
+        private readonly OrderDocumentService $documentService,
+    ) {
+    }
+
     public function index(Request $request): View
     {
         try {
@@ -137,6 +147,54 @@ class BudgetVerificationController extends Controller
         }
     }
 
+    public function mergedDocument(Hpp $hpp): Response
+    {
+        try {
+            $hpp->loadMissing([
+                'order.documents',
+                'outlineAgreement.unitWork.department',
+                'creator',
+                'signatures.signer:id,name,inisial',
+            ]);
+
+            $abnormalitas = $this->findDocument($hpp->order, OrderDocumentType::Abnormalitas->value);
+
+            abort_unless($abnormalitas, Response::HTTP_NOT_FOUND, 'Dokumen Abnormalitas belum tersedia.');
+
+            $abnormalitasPath = $this->documentService->absolutePath($abnormalitas);
+            $abnormalitasMime = (string) $this->documentService->mimeType($abnormalitas);
+
+            abort_unless($abnormalitasPath && is_file($abnormalitasPath), Response::HTTP_NOT_FOUND, 'File Abnormalitas tidak ditemukan di storage.');
+            abort_unless(
+                str_contains(strtolower($abnormalitasMime), 'pdf') || strtolower(pathinfo($abnormalitasPath, PATHINFO_EXTENSION)) === 'pdf',
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+                'Dokumen Abnormalitas harus PDF agar bisa digabung dengan HPP.'
+            );
+
+            $mergedPdf = $this->mergePdfOutputs([
+                $this->hppPdfOutput($hpp),
+                file_get_contents($abnormalitasPath) ?: '',
+            ]);
+
+            abort_if($mergedPdf === '', Response::HTTP_INTERNAL_SERVER_ERROR, 'PDF gabungan tidak berhasil dibuat.');
+
+            return response($mergedPdf, Response::HTTP_OK, $this->pdfInlineHeaders('hpp-abnormalitas-'.$hpp->nomor_order.'.pdf'));
+        } catch (Throwable $exception) {
+            $statusCode = $this->statusCodeFromThrowable($exception);
+
+            Log::error('Failed to merge HPP and abnormalitas PDF.', [
+                'status_code' => $statusCode,
+                'hpp_id' => $hpp->id,
+                'nomor_order' => $hpp->nomor_order,
+                'error' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+            ]);
+
+            abort($statusCode, $exception->getMessage());
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -186,6 +244,12 @@ class BudgetVerificationController extends Controller
                     'available' => true,
                     'url' => route('admin.hpp.pdf', ['hpp' => $hpp->nomor_order]),
                 ],
+                'hpp_abnormalitas' => [
+                    'available' => $abnormalitas !== null,
+                    'url' => $abnormalitas
+                        ? route('admin.budget-verification.merged-document', ['hpp' => $hpp->nomor_order])
+                        : null,
+                ],
             ],
         ];
     }
@@ -208,5 +272,108 @@ class BudgetVerificationController extends Controller
         $normalized = trim((string) $value);
 
         return $normalized !== '' ? $normalized : null;
+    }
+
+    private function hppPdfOutput(Hpp $hpp): string
+    {
+        $finalDocumentSignature = $hpp->finalSignedDocumentSignature();
+
+        if ($finalDocumentSignature?->hasUploadedSignedDocument()) {
+            abort_unless(
+                Storage::disk('public')->exists($finalDocumentSignature->signed_document_path),
+                Response::HTTP_NOT_FOUND,
+                'File HPP final tidak ditemukan di storage.'
+            );
+
+            return Storage::disk('public')->get($finalDocumentSignature->signed_document_path) ?: '';
+        }
+
+        return Pdf::loadView('admin.hpp.hpppdf', [
+            'hpp' => $hpp,
+        ])->setPaper('a4', 'landscape')->output();
+    }
+
+    /**
+     * @param  array<int, string>  $pdfOutputs
+     */
+    private function mergePdfOutputs(array $pdfOutputs): string
+    {
+        $pdfOutputs = array_values(array_filter(
+            $pdfOutputs,
+            static fn ($pdfOutput): bool => is_string($pdfOutput) && trim($pdfOutput) !== ''
+        ));
+
+        if ($pdfOutputs === []) {
+            return '';
+        }
+
+        if (! class_exists(Fpdi::class)) {
+            Log::warning('FPDI package is unavailable. Returning the first PDF output without merge.', [
+                'controller' => static::class,
+                'pdf_count' => count($pdfOutputs),
+            ]);
+
+            return $pdfOutputs[0];
+        }
+
+        $fpdi = new Fpdi();
+        $temporaryFiles = [];
+
+        try {
+            foreach ($pdfOutputs as $pdfOutput) {
+                $temporaryFile = tempnam(sys_get_temp_dir(), 'woms-budget-pdf-');
+
+                if ($temporaryFile === false) {
+                    continue;
+                }
+
+                file_put_contents($temporaryFile, $pdfOutput);
+                $temporaryFiles[] = $temporaryFile;
+
+                $pageCount = $fpdi->setSourceFile($temporaryFile);
+
+                for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
+                    $templateId = $fpdi->importPage($pageNumber);
+                    $templateSize = $fpdi->getTemplateSize($templateId);
+                    $orientation = $templateSize['width'] > $templateSize['height'] ? 'L' : 'P';
+
+                    $fpdi->AddPage($orientation, [$templateSize['width'], $templateSize['height']]);
+                    $fpdi->useTemplate($templateId);
+                }
+            }
+
+            return $fpdi->Output('S');
+        } finally {
+            foreach ($temporaryFiles as $temporaryFile) {
+                if (is_string($temporaryFile) && is_file($temporaryFile)) {
+                    @unlink($temporaryFile);
+                }
+            }
+        }
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function pdfInlineHeaders(string $filename): array
+    {
+        return [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => sprintf('inline; filename="%s"', $filename),
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ];
+    }
+
+    private function statusCodeFromThrowable(Throwable $exception): int
+    {
+        if ($exception instanceof HttpExceptionInterface) {
+            return $exception->getStatusCode();
+        }
+
+        $code = (int) $exception->getCode();
+
+        return $code >= 400 && $code < 600 ? $code : Response::HTTP_INTERNAL_SERVER_ERROR;
     }
 }

@@ -65,6 +65,16 @@ class OrderDocumentService
         );
     }
 
+    public function absolutePath(OrderDocument $document): ?string
+    {
+        return $this->diskContaining($document->path_file)?->path($document->path_file);
+    }
+
+    public function mimeType(OrderDocument $document): ?string
+    {
+        return $this->diskContaining($document->path_file)?->mimeType($document->path_file);
+    }
+
     /**
      * Download an order document.
      */

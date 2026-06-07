@@ -126,6 +126,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('admin/verifikasi-anggaran', [BudgetVerificationController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:verifikasi_anggaran'])
         ->name('admin.budget-verification.index');
+    Route::get('admin/verifikasi-anggaran/{hpp:nomor_order}/dokumen-hpp-abnormalitas', [BudgetVerificationController::class, 'mergedDocument'])
+        ->middleware(['role:admin', 'admin_menu:verifikasi_anggaran'])
+        ->name('admin.budget-verification.merged-document');
     Route::patch('admin/verifikasi-anggaran/{hpp:nomor_order}', [BudgetVerificationController::class, 'update'])
         ->middleware(['role:admin', 'admin_menu:verifikasi_anggaran'])
         ->name('admin.budget-verification.update');

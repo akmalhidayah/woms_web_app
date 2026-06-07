@@ -43,7 +43,7 @@ class BudgetVerificationController extends Controller
                 ->with([
                     'budgetVerification:id,order_id,hpp_id,status_anggaran,kategori_item,kategori_biaya,cost_element,catatan',
                     'purchaseOrder:id,order_id,hpp_id,purchase_order_number',
-                    'order:id,nomor_order,nama_pekerjaan,unit_kerja,seksi',
+                    'order:id,nomor_order,notifikasi,nama_pekerjaan,unit_kerja,seksi',
                     'order.documents:id,order_id,jenis_dokumen,nama_file_asli,path_file',
                     'order.scopeOfWork:id,order_id',
                 ])
@@ -211,6 +211,7 @@ class BudgetVerificationController extends Controller
 
         return [
             'nomor_order' => $hpp->nomor_order,
+            'notifikasi' => $order?->notifikasi,
             'nama_pekerjaan' => $hpp->nama_pekerjaan,
             'unit' => $hpp->unit_kerja,
             'seksi' => $order?->seksi,

@@ -76,16 +76,16 @@
                 <table class="min-w-full table-fixed divide-y divide-slate-200 text-[10px] text-slate-700">
                     <colgroup>
                         <col class="w-[12%]">
-                        <col class="w-[18%]">
-                        <col class="w-[17%]">
+                        <col class="w-[22%]">
+                        <col class="w-[15%]">
                         <col class="w-[17%]">
                         <col class="w-[12%]">
-                        <col class="w-[24%]">
+                        <col class="w-[22%]">
                     </colgroup>
                     <thead class="bg-slate-200/80 text-slate-700">
                         <tr>
                             <th class="px-4 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-600">Nomor Order</th>
-                            <th class="px-4 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-600">Dokumen</th>
+                            <th class="px-4 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-600">Detail Pekerjaan</th>
                             <th class="px-4 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-600">Anggaran</th>
                             <th class="px-4 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-600">Kategori</th>
                             <th class="px-4 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-600">Cost Element</th>
@@ -113,46 +113,20 @@
                                         <input type="hidden" name="_filter_page" value="{{ $notifications->currentPage() }}">
                                     </form>
 
-                                    <div class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[13px] font-bold tracking-[0.04em] text-slate-900 shadow-sm">
+                                    <div class="text-[12px] font-bold tracking-[0.01em] text-slate-900">
                                         {{ $notification['nomor_order'] }}
                                     </div>
-                                    <div class="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-left text-[8px] text-slate-600 shadow-sm">
-                                        <div>
-                                            <span class="block leading-tight text-blue-700">{{ $notification['seksi'] ?: '-' }}</span>
-                                        </div>
-                                        <div class="mt-1 border-t border-slate-200 pt-1">
-                                            <span class="block leading-tight">{{ $notification['unit'] }}</span>
-                                        </div>
+                                    <div class="mt-0.5 text-[9px] font-medium text-blue-600">
+                                        Notif: {{ $notification['notifikasi'] ?: '-' }}
                                     </div>
                                 </td>
 
                                 <td class="px-4 py-3">
-                                    <div class="text-[9px] font-semibold leading-5 text-slate-800">{{ $notification['nama_pekerjaan'] }}</div>
-                                    <div class="mt-2.5">
-                                        @php
-                                            $mergedDocument = $notification['dokumen']['hpp_abnormalitas'];
-                                        @endphp
-
-                                        @if ($mergedDocument['available'] && $mergedDocument['url'])
-                                            <a
-                                                href="{{ $mergedDocument['url'] }}"
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                class="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-[9px] font-semibold text-indigo-700 transition hover:bg-indigo-100"
-                                                title="Buka PDF gabungan HPP dan Abnormalitas"
-                                            >
-                                                <i data-lucide="files" class="h-[12px] w-[12px]"></i>
-                                                HPP + Abnormalitas
-                                            </a>
-                                        @else
-                                            <span
-                                                class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[9px] font-semibold text-slate-400"
-                                                title="Dokumen Abnormalitas belum tersedia"
-                                            >
-                                                <i data-lucide="files" class="h-[12px] w-[12px]"></i>
-                                                HPP + Abnormalitas
-                                            </span>
-                                        @endif
+                                    <div class="text-[10px] font-semibold leading-4 text-slate-800">{{ $notification['nama_pekerjaan'] }}</div>
+                                    <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9px]">
+                                        <span class="text-slate-500">Unit: <strong class="font-semibold text-slate-700">{{ $notification['unit'] }}</strong></span>
+                                        <span class="text-slate-300">|</span>
+                                        <span class="text-blue-500">Seksi: <strong class="font-semibold text-blue-700">{{ $notification['seksi'] ?: '-' }}</strong></span>
                                     </div>
                                 </td>
 
@@ -202,6 +176,9 @@
                                 </td>
 
                                 <td class="px-4 py-3">
+                                    @php
+                                        $mergedDocument = $notification['dokumen']['hpp_abnormalitas'];
+                                    @endphp
                                     <div class="space-y-2">
                                         <textarea
                                             name="catatan"
@@ -210,7 +187,27 @@
                                             class="{{ $inputBaseClasses }} min-h-[78px] resize-none leading-4"
                                             placeholder="Tulis catatan verifikasi anggaran..."
                                         >{{ $notification['catatan'] }}</textarea>
-                                        <div class="flex justify-end">
+                                        <div class="flex justify-end gap-1.5">
+                                            @if ($mergedDocument['available'] && $mergedDocument['url'])
+                                                <a
+                                                    href="{{ $mergedDocument['url'] }}"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 transition hover:bg-indigo-100"
+                                                    title="PDF HPP + Abnormalitas"
+                                                    aria-label="PDF HPP + Abnormalitas"
+                                                >
+                                                    <i data-lucide="file-text" class="h-[12px] w-[12px]"></i>
+                                                </a>
+                                            @else
+                                                <span
+                                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-400"
+                                                    title="Dokumen Abnormalitas belum tersedia"
+                                                    aria-label="Dokumen Abnormalitas belum tersedia"
+                                                >
+                                                    <i data-lucide="file-x" class="h-[12px] w-[12px]"></i>
+                                                </span>
+                                            @endif
                                             <button type="submit" form="budget-verification-form-{{ $notification['nomor_order'] }}" class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[9px] font-semibold text-white transition hover:bg-emerald-700">
                                                 <i data-lucide="save" class="h-[11px] w-[11px]"></i>
                                                 Update

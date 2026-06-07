@@ -13,7 +13,7 @@
                         Order Admin
                     </span>
                     <div class="space-y-2">
-                        <h1 class="text-3xl font-bold tracking-tight">Edit {{ $order->nomor_order }}</h1>
+                        <h1 class="text-[1.3rem] font-bold tracking-tight">Edit {{ $order->nomor_order }}</h1>
                         <p class="max-w-2xl text-sm leading-7 text-blue-100">
                             Sesuaikan data pekerjaan, prioritas, atau target penyelesaian agar tetap sinkron dengan kondisi order terbaru.
                         </p>

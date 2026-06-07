@@ -11,15 +11,15 @@
         <div id="flash-error" data-message="{{ implode(' | ', $errors->all()) }}" class="hidden"></div>
     @endif
 
-    <div class="space-y-6">
-        <section class="rounded-[1.35rem] border border-blue-100 px-5 py-4 shadow-sm" style="background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 48%, #e6f1ff 100%);">
+    <div class="order-list-compact space-y-4">
+        <section class="order-list-hero rounded-[1.35rem] border border-blue-100 px-5 py-4 shadow-sm" style="background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 48%, #e6f1ff 100%);">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex items-center gap-4">
                     <span class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm ring-1 ring-blue-200">
                         <i data-lucide="factory" class="h-5 w-5"></i>
                     </span>
                     <div>
-                        <h1 class="text-[1.65rem] font-bold leading-none tracking-tight text-slate-900">Order Pekerjaan Bengkel</h1>
+                        <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Order Pekerjaan Bengkel</h1>
                         <p class="mt-1.5 text-[13px] text-slate-500">Order yang diarahkan ke bengkel dari status workshop dan workshop + jasa.</p>
                     </div>
                 </div>
@@ -35,7 +35,7 @@
             </div>
         </section>
 
-        <section class="overflow-hidden rounded-[1.5rem] border border-blue-900/20 bg-white shadow-sm">
+        <section class="order-list-panel overflow-hidden rounded-[1.5rem] border border-blue-900/20 bg-white shadow-sm">
             <div class="border-b border-slate-200 bg-white px-5 py-4">
                 @php
                     $reguToggleOptions = [
@@ -380,6 +380,12 @@
                                                             <button type="button" title="Salin link TTD {{ $activeQcRoleLabel }}" aria-label="Salin link TTD {{ $activeQcRoleLabel }}" class="copy-qc-approval inline-flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100" data-link="{{ $activeQcApprovalUrl }}" data-role-label="{{ $activeQcRoleLabel }}">
                                                                 <i data-lucide="copy" class="h-3 w-3"></i>
                                                             </button>
+                                                            <form method="POST" action="{{ route('admin.orders.workshop.quality-control.approval.resend', [$order, $qcReport]) }}">
+                                                                @csrf
+                                                                <button type="submit" title="Kirim ulang email approval QC" aria-label="Kirim ulang email approval QC" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-700 transition hover:bg-sky-100">
+                                                                    <i data-lucide="send" class="h-3 w-3"></i>
+                                                                </button>
+                                                            </form>
                                                         @elseif (
                                                             $qcWorkshopSignature?->status === \App\Models\QualityControlSignature::STATUS_MISSING
                                                             || $qcUserSignature?->status === \App\Models\QualityControlSignature::STATUS_MISSING

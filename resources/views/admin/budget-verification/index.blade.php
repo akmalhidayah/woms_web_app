@@ -16,8 +16,8 @@
         $inputBaseClasses = 'w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[9px] text-slate-700 shadow-sm focus:border-emerald-500 focus:outline-none';
     @endphp
 
-    <div class="space-y-4">
-        <section class="rounded-[1.35rem] border border-emerald-100 px-4 py-3 shadow-sm" style="background: linear-gradient(135deg, #effcf6 0%, #f8fffb 45%, #e6f8ef 100%);">
+    <div class="order-list-compact space-y-4">
+        <section class="order-list-hero rounded-[1.35rem] border border-emerald-100 px-4 py-3 shadow-sm" style="background: linear-gradient(135deg, #effcf6 0%, #f8fffb 45%, #e6f8ef 100%);">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex items-center gap-3">
                     <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-sm ring-1 ring-emerald-200">
@@ -31,7 +31,7 @@
             </div>
         </section>
 
-        <section class="overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-sm">
+        <section class="order-list-panel overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 px-4 py-3 overflow-x-auto">
                 <form method="GET" action="{{ route('admin.budget-verification.index') }}" class="flex min-w-[980px] items-center gap-2.5">
                     <input id="search" name="search" type="text" value="{{ $search }}" placeholder="Cari nomor order / cost element..." class="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-[10px] text-slate-700 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none">

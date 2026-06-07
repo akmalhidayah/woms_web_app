@@ -168,6 +168,19 @@ class LhppBast extends Model
         return $this->hasMany(LhppBastSignature::class)->orderBy('step_order');
     }
 
+    public function hasSignedApproval(): bool
+    {
+        return $this->signatures()
+            ->where('status', LhppBastSignature::STATUS_SIGNED)
+            ->exists();
+    }
+
+    public function isApprovalLocked(): bool
+    {
+        return $this->approval_status === self::APPROVAL_REJECTED
+            || $this->hasSignedApproval();
+    }
+
     public function activeSignature(): HasOne
     {
         return $this->hasOne(LhppBastSignature::class)

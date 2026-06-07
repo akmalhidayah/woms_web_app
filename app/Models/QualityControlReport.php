@@ -52,6 +52,13 @@ class QualityControlReport extends Model
         return $this->hasMany(QualityControlSignature::class)->orderBy('step_order');
     }
 
+    public function hasSignedApproval(): bool
+    {
+        return $this->signatures()
+            ->where('status', QualityControlSignature::STATUS_SIGNED)
+            ->exists();
+    }
+
     /**
      * @return array<string, string>
      */

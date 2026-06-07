@@ -100,7 +100,12 @@ class LhppBastSignature extends Model
             return null;
         }
 
-        return route('approval.bast.show', $this->token);
+        return $this->appUrl(route('approval.bast.show', $this->token, false));
+    }
+
+    private function appUrl(string $path): string
+    {
+        return rtrim((string) config('app.url'), '/').'/'.ltrim($path, '/');
     }
 
     public function hasUploadedSignedDocument(): bool

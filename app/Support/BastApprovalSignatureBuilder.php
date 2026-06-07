@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\LhppBast;
 use App\Models\LhppBastSignature;
+use App\Services\Approvals\ApprovalNotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -14,6 +15,7 @@ class BastApprovalSignatureBuilder
 
     public function __construct(
         private readonly BastApproverResolver $approverResolver,
+        private readonly ApprovalNotificationService $approvalNotificationService,
     ) {
     }
 
@@ -86,13 +88,13 @@ class BastApprovalSignatureBuilder
                 return null;
             }
 
-            $token = $this->issueToken($firstSignature);
+            $this->issueToken($firstSignature);
 
             $firstSignature->update([
                 'status' => LhppBastSignature::STATUS_PENDING,
             ]);
 
-            return route('approval.bast.show', $token);
+            return $firstSignature->fresh()->approvalUrl();
         });
     }
 
@@ -113,13 +115,13 @@ class BastApprovalSignatureBuilder
                 return null;
             }
 
-            $token = $this->issueToken($nextSignature);
+            $this->issueToken($nextSignature);
 
             $nextSignature->update([
                 'status' => LhppBastSignature::STATUS_PENDING,
             ]);
 
-            return route('approval.bast.show', $token);
+            return $nextSignature->fresh()->approvalUrl();
         });
     }
 
@@ -145,6 +147,8 @@ class BastApprovalSignatureBuilder
             'token_hash' => hash('sha256', $token),
             'token_expires_at' => now()->addDays(self::TOKEN_TTL_DAYS),
         ]);
+
+        $this->approvalNotificationService->sendBast($signature->fresh());
 
         return $token;
     }

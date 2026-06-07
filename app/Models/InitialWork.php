@@ -101,4 +101,11 @@ class InitialWork extends Model
     {
         return $this->hasMany(InitialWorkSignature::class)->orderBy('step_order');
     }
+
+    public function hasSignedApproval(): bool
+    {
+        return $this->signatures()
+            ->where('status', InitialWorkSignature::STATUS_SIGNED)
+            ->exists();
+    }
 }

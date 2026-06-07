@@ -3,8 +3,8 @@
         $lpjPplUploadHint = 'Maks. 10 MB • Format: PDF, DOC, DOCX';
     @endphp
 
-    <div class="space-y-4">
-        <section class="rounded-[1.25rem] border border-sky-100 px-4 py-3.5 shadow-sm" style="background: linear-gradient(135deg, #f2f9ff 0%, #fbfdff 48%, #ecf6ff 100%);">
+    <div class="order-list-compact lpj-compact space-y-4">
+        <section class="order-list-hero rounded-[1.25rem] border border-sky-100 px-4 py-3.5 shadow-sm" style="background: linear-gradient(135deg, #f2f9ff 0%, #fbfdff 48%, #ecf6ff 100%);">
             <div class="flex items-center gap-4">
                 <span class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-sky-600 shadow-sm ring-1 ring-sky-200">
                     <i data-lucide="folder-open" class="h-4 w-4"></i>
@@ -16,7 +16,7 @@
             </div>
         </section>
 
-        <section class="overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white shadow-sm">
+        <section class="order-list-panel overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 px-4 py-3 overflow-x-auto">
                 <form method="GET" action="{{ route('admin.lpj.index') }}" class="flex min-w-[760px] items-end gap-2">
                     <div class="w-[280px]">

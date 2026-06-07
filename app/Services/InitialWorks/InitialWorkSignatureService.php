@@ -8,12 +8,18 @@ use App\Models\OutlineAgreement;
 use App\Models\UnitWork;
 use App\Models\UnitWorkSection;
 use App\Models\User;
+use App\Services\Approvals\ApprovalNotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class InitialWorkSignatureService
 {
     private const TOKEN_TTL_DAYS = 7;
+
+    public function __construct(
+        private readonly ApprovalNotificationService $approvalNotificationService,
+    ) {
+    }
 
     /**
      * Create the Manager and Senior Manager signature chain.
@@ -51,12 +57,12 @@ class InitialWorkSignatureService
                 InitialWorkSignature::STATUS_LOCKED,
             );
 
-            $managerToken = $managerSignature->signer_user_id
-                ? $this->issueToken($managerSignature)
-                : null;
+            if ($managerSignature->signer_user_id) {
+                $this->issueToken($managerSignature);
+            }
 
             return [
-                'manager_url' => $managerToken ? route('approval.initial-work.show', $managerToken) : null,
+                'manager_url' => $managerSignature->fresh()?->approvalUrl(),
                 'manager_signature' => $managerSignature->fresh('signer'),
                 'senior_signature' => $seniorSignature->fresh('signer'),
             ];
@@ -112,13 +118,13 @@ class InitialWorkSignatureService
                 return $nextSignature->approvalUrl();
             }
 
-            $token = $this->issueToken($nextSignature);
+            $this->issueToken($nextSignature);
 
             $nextSignature->update([
                 'status' => InitialWorkSignature::STATUS_PENDING,
             ]);
 
-            return route('approval.initial-work.show', $token);
+            return $nextSignature->fresh()->approvalUrl();
         });
     }
 
@@ -295,6 +301,8 @@ class InitialWorkSignatureService
             'token_encrypted' => $token,
             'token_expires_at' => now()->addDays(self::TOKEN_TTL_DAYS),
         ]);
+
+        $this->approvalNotificationService->sendInitialWork($signature->fresh());
 
         return $token;
     }

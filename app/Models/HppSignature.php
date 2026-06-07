@@ -106,7 +106,12 @@ class HppSignature extends Model
             return null;
         }
 
-        return route('approval.hpp.show', $this->token);
+        return $this->appUrl(route('approval.hpp.show', $this->token, false));
+    }
+
+    private function appUrl(string $path): string
+    {
+        return rtrim((string) config('app.url'), '/').'/'.ltrim($path, '/');
     }
 
     public function belongsToRequesterSide(): bool

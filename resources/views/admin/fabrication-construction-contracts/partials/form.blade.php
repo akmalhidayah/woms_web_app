@@ -31,7 +31,7 @@
                 <i data-lucide="file-stack" class="h-6 w-6"></i>
             </span>
             <div>
-                <h1 class="text-[1.9rem] font-bold leading-none tracking-tight text-slate-900">{{ $title }}</h1>
+                <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">{{ $title }}</h1>
                 <p class="mt-2 max-w-3xl text-sm text-slate-500">{{ $subtitle }}</p>
             </div>
         </div>

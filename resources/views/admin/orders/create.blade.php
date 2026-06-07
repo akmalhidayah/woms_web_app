@@ -7,7 +7,7 @@
                         Order Admin
                     </span>
                     <div class="space-y-2">
-                        <h1 class="text-3xl font-bold tracking-tight">Tambah Order Pekerjaan Jasa</h1>
+                        <h1 class="text-[1.3rem] font-bold tracking-tight">Tambah Order Pekerjaan Jasa</h1>
                         <p class="max-w-2xl text-sm leading-7 text-blue-100">
                             Form ini dipakai untuk menyiapkan order baru sebelum dokumen pendukung diunggah dari halaman detail.
                         </p>

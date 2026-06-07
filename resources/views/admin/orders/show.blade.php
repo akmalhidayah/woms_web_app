@@ -41,7 +41,7 @@
                         <i data-lucide="folder-open" class="h-6 w-6"></i>
                     </span>
                     <div>
-                        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Lengkapi Dokumen Order</h1>
+                        <h1 class="text-[1.3rem] font-bold tracking-tight text-slate-900">Lengkapi Dokumen Order</h1>
                         <p class="mt-2 text-sm text-slate-500">{{ $order->nomor_order }} • {{ $order->nama_pekerjaan }}</p>
                     </div>
                 </div>

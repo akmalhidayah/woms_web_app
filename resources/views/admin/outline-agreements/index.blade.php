@@ -7,7 +7,7 @@
         <div id="outline-agreement-success" data-message="{{ session('success') }}" class="hidden"></div>
     @endif
 
-    <div class="space-y-6" x-data="{ createOpen: {{ ($errors->any() && old('_method') !== 'PUT') ? 'true' : 'false' }} }">
+    <div class="other-menu-compact space-y-4" x-data="{ createOpen: {{ ($errors->any() && old('_method') !== 'PUT') ? 'true' : 'false' }} }">
         <section class="rounded-[1.75rem] border border-emerald-100 px-6 py-6 shadow-sm" style="background: linear-gradient(135deg, #effdf4 0%, #f8fffb 45%, #eef8ff 100%);">
             <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex items-start gap-4">
@@ -15,7 +15,7 @@
                         <i data-lucide="file-text" class="h-6 w-6"></i>
                     </span>
                     <div>
-                        <h1 class="text-[2rem] font-bold leading-none tracking-tight text-slate-900">Kuota Anggaran &amp; OA</h1>
+                        <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Kuota Anggaran &amp; OA</h1>
                         <p class="mt-2 max-w-2xl text-sm text-slate-500">
                             Kelola master Outline Agreement, histori adendum, dan target biaya pemeliharaan per tahun secara aman tanpa merusak histori kontrak lama.
                         </p>
@@ -32,25 +32,25 @@
         <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <article class="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
                 <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">OA Aktif</p>
-                <div class="mt-3 text-3xl font-bold text-slate-900">{{ $summary['active_count'] }}</div>
+                <div class="mt-2 text-2xl font-bold text-slate-900">{{ $summary['active_count'] }}</div>
                 <p class="mt-2 text-sm text-slate-500">Master OA yang sedang berjalan saat ini.</p>
             </article>
 
             <article class="rounded-[1.5rem] border border-amber-200 bg-amber-50/70 p-5 shadow-sm">
                 <p class="text-xs font-semibold uppercase tracking-[0.22em] text-amber-500">Mendekati Habis</p>
-                <div class="mt-3 text-3xl font-bold text-amber-700">{{ $summary['expiring_count'] }}</div>
+                <div class="mt-2 text-2xl font-bold text-amber-700">{{ $summary['expiring_count'] }}</div>
                 <p class="mt-2 text-sm text-amber-700/80">OA aktif dengan masa berlaku kurang dari 60 hari.</p>
             </article>
 
             <article class="rounded-[1.5rem] border border-rose-200 bg-rose-50/70 p-5 shadow-sm">
                 <p class="text-xs font-semibold uppercase tracking-[0.22em] text-rose-500">Expired</p>
-                <div class="mt-3 text-3xl font-bold text-rose-700">{{ $summary['expired_count'] }}</div>
+                <div class="mt-2 text-2xl font-bold text-rose-700">{{ $summary['expired_count'] }}</div>
                 <p class="mt-2 text-sm text-rose-700/80">Tetap tersimpan aman untuk histori kontrak lama.</p>
             </article>
 
             <article class="rounded-[1.5rem] border border-sky-200 bg-sky-50/70 p-5 shadow-sm">
                 <p class="text-xs font-semibold uppercase tracking-[0.22em] text-sky-500">Nilai Aktif</p>
-                <div class="mt-3 text-2xl font-bold text-sky-800">{{ $currency($summary['active_total']) }}</div>
+                <div class="mt-2 text-xl font-bold text-sky-800">{{ $currency($summary['active_total']) }}</div>
                 <p class="mt-2 text-sm text-sky-700/80">Akumulasi nilai aktif seluruh OA master saat ini.</p>
             </article>
         </section>

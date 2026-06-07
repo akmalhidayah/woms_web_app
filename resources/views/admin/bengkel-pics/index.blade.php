@@ -15,7 +15,7 @@
                         <i data-lucide="users" class="h-5 w-5"></i>
                     </span>
                     <div>
-                        <h1 class="text-[1.45rem] font-bold leading-none tracking-tight text-slate-900">Master PIC Bengkel</h1>
+                        <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Master PIC Bengkel</h1>
                         <p class="mt-1.5 text-[12px] text-slate-500">Kelola daftar PIC yang akan dipakai di display pekerjaan bengkel.</p>
                     </div>
                 </div>

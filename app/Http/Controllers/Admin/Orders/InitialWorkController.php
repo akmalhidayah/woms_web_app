@@ -6,11 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Orders\StoreInitialWorkRequest;
 use App\Http\Requests\Admin\Orders\UpdateInitialWorkRequest;
 use App\Models\InitialWork;
+use App\Models\InitialWorkSignature;
 use App\Models\OutlineAgreement;
 use App\Models\Order;
+use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\InitialWorks\InitialWorkSignatureService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -18,6 +22,7 @@ class InitialWorkController extends Controller
 {
     public function __construct(
         private readonly InitialWorkSignatureService $signatureService,
+        private readonly ApprovalNotificationService $approvalNotificationService,
     ) {
     }
 
@@ -88,6 +93,18 @@ class InitialWorkController extends Controller
     {
         abort_unless($initialWork->order_id === $order->id, 404);
 
+        if ($initialWork->hasSignedApproval()) {
+            Log::warning('Blocked update to signed Initial Work document.', [
+                'status_code' => Response::HTTP_FORBIDDEN,
+                'user_id' => $request->user()?->id,
+                'order_id' => $order->id,
+                'initial_work_id' => $initialWork->id,
+                'nomor_order' => $initialWork->nomor_order,
+            ]);
+
+            abort(Response::HTTP_FORBIDDEN, 'Initial Work tidak dapat diubah setelah proses tanda tangan dimulai.');
+        }
+
         $outlineAgreement = $this->resolveOutlineAgreement($request->validated('outline_agreement_id'));
         $signatureUnit = $this->signatureService->resolveUnitForOutlineAgreement($outlineAgreement);
         $signatureSection = $this->signatureService->resolveSectionForOutlineAgreement($outlineAgreement);
@@ -145,6 +162,31 @@ class InitialWorkController extends Controller
         ])->setPaper('a4', 'portrait');
 
         return $pdf->stream('initial-work-'.$order->nomor_order.'.pdf');
+    }
+
+    public function resendApproval(Request $request, Order $order, InitialWork $initialWork): RedirectResponse
+    {
+        abort_unless($initialWork->order_id === $order->id, Response::HTTP_NOT_FOUND);
+
+        $signature = $initialWork->signatures()
+            ->where('status', InitialWorkSignature::STATUS_PENDING)
+            ->orderBy('step_order')
+            ->first();
+
+        abort_unless(
+            $signature && ! $signature->tokenExpired() && $signature->approvalUrl(),
+            Response::HTTP_CONFLICT,
+            'Tidak ada link approval Initial Work aktif yang dapat dikirim ulang.'
+        );
+
+        if (! $this->approvalNotificationService->sendInitialWork($signature, true)) {
+            abort(Response::HTTP_BAD_GATEWAY, 'Email approval Initial Work gagal dikirim.');
+        }
+
+        return back()->with('status', sprintf(
+            'Link approval Initial Work berhasil dikirim ulang ke %s.',
+            $signature->signer?->email ?: 'email approver',
+        ));
     }
 
     /**

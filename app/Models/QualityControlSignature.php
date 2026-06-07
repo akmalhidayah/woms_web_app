@@ -85,6 +85,11 @@ class QualityControlSignature extends Model
             return null;
         }
 
-        return route('approval.quality-control.show', $this->token_encrypted);
+        return $this->appUrl(route('approval.quality-control.show', $this->token_encrypted, false));
+    }
+
+    private function appUrl(string $path): string
+    {
+        return rtrim((string) config('app.url'), '/').'/'.ltrim($path, '/');
     }
 }

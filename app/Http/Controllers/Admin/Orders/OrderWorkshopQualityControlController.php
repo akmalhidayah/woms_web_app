@@ -9,19 +9,24 @@ use App\Models\Order;
 use App\Models\OrderWorkshop;
 use App\Models\QualityControlReport;
 use App\Models\QualityControlReportFile;
+use App\Models\QualityControlSignature;
+use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\QualityControl\QualityControlSignatureService;
 use App\Support\SignatureImageStorage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 class OrderWorkshopQualityControlController extends Controller
 {
     public function __construct(
         private readonly QualityControlSignatureService $signatureService,
+        private readonly ApprovalNotificationService $approvalNotificationService,
     ) {
     }
 
@@ -118,6 +123,18 @@ class OrderWorkshopQualityControlController extends Controller
             return $redirect;
         }
 
+        if ($qualityControlReport->hasSignedApproval()) {
+            Log::warning('Blocked update to signed Quality Control report.', [
+                'status_code' => Response::HTTP_FORBIDDEN,
+                'user_id' => $request->user()?->id,
+                'order_id' => $order->id,
+                'quality_control_report_id' => $qualityControlReport->id,
+                'report_no' => $qualityControlReport->report_no,
+            ]);
+
+            abort(Response::HTTP_FORBIDDEN, 'Quality Control tidak dapat diubah setelah proses tanda tangan dimulai.');
+        }
+
         $type = $qualityControlReport->type;
         $validated = $this->validateReport($request, $type);
 
@@ -169,10 +186,50 @@ class OrderWorkshopQualityControlController extends Controller
         ])->setPaper('a4', $paper)->stream($filename);
     }
 
-    public function destroyFile(QualityControlReport $qualityControlReport, QualityControlReportFile $file): RedirectResponse
+    public function resendApproval(Request $request, Order $order, QualityControlReport $qualityControlReport): RedirectResponse
+    {
+        abort_unless(
+            (int) $qualityControlReport->order_id === (int) $order->id,
+            Response::HTTP_NOT_FOUND
+        );
+
+        $signature = $qualityControlReport->signatures()
+            ->where('status', QualityControlSignature::STATUS_PENDING)
+            ->orderBy('step_order')
+            ->first();
+
+        abort_unless(
+            $signature && ! $signature->tokenExpired() && $signature->approvalUrl(),
+            Response::HTTP_CONFLICT,
+            'Tidak ada link approval Quality Control aktif yang dapat dikirim ulang.'
+        );
+
+        if (! $this->approvalNotificationService->sendQualityControl($signature, true)) {
+            abort(Response::HTTP_BAD_GATEWAY, 'Email approval Quality Control gagal dikirim.');
+        }
+
+        return back()->with('status', sprintf(
+            'Link approval Quality Control berhasil dikirim ulang ke %s.',
+            $signature->signer?->email ?: 'email approver',
+        ));
+    }
+
+    public function destroyFile(Request $request, QualityControlReport $qualityControlReport, QualityControlReportFile $file): RedirectResponse
     {
         if ((int) $file->quality_control_report_id !== (int) $qualityControlReport->id) {
             abort(404);
+        }
+
+        if ($qualityControlReport->hasSignedApproval()) {
+            Log::warning('Blocked file deletion from signed Quality Control report.', [
+                'status_code' => Response::HTTP_FORBIDDEN,
+                'user_id' => $request->user()?->id,
+                'quality_control_report_id' => $qualityControlReport->id,
+                'quality_control_report_file_id' => $file->id,
+                'report_no' => $qualityControlReport->report_no,
+            ]);
+
+            abort(Response::HTTP_FORBIDDEN, 'Lampiran Quality Control tidak dapat dihapus setelah dokumen ditandatangani.');
         }
 
         Storage::disk('public')->delete($file->file_path);

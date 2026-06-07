@@ -100,103 +100,105 @@
         ];
     @endphp
 
-    <div class="space-y-5">
-        <section class="rounded-[1.5rem] border border-slate-200 bg-white px-6 py-5 shadow-sm">
-            <div class="flex items-center gap-3">
-                <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                    <i data-lucide="bar-chart-3" class="h-5 w-5"></i>
+    <div class="space-y-3">
+        <section class="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+            <div class="flex items-center gap-2.5">
+                <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                    <i data-lucide="bar-chart-3" class="h-3.5 w-3.5"></i>
                 </span>
                 <div>
-                    <h1 class="text-2xl font-bold tracking-tight text-slate-900">Dashboard Admin</h1>
-                    <p class="mt-1 text-sm text-slate-500">Ringkasan proses notifikasi, HPP, dan approval.</p>
+                    <h1 class="text-[1.1rem] font-bold leading-tight tracking-tight text-slate-900">Dashboard Admin</h1>
+                    <p class="text-[11px] text-slate-500">Ringkasan proses notifikasi, HPP, dan approval.</p>
                 </div>
             </div>
         </section>
 
-        <section class="rounded-[1.5rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 class="mb-5 text-[1.05rem] font-semibold text-slate-800">Order Process</h2>
+        <section class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <h2 class="mb-2 text-[13px] font-semibold text-slate-800">Order Process</h2>
 
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:hidden">
+            <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:hidden">
                 @foreach ($processCards as $card)
-                    <a href="{{ $card['url'] }}" class="flex h-40 min-w-0 flex-col items-center justify-center rounded-2xl px-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md {{ $card['wrap'] }}">
-                        <i data-lucide="{{ $card['icon'] }}" class="h-8 w-8 {{ $card['iconColor'] }}"></i>
-                        <div class="mt-4 text-[13px] font-medium leading-5 text-slate-800">{{ $card['title'] }}</div>
-                        <div class="mt-2 text-2xl font-bold {{ $card['valueColor'] }}">{{ $card['value'] }}</div>
+                    <a href="{{ $card['url'] }}" class="flex h-24 min-w-0 flex-col items-center justify-center rounded-lg px-2.5 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md {{ $card['wrap'] }}">
+                        <i data-lucide="{{ $card['icon'] }}" class="h-5 w-5 {{ $card['iconColor'] }}"></i>
+                        <div class="mt-1.5 text-[11px] font-medium leading-4 text-slate-800">{{ $card['title'] }}</div>
+                        <div class="text-lg font-bold {{ $card['valueColor'] }}">{{ $card['value'] }}</div>
                     </a>
                 @endforeach
             </div>
 
-            <div class="hidden gap-4 md:flex md:flex-nowrap">
+            <div class="hidden gap-2.5 md:flex md:flex-nowrap">
                 @foreach ($processCards as $card)
-                    <a href="{{ $card['url'] }}" class="flex h-40 min-w-0 flex-1 flex-col items-center justify-center rounded-2xl px-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md {{ $card['wrap'] }}">
-                        <i data-lucide="{{ $card['icon'] }}" class="h-8 w-8 {{ $card['iconColor'] }}"></i>
-                        <div class="mt-4 text-[13px] font-medium leading-5 text-slate-800">{{ $card['title'] }}</div>
-                        <div class="mt-2 text-2xl font-bold {{ $card['valueColor'] }}">{{ $card['value'] }}</div>
+                    <a href="{{ $card['url'] }}" class="flex h-24 min-w-0 flex-1 flex-col items-center justify-center rounded-lg px-2.5 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md {{ $card['wrap'] }}">
+                        <i data-lucide="{{ $card['icon'] }}" class="h-5 w-5 {{ $card['iconColor'] }}"></i>
+                        <div class="mt-1.5 text-[11px] font-medium leading-4 text-slate-800">{{ $card['title'] }}</div>
+                        <div class="text-lg font-bold {{ $card['valueColor'] }}">{{ $card['value'] }}</div>
                     </a>
                 @endforeach
             </div>
         </section>
 
-        <section class="grid gap-5 xl:grid-cols-2">
-            <article class="rounded-[1.5rem] border border-slate-200 bg-white p-6 shadow-sm">
-                <div class="mb-5 flex items-center gap-2">
-                    <i data-lucide="badge-dollar-sign" class="h-5 w-5 text-emerald-500"></i>
-                    <h3 class="text-[1.05rem] font-semibold text-slate-800">Potensi Biaya (Cost)</h3>
+        <section class="grid gap-3 xl:grid-cols-2">
+            <article class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                <div class="mb-2 flex items-center gap-2">
+                    <i data-lucide="badge-dollar-sign" class="h-4 w-4 text-emerald-500"></i>
+                    <h3 class="text-[13px] font-semibold text-slate-800">Potensi Biaya (Cost)</h3>
                 </div>
 
-                <div class="grid gap-4 md:grid-cols-3">
-                    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                        <div class="text-xs leading-5 text-slate-700">Document On Process (HPP)</div>
-                        <div class="mt-4 text-right text-sm font-semibold text-slate-900">{{ $rp($documentOnProcessHPPAmount) }}</div>
+                <div class="grid gap-2.5 md:grid-cols-3">
+                    <div class="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
+                        <div class="text-[11px] leading-4 text-slate-700">Document On Process (HPP)</div>
+                        <div class="mt-2 text-right text-xs font-semibold text-slate-900">{{ $rp($documentOnProcessHPPAmount) }}</div>
                     </div>
-                    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                        <div class="text-xs leading-5 text-slate-700">Approval Process (HPP)</div>
-                        <div class="mt-4 text-right text-sm font-semibold text-slate-900">{{ $rp($approvalProcessHPPAmount) }}</div>
+                    <div class="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
+                        <div class="text-[11px] leading-4 text-slate-700">Approval Process (HPP)</div>
+                        <div class="mt-2 text-right text-xs font-semibold text-slate-900">{{ $rp($approvalProcessHPPAmount) }}</div>
                     </div>
-                    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                        <div class="text-xs leading-5 text-slate-700">PR/PO On Process</div>
-                        <div class="mt-4 text-right text-sm font-semibold text-slate-900">{{ $rp($documentOnProcessPOAmount) }}</div>
+                    <div class="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
+                        <div class="text-[11px] leading-4 text-slate-700">PR/PO On Process</div>
+                        <div class="mt-2 text-right text-xs font-semibold text-slate-900">{{ $rp($documentOnProcessPOAmount) }}</div>
                     </div>
                 </div>
 
-                <div class="mt-4 flex justify-end gap-2 text-xs">
+                <div class="mt-2 flex justify-end gap-2 text-[11px]">
                     <span class="text-slate-500">Subtotal potensi</span>
                     <span class="font-bold text-slate-900">{{ $rp($totalAmount1) }}</span>
                 </div>
             </article>
 
-            <article class="rounded-[1.5rem] border border-slate-200 bg-white p-6 shadow-sm">
-                <div class="mb-5 flex items-center gap-2">
-                    <i data-lucide="pie-chart" class="h-5 w-5 text-blue-500"></i>
-                    <h3 class="text-[1.05rem] font-semibold text-slate-800">Realisasi Biaya (LPJ)</h3>
+            <article class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                <div class="mb-2 flex items-center gap-2">
+                    <i data-lucide="pie-chart" class="h-4 w-4 text-blue-500"></i>
+                    <h3 class="text-[13px] font-semibold text-slate-800">Realisasi Biaya (LPJ)</h3>
                 </div>
 
-                <div class="grid gap-4 md:grid-cols-2">
-                    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                        <div class="text-xs leading-5 text-slate-700">Document PR/PO (LHPP)</div>
-                        <div class="mt-4 text-right text-sm font-semibold text-slate-900">{{ $rp($documentPRPOAmount) }}</div>
+                <div class="grid gap-2.5 md:grid-cols-2">
+                    <div class="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
+                        <div class="text-[11px] leading-4 text-slate-700">Document PR/PO (LHPP)</div>
+                        <div class="mt-2 text-right text-xs font-semibold text-slate-900">{{ $rp($documentPRPOAmount) }}</div>
                     </div>
-                    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                        <div class="text-xs leading-5 text-slate-700">Pekerjaan Urgent</div>
-                        <div class="mt-4 text-right text-sm font-semibold text-slate-900">{{ $rp($urgentAmount) }}</div>
+                    <div class="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
+                        <div class="text-[11px] leading-4 text-slate-700">Pekerjaan Urgent</div>
+                        <div class="mt-2 text-right text-xs font-semibold text-slate-900">{{ $rp($urgentAmount) }}</div>
                     </div>
                 </div>
 
-                <div class="mt-4 flex justify-end gap-2 text-xs">
+                <div class="mt-2 flex justify-end gap-2 text-[11px]">
                     <span class="text-slate-500">Subtotal realisasi</span>
                     <span class="font-bold text-slate-900">{{ $rp($totalAmount2) }}</span>
                 </div>
             </article>
+        </section>
 
-            <article class="rounded-[1.5rem] border border-slate-200 bg-white p-6 shadow-sm">
-                <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <section class="dashboard-compact-grid grid gap-3 xl:grid-cols-2">
+            <article class="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
+                <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                     <div class="flex items-center gap-2">
-                        <i data-lucide="badge-info" class="h-4 w-4 text-slate-600"></i>
-                        <h3 class="text-base font-semibold text-slate-800">Ringkasan Kuota Anggaran</h3>
+                        <i data-lucide="badge-info" class="h-3.5 w-3.5 text-slate-600"></i>
+                        <h3 class="text-[13px] font-semibold text-slate-800">Ringkasan Kuota Anggaran</h3>
                     </div>
-                    <div class="text-right text-[11px] leading-5 text-slate-500">
+                    <div class="text-right text-[10px] leading-4 text-slate-500">
                         <div class="font-semibold uppercase tracking-[0.12em] text-slate-500">Kuota Anggaran</div>
-                        <div class="text-sm font-bold text-slate-900">Rp. {{ number_format($totalKuotaKontrak, 0, ',', '.') }}</div>
+                        <div class="text-xs font-bold text-slate-900">Rp. {{ number_format($totalKuotaKontrak, 0, ',', '.') }}</div>
                         <div>
                             Periode:
                             {{ $periodeKontrak['start'] ? \Carbon\Carbon::parse($periodeKontrak['start'])->format('d M Y') : '-' }}
@@ -206,9 +208,9 @@
                     </div>
                 </div>
 
-                <div class="space-y-4">
-                    <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-4">
-                        <div class="text-lg font-bold text-blue-900">
+                <div class="grid gap-2 sm:grid-cols-2">
+                    <div class="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2">
+                        <div class="text-[12px] font-bold text-blue-900">
                             Potensi Biaya + Realisasi Biaya:
                             <span class="text-slate-900">Rp. {{ number_format($totalSeluruhAmount, 0, ',', '.') }}</span>
                         </div>
@@ -218,18 +220,18 @@
                         $kuotaKontrakActual = ($totalKuotaKontrak ?? 0) - ($totalSeluruhAmount ?? 0);
                         $totalBiayaPemeliharaan = $cleanNumber($targetPemeliharaan);
                     @endphp
-                    <div class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-4">
-                        <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-700">Kuota Anggaran Actual</div>
-                        <div class="mt-1 text-2xl font-bold text-slate-900">Rp. {{ number_format($kuotaKontrakActual, 0, ',', '.') }}</div>
-                        <div class="mt-1 text-xs leading-5 text-sky-700">
+                    <div class="rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-2">
+                        <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-700">Kuota Anggaran Actual</div>
+                        <div class="mt-0.5 text-[1rem] font-bold text-slate-900">Rp. {{ number_format($kuotaKontrakActual, 0, ',', '.') }}</div>
+                        <div class="mt-0.5 text-[10px] leading-4 text-sky-700">
                             = Kuota Anggaran (Rp. {{ number_format($totalKuotaKontrak, 0, ',', '.') }}) - (Potensi + Realisasi) (Rp. {{ number_format($totalSeluruhAmount, 0, ',', '.') }})
                         </div>
                     </div>
 
-                    <div class="rounded-xl border border-slate-200 bg-white px-4 py-4">
-                        <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-700">Total Biaya Pemeliharaan</div>
-                        <div class="mt-1 text-2xl font-bold text-slate-900">Rp. {{ number_format($totalBiayaPemeliharaan, 0, ',', '.') }}</div>
-                        <div class="mt-3 grid gap-1 text-xs text-slate-500">
+                    <div class="rounded-lg border border-slate-200 bg-white px-2.5 py-2">
+                        <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-700">Total Biaya Pemeliharaan</div>
+                        <div class="mt-0.5 text-[1rem] font-bold text-slate-900">Rp. {{ number_format($totalBiayaPemeliharaan, 0, ',', '.') }}</div>
+                        <div class="mt-1 grid gap-0.5 text-[10px] text-slate-500">
                             <div class="flex items-center justify-between gap-3">
                                 <span>Total Jasa Pemeliharaan</span>
                                 <span class="font-semibold text-slate-800">Rp. {{ number_format($totalJasaPemeliharaan, 0, ',', '.') }}</span>
@@ -241,32 +243,32 @@
                         </div>
                     </div>
 
-                    <div class="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-4">
-                        <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-yellow-700">Sisa Kuota Kontrak</div>
-                        <div class="mt-1 text-2xl font-bold text-yellow-900">Rp. {{ number_format($sisaKuotaKontrak, 0, ',', '.') }}</div>
+                    <div class="rounded-lg border border-yellow-200 bg-yellow-50 px-2.5 py-2">
+                        <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-yellow-700">Sisa Kuota Kontrak</div>
+                        <div class="mt-0.5 text-[1rem] font-bold text-yellow-900">Rp. {{ number_format($sisaKuotaKontrak, 0, ',', '.') }}</div>
                     </div>
                 </div>
             </article>
 
-            <article class="rounded-[1.5rem] border border-slate-200 bg-white p-6 shadow-sm">
-                <div class="rounded-xl bg-emerald-100 px-4 py-3 text-center text-sm font-bold text-slate-900">
+            <article class="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
+                <div class="rounded-lg bg-emerald-100 px-2.5 py-1.5 text-center text-[11px] font-bold text-slate-900">
                     Total Realisasi Biaya: Rp {{ number_format($totalRealisasiBiaya, 0, ',', '.') }}
                 </div>
 
-                <div class="mt-5 space-y-4 text-sm text-slate-700">
+                <div class="mt-2 grid gap-2 text-[11px] text-slate-700 lg:grid-cols-2">
                     <div>
-                        <p class="mb-3 text-xs text-slate-500">Sortir per rentang tahun untuk menampilkan data realisasi biaya.</p>
-                        <div class="flex flex-wrap items-center gap-3">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <label for="startYear" class="text-sm text-slate-600">Dari Tahun:</label>
-                                <select id="startYear" class="w-36 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                        <p class="mb-1.5 text-[10px] text-slate-500">Sortir per rentang tahun.</p>
+                        <div class="grid gap-1.5 md:grid-cols-[1fr_auto_1fr] md:items-center">
+                            <div class="grid gap-1">
+                                <label for="startYear" class="text-[10px] text-slate-600">Dari Tahun</label>
+                                <select id="startYear" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] focus:border-blue-500 focus:outline-none">
                                     <option value="" selected disabled>Pilih Tahun</option>
                                 </select>
                             </div>
-                            <span class="text-sm text-slate-600">sampai</span>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <label for="endYear" class="text-sm text-slate-600">Sampai Tahun:</label>
-                                <select id="endYear" class="w-36 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                            <span class="hidden text-[10px] text-slate-600 md:block">sampai</span>
+                            <div class="grid gap-1">
+                                <label for="endYear" class="text-[10px] text-slate-600">Sampai Tahun</label>
+                                <select id="endYear" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] focus:border-blue-500 focus:outline-none">
                                     <option value="" selected disabled>Pilih Tahun</option>
                                 </select>
                             </div>
@@ -274,43 +276,43 @@
                     </div>
 
                     <div>
-                        <p class="mb-3 text-xs text-slate-500">Sortir per rentang bulan untuk menampilkan data realisasi biaya.</p>
-                        <div class="flex flex-wrap items-center gap-3">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <label for="startMonth" class="text-sm text-slate-600">Dari Bulan:</label>
-                                <select id="startMonth" class="w-36 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                        <p class="mb-1.5 text-[10px] text-slate-500">Sortir per rentang bulan.</p>
+                        <div class="grid gap-1.5 md:grid-cols-[1fr_auto_1fr] md:items-center">
+                            <div class="grid gap-1">
+                                <label for="startMonth" class="text-[10px] text-slate-600">Dari Bulan</label>
+                                <select id="startMonth" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] focus:border-blue-500 focus:outline-none">
                                     <option value="" selected disabled>Pilih Bulan</option>
                                 </select>
                             </div>
-                            <span class="text-sm text-slate-600">sampai</span>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <label for="endMonth" class="text-sm text-slate-600">Sampai Bulan:</label>
-                                <select id="endMonth" class="w-36 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                            <span class="hidden text-[10px] text-slate-600 md:block">sampai</span>
+                            <div class="grid gap-1">
+                                <label for="endMonth" class="text-[10px] text-slate-600">Sampai Bulan</label>
+                                <select id="endMonth" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] focus:border-blue-500 focus:outline-none">
                                     <option value="" selected disabled>Pilih Bulan</option>
                                 </select>
                             </div>
                         </div>
                     </div>
 
-                    <div class="flex justify-start">
-                        <button id="applyFilters" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700">
+                    <div class="flex items-end justify-start lg:col-span-2">
+                        <button id="applyFilters" class="rounded-md bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700">
                             Terapkan
                         </button>
                     </div>
                 </div>
 
-                <div class="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div class="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                     <div class="flex flex-wrap items-center justify-between gap-2">
-                        <div class="text-sm font-semibold text-slate-800">Grafik Realisasi Biaya</div>
-                        <div id="chartTotal" class="text-xs font-bold text-slate-600">Rp 0</div>
+                        <div class="text-[11px] font-semibold text-slate-800">Grafik Realisasi Biaya</div>
+                        <div id="chartTotal" class="text-[11px] font-bold text-slate-600">Rp 0</div>
                     </div>
-                    <div class="mt-4 h-72">
+                    <div class="mt-2 h-36">
                         <canvas id="realisasiBiayaPieChart" class="h-full w-full"></canvas>
                     </div>
-                    <div id="chartEmptyState" class="hidden rounded-lg border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-sm text-slate-500">
+                    <div id="chartEmptyState" class="hidden rounded-lg border border-dashed border-slate-300 bg-white px-3 py-4 text-center text-xs text-slate-500">
                         Belum ada data realisasi biaya pada rentang ini.
                     </div>
-                    <div id="chartLegend" class="mt-4 grid gap-2 text-xs text-slate-700 md:grid-cols-2"></div>
+                    <div id="chartLegend" class="mt-3 grid gap-1.5 text-[11px] text-slate-700 md:grid-cols-2"></div>
                 </div>
             </article>
         </section>

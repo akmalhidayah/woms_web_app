@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Hpp;
 use App\Models\HppSignature;
+use App\Services\Approvals\ApprovalNotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -14,6 +15,7 @@ class HppApprovalSignatureBuilder
 
     public function __construct(
         private readonly HppApproverResolver $approverResolver,
+        private readonly ApprovalNotificationService $approvalNotificationService,
     ) {
     }
 
@@ -82,13 +84,13 @@ class HppApprovalSignatureBuilder
                 return null;
             }
 
-            $token = $this->issueToken($nextSignature);
+            $this->issueToken($nextSignature);
 
             $nextSignature->update([
                 'status' => HppSignature::STATUS_PENDING,
             ]);
 
-            return route('approval.hpp.show', $token);
+            return $nextSignature->fresh()->approvalUrl();
         });
     }
 
@@ -114,6 +116,8 @@ class HppApprovalSignatureBuilder
             'token_hash' => hash('sha256', $token),
             'token_expires_at' => now()->addDays(self::TOKEN_TTL_DAYS),
         ]);
+
+        $this->approvalNotificationService->sendHpp($signature->fresh());
 
         return $token;
     }

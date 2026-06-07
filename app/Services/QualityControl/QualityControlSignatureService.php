@@ -8,12 +8,18 @@ use App\Models\QualityControlSignature;
 use App\Models\UnitWork;
 use App\Models\UnitWorkSection;
 use App\Models\User;
+use App\Services\Approvals\ApprovalNotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class QualityControlSignatureService
 {
     private const TOKEN_TTL_DAYS = 7;
+
+    public function __construct(
+        private readonly ApprovalNotificationService $approvalNotificationService,
+    ) {
+    }
 
     /**
      * @return array{workshop_url: ?string, workshop_signature: ?QualityControlSignature, user_signature: ?QualityControlSignature}
@@ -49,12 +55,12 @@ class QualityControlSignatureService
                 QualityControlSignature::STATUS_LOCKED,
             );
 
-            $workshopToken = $workshopSignature->signer_user_id
-                ? $this->issueToken($workshopSignature)
-                : null;
+            if ($workshopSignature->signer_user_id) {
+                $this->issueToken($workshopSignature);
+            }
 
             return [
-                'workshop_url' => $workshopToken ? route('approval.quality-control.show', $workshopToken) : null,
+                'workshop_url' => $workshopSignature->fresh()?->approvalUrl(),
                 'workshop_signature' => $workshopSignature->fresh('signer'),
                 'user_signature' => $userSignature->fresh('signer'),
             ];
@@ -134,8 +140,9 @@ class QualityControlSignatureService
 
             if (! $workshopSignature->isSigned() && $workshopSignature->signer_user_id) {
                 if (! $workshopSignature->isPending() || ! $workshopSignature->approvalUrl()) {
-                    $workshopUrl = route('approval.quality-control.show', $this->issueToken($workshopSignature));
+                    $this->issueToken($workshopSignature);
                     $workshopSignature->update(['status' => QualityControlSignature::STATUS_PENDING]);
+                    $workshopUrl = $workshopSignature->fresh()->approvalUrl();
                 } else {
                     $workshopUrl = $workshopSignature->approvalUrl();
                 }
@@ -143,8 +150,9 @@ class QualityControlSignatureService
 
             if ($workshopSignature->fresh()->isSigned() && ! $userSignature->isSigned() && $userSignature->signer_user_id) {
                 if (! $userSignature->isPending() || ! $userSignature->approvalUrl()) {
-                    $userUrl = route('approval.quality-control.show', $this->issueToken($userSignature));
+                    $this->issueToken($userSignature);
                     $userSignature->update(['status' => QualityControlSignature::STATUS_PENDING]);
+                    $userUrl = $userSignature->fresh()->approvalUrl();
                 } else {
                     $userUrl = $userSignature->approvalUrl();
                 }
@@ -180,13 +188,13 @@ class QualityControlSignatureService
                 return $nextSignature->approvalUrl();
             }
 
-            $token = $this->issueToken($nextSignature);
+            $this->issueToken($nextSignature);
 
             $nextSignature->update([
                 'status' => QualityControlSignature::STATUS_PENDING,
             ]);
 
-            return route('approval.quality-control.show', $token);
+            return $nextSignature->fresh()->approvalUrl();
         });
     }
 
@@ -462,6 +470,8 @@ class QualityControlSignatureService
             'token_encrypted' => $token,
             'token_expires_at' => now()->addDays(self::TOKEN_TTL_DAYS),
         ]);
+
+        $this->approvalNotificationService->sendQualityControl($signature->fresh());
 
         return $token;
     }

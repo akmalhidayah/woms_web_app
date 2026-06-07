@@ -12,6 +12,7 @@ use App\Models\LhppBast;
 use App\Models\LhppBastImage;
 use App\Models\LhppBastSignature;
 use App\Models\Order;
+use App\Services\Approvals\ApprovalNotificationService;
 use App\Support\BastApprovalFlow;
 use App\Support\BastApprovalSignatureBuilder;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -33,6 +34,7 @@ class LhppController extends Controller
 {
     public function __construct(
         private readonly BastApprovalSignatureBuilder $signatureBuilder,
+        private readonly ApprovalNotificationService $approvalNotificationService,
     ) {
     }
 
@@ -393,6 +395,18 @@ class LhppController extends Controller
 
             abort_if(! $lhpp, Response::HTTP_NOT_FOUND, 'Data BAST tidak ditemukan.');
 
+            if ($lhpp->isApprovalLocked()) {
+                Log::warning('Blocked update to signed BAST/LHPP document.', [
+                    'status_code' => Response::HTTP_FORBIDDEN,
+                    'user_id' => $request->user()?->id,
+                    'lhpp_bast_id' => $lhpp->id,
+                    'nomor_order' => $lhpp->nomor_order,
+                    'termin_type' => $lhpp->termin_type,
+                ]);
+
+                abort(Response::HTTP_FORBIDDEN, 'BAST/LHPP tidak dapat diubah setelah proses tanda tangan dimulai.');
+            }
+
             [$order, $parentLhpp] = $this->resolveUpdateContext($lhpp, $terminType);
 
             $purchaseOrder = $order->purchaseOrder;
@@ -506,6 +520,10 @@ $tipePekerjaan = $this->resolveTipePekerjaanForBast(
                 ->withInput()
                 ->withErrors($exception->errors());
         } catch (Throwable $exception) {
+            if ($exception instanceof HttpExceptionInterface) {
+                throw $exception;
+            }
+
             Log::error('Failed to update PKM LHPP form.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'user_id' => $request->user()?->id,
@@ -533,6 +551,30 @@ $tipePekerjaan = $this->resolveTipePekerjaanForBast(
 
             abort_if(! $lhpp, Response::HTTP_NOT_FOUND, 'Data BAST tidak ditemukan.');
 
+            $hasLockedChild = $terminType === 'termin_1'
+                && $lhpp->childLhppBasts()
+                    ->where(function ($query): void {
+                        $query
+                            ->where('approval_status', LhppBast::APPROVAL_REJECTED)
+                            ->orWhereHas('signatures', function ($signatureQuery): void {
+                                $signatureQuery->where('status', LhppBastSignature::STATUS_SIGNED);
+                            });
+                    })
+                    ->exists();
+
+            if ($lhpp->isApprovalLocked() || $hasLockedChild) {
+                Log::warning('Blocked deletion of signed BAST/LHPP document.', [
+                    'status_code' => Response::HTTP_FORBIDDEN,
+                    'user_id' => $request->user()?->id,
+                    'lhpp_bast_id' => $lhpp->id,
+                    'nomor_order' => $lhpp->nomor_order,
+                    'termin_type' => $lhpp->termin_type,
+                    'has_locked_child' => $hasLockedChild,
+                ]);
+
+                abort(Response::HTTP_FORBIDDEN, 'BAST/LHPP tidak dapat dihapus setelah proses approval menghasilkan keputusan.');
+            }
+
             if ($terminType === 'termin_1') {
                 $lhpp->childLhppBasts()->delete();
             }
@@ -552,6 +594,10 @@ $tipePekerjaan = $this->resolveTipePekerjaanForBast(
                 ->route('pkm.lhpp.index')
                 ->with('status', sprintf('BAST %s untuk order %s berhasil dihapus.', $termLabel, $nomorOrder));
         } catch (Throwable $exception) {
+            if ($exception instanceof HttpExceptionInterface) {
+                throw $exception;
+            }
+
             Log::error('Failed to delete PKM LHPP.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'user_id' => $request->user()?->id,
@@ -761,6 +807,27 @@ $tipePekerjaan = $this->resolveTipePekerjaanForBast(
                 'Token approval BAST untuk order %s berhasil diperbarui.',
                 $lhpp->nomor_order,
             ));
+    }
+
+    public function resendActiveApproval(int $lhppId): RedirectResponse
+    {
+        $lhpp = LhppBast::query()->findOrFail($lhppId);
+        $signature = $this->resolveCurrentPendingSignature($lhpp);
+
+        abort_unless(
+            $signature && ! $signature->tokenExpired() && $signature->approvalUrl(),
+            Response::HTTP_CONFLICT,
+            'Tidak ada link approval BAST/LHPP aktif yang dapat dikirim ulang.'
+        );
+
+        if (! $this->approvalNotificationService->sendBast($signature, true)) {
+            abort(Response::HTTP_BAD_GATEWAY, 'Email approval BAST/LHPP gagal dikirim.');
+        }
+
+        return back()->with('status', sprintf(
+            'Link approval BAST/LHPP berhasil dikirim ulang ke %s.',
+            $signature->signer?->email ?: 'email approver',
+        ));
     }
 
     /**

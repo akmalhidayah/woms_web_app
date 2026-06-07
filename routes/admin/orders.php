@@ -24,6 +24,7 @@ Route::prefix('admin/orders')
         Route::get('/workshop/{order}/quality-control/{qualityControlReport}/edit', [OrderWorkshopQualityControlController::class, 'edit'])->name('workshop.quality-control.edit');
         Route::put('/workshop/{order}/quality-control/{qualityControlReport}', [OrderWorkshopQualityControlController::class, 'update'])->name('workshop.quality-control.update');
         Route::get('/workshop/{order}/quality-control/{qualityControlReport}/pdf', [OrderWorkshopQualityControlController::class, 'pdf'])->name('workshop.quality-control.pdf');
+        Route::post('/workshop/{order}/quality-control/{qualityControlReport}/resend-approval', [OrderWorkshopQualityControlController::class, 'resendApproval'])->name('workshop.quality-control.approval.resend');
         Route::get('/{order}', [OrderController::class, 'show'])->name('show');
         Route::get('/{order}/edit', [OrderController::class, 'edit'])->name('edit');
         Route::put('/{order}', [OrderController::class, 'update'])->name('update');
@@ -37,6 +38,7 @@ Route::prefix('admin/orders')
         Route::post('/{order}/initial-work', [InitialWorkController::class, 'store'])->name('initial-work.store');
         Route::put('/{order}/initial-work/{initialWork}', [InitialWorkController::class, 'update'])->name('initial-work.update');
         Route::get('/{order}/initial-work/{initialWork}/pdf', [InitialWorkController::class, 'pdf'])->name('initial-work.pdf');
+        Route::post('/{order}/initial-work/{initialWork}/resend-approval', [InitialWorkController::class, 'resendApproval'])->name('initial-work.approval.resend');
         Route::post('/{order}/scope-of-work', [OrderScopeOfWorkController::class, 'store'])->name('scope-of-work.store');
         Route::put('/{order}/scope-of-work/{scopeOfWork}', [OrderScopeOfWorkController::class, 'update'])->name('scope-of-work.update');
         Route::get('/{order}/scope-of-work/{scopeOfWork}/pdf', [OrderScopeOfWorkController::class, 'pdf'])->name('scope-of-work.pdf');

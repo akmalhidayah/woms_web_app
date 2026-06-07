@@ -3,7 +3,7 @@
         <div id="information-upload-success" data-message="{{ session('success') }}" class="hidden"></div>
     @endif
 
-    <div class="space-y-6">
+    <div class="other-menu-compact space-y-4">
         <section
             class="rounded-[1.5rem] border border-blue-100 px-6 py-5 shadow-sm"
             style="background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 48%, #e6f1ff 100%);"
@@ -13,7 +13,7 @@
                     <i data-lucide="upload" class="h-6 w-6"></i>
                 </span>
                 <div>
-                    <h1 class="text-[2rem] font-bold leading-none tracking-tight text-slate-900">Upload Informasi</h1>
+                    <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Upload Informasi</h1>
                     <p class="mt-2 text-sm text-slate-500">Kelola dokumen informasi berdasarkan kategori dan role pengguna.</p>
                 </div>
             </div>

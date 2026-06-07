@@ -40,8 +40,8 @@
         <div id="bengkel-task-status-alert" data-message="{{ session('status') }}" class="hidden"></div>
     @endif
 
-    <div x-data="{ runningTextModal: {{ ($errors->has('ticker_text') || $errors->has('ticker_speed_seconds')) ? 'true' : 'false' }} }" class="space-y-3 sm:space-y-4">
-        <section class="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:px-5">
+    <div x-data="{ runningTextModal: {{ ($errors->has('ticker_text') || $errors->has('ticker_speed_seconds')) ? 'true' : 'false' }} }" class="order-list-compact bengkel-compact space-y-3 sm:space-y-4">
+        <section class="order-list-hero rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:px-5">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex items-start gap-3 sm:items-center">
                     <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-900 text-white shadow-sm">
@@ -74,7 +74,7 @@
             </div>
         </section>
 
-        <section class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+        <section class="order-list-panel rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
             <form method="GET" action="{{ route('admin.bengkel-tasks.index') }}" class="grid grid-cols-1 gap-3 md:grid-cols-12 md:items-end">
                 <div class="md:col-span-5">
                     <label class="mb-1.5 block text-[11px] font-semibold leading-none text-slate-700">Cari</label>

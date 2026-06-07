@@ -61,7 +61,7 @@
                 <i data-lucide="monitor" class="h-5 w-5"></i>
             </span>
             <div>
-                <h1 class="text-[1.45rem] font-bold leading-none tracking-tight text-slate-900">{{ $title }}</h1>
+                <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">{{ $title }}</h1>
                 <p class="mt-1.5 text-[12px] text-slate-500">{{ $description }}</p>
             </div>
         </div>

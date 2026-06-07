@@ -159,6 +159,10 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
         ->whereNumber('lhppId')
         ->name('admin.lhpp.dirops-document.show');
+    Route::post('admin/lhpp/{lhppId}/resend-active-approval', [AdminLhppController::class, 'resendActiveApproval'])
+        ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
+        ->whereNumber('lhppId')
+        ->name('admin.lhpp.approval.resend');
     Route::get('admin/lpj', [LpjPplController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:lpj_ppl'])
         ->name('admin.lpj.index');
@@ -433,6 +437,10 @@ Route::delete('admin/struktur-organisasi/{unitWork}', [StructureOrganizationCont
         ->middleware('role:pkm')
         ->whereNumber('lhppId')
         ->name('pkm.lhpp.approval-token.regenerate');
+    Route::post('pkm/lhpp/{lhppId}/resend-active-approval', [LhppController::class, 'resendActiveApproval'])
+        ->middleware('role:pkm')
+        ->whereNumber('lhppId')
+        ->name('pkm.lhpp.approval.resend');
     Route::get('pkm/lhpp/{nomorOrder}/{termin}/pdf', [LhppController::class, 'pdf'])
         ->middleware('role:pkm')
         ->where('termin', 'termin-[12]')
@@ -472,6 +480,7 @@ Route::prefix('admin/hpp')
         Route::get('/{hpp:nomor_order}/dirops-signed-document', [HppController::class, 'diropsSignedDocument'])->name('dirops-document.show');
         Route::post('/{hpp:nomor_order}/dirops-signed-document', [HppController::class, 'uploadDiropsSignedDocument'])->name('dirops-document.upload');
         Route::post('/{hpp:nomor_order}/regenerate-active-approval-token', [HppController::class, 'regenerateActiveApprovalToken'])->name('approval-token.regenerate');
+        Route::post('/{hpp:nomor_order}/resend-active-approval', [HppController::class, 'resendActiveApproval'])->name('approval.resend');
         Route::get('/{hpp:nomor_order}/edit', [HppController::class, 'edit'])->name('edit');
         Route::post('/', [HppController::class, 'store'])->name('store');
         Route::put('/{hpp}', [HppController::class, 'update'])->name('update');

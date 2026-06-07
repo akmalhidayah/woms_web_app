@@ -314,10 +314,16 @@
                                                     {{ $activeSignature->role_label }} - {{ $activeSignature->signer_name_snapshot ?: '-' }}
                                                 </div>
                                                 @if ($activeApprovalLink && $activeSignature?->role_key !== 'dirops' && ! $isExpired)
-                                                    <div class="mt-2">
+                                                    <div class="mt-2 flex gap-1">
                                                         <button type="button" class="copy-next-link inline-flex w-full items-center justify-center gap-1 rounded-lg bg-white px-2 py-1.5 text-[10px] font-semibold text-blue-700 ring-1 ring-blue-200 hover:bg-blue-100" data-link="{{ $activeApprovalLink }}">
                                                             <i data-lucide="copy" class="h-3 w-3"></i> Salin
                                                         </button>
+                                                        <form method="POST" action="{{ route('pkm.lhpp.approval.resend', ['lhppId' => $row->id]) }}">
+                                                            @csrf
+                                                            <button type="submit" class="inline-flex h-full items-center justify-center rounded-lg bg-white px-2 py-1.5 text-[10px] font-semibold text-sky-700 ring-1 ring-sky-200 hover:bg-sky-100" title="Kirim ulang email approval BAST Termin 1">
+                                                                <i data-lucide="send" class="h-3 w-3"></i>
+                                                            </button>
+                                                        </form>
                                                     </div>
                                                 @endif
                                             </div>
@@ -338,10 +344,16 @@
                                                     {{ $terminTwoActiveSignature->role_label }} - {{ $terminTwoActiveSignature->signer_name_snapshot ?: '-' }}
                                                 </div>
                                                 @if ($terminTwoActiveApprovalLink && $terminTwoActiveSignature?->role_key !== 'dirops' && ! $terminTwoIsExpired)
-                                                    <div class="mt-2">
+                                                    <div class="mt-2 flex gap-1">
                                                         <button type="button" class="copy-next-link inline-flex w-full items-center justify-center gap-1 rounded-lg bg-white px-2 py-1.5 text-[10px] font-semibold text-sky-700 ring-1 ring-sky-200 hover:bg-sky-100" data-link="{{ $terminTwoActiveApprovalLink }}">
                                                             <i data-lucide="copy" class="h-3 w-3"></i> Salin
                                                         </button>
+                                                        <form method="POST" action="{{ route('pkm.lhpp.approval.resend', ['lhppId' => $terminTwo->id]) }}">
+                                                            @csrf
+                                                            <button type="submit" class="inline-flex h-full items-center justify-center rounded-lg bg-white px-2 py-1.5 text-[10px] font-semibold text-sky-700 ring-1 ring-sky-200 hover:bg-sky-100" title="Kirim ulang email approval BAST Termin 2">
+                                                                <i data-lucide="send" class="h-3 w-3"></i>
+                                                            </button>
+                                                        </form>
                                                     </div>
                                                 @endif
                                             </div>

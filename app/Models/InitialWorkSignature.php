@@ -85,6 +85,11 @@ class InitialWorkSignature extends Model
             return null;
         }
 
-        return route('approval.initial-work.show', $this->token_encrypted);
+        return $this->appUrl(route('approval.initial-work.show', $this->token_encrypted, false));
+    }
+
+    private function appUrl(string $path): string
+    {
+        return rtrim((string) config('app.url'), '/').'/'.ltrim($path, '/');
     }
 }

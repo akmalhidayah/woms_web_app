@@ -18,8 +18,8 @@
         <div id="hpp-status-alert" data-message="{{ session('status') }}" class="hidden"></div>
     @endif
 
-    <div class="space-y-6">
-        <section class="rounded-[1.35rem] border border-blue-100 bg-blue-50 px-5 py-4 shadow-sm">
+    <div class="order-list-compact space-y-4">
+        <section class="order-list-hero rounded-[1.35rem] border border-blue-100 bg-blue-50 px-5 py-4 shadow-sm">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex items-center gap-4">
                     <span class="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm ring-1 ring-blue-200">
@@ -38,7 +38,7 @@
             </div>
         </section>
 
-        <section class="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
+        <section class="order-list-panel overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 px-5 py-4">
                 @if ($pendingHppOrders->isNotEmpty())
                     <div class="mb-4 rounded-[1.2rem] border border-blue-200 bg-blue-50 px-3 py-3 text-slate-800 shadow-sm">
@@ -296,6 +296,17 @@
                                                                 <i data-lucide="copy" class="h-2.5 w-2.5"></i>
                                                                 Salin Link
                                                             </button>
+                                                            <form method="POST" action="{{ route('admin.hpp.approval.resend', ['hpp' => $row->nomor_order]) }}">
+                                                                @csrf
+                                                                <button
+                                                                    type="submit"
+                                                                    class="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-white px-2 py-1 text-[8px] font-semibold text-sky-700 transition hover:bg-sky-100"
+                                                                    title="Kirim ulang email approval HPP"
+                                                                >
+                                                                    <i data-lucide="send" class="h-2.5 w-2.5"></i>
+                                                                    Resend
+                                                                </button>
+                                                            </form>
                                                         @endif
 
                                                         @if ($isActiveApprovalExpired)

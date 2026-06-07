@@ -12,8 +12,8 @@
         };
     @endphp
 
-    <div class="space-y-5">
-        <section class="rounded-[1.35rem] border border-blue-100 px-5 py-4 shadow-sm" style="background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 48%, #e6f1ff 100%);">
+    <div class="order-list-compact space-y-4">
+        <section class="order-list-hero rounded-[1.35rem] border border-blue-100 px-5 py-4 shadow-sm" style="background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 48%, #e6f1ff 100%);">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex items-center gap-4">
                     <span class="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm ring-1 ring-blue-200">
@@ -27,7 +27,7 @@
             </div>
         </section>
 
-        <section class="overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-sm">
+        <section class="order-list-panel overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 px-5 py-4 overflow-x-auto">
                 <form method="GET" action="{{ route('admin.purchase-order.index') }}" class="flex min-w-[980px] items-center gap-2">
                     <div class="relative min-w-0 flex-1">

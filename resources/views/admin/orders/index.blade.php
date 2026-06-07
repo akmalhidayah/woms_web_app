@@ -11,7 +11,7 @@
         <div id="flash-error" data-message="{{ implode(' • ', $errors->all()) }}" class="hidden"></div>
     @endif
 
-    <div class="space-y-6">
+    <div class="order-list-compact space-y-4">
         @if (session('initial_work_manager_approval_url'))
             <section class="rounded-[1.25rem] border border-emerald-200 bg-emerald-50 px-5 py-4 shadow-sm">
                 <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -37,9 +37,9 @@
             </section>
         @endif
 
-        <div class="space-y-5">
+        <div class="space-y-4">
             <section
-                class="rounded-[1.35rem] border border-blue-100 px-5 py-4 shadow-sm"
+                class="order-list-hero rounded-[1.35rem] border border-blue-100 px-5 py-4 shadow-sm"
                 style="background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 48%, #e6f1ff 100%);"
             >
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -48,7 +48,7 @@
                             <i data-lucide="inbox" class="h-5 w-5"></i>
                         </span>
                         <div>
-                            <h1 class="text-[1.65rem] font-bold leading-none tracking-tight text-slate-900">Order</h1>
+                            <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Order</h1>
                             <p class="mt-1.5 text-[13px] text-slate-500">Pantau order pekerjaan dan kawat las dengan filter cepat.</p>
                         </div>
                     </div>
@@ -64,7 +64,7 @@
                 </div>
             </section>
 
-            <section class="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
+            <section class="order-list-panel overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
                     <div class="border-b border-slate-200 px-5 py-4">
                         <form method="GET" action="{{ route('admin.orders.index') }}" class="flex flex-col gap-2.5 xl:flex-row xl:items-end xl:justify-between">
                             <div class="grid flex-1 gap-2.5 md:grid-cols-3 xl:grid-cols-[1.15fr_1fr_1fr]">
@@ -379,6 +379,17 @@ $initialWorkSeniorSignature = $order->initialWork?->signatures
             <i data-lucide="copy" class="h-3 w-3"></i>
             <span>TTD {{ $activeInitialWorkDisplayLabel }}</span>
         </button>
+        <form method="POST" action="{{ route('admin.orders.initial-work.approval.resend', [$order, $order->initialWork]) }}">
+            @csrf
+            <button
+                type="submit"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-[11px] font-semibold text-sky-700 transition hover:-translate-y-0.5 hover:bg-sky-100 hover:shadow-sm"
+                title="Kirim ulang email approval {{ $activeInitialWorkDisplayLabel }}"
+            >
+                <i data-lucide="send" class="h-3 w-3"></i>
+                <span>Resend</span>
+            </button>
+        </form>
     @elseif (
         $initialWorkManagerSignature?->status === \App\Models\InitialWorkSignature::STATUS_MISSING
         || $initialWorkSeniorSignature?->status === \App\Models\InitialWorkSignature::STATUS_MISSING

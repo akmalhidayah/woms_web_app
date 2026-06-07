@@ -1,5 +1,5 @@
 <x-layouts.admin title="Kontrak Jasa Fabrikasi Konstruksi">
-    <div class="space-y-6">
+    <div class="other-menu-compact space-y-4">
         @if (session('status'))
             <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-[13px] text-emerald-700">
                 {{ session('status') }}
@@ -13,7 +13,7 @@
                         <i data-lucide="file-stack" class="h-6 w-6"></i>
                     </span>
                     <div>
-                        <h1 class="text-[2rem] font-bold leading-none tracking-tight text-slate-900">Kontrak Jasa Fabrikasi Konstruksi</h1>
+                        <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Kontrak Jasa Fabrikasi Konstruksi</h1>
                         <p class="mt-2 max-w-3xl text-sm text-slate-500">
                             Master item harga per jenis dan sub jenis item. Data ini nantinya bisa dipakai langsung di form HPP tanpa input manual.
                         </p>

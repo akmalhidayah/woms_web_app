@@ -12,6 +12,7 @@ use App\Models\HppSignature;
 use App\Http\Requests\Admin\Hpp\StoreHppRequest;
 use App\Models\Order;
 use App\Models\OutlineAgreement;
+use App\Services\Approvals\ApprovalNotificationService;
 use App\Support\HppApprovalFlow;
 use App\Support\HppApprovalSignatureBuilder;
 use Illuminate\Database\Eloquent\Builder;
@@ -27,6 +28,7 @@ class HppController extends Controller
 {
     public function __construct(
         private readonly HppApprovalSignatureBuilder $signatureBuilder,
+        private readonly ApprovalNotificationService $approvalNotificationService,
     ) {
     }
 
@@ -222,6 +224,26 @@ class HppController extends Controller
                 'Token approval untuk order %s berhasil diperbarui. Silakan salin link approval yang baru.',
                 $hpp->nomor_order,
             ));
+    }
+
+    public function resendActiveApproval(Hpp $hpp): RedirectResponse
+    {
+        $signature = $this->resolveCurrentPendingSignature($hpp);
+
+        abort_unless(
+            $signature && ! $signature->tokenExpired() && $signature->approvalUrl(),
+            Response::HTTP_CONFLICT,
+            'Tidak ada link approval HPP aktif yang dapat dikirim ulang.'
+        );
+
+        if (! $this->approvalNotificationService->sendHpp($signature, true)) {
+            abort(Response::HTTP_BAD_GATEWAY, 'Email approval HPP gagal dikirim.');
+        }
+
+        return back()->with('status', sprintf(
+            'Link approval HPP berhasil dikirim ulang ke %s.',
+            $signature->signer?->email ?: 'email approver',
+        ));
     }
 
     public function store(StoreHppRequest $request): RedirectResponse

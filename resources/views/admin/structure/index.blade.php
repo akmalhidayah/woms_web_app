@@ -41,7 +41,7 @@
         <div id="structure-success" data-message="{{ session('success') }}" class="hidden"></div>
     @endif
 
-    <div class="space-y-5" x-data="structureOrgPage(@js($initialModal), @js($initialDepartmentModal))">
+    <div class="other-menu-compact space-y-4" x-data="structureOrgPage(@js($initialModal), @js($initialDepartmentModal))">
         <section class="rounded-[1.35rem] border border-blue-100 px-4 py-4 shadow-sm" style="background:linear-gradient(135deg,#eef4ff 0%,#f8fbff 48%,#e6f1ff 100%);">
             <div class="flex flex-col gap-3 pr-1 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex items-center gap-4">
@@ -49,7 +49,7 @@
                         <i data-lucide="network" class="h-4.5 w-4.5"></i>
                     </span>
                     <div>
-                        <h1 class="text-[1.65rem] font-bold leading-none tracking-tight text-slate-900">Daftar Struktur Organisasi</h1>
+                        <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Daftar Struktur Organisasi</h1>
                         <p class="mt-1.5 text-sm text-slate-500">Hierarki Departemen, Unit Kerja, dan Seksi</p>
                     </div>
                 </div>

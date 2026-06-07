@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\LhppBast;
 use App\Models\LhppBastSignature;
+use App\Services\Approvals\ApprovalNotificationService;
 use App\Support\BastApprovalSignatureBuilder;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -19,6 +20,7 @@ class LhppController extends Controller
 {
     public function __construct(
         private readonly BastApprovalSignatureBuilder $signatureBuilder,
+        private readonly ApprovalNotificationService $approvalNotificationService,
     ) {
     }
 
@@ -124,6 +126,30 @@ class LhppController extends Controller
 
             abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Terjadi kesalahan saat memuat halaman BAST admin.');
         }
+    }
+
+    public function resendActiveApproval(int $lhppId)
+    {
+        $lhpp = LhppBast::query()->findOrFail($lhppId);
+        $signature = $lhpp->signatures()
+            ->where('status', LhppBastSignature::STATUS_PENDING)
+            ->orderBy('step_order')
+            ->first();
+
+        abort_unless(
+            $signature && ! $signature->tokenExpired() && $signature->approvalUrl(),
+            Response::HTTP_CONFLICT,
+            'Tidak ada link approval BAST/LHPP aktif yang dapat dikirim ulang.'
+        );
+
+        if (! $this->approvalNotificationService->sendBast($signature, true)) {
+            abort(Response::HTTP_BAD_GATEWAY, 'Email approval BAST/LHPP gagal dikirim.');
+        }
+
+        return back()->with('status', sprintf(
+            'Link approval BAST/LHPP berhasil dikirim ulang ke %s.',
+            $signature->signer?->email ?: 'email approver',
+        ));
     }
 
     public function pdf(Request $request, int $lhppId)

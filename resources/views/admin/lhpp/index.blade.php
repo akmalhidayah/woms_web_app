@@ -3,8 +3,8 @@
         <div id="admin-bast-status-alert" data-message="{{ session('status') }}" class="hidden"></div>
     @endif
 
-    <div class="space-y-5">
-        <section class="rounded-[1.35rem] border border-blue-100 px-5 py-4 shadow-sm" style="background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 48%, #e6f1ff 100%);">
+    <div class="order-list-compact space-y-4">
+        <section class="order-list-hero rounded-[1.35rem] border border-blue-100 px-5 py-4 shadow-sm" style="background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 48%, #e6f1ff 100%);">
             <div class="flex items-center gap-4">
                 <span class="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm ring-1 ring-blue-200">
                     <i data-lucide="file-text" class="h-[18px] w-[18px]"></i>
@@ -16,7 +16,7 @@
             </div>
         </section>
 
-        <section class="overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-sm">
+        <section class="order-list-panel overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 px-5 py-4 overflow-x-auto">
                 <form method="GET" action="{{ route('admin.lhpp.index') }}" class="flex min-w-[640px] items-center gap-2">
                     <div class="relative min-w-0 flex-1">
@@ -250,55 +250,41 @@
                                         @endif
 
                                         @if ($activeSignature && $approvalStatus !== \App\Models\LhppBast::APPROVAL_APPROVED)
-                                            <div class="w-[170px] rounded-xl border border-blue-100 bg-blue-50 p-2 text-left shadow-sm">
-                                                <div class="flex items-center gap-1 text-[10px] font-bold text-blue-800">
-                                                    <i data-lucide="signature" class="h-3 w-3"></i>
-                                                    TTD Termin 1
-                                                </div>
-                                                <div class="mt-1 truncate text-[9px] font-medium text-blue-700">
-                                                    {{ $activeSignature->role_label }} - {{ $activeSignature->signer_name_snapshot ?: '-' }}
-                                                </div>
-                                                @if ($activeApprovalLink && ! $isDiropsPending && ! $isActiveApprovalExpired)
-                                                    <div class="mt-2">
-                                                        <button type="button" data-copy-bast-approval-link="{{ $activeApprovalLink }}" class="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-white px-2 py-1.5 text-[9px] font-semibold text-blue-700 ring-1 ring-blue-200 transition hover:bg-blue-100">
-                                                            <i data-lucide="copy" class="h-3 w-3"></i>
-                                                            Salin
-                                                        </button>
-                                                    </div>
-                                                    <div class="mt-1 text-[8px] text-blue-600">Exp: {{ $activeSignature->token_expires_at?->format('d/m H:i') }}</div>
-                                                @elseif ($isActiveApprovalExpired)
-                                                    <div class="mt-2 inline-flex items-center gap-1 rounded-lg bg-amber-100 px-2 py-1 text-[9px] font-semibold text-amber-800 ring-1 ring-amber-200">
-                                                        <i data-lucide="clock-3" class="h-3 w-3"></i>
-                                                        Token expired
-                                                    </div>
-                                                @endif
-                                            </div>
+                                            <button
+                                                type="button"
+                                                class="bast-signature-detail-trigger inline-flex w-[116px] items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[9px] font-semibold text-blue-700 shadow-sm transition hover:bg-blue-100"
+                                                data-title="TTD Termin 1"
+                                                data-document="{{ $nomorOrder }}"
+                                                data-role="{{ $activeSignature->role_label }}"
+                                                data-signer="{{ $activeSignature->signer_name_snapshot ?: '-' }}"
+                                                data-expired="{{ $isActiveApprovalExpired ? '1' : '0' }}"
+                                                data-dirops="{{ $isDiropsPending ? '1' : '0' }}"
+                                                data-expiry="{{ $activeSignature->token_expires_at?->format('d/m/Y H:i') ?: '-' }}"
+                                                data-link="{{ $activeApprovalLink && ! $isDiropsPending && ! $isActiveApprovalExpired ? $activeApprovalLink : '' }}"
+                                                data-resend-url="{{ $activeApprovalLink && ! $isDiropsPending && ! $isActiveApprovalExpired ? route('admin.lhpp.approval.resend', ['lhppId' => $lhpp->id]) : '' }}"
+                                            >
+                                                <i data-lucide="signature" class="h-3 w-3"></i>
+                                                Detail TTD T1
+                                            </button>
                                         @endif
 
                                         @if ($terminTwoActiveSignature && $terminTwo?->approval_status !== \App\Models\LhppBast::APPROVAL_APPROVED)
-                                            <div class="w-[170px] rounded-xl border border-sky-100 bg-sky-50 p-2 text-left shadow-sm">
-                                                <div class="flex items-center gap-1 text-[10px] font-bold text-sky-800">
-                                                    <i data-lucide="signature" class="h-3 w-3"></i>
-                                                    TTD Termin 2
-                                                </div>
-                                                <div class="mt-1 truncate text-[9px] font-medium text-sky-700">
-                                                    {{ $terminTwoActiveSignature->role_label }} - {{ $terminTwoActiveSignature->signer_name_snapshot ?: '-' }}
-                                                </div>
-                                                @if ($terminTwoActiveApprovalLink && ! $terminTwoIsDiropsPending && ! $terminTwoIsActiveApprovalExpired)
-                                                    <div class="mt-2">
-                                                        <button type="button" data-copy-bast-approval-link="{{ $terminTwoActiveApprovalLink }}" class="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-white px-2 py-1.5 text-[9px] font-semibold text-sky-700 ring-1 ring-sky-200 transition hover:bg-sky-100">
-                                                            <i data-lucide="copy" class="h-3 w-3"></i>
-                                                            Salin
-                                                        </button>
-                                                    </div>
-                                                    <div class="mt-1 text-[8px] text-sky-600">Exp: {{ $terminTwoActiveSignature->token_expires_at?->format('d/m H:i') }}</div>
-                                                @elseif ($terminTwoIsActiveApprovalExpired)
-                                                    <div class="mt-2 inline-flex items-center gap-1 rounded-lg bg-amber-100 px-2 py-1 text-[9px] font-semibold text-amber-800 ring-1 ring-amber-200">
-                                                        <i data-lucide="clock-3" class="h-3 w-3"></i>
-                                                        Token T2 expired
-                                                    </div>
-                                                @endif
-                                            </div>
+                                            <button
+                                                type="button"
+                                                class="bast-signature-detail-trigger inline-flex w-[116px] items-center justify-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-[9px] font-semibold text-sky-700 shadow-sm transition hover:bg-sky-100"
+                                                data-title="TTD Termin 2"
+                                                data-document="{{ $nomorOrder }}"
+                                                data-role="{{ $terminTwoActiveSignature->role_label }}"
+                                                data-signer="{{ $terminTwoActiveSignature->signer_name_snapshot ?: '-' }}"
+                                                data-expired="{{ $terminTwoIsActiveApprovalExpired ? '1' : '0' }}"
+                                                data-dirops="{{ $terminTwoIsDiropsPending ? '1' : '0' }}"
+                                                data-expiry="{{ $terminTwoActiveSignature->token_expires_at?->format('d/m/Y H:i') ?: '-' }}"
+                                                data-link="{{ $terminTwoActiveApprovalLink && ! $terminTwoIsDiropsPending && ! $terminTwoIsActiveApprovalExpired ? $terminTwoActiveApprovalLink : '' }}"
+                                                data-resend-url="{{ $terminTwoActiveApprovalLink && ! $terminTwoIsDiropsPending && ! $terminTwoIsActiveApprovalExpired ? route('admin.lhpp.approval.resend', ['lhppId' => $terminTwo->id]) : '' }}"
+                                            >
+                                                <i data-lucide="signature" class="h-3 w-3"></i>
+                                                Detail TTD T2
+                                            </button>
                                         @endif
 
                                         @if ($isDiropsPending)
@@ -348,6 +334,70 @@
         </section>
     </div>
 
+    <div id="bastSignatureModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/55 px-4 py-6">
+        <div class="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-2xl">
+            <div class="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                <div>
+                    <div class="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">Detail Approval BAST</div>
+                    <h2 id="bastSignatureModalTitle" class="mt-1 text-base font-bold text-slate-900">TTD</h2>
+                </div>
+                <button type="button" data-close-bast-signature-modal class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50">
+                    <i data-lucide="x" class="h-4 w-4"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 px-4 py-3 text-[11px] text-slate-600">
+                <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <div class="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">Dokumen</div>
+                    <div id="bastSignatureModalDocument" class="mt-1 font-bold text-slate-900">-</div>
+                </div>
+
+                <div class="grid gap-2 sm:grid-cols-2">
+                    <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                        <div class="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">Role TTD</div>
+                        <div id="bastSignatureModalRole" class="mt-1 font-semibold text-slate-900">-</div>
+                    </div>
+                    <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                        <div class="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">Signer</div>
+                        <div id="bastSignatureModalSigner" class="mt-1 font-semibold text-slate-900">-</div>
+                    </div>
+                </div>
+
+                <div class="grid gap-2 sm:grid-cols-2">
+                    <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                        <div class="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">Expired Token</div>
+                        <div id="bastSignatureModalExpiry" class="mt-1 font-semibold text-slate-900">-</div>
+                    </div>
+                    <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                        <div class="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">Status</div>
+                        <div id="bastSignatureModalStatus" class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold">-</div>
+                    </div>
+                </div>
+
+                <div id="bastSignatureModalNote" class="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-blue-700">
+                    Link approval masih aktif dan bisa dikirim ulang.
+                </div>
+            </div>
+
+            <div class="flex flex-col-reverse gap-2 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-end">
+                <button type="button" data-close-bast-signature-modal class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+                    Tutup
+                </button>
+                <button id="bastSignatureCopyButton" type="button" class="hidden items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">
+                    <i data-lucide="copy" class="h-3.5 w-3.5"></i>
+                    Salin Link
+                </button>
+                <form id="bastSignatureResendForm" method="POST" action="#" class="hidden">
+                    @csrf
+                    <button type="submit" class="inline-flex items-center justify-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-100">
+                        <i data-lucide="send" class="h-3.5 w-3.5"></i>
+                        Resend Email
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -379,6 +429,117 @@
                 document.execCommand('copy');
                 document.body.removeChild(textarea);
             };
+
+            const signatureModal = document.getElementById('bastSignatureModal');
+            const signatureTitle = document.getElementById('bastSignatureModalTitle');
+            const signatureDocument = document.getElementById('bastSignatureModalDocument');
+            const signatureRole = document.getElementById('bastSignatureModalRole');
+            const signatureSigner = document.getElementById('bastSignatureModalSigner');
+            const signatureExpiry = document.getElementById('bastSignatureModalExpiry');
+            const signatureStatus = document.getElementById('bastSignatureModalStatus');
+            const signatureNote = document.getElementById('bastSignatureModalNote');
+            const signatureCopyButton = document.getElementById('bastSignatureCopyButton');
+            const signatureResendForm = document.getElementById('bastSignatureResendForm');
+            let activeSignatureLink = '';
+            let originalCopyHtml = signatureCopyButton?.innerHTML || '';
+
+            const openSignatureModal = (button) => {
+                if (!signatureModal) {
+                    return;
+                }
+
+                const isExpired = button.dataset.expired === '1';
+                const isDirops = button.dataset.dirops === '1';
+                const link = button.dataset.link || '';
+                const resendUrl = button.dataset.resendUrl || '';
+
+                activeSignatureLink = link;
+                signatureTitle.textContent = button.dataset.title || 'Detail TTD';
+                signatureDocument.textContent = button.dataset.document || '-';
+                signatureRole.textContent = button.dataset.role || '-';
+                signatureSigner.textContent = button.dataset.signer || '-';
+                signatureExpiry.textContent = button.dataset.expiry || '-';
+
+                signatureStatus.className = 'mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold';
+
+                if (isExpired) {
+                    signatureStatus.classList.add('bg-amber-100', 'text-amber-800', 'ring-1', 'ring-amber-200');
+                    signatureStatus.textContent = 'Token expired';
+                    signatureNote.className = 'rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-amber-800';
+                    signatureNote.textContent = 'Token approval sudah expired. Buat/kirim ulang token dari alur approval bila diperlukan.';
+                } else if (isDirops) {
+                    signatureStatus.classList.add('bg-orange-100', 'text-orange-800', 'ring-1', 'ring-orange-200');
+                    signatureStatus.textContent = 'Menunggu PKM';
+                    signatureNote.className = 'rounded-lg border border-orange-100 bg-orange-50 px-3 py-2 text-orange-800';
+                    signatureNote.textContent = 'Step DIROPS menunggu dokumen final dari PKM, sehingga tidak memakai link approval email biasa.';
+                } else if (link) {
+                    signatureStatus.classList.add('bg-emerald-100', 'text-emerald-800', 'ring-1', 'ring-emerald-200');
+                    signatureStatus.textContent = 'Link aktif';
+                    signatureNote.className = 'rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-blue-700';
+                    signatureNote.textContent = 'Link approval masih aktif. Anda bisa menyalin link atau mengirim ulang email approval.';
+                } else {
+                    signatureStatus.classList.add('bg-slate-100', 'text-slate-700', 'ring-1', 'ring-slate-200');
+                    signatureStatus.textContent = 'Tidak ada link aktif';
+                    signatureNote.className = 'rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600';
+                    signatureNote.textContent = 'Belum ada link approval aktif untuk step ini.';
+                }
+
+                signatureCopyButton?.classList.toggle('hidden', !link);
+                signatureCopyButton?.classList.toggle('inline-flex', Boolean(link));
+                if (signatureCopyButton) {
+                    signatureCopyButton.innerHTML = originalCopyHtml;
+                }
+
+                signatureResendForm?.classList.toggle('hidden', !resendUrl);
+                signatureResendForm?.classList.toggle('block', Boolean(resendUrl));
+                if (signatureResendForm && resendUrl) {
+                    signatureResendForm.action = resendUrl;
+                }
+
+                signatureModal.classList.remove('hidden');
+                signatureModal.classList.add('flex');
+
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            };
+
+            const closeSignatureModal = () => {
+                signatureModal?.classList.add('hidden');
+                signatureModal?.classList.remove('flex');
+            };
+
+            document.querySelectorAll('.bast-signature-detail-trigger').forEach((button) => {
+                button.addEventListener('click', () => openSignatureModal(button));
+            });
+
+            document.querySelectorAll('[data-close-bast-signature-modal]').forEach((button) => {
+                button.addEventListener('click', closeSignatureModal);
+            });
+
+            signatureModal?.addEventListener('click', (event) => {
+                if (event.target === signatureModal) {
+                    closeSignatureModal();
+                }
+            });
+
+            signatureCopyButton?.addEventListener('click', async () => {
+                if (!activeSignatureLink) {
+                    return;
+                }
+
+                try {
+                    await copyToClipboard(activeSignatureLink);
+                    signatureCopyButton.innerHTML = '<i data-lucide="check" class="h-3.5 w-3.5"></i> Disalin';
+                    window.lucide?.createIcons();
+                    setTimeout(() => {
+                        signatureCopyButton.innerHTML = originalCopyHtml;
+                        window.lucide?.createIcons();
+                    }, 1600);
+                } catch (error) {
+                    signatureCopyButton.innerHTML = originalCopyHtml;
+                }
+            });
 
             document.querySelectorAll('[data-copy-bast-approval-link]').forEach((button) => {
                 button.addEventListener('click', async () => {

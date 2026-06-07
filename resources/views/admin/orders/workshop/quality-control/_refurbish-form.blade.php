@@ -59,7 +59,7 @@
                     <i data-lucide="clipboard-list" class="h-5 w-5"></i>
                 </span>
                 <div>
-                    <h1 class="text-[1.45rem] font-bold leading-tight text-slate-900">{{ $formTitle }}</h1>
+                    <h1 class="text-[1.3rem] font-bold leading-tight text-slate-900">{{ $formTitle }}</h1>
                     <p class="mt-1 text-[12px] text-slate-500">{{ $order->nomor_order }} - {{ $order->nama_pekerjaan }}</p>
                 </div>
             </div>

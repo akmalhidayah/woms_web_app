@@ -7,7 +7,7 @@
                 store: @js(route('admin.user-panel.store')),
             }
         })"
-        class="space-y-6"
+        class="other-menu-compact space-y-4"
     >
         @if (session('success'))
             <div id="user-panel-success" data-message="{{ session('success') }}" class="hidden"></div>
@@ -27,7 +27,7 @@
                         <i data-lucide="users" class="h-6 w-6"></i>
                     </span>
                     <div>
-                        <h1 class="text-[2rem] font-bold leading-none tracking-tight text-slate-900">User Panel</h1>
+                        <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">User Panel</h1>
                         <p class="mt-2 text-sm text-slate-500">Kelola akun pembuat order, approval, vendor, dan admin dari satu halaman.</p>
                     </div>
                 </div>
@@ -50,7 +50,7 @@
                 @endphp
                 <div class="rounded-[1.35rem] border border-slate-200 bg-white px-5 py-4 shadow-sm">
                     <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">{{ $label }}</div>
-                    <div class="mt-3 text-[2rem] font-bold leading-none text-slate-900">{{ $count }}</div>
+                    <div class="mt-2 text-[1.55rem] font-bold leading-none text-slate-900">{{ $count }}</div>
                     <div class="mt-2 text-xs text-slate-500">Total user dengan tipe {{ strtolower($label) }}.</div>
                 </div>
             @endforeach

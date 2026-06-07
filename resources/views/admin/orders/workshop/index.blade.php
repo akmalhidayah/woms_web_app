@@ -44,11 +44,11 @@
                         'Regu Bengkel (Refurbish)' => 'Refurbish',
                     ];
                 @endphp
-                <form method="GET" action="{{ route('admin.orders.workshop.index') }}" class="space-y-3">
+                <form method="GET" action="{{ route('admin.orders.workshop.index') }}" class="space-y-2.5">
                     <input type="hidden" id="reguToggleInput" name="regu" value="{{ $selectedRegu }}">
 
-                    <div class="flex flex-col gap-2.5 xl:flex-row xl:items-end xl:justify-between">
-                        <div class="grid flex-1 gap-2.5 md:grid-cols-3 xl:grid-cols-[1.25fr_0.95fr_0.8fr]">
+                    <div class="flex flex-col gap-2.5 md:flex-row md:items-end">
+                        <div class="grid flex-1 gap-2.5 md:grid-cols-[minmax(0,1.35fr)_minmax(240px,0.9fr)]">
                             <div class="flex flex-col">
                                 <label for="search" class="mb-1.5 text-[10px] font-semibold text-slate-700">Pencarian</label>
                                 <input id="search" name="search" type="text" value="{{ $search }}" placeholder="Cari nomor / pekerjaan / unit..." class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-[13px] text-slate-900 placeholder:text-slate-500 shadow-sm focus:border-blue-500 focus:outline-none">
@@ -62,19 +62,12 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="flex flex-col">
-                                <label for="perPage" class="mb-1.5 text-[10px] font-semibold text-slate-700">Per Halaman</label>
-                                <select id="perPage" name="perPage" class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-[13px] font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none">
-                                    @foreach ([10, 25, 50] as $option)
-                                        <option value="{{ $option }}" @selected($selectedPerPage === $option)>{{ $option }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
                         </div>
 
-                        <div class="flex items-center gap-2">
-                            <button type="submit" class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm transition hover:bg-blue-500" title="Filter">
-                                <i data-lucide="filter" class="h-[13px] w-[13px]"></i>
+                        <div class="flex items-center gap-1.5">
+                            <button type="submit" class="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 text-[11px] font-semibold text-white shadow-sm transition hover:bg-blue-500" title="Cari dan filter">
+                                <i data-lucide="search" class="h-[13px] w-[13px]"></i>
+                                Cari
                             </button>
                             <a href="{{ route('admin.orders.workshop.index') }}" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50" title="Reset">
                                 <i data-lucide="rotate-ccw" class="h-[13px] w-[13px]"></i>
@@ -82,11 +75,7 @@
                         </div>
                     </div>
 
-                    <div class="flex flex-col gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <div class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Filter Regu</div>
-                            <div class="mt-0.5 text-[11px] text-slate-500">Pilih regu untuk langsung memfilter tabel.</div>
-                        </div>
+                    <div class="flex justify-end border-t border-slate-100 pt-2.5">
                         <div class="inline-flex w-full rounded-xl border border-slate-200 bg-slate-50 p-1 shadow-sm sm:w-auto">
                             @foreach ($reguToggleOptions as $value => $label)
                                 <button

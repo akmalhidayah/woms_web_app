@@ -26,7 +26,7 @@ class OrderWorkshopController extends Controller
         $search = trim((string) $request->string('search'));
         $progress = trim((string) $request->string('progress'));
         $regu = trim((string) $request->string('regu'));
-        $perPage = max(10, min((int) $request->integer('perPage', 10), 50));
+        $perPage = 10;
 
         $orders = Order::query()
             ->with([
@@ -68,7 +68,6 @@ class OrderWorkshopController extends Controller
             'search' => $search,
             'selectedProgress' => $progress,
             'selectedRegu' => $regu,
-            'selectedPerPage' => $perPage,
             'progressOptions' => OrderWorkshop::progressOptions(),
             'materialOptions' => OrderWorkshop::materialOptions(),
             'konfirmasiOptions' => OrderWorkshop::konfirmasiAnggaranOptions(),

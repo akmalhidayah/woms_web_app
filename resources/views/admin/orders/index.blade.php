@@ -1,4 +1,18 @@
 <x-layouts.admin title="Order">
+    <style>
+        .orders-index-filter {
+            display: grid;
+            gap: 0.5rem;
+        }
+
+        @media (min-width: 768px) {
+            .orders-index-filter {
+                grid-template-columns: minmax(0, 1.7fr) minmax(220px, 0.8fr) auto;
+                align-items: end;
+            }
+        }
+    </style>
+
     @php
         $today = now()->format('Y-m-d');
     @endphp
@@ -66,35 +80,33 @@
 
             <section class="order-list-panel overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
                     <div class="border-b border-slate-200 px-4 py-3">
-                        <form method="GET" action="{{ route('admin.orders.index') }}" class="flex flex-col gap-2 md:flex-row md:items-end">
-                            <div class="grid flex-1 gap-2 md:grid-cols-[minmax(0,1.7fr)_minmax(220px,0.8fr)]">
-                                <div class="flex flex-col">
-                                    <label for="search" class="mb-1 text-[10px] font-semibold text-slate-700">Pencarian</label>
-                                    <input
-                                        id="search"
-                                        name="search"
-                                        type="text"
-                                        value="{{ $search }}"
-                                        placeholder="Cari nomor order atau pekerjaan..."
-                                        class="h-9 rounded-lg border border-slate-300 px-3 text-[12px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
-                                    >
-                                </div>
-
-                                <div class="flex flex-col">
-                                    <label for="document_status" class="mb-1 text-[10px] font-semibold text-slate-700">Kelengkapan Dokumen</label>
-                                    <select
-                                        id="document_status"
-                                        name="document_status"
-                                        class="h-9 rounded-lg border border-slate-300 px-3 text-[12px] text-slate-700 focus:border-blue-500 focus:outline-none"
-                                    >
-                                        <option value="">Semua Dokumen</option>
-                                        <option value="complete" @selected($selectedDocumentStatus === 'complete')>Dokumen Lengkap</option>
-                                        <option value="incomplete" @selected($selectedDocumentStatus === 'incomplete')>Dokumen Belum Lengkap</option>
-                                    </select>
-                                </div>
+                        <form method="GET" action="{{ route('admin.orders.index') }}" class="orders-index-filter">
+                            <div class="flex min-w-0 flex-col">
+                                <label for="search" class="mb-1 text-[10px] font-semibold text-slate-700">Pencarian</label>
+                                <input
+                                    id="search"
+                                    name="search"
+                                    type="text"
+                                    value="{{ $search }}"
+                                    placeholder="Cari nomor order atau pekerjaan..."
+                                    class="h-9 w-full rounded-lg border border-slate-300 px-3 text-[12px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
+                                >
                             </div>
 
-                            <div class="flex items-center gap-1.5">
+                            <div class="flex min-w-0 flex-col">
+                                <label for="document_status" class="mb-1 text-[10px] font-semibold text-slate-700">Kelengkapan Dokumen</label>
+                                <select
+                                    id="document_status"
+                                    name="document_status"
+                                    class="h-9 w-full rounded-lg border border-slate-300 px-3 text-[12px] text-slate-700 focus:border-blue-500 focus:outline-none"
+                                >
+                                    <option value="">Semua Dokumen</option>
+                                    <option value="complete" @selected($selectedDocumentStatus === 'complete')>Dokumen Lengkap</option>
+                                    <option value="incomplete" @selected($selectedDocumentStatus === 'incomplete')>Dokumen Belum Lengkap</option>
+                                </select>
+                            </div>
+
+                            <div class="flex items-center gap-1.5 md:pb-px">
                                 <button type="submit" class="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 text-[11px] font-semibold text-white transition hover:bg-blue-700" title="Cari dan filter">
                                     <i data-lucide="search" class="h-[13px] w-[13px]"></i>
                                     Cari
@@ -263,20 +275,20 @@ $initialWorkSeniorSignature = $order->initialWork?->signatures
                                                     <div class="flex items-start justify-between gap-3">
                                                         <div class="min-w-0">
                                                             <div class="text-[13px] font-semibold leading-snug text-slate-900">{{ $order->nama_pekerjaan }}</div>
-                                                            <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
-                                                                <span class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold {{ $noteStatusClasses }}">
-                                                                    {{ $order->catatan_status?->label() ?? 'Pending' }}
+                                                            @if ($order->catatan)
+                                                                <span class="mt-1.5 inline-flex max-w-[260px] truncate rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-medium text-slate-600" title="{{ $order->catatan }}">
+                                                                    {{ $order->catatan }}
                                                                 </span>
-                                                                @if ($order->catatan)
-                                                                    <span class="inline-flex max-w-[260px] truncate rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-medium text-slate-600" title="{{ $order->catatan }}">
-                                                                        {{ $order->catatan }}
-                                                                    </span>
-                                                                @endif
-                                                            </div>
+                                                            @endif
                                                         </div>
-                                                        <span class="shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] {{ $priorityTextClasses }}">
-                                                            {{ $priorityLabel }}
-                                                        </span>
+                                                        <div class="flex shrink-0 flex-col items-end gap-1">
+                                                            <span class="text-[10px] font-bold uppercase tracking-[0.14em] {{ $priorityTextClasses }}">
+                                                                {{ $priorityLabel }}
+                                                            </span>
+                                                            <span class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold {{ $noteStatusClasses }}">
+                                                                {{ $order->catatan_status?->label() ?? 'Pending' }}
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                     <div class="mt-2 grid gap-2 border-t border-slate-100 pt-2 md:grid-cols-2">
                                                         <div>
@@ -452,8 +464,7 @@ $initialWorkSeniorSignature = $order->initialWork?->signatures
 
                                         <td class="px-3 py-2">
                                             <div class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-                                                <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">Alur</div>
-                                                <div class="mt-1.5 flex flex-wrap gap-1">
+                                                <div class="flex flex-wrap gap-1">
                                                     <span class="inline-flex rounded-full border px-2 py-0.5 text-[9px] font-semibold {{ $routeBadgeClasses }}">{{ $routeLabel }}</span>
                                                     <span class="inline-flex rounded-full border px-2 py-0.5 text-[9px] font-semibold {{ $hppBadgeClasses }}">{{ $hppBadgeLabel }}</span>
                                                     <span class="inline-flex rounded-full border px-2 py-0.5 text-[9px] font-semibold {{ $initialWorkBadgeClasses }}">{{ $initialWorkBadgeLabel }}</span>

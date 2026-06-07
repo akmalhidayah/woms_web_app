@@ -21,14 +21,8 @@
         </div>
     </section>
 
-    <section class="rounded-[1.6rem] border border-slate-200 bg-white p-4 shadow-sm">
-        <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-                <div class="text-[15px] font-black text-slate-900">Laporan Dokumen</div>
-                <p class="mt-1 text-[12px] text-slate-500">Ikon dokumen, dropdown termin, pembayaran, dan status garansi dalam satu tabel ringkas.</p>
-            </div>
-
-            <form method="GET" action="{{ route('pkm.laporan') }}" class="flex flex-wrap items-end gap-2">
+    <section class="rounded-[1.2rem] border border-slate-200 bg-white p-3 shadow-sm">
+            <form method="GET" action="{{ route('pkm.laporan') }}" class="flex flex-wrap items-end justify-end gap-2">
                 <div>
                     <label class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Pencarian</label>
                     <input
@@ -58,95 +52,59 @@
                     Reset
                 </a>
             </form>
-        </div>
     </section>
 
-    <section class="overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white shadow-sm">
+    <section class="overflow-hidden rounded-[1.2rem] border border-slate-200 bg-white shadow-sm">
         <div class="overflow-x-auto">
-            <table class="min-w-full text-[12px]">
-                <thead class="bg-[#de773b]">
+            <table class="min-w-full table-fixed text-[11px]">
+                <colgroup>
+                    <col class="w-[14%]">
+                    <col class="w-[21%]">
+                    <col class="w-[10%]">
+                    <col class="w-[18%]">
+                    <col class="w-[18%]">
+                    <col class="w-[19%]">
+                </colgroup>
+                <thead class="border-b border-slate-200 bg-slate-100">
                     <tr>
-                        <th class="px-4 py-3 text-left text-[11px] font-semibold text-white">No. Order</th>
-                        <th class="px-4 py-3 text-left text-[11px] font-semibold text-white">Deskripsi</th>
-                        <th class="px-4 py-3 text-center text-[11px] font-semibold text-white">Dokumen</th>
-                        <th class="px-4 py-3 text-center text-[11px] font-semibold text-white">LPJ / PPL</th>
-                        <th class="px-4 py-3 text-center text-[11px] font-semibold text-white">Pembayaran</th>
-                        <th class="px-4 py-3 text-center text-[11px] font-semibold text-white">Garansi</th>
+                        <th class="px-3 py-2 text-left font-semibold uppercase text-slate-600">Order</th>
+                        <th class="px-3 py-2 text-left font-semibold uppercase text-slate-600">Detail Pekerjaan</th>
+                        <th class="px-3 py-2 text-center font-semibold uppercase text-slate-600">Dokumen</th>
+                        <th class="px-3 py-2 text-center font-semibold uppercase text-slate-600">LPJ / PPL</th>
+                        <th class="px-3 py-2 text-center font-semibold uppercase text-slate-600">Pembayaran</th>
+                        <th class="px-3 py-2 text-center font-semibold uppercase text-slate-600">Garansi</th>
                     </tr>
                 </thead>
 
                 <tbody class="divide-y divide-slate-100 bg-white">
                     @forelse ($documentRows as $row)
                         <tr class="transition hover:bg-[#fffaf6]">
-                            <td class="px-4 py-4 align-top">
-                                <div class="flex items-start gap-2">
-                                    <div class="text-[13px] font-semibold text-slate-900">{{ $row['nomor_order'] }}</div>
-
-                                    @if ($row['is_complete'])
-                                        <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Lengkap</span>
-                                    @else
-                                        <span class="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Belum</span>
-                                    @endif
+                            <td class="px-3 py-3 align-top">
+                                <div class="space-y-0.5 leading-tight">
+                                    <div class="text-[11px] font-black text-slate-900">{{ $row['nomor_order'] }}</div>
+                                    <div class="text-[9px] font-medium text-blue-600">Notif : {{ $row['notification_number'] ?: '-' }}</div>
+                                    <div class="text-[9px] font-medium text-blue-600">PO : {{ $row['purchase_order_number'] ?: '-' }}</div>
                                 </div>
-
-                                @if (! empty($row['notification_number']))
-                                    <div class="mt-1 text-[10px] text-slate-500">Notifikasi: {{ $row['notification_number'] }}</div>
-                                @endif
-
-                                <div class="mt-1 text-[10px] text-slate-400">{{ optional($row['created_at'])->format('Y-m-d') }}</div>
                             </td>
 
-                            <td class="px-4 py-4 align-top text-[12px] text-slate-600">
-                                <div class="max-w-[280px] font-medium text-slate-800">{{ $row['job_name'] ?: '-' }}</div>
-
-                                @if (! empty($row['purchase_order_number']))
-                                    <div class="mt-2 inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-medium text-slate-600">
-                                        PO#: {{ $row['purchase_order_number'] }}
-                                    </div>
-                                @endif
+                            <td class="px-3 py-3 align-top">
+                                <div class="space-y-1 text-[9px] leading-snug text-slate-600">
+                                    <div class="text-[10px] font-bold text-slate-900">{{ $row['job_name'] ?: '-' }}</div>
+                                    <div>Unit: {{ $row['unit_kerja'] ?: '-' }}</div>
+                                    <div class="text-blue-600">Seksi: {{ $row['seksi'] ?: '-' }}</div>
+                                </div>
                             </td>
 
-                            <td class="px-4 py-4 align-top text-center">
-                                <div class="inline-flex items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2">
-                                    <div class="flex flex-col items-center text-[10px]">
-                                        @if (! empty($row['hpp_url']))
-                                            <a href="{{ $row['hpp_url'] }}" target="_blank" rel="noopener noreferrer" class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-slate-700 text-white shadow-sm">
-                                                <i data-lucide="file-text" class="h-3.5 w-3.5"></i>
-                                            </a>
-                                        @else
-                                            <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white text-slate-300 ring-1 ring-slate-200">
-                                                <i data-lucide="file-text" class="h-3.5 w-3.5"></i>
-                                            </span>
-                                        @endif
-                                        <div class="mt-1 text-[10px] font-medium text-slate-600">HPP</div>
-                                    </div>
-
-                                    <div class="flex flex-col items-center text-[10px]">
-                                        @if (! empty($row['po_url']))
-                                            <a href="{{ $row['po_url'] }}" target="_blank" rel="noopener noreferrer" class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm">
-                                                <i data-lucide="receipt-text" class="h-3.5 w-3.5"></i>
-                                            </a>
-                                        @else
-                                            <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white text-slate-300 ring-1 ring-slate-200">
-                                                <i data-lucide="receipt-text" class="h-3.5 w-3.5"></i>
-                                            </span>
-                                        @endif
-                                        <div class="mt-1 text-[10px] font-medium text-slate-600">PO</div>
-                                    </div>
-
-                                    <div class="flex flex-col items-center text-[10px]">
-                                        @if (! empty($row['bast_url']))
-                                            <a href="{{ $row['bast_url'] }}" target="_blank" rel="noopener noreferrer" class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm">
-                                                <i data-lucide="file-badge" class="h-3.5 w-3.5"></i>
-                                            </a>
-                                        @else
-                                            <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white text-slate-300 ring-1 ring-slate-200">
-                                                <i data-lucide="file-badge" class="h-3.5 w-3.5"></i>
-                                            </span>
-                                        @endif
-                                        <div class="mt-1 text-[10px] font-medium text-slate-600">BAST</div>
-                                    </div>
-                                </div>
+                            <td class="px-3 py-3 align-top text-center">
+                                @if (! empty($row['merged_document_url']))
+                                    <a href="{{ $row['merged_document_url'] }}" target="_blank" rel="noopener noreferrer" title="Buka dokumen gabungan" aria-label="Buka dokumen gabungan" class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[#ca642f] text-white shadow-sm transition hover:bg-[#b85b2b]">
+                                        <i data-lucide="files" class="h-4 w-4"></i>
+                                    </a>
+                                @else
+                                    <span title="Dokumen belum lengkap" class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-300 ring-1 ring-slate-200">
+                                        <i data-lucide="files" class="h-4 w-4"></i>
+                                    </span>
+                                @endif
                             </td>
 
                             <td class="px-4 py-4 align-top text-center">

@@ -455,6 +455,9 @@ Route::delete('admin/struktur-organisasi/{unitWork}', [StructureOrganizationCont
     Route::get('pkm/laporan', [PkmDocumentsController::class, 'index'])
         ->middleware('role:pkm')
         ->name('pkm.laporan');
+    Route::get('pkm/laporan/{order:nomor_order}/dokumen-gabungan', [PkmDocumentsController::class, 'mergedDocuments'])
+        ->middleware('role:pkm')
+        ->name('pkm.laporan.merged-documents');
     Route::get('pkm/laporan/{nomorOrder}/files/{kind}/{termin}', [PkmDocumentsController::class, 'previewLpjPpl'])
         ->middleware('role:pkm')
         ->where('nomorOrder', '[0-9A-Za-z\-]+')

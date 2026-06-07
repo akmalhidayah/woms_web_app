@@ -88,7 +88,7 @@ class LhppController extends Controller
 
             $lhpps = LhppBast::query()
                 ->with([
-                    'order:id,nomor_order,unit_kerja,seksi',
+                    'order:id,nomor_order,notifikasi,nama_pekerjaan,unit_kerja,seksi',
                     'purchaseOrder:id,order_id,purchase_order_number',
                     'terminTwo.signatures.signer:id,name,nomor_hp',
                     'terminTwo.activeSignature.signer:id,name,nomor_hp',

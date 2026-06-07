@@ -40,19 +40,18 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full table-fixed bg-white text-[11px] text-slate-700">
                     <colgroup>
-                        <col class="w-[15%]">
-                        <col class="w-[18%]">
                         <col class="w-[12%]">
-                        <col class="w-[18%]">
+                        <col class="w-[26%]">
+                        <col class="w-[10%]">
+                        <col class="w-[15%]">
                         <col class="w-[17%]">
                         <col class="w-[20%]">
-                        <col class="w-[12%]">
                     </colgroup>
                     <thead class="bg-slate-100 text-slate-700 uppercase tracking-wide">
                         <tr>
-                            <th class="px-4 py-2 text-left font-semibold">Order / PO</th>
-                            <th class="px-4 py-2 text-left font-semibold">Unit Kerja</th>
-                            <th class="px-4 py-2 text-left font-semibold">Selesai / Waktu</th>
+                            <th class="px-4 py-2 text-left font-semibold">Order</th>
+                            <th class="px-4 py-2 text-left font-semibold">Detail Pekerjaan</th>
+                            <th class="px-4 py-2 text-left font-semibold">Waktu</th>
                             <th class="px-4 py-2 text-left font-semibold">Biaya / Garansi</th>
                             <th class="px-4 py-2 text-left font-semibold">Quality Control</th>
                             <th class="px-4 py-2 text-center font-semibold">PDF BAST</th>
@@ -63,6 +62,8 @@
                             @php
                                 $nomorOrder = $lhpp->nomor_order ?: ($lhpp->order?->nomor_order ?? '-');
                                 $nomorPo = $lhpp->purchase_order_number ?: ($lhpp->purchaseOrder?->purchase_order_number ?? '-');
+                                $notifikasi = $lhpp->notifikasi ?: ($lhpp->order?->notifikasi ?? '-');
+                                $namaPekerjaan = $lhpp->deskripsi_pekerjaan ?: ($lhpp->order?->nama_pekerjaan ?? '-');
                                 $terminTwo = $lhpp->terminTwo;
                                 $pdfRefreshToken = now()->timestamp;
                                 $seksi = $lhpp->seksi ?: ($lhpp->order?->seksi ?? '-');
@@ -140,60 +141,55 @@
 
                             <tr class="transition duration-150 hover:bg-slate-50">
                                 <td class="px-4 py-3 align-top">
-                                    <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-                                        <div class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Order</div>
-                                        <div class="mt-1 break-words text-[13px] font-bold leading-tight text-slate-900">{{ $nomorOrder }}</div>
-                                        <div class="mt-2 border-t border-slate-100 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">PO</div>
-                                        <div class="mt-1 break-words text-[11px] font-semibold leading-tight text-slate-700">{{ $nomorPo }}</div>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[10px] text-slate-600 shadow-sm">
-                                        <div class="font-semibold leading-snug text-slate-800">{{ $seksi }}</div>
-                                        <div class="mt-1 border-t border-slate-200 pt-1.5 leading-snug">{{ $unitKerja }}</div>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3 align-top">
-                                    <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] shadow-sm">
-                                        <div class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Tanggal</div>
-                                        <div class="mt-1 font-bold text-slate-900">{{ $tanggalSelesai }}</div>
-                                        <div class="mt-2 border-t border-slate-100 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Waktu</div>
-                                        <div class="mt-1 font-semibold text-slate-700">{{ $waktuPengerjaan }}</div>
+                                    <div class="space-y-1.5">
+                                        <div class="break-words text-[12px] font-black leading-tight text-slate-900">{{ $nomorOrder }}</div>
+                                        <div class="text-[10px] leading-tight">
+                                            <div class="font-medium text-blue-600">Notif:</div>
+                                            <div class="break-words font-medium text-blue-600">{{ $notifikasi }}</div>
+                                        </div>
+                                        <div class="text-[10px] leading-tight">
+                                            <div class="font-medium text-blue-600">PO:</div>
+                                            <div class="break-words font-medium text-blue-600">{{ $nomorPo }}</div>
+                                        </div>
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 align-top">
-                                    <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-                                        <div class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Total Biaya</div>
-                                        <div class="mt-1 font-bold text-slate-900">Rp{{ number_format($totalBiaya, 0, ',', '.') }}</div>
-                                        @if (!is_null($termin1Amount))
-                                            <div class="mt-1 text-[10px] font-medium text-emerald-600">
-                                                {{ $isWithoutWarranty ? 'Total Dibayar' : 'Termin 1' }}: Rp{{ number_format($termin1Amount, 0, ',', '.') }}
-                                            </div>
+                                    <div class="space-y-2 text-[10px] leading-snug text-slate-600">
+                                        <div class="text-[11px] font-bold leading-snug text-slate-900">{{ $namaPekerjaan }}</div>
+                                        <div>
+                                            <span>Unit: {{ $unitKerja }}</span>
+                                            <span class="mx-1 text-slate-300">|</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-blue-600">Seksi: {{ $seksi }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 align-top">
+                                    <div class="space-y-1.5">
+                                        <div class="text-[11px] font-bold text-slate-900">{{ $tanggalSelesai }}</div>
+                                        @if ($waktuPengerjaan !== '-')
+                                            <span class="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-blue-200">
+                                                {{ $waktuPengerjaan }}
+                                            </span>
                                         @endif
-                                        @if (!is_null($termin2Amount))
-                                            <div class="mt-1 text-[10px] font-medium text-sky-600">
-                                                Termin 2: Rp{{ number_format($termin2Amount, 0, ',', '.') }}
-                                            </div>
-                                        @endif
-
-                                        <div class="mt-2 border-t border-slate-100 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Garansi</div>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 align-top">
+                                    <div class="space-y-2">
+                                        <div class="text-[12px] font-bold text-slate-900">Rp{{ number_format($totalBiaya, 0, ',', '.') }}</div>
                                         @if ($garansiMonths === null)
-                                            <span class="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200">
-                                                <i data-lucide="clock-3" class="h-3 w-3"></i>
+                                            <span class="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200">
                                                 Belum diatur
                                             </span>
                                         @elseif ($isWithoutWarranty)
-                                            <span class="mt-1 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200">
-                                                <i data-lucide="ban" class="h-3 w-3"></i>
-                                                Tanpa Garansi
+                                            <span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200">
+                                                0 Bulan
                                             </span>
-                                            <div class="mt-1 text-[10px] text-slate-500">Pembayaran cukup 1 termin.</div>
                                         @else
-                                            <span class="mt-1 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700 ring-1 ring-indigo-200">
-                                                <i data-lucide="shield-check" class="h-3 w-3"></i>
+                                            <span class="inline-flex rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 ring-1 ring-indigo-200">
                                                 {{ $garansiMonths }} Bulan
                                             </span>
-                                            <div class="mt-1 text-[10px] text-slate-500">Menggunakan Termin 1 & 2.</div>
                                         @endif
                                     </div>
                                 </td>

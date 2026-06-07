@@ -211,6 +211,45 @@
                                         ? (float) ($row->termin_2_nilai ?? round($totalBiaya * 0.05))
                                         : null;
                                     $terminTwoExists = ! $isWithoutWarranty && filled($terminTwo?->id);
+                                    $approvalProgress = $row->approvalProgressPercent();
+                                    $signedCount = $row->approvalSignedCount();
+                                    $totalSteps = $row->approvalStepCount();
+                                    $isApprovalComplete = $row->approvalCompleted();
+                                    $approvalSummaryLabel = $isApprovalComplete
+                                        ? 'Semua approver selesai'
+                                        : ($activeSignature?->role_label ? 'Menunggu '.$activeSignature->role_label : ($qualityControlStatus === 'approved' ? 'Menunggu approval' : 'Menunggu QC Admin'));
+                                    $approvalChecklist = $row->signatures->map(function (\App\Models\LhppBastSignature $signature): array {
+                                        return [
+                                            'label' => $signature->role_label,
+                                            'name' => $signature->signer_name_snapshot ?: '-',
+                                            'status' => $signature->status,
+                                        ];
+                                    })->values();
+                                    $activeApprovalModalActions = [
+                                        'link' => $activeApprovalLink && $activeSignature?->role_key !== 'dirops' && ! $isExpired ? $activeApprovalLink : '',
+                                        'resend_url' => $activeApprovalLink && $activeSignature?->role_key !== 'dirops' && ! $isExpired ? route('pkm.lhpp.approval.resend', ['lhppId' => $row->id]) : '',
+                                    ];
+                                    $terminTwoProgress = $terminTwo?->approvalProgressPercent() ?? 0;
+                                    $terminTwoSignedCount = $terminTwo?->approvalSignedCount() ?? 0;
+                                    $terminTwoTotalSteps = $terminTwo?->approvalStepCount() ?? 0;
+                                    $terminTwoSummaryLabel = $terminTwo
+                                        ? ($terminTwo->approvalCompleted()
+                                            ? 'Semua approver T2 selesai'
+                                            : ($terminTwoActiveSignature?->role_label ? 'Menunggu '.$terminTwoActiveSignature->role_label : 'Menunggu approval T2'))
+                                        : '';
+                                    $terminTwoChecklist = $terminTwo
+                                        ? $terminTwo->signatures->map(function (\App\Models\LhppBastSignature $signature): array {
+                                            return [
+                                                'label' => $signature->role_label,
+                                                'name' => $signature->signer_name_snapshot ?: '-',
+                                                'status' => $signature->status,
+                                            ];
+                                        })->values()
+                                        : collect();
+                                    $terminTwoApprovalModalActions = [
+                                        'link' => $terminTwoActiveApprovalLink && $terminTwoActiveSignature?->role_key !== 'dirops' && ! $terminTwoIsExpired ? $terminTwoActiveApprovalLink : '',
+                                        'resend_url' => $terminTwoActiveApprovalLink && $terminTwoActiveSignature?->role_key !== 'dirops' && ! $terminTwoIsExpired ? route('pkm.lhpp.approval.resend', ['lhppId' => $terminTwo->id]) : '',
+                                    ];
                                 @endphp
 
                                 <tr class="transition hover:bg-slate-50">
@@ -262,24 +301,66 @@
                                     </td>
 
                                     <td class="px-3 py-2">
-                                        <div class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] ring-1 {{ $signClr }}">
-                                            <i data-lucide="pen-tool" class="h-3 w-3"></i>
-                                            {{ $signLabel }}
+                                        <div class="rounded-xl border border-blue-100 bg-blue-50 px-2 py-1.5 shadow-sm">
+                                            <div class="flex items-center justify-between gap-2">
+                                                <div class="flex min-w-0 items-center gap-1.5">
+                                                    <span class="inline-flex shrink-0 rounded-full bg-white px-1.5 py-0.5 text-[8px] font-bold text-blue-700 ring-1 ring-blue-100">
+                                                        {{ $signedCount }}/{{ $totalSteps }} TTD
+                                                    </span>
+                                                    <span class="truncate text-[9px] font-semibold text-slate-800" title="{{ $approvalSummaryLabel }}">
+                                                        {{ $approvalSummaryLabel }}
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    class="bast-approval-flow-trigger inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-blue-200 hover:bg-blue-100 hover:text-blue-700"
+                                                    data-title="{{ $row->nomor_order }} - T1"
+                                                    data-progress="{{ $approvalProgress }}"
+                                                    data-signed-count="{{ $signedCount }}"
+                                                    data-total-steps="{{ $totalSteps }}"
+                                                    data-checklist='@json($approvalChecklist)'
+                                                    data-actions='@json($activeApprovalModalActions)'
+                                                    title="Detail approval Termin 1"
+                                                >
+                                                    <i data-lucide="info" class="h-3 w-3"></i>
+                                                </button>
+                                            </div>
+                                            @if ($isExpired && $activeSignature && $approvalStatus !== \App\Models\LhppBast::APPROVAL_APPROVED)
+                                                <form action="{{ route('pkm.lhpp.approval-token.regenerate', ['lhppId' => $row->id]) }}" method="POST" class="mt-1">
+                                                    @csrf
+                                                    <button type="submit" class="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[8px] font-semibold text-amber-800 ring-1 ring-amber-200 hover:bg-amber-50">
+                                                        <i data-lucide="refresh-cw" class="h-2.5 w-2.5"></i> Token Baru
+                                                    </button>
+                                                </form>
+                                            @endif
                                         </div>
 
-                                        @if ($activeSignature?->role_key === 'dirops')
-                                            <div class="mt-1 inline-flex items-center gap-1 rounded-md bg-orange-100 px-2 py-0.5 text-[10px] text-orange-800 ring-1 ring-orange-200">
-                                                <i data-lucide="upload" class="h-3 w-3"></i> Menunggu upload final PKM
+                                        @if ($terminTwoExists)
+                                            <div class="mt-2 rounded-xl border border-sky-100 bg-sky-50 px-2 py-1.5 shadow-sm">
+                                                <div class="flex items-center justify-between gap-2">
+                                                    <div class="flex min-w-0 items-center gap-1.5">
+                                                        <span class="inline-flex shrink-0 rounded-full bg-white px-1.5 py-0.5 text-[8px] font-bold text-sky-700 ring-1 ring-sky-100">
+                                                            {{ $terminTwoSignedCount }}/{{ $terminTwoTotalSteps }} TTD
+                                                        </span>
+                                                        <span class="truncate text-[9px] font-semibold text-slate-800" title="{{ $terminTwoSummaryLabel }}">
+                                                            {{ $terminTwoSummaryLabel }}
+                                                        </span>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        class="bast-approval-flow-trigger inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-sky-200 hover:bg-sky-100 hover:text-sky-700"
+                                                        data-title="{{ $row->nomor_order }} - T2"
+                                                        data-progress="{{ $terminTwoProgress }}"
+                                                        data-signed-count="{{ $terminTwoSignedCount }}"
+                                                        data-total-steps="{{ $terminTwoTotalSteps }}"
+                                                        data-checklist='@json($terminTwoChecklist)'
+                                                        data-actions='@json($terminTwoApprovalModalActions)'
+                                                        title="Detail approval Termin 2"
+                                                    >
+                                                        <i data-lucide="info" class="h-3 w-3"></i>
+                                                    </button>
+                                                </div>
                                             </div>
-                                        @endif
-
-                                        @if ($isExpired && $activeSignature && $approvalStatus !== \App\Models\LhppBast::APPROVAL_APPROVED)
-                                            <form action="{{ route('pkm.lhpp.approval-token.regenerate', ['lhppId' => $row->id]) }}" method="POST" class="mt-1">
-                                                @csrf
-                                                <button type="submit" class="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200 hover:bg-amber-200">
-                                                    <i data-lucide="refresh-cw" class="h-3 w-3"></i> Token Baru
-                                                </button>
-                                            </form>
                                         @endif
 
                                         @if ($isDiropsPending)
@@ -297,66 +378,6 @@
                                             <a href="{{ $diropsSignedDocumentUrl }}" target="_blank" rel="noopener" class="mt-1 inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 ring-1 ring-emerald-200 hover:bg-emerald-200">
                                                 <i data-lucide="file-check-2" class="h-3 w-3"></i> Final DIROPS
                                             </a>
-                                        @endif
-
-                                        @if ($activeSignature && $approvalStatus !== \App\Models\LhppBast::APPROVAL_APPROVED)
-                                            <div class="mt-2 w-[230px] rounded-xl border border-blue-100 bg-blue-50 p-2 text-left shadow-sm">
-                                                <div class="flex items-center justify-between gap-2">
-                                                    <div class="inline-flex items-center gap-1 text-[10px] font-bold text-blue-800">
-                                                        <i data-lucide="signature" class="h-3 w-3"></i>
-                                                        Link TTD Termin 1
-                                                    </div>
-                                                    @if ($activeSignature->token_expires_at)
-                                                        <span class="text-[8px] font-semibold text-blue-600">{{ $activeSignature->token_expires_at->format('d/m H:i') }}</span>
-                                                    @endif
-                                                </div>
-                                                <div class="mt-1 text-[9px] font-medium text-blue-700">
-                                                    {{ $activeSignature->role_label }} - {{ $activeSignature->signer_name_snapshot ?: '-' }}
-                                                </div>
-                                                @if ($activeApprovalLink && $activeSignature?->role_key !== 'dirops' && ! $isExpired)
-                                                    <div class="mt-2 flex gap-1">
-                                                        <button type="button" class="copy-next-link inline-flex w-full items-center justify-center gap-1 rounded-lg bg-white px-2 py-1.5 text-[10px] font-semibold text-blue-700 ring-1 ring-blue-200 hover:bg-blue-100" data-link="{{ $activeApprovalLink }}">
-                                                            <i data-lucide="copy" class="h-3 w-3"></i> Salin
-                                                        </button>
-                                                        <form method="POST" action="{{ route('pkm.lhpp.approval.resend', ['lhppId' => $row->id]) }}">
-                                                            @csrf
-                                                            <button type="submit" class="inline-flex h-full items-center justify-center rounded-lg bg-white px-2 py-1.5 text-[10px] font-semibold text-sky-700 ring-1 ring-sky-200 hover:bg-sky-100" title="Kirim ulang email approval BAST Termin 1">
-                                                                <i data-lucide="send" class="h-3 w-3"></i>
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                @endif
-                                            </div>
-                                        @endif
-
-                                        @if ($terminTwoActiveSignature && $terminTwoApprovalStatus !== \App\Models\LhppBast::APPROVAL_APPROVED)
-                                            <div class="mt-2 w-[230px] rounded-xl border border-sky-100 bg-sky-50 p-2 text-left shadow-sm">
-                                                <div class="flex items-center justify-between gap-2">
-                                                    <div class="inline-flex items-center gap-1 text-[10px] font-bold text-sky-800">
-                                                        <i data-lucide="signature" class="h-3 w-3"></i>
-                                                        Link TTD Termin 2
-                                                    </div>
-                                                    @if ($terminTwoActiveSignature->token_expires_at)
-                                                        <span class="text-[8px] font-semibold text-sky-600">{{ $terminTwoActiveSignature->token_expires_at->format('d/m H:i') }}</span>
-                                                    @endif
-                                                </div>
-                                                <div class="mt-1 text-[9px] font-medium text-sky-700">
-                                                    {{ $terminTwoActiveSignature->role_label }} - {{ $terminTwoActiveSignature->signer_name_snapshot ?: '-' }}
-                                                </div>
-                                                @if ($terminTwoActiveApprovalLink && $terminTwoActiveSignature?->role_key !== 'dirops' && ! $terminTwoIsExpired)
-                                                    <div class="mt-2 flex gap-1">
-                                                        <button type="button" class="copy-next-link inline-flex w-full items-center justify-center gap-1 rounded-lg bg-white px-2 py-1.5 text-[10px] font-semibold text-sky-700 ring-1 ring-sky-200 hover:bg-sky-100" data-link="{{ $terminTwoActiveApprovalLink }}">
-                                                            <i data-lucide="copy" class="h-3 w-3"></i> Salin
-                                                        </button>
-                                                        <form method="POST" action="{{ route('pkm.lhpp.approval.resend', ['lhppId' => $terminTwo->id]) }}">
-                                                            @csrf
-                                                            <button type="submit" class="inline-flex h-full items-center justify-center rounded-lg bg-white px-2 py-1.5 text-[10px] font-semibold text-sky-700 ring-1 ring-sky-200 hover:bg-sky-100" title="Kirim ulang email approval BAST Termin 2">
-                                                                <i data-lucide="send" class="h-3 w-3"></i>
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                @endif
-                                            </div>
                                         @endif
                                     </td>
 
@@ -486,6 +507,38 @@
             </div>
         </div>
 
+        <div id="bastApprovalFlowModal" class="fixed inset-0 z-[120] hidden overflow-y-auto" aria-hidden="true">
+            <div class="absolute inset-0 bg-slate-900/45"></div>
+            <div class="relative flex min-h-full items-start justify-center px-4 pb-6 pt-28 sm:pb-8 sm:pt-32">
+                <div data-bast-approval-panel class="my-2 w-full max-w-md overflow-hidden rounded-[1.2rem] border border-slate-200 bg-white shadow-2xl">
+                    <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3.5">
+                        <div>
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">Detail Approval BAST</div>
+                            <h2 id="bastApprovalFlowModalTitle" class="mt-1.5 text-[1.2rem] font-bold leading-none tracking-tight text-slate-900">-</h2>
+                            <p class="mt-2 text-[11px] text-slate-500">Progress tanda tangan BAST yang sedang berjalan.</p>
+                        </div>
+                        <button
+                            type="button"
+                            id="bastApprovalFlowModalClose"
+                            class="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                            aria-label="Tutup detail approval BAST"
+                        >
+                            <i data-lucide="x" class="h-3.5 w-3.5"></i>
+                        </button>
+                    </div>
+
+                    <div class="max-h-[58vh] space-y-3 overflow-y-auto px-4 py-3.5">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span id="bastApprovalFlowModalCount" class="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-700 ring-1 ring-blue-100">0/0 TTD</span>
+                            <span id="bastApprovalFlowModalPercent" class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600">0%</span>
+                        </div>
+
+                        <div id="bastApprovalFlowModalChecklist" class="space-y-2"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <style>
             .pkm-lhpp-action-btn {
                 display: inline-flex;
@@ -549,6 +602,130 @@
                                 text: 'Tidak dapat menyalin link',
                             });
                         });
+                    });
+                });
+
+                const approvalFlowModal = document.getElementById('bastApprovalFlowModal');
+                const approvalFlowModalTitle = document.getElementById('bastApprovalFlowModalTitle');
+                const approvalFlowModalCount = document.getElementById('bastApprovalFlowModalCount');
+                const approvalFlowModalPercent = document.getElementById('bastApprovalFlowModalPercent');
+                const approvalFlowModalChecklist = document.getElementById('bastApprovalFlowModalChecklist');
+                const approvalFlowModalClose = document.getElementById('bastApprovalFlowModalClose');
+                const escapeHtml = (value) => String(value ?? '')
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#039;');
+                const parseArrayData = (value) => {
+                    try {
+                        const parsed = JSON.parse(value || '[]');
+                        return Array.isArray(parsed) ? parsed : [];
+                    } catch (error) {
+                        return [];
+                    }
+                };
+                const parseObjectData = (value) => {
+                    try {
+                        const parsed = JSON.parse(value || '{}');
+                        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+                    } catch (error) {
+                        return {};
+                    }
+                };
+                const approvalStatusConfig = {
+                    signed: { label: 'OK', badgeClass: 'border-emerald-200 bg-emerald-50 text-emerald-700', rowClass: 'border-emerald-200 bg-emerald-50' },
+                    pending: { label: 'Aktif', badgeClass: 'border-blue-200 bg-blue-50 text-blue-700', rowClass: 'border-blue-200 bg-blue-50' },
+                    locked: { label: 'Menunggu', badgeClass: 'border-slate-200 bg-slate-100 text-slate-500', rowClass: 'border-slate-200 bg-slate-50' },
+                    skipped: { label: 'Skip', badgeClass: 'border-amber-200 bg-amber-50 text-amber-700', rowClass: 'border-amber-200 bg-amber-50' },
+                };
+
+                const openApprovalFlowModal = (button) => {
+                    if (!approvalFlowModal) {
+                        return;
+                    }
+
+                    const checklist = parseArrayData(button.dataset.checklist);
+                    const actions = parseObjectData(button.dataset.actions);
+                    const approvalLink = actions.link || '';
+                    const resendUrl = actions.resend_url || '';
+                    const signedCount = button.dataset.signedCount || '0';
+                    const totalSteps = button.dataset.totalSteps || '0';
+                    const progress = button.dataset.progress || '0';
+
+                    approvalFlowModalTitle.textContent = button.dataset.title || '-';
+                    approvalFlowModalCount.textContent = `${signedCount}/${totalSteps} TTD`;
+                    approvalFlowModalPercent.textContent = `${progress}%`;
+                    approvalFlowModalChecklist.innerHTML = checklist.map((item) => {
+                        const config = approvalStatusConfig[item.status] || approvalStatusConfig.locked;
+                        const isActive = item.status === 'pending' && approvalLink;
+                        const actionButtons = isActive
+                            ? `
+                                <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                    <button type="button" class="bast-modal-copy-link inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-blue-700 transition hover:bg-blue-100" data-link="${escapeHtml(approvalLink)}">
+                                        <i data-lucide="copy" class="h-3 w-3"></i>
+                                        Salin Link
+                                    </button>
+                                    ${resendUrl ? `
+                                        <form method="POST" action="${escapeHtml(resendUrl)}" class="inline-block">
+                                            <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-sky-700 transition hover:bg-sky-100">
+                                                <i data-lucide="send" class="h-3 w-3"></i>
+                                                Resend
+                                            </button>
+                                        </form>
+                                    ` : ''}
+                                </div>
+                            `
+                            : '';
+
+                        return `
+                            <div class="rounded-xl border px-3 py-2.5 ${config.rowClass}">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <div class="truncate text-[13px] font-medium text-slate-800">${escapeHtml(item.label || '-')}</div>
+                                        <div class="mt-1 truncate text-[11px] text-slate-500">${escapeHtml(item.name || '-')}</div>
+                                    </div>
+                                    <span class="inline-flex shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${config.badgeClass}">
+                                        ${config.label}
+                                    </span>
+                                </div>
+                                ${actionButtons}
+                            </div>
+                        `;
+                    }).join('');
+
+                    approvalFlowModal.classList.remove('hidden');
+                    approvalFlowModal.setAttribute('aria-hidden', 'false');
+                    document.body.classList.add('overflow-hidden');
+                    window.lucide?.createIcons();
+                };
+
+                const closeApprovalFlowModal = () => {
+                    approvalFlowModal?.classList.add('hidden');
+                    approvalFlowModal?.setAttribute('aria-hidden', 'true');
+                    document.body.classList.remove('overflow-hidden');
+                };
+
+                document.querySelectorAll('.bast-approval-flow-trigger').forEach((button) => {
+                    button.addEventListener('click', () => openApprovalFlowModal(button));
+                });
+                approvalFlowModalClose?.addEventListener('click', closeApprovalFlowModal);
+                approvalFlowModal?.addEventListener('click', (event) => {
+                    if (!event.target.closest('[data-bast-approval-panel]')) {
+                        closeApprovalFlowModal();
+                    }
+                });
+                approvalFlowModalChecklist?.addEventListener('click', (event) => {
+                    const copyButton = event.target.closest('.bast-modal-copy-link');
+
+                    if (!copyButton) {
+                        return;
+                    }
+
+                    copyTextToClipboard(copyButton.dataset.link || '').then(() => {
+                        copyButton.innerHTML = '<i data-lucide="check" class="h-3 w-3"></i> Disalin';
+                        window.lucide?.createIcons();
                     });
                 });
 

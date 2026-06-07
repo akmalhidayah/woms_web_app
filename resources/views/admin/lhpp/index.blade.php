@@ -40,12 +40,12 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full table-fixed bg-white text-[11px] text-slate-700">
                     <colgroup>
-                        <col class="w-[12%]">
-                        <col class="w-[26%]">
-                        <col class="w-[10%]">
-                        <col class="w-[15%]">
                         <col class="w-[17%]">
-                        <col class="w-[20%]">
+                        <col class="w-[23%]">
+                        <col class="w-[9%]">
+                        <col class="w-[13%]">
+                        <col class="w-[28%]">
+                        <col class="w-[10%]">
                     </colgroup>
                     <thead class="bg-slate-100 text-slate-700 uppercase tracking-wide">
                         <tr>
@@ -53,7 +53,7 @@
                             <th class="px-4 py-2 text-left font-semibold">Detail Pekerjaan</th>
                             <th class="px-4 py-2 text-left font-semibold">Waktu</th>
                             <th class="px-4 py-2 text-left font-semibold">Biaya / Garansi</th>
-                            <th class="px-4 py-2 text-left font-semibold">Quality Control</th>
+                            <th class="px-4 py-2 text-left font-semibold">Quality Control / Approval</th>
                             <th class="px-4 py-2 text-center font-semibold">PDF BAST</th>
                         </tr>
                     </thead>
@@ -137,19 +137,35 @@
                                     \App\Models\LhppBast::APPROVAL_REJECTED => 'bg-rose-50 text-rose-700 ring-rose-200',
                                     default => 'bg-blue-50 text-blue-700 ring-blue-200',
                                 };
+                                $approvalProgress = $lhpp->approvalProgressPercent();
+                                $signedCount = $lhpp->approvalSignedCount();
+                                $totalSteps = $lhpp->approvalStepCount();
+                                $isApprovalComplete = $lhpp->approvalCompleted();
+                                $approvalSummaryCaption = $isApprovalComplete ? 'Approval selesai' : 'Approval berjalan';
+                                $approvalSummaryLabel = $isApprovalComplete
+                                    ? 'Semua approver selesai'
+                                    : ($activeSignature?->role_label ? 'Menunggu '.$activeSignature->role_label : ($qualityControlStatus === 'approved' ? 'Menunggu approval' : 'Menunggu QC Admin'));
+                                $approvalChecklist = $lhpp->signatures->map(function (\App\Models\LhppBastSignature $signature): array {
+                                    return [
+                                        'label' => $signature->role_label,
+                                        'name' => $signature->signer_name_snapshot ?: '-',
+                                        'status' => $signature->status,
+                                    ];
+                                })->values();
+                                $activeApprovalModalActions = [
+                                    'link' => $activeApprovalLink && ! $isDiropsPending && ! $isActiveApprovalExpired ? $activeApprovalLink : '',
+                                    'whatsapp_url' => $activeApprovalLink && ! $isDiropsPending && ! $isActiveApprovalExpired ? $activeApprovalWhatsappUrl : '',
+                                    'resend_url' => $activeApprovalLink && ! $isDiropsPending && ! $isActiveApprovalExpired ? route('admin.lhpp.approval.resend', ['lhppId' => $lhpp->id]) : '',
+                                ];
                             @endphp
 
                             <tr class="transition duration-150 hover:bg-slate-50">
                                 <td class="px-4 py-3 align-top">
-                                    <div class="space-y-1.5">
+                                    <div class="flex items-start gap-3">
                                         <div class="break-words text-[12px] font-black leading-tight text-slate-900">{{ $nomorOrder }}</div>
-                                        <div class="text-[10px] leading-tight">
-                                            <div class="font-medium text-blue-600">Notif:</div>
-                                            <div class="break-words font-medium text-blue-600">{{ $notifikasi }}</div>
-                                        </div>
-                                        <div class="text-[10px] leading-tight">
-                                            <div class="font-medium text-blue-600">PO:</div>
-                                            <div class="break-words font-medium text-blue-600">{{ $nomorPo }}</div>
+                                        <div class="min-w-0 space-y-1 text-[9px] leading-tight text-blue-600">
+                                            <div class="break-words"><span class="font-semibold">Notif:</span> {{ $notifikasi }}</div>
+                                            <div class="break-words"><span class="font-semibold">PO:</span> {{ $nomorPo }}</div>
                                         </div>
                                     </div>
                                 </td>
@@ -195,40 +211,62 @@
                                 </td>
 
                                 <td class="px-4 py-3 align-top">
-                                    <form method="POST" action="{{ route('admin.lhpp.quality-control', ['lhppId' => $lhpp->id]) }}" class="space-y-1.5">
-                                        @csrf
-                                        @method('PATCH')
-                                        <input type="hidden" name="search" value="{{ $search }}">
-                                        <input type="hidden" name="page" value="{{ $lhpps->currentPage() }}">
-                                        <select name="quality_control_status" onchange="this.form.submit()" class="w-full rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold focus:outline-none {{ $qualityControlSelectClass }}">
-                                            <option value="pending" @selected($qualityControlStatus === 'pending')>Pilih Aksi</option>
-                                            <option value="approved" @selected($qualityControlStatus === 'approved')>Setujui</option>
-                                            <option value="rejected" @selected($qualityControlStatus === 'rejected')>Tolak</option>
-                                        </select>
-                                        <p class="text-[10px] leading-snug {{ $qualityControlHelperClass }}">{{ $qualityControlHelper }}</p>
-                                    </form>
-                                    <div class="mt-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2">
-                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold ring-1 {{ $approvalClass }}">
-                                            {{ $approvalLabel }}
-                                        </span>
-                                        @if ($activeSignature)
-                                            <div class="mt-1 text-[9px] text-slate-500">
-                                                {{ $activeSignature->signer_name_snapshot ?: '-' }}
+                                    <div class="flex items-start gap-2">
+                                        <form method="POST" action="{{ route('admin.lhpp.quality-control', ['lhppId' => $lhpp->id]) }}" class="w-[104px] shrink-0 space-y-1">
+                                            @csrf
+                                            @method('PATCH')
+                                            <input type="hidden" name="search" value="{{ $search }}">
+                                            <input type="hidden" name="page" value="{{ $lhpps->currentPage() }}">
+                                            <select name="quality_control_status" onchange="this.form.submit()" class="h-8 w-full rounded-lg border px-2 text-[10px] font-semibold focus:outline-none {{ $qualityControlSelectClass }}">
+                                                <option value="pending" @selected($qualityControlStatus === 'pending')>Pilih</option>
+                                                <option value="approved" @selected($qualityControlStatus === 'approved')>Setujui</option>
+                                                <option value="rejected" @selected($qualityControlStatus === 'rejected')>Tolak</option>
+                                            </select>
+                                            <p class="text-[8px] leading-snug {{ $qualityControlHelperClass }}">{{ $qualityControlHelper }}</p>
+                                        </form>
+
+                                        <div class="min-w-0 flex-1 rounded-xl border border-blue-100 bg-blue-50 px-2 py-1.5 shadow-sm">
+                                            <div class="flex items-center justify-between gap-2">
+                                                <div class="flex min-w-0 items-center gap-1.5">
+                                                    <span class="inline-flex shrink-0 rounded-full bg-white px-1.5 py-0.5 text-[8px] font-bold text-blue-700 ring-1 ring-blue-100">
+                                                        {{ $signedCount }}/{{ $totalSteps }} TTD
+                                                    </span>
+                                                    <span class="truncate text-[9px] font-semibold text-slate-800" title="{{ $approvalSummaryLabel }}">
+                                                        {{ $approvalSummaryLabel }}
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    class="bast-approval-flow-trigger inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-blue-200 hover:bg-blue-100 hover:text-blue-700"
+                                                    data-title="{{ $nomorOrder }}"
+                                                    data-progress="{{ $approvalProgress }}"
+                                                    data-signed-count="{{ $signedCount }}"
+                                                    data-total-steps="{{ $totalSteps }}"
+                                                    data-caption="{{ $approvalSummaryCaption }}"
+                                                    data-summary="{{ $approvalSummaryLabel }}"
+                                                    data-checklist='@json($approvalChecklist)'
+                                                    data-actions='@json($activeApprovalModalActions)'
+                                                    title="Detail approval"
+                                                >
+                                                    <i data-lucide="info" class="h-3 w-3"></i>
+                                                </button>
                                             </div>
-                                        @endif
+                                            @if ($isActiveApprovalExpired)
+                                                <div class="mt-1 text-[8px] font-semibold text-amber-700">Link expired</div>
+                                            @endif
+                                        </div>
                                     </div>
                                 </td>
 
                                 <td class="px-4 py-3 align-top">
-                                    <div class="flex flex-col items-center gap-1.5">
+                                    <div class="flex flex-wrap justify-center gap-1.5">
                                         <a href="{{ route('admin.lhpp.pdf', ['nomorOrder' => $lhpp->nomor_order, 'termin' => 'termin-1']) }}?refresh={{ $pdfRefreshToken }}"
                                            target="_blank"
                                            rel="noopener"
                                            title="Lihat BAST Termin 1 (PDF)"
                                            aria-label="Lihat BAST Termin 1 PDF"
-                                           class="inline-flex w-[116px] items-center justify-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[9px] font-semibold text-rose-700 shadow-sm transition hover:bg-rose-100">
-                                            <i data-lucide="file-text" class="h-3 w-3"></i>
-                                            {{ $isWithoutWarranty ? 'BAST Final' : 'BAST Termin 1' }}
+                                           class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-[9px] font-black text-rose-700 shadow-sm transition hover:bg-rose-100">
+                                            T1
                                         </a>
 
                                         @if ($hasTerminTwo)
@@ -237,9 +275,8 @@
                                                rel="noopener"
                                                title="Lihat BAST Termin 2 (PDF)"
                                                aria-label="Lihat BAST Termin 2 PDF"
-                                               class="inline-flex w-[116px] items-center justify-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-[9px] font-semibold text-sky-700 shadow-sm transition hover:bg-sky-100">
-                                                <i data-lucide="file-text" class="h-3 w-3"></i>
-                                                BAST Termin 2
+                                               class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-[9px] font-black text-sky-700 shadow-sm transition hover:bg-sky-100">
+                                                T2
                                             </a>
                                         @elseif ($isWithoutWarranty)
                                             <span class="text-center text-[10px] font-medium text-slate-400">Tidak ada Termin 2</span>
@@ -247,71 +284,27 @@
                                             <span class="text-center text-[10px] font-medium text-slate-400">Termin 2 belum dibuat</span>
                                         @endif
 
-                                        @if ($activeSignature && $approvalStatus !== \App\Models\LhppBast::APPROVAL_APPROVED)
-                                            <button
-                                                type="button"
-                                                class="bast-signature-detail-trigger inline-flex w-[116px] items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[9px] font-semibold text-blue-700 shadow-sm transition hover:bg-blue-100"
-                                                data-title="TTD Termin 1"
-                                                data-document="{{ $nomorOrder }}"
-                                                data-role="{{ $activeSignature->role_label }}"
-                                                data-signer="{{ $activeSignature->signer_name_snapshot ?: '-' }}"
-                                                data-expired="{{ $isActiveApprovalExpired ? '1' : '0' }}"
-                                                data-dirops="{{ $isDiropsPending ? '1' : '0' }}"
-                                                data-expiry="{{ $activeSignature->token_expires_at?->format('d/m/Y H:i') ?: '-' }}"
-                                                data-link="{{ $activeApprovalLink && ! $isDiropsPending && ! $isActiveApprovalExpired ? $activeApprovalLink : '' }}"
-                                                data-wa-url="{{ $activeApprovalLink && ! $isDiropsPending && ! $isActiveApprovalExpired ? $activeApprovalWhatsappUrl : '' }}"
-                                                data-resend-url="{{ $activeApprovalLink && ! $isDiropsPending && ! $isActiveApprovalExpired ? route('admin.lhpp.approval.resend', ['lhppId' => $lhpp->id]) : '' }}"
-                                            >
-                                                <i data-lucide="signature" class="h-3 w-3"></i>
-                                                Detail TTD T1
-                                            </button>
-                                        @endif
-
-                                        @if ($terminTwoActiveSignature && $terminTwo?->approval_status !== \App\Models\LhppBast::APPROVAL_APPROVED)
-                                            <button
-                                                type="button"
-                                                class="bast-signature-detail-trigger inline-flex w-[116px] items-center justify-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-[9px] font-semibold text-sky-700 shadow-sm transition hover:bg-sky-100"
-                                                data-title="TTD Termin 2"
-                                                data-document="{{ $nomorOrder }}"
-                                                data-role="{{ $terminTwoActiveSignature->role_label }}"
-                                                data-signer="{{ $terminTwoActiveSignature->signer_name_snapshot ?: '-' }}"
-                                                data-expired="{{ $terminTwoIsActiveApprovalExpired ? '1' : '0' }}"
-                                                data-dirops="{{ $terminTwoIsDiropsPending ? '1' : '0' }}"
-                                                data-expiry="{{ $terminTwoActiveSignature->token_expires_at?->format('d/m/Y H:i') ?: '-' }}"
-                                                data-link="{{ $terminTwoActiveApprovalLink && ! $terminTwoIsDiropsPending && ! $terminTwoIsActiveApprovalExpired ? $terminTwoActiveApprovalLink : '' }}"
-                                                data-wa-url="{{ $terminTwoActiveApprovalLink && ! $terminTwoIsDiropsPending && ! $terminTwoIsActiveApprovalExpired ? $terminTwoActiveApprovalWhatsappUrl : '' }}"
-                                                data-resend-url="{{ $terminTwoActiveApprovalLink && ! $terminTwoIsDiropsPending && ! $terminTwoIsActiveApprovalExpired ? route('admin.lhpp.approval.resend', ['lhppId' => $terminTwo->id]) : '' }}"
-                                            >
-                                                <i data-lucide="signature" class="h-3 w-3"></i>
-                                                Detail TTD T2
-                                            </button>
-                                        @endif
-
                                         @if ($isDiropsPending)
-                                            <span class="inline-flex w-[116px] items-center justify-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-[9px] font-semibold text-orange-700">
+                                            <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-orange-200 bg-orange-50 text-orange-700" title="Menunggu dokumen final PKM">
                                                 <i data-lucide="upload" class="h-3 w-3"></i>
-                                                Menunggu PKM
                                             </span>
                                         @endif
 
                                         @if ($diropsSignedDocumentUrl)
-                                            <a href="{{ $diropsSignedDocumentUrl }}" target="_blank" rel="noopener" class="inline-flex w-[116px] items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[9px] font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100">
+                                            <a href="{{ $diropsSignedDocumentUrl }}" target="_blank" rel="noopener" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:bg-emerald-100" title="Final DIROPS T1">
                                                 <i data-lucide="file-check-2" class="h-3 w-3"></i>
-                                                Final DIROPS
                                             </a>
                                         @endif
 
                                         @if ($terminTwoIsDiropsPending)
-                                            <span class="inline-flex w-[116px] items-center justify-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-[9px] font-semibold text-orange-700">
+                                            <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-orange-200 bg-orange-50 text-orange-700" title="Menunggu dokumen final PKM T2">
                                                 <i data-lucide="upload" class="h-3 w-3"></i>
-                                                PKM DIROPS T2
                                             </span>
                                         @endif
 
                                         @if ($terminTwoDiropsSignedDocumentUrl)
-                                            <a href="{{ $terminTwoDiropsSignedDocumentUrl }}" target="_blank" rel="noopener" class="inline-flex w-[116px] items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[9px] font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100">
+                                            <a href="{{ $terminTwoDiropsSignedDocumentUrl }}" target="_blank" rel="noopener" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:bg-emerald-100" title="Final DIROPS T2">
                                                 <i data-lucide="file-check-2" class="h-3 w-3"></i>
-                                                DIROPS T2
                                             </a>
                                         @endif
                                     </div>
@@ -332,6 +325,38 @@
                 </div>
             @endif
         </section>
+    </div>
+
+    <div id="bastApprovalFlowModal" class="fixed inset-0 z-[120] hidden overflow-y-auto" aria-hidden="true">
+        <div class="absolute inset-0 bg-slate-900/45"></div>
+        <div class="relative flex min-h-full items-start justify-center px-4 pb-6 pt-28 sm:pb-8 sm:pt-32">
+            <div data-bast-approval-panel class="my-2 w-full max-w-md overflow-hidden rounded-[1.2rem] border border-slate-200 bg-white shadow-2xl">
+                <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3.5">
+                    <div>
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">Detail Approval BAST</div>
+                        <h2 id="bastApprovalFlowModalTitle" class="mt-1.5 text-[1.2rem] font-bold leading-none tracking-tight text-slate-900">-</h2>
+                        <p class="mt-2 text-[11px] text-slate-500">Progress tanda tangan BAST yang sedang berjalan.</p>
+                    </div>
+                    <button
+                        type="button"
+                        id="bastApprovalFlowModalClose"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                        aria-label="Tutup detail approval BAST"
+                    >
+                        <i data-lucide="x" class="h-3.5 w-3.5"></i>
+                    </button>
+                </div>
+
+                <div class="max-h-[58vh] space-y-3 overflow-y-auto px-4 py-3.5">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span id="bastApprovalFlowModalCount" class="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-700 ring-1 ring-blue-100">0/0 TTD</span>
+                        <span id="bastApprovalFlowModalPercent" class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600">0%</span>
+                    </div>
+
+                    <div id="bastApprovalFlowModalChecklist" class="space-y-2"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="bastSignatureModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/55 px-4 py-6">
@@ -555,6 +580,135 @@
                 }
             });
 
+            const approvalFlowModal = document.getElementById('bastApprovalFlowModal');
+            const approvalFlowModalTitle = document.getElementById('bastApprovalFlowModalTitle');
+            const approvalFlowModalCount = document.getElementById('bastApprovalFlowModalCount');
+            const approvalFlowModalPercent = document.getElementById('bastApprovalFlowModalPercent');
+            const approvalFlowModalChecklist = document.getElementById('bastApprovalFlowModalChecklist');
+            const approvalFlowModalClose = document.getElementById('bastApprovalFlowModalClose');
+            const escapeHtml = (value) => String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+            const parseArrayData = (value) => {
+                try {
+                    const parsed = JSON.parse(value || '[]');
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch (error) {
+                    return [];
+                }
+            };
+            const parseObjectData = (value) => {
+                try {
+                    const parsed = JSON.parse(value || '{}');
+                    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+                } catch (error) {
+                    return {};
+                }
+            };
+            const approvalStatusConfig = {
+                signed: { label: 'OK', badgeClass: 'border-emerald-200 bg-emerald-50 text-emerald-700', rowClass: 'border-emerald-200 bg-emerald-50' },
+                pending: { label: 'Aktif', badgeClass: 'border-blue-200 bg-blue-50 text-blue-700', rowClass: 'border-blue-200 bg-blue-50' },
+                locked: { label: 'Menunggu', badgeClass: 'border-slate-200 bg-slate-100 text-slate-500', rowClass: 'border-slate-200 bg-slate-50' },
+                skipped: { label: 'Skip', badgeClass: 'border-amber-200 bg-amber-50 text-amber-700', rowClass: 'border-amber-200 bg-amber-50' },
+            };
+
+            const openApprovalFlowModal = (button) => {
+                if (!approvalFlowModal) {
+                    return;
+                }
+
+                const checklist = parseArrayData(button.dataset.checklist);
+                const actions = parseObjectData(button.dataset.actions);
+                const approvalLink = actions.link || '';
+                const whatsappUrl = actions.whatsapp_url || '';
+                const resendUrl = actions.resend_url || '';
+                const signedCount = button.dataset.signedCount || '0';
+                const totalSteps = button.dataset.totalSteps || '0';
+                const progress = button.dataset.progress || '0';
+
+                approvalFlowModalTitle.textContent = button.dataset.title || '-';
+                approvalFlowModalCount.textContent = `${signedCount}/${totalSteps} TTD`;
+                approvalFlowModalPercent.textContent = `${progress}%`;
+                approvalFlowModalChecklist.innerHTML = checklist.map((item) => {
+                    const config = approvalStatusConfig[item.status] || approvalStatusConfig.locked;
+                    const isActive = item.status === 'pending' && approvalLink;
+                    const actionButtons = isActive
+                        ? `
+                            <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                <button type="button" class="bast-modal-copy-link inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-blue-700 transition hover:bg-blue-100" data-link="${escapeHtml(approvalLink)}">
+                                    <i data-lucide="copy" class="h-3 w-3"></i>
+                                    Salin Link
+                                </button>
+                                ${whatsappUrl ? `
+                                    <a href="${escapeHtml(whatsappUrl)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-100">
+                                        <i data-lucide="message-circle" class="h-3 w-3"></i>
+                                        WhatsApp
+                                    </a>
+                                ` : ''}
+                                ${resendUrl ? `
+                                    <form method="POST" action="${escapeHtml(resendUrl)}" class="inline-block">
+                                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-sky-700 transition hover:bg-sky-100">
+                                            <i data-lucide="send" class="h-3 w-3"></i>
+                                            Resend
+                                        </button>
+                                    </form>
+                                ` : ''}
+                            </div>
+                        `
+                        : '';
+
+                    return `
+                        <div class="rounded-xl border px-3 py-2.5 ${config.rowClass}">
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="min-w-0">
+                                    <div class="truncate text-[13px] font-medium text-slate-800">${escapeHtml(item.label || '-')}</div>
+                                    <div class="mt-1 truncate text-[11px] text-slate-500">${escapeHtml(item.name || '-')}</div>
+                                </div>
+                                <span class="inline-flex shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${config.badgeClass}">
+                                    ${config.label}
+                                </span>
+                            </div>
+                            ${actionButtons}
+                        </div>
+                    `;
+                }).join('');
+
+                approvalFlowModal.classList.remove('hidden');
+                approvalFlowModal.setAttribute('aria-hidden', 'false');
+                document.body.classList.add('overflow-hidden');
+                window.lucide?.createIcons();
+            };
+
+            const closeApprovalFlowModal = () => {
+                approvalFlowModal?.classList.add('hidden');
+                approvalFlowModal?.setAttribute('aria-hidden', 'true');
+                document.body.classList.remove('overflow-hidden');
+            };
+
+            document.querySelectorAll('.bast-approval-flow-trigger').forEach((button) => {
+                button.addEventListener('click', () => openApprovalFlowModal(button));
+            });
+            approvalFlowModalClose?.addEventListener('click', closeApprovalFlowModal);
+            approvalFlowModal?.addEventListener('click', (event) => {
+                if (!event.target.closest('[data-bast-approval-panel]')) {
+                    closeApprovalFlowModal();
+                }
+            });
+            approvalFlowModalChecklist?.addEventListener('click', async (event) => {
+                const copyButton = event.target.closest('.bast-modal-copy-link');
+
+                if (!copyButton) {
+                    return;
+                }
+
+                await copyToClipboard(copyButton.dataset.link || '');
+                copyButton.innerHTML = '<i data-lucide="check" class="h-3 w-3"></i> Disalin';
+                window.lucide?.createIcons();
+            });
         });
     </script>
 </x-layouts.admin>

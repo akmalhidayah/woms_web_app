@@ -24,9 +24,9 @@
             $activeTokens = collect($activeTokens ?? []);
         @endphp
 
-        <div class="space-y-5">
-            <section class="overflow-hidden rounded-[1.8rem] border border-slate-200 bg-white px-5 py-5 text-slate-900 shadow-sm">
-                <h1 class="text-[2rem] font-black leading-none tracking-tight text-slate-900">BAST / LHPP</h1>
+        <div class="space-y-4">
+            <section class="overflow-hidden rounded-[1.2rem] border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm">
+                <h1 class="text-[1.15rem] font-black leading-none tracking-tight text-slate-900">BAST / LHPP</h1>
             </section>
 
             <div class="rounded-[1.6rem] border border-slate-200 bg-white p-4 shadow-sm">

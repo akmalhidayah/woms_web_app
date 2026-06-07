@@ -172,23 +172,23 @@
     ];
 @endphp
 
-<div class="space-y-4">
+<div class="space-y-3">
     <section class="rounded-[1.2rem] border border-[#eadfd2] bg-white px-4 py-3 shadow-sm">
         <div class="min-w-0">
-            <h1 class="text-[1.05rem] font-black leading-none tracking-tight text-slate-900">Dashboard PKM</h1>
+            <h1 class="text-[1.15rem] font-black leading-none tracking-tight text-slate-900">Dashboard PKM</h1>
         </div>
     </section>
 
-    <section class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+    <section class="grid grid-cols-2 gap-2 lg:grid-cols-4">
         @foreach ($topCards as $card)
-            <article class="rounded-[1rem] border px-3 py-2.5 shadow-sm {{ $card['tone'] }}">
-                <div class="flex items-center justify-between gap-3">
+            <article class="rounded-[0.9rem] border px-2.5 py-2 shadow-sm {{ $card['tone'] }}">
+                <div class="flex items-center justify-between gap-2">
                     <div class="min-w-0">
-                        <div class="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">{{ $card['label'] }}</div>
-                        <div class="mt-1 text-[21px] font-black leading-none {{ $card['accent'] }}">{{ $card['value'] }}</div>
+                        <div class="truncate text-[8px] font-bold uppercase tracking-[0.12em] text-slate-500">{{ $card['label'] }}</div>
+                        <div class="mt-1 text-[19px] font-black leading-none {{ $card['accent'] }}">{{ $card['value'] }}</div>
                     </div>
 
-                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl {{ $card['icon_tone'] }}">
+                    <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg {{ $card['icon_tone'] }}">
                         <i data-lucide="{{ $card['icon'] }}" class="h-3.5 w-3.5"></i>
                     </span>
                 </div>
@@ -202,7 +202,7 @@
         @endforeach
     </section>
 
-    <section class="space-y-3">
+    <section class="space-y-2">
         <div class="flex items-center justify-between gap-3">
             <div>
                 <h2 class="text-[14px] font-black text-slate-900">Prioritas Hari Ini</h2>
@@ -210,15 +210,15 @@
             <a href="{{ route('pkm.jobwaiting') }}" class="text-[12px] font-bold text-[#4c79dd] hover:text-[#395fb0]">Lihat Semua</a>
         </div>
 
-        <div class="grid gap-2 lg:grid-cols-3">
+        <div class="grid gap-2 sm:grid-cols-3">
             @foreach ($priorityCards as $priority)
-                <article class="rounded-[1rem] border px-3 py-2.5 shadow-sm {{ $priority['tone'] }}">
+                <article class="rounded-[0.9rem] border px-2.5 py-2 shadow-sm {{ $priority['tone'] }}">
                     <div class="flex items-center gap-2.5">
-                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl {{ $priority['icon_tone'] }}">
+                        <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg {{ $priority['icon_tone'] }}">
                             <i data-lucide="{{ $priority['icon'] }}" class="h-3.5 w-3.5"></i>
                         </span>
                         <div class="min-w-0">
-                            <div class="text-[11px] font-bold text-slate-900">{{ $priority['title'] }}</div>
+                            <div class="truncate text-[10px] font-bold text-slate-900">{{ $priority['title'] }}</div>
                         </div>
                     </div>
                 </article>
@@ -226,7 +226,7 @@
         </div>
     </section>
 
-    <section class="grid gap-2 xl:grid-cols-[1.4fr_1fr]">
+    <section class="grid gap-2 lg:grid-cols-[1.4fr_1fr]">
         <article class="overflow-hidden rounded-[1.2rem] border border-slate-200 bg-white shadow-sm">
             <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-3 py-2.5">
                 <div>
@@ -235,9 +235,9 @@
                 <div class="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold text-slate-600">7 data</div>
             </div>
 
-            <div class="p-3">
+            <div class="p-2.5">
                 @if ($chartPoints->isNotEmpty())
-                    <svg viewBox="0 0 {{ $chartWidth }} {{ $chartHeight }}" class="h-[170px] w-full">
+                    <svg viewBox="0 0 {{ $chartWidth }} {{ $chartHeight }}" class="h-[150px] w-full">
                         @for ($i = 0; $i <= 4; $i++)
                             @php
                                 $y = $chartPaddingY + ($plotHeight / 4) * $i;
@@ -255,7 +255,7 @@
                         @endforeach
                     </svg>
                 @else
-                    <div class="flex h-[170px] items-center justify-center rounded-[1rem] border border-dashed border-slate-200 bg-slate-50 text-[11px] text-slate-500">
+                    <div class="flex h-[150px] items-center justify-center rounded-[1rem] border border-dashed border-slate-200 bg-slate-50 text-[11px] text-slate-500">
                         Belum ada data.
                     </div>
                 @endif
@@ -267,17 +267,17 @@
                 <h2 class="text-[13px] font-black text-slate-900">Status Pekerjaan</h2>
             </div>
 
-            <div class="grid gap-3 p-3 lg:grid-cols-[120px_1fr] lg:items-center">
+            <div class="grid gap-3 p-2.5 sm:grid-cols-[105px_1fr] sm:items-center">
                 <div class="flex justify-center">
-                    <div class="relative h-24 w-24 rounded-full" style="{{ $donutStyle }}">
+                    <div class="relative h-20 w-20 rounded-full" style="{{ $donutStyle }}">
                         <div class="absolute inset-[13px] flex flex-col items-center justify-center rounded-full bg-white text-center">
                             <div class="text-[8px] font-semibold uppercase tracking-[0.14em] text-slate-400">Total</div>
-                            <div class="mt-0.5 text-[18px] font-black text-slate-900">{{ $totalPekerjaan }}</div>
+                            <div class="mt-0.5 text-[16px] font-black text-slate-900">{{ $totalPekerjaan }}</div>
                         </div>
                     </div>
                 </div>
 
-                <div class="space-y-2">
+                <div class="space-y-1.5">
                     @forelse ($statusBreakdown as $item)
                         <div class="flex items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5">
                             <div class="flex items-center gap-2">
@@ -299,7 +299,7 @@
         </article>
     </section>
 
-    <section class="grid gap-2 xl:grid-cols-[1.45fr_1fr]">
+    <section class="grid gap-2 lg:grid-cols-[1.45fr_1fr]">
         <article class="overflow-hidden rounded-[1.2rem] border border-slate-200 bg-white shadow-sm">
             <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-3 py-2.5">
                 <div>
@@ -308,7 +308,7 @@
                 <a href="{{ route('pkm.jobwaiting') }}" class="text-[12px] font-bold text-[#4c79dd] hover:text-[#395fb0]">Lihat Semua</a>
             </div>
 
-            <div class="space-y-2 p-3">
+            <div class="space-y-2 p-2.5">
                 @forelse ($jobHighlights as $job)
                     @php
                         $tone = $statusToneClasses[$job['status_key']] ?? $statusToneClasses['menunggu'];
@@ -361,7 +361,7 @@
                 <p class="mt-0.5 text-[10px] text-slate-500">{{ $calendarMonth->translatedFormat('F Y') }}</p>
             </div>
 
-            <div class="p-3">
+            <div class="p-2.5">
                 <table class="min-w-full border-separate border-spacing-2">
                     <thead>
                         <tr class="text-[10px] text-slate-500">
@@ -394,7 +394,7 @@
                                         }
                                     @endphp
                                     <td class="align-top">
-                                        <div class="h-[58px] rounded-xl border px-2 py-1.5 {{ $inMonth ? 'border-slate-200 bg-white' : 'border-transparent bg-slate-50' }} {{ $isTodayDate ? 'ring-2 ring-[#ead7c6]' : '' }}">
+                                        <div class="h-[48px] rounded-xl border px-2 py-1.5 {{ $inMonth ? 'border-slate-200 bg-white' : 'border-transparent bg-slate-50' }} {{ $isTodayDate ? 'ring-2 ring-[#ead7c6]' : '' }}">
                                             <div class="flex items-center justify-between">
                                                 <span class="text-[10px] font-bold {{ $inMonth ? 'text-slate-800' : 'text-slate-300' }}">{{ $inMonth ? $cursor->day : '' }}</span>
                                                 @if ($targetForDate)
@@ -410,7 +410,7 @@
                     </tbody>
                 </table>
 
-                <div class="mt-4 flex flex-wrap items-center gap-4 text-[10px] text-slate-600">
+                <div class="mt-2 flex flex-wrap items-center gap-3 text-[10px] text-slate-600">
                     <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-[#db5c5c]"></span>Deadline</span>
                     <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-[#d79a2b]"></span>Upcoming</span>
                     <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-[#38a169]"></span>Selesai</span>

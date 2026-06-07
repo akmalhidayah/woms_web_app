@@ -7,16 +7,16 @@
     $documentStatus = $documentStatus ?? '';
 @endphp
 
-<div class="space-y-5">
-    <section class="overflow-hidden rounded-[1.8rem] border border-[#f2dccb] bg-[linear-gradient(135deg,_#ffffff_0%,_#fff9f4_60%,_#fbe8da_100%)] px-5 py-5 text-slate-900 shadow-[0_20px_48px_-34px_rgba(222,119,59,0.34)]">
-        <div class="flex items-start gap-4">
-            <span class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/85 text-[#ca642f] shadow-[0_10px_24px_-16px_rgba(202,100,47,0.65)] ring-1 ring-[#f1d5c2]">
-                <i data-lucide="folder-kanban" class="h-5 w-5"></i>
+<div class="space-y-4">
+    <section class="overflow-hidden rounded-[1.2rem] border border-[#f2dccb] bg-[linear-gradient(135deg,_#ffffff_0%,_#fff9f4_60%,_#fbe8da_100%)] px-4 py-3 text-slate-900 shadow-sm">
+        <div class="flex items-center gap-3">
+            <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/85 text-[#ca642f] shadow-sm ring-1 ring-[#f1d5c2]">
+                <i data-lucide="folder-kanban" class="h-4 w-4"></i>
             </span>
 
             <div>
-                <h1 class="text-[2rem] font-black leading-none tracking-tight text-slate-900">Dokumen</h1>
-                <p class="mt-2 text-[13px] text-slate-500">Tampilan compact untuk ringkasan dokumen pekerjaan, LPJ/PPL, pembayaran, dan garansi.</p>
+                <h1 class="text-[1.15rem] font-black leading-none tracking-tight text-slate-900">Dokumen</h1>
+                <p class="mt-1 text-[11px] text-slate-500">Ringkasan dokumen pekerjaan, LPJ/PPL, pembayaran, dan garansi.</p>
             </div>
         </div>
     </section>

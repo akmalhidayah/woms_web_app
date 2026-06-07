@@ -1,6 +1,6 @@
-        <div class="space-y-5">
-            <section class="overflow-hidden rounded-[1.8rem] border border-[#f2dccb] bg-[linear-gradient(135deg,_#ffffff_0%,_#fff9f4_60%,_#fbe8da_100%)] px-5 py-5 text-slate-900 shadow-[0_20px_48px_-34px_rgba(222,119,59,0.34)]">
-                <h1 class="text-[2rem] font-black leading-none tracking-tight text-slate-900">{{ $pageTitle }}</h1>
+        <div class="space-y-4">
+            <section class="overflow-hidden rounded-[1.2rem] border border-[#f2dccb] bg-[linear-gradient(135deg,_#ffffff_0%,_#fff9f4_60%,_#fbe8da_100%)] px-4 py-3 text-slate-900 shadow-sm">
+                <h1 class="text-[1.15rem] font-black leading-none tracking-tight text-slate-900">{{ $pageTitle }}</h1>
             </section>
 
             <section class="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">

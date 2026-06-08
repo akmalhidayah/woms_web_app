@@ -1,5 +1,5 @@
         <div class="space-y-4">
-            <section class="overflow-hidden rounded-[1.2rem] border border-[#f2dccb] bg-[linear-gradient(135deg,_#ffffff_0%,_#fff9f4_60%,_#fbe8da_100%)] px-4 py-3 text-slate-900 shadow-sm">
+            <section class="overflow-hidden rounded-[1.2rem] border border-[#f2dccb] bg-white px-4 py-3 text-slate-900 shadow-sm">
                 <h1 class="text-[1.15rem] font-black leading-none tracking-tight text-slate-900">{{ $pageTitle }}</h1>
             </section>
 

@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\HppSignature;
+use App\Models\InitialWorkSignature;
+use App\Models\LhppBastSignature;
+use App\Models\QualityControlSignature;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -184,18 +187,34 @@ class UserPanelController extends Controller
                 ->with('error', 'Anda tidak memiliki izin untuk menghapus user ini.');
         }
 
-        $hasActiveHppApproval = HppSignature::query()
-            ->where('signer_user_id', $user->id)
-            ->whereIn('status', [
-                HppSignature::STATUS_LOCKED,
-                HppSignature::STATUS_PENDING,
-            ])
-            ->exists();
+        $activeApproval = collect([
+            'HPP' => [HppSignature::class, HppSignature::STATUS_LOCKED, HppSignature::STATUS_PENDING],
+            'Initial Work' => [InitialWorkSignature::class, InitialWorkSignature::STATUS_LOCKED, InitialWorkSignature::STATUS_PENDING],
+            'Quality Control' => [QualityControlSignature::class, QualityControlSignature::STATUS_LOCKED, QualityControlSignature::STATUS_PENDING],
+            'BAST' => [LhppBastSignature::class, LhppBastSignature::STATUS_LOCKED, LhppBastSignature::STATUS_PENDING],
+        ])->first(function (array $approval) use ($user): bool {
+            [$model, $lockedStatus, $pendingStatus] = $approval;
 
-        if ($hasActiveHppApproval) {
+            return $model::query()
+                ->where('signer_user_id', $user->id)
+                ->whereIn('status', [$lockedStatus, $pendingStatus])
+                ->exists();
+        }, null);
+
+        if ($activeApproval) {
+            $documentName = collect([
+                'HPP' => HppSignature::class,
+                'Initial Work' => InitialWorkSignature::class,
+                'Quality Control' => QualityControlSignature::class,
+                'BAST' => LhppBastSignature::class,
+            ])->search($activeApproval[0], true);
+
             return redirect()
                 ->route('admin.user-panel.index', ['role' => $user->role])
-                ->with('error', 'Pengguna masih terdaftar pada alur approval HPP yang belum selesai.');
+                ->with('error', sprintf(
+                    'Pengguna masih terdaftar pada alur approval %s yang belum selesai.',
+                    $documentName ?: 'dokumen'
+                ));
         }
 
         $role = $user->role;

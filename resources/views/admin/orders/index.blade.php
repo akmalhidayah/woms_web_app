@@ -154,6 +154,30 @@ $initialWorkManagerSignature = $order->initialWork?->signatures
 
 $initialWorkSeniorSignature = $order->initialWork?->signatures
     ?->firstWhere('role_key', \App\Models\InitialWorkSignature::ROLE_SENIOR_MANAGER);
+$initialWorkFlowItems = collect([$initialWorkManagerSignature, $initialWorkSeniorSignature])
+    ->filter()
+    ->map(fn ($signature) => [
+        'role' => $signature->role_label ?: $signature->role_key,
+        'name' => $signature->signer_name ?: '-',
+        'status' => $signature->status,
+        'status_label' => match ($signature->status) {
+            \App\Models\InitialWorkSignature::STATUS_SIGNED => 'Sudah TTD',
+            \App\Models\InitialWorkSignature::STATUS_PENDING => $signature->tokenExpired() ? 'Token kedaluwarsa' : 'Menunggu TTD',
+            \App\Models\InitialWorkSignature::STATUS_LOCKED => 'Belum aktif',
+            \App\Models\InitialWorkSignature::STATUS_MISSING => 'Signer belum lengkap',
+            default => 'Belum dibuat',
+        },
+        'signed_at' => $signature->signed_at?->format('d/m/Y H:i') ?: '',
+    ])->values();
+$initialWorkApprovalExpired = $activeInitialWorkSignature?->tokenExpired() ?? false;
+$initialWorkFlowSummary = match (true) {
+    $initialWorkManagerSignature?->isSigned() && $initialWorkSeniorSignature?->isSigned() => 'Semua approval Initial Work sudah selesai.',
+    $initialWorkApprovalExpired => 'Token '.$activeInitialWorkDisplayLabel.' kedaluwarsa dan harus dibuat ulang.',
+    $activeInitialWorkSignature !== null => 'Menunggu TTD '.$activeInitialWorkDisplayLabel.'.',
+    $initialWorkManagerSignature?->status === \App\Models\InitialWorkSignature::STATUS_MISSING
+        || $initialWorkSeniorSignature?->status === \App\Models\InitialWorkSignature::STATUS_MISSING => 'Signer Initial Work belum lengkap.',
+    default => 'Approval Initial Work belum aktif.',
+};
                                         $noteDetailOptions = $userNoteDetailOptions[$currentNoteStatus] ?? [];
                                         $noteStatusClasses = match ($currentNoteStatus) {
                                             'approved_jasa' => 'bg-amber-100 text-amber-700',
@@ -384,39 +408,26 @@ $initialWorkSeniorSignature = $order->initialWork?->signatures
         <span>Edit</span>
     </button>
 
-    @if ($activeInitialWorkApprovalUrl)
-        @if ($activeInitialWorkWhatsappUrl)
-            <a
-                href="{{ $activeInitialWorkWhatsappUrl }}"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[12px] font-semibold text-emerald-700 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-100 hover:shadow-sm"
-                title="Kirim link TTD {{ $activeInitialWorkDisplayLabel }} via WhatsApp"
-            >
-                <i data-lucide="message-circle" class="h-3 w-3"></i>
-                <span>WA {{ $activeInitialWorkDisplayLabel }}</span>
-            </a>
-        @else
-            <span
-                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[12px] font-semibold text-slate-400"
-                title="Nomor WhatsApp approver belum tersedia di user panel"
-            >
-                <i data-lucide="message-circle-off" class="h-3 w-3"></i>
-                <span>No WA</span>
-            </span>
-        @endif
-        <form method="POST" action="{{ route('admin.orders.initial-work.approval.resend', [$order, $order->initialWork]) }}">
-            @csrf
-            <button
-                type="submit"
-                class="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-[11px] font-semibold text-sky-700 transition hover:-translate-y-0.5 hover:bg-sky-100 hover:shadow-sm"
-                title="Kirim ulang email approval {{ $activeInitialWorkDisplayLabel }}"
-            >
-                <i data-lucide="send" class="h-3 w-3"></i>
-                <span>Resend</span>
-            </button>
-        </form>
-    @elseif (
+    <button
+        type="button"
+        class="approval-signature-info-trigger inline-flex h-8 w-8 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 transition hover:-translate-y-0.5 hover:bg-blue-100 hover:shadow-sm"
+        title="Informasi approval Initial Work"
+        aria-label="Informasi approval Initial Work"
+        data-title="Approval Initial Work"
+        data-summary="{{ $initialWorkFlowSummary }}"
+        data-checklist='@json($initialWorkFlowItems)'
+        data-active-role="{{ $activeInitialWorkSignature ? $activeInitialWorkDisplayLabel : '' }}"
+        data-active-signer="{{ $activeInitialWorkSignature?->signer_name ?: '' }}"
+        data-expiry="{{ $activeInitialWorkSignature?->token_expires_at ? ($initialWorkApprovalExpired ? 'Kedaluwarsa: ' : 'Berlaku sampai: ').$activeInitialWorkSignature->token_expires_at->format('d/m/Y H:i') : '' }}"
+        data-approval-url="{{ $activeInitialWorkApprovalUrl ?: '' }}"
+        data-whatsapp-url="{{ $activeInitialWorkWhatsappUrl ?: '' }}"
+        data-resend-url="{{ $activeInitialWorkApprovalUrl ? route('admin.orders.initial-work.approval.resend', [$order, $order->initialWork]) : '' }}"
+        data-regenerate-url="{{ $initialWorkApprovalExpired ? route('admin.orders.initial-work.approval.regenerate', [$order, $order->initialWork]) : '' }}"
+    >
+        <i data-lucide="info" class="h-3.5 w-3.5"></i>
+    </button>
+
+    @if (
         $initialWorkManagerSignature?->status === \App\Models\InitialWorkSignature::STATUS_MISSING
         || $initialWorkSeniorSignature?->status === \App\Models\InitialWorkSignature::STATUS_MISSING
     )
@@ -902,6 +913,8 @@ $initialWorkSeniorSignature = $order->initialWork?->signatures
             </form>
         </div>
     </div>
+
+    @include('admin.orders.partials.approval-signature-modal')
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {

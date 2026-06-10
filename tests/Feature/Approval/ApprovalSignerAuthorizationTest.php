@@ -33,15 +33,23 @@ class ApprovalSignerAuthorizationTest extends TestCase
         $order = $this->createOrder($creator);
 
         $links = [
-            $this->createInitialWorkApprovalLink($order, $creator, $signer),
-            $this->createHppApprovalLink($order, $creator, $signer),
-            $this->createBastApprovalLink($order, $creator, $signer),
-            $this->createQualityControlApprovalLink($order, $creator, $signer),
+            'initial-work' => $this->createInitialWorkApprovalLink($order, $creator, $signer),
+            'hpp' => $this->createHppApprovalLink($order, $creator, $signer),
+            'bast' => $this->createBastApprovalLink($order, $creator, $signer),
+            'quality-control' => $this->createQualityControlApprovalLink($order, $creator, $signer),
         ];
 
-        foreach ($links as $link) {
+        foreach ($links as $documentType => $link) {
             $this->actingAs($otherApprover)->get($link)->assertForbidden();
-            $this->actingAs($signer)->get($link)->assertOk();
+            $response = $this->actingAs($signer)->get($link);
+
+            $response->assertOk();
+
+            if (in_array($documentType, ['hpp', 'bast'], true)) {
+                $response
+                    ->assertSee('submissionLoadingOverlay', false)
+                    ->assertSee('Memproses approval...');
+            }
         }
     }
 

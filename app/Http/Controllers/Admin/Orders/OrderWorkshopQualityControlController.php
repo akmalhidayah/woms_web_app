@@ -214,6 +214,35 @@ class OrderWorkshopQualityControlController extends Controller
         ));
     }
 
+    public function regenerateApprovalToken(
+        Request $request,
+        Order $order,
+        QualityControlReport $qualityControlReport
+    ): RedirectResponse {
+        abort_unless(
+            (int) $qualityControlReport->order_id === (int) $order->id,
+            Response::HTTP_NOT_FOUND
+        );
+
+        $signature = $qualityControlReport->signatures()
+            ->where('status', QualityControlSignature::STATUS_PENDING)
+            ->orderBy('step_order')
+            ->first();
+
+        abort_unless(
+            $signature && $signature->tokenExpired(),
+            Response::HTTP_CONFLICT,
+            'Tidak ada token approval Quality Control kedaluwarsa yang dapat dibuat ulang.'
+        );
+
+        $this->signatureService->regenerateExpiredToken($signature);
+
+        return back()->with('status', sprintf(
+            'Token approval Quality Control untuk %s berhasil dibuat ulang dan email baru telah dikirim.',
+            $signature->role_label ?: $signature->signer_name ?: 'approver',
+        ));
+    }
+
     public function destroyFile(Request $request, QualityControlReport $qualityControlReport, QualityControlReportFile $file): RedirectResponse
     {
         if ((int) $file->quality_control_report_id !== (int) $qualityControlReport->id) {

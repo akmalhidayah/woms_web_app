@@ -189,6 +189,29 @@ class InitialWorkController extends Controller
         ));
     }
 
+    public function regenerateApprovalToken(Request $request, Order $order, InitialWork $initialWork): RedirectResponse
+    {
+        abort_unless((int) $initialWork->order_id === (int) $order->getKey(), Response::HTTP_NOT_FOUND);
+
+        $signature = $initialWork->signatures()
+            ->where('status', InitialWorkSignature::STATUS_PENDING)
+            ->orderBy('step_order')
+            ->first();
+
+        abort_unless(
+            $signature && $signature->tokenExpired(),
+            Response::HTTP_CONFLICT,
+            'Tidak ada token approval Initial Work kedaluwarsa yang dapat dibuat ulang.'
+        );
+
+        $this->signatureService->regenerateExpiredToken($signature);
+
+        return back()->with('status', sprintf(
+            'Token approval Initial Work untuk %s berhasil dibuat ulang dan email baru telah dikirim.',
+            $signature->role_label ?: $signature->signer_name ?: 'approver',
+        ));
+    }
+
     /**
      * Build the next document number preview.
      */

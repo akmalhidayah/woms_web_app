@@ -176,6 +176,7 @@
                                     ?->firstWhere('status', \App\Models\QualityControlSignature::STATUS_PENDING);
                                 $activeQcApprovalUrl = $activeQcSignature?->approvalUrl();
                                 $activeQcApprovalWhatsappUrl = $activeQcApprovalUrl ? \App\Support\ApprovalWhatsappLink::forQualityControl($activeQcSignature) : null;
+                                $activeQcApprovalExpired = $activeQcSignature?->tokenExpired() ?? false;
                                 $activeQcRoleLabel = $activeQcSignature?->role_label ?: match ($activeQcSignature?->role_key) {
                                     \App\Models\QualityControlSignature::ROLE_WORKSHOP_MANAGER => 'Manager Bengkel',
                                     \App\Models\QualityControlSignature::ROLE_USER_MANAGER => 'Manager Unit',
@@ -238,6 +239,7 @@
                                 $qcFlowSummary = match (true) {
                                     ! $qcReport => 'QC belum dibuat.',
                                     $qcWorkshopSignature?->isSigned() && $qcUserSignature?->isSigned() => 'Approval QC selesai.',
+                                    $activeQcApprovalExpired => 'Token '.$activeQcRoleLabel.' kedaluwarsa dan harus dibuat ulang.',
                                     $activeQcSignature !== null => 'Menunggu TTD '.$activeQcRoleLabel.'.',
                                     $qcWorkshopSignature?->status === \App\Models\QualityControlSignature::STATUS_MISSING
                                         || $qcUserSignature?->status === \App\Models\QualityControlSignature::STATUS_MISSING => 'Signer QC belum lengkap.',
@@ -366,23 +368,26 @@
                                                         <a href="{{ route('admin.orders.workshop.quality-control.pdf', [$order, $qcReport]) }}" target="_blank" title="PDF QC" aria-label="PDF QC" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100">
                                                             <i data-lucide="file-text" class="h-3 w-3"></i>
                                                         </a>
-                                                        @if ($activeQcApprovalUrl)
-                                                            @if ($activeQcApprovalWhatsappUrl)
-                                                                <a href="{{ $activeQcApprovalWhatsappUrl }}" target="_blank" rel="noopener noreferrer" title="Kirim link TTD {{ $activeQcRoleLabel }} via WhatsApp" aria-label="Kirim link TTD {{ $activeQcRoleLabel }} via WhatsApp" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100">
-                                                                    <i data-lucide="message-circle" class="h-3 w-3"></i>
-                                                                </a>
-                                                            @else
-                                                                <span title="Nomor WhatsApp approver belum tersedia di user panel" aria-label="Nomor WhatsApp approver belum tersedia di user panel" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-400">
-                                                                    <i data-lucide="message-circle-off" class="h-3 w-3"></i>
-                                                                </span>
-                                                            @endif
-                                                            <form method="POST" action="{{ route('admin.orders.workshop.quality-control.approval.resend', [$order, $qcReport]) }}">
-                                                                @csrf
-                                                                <button type="submit" title="Kirim ulang email approval QC" aria-label="Kirim ulang email approval QC" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-700 transition hover:bg-sky-100">
-                                                                    <i data-lucide="send" class="h-3 w-3"></i>
-                                                                </button>
-                                                            </form>
-                                                        @elseif (
+                                                        <button
+                                                            type="button"
+                                                            title="Informasi approval QC"
+                                                            aria-label="Informasi approval QC"
+                                                            class="approval-signature-info-trigger inline-flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100"
+                                                            data-title="Approval Quality Control"
+                                                            data-summary="{{ $qcFlowSummary }}"
+                                                            data-checklist='@json($qcFlowItems->slice(1)->values())'
+                                                            data-active-role="{{ $activeQcSignature ? $activeQcRoleLabel : '' }}"
+                                                            data-active-signer="{{ $activeQcSignature?->signer_name ?: '' }}"
+                                                            data-expiry="{{ $activeQcSignature?->token_expires_at ? ($activeQcApprovalExpired ? 'Kedaluwarsa: ' : 'Berlaku sampai: ').$activeQcSignature->token_expires_at->format('d/m/Y H:i') : '' }}"
+                                                            data-approval-url="{{ $activeQcApprovalUrl ?: '' }}"
+                                                            data-whatsapp-url="{{ $activeQcApprovalWhatsappUrl ?: '' }}"
+                                                            data-resend-url="{{ $activeQcApprovalUrl ? route('admin.orders.workshop.quality-control.approval.resend', [$order, $qcReport]) : '' }}"
+                                                            data-regenerate-url="{{ $activeQcApprovalExpired ? route('admin.orders.workshop.quality-control.approval.regenerate', [$order, $qcReport]) : '' }}"
+                                                        >
+                                                            <i data-lucide="info" class="h-3.5 w-3.5"></i>
+                                                        </button>
+
+                                                        @if (
                                                             $qcWorkshopSignature?->status === \App\Models\QualityControlSignature::STATUS_MISSING
                                                             || $qcUserSignature?->status === \App\Models\QualityControlSignature::STATUS_MISSING
                                                         )
@@ -788,6 +793,8 @@
             </div>
         </div>
     </div>
+
+    @include('admin.orders.partials.approval-signature-modal')
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {

@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\Approvals\ApprovalNotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class InitialWorkSignatureService
 {
@@ -125,6 +126,30 @@ class InitialWorkSignatureService
             ]);
 
             return $nextSignature->fresh()->approvalUrl();
+        });
+    }
+
+    public function regenerateExpiredToken(InitialWorkSignature $signature): string
+    {
+        return DB::transaction(function () use ($signature): string {
+            $lockedSignature = InitialWorkSignature::query()
+                ->whereKey($signature->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! $lockedSignature->isPending() || ! $lockedSignature->signer_user_id) {
+                throw ValidationException::withMessages([
+                    'approval' => 'Signature Initial Work ini tidak sedang menunggu approval.',
+                ]);
+            }
+
+            if (! $lockedSignature->tokenExpired()) {
+                throw ValidationException::withMessages([
+                    'approval' => 'Token Initial Work masih aktif dan tidak perlu dibuat ulang.',
+                ]);
+            }
+
+            return $this->issueToken($lockedSignature);
         });
     }
 

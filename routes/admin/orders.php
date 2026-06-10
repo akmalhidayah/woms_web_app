@@ -25,6 +25,7 @@ Route::prefix('admin/orders')
         Route::put('/workshop/{order}/quality-control/{qualityControlReport}', [OrderWorkshopQualityControlController::class, 'update'])->name('workshop.quality-control.update');
         Route::get('/workshop/{order}/quality-control/{qualityControlReport}/pdf', [OrderWorkshopQualityControlController::class, 'pdf'])->name('workshop.quality-control.pdf');
         Route::post('/workshop/{order}/quality-control/{qualityControlReport}/resend-approval', [OrderWorkshopQualityControlController::class, 'resendApproval'])->name('workshop.quality-control.approval.resend');
+        Route::post('/workshop/{order}/quality-control/{qualityControlReport}/regenerate-approval-token', [OrderWorkshopQualityControlController::class, 'regenerateApprovalToken'])->name('workshop.quality-control.approval.regenerate');
         Route::get('/{order}', [OrderController::class, 'show'])->name('show');
         Route::get('/{order}/edit', [OrderController::class, 'edit'])->name('edit');
         Route::put('/{order}', [OrderController::class, 'update'])->name('update');
@@ -39,6 +40,7 @@ Route::prefix('admin/orders')
         Route::put('/{order}/initial-work/{initialWork}', [InitialWorkController::class, 'update'])->name('initial-work.update');
         Route::get('/{order}/initial-work/{initialWork}/pdf', [InitialWorkController::class, 'pdf'])->name('initial-work.pdf');
         Route::post('/{order}/initial-work/{initialWork}/resend-approval', [InitialWorkController::class, 'resendApproval'])->name('initial-work.approval.resend');
+        Route::post('/{order}/initial-work/{initialWork}/regenerate-approval-token', [InitialWorkController::class, 'regenerateApprovalToken'])->name('initial-work.approval.regenerate');
         Route::post('/{order}/scope-of-work', [OrderScopeOfWorkController::class, 'store'])->name('scope-of-work.store');
         Route::put('/{order}/scope-of-work/{scopeOfWork}', [OrderScopeOfWorkController::class, 'update'])->name('scope-of-work.update');
         Route::get('/{order}/scope-of-work/{scopeOfWork}/pdf', [OrderScopeOfWorkController::class, 'pdf'])->name('scope-of-work.pdf');

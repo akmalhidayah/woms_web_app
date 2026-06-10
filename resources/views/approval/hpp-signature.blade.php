@@ -317,6 +317,7 @@
     </main>
 
     @include('approval.partials.signed-success-alert')
+    @include('approval.partials.submission-loading-overlay')
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -377,6 +378,8 @@
                 const approvalAction = document.getElementById('approvalAction');
                 const clearButton = document.getElementById('clearSignature');
                 const approvalNote = document.getElementById('approvalNote');
+                const loadingOverlay = document.getElementById('submissionLoadingOverlay');
+                const loadingTitle = document.getElementById('submissionLoadingTitle');
 
                 if (canvas && form && signatureFile && approvalAction) {
                     const context = canvas.getContext('2d');
@@ -457,8 +460,43 @@
                         signatureFile.value = '';
                     });
 
+                    const beginSubmission = (action) => {
+                        preparedSubmit = true;
+                        form.setAttribute('aria-busy', 'true');
+
+                        form.querySelectorAll('button').forEach((button) => {
+                            button.disabled = true;
+                            button.classList.add('cursor-wait', 'opacity-60');
+                        });
+
+                        if (loadingTitle) {
+                            loadingTitle.textContent = action === 'reject'
+                                ? 'Memproses penolakan...'
+                                : 'Menyimpan tanda tangan...';
+                        }
+
+                        loadingOverlay?.classList.remove('hidden');
+                        loadingOverlay?.classList.add('flex');
+                        loadingOverlay?.setAttribute('aria-hidden', 'false');
+                    };
+
+                    const cancelSubmission = () => {
+                        preparedSubmit = false;
+                        form.removeAttribute('aria-busy');
+
+                        form.querySelectorAll('button').forEach((button) => {
+                            button.disabled = false;
+                            button.classList.remove('cursor-wait', 'opacity-60');
+                        });
+
+                        loadingOverlay?.classList.add('hidden');
+                        loadingOverlay?.classList.remove('flex');
+                        loadingOverlay?.setAttribute('aria-hidden', 'true');
+                    };
+
                     form.addEventListener('submit', async (event) => {
                         if (preparedSubmit) {
+                            event.preventDefault();
                             return;
                         }
 
@@ -469,8 +507,10 @@
                             if (!approvalNote?.value.trim()) {
                                 event.preventDefault();
                                 alert('Silakan isi alasan reject terlebih dahulu.');
+                                return;
                             }
 
+                            beginSubmission(action);
                             return;
                         }
 
@@ -481,9 +521,11 @@
                         }
 
                         event.preventDefault();
+                        beginSubmission(action);
                         const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
 
                         if (!blob) {
+                            cancelSubmission();
                             alert('Tanda tangan belum terbaca. Silakan tanda tangani ulang.');
                             return;
                         }
@@ -491,7 +533,6 @@
                         const transfer = new DataTransfer();
                         transfer.items.add(new File([blob], 'signature.png', { type: 'image/png' }));
                         signatureFile.files = transfer.files;
-                        preparedSubmit = true;
                         form.submit();
                     });
                 }

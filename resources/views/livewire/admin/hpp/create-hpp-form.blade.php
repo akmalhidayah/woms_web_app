@@ -9,6 +9,7 @@
         flowMatrix: @js($flowMatrix),
         initialState: @js($initialState),
     })"
+    @hpp-total-updated.window="nilaiBucket = $event.detail.bucket"
     class="space-y-3"
 >
     @if ($errors->any())
@@ -86,16 +87,14 @@
                     <div class="grid gap-3 md:grid-cols-2">
                         <div class="space-y-1">
                             <label for="nilai_hpp_bucket" class="text-[10px] font-semibold text-slate-700">Nilai HPP</label>
-                            <select
+                            <input
                                 id="nilai_hpp_bucket"
-                                name="nilai_hpp_bucket"
-                                x-model="nilaiBucket"
-                                class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                                type="text"
+                                :value="bucketOptions[nilaiBucket] || '-'"
+                                readonly
+                                class="w-full rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-2 text-[11px] font-semibold text-slate-700"
                             >
-                                @foreach ($bucketOptions as $value => $label)
-                                    <option value="{{ $value }}">{{ $label }}</option>
-                                @endforeach
-                            </select>
+                            <p class="text-[9px] text-slate-500">Ditentukan otomatis dari total keseluruhan HPP.</p>
                         </div>
 
                         <div class="space-y-1">
@@ -881,6 +880,19 @@
             });
 
             totalAllEl.value = formatCurrencyDisplay(grand);
+
+            const grandParts = parseDecimalParts(grand);
+            const grandCents = roundScaledBigInt(
+                grandParts.negative ? -grandParts.digits : grandParts.digits,
+                grandParts.scale,
+                2,
+            );
+
+            window.dispatchEvent(new CustomEvent('hpp-total-updated', {
+                detail: {
+                    bucket: grandCents > 25000000000n ? 'over' : 'under',
+                },
+            }));
         }
 
         function escapeAttr(value) {

@@ -402,6 +402,7 @@ class HppController extends Controller
             ->findOrFail($validated['outline_agreement_id']);
         $itemGroups = $this->buildItemGroups($payload);
         $totalKeseluruhan = $this->sumItemGroupSubtotals($itemGroups);
+        $nilaiHppBucket = HppApprovalFlow::resolveBucketFromTotal($totalKeseluruhan);
 
         if ($validated['action'] === 'submit' && $this->isZeroOrNegativeCurrency($totalKeseluruhan)) {
             throw ValidationException::withMessages([
@@ -412,13 +413,13 @@ class HppController extends Controller
         $approvalCase = HppApprovalFlow::resolvePreviewCase(
             $validated['kategori_pekerjaan'],
             $validated['area_pekerjaan'],
-            $validated['nilai_hpp_bucket'],
+            $nilaiHppBucket,
         );
 
         $approvalFlow = HppApprovalFlow::resolveApprovalFlow(
             $validated['kategori_pekerjaan'],
             $validated['area_pekerjaan'],
-            $validated['nilai_hpp_bucket'],
+            $nilaiHppBucket,
         );
 
         $hpp->fill([
@@ -428,10 +429,10 @@ class HppController extends Controller
             'nama_pekerjaan' => $order->nama_pekerjaan,
             'unit_kerja' => $order->unit_kerja,
             'unit_work_id' => $outlineAgreement->unit_work_id,
-            'cost_centre' => $validated['cost_centre'] ?: null,
+            'cost_centre' => ($validated['cost_centre'] ?? null) ?: null,
             'kategori_pekerjaan' => $validated['kategori_pekerjaan'],
             'area_pekerjaan' => HppApprovalFlow::displayArea($validated['area_pekerjaan']),
-            'nilai_hpp_bucket' => $validated['nilai_hpp_bucket'],
+            'nilai_hpp_bucket' => $nilaiHppBucket,
             'unit_kerja_pengendali' => $outlineAgreement->unitWork?->name,
             'outline_agreement' => $outlineAgreement->nomor_oa,
             'periode_outline_agreement' => $this->formatOutlineAgreementPeriod($outlineAgreement),

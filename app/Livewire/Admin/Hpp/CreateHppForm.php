@@ -92,7 +92,9 @@ class CreateHppForm extends Component
                 'selectedOutlineAgreement' => (string) old('outline_agreement_id', $this->hpp?->outline_agreement_id ?? ($outlineAgreementOptions[0]['value'] ?? '')),
                 'kategoriPekerjaan' => old('kategori_pekerjaan', $this->hpp?->kategori_pekerjaan ?? 'Fabrikasi'),
                 'areaPekerjaan' => HppApprovalFlow::displayArea((string) old('area_pekerjaan', $this->hpp?->area_pekerjaan ?? 'Dalam')),
-                'nilaiBucket' => old('nilai_hpp_bucket', $this->hpp?->nilai_hpp_bucket ?? 'under'),
+                'nilaiBucket' => HppApprovalFlow::resolveBucketFromTotal(
+                    $this->hpp?->total_keseluruhan ?? 0,
+                ),
                 'costCentre' => old('cost_centre', $this->hpp?->cost_centre ?? ''),
             ],
             'isEdit' => $this->hpp?->exists ?? false,

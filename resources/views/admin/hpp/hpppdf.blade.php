@@ -470,8 +470,6 @@
         'gm_peminta',
         'workshop_manager_pengendali',
         'planner_control',
-        'sm_counter_part',
-        'manager_counter_part',
     ];
     $noteEntries = $hppSignatures
         ->filter(fn ($signature) => $signature?->isSigned() && filled(trim((string) $signature->approval_note)))

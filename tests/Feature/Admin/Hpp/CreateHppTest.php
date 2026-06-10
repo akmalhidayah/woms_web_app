@@ -6,6 +6,7 @@ use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\Department;
 use App\Models\Hpp;
+use App\Models\HppApprovalSetting;
 use App\Models\Order;
 use App\Models\OrderDocument;
 use App\Models\OrderScopeOfWork;
@@ -171,6 +172,55 @@ class CreateHppTest extends TestCase
         $this->assertSame('Plat baja', $hpp->item_groups[0]['items'][0]['nama_item']);
     }
 
+    public function test_hpp_bucket_and_approval_flow_are_derived_from_server_total(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+
+        $outlineAgreement = $this->createApprovalStructureAndOutlineAgreement($admin);
+        $order = $this->makeEligibleOrder($admin, [
+            'nomor_order' => 'ORD-2026-OVER-250',
+            'nama_pekerjaan' => 'Pekerjaan HPP di atas batas DIROPS',
+            'unit_kerja' => 'Unit Produksi Raw Mill',
+            'seksi' => 'Maintenance',
+            'deskripsi' => 'Memastikan bucket tidak dapat dimanipulasi dari browser.',
+            'prioritas' => Order::PRIORITY_MEDIUM,
+            'tanggal_order' => '2026-06-11',
+            'target_selesai' => '2026-06-20',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.hpp.store'), [
+                'action' => 'submit',
+                'order_id' => $order->id,
+                'outline_agreement_id' => $outlineAgreement->id,
+                'kategori_pekerjaan' => 'Fabrikasi',
+                'area_pekerjaan' => HppApprovalFlow::displayArea('Dalam'),
+                'nilai_hpp_bucket' => 'under',
+                'jenis_label_visible' => [0 => 'Jasa'],
+                'nama_item' => [0 => ['Pekerjaan besar']],
+                'jumlah_item' => [0 => ['1 lot']],
+                'qty' => [0 => [1]],
+                'satuan' => [0 => ['Lot']],
+                'harga_satuan' => [0 => [300000000]],
+                'keterangan' => [0 => ['Harus melalui DIROPS']],
+            ])
+            ->assertRedirect(route('admin.hpp.index'));
+
+        $hpp = Hpp::query()->where('order_id', $order->id)->firstOrFail();
+
+        $this->assertSame(300000000.0, (float) $hpp->total_keseluruhan);
+        $this->assertSame('over', $hpp->nilai_hpp_bucket);
+        $this->assertSame('FAB-DALAM-OVER250', $hpp->approval_case);
+        $this->assertSame('DIROPS', collect($hpp->approval_flow)->last());
+        $this->assertDatabaseHas('hpp_signatures', [
+            'hpp_id' => $hpp->id,
+            'role_key' => 'dirops',
+        ]);
+    }
+
     /**
      * @param array<string, mixed> $attributes
      */
@@ -213,6 +263,7 @@ class CreateHppTest extends TestCase
         $controllerManager = User::factory()->create(['role' => User::ROLE_APPROVER]);
         $controllerSm = User::factory()->create(['role' => User::ROLE_APPROVER]);
         $controllerGm = User::factory()->create(['role' => User::ROLE_APPROVER]);
+        $dirops = User::factory()->create(['role' => User::ROLE_APPROVER]);
 
         $requesterDepartment = Department::query()->create([
             'name' => 'Requester Department',
@@ -246,6 +297,10 @@ class CreateHppTest extends TestCase
             'unit_work_id' => $controllerUnit->id,
             'name' => 'Controller Section',
             'manager_id' => $controllerManager->id,
+        ]);
+
+        HppApprovalSetting::query()->create([
+            'dirops_user_id' => $dirops->id,
         ]);
 
         return OutlineAgreement::query()->create([

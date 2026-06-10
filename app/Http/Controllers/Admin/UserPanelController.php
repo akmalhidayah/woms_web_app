@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\HppSignature;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -181,6 +182,20 @@ class UserPanelController extends Controller
             return redirect()
                 ->route('admin.user-panel.index', ['role' => $user->role])
                 ->with('error', 'Anda tidak memiliki izin untuk menghapus user ini.');
+        }
+
+        $hasActiveHppApproval = HppSignature::query()
+            ->where('signer_user_id', $user->id)
+            ->whereIn('status', [
+                HppSignature::STATUS_LOCKED,
+                HppSignature::STATUS_PENDING,
+            ])
+            ->exists();
+
+        if ($hasActiveHppApproval) {
+            return redirect()
+                ->route('admin.user-panel.index', ['role' => $user->role])
+                ->with('error', 'Pengguna masih terdaftar pada alur approval HPP yang belum selesai.');
         }
 
         $role = $user->role;

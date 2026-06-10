@@ -91,7 +91,6 @@ class StoreHppRequest extends FormRequest
             'outline_agreement_id' => ['required', 'integer', 'exists:outline_agreements,id'],
             'kategori_pekerjaan' => ['required', Rule::in(HppApprovalFlow::kategoriOptions())],
             'area_pekerjaan' => ['required', Rule::in(array_keys(HppApprovalFlow::areaOptions()))],
-            'nilai_hpp_bucket' => ['required', Rule::in(array_keys(HppApprovalFlow::bucketOptions()))],
             'cost_centre' => ['nullable', 'string', 'max:255'],
             'jenis_label_visible' => ['nullable', 'array'],
             'jenis_label_visible.*' => ['nullable', 'string', 'max:255'],

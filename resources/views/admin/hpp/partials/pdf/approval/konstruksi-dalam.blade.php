@@ -1,16 +1,12 @@
 @php
     $groups = ($position ?? 'top') === 'top'
-        ? [
-            ['label' => 'FUNGSI PEMINTA', 'cells' => [$gmRequesterCell, $smRequesterCell]],
-            ['label' => 'COUNTER PART', 'cells' => [$counterPartCell]],
-        ]
-        : [['label' => 'FUNGSI PENGENDALI', 'cells' => $isOver ? [$directorCell, $gmControllerCell, $smControllerCell] : [$gmControllerCell, $smControllerCell]]];
-
-    $initials = ($position ?? 'top') === 'top'
-        ? [$requesterManagerInitial, $counterPartManagerInitial]
-        : [$controllerManagerInitial];
-
-    $columnCount = collect($groups)->sum(fn (array $group): int => count($group['cells']));
+        ? [['label' => 'FUNGSI PEMINTA', 'cells' => [$gmRequesterCell, $smRequesterCell]]]
+        : [[
+            'label' => 'FUNGSI PENGENDALI',
+            'cells' => $isOver
+                ? [$directorCell, $gmControllerCell, $smControllerCell, $counterPartCell]
+                : [$gmControllerCell, $smControllerCell, $counterPartCell],
+        ]];
 @endphp
 <table class="approval-table">
     <tr>
@@ -61,16 +57,6 @@
                     <span class="sig-initial">{{ $requesterManagerInitial['value'] }}</span>
                 @endif
             </td>
-            <td class="approval-inline-cell">
-                @if($counterPartManagerInitial['signature'])
-                    <span class="sig-initial sig-inline-value">{{ $counterPartManagerInitial['value'] }} /</span>
-                    <img src="{{ $counterPartManagerInitial['signature'] }}" alt="{{ $counterPartManagerInitial['label'] }}" class="sig-inline">
-                    <span class="sig-inline-date">{{ $counterPartManagerInitial['date'] }}</span>
-                @else
-                    <span class="sig-initial">{{ $counterPartManagerInitial['label'] }}:</span>
-                    <span class="sig-initial">{{ $counterPartManagerInitial['value'] }}</span>
-                @endif
-            </td>
         </tr>
     @else
         <tr>
@@ -86,6 +72,16 @@
                 @else
                     <span class="sig-initial">{{ $controllerManagerInitial['label'] }}:</span>
                     <span class="sig-initial">{{ $controllerManagerInitial['value'] }}</span>
+                @endif
+            </td>
+            <td class="approval-inline-cell">
+                @if($counterPartManagerInitial['signature'])
+                    <span class="sig-initial sig-inline-value">{{ $counterPartManagerInitial['value'] }} /</span>
+                    <img src="{{ $counterPartManagerInitial['signature'] }}" alt="{{ $counterPartManagerInitial['label'] }}" class="sig-inline">
+                    <span class="sig-inline-date">{{ $counterPartManagerInitial['date'] }}</span>
+                @else
+                    <span class="sig-initial">{{ $counterPartManagerInitial['label'] }}:</span>
+                    <span class="sig-initial">{{ $counterPartManagerInitial['value'] }}</span>
                 @endif
             </td>
         </tr>

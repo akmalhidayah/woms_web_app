@@ -125,8 +125,6 @@ class HppSignature extends Model
             'gm_peminta',
             'workshop_manager_pengendali',
             'planner_control',
-            'sm_counter_part',
-            'manager_counter_part',
         ], true);
     }
 

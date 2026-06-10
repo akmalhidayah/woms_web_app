@@ -35,4 +35,22 @@ class ApprovalSignatureCastTest extends TestCase
 
         $this->assertSame(67, $signature->signer_user_id);
     }
+
+    public static function counterPartRoles(): array
+    {
+        return [
+            ['sm_counter_part'],
+            ['manager_counter_part'],
+        ];
+    }
+
+    #[DataProvider('counterPartRoles')]
+    public function test_hpp_counter_part_roles_belong_to_controller_side(string $roleKey): void
+    {
+        $signature = new HppSignature(['role_key' => $roleKey]);
+
+        $this->assertFalse($signature->belongsToRequesterSide());
+        $this->assertTrue($signature->belongsToControllerSide());
+        $this->assertSame('Catatan Pengendali', $signature->noteGroupLabel());
+    }
 }

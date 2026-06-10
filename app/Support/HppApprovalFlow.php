@@ -82,6 +82,32 @@ class HppApprovalFlow
         ];
     }
 
+    public static function resolveBucketFromTotal(int|float|string $total): string
+    {
+        $normalized = preg_replace('/[^0-9.\-]/', '', trim((string) $total)) ?? '';
+
+        if ($normalized === '' || str_starts_with($normalized, '-')) {
+            return 'under';
+        }
+
+        [$integer, $decimal] = array_pad(explode('.', $normalized, 2), 2, '');
+        $integer = ltrim($integer, '0');
+        $integer = $integer === '' ? '0' : $integer;
+        $threshold = (string) self::THRESHOLD;
+
+        if (strlen($integer) !== strlen($threshold)) {
+            return strlen($integer) > strlen($threshold) ? 'over' : 'under';
+        }
+
+        $comparison = strcmp($integer, $threshold);
+
+        if ($comparison !== 0) {
+            return $comparison > 0 ? 'over' : 'under';
+        }
+
+        return preg_match('/[1-9]/', $decimal) === 1 ? 'over' : 'under';
+    }
+
     public static function resolvePreviewCase(string $kategoriPekerjaan, string $areaPekerjaan, string $nilaiBucket): ?string
     {
         $areaKey = static::normalizeAreaKey($areaPekerjaan);

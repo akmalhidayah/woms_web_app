@@ -124,6 +124,76 @@ class ApprovalEmailNotificationTest extends TestCase
         );
     }
 
+    public function test_initial_work_expired_token_can_be_regenerated(): void
+    {
+        Notification::fake();
+
+        $admin = $this->createAdmin();
+        $approver = User::factory()->create(['role' => User::ROLE_APPROVER]);
+        $order = $this->createOrder($admin, 'ORD-IW-REGENERATE');
+        [$outlineAgreement, $unit, $section] = $this->createOutlineAgreement($admin, $approver);
+        $initialWork = $this->createInitialWork($order, $outlineAgreement, $unit, $section, $admin);
+        $signature = $initialWork->signatures()->create([
+            ...$this->baseInitialSignature($approver, 'expired-initial-work-token'),
+            'token_expires_at' => now()->subMinute(),
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.orders.initial-work.approval.regenerate', [$order, $initialWork]))
+            ->assertRedirect()
+            ->assertSessionHas('status');
+
+        $signature->refresh();
+
+        $this->assertNotSame('expired-initial-work-token', $signature->token_encrypted);
+        $this->assertTrue($signature->token_expires_at->isFuture());
+        Notification::assertSentTo(
+            $approver,
+            ApprovalRequestedNotification::class,
+            fn (ApprovalRequestedNotification $notification): bool => $notification->documentType === 'Initial Work'
+                && $notification->approvalUrl === $signature->approvalUrl()
+        );
+    }
+
+    public function test_quality_control_expired_token_can_be_regenerated(): void
+    {
+        Notification::fake();
+
+        $admin = $this->createAdmin();
+        $approver = User::factory()->create(['role' => User::ROLE_APPROVER]);
+        $order = $this->createOrder($admin, 'ORD-QC-REGENERATE');
+        $report = QualityControlReport::create([
+            'order_id' => $order->id,
+            'type' => QualityControlReport::TYPE_FABRICATION,
+            'report_no' => 'QC-REGENERATE',
+            'report_date' => now()->toDateString(),
+            'status' => QualityControlReport::STATUS_SUBMITTED,
+            'payload' => [],
+            'created_by' => $admin->id,
+            'updated_by' => $admin->id,
+        ]);
+        $signature = $report->signatures()->create([
+            ...$this->baseQualityControlSignature($approver, 'expired-qc-token'),
+            'token_expires_at' => now()->subMinute(),
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.orders.workshop.quality-control.approval.regenerate', [$order, $report]))
+            ->assertRedirect()
+            ->assertSessionHas('status');
+
+        $signature->refresh();
+
+        $this->assertNotSame('expired-qc-token', $signature->token_encrypted);
+        $this->assertTrue($signature->token_expires_at->isFuture());
+        Notification::assertSentTo(
+            $approver,
+            ApprovalRequestedNotification::class,
+            fn (ApprovalRequestedNotification $notification): bool => $notification->documentType === 'Quality Control'
+                && $notification->approvalUrl === $signature->approvalUrl()
+        );
+    }
+
     public function test_approval_notification_service_supports_all_document_types(): void
     {
         Notification::fake();

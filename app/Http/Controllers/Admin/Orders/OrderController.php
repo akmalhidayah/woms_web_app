@@ -45,7 +45,8 @@ class OrderController extends Controller
                 'scopeOfWork:id,order_id',
                 'latestHpp',
                 'initialWork:id,order_id,outline_agreement_id,nomor_initial_work,kepada_yth,perihal,tanggal_initial_work,functional_location,scope_pekerjaan,qty,stn,keterangan,keterangan_pekerjaan',
-                'initialWork.signatures:id,initial_work_id,role_key,status,signer_name,token_encrypted,token_expires_at,signed_at',
+                'initialWork.signatures:id,initial_work_id,role_key,role_label,signer_user_id,signer_name,token_encrypted,token_expires_at,signed_at',
+                'initialWork.signatures.signer:id,name,email,nomor_hp',
             ])
             ->search($search)
             ->when($documentStatus === 'complete', function ($query): void {

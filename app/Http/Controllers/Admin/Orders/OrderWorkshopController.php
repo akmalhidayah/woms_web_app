@@ -34,6 +34,7 @@ class OrderWorkshopController extends Controller
                 'scopeOfWork:id,order_id',
                 'orderWorkshop',
                 'latestQualityControlReport.signatures',
+                'latestQualityControlReport.signatures.signer:id,name,email,nomor_hp',
             ])
             ->whereIn('catatan_status', [
                 OrderUserNoteStatus::ApprovedWorkshop->value,
@@ -59,7 +60,7 @@ class OrderWorkshopController extends Controller
         $orders->getCollection()->each(function (Order $order): void {
             if ($order->latestQualityControlReport) {
                 $this->qualityControlSignatureService->ensureSignatureChain($order->latestQualityControlReport);
-                $order->latestQualityControlReport->load('signatures');
+                $order->latestQualityControlReport->load('signatures.signer:id,name,email,nomor_hp');
             }
         });
 

@@ -187,33 +187,12 @@ class UserPanelController extends Controller
                 ->with('error', 'Anda tidak memiliki izin untuk menghapus user ini.');
         }
 
-        $activeApproval = collect([
-            'HPP' => [HppSignature::class, HppSignature::STATUS_LOCKED, HppSignature::STATUS_PENDING],
-            'Initial Work' => [InitialWorkSignature::class, InitialWorkSignature::STATUS_LOCKED, InitialWorkSignature::STATUS_PENDING],
-            'Quality Control' => [QualityControlSignature::class, QualityControlSignature::STATUS_LOCKED, QualityControlSignature::STATUS_PENDING],
-            'BAST' => [LhppBastSignature::class, LhppBastSignature::STATUS_LOCKED, LhppBastSignature::STATUS_PENDING],
-        ])->first(function (array $approval) use ($user): bool {
-            [$model, $lockedStatus, $pendingStatus] = $approval;
-
-            return $model::query()
-                ->where('signer_user_id', $user->id)
-                ->whereIn('status', [$lockedStatus, $pendingStatus])
-                ->exists();
-        }, null);
-
-        if ($activeApproval) {
-            $documentName = collect([
-                'HPP' => HppSignature::class,
-                'Initial Work' => InitialWorkSignature::class,
-                'Quality Control' => QualityControlSignature::class,
-                'BAST' => LhppBastSignature::class,
-            ])->search($activeApproval[0], true);
-
+        if ($documentName = $this->activeApprovalDocument($user)) {
             return redirect()
                 ->route('admin.user-panel.index', ['role' => $user->role])
                 ->with('error', sprintf(
                     'Pengguna masih terdaftar pada alur approval %s yang belum selesai.',
-                    $documentName ?: 'dokumen'
+                    $documentName
                 ));
         }
 
@@ -257,6 +236,27 @@ class UserPanelController extends Controller
         $value = trim((string) $value);
 
         return $value === '' ? null : $value;
+    }
+
+    private function activeApprovalDocument(User $user): ?string
+    {
+        $approvalModels = [
+            'HPP' => HppSignature::class,
+            'Initial Work' => InitialWorkSignature::class,
+            'Quality Control' => QualityControlSignature::class,
+            'BAST' => LhppBastSignature::class,
+        ];
+
+        foreach ($approvalModels as $documentName => $model) {
+            if ($model::query()
+                ->where('signer_user_id', $user->id)
+                ->whereIn('status', [$model::STATUS_LOCKED, $model::STATUS_PENDING])
+                ->exists()) {
+                return $documentName;
+            }
+        }
+
+        return null;
     }
 
     private function canManageRequestedRole(User $actor, ?string $requestedRole): bool

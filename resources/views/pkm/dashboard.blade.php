@@ -87,21 +87,21 @@
         [
             'title' => $overdueCount.' pekerjaan overdue',
             'subtitle' => $overdueCount > 0 ? 'Segera tindak lanjuti' : 'Tidak ada pekerjaan overdue',
-            'tone' => 'border-[#f4dddd] bg-[#fff8f8]',
+            'tone' => 'border-[#f4dddd] bg-white',
             'icon_tone' => 'bg-[#feeaea] text-[#db5c5c]',
             'icon' => 'triangle-alert',
         ],
         [
             'title' => $todayCount.' deadline hari ini',
             'subtitle' => $todayCount > 0 ? 'Perlu dipantau hari ini' : 'Tidak ada deadline hari ini',
-            'tone' => 'border-[#ede2d5] bg-[#fffaf5]',
+            'tone' => 'border-[#ede2d5] bg-white',
             'icon_tone' => 'bg-[#f5e8db] text-[#b86c43]',
             'icon' => 'calendar-clock',
         ],
         [
             'title' => $soonCount.' pekerjaan 7 hari ke depan',
             'subtitle' => $soonCount > 0 ? 'Target mulai dekat' : 'Belum ada target dekat',
-            'tone' => 'border-[#dbe8fb] bg-[#f8fbff]',
+            'tone' => 'border-[#dbe8fb] bg-white',
             'icon_tone' => 'bg-[#e7efff] text-[#4c79dd]',
             'icon' => 'timer',
         ],
@@ -130,23 +130,27 @@
 
     $polylinePoints = $chartPoints->map(fn ($point) => $point['x'].','.$point['y'])->implode(' ');
 
-    $currentAngle = 0;
-    $gradientSegments = [];
+    $donutRadius = 34;
+    $donutCircumference = 2 * pi() * $donutRadius;
+    $donutOffset = 0;
+    $donutSegments = [];
+
     foreach ($statusBreakdown as $item) {
-        $angle = (float) ($item['percentage'] ?? 0) * 3.6;
-        if ($angle <= 0) {
+        $segmentLength = ((float) ($item['percentage'] ?? 0) / 100) * $donutCircumference;
+
+        if ($segmentLength <= 0) {
             continue;
         }
 
-        $startAngle = round($currentAngle, 2);
-        $currentAngle += $angle;
-        $endAngle = round($currentAngle, 2);
-        $gradientSegments[] = "{$item['color']} {$startAngle}deg {$endAngle}deg";
-    }
+        $donutSegments[] = [
+            'color' => $item['color'],
+            'length' => round($segmentLength, 2),
+            'gap' => round($donutCircumference - $segmentLength, 2),
+            'offset' => round(-$donutOffset, 2),
+        ];
 
-    $donutStyle = count($gradientSegments) > 0
-        ? 'background: conic-gradient('.implode(', ', $gradientSegments).');'
-        : 'background: conic-gradient(#e5e7eb 0deg 360deg);';
+        $donutOffset += $segmentLength;
+    }
 
     $statusToneClasses = [
         'selesai' => [
@@ -173,12 +177,6 @@
 @endphp
 
 <div class="space-y-3">
-    <section class="rounded-[1.2rem] border border-[#eadfd2] bg-white px-4 py-3 shadow-sm">
-        <div class="min-w-0">
-            <h1 class="text-[1.15rem] font-black leading-none tracking-tight text-slate-900">Dashboard PKM</h1>
-        </div>
-    </section>
-
     <section class="grid grid-cols-2 gap-2 lg:grid-cols-4">
         @foreach ($topCards as $card)
             <article class="rounded-[0.9rem] border px-2.5 py-2 shadow-sm {{ $card['tone'] }}">
@@ -269,7 +267,22 @@
 
             <div class="grid gap-3 p-2.5 sm:grid-cols-[105px_1fr] sm:items-center">
                 <div class="flex justify-center">
-                    <div class="relative h-20 w-20 rounded-full" style="{{ $donutStyle }}">
+                    <div class="relative h-20 w-20">
+                        <svg viewBox="0 0 80 80" class="h-20 w-20 -rotate-90">
+                            <circle cx="40" cy="40" r="{{ $donutRadius }}" fill="none" stroke="#e5e7eb" stroke-width="14" />
+                            @foreach ($donutSegments as $segment)
+                                <circle
+                                    cx="40"
+                                    cy="40"
+                                    r="{{ $donutRadius }}"
+                                    fill="none"
+                                    stroke="{{ $segment['color'] }}"
+                                    stroke-width="14"
+                                    stroke-dasharray="{{ $segment['length'] }} {{ $segment['gap'] }}"
+                                    stroke-dashoffset="{{ $segment['offset'] }}"
+                                />
+                            @endforeach
+                        </svg>
                         <div class="absolute inset-[13px] flex flex-col items-center justify-center rounded-full bg-white text-center">
                             <div class="text-[8px] font-semibold uppercase tracking-[0.14em] text-slate-400">Total</div>
                             <div class="mt-0.5 text-[16px] font-black text-slate-900">{{ $totalPekerjaan }}</div>

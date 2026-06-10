@@ -384,7 +384,7 @@ class DocumentsController extends Controller
 
             $mergedFile = tempnam(sys_get_temp_dir(), 'woms-documents-merged-');
 
-            if ($title === '' && $mergedFile !== false) {
+            if ($mergedFile !== false) {
                 $externalMerge = $this->mergePdfFilesWithSystemTool($temporaryFiles, $mergedFile);
 
                 if ($externalMerge !== null) {
@@ -397,7 +397,10 @@ class DocumentsController extends Controller
             }
 
             $pdf = new Fpdi();
-            $pdf->SetTitle($title, true);
+
+            if ($title !== '') {
+                $pdf->SetTitle($title, true);
+            }
 
             foreach ($temporaryFiles as $temporaryFile) {
                 $pageCount = $pdf->setSourceFile($temporaryFile);

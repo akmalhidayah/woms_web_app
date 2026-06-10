@@ -8,9 +8,9 @@
 @endphp
 
 <div class="space-y-4">
-    <section class="overflow-hidden rounded-[1.2rem] border border-[#f2dccb] bg-[linear-gradient(135deg,_#ffffff_0%,_#fff9f4_60%,_#fbe8da_100%)] px-4 py-3 text-slate-900 shadow-sm">
+    <section class="overflow-hidden rounded-[1.2rem] border border-[#f2dccb] bg-white px-4 py-3 text-slate-900 shadow-sm">
         <div class="flex items-center gap-3">
-            <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/85 text-[#ca642f] shadow-sm ring-1 ring-[#f1d5c2]">
+            <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#fff3ec] text-[#ca642f] shadow-sm ring-1 ring-[#f1d5c2]">
                 <i data-lucide="folder-kanban" class="h-4 w-4"></i>
             </span>
 

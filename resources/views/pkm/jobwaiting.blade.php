@@ -38,7 +38,7 @@
         @endphp
 
         <div class="space-y-4">
-            <section class="overflow-hidden rounded-[1.2rem] border border-[#f2dccb] bg-[linear-gradient(135deg,_#ffffff_0%,_#fff9f4_60%,_#fbe8da_100%)] px-4 py-3 text-slate-900 shadow-sm">
+            <section class="overflow-hidden rounded-[1.2rem] border border-[#f2dccb] bg-white px-4 py-3 text-slate-900 shadow-sm">
                 <div>
                     <h1 class="text-[1.15rem] font-black leading-none tracking-tight text-slate-900">List Pekerjaan</h1>
                 </div>
@@ -99,7 +99,7 @@
                         @endphp
 
                         <article class="pkm-jobwaiting-card flex h-full flex-col overflow-hidden rounded-[1.1rem] border border-slate-200 bg-white shadow-sm">
-                            <div class="bg-gradient-to-r from-[#ca642f] to-[#e18e4d] px-3 py-2.5 text-white">
+                            <div class="bg-[#ca642f] px-3 py-2.5 text-white">
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="min-w-0">
                                         <div class="text-[8px] font-semibold uppercase tracking-[0.14em] text-white/80">Order / Notifikasi</div>

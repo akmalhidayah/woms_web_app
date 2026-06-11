@@ -37,6 +37,7 @@ class AppServiceProvider extends ServiceProvider
 
             $totalJasaPemeliharaan = $data['totalJasaPemeliharaan'] ?? $this->moneyInt(Hpp::query()
                 ->whereHas('budgetVerification', fn (Builder $query) => $query
+                    ->where('status_anggaran', 'Tersedia')
                     ->where('kategori_item', 'jasa')
                     ->where('kategori_biaya', 'pemeliharaan'))
                 ->sum('total_keseluruhan'));

@@ -508,7 +508,9 @@ class QualityControlSignatureService
             'token_expires_at' => now()->addDays(self::TOKEN_TTL_DAYS),
         ]);
 
-        $this->approvalNotificationService->sendQualityControl($signature->fresh());
+        DB::afterCommit(function () use ($signature): void {
+            $this->approvalNotificationService->sendQualityControl($signature->fresh());
+        });
 
         return $token;
     }

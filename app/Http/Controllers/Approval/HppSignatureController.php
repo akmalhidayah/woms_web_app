@@ -14,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -126,18 +127,41 @@ class HppSignatureController extends Controller
                 'approval_note.required' => 'Catatan reject wajib diisi.',
             ]);
 
-            DB::transaction(function () use ($request, $signature, $validated): void {
-                $signature->update([
+            $result = DB::transaction(function () use ($request, $signature, $validated): string {
+                $lockedSignature = HppSignature::query()
+                    ->whereKey($signature->getKey())
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $this->authorizeSigner($request, $lockedSignature);
+
+                if ($lockedSignature->isSigned()) {
+                    return 'signed';
+                }
+
+                $hpp = Hpp::query()
+                    ->whereKey($lockedSignature->hpp_id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($hpp->status === Hpp::STATUS_REJECTED || $lockedSignature->isSkipped()) {
+                    return 'rejected';
+                }
+
+                abort_unless($lockedSignature->isPending(), 403, 'Tahap tanda tangan HPP ini belum aktif.');
+                abort_unless(! $lockedSignature->tokenExpired(), 403, 'Token approval HPP sudah kedaluwarsa.');
+
+                $lockedSignature->update([
                     'status' => HppSignature::STATUS_SKIPPED,
-                    'opened_at' => $signature->opened_at ?: now(),
+                    'opened_at' => $lockedSignature->opened_at ?: now(),
                     'approval_note' => $this->normalizeNullableString($validated['approval_note'] ?? null),
                     'signed_ip' => $request->ip(),
                     'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
                 ]);
 
                 HppSignature::query()
-                    ->where('hpp_id', $signature->hpp_id)
-                    ->where('step_order', '>', $signature->step_order)
+                    ->where('hpp_id', $lockedSignature->hpp_id)
+                    ->where('step_order', '>', $lockedSignature->step_order)
                     ->whereIn('status', [HppSignature::STATUS_LOCKED, HppSignature::STATUS_PENDING])
                     ->update([
                         'status' => HppSignature::STATUS_SKIPPED,
@@ -146,14 +170,22 @@ class HppSignatureController extends Controller
                         'token_expires_at' => null,
                     ]);
 
-                $signature->hpp()->update([
+                $hpp->update([
                     'status' => Hpp::STATUS_REJECTED,
                 ]);
+
+                return 'rejected_now';
             });
+
+            $message = match ($result) {
+                'signed' => 'Dokumen HPP ini sudah ditandatangani.',
+                'rejected' => 'Dokumen HPP ini sudah ditolak.',
+                default => 'Dokumen HPP berhasil ditolak.',
+            };
 
             return redirect()
                 ->route('approval.hpp.show', $token)
-                ->with('status', 'Dokumen HPP berhasil ditolak.');
+                ->with('status', $message);
         }
 
         $validated = $request->validate([
@@ -168,24 +200,67 @@ class HppSignatureController extends Controller
             $signature->role_key,
         );
 
-        $nextApprovalUrl = DB::transaction(function () use ($request, $signature, $validated, $signaturePath): ?string {
-            $signature->update([
-                'status' => HppSignature::STATUS_SIGNED,
-                'opened_at' => $signature->opened_at ?: now(),
-                'signed_at' => now(),
-                'signature_data' => $signaturePath,
-                'approval_note' => $this->normalizeNullableString($validated['approval_note'] ?? null),
-                'signed_ip' => $request->ip(),
-                'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
-            ]);
+        try {
+            $result = DB::transaction(function () use ($request, $signature, $validated, $signaturePath): array {
+                $lockedSignature = HppSignature::query()
+                    ->whereKey($signature->getKey())
+                    ->lockForUpdate()
+                    ->firstOrFail();
 
-            return $this->signatureBuilder->activateNextSignature($signature);
-        });
+                $this->authorizeSigner($request, $lockedSignature);
+
+                if ($lockedSignature->isSigned()) {
+                    return ['processed' => false, 'state' => 'signed', 'next_approval_url' => null];
+                }
+
+                $hpp = Hpp::query()
+                    ->whereKey($lockedSignature->hpp_id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($hpp->status === Hpp::STATUS_REJECTED || $lockedSignature->isSkipped()) {
+                    return ['processed' => false, 'state' => 'rejected', 'next_approval_url' => null];
+                }
+
+                abort_unless($lockedSignature->isPending(), 403, 'Tahap tanda tangan HPP ini belum aktif.');
+                abort_unless(! $lockedSignature->tokenExpired(), 403, 'Token approval HPP sudah kedaluwarsa.');
+
+                $lockedSignature->update([
+                    'status' => HppSignature::STATUS_SIGNED,
+                    'opened_at' => $lockedSignature->opened_at ?: now(),
+                    'signed_at' => now(),
+                    'signature_data' => $signaturePath,
+                    'approval_note' => $this->normalizeNullableString($validated['approval_note'] ?? null),
+                    'signed_ip' => $request->ip(),
+                    'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
+                ]);
+
+                return [
+                    'processed' => true,
+                    'state' => 'signed_now',
+                    'next_approval_url' => $this->signatureBuilder->activateNextSignature($lockedSignature),
+                ];
+            });
+        } catch (\Throwable $exception) {
+            Storage::disk('public')->delete($signaturePath);
+
+            throw $exception;
+        }
+
+        if (! $result['processed']) {
+            Storage::disk('public')->delete($signaturePath);
+
+            return redirect()
+                ->route('approval.hpp.show', $token)
+                ->with('status', $result['state'] === 'rejected'
+                    ? 'Dokumen HPP ini sudah ditolak.'
+                    : 'Dokumen HPP ini sudah ditandatangani.');
+        }
 
         $redirect = redirect()
             ->route('approval.hpp.show', $token)
             ->with('approval_signed', true)
-            ->with('status', $nextApprovalUrl
+            ->with('status', $result['next_approval_url']
                 ? 'Tanda tangan HPP berhasil disimpan.'
                 : 'Tanda tangan HPP berhasil disimpan. Approval HPP selesai.');
 

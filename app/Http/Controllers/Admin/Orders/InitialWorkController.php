@@ -46,8 +46,13 @@ class InitialWorkController extends Controller
         $initialWork = DB::transaction(function () use ($request, $order, $outlineAgreement, $signatureUnit, $signatureSection): InitialWork {
             return $order->initialWork()->create([
                 'outline_agreement_id' => $outlineAgreement->id,
+                'outline_agreement' => $outlineAgreement->nomor_oa,
+                'periode_outline_agreement' => $this->formatOutlineAgreementPeriod($outlineAgreement),
                 'unit_work_id' => $signatureUnit?->id ?: $outlineAgreement->unit_work_id,
                 'unit_work_section_id' => $signatureSection?->id,
+                'unit_kerja_pengendali' => $signatureUnit?->name ?: $outlineAgreement->unitWork?->name,
+                'seksi_pengendali' => $signatureSection?->name ?: $outlineAgreement->jenis_kontrak,
+                'departemen_pengendali' => $signatureUnit?->department?->name ?: $outlineAgreement->unitWork?->department?->name,
                 'nomor_initial_work' => $this->nextDocumentNumber(),
                 'nomor_order' => $order->nomor_order,
                 'notifikasi' => $order->notifikasi,
@@ -111,8 +116,13 @@ class InitialWorkController extends Controller
 
         $initialWork->update([
             'outline_agreement_id' => $outlineAgreement->id,
+            'outline_agreement' => $outlineAgreement->nomor_oa,
+            'periode_outline_agreement' => $this->formatOutlineAgreementPeriod($outlineAgreement),
             'unit_work_id' => $signatureUnit?->id ?: $outlineAgreement->unit_work_id,
             'unit_work_section_id' => $signatureSection?->id,
+            'unit_kerja_pengendali' => $signatureUnit?->name ?: $outlineAgreement->unitWork?->name,
+            'seksi_pengendali' => $signatureSection?->name ?: $outlineAgreement->jenis_kontrak,
+            'departemen_pengendali' => $signatureUnit?->department?->name ?: $outlineAgreement->unitWork?->department?->name,
             'nomor_order' => $order->nomor_order,
             'notifikasi' => $order->notifikasi,
             'nama_pekerjaan' => $order->nama_pekerjaan,
@@ -273,5 +283,17 @@ class InitialWorkController extends Controller
         return OutlineAgreement::query()
             ->with(['unitWork.department', 'unitWork.seniorManager', 'unitWork.sections.manager'])
             ->findOrFail((int) $outlineAgreementId);
+    }
+
+    private function formatOutlineAgreementPeriod(OutlineAgreement $outlineAgreement): ?string
+    {
+        $start = $outlineAgreement->current_period_start?->format('d/m/Y');
+        $end = $outlineAgreement->current_period_end?->format('d/m/Y');
+
+        if (! $start && ! $end) {
+            return null;
+        }
+
+        return trim(sprintf('%s - %s', $start ?: '-', $end ?: '-'));
     }
 }

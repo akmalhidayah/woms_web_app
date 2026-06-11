@@ -204,7 +204,7 @@
 
         return trim($fallbackRole.' of '.$scope);
     };
-    $unitSignatureTitle = 'PT. SEMEN TONASA - UNIT OF WORKSHOP';
+    $unitSignatureTitle = 'PT. SEMEN TONASA - UNIT OF '.strtoupper($initialWork->unit_kerja_pengendali ?: 'WORKSHOP');
 @endphp
 
 <body>
@@ -316,7 +316,7 @@
                     <div class="signature-placeholder"></div>
                 @endif
                 <div class="signature-name">{{ $seniorSignature?->isSigned() ? $seniorSignature->signer_name : '' }}</div>
-                <div class="signature-role">{{ $signatureRole($seniorSignature, 'Senior Manager', $initialWork->unitWork?->name ?: 'Workshop') }}</div>
+                <div class="signature-role">{{ $signatureRole($seniorSignature, 'Senior Manager', $initialWork->unit_kerja_pengendali ?: ($initialWork->unitWork?->name ?: 'Workshop')) }}</div>
             </td>
             <td style="width:50%;">
                 <div class="signature-date">{{ $signatureDate($managerSignature) }}</div>
@@ -326,7 +326,7 @@
                     <div class="signature-placeholder"></div>
                 @endif
                 <div class="signature-name">{{ $managerSignature?->isSigned() ? $managerSignature->signer_name : '' }}</div>
-                <div class="signature-role">{{ $signatureRole($managerSignature, 'Manager', $initialWork->unitWorkSection?->name ?: 'Workshop') }}</div>
+                <div class="signature-role">{{ $signatureRole($managerSignature, 'Manager', $initialWork->seksi_pengendali ?: ($initialWork->unitWorkSection?->name ?: 'Workshop')) }}</div>
             </td>
         </tr>
     </table>

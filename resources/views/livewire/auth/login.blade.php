@@ -34,7 +34,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                'email' => __('auth.failed'),
+                'email' => 'Email atau password salah',
             ]);
         }
 
@@ -101,7 +101,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
             @enderror
         </div>
 
-        <div class="auth-reveal auth-delay-2 space-y-2">
+        <div class="auth-reveal auth-delay-2 space-y-2" x-data="{ showPassword: false }">
             <div class="flex items-center justify-between gap-4">
                 <label for="password" class="text-sm font-medium text-slate-700">Password</label>
 
@@ -112,16 +112,29 @@ new #[Layout('components.layouts.auth')] class extends Component {
                 @endif
             </div>
 
-            <input
-                wire:model="password"
-                id="password"
-                type="password"
-                name="password"
-                required
-                autocomplete="current-password"
-                placeholder="Masukkan password"
-                class="auth-input"
-            />
+            <div class="relative">
+                <input
+                    wire:model="password"
+                    id="password"
+                    :type="showPassword ? 'text' : 'password'"
+                    name="password"
+                    required
+                    autocomplete="current-password"
+                    placeholder="Masukkan password"
+                    class="auth-input pr-12"
+                />
+
+                <button
+                    type="button"
+                    class="absolute inset-y-0 right-3 my-auto inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                    :aria-label="showPassword ? 'Sembunyikan password' : 'Tampilkan password'"
+                    @click="showPassword = !showPassword"
+                >
+                    <i x-show="!showPassword" data-lucide="eye" class="h-4 w-4"></i>
+                    <i x-show="showPassword" data-lucide="eye-off" class="h-4 w-4"></i>
+                </button>
+            </div>
+
             @error('password')
                 <p class="text-sm text-rose-600">{{ $message }}</p>
             @enderror

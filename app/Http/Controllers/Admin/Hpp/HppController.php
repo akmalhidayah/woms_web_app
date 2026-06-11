@@ -12,12 +12,14 @@ use App\Models\HppSignature;
 use App\Http\Requests\Admin\Hpp\StoreHppRequest;
 use App\Models\Order;
 use App\Models\OutlineAgreement;
+use App\Models\UnitWork;
 use App\Services\Approvals\ApprovalNotificationService;
 use App\Support\HppApprovalFlow;
 use App\Support\HppApprovalSignatureBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -166,15 +168,30 @@ class HppController extends Controller
         $file = $request->file('signed_document');
         $storedPath = $file->storeAs(
             'hpp/dirops-signed/'.$hpp->nomor_order,
-            'dirops-signed-'.now()->format('YmdHis').'.'.$file->getClientOriginalExtension(),
+            'dirops-signed-'.now()->format('YmdHis').'-'.Str::uuid().'.'.$file->getClientOriginalExtension(),
             'public',
         );
 
         try {
-            DB::transaction(function () use ($request, $signature, $file, $storedPath): void {
-                $signature->update([
+            $processed = DB::transaction(function () use ($request, $signature, $file, $storedPath): bool {
+                $lockedSignature = HppSignature::query()
+                    ->whereKey($signature->getKey())
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($lockedSignature->isSigned()) {
+                    return false;
+                }
+
+                abort_unless(
+                    $lockedSignature->isPending() && $lockedSignature->role_key === 'dirops',
+                    Response::HTTP_CONFLICT,
+                    'Tahap DIROPS HPP tidak lagi aktif.'
+                );
+
+                $lockedSignature->update([
                     'status' => HppSignature::STATUS_SIGNED,
-                    'opened_at' => $signature->opened_at ?: now(),
+                    'opened_at' => $lockedSignature->opened_at ?: now(),
                     'signed_at' => now(),
                     'signed_document_path' => $storedPath,
                     'signed_document_original_name' => $file->getClientOriginalName(),
@@ -184,12 +201,25 @@ class HppController extends Controller
                     'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
                 ]);
 
-                $this->signatureBuilder->activateNextSignature($signature);
+                $this->signatureBuilder->activateNextSignature($lockedSignature);
+
+                return true;
             });
         } catch (\Throwable $exception) {
             Storage::disk('public')->delete($storedPath);
 
             throw $exception;
+        }
+
+        if (! $processed) {
+            Storage::disk('public')->delete($storedPath);
+
+            return redirect()
+                ->route('admin.hpp.index')
+                ->with('status', sprintf(
+                    'Dokumen tanda tangan DIROPS untuk order %s sudah pernah diunggah.',
+                    $hpp->nomor_order,
+                ));
         }
 
         return redirect()
@@ -326,7 +356,6 @@ class HppController extends Controller
         $qtyItems = $payload['qty'] ?? [];
         $satuanItems = $payload['satuan'] ?? [];
         $hargaSatuanItems = $payload['harga_satuan'] ?? [];
-        $hargaTotalItems = $payload['harga_total'] ?? [];
         $keteranganItems = $payload['keterangan'] ?? [];
 
         $result = [];
@@ -343,10 +372,7 @@ class HppController extends Controller
                 $satuan = (string) ($satuanItems[$groupIndex][$itemIndex] ?? '');
                 $hargaSatuan = $this->normalizeNumericString($hargaSatuanItems[$groupIndex][$itemIndex] ?? '');
                 $keterangan = (string) ($keteranganItems[$groupIndex][$itemIndex] ?? '');
-                $hargaTotal = $this->normalizeCurrencyDecimal(
-                    $hargaTotalItems[$groupIndex][$itemIndex]
-                        ?? $this->multiplyCurrencyDecimal($qty, $hargaSatuan),
-                );
+                $hargaTotal = $this->normalizeCurrencyDecimal($this->multiplyCurrencyDecimal($qty, $hargaSatuan));
 
                 if (
                     $subJenisItem === ''
@@ -398,7 +424,7 @@ class HppController extends Controller
     {
         $order = Order::query()->findOrFail($validated['order_id']);
         $outlineAgreement = OutlineAgreement::query()
-            ->with('unitWork:id,name')
+            ->with(['unitWork:id,department_id,name', 'unitWork.department:id,name'])
             ->findOrFail($validated['outline_agreement_id']);
         $itemGroups = $this->buildItemGroups($payload);
         $totalKeseluruhan = $this->sumItemGroupSubtotals($itemGroups);
@@ -428,12 +454,17 @@ class HppController extends Controller
             'nomor_order' => $order->nomor_order,
             'nama_pekerjaan' => $order->nama_pekerjaan,
             'unit_kerja' => $order->unit_kerja,
+            'departemen_peminta' => $this->resolveDepartmentForUnitName($order->unit_kerja),
             'unit_work_id' => $outlineAgreement->unit_work_id,
             'cost_centre' => ($validated['cost_centre'] ?? null) ?: null,
             'kategori_pekerjaan' => $validated['kategori_pekerjaan'],
             'area_pekerjaan' => HppApprovalFlow::displayArea($validated['area_pekerjaan']),
             'nilai_hpp_bucket' => $nilaiHppBucket,
             'unit_kerja_pengendali' => $outlineAgreement->unitWork?->name,
+            'seksi_pengendali' => trim((string) $outlineAgreement->jenis_kontrak) !== ''
+                ? trim((string) $outlineAgreement->jenis_kontrak)
+                : null,
+            'departemen_pengendali' => $outlineAgreement->unitWork?->department?->name,
             'outline_agreement' => $outlineAgreement->nomor_oa,
             'periode_outline_agreement' => $this->formatOutlineAgreementPeriod($outlineAgreement),
             'approval_case' => $approvalCase,
@@ -584,5 +615,21 @@ class HppController extends Controller
         }
 
         return trim(sprintf('%s - %s', $start ?: '-', $end ?: '-'));
+    }
+
+    private function resolveDepartmentForUnitName(?string $unitName): ?string
+    {
+        $unitName = trim((string) $unitName);
+
+        if ($unitName === '') {
+            return null;
+        }
+
+        return UnitWork::query()
+            ->with('department:id,name')
+            ->where('name', $unitName)
+            ->first()
+            ?->department
+            ?->name;
     }
 }

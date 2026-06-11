@@ -86,8 +86,22 @@ class QualityControlSignatureController extends Controller
         );
 
         try {
-            $nextApprovalUrl = DB::transaction(function () use ($request, $signature, $signaturePath): ?string {
-                $signature->update([
+            $result = DB::transaction(function () use ($request, $signature, $signaturePath): array {
+                $lockedSignature = QualityControlSignature::query()
+                    ->whereKey($signature->getKey())
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $this->authorizeSigner($request, $lockedSignature);
+
+                if ($lockedSignature->isSigned()) {
+                    return ['processed' => false, 'next_approval_url' => null];
+                }
+
+                abort_unless($lockedSignature->isPending(), 403, 'Tahap tanda tangan QC ini belum aktif.');
+                abort_unless(! $lockedSignature->tokenExpired(), 403, 'Token approval QC sudah kedaluwarsa.');
+
+                $lockedSignature->update([
                     'status' => QualityControlSignature::STATUS_SIGNED,
                     'signature_data' => $signaturePath,
                     'signed_at' => now(),
@@ -95,7 +109,10 @@ class QualityControlSignatureController extends Controller
                     'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
                 ]);
 
-                return $this->signatureService->activateNextSignature($signature);
+                return [
+                    'processed' => true,
+                    'next_approval_url' => $this->signatureService->activateNextSignature($lockedSignature),
+                ];
             });
         } catch (\Throwable $exception) {
             Storage::disk('public')->delete($signaturePath);
@@ -103,6 +120,15 @@ class QualityControlSignatureController extends Controller
             throw $exception;
         }
 
+        if (! $result['processed']) {
+            Storage::disk('public')->delete($signaturePath);
+
+            return redirect()
+                ->route('approval.quality-control.show', $token)
+                ->with('status', 'Dokumen QC ini sudah ditandatangani.');
+        }
+
+        $nextApprovalUrl = $result['next_approval_url'];
         $redirect = redirect()
             ->route('approval.quality-control.show', $token)
             ->with('approval_signed', true)

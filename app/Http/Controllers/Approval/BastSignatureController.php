@@ -101,18 +101,41 @@ class BastSignatureController extends Controller
                 'approval_note.required' => 'Catatan reject wajib diisi.',
             ]);
 
-            DB::transaction(function () use ($request, $signature, $validated): void {
-                $signature->update([
+            $result = DB::transaction(function () use ($request, $signature, $validated): string {
+                $lockedSignature = LhppBastSignature::query()
+                    ->whereKey($signature->getKey())
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $this->authorizeSigner($request, $lockedSignature);
+
+                if ($lockedSignature->isSigned()) {
+                    return 'signed';
+                }
+
+                $lhpp = LhppBast::query()
+                    ->whereKey($lockedSignature->lhpp_bast_id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($lhpp->approval_status === LhppBast::APPROVAL_REJECTED || $lockedSignature->isSkipped()) {
+                    return 'rejected';
+                }
+
+                abort_unless($lockedSignature->isPending(), 403, 'Tahap tanda tangan BAST ini belum aktif.');
+                abort_unless(! $lockedSignature->tokenExpired(), 403, 'Token approval BAST sudah kedaluwarsa.');
+
+                $lockedSignature->update([
                     'status' => LhppBastSignature::STATUS_SKIPPED,
-                    'opened_at' => $signature->opened_at ?: now(),
+                    'opened_at' => $lockedSignature->opened_at ?: now(),
                     'approval_note' => $this->normalizeNullableString($validated['approval_note'] ?? null),
                     'signed_ip' => $request->ip(),
                     'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
                 ]);
 
                 LhppBastSignature::query()
-                    ->where('lhpp_bast_id', $signature->lhpp_bast_id)
-                    ->where('step_order', '>', $signature->step_order)
+                    ->where('lhpp_bast_id', $lockedSignature->lhpp_bast_id)
+                    ->where('step_order', '>', $lockedSignature->step_order)
                     ->whereIn('status', [LhppBastSignature::STATUS_LOCKED, LhppBastSignature::STATUS_PENDING])
                     ->update([
                         'status' => LhppBastSignature::STATUS_SKIPPED,
@@ -121,14 +144,22 @@ class BastSignatureController extends Controller
                         'token_expires_at' => null,
                     ]);
 
-                $signature->lhppBast()->update([
+                $lhpp->update([
                     'approval_status' => LhppBast::APPROVAL_REJECTED,
                 ]);
+
+                return 'rejected_now';
             });
+
+            $message = match ($result) {
+                'signed' => 'Dokumen BAST ini sudah ditandatangani.',
+                'rejected' => 'Dokumen BAST ini sudah ditolak.',
+                default => 'Dokumen BAST berhasil ditolak.',
+            };
 
             return redirect()
                 ->route('approval.bast.show', $token)
-                ->with('status', 'Dokumen BAST berhasil ditolak.');
+                ->with('status', $message);
         }
 
         if ($signature->role_key === 'dirops') {
@@ -150,10 +181,33 @@ class BastSignatureController extends Controller
         );
 
         try {
-            DB::transaction(function () use ($request, $signature, $validated, $signaturePath): void {
-                $signature->update([
+            $result = DB::transaction(function () use ($request, $signature, $validated, $signaturePath): array {
+                $lockedSignature = LhppBastSignature::query()
+                    ->whereKey($signature->getKey())
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $this->authorizeSigner($request, $lockedSignature);
+
+                if ($lockedSignature->isSigned()) {
+                    return ['processed' => false, 'state' => 'signed'];
+                }
+
+                $lhpp = LhppBast::query()
+                    ->whereKey($lockedSignature->lhpp_bast_id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($lhpp->approval_status === LhppBast::APPROVAL_REJECTED || $lockedSignature->isSkipped()) {
+                    return ['processed' => false, 'state' => 'rejected'];
+                }
+
+                abort_unless($lockedSignature->isPending(), 403, 'Tahap tanda tangan BAST ini belum aktif.');
+                abort_unless(! $lockedSignature->tokenExpired(), 403, 'Token approval BAST sudah kedaluwarsa.');
+
+                $lockedSignature->update([
                     'status' => LhppBastSignature::STATUS_SIGNED,
-                    'opened_at' => $signature->opened_at ?: now(),
+                    'opened_at' => $lockedSignature->opened_at ?: now(),
                     'signed_at' => now(),
                     'signature_data' => $signaturePath,
                     'approval_note' => $this->normalizeNullableString($validated['approval_note'] ?? null),
@@ -161,12 +215,24 @@ class BastSignatureController extends Controller
                     'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
                 ]);
 
-                $this->signatureBuilder->activateNextSignature($signature);
+                $this->signatureBuilder->activateNextSignature($lockedSignature);
+
+                return ['processed' => true, 'state' => 'signed_now'];
             });
         } catch (\Throwable $exception) {
             Storage::disk('public')->delete($signaturePath);
 
             throw $exception;
+        }
+
+        if (! $result['processed']) {
+            Storage::disk('public')->delete($signaturePath);
+
+            return redirect()
+                ->route('approval.bast.show', $token)
+                ->with('status', $result['state'] === 'rejected'
+                    ? 'Dokumen BAST ini sudah ditolak.'
+                    : 'Dokumen BAST ini sudah ditandatangani.');
         }
 
         return redirect()

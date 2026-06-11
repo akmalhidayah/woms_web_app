@@ -23,12 +23,20 @@
         <div class="mt-5 flex flex-wrap justify-end gap-2">
             <button id="approvalSignatureCopy" type="button" class="hidden items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
                 <i data-lucide="copy" class="h-3.5 w-3.5"></i>
-                Salin Link
+                <span data-copy-label>Salin Link</span>
             </button>
+            <a id="approvalSignatureOpen" href="#" target="_blank" rel="noopener noreferrer" class="hidden items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">
+                <i data-lucide="external-link" class="h-3.5 w-3.5"></i>
+                Buka TTD
+            </a>
             <a id="approvalSignatureWhatsapp" href="#" target="_blank" rel="noopener noreferrer" class="hidden items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">
                 <i data-lucide="message-circle" class="h-3.5 w-3.5"></i>
                 WhatsApp
             </a>
+            <span id="approvalSignatureNoWhatsapp" class="hidden items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-400" title="Nomor WhatsApp approver belum tersedia di user panel">
+                <i data-lucide="message-circle-off" class="h-3.5 w-3.5"></i>
+                No WA
+            </span>
             <form id="approvalSignatureResendForm" method="POST" action="#" class="hidden">
                 @csrf
                 <button type="submit" class="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-100">
@@ -58,7 +66,9 @@
         const activeSigner = document.getElementById('approvalSignatureActiveSigner');
         const expiry = document.getElementById('approvalSignatureExpiry');
         const copyButton = document.getElementById('approvalSignatureCopy');
+        const openLink = document.getElementById('approvalSignatureOpen');
         const whatsappLink = document.getElementById('approvalSignatureWhatsapp');
+        const noWhatsappLabel = document.getElementById('approvalSignatureNoWhatsapp');
         const resendForm = document.getElementById('approvalSignatureResendForm');
         const regenerateForm = document.getElementById('approvalSignatureRegenerateForm');
         let approvalUrl = '';
@@ -124,8 +134,12 @@
                 expiry.textContent = trigger.dataset.expiry || '-';
 
                 approvalUrl = trigger.dataset.approvalUrl || '';
+                const whatsappUrl = trigger.dataset.whatsappUrl || '';
                 setAction(copyButton, approvalUrl, 'inline-flex');
-                setAction(whatsappLink, trigger.dataset.whatsappUrl || '', 'inline-flex');
+                setAction(openLink, approvalUrl, 'inline-flex');
+                setAction(whatsappLink, whatsappUrl, 'inline-flex');
+                noWhatsappLabel.classList.toggle('hidden', !approvalUrl || Boolean(whatsappUrl));
+                noWhatsappLabel.classList.toggle('inline-flex', Boolean(approvalUrl) && !whatsappUrl);
                 setAction(resendForm, trigger.dataset.resendUrl || '', 'block');
                 setAction(regenerateForm, trigger.dataset.regenerateUrl || '', 'block');
 
@@ -141,10 +155,11 @@
             }
 
             await navigator.clipboard.writeText(approvalUrl);
-            const originalText = copyButton.lastChild.textContent;
-            copyButton.lastChild.textContent = ' Tersalin';
+            const label = copyButton.querySelector('[data-copy-label]');
+            const originalText = label.textContent;
+            label.textContent = 'Tersalin';
             window.setTimeout(() => {
-                copyButton.lastChild.textContent = originalText;
+                label.textContent = originalText;
             }, 1500);
         });
 

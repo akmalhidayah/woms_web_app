@@ -220,6 +220,8 @@
                     @php
                         $kuotaKontrakActual = ($totalKuotaKontrak ?? 0) - ($totalSeluruhAmount ?? 0);
                         $totalBiayaPemeliharaan = $cleanNumber($targetPemeliharaan);
+                        $sisaBiayaPemeliharaan = $cleanNumber($sisaBiayaPemeliharaan);
+                        $sisaBiayaPemeliharaanClasses = $sisaBiayaPemeliharaan < 0 ? 'text-rose-700' : 'text-slate-900';
                     @endphp
                     <div class="min-h-[76px] rounded-lg border border-sky-200 bg-sky-50 px-2 py-1.5">
                         <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-sky-700">Kuota Anggaran Actual</div>
@@ -232,15 +234,15 @@
 
                     <div class="min-h-[76px] rounded-lg border border-slate-200 bg-white px-2 py-1.5">
                         <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-700">Total Biaya Pemeliharaan</div>
-                        <div class="mt-0.5 text-sm font-bold text-slate-900">Rp. {{ number_format($totalBiayaPemeliharaan, 0, ',', '.') }}</div>
+                        <div class="mt-0.5 text-sm font-bold {{ $sisaBiayaPemeliharaanClasses }}">Rp. {{ number_format($sisaBiayaPemeliharaan, 0, ',', '.') }}</div>
                         <div class="mt-1 grid gap-0.5 text-[9px] text-slate-500">
+                            <div class="flex items-center justify-between gap-3">
+                                <span>Target Biaya Pemeliharaan</span>
+                                <span class="font-semibold text-slate-800">Rp. {{ number_format($totalBiayaPemeliharaan, 0, ',', '.') }}</span>
+                            </div>
                             <div class="flex items-center justify-between gap-3">
                                 <span>Total Jasa Pemeliharaan</span>
                                 <span class="font-semibold text-slate-800">Rp. {{ number_format($totalJasaPemeliharaan, 0, ',', '.') }}</span>
-                            </div>
-                            <div class="flex items-center justify-between gap-3">
-                                <span>Sisa Biaya Pemeliharaan</span>
-                                <span class="font-semibold text-slate-800">Rp. {{ number_format($sisaBiayaPemeliharaan, 0, ',', '.') }}</span>
                             </div>
                         </div>
                     </div>

@@ -378,7 +378,8 @@
     $costCentre = $hpp->cost_centre ?: '-';
     $rencanaPemakaian = $order?->target_selesai ? $formatDate($order->target_selesai) : '-';
     $unitKerjaPeminta = $order?->seksi ?: ($hpp->unit_kerja ?: '-');
-    $unitKerjaPengendali = $outlineAgreement?->jenis_kontrak ?: ($hpp->unit_kerja_pengendali ?: '-');
+    $unitKerjaPengendali = $hpp->seksi_pengendali
+        ?: ($outlineAgreement?->jenis_kontrak ?: ($hpp->unit_kerja_pengendali ?: '-'));
     $unitPemintaLabel = $hpp->unit_kerja ?: '-';
     $unitPengendaliLabel = $hpp->unit_kerja_pengendali ?: '-';
     $requestingUnit = $hpp->unit_kerja
@@ -387,8 +388,8 @@
             ->where('name', $hpp->unit_kerja)
             ->first()
         : null;
-    $requestingDepartmentLabel = $requestingUnit?->department?->name ?: $unitPemintaLabel;
-    $controllingDepartmentLabel = $outlineAgreement?->unitWork?->department?->name ?: $unitPengendaliLabel;
+    $requestingDepartmentLabel = $hpp->departemen_peminta ?: ($requestingUnit?->department?->name ?: $unitPemintaLabel);
+    $controllingDepartmentLabel = $hpp->departemen_pengendali ?: ($outlineAgreement?->unitWork?->department?->name ?: $unitPengendaliLabel);
     $periodeOA = $hpp->periode_outline_agreement ?: '-';
     $creatorName = $hpp->creator?->name ?: 'N/A';
     $requestingInitials = $hpp->creator?->initials() ?: $initials($hpp->creator?->name);

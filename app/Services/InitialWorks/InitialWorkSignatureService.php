@@ -327,7 +327,9 @@ class InitialWorkSignatureService
             'token_expires_at' => now()->addDays(self::TOKEN_TTL_DAYS),
         ]);
 
-        $this->approvalNotificationService->sendInitialWork($signature->fresh());
+        DB::afterCommit(function () use ($signature): void {
+            $this->approvalNotificationService->sendInitialWork($signature->fresh());
+        });
 
         return $token;
     }

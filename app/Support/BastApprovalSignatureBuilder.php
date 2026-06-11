@@ -148,7 +148,9 @@ class BastApprovalSignatureBuilder
             'token_expires_at' => now()->addDays(self::TOKEN_TTL_DAYS),
         ]);
 
-        $this->approvalNotificationService->sendBast($signature->fresh());
+        DB::afterCommit(function () use ($signature): void {
+            $this->approvalNotificationService->sendBast($signature->fresh());
+        });
 
         return $token;
     }

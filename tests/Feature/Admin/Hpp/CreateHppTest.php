@@ -164,6 +164,12 @@ class CreateHppTest extends TestCase
         $this->assertSame('ORD-2026-0001', $hpp->nomor_order);
         $this->assertSame('Perbaikan conveyor raw mill', $hpp->nama_pekerjaan);
         $this->assertSame('Unit Produksi Raw Mill', $hpp->unit_kerja);
+        $this->assertSame('Requester Department', $hpp->departemen_peminta);
+        $this->assertSame('Unit Workshop', $hpp->unit_kerja_pengendali);
+        $this->assertSame('Controller Section', $hpp->seksi_pengendali);
+        $this->assertSame('Controller Department', $hpp->departemen_pengendali);
+        $this->assertSame('OA/2026/001', $hpp->outline_agreement);
+        $this->assertSame('01/01/2026 - 31/12/2026', $hpp->periode_outline_agreement);
         $this->assertSame('Dalam (T.23,4,5, Pelabuhan BKS & Packing Plant)', $hpp->area_pekerjaan);
         $this->assertSame(Hpp::STATUS_IN_REVIEW, $hpp->status);
         $this->assertSame(3000000.0, (float) $hpp->total_keseluruhan);

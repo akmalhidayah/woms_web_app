@@ -114,7 +114,11 @@ class HppSignature extends Model
 
     private function appUrl(string $path): string
     {
-        return rtrim((string) config('app.url'), '/').'/'.ltrim($path, '/');
+        $root = app()->runningInConsole()
+            ? (string) config('app.url')
+            : request()->getSchemeAndHttpHost();
+
+        return rtrim($root, '/').'/'.ltrim($path, '/');
     }
 
     public function belongsToRequesterSide(): bool

@@ -23,6 +23,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use setasign\Fpdi\Fpdi;
@@ -747,15 +748,30 @@ $tipePekerjaan = $this->resolveTipePekerjaanForBast(
         $file = $request->file('signed_document');
         $storedPath = $file->storeAs(
             'bast/dirops-signed/'.$lhpp->nomor_order.'/'.$lhpp->termin_type,
-            'dirops-signed-'.now()->format('YmdHis').'.'.$file->getClientOriginalExtension(),
+            'dirops-signed-'.now()->format('YmdHis').'-'.Str::uuid().'.'.$file->getClientOriginalExtension(),
             'public',
         );
 
         try {
-            DB::transaction(function () use ($request, $signature, $file, $storedPath): void {
-                $signature->update([
+            $processed = DB::transaction(function () use ($request, $signature, $file, $storedPath): bool {
+                $lockedSignature = LhppBastSignature::query()
+                    ->whereKey($signature->getKey())
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($lockedSignature->isSigned()) {
+                    return false;
+                }
+
+                abort_unless(
+                    $lockedSignature->isPending() && $lockedSignature->role_key === 'dirops',
+                    Response::HTTP_CONFLICT,
+                    'Tahap DIROPS BAST tidak lagi aktif.'
+                );
+
+                $lockedSignature->update([
                     'status' => LhppBastSignature::STATUS_SIGNED,
-                    'opened_at' => $signature->opened_at ?: now(),
+                    'opened_at' => $lockedSignature->opened_at ?: now(),
                     'signed_at' => now(),
                     'signed_document_path' => $storedPath,
                     'signed_document_original_name' => $file->getClientOriginalName(),
@@ -765,12 +781,26 @@ $tipePekerjaan = $this->resolveTipePekerjaanForBast(
                     'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
                 ]);
 
-                $this->signatureBuilder->activateNextSignature($signature);
+                $this->signatureBuilder->activateNextSignature($lockedSignature);
+
+                return true;
             });
         } catch (Throwable $exception) {
             Storage::disk('public')->delete($storedPath);
 
             throw $exception;
+        }
+
+        if (! $processed) {
+            Storage::disk('public')->delete($storedPath);
+
+            return redirect()
+                ->route('pkm.lhpp.index')
+                ->with('status', sprintf(
+                    'Dokumen final DIROPS BAST %s untuk order %s sudah pernah diunggah.',
+                    $lhpp->termin_type === 'termin_2' ? 'Termin 2' : 'Termin 1',
+                    $lhpp->nomor_order,
+                ));
         }
 
         return redirect()

@@ -73,11 +73,47 @@
                 Digunakan untuk melengkapi role approval HPP yang tidak berasal langsung dari hirarki Departemen / Unit / Seksi.
             </p>
         </div>
+        <button type="button" @click="openHppApprovalModal()" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700">
+            <i data-lucide="settings-2" class="h-4 w-4"></i>
+            Edit Master HPP
+        </button>
     </div>
 
-    <form method="POST" action="{{ route('admin.structure.hpp-approval-setting.update') }}" class="mt-4 space-y-4">
+    <div class="mt-4 grid gap-2 md:grid-cols-4">
+        <div class="rounded-xl border border-violet-100 bg-violet-50 px-3 py-2.5">
+            <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-600">Planner Control</div>
+            <div class="mt-1 truncate text-xs font-bold text-slate-900">{{ $hppApprovalSetting->plannerControl?->name ?? 'Belum dipilih' }}</div>
+        </div>
+        <div class="rounded-xl border border-violet-100 bg-white px-3 py-2.5">
+            <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-600">DIROPS</div>
+            <div class="mt-1 truncate text-xs font-bold text-slate-900">{{ $hppApprovalSetting->dirops?->name ?? 'Belum dipilih' }}</div>
+        </div>
+        <div class="rounded-xl border border-violet-100 bg-white px-3 py-2.5">
+            <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-600">Manager Counter Part</div>
+            <div class="mt-1 truncate text-xs font-bold text-slate-900">{{ $hppApprovalSetting->counterPartSection?->manager?->name ?? 'Belum dipilih' }}</div>
+        </div>
+        <div class="rounded-xl border border-violet-100 bg-white px-3 py-2.5">
+            <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-600">SM Counter Part</div>
+            <div class="mt-1 truncate text-xs font-bold text-slate-900">{{ $hppApprovalSetting->counterPartUnit?->seniorManager?->name ?? 'Belum dipilih' }}</div>
+        </div>
+    </div>
+
+    <div x-show="showHppApprovalModal" x-transition.opacity x-cloak class="fixed inset-0 z-40 bg-slate-950/55" @click="closeHppApprovalModal()"></div>
+    <div x-show="showHppApprovalModal" x-transition.opacity x-cloak class="fixed inset-0 z-50 overflow-y-auto p-4">
+        <div class="flex min-h-full items-start justify-center py-10">
+            <form method="POST" action="{{ route('admin.structure.hpp-approval-setting.update') }}" class="w-full max-w-3xl rounded-[1.35rem] bg-white p-5 shadow-2xl" @click.stop>
         @csrf
         @method('PUT')
+
+        <div class="mb-4 flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
+            <div>
+                <h2 class="text-xl font-bold text-slate-900">Edit Planner Control, Counter Part, dan DIROPS</h2>
+                <p class="mt-1 text-sm text-slate-500">Simpan master role khusus approval HPP.</p>
+            </div>
+            <button type="button" @click="closeHppApprovalModal()" class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100">
+                <i data-lucide="x" class="h-4 w-4"></i>
+            </button>
+        </div>
 
         <div class="grid gap-4 md:grid-cols-2">
             <div>
@@ -158,7 +194,9 @@
                 Simpan Master HPP
             </button>
         </div>
-    </form>
+            </form>
+        </div>
+    </div>
 </section>
 
         <section class="rounded-[1.35rem] border border-orange-100 bg-white p-4 shadow-sm">
@@ -168,6 +206,10 @@
                     <h2 class="mt-1 text-[1.15rem] font-bold text-slate-900">Master Tipe Pekerjaan BAST</h2>
                     <p class="mt-1 text-sm text-slate-500">Nama vendor/tipe pekerjaan di sini akan menjadi pilihan pada field Tipe Pekerjaan BAST.</p>
                 </div>
+                <button type="button" @click="openVendorCreateModal()" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[#ca642f] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#b85b2b]">
+                    <i data-lucide="plus" class="h-4 w-4"></i>
+                    Tambah Vendor
+                </button>
             </div>
 
             @if ($errors->vendorStructure->any())
@@ -181,6 +223,9 @@
                 </div>
             @endif
 
+            <div x-show="showVendorCreateModal" x-transition.opacity x-cloak class="fixed inset-0 z-40 bg-slate-950/55" @click="closeVendorCreateModal()"></div>
+            <div x-show="showVendorCreateModal" x-transition.opacity x-cloak class="fixed inset-0 z-50 overflow-y-auto p-4">
+                <div class="flex min-h-full items-start justify-center py-10">
             <form
                 method="POST"
                 action="{{ route('admin.structure.vendor-structures.store') }}"
@@ -189,9 +234,19 @@
                     'name' => (string) ($section['name'] ?? ''),
                     'manager_id' => (string) ($section['manager_id'] ?? ''),
                 ])->values()->all()))"
-                class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3"
+                class="w-full max-w-3xl rounded-[1.35rem] border border-slate-200 bg-white p-5 shadow-2xl"
+                @click.stop
             >
                 @csrf
+                <div class="mb-4 flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">Tambah Struktur Vendor</h2>
+                        <p class="mt-1 text-sm text-slate-500">Isi vendor dan daftar seksi vendor.</p>
+                    </div>
+                    <button type="button" @click="closeVendorCreateModal()" class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100">
+                        <i data-lucide="x" class="h-4 w-4"></i>
+                    </button>
+                </div>
                 <div class="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
                     <div>
                         <label class="mb-1 block text-[11px] font-semibold text-slate-700">Nama Vendor</label>
@@ -239,17 +294,64 @@
                     </div>
                 </div>
             </form>
+                </div>
+            </div>
 
             <div class="mt-4 space-y-3">
                 @forelse ($vendorWorkTypes as $vendorWorkType)
+                    <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div class="min-w-0">
+                                <div class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#ca642f]">Vendor / Tipe Pekerjaan</div>
+                                <div class="mt-1 truncate text-sm font-bold text-slate-900">{{ $vendorWorkType->name }}</div>
+                                <div class="mt-1 flex flex-wrap gap-1.5">
+                                    @forelse ($vendorWorkType->vendorSections as $section)
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-1 text-[10px] font-semibold text-orange-700 ring-1 ring-orange-100">
+                                            {{ $section->name }}
+                                        </span>
+                                    @empty
+                                        <span class="text-[11px] italic text-slate-400">Belum ada seksi vendor.</span>
+                                    @endforelse
+                                </div>
+                            </div>
+                            <div class="flex shrink-0 items-center gap-2">
+                                <button type="button" @click="openVendorEditModal('vendor-{{ $vendorWorkType->id }}')" class="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">
+                                    <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
+                                    Edit
+                                </button>
+                                <form method="POST" action="{{ route('admin.structure.vendor-structures.destroy', $vendorWorkType) }}" class="delete-structure-form">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100" data-name="{{ $vendorWorkType->name }}">
+                                        <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                                        Hapus
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
                     <div
+                        x-show="showVendorEditModal === 'vendor-{{ $vendorWorkType->id }}'"
+                        x-transition.opacity
+                        x-cloak
                         x-data="vendorStructureForm(@js($vendorWorkType->vendorSections->map(fn ($section) => [
                             'uid' => 'section-'.$section->id,
                             'name' => $section->name,
                             'manager_id' => (string) $section->manager_id,
                         ])->values()->all()))"
-                        class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+                        class="fixed inset-0 z-50 overflow-y-auto bg-slate-950/55 p-4"
+                        @click.self="closeVendorEditModal()"
                     >
+                        <div class="mx-auto my-8 w-full max-w-3xl rounded-[1.35rem] border border-slate-200 bg-white p-5 shadow-2xl" @click.stop>
+                        <div class="mb-4 flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
+                            <div>
+                                <h2 class="text-xl font-bold text-slate-900">Edit Struktur Vendor</h2>
+                                <p class="mt-1 text-sm text-slate-500">{{ $vendorWorkType->name }}</p>
+                            </div>
+                            <button type="button" @click="closeVendorEditModal()" class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100">
+                                <i data-lucide="x" class="h-4 w-4"></i>
+                            </button>
+                        </div>
                         <div class="grid gap-3 xl:grid-cols-[1fr_auto] xl:items-end">
                             <form id="vendor-work-type-{{ $vendorWorkType->id }}" method="POST" action="{{ route('admin.structure.vendor-structures.update', $vendorWorkType) }}" class="contents">
                                 @csrf
@@ -308,6 +410,7 @@
                                     </div>
                                 </template>
                             </div>
+                        </div>
                         </div>
                     </div>
                 @empty
@@ -701,6 +804,14 @@
         return {
             showModal: initialState.open || false,
             showDepartmentModal: initialDepartmentState.open || false,
+            showHppApprovalModal: @js(
+                $errors->has('planner_control_user_id')
+                || $errors->has('dirops_user_id')
+                || $errors->has('counter_part_unit_work_id')
+                || $errors->has('counter_part_section_id')
+            ),
+            showVendorCreateModal: @js($errors->vendorStructure->any()),
+            showVendorEditModal: '',
             mode: initialState.mode || 'create',
             formAction: initialState.action || '{{ route('admin.structure.store') }}',
             sectionDraft: '',
@@ -794,6 +905,24 @@
             },
             closeDepartmentModal() {
                 this.showDepartmentModal = false;
+            },
+            openHppApprovalModal() {
+                this.showHppApprovalModal = true;
+            },
+            closeHppApprovalModal() {
+                this.showHppApprovalModal = false;
+            },
+            openVendorCreateModal() {
+                this.showVendorCreateModal = true;
+            },
+            closeVendorCreateModal() {
+                this.showVendorCreateModal = false;
+            },
+            openVendorEditModal(id) {
+                this.showVendorEditModal = id || '';
+            },
+            closeVendorEditModal() {
+                this.showVendorEditModal = '';
             },
             toggleDepartmentMode() {
                 this.form.use_new_department = !this.form.use_new_department;

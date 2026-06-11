@@ -19,8 +19,13 @@ class InitialWork extends Model
     protected $fillable = [
         'order_id',
         'outline_agreement_id',
+        'outline_agreement',
+        'periode_outline_agreement',
         'unit_work_id',
         'unit_work_section_id',
+        'unit_kerja_pengendali',
+        'seksi_pengendali',
+        'departemen_pengendali',
         'nomor_initial_work',
         'nomor_order',
         'notifikasi',

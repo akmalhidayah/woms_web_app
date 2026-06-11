@@ -44,32 +44,21 @@
                 </div>
 
                 @if ($pendingTerminOneOrders->isNotEmpty())
-                    <div class="mb-3 overflow-hidden rounded-lg border border-amber-200 bg-white">
-                        <div class="flex items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-3 py-2">
+                    <div class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                        <div class="flex items-center justify-between gap-3">
                             <div class="text-[10px] font-bold text-amber-900">Belum Dibuatkan BAST T1</div>
                             <span class="rounded-full bg-white px-2 py-0.5 text-[9px] font-bold text-amber-800 ring-1 ring-amber-200">
                                 {{ $pendingTerminOneOrders->count() }} order
                             </span>
                         </div>
-                        <div class="grid grid-cols-[150px_minmax(0,1fr)] bg-slate-100 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-600">
-                            <div>Order</div>
-                            <div>Detail Pekerjaan</div>
-                        </div>
-                        <div class="divide-y divide-slate-100">
+                        <div class="mt-1.5 flex flex-wrap gap-1.5">
                             @foreach ($pendingTerminOneOrders as $pendingOrder)
-                                <div class="grid grid-cols-[150px_minmax(0,1fr)] gap-3 px-3 py-2 text-[9px]">
-                                    <div class="space-y-0.5">
-                                        <div class="font-black text-slate-900">{{ $pendingOrder['nomor_order'] }}</div>
-                                        <div class="text-blue-600">Notif : {{ $pendingOrder['notifikasi'] !== '' ? $pendingOrder['notifikasi'] : '-' }}</div>
-                                        <div class="text-blue-600">PO : {{ $pendingOrder['purchase_order_number'] !== '' ? $pendingOrder['purchase_order_number'] : '-' }}</div>
-                                    </div>
-                                    <div class="min-w-0">
-                                        <div class="truncate text-[10px] font-bold text-slate-900">
-                                            {{ $pendingOrder['deskripsi_pekerjaan'] !== '' ? $pendingOrder['deskripsi_pekerjaan'] : '-' }}
-                                        </div>
-                                        <div class="mt-0.5 text-slate-500">Unit: {{ $pendingOrder['unit_kerja'] !== '' ? $pendingOrder['unit_kerja'] : '-' }}</div>
-                                        <div class="mt-0.5 truncate text-blue-600">Seksi: {{ $pendingOrder['seksi'] !== '' ? $pendingOrder['seksi'] : '-' }}</div>
-                                    </div>
+                                <div class="inline-flex max-w-full items-center gap-2 rounded-md bg-white px-2 py-1 text-[9px] ring-1 ring-amber-100">
+                                    <span class="font-black text-slate-900">{{ $pendingOrder['nomor_order'] }}</span>
+                                    <span class="text-blue-600">{{ $pendingOrder['notifikasi'] !== '' ? $pendingOrder['notifikasi'] : '-' }}</span>
+                                    <span class="max-w-[360px] truncate font-bold text-slate-900">
+                                        {{ $pendingOrder['deskripsi_pekerjaan'] !== '' ? $pendingOrder['deskripsi_pekerjaan'] : '-' }}
+                                    </span>
                                 </div>
                             @endforeach
                         </div>

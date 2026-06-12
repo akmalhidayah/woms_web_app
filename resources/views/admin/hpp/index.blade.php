@@ -24,6 +24,15 @@
             return rtrim(rtrim($normalized, '0'), ',');
         };
         $pendingHppOrders = collect($pendingHppOrders ?? []);
+        $approvalReassignmentUserOptions = ($approvalReassignmentUsers ?? collect())
+            ->map(fn ($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'nomor_hp' => $user->nomor_hp,
+            ])
+            ->values();
     @endphp
 
     @if (session('status'))
@@ -511,13 +520,7 @@
             const diropsUploadForm = document.getElementById('diropsUploadForm');
             const diropsUploadOrder = document.getElementById('diropsUploadOrder');
             const diropsUploadRouteTemplate = @json(route('admin.hpp.dirops-document.upload', ['hpp' => '__ORDER__']));
-            const reassignmentUsers = @json(($approvalReassignmentUsers ?? collect())->map(fn ($user) => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $user->role,
-                'nomor_hp' => $user->nomor_hp,
-            ])->values());
+            const reassignmentUsers = @json($approvalReassignmentUserOptions);
 
             if (statusAlert?.dataset.message && window.Swal) {
                 window.Swal.fire({

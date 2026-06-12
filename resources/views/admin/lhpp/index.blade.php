@@ -1,4 +1,16 @@
 <x-layouts.admin title="BAST">
+    @php
+        $approvalReassignmentUserOptions = ($approvalReassignmentUsers ?? collect())
+            ->map(fn ($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'nomor_hp' => $user->nomor_hp,
+            ])
+            ->values();
+    @endphp
+
     @if (session('status'))
         <div id="admin-bast-status-alert" data-message="{{ session('status') }}" class="hidden"></div>
     @endif
@@ -672,13 +684,7 @@
             const approvalReassignmentReason = document.getElementById('bastApprovalReassignmentReason');
             const approvalReassignmentClose = document.getElementById('bastApprovalReassignmentClose');
             const approvalReassignmentCancel = document.getElementById('bastApprovalReassignmentCancel');
-            const reassignmentUsers = @json(($approvalReassignmentUsers ?? collect())->map(fn ($user) => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $user->role,
-                'nomor_hp' => $user->nomor_hp,
-            ])->values());
+            const reassignmentUsers = @json($approvalReassignmentUserOptions);
             const escapeHtml = (value) => String(value ?? '')
                 .replaceAll('&', '&amp;')
                 .replaceAll('<', '&lt;')

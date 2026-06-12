@@ -1,3 +1,15 @@
+@php
+    $approvalReassignmentUserOptions = ($approvalReassignmentUsers ?? collect())
+        ->map(fn ($user) => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role,
+            'nomor_hp' => $user->nomor_hp,
+        ])
+        ->values();
+@endphp
+
 <div id="approvalSignatureInfoModal" class="fixed inset-0 z-[80] hidden items-center justify-center p-4">
     <button type="button" data-close-approval-signature class="absolute inset-0 bg-slate-950/60" aria-label="Tutup informasi approval"></button>
 
@@ -69,13 +81,7 @@
         const title = document.getElementById('approvalSignatureTitle');
         const summary = document.getElementById('approvalSignatureSummary');
         const checklist = document.getElementById('approvalSignatureChecklist');
-        const reassignmentUsers = @json(($approvalReassignmentUsers ?? collect())->map(fn ($user) => [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'role' => $user->role,
-            'nomor_hp' => $user->nomor_hp,
-        ])->values());
+        const reassignmentUsers = @json($approvalReassignmentUserOptions);
 
         if (!modal) {
             return;

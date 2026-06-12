@@ -205,7 +205,7 @@
                                                     data-signed-count="{{ $signedCount }}"
                                                     data-total-steps="{{ $totalSteps }}"
                                                     data-caption="Approval ditolak"
-                                                    data-summary="{{ $rejectedSignature?->role_label ?: 'Approver menolak HPP' }}"
+                                                    data-summary="{{ $rejectedSignature?->displayRoleLabel() ?: 'Approver menolak HPP' }}"
                                                     data-current-name="{{ $rejectedSignature?->signer_name_snapshot ?: '-' }}"
                                                     data-checklist='@json($approvalChecklist)'
                                                     data-actions='@json([])'

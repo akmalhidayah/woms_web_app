@@ -403,7 +403,7 @@
         ? \App\Support\SignatureImageStorage::imageSource($signature->signature_data)
         : null;
     $signatureName = fn ($signature): string => $signature?->signer_name_snapshot ?: '';
-    $signatureTitle = fn ($signature, string $fallback): string => trim((string) ($signature?->signer_position_snapshot ?: $fallback));
+    $signatureTitle = fn ($signature, string $fallback): string => trim((string) ($signature?->acting_as_label ?: ($signature?->signer_position_snapshot ?: $fallback)));
     $signatureDate = static function ($signature): string {
         if (! $signature?->signed_at) {
             return 'Tanggal :';

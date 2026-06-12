@@ -116,7 +116,7 @@
                                 <div class="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <div class="text-base font-bold text-slate-900">{{ $signature->signer_name_snapshot }}</div>
-                                        <div class="text-sm text-slate-600">{{ $signature->signer_position_snapshot }}</div>
+                                        <div class="text-sm text-slate-600">{{ $signature->acting_as_label ?: $signature->signer_position_snapshot }}</div>
                                     </div>
                                     <span class="inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ring-1 {{ $statusClasses }}">
                                         {{ $statusLabel }}

@@ -119,7 +119,7 @@
                             <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
                                     <div class="text-base font-bold text-slate-900">{{ $signature->signer_name }}</div>
-                                    <div class="text-sm text-slate-600">{{ $signature->role_label }}</div>
+                                    <div class="text-sm text-slate-600">{{ $signature->displayRoleLabel() }}</div>
                                 </div>
 
                                 <div class="inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold {{ $signature->isSigned() ? 'bg-emerald-100 text-emerald-700' : ($isExpired ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700') }}">

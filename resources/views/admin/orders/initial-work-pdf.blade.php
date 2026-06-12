@@ -190,6 +190,10 @@
     $signatureRole = function ($signature, string $fallbackRole, string $fallbackScope): string {
         $scope = trim((string) ($fallbackScope ?: 'Workshop'));
 
+        if ($signature?->acting_as_label) {
+            return (string) $signature->displayRoleLabel();
+        }
+
         if ($signature?->role_key === \App\Models\InitialWorkSignature::ROLE_MANAGER) {
             $scope = trim((string) ($signature->source_section ?: $scope));
 

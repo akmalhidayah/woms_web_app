@@ -15,7 +15,7 @@
         ? (string) (\App\Support\SignatureImageStorage::imageSource((string) $approvalSignature->signature_data) ?: '')
         : '';
     $approvalSignatureName = fn ($approvalSignature): string => $approvalSignature?->isSigned() ? (string) $approvalSignature->signer_name : '';
-    $approvalSignatureRole = fn ($approvalSignature): string => $approvalSignature?->isSigned() ? (string) ($approvalSignature->signer_position ?: $approvalSignature->role_label) : '';
+    $approvalSignatureRole = fn ($approvalSignature): string => $approvalSignature?->isSigned() ? (string) ($approvalSignature->signer_position ?: $approvalSignature->displayRoleLabel()) : '';
     $approvalSignatureDate = static function ($approvalSignature): string {
         if (! $approvalSignature?->signed_at) {
             return '';

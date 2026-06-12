@@ -111,7 +111,7 @@
                         <div class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
                             <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Penanda Tangan</div>
                             <div class="mt-3 text-base font-bold text-slate-900">{{ $signature->signer_name }}</div>
-                            <div class="text-sm text-slate-600">{{ $signature->signer_position ?: $signature->role_label }}</div>
+                            <div class="text-sm text-slate-600">{{ $signature->signer_position ?: $signature->displayRoleLabel() }}</div>
                             <div class="mt-2 text-xs leading-5 text-slate-500">
                                 {{ $signature->source_unit ?: '-' }} / {{ $signature->source_section ?: '-' }}
                             </div>

@@ -438,7 +438,7 @@
         }
     };
     $signatureName = fn ($signature): string => $signature?->signer_name_snapshot ?: 'N/A';
-    $signatureTitle = fn ($signature, string $fallback): string => $signature?->signer_position_snapshot ?: $fallback;
+    $signatureTitle = fn ($signature, string $fallback): string => $signature?->acting_as_label ?: ($signature?->signer_position_snapshot ?: $fallback);
     $approvalRoleClass = fn (?string $title): string => mb_strlen(trim((string) $title)) > 28
         ? 'approval-role approval-role-compact'
         : 'approval-role';
@@ -522,7 +522,7 @@
             : null));
 
         return [
-            'label' => $signature?->role_label ?: $fallbackLabel,
+            'label' => $signature?->displayRoleLabel() ?: $fallbackLabel,
             'signature' => $signatureImage($signature),
             'value' => $userInitial !== '' ? mb_strtoupper($userInitial) : ($name ? $initials($name) : $fallbackValue),
             'date' => $signatureDate($signature),

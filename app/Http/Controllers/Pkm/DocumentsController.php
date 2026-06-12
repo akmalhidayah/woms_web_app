@@ -8,26 +8,23 @@ use App\Models\Hpp;
 use App\Models\LhppBast;
 use App\Models\Order;
 use App\Services\Orders\OrderDocumentService;
+use App\Support\PdfMergeService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
-use setasign\Fpdi\Fpdi;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
-use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
-use Symfony\Component\Process\Process;
 use Throwable;
 
 class DocumentsController extends Controller
 {
     public function __construct(
         private readonly OrderDocumentService $documentService,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): View
     {
@@ -126,7 +123,7 @@ class DocumentsController extends Controller
                     'unit_kerja' => $order->unit_kerja,
                     'seksi' => $order->seksi,
                     'purchase_order_number' => $order->latestPurchaseOrder?->purchase_order_number,
-                    'merged_document_url' => $hasAbnormalitas && $hasHpp && $hasPo && $hasBast
+                    'merged_document_url' => $hasAbnormalitas || $hasHpp || $hasPo || $hasBast
                         ? route('pkm.laporan.merged-documents', ['order' => $order->nomor_order])
                         : null,
                     'lpj_url_termin1' => ($lpjPpl?->lpj_document_path_termin1)
@@ -238,44 +235,46 @@ class DocumentsController extends Controller
             $terminOne = $order->lhppBasts->firstWhere('termin_type', 'termin_1');
             $terminTwo = $order->lhppBasts->firstWhere('termin_type', 'termin_2');
 
-            abort_unless($abnormalitas, Response::HTTP_NOT_FOUND, 'Dokumen Abnormalitas belum tersedia.');
-            abort_unless($hpp, Response::HTTP_NOT_FOUND, 'Dokumen HPP belum tersedia.');
-            abort_unless($purchaseOrder?->po_document_path, Response::HTTP_NOT_FOUND, 'Dokumen PO belum tersedia.');
-            abort_unless($terminOne, Response::HTTP_NOT_FOUND, 'Dokumen BAST Termin 1 belum tersedia.');
+            $pdfOutputs = [];
 
-            $abnormalitasPath = $this->documentService->absolutePath($abnormalitas);
-            $abnormalitasMime = $this->documentService->mimeType($abnormalitas);
+            if ($hpp) {
+                $pdfOutputs[] = $this->hppPdfOutput($hpp);
+            }
 
-            abort_unless(
-                $abnormalitasPath && is_file($abnormalitasPath) && $this->isPdfPath($abnormalitasPath, $abnormalitasMime),
-                Response::HTTP_UNPROCESSABLE_ENTITY,
-                'Dokumen Abnormalitas harus berupa PDF.'
-            );
-            abort_unless(
-                Storage::disk('public')->exists($purchaseOrder->po_document_path),
-                Response::HTTP_NOT_FOUND,
-                'File dokumen PO tidak ditemukan.'
-            );
-
-            $poPath = Storage::disk('public')->path($purchaseOrder->po_document_path);
-            $poMime = Storage::disk('public')->mimeType($purchaseOrder->po_document_path);
-
-            abort_unless(
-                $this->isPdfPath($poPath, $poMime),
-                Response::HTTP_UNPROCESSABLE_ENTITY,
-                'Dokumen PO harus berupa PDF.'
-            );
-
-            $pdfOutputs = [
-                file_get_contents($abnormalitasPath) ?: '',
-                $this->hppPdfOutput($hpp),
-                Storage::disk('public')->get($purchaseOrder->po_document_path) ?: '',
-                $this->bastPdfOutput($terminOne),
-            ];
+            if ($terminOne) {
+                $pdfOutputs[] = $this->bastPdfOutput($terminOne);
+            }
 
             if ($terminTwo) {
                 $pdfOutputs[] = $this->bastPdfOutput($terminTwo);
             }
+
+            if ($abnormalitas) {
+                $abnormalitasPath = $this->documentService->absolutePath($abnormalitas);
+                $abnormalitasMime = $this->documentService->mimeType($abnormalitas);
+
+                if (
+                    $abnormalitasPath
+                    && is_file($abnormalitasPath)
+                    && $this->isPdfPath($abnormalitasPath, $abnormalitasMime)
+                ) {
+                    $pdfOutputs[] = file_get_contents($abnormalitasPath) ?: '';
+                }
+            }
+
+            if (
+                $purchaseOrder?->po_document_path
+                && Storage::disk('public')->exists($purchaseOrder->po_document_path)
+            ) {
+                $poPath = Storage::disk('public')->path($purchaseOrder->po_document_path);
+                $poMime = Storage::disk('public')->mimeType($purchaseOrder->po_document_path);
+
+                if ($this->isPdfPath($poPath, $poMime)) {
+                    $pdfOutputs[] = Storage::disk('public')->get($purchaseOrder->po_document_path) ?: '';
+                }
+            }
+
+            abort_if($pdfOutputs === [], Response::HTTP_NOT_FOUND, 'Belum ada dokumen PDF yang tersedia.');
 
             $documentTitle = trim($order->nomor_order.' - '.$order->nama_pekerjaan);
             $mergedPdf = $this->mergePdfOutputs($pdfOutputs, $documentTitle);
@@ -358,105 +357,9 @@ class DocumentsController extends Controller
      */
     private function mergePdfOutputs(array $pdfOutputs, string $title = ''): string
     {
-        $pdfOutputs = array_values(array_filter(
-            $pdfOutputs,
-            static fn ($pdfOutput): bool => is_string($pdfOutput) && trim($pdfOutput) !== ''
-        ));
-
-        if ($pdfOutputs === []) {
-            return '';
-        }
-
-        $temporaryFiles = [];
-        $mergedFile = null;
-
-        try {
-            foreach ($pdfOutputs as $pdfOutput) {
-                $temporaryFile = tempnam(sys_get_temp_dir(), 'woms-documents-pdf-');
-
-                if ($temporaryFile === false) {
-                    continue;
-                }
-
-                file_put_contents($temporaryFile, $pdfOutput);
-                $temporaryFiles[] = $temporaryFile;
-            }
-
-            $mergedFile = tempnam(sys_get_temp_dir(), 'woms-documents-merged-');
-
-            if ($mergedFile !== false) {
-                $externalMerge = $this->mergePdfFilesWithSystemTool($temporaryFiles, $mergedFile);
-
-                if ($externalMerge !== null) {
-                    return $externalMerge;
-                }
-            }
-
-            if (count($temporaryFiles) === 1) {
-                return file_get_contents($temporaryFiles[0]) ?: '';
-            }
-
-            $pdf = new Fpdi();
-
-            if ($title !== '') {
-                $pdf->SetTitle($title, true);
-            }
-
-            foreach ($temporaryFiles as $temporaryFile) {
-                $pageCount = $pdf->setSourceFile($temporaryFile);
-
-                for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
-                    $templateId = $pdf->importPage($pageNumber);
-                    $size = $pdf->getTemplateSize($templateId);
-                    $orientation = ($size['width'] ?? 0) > ($size['height'] ?? 0) ? 'L' : 'P';
-
-                    $pdf->AddPage($orientation, [$size['width'], $size['height']]);
-                    $pdf->useTemplate($templateId);
-                }
-            }
-
-            return $pdf->Output('S');
-        } catch (Throwable $exception) {
-            throw new UnprocessableEntityHttpException(
-                'PDF tidak dapat digabung. Pastikan seluruh dokumen menggunakan format PDF standar.',
-                $exception
-            );
-        } finally {
-            foreach ($temporaryFiles as $temporaryFile) {
-                if (is_file($temporaryFile)) {
-                    @unlink($temporaryFile);
-                }
-            }
-
-            if (is_string($mergedFile) && is_file($mergedFile)) {
-                @unlink($mergedFile);
-            }
-        }
-    }
-
-    private function mergePdfFilesWithSystemTool(array $inputFiles, string $outputFile): ?string
-    {
-        $commands = [
-            array_merge(['qpdf', '--empty', '--pages'], $inputFiles, ['--', $outputFile]),
-            array_merge(['pdfunite'], $inputFiles, [$outputFile]),
-            array_merge(['gs', '-dBATCH', '-dNOPAUSE', '-q', '-sDEVICE=pdfwrite', '-sOutputFile='.$outputFile], $inputFiles),
-            array_merge(['gswin64c', '-dBATCH', '-dNOPAUSE', '-q', '-sDEVICE=pdfwrite', '-sOutputFile='.$outputFile], $inputFiles),
-        ];
-
-        foreach ($commands as $command) {
-            try {
-                $process = new Process($command, null, null, null, 30);
-                $process->run();
-
-                if ($process->isSuccessful() && is_file($outputFile) && filesize($outputFile) > 0) {
-                    return file_get_contents($outputFile) ?: null;
-                }
-            } catch (Throwable) {
-                continue;
-            }
-        }
-
-        return null;
+        return app(PdfMergeService::class)->merge($pdfOutputs, $title, [
+            'controller' => static::class,
+        ]);
     }
 
     private function isPdfPath(string $path, ?string $mimeType): bool

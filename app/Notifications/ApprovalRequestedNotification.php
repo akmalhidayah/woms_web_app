@@ -17,8 +17,7 @@ class ApprovalRequestedNotification extends Notification
         public readonly string $roleLabel,
         public readonly string $approvalUrl,
         public readonly ?Carbon $expiresAt,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<int, string>
@@ -31,7 +30,7 @@ class ApprovalRequestedNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->from('noreply@dept-pmms.com', 'WOMS Dept PMMS')
+            ->from((string) config('mail.from.address'), (string) config('mail.from.name'))
             ->subject("Permintaan Approval {$this->documentType} - {$this->documentNumber}")
             ->view([
                 'html' => 'emails.approval.requested',

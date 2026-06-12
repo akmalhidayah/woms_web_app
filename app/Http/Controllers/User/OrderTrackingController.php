@@ -16,13 +16,14 @@ use App\Models\QualityControlSignature;
 use App\Services\Orders\OrderDocumentService;
 use App\Services\QualityControl\QualityControlSignatureService;
 use App\Support\ApprovalWhatsappLink;
+use App\Support\PdfMergeService;
 use App\Support\SignatureImageStorage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
-use setasign\Fpdi\Fpdi;
 use Symfony\Component\HttpFoundation\Response;
 
 class OrderTrackingController extends Controller
@@ -347,7 +348,7 @@ class OrderTrackingController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      */
     private function applyDashboardFilters(Builder $query, array $filters): Builder
     {
@@ -1162,7 +1163,7 @@ class OrderTrackingController extends Controller
     }
 
     /**
-     * @param array<string, string> $headers
+     * @param  array<string, string>  $headers
      * @return array<string, string>
      */
     private function pdfNoCacheHeaders(array $headers = []): array
@@ -1175,7 +1176,7 @@ class OrderTrackingController extends Controller
     }
 
     /**
-     * @param \Illuminate\Support\Collection<int, Order> $orders
+     * @param  Collection<int, Order>  $orders
      * @return array<string, array<int, int|string|float>>
      */
     private function buildApprovedChartData($orders): array
@@ -1204,7 +1205,7 @@ class OrderTrackingController extends Controller
     }
 
     /**
-     * @param \Illuminate\Support\Collection<int, Order> $orders
+     * @param  Collection<int, Order>  $orders
      * @return array<string, array<int, int|string|float>>
      */
     private function buildBiayaChartData($orders): array
@@ -1233,65 +1234,12 @@ class OrderTrackingController extends Controller
     }
 
     /**
-     * @param array<int, string> $pdfOutputs
+     * @param  array<int, string>  $pdfOutputs
      */
     private function mergePdfOutputs(array $pdfOutputs): string
     {
-        $pdfOutputs = array_values(array_filter(
-            $pdfOutputs,
-            static fn ($pdfOutput): bool => is_string($pdfOutput) && trim($pdfOutput) !== ''
-        ));
-
-        if ($pdfOutputs === []) {
-            return '';
-        }
-
-        if (! class_exists(Fpdi::class)) {
-            Log::warning('FPDI package is unavailable. Returning the first PDF output without merge.', [
-                'controller' => static::class,
-                'pdf_count' => count($pdfOutputs),
-            ]);
-
-            return $pdfOutputs[0];
-        }
-
-        $fpdi = new Fpdi();
-        $temporaryFiles = [];
-
-        try {
-            foreach ($pdfOutputs as $pdfOutput) {
-                if (! is_string($pdfOutput) || trim($pdfOutput) === '') {
-                    continue;
-                }
-
-                $temporaryFile = tempnam(sys_get_temp_dir(), 'woms-user-pdf-');
-
-                if ($temporaryFile === false) {
-                    continue;
-                }
-
-                file_put_contents($temporaryFile, $pdfOutput);
-                $temporaryFiles[] = $temporaryFile;
-
-                $pageCount = $fpdi->setSourceFile($temporaryFile);
-
-                for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
-                    $templateId = $fpdi->importPage($pageNumber);
-                    $templateSize = $fpdi->getTemplateSize($templateId);
-                    $orientation = $templateSize['width'] > $templateSize['height'] ? 'L' : 'P';
-
-                    $fpdi->AddPage($orientation, [$templateSize['width'], $templateSize['height']]);
-                    $fpdi->useTemplate($templateId);
-                }
-            }
-
-            return $fpdi->Output('S');
-        } finally {
-            foreach ($temporaryFiles as $temporaryFile) {
-                if (is_string($temporaryFile) && is_file($temporaryFile)) {
-                    @unlink($temporaryFile);
-                }
-            }
-        }
+        return app(PdfMergeService::class)->merge($pdfOutputs, context: [
+            'controller' => static::class,
+        ]);
     }
 }

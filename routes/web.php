@@ -1,34 +1,35 @@
 <?php
 
 use App\Http\Controllers\Admin\AccessControlController;
-use App\Http\Controllers\Admin\BudgetVerificationController;
+use App\Http\Controllers\Admin\ApprovalSignatureReassignmentController;
 use App\Http\Controllers\Admin\BengkelPicController;
 use App\Http\Controllers\Admin\BengkelTaskController;
+use App\Http\Controllers\Admin\BudgetVerificationController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
-use App\Http\Controllers\Admin\Hpp\HppController;
-use App\Http\Controllers\Admin\InformationUploadController;
-use App\Http\Controllers\Admin\GaransiController;
 use App\Http\Controllers\Admin\FabricationConstructionContractController;
+use App\Http\Controllers\Admin\GaransiController;
+use App\Http\Controllers\Admin\Hpp\HppController;
+use App\Http\Controllers\Admin\HppApprovalSettingController;
+use App\Http\Controllers\Admin\InformationUploadController;
 use App\Http\Controllers\Admin\LhppController as AdminLhppController;
 use App\Http\Controllers\Admin\LpjPplController;
 use App\Http\Controllers\Admin\Orders\InitialWorkController as AdminInitialWorkController;
-use App\Http\Controllers\Admin\OutlineAgreementController;
 use App\Http\Controllers\Admin\Orders\OrderDocumentController;
 use App\Http\Controllers\Admin\Orders\OrderScopeOfWorkController;
+use App\Http\Controllers\Admin\OutlineAgreementController;
 use App\Http\Controllers\Admin\PurchaseOrderController;
 use App\Http\Controllers\Admin\StructureOrganizationController;
-use App\Http\Controllers\Admin\HppApprovalSettingController;
 use App\Http\Controllers\Admin\UserPanelController;
+use App\Http\Controllers\Approval\BastSignatureController;
 use App\Http\Controllers\Approval\HppSignatureController;
 use App\Http\Controllers\Approval\InitialWorkSignatureController;
-use App\Http\Controllers\Approval\BastSignatureController;
 use App\Http\Controllers\Approval\QualityControlSignatureController;
 use App\Http\Controllers\Pkm\DashboardController as PkmDashboardController;
 use App\Http\Controllers\Pkm\DocumentsController as PkmDocumentsController;
 use App\Http\Controllers\Pkm\JobWaitingController;
 use App\Http\Controllers\Pkm\LhppController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\User\OrderTrackingController;
-use App\Models\User;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
@@ -99,11 +100,20 @@ Route::middleware(['auth'])->group(function () {
     Route::get('admin/realisasi-biaya', [AdminDashboardController::class, 'realizationChart'])
         ->middleware('role:admin')
         ->name('admin.dashboard.realization-chart');
+    Route::get('admin/profile', [ProfileController::class, 'editAdmin'])
+        ->middleware('role:admin')
+        ->name('admin.profile.edit');
+    Route::patch('admin/profile', [ProfileController::class, 'updateAdmin'])
+        ->middleware('role:admin')
+        ->name('admin.profile.update');
+    Route::patch('admin/profile/password', [ProfileController::class, 'updateAdminPassword'])
+        ->middleware('role:admin')
+        ->name('admin.profile.password.update');
 
     Route::get('admin/access-control', [AccessControlController::class, 'index'])
         ->middleware(['role:admin', 'admin_role:super_admin'])
         ->name('admin.access-control.index');
-    Route::put('admin/access-control/{user}', [AccessControlController::class, 'update'])
+    Route::put('admin/access-control', [AccessControlController::class, 'update'])
         ->middleware(['role:admin', 'admin_role:super_admin'])
         ->name('admin.access-control.update');
 
@@ -150,6 +160,10 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
         ->whereNumber('lhppId')
         ->name('admin.lhpp.quality-control');
+    Route::patch('admin/approval-signatures/bast/{signature}/reassign', [ApprovalSignatureReassignmentController::class, 'bast'])
+        ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
+        ->whereNumber('signature')
+        ->name('admin.approval-signatures.bast.reassign');
     Route::get('admin/lhpp/{nomorOrder}/{termin}/pdf', [AdminLhppController::class, 'pdfByOrder'])
         ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
         ->where('termin', 'termin-1|termin-2')
@@ -280,41 +294,41 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:user_panel'])
         ->name('admin.user-panel.destroy');
 
-Route::get('admin/struktur-organisasi', [StructureOrganizationController::class, 'index'])
-    ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
-    ->name('admin.structure.index');
+    Route::get('admin/struktur-organisasi', [StructureOrganizationController::class, 'index'])
+        ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
+        ->name('admin.structure.index');
 
-Route::post('admin/struktur-organisasi', [StructureOrganizationController::class, 'store'])
-    ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
-    ->name('admin.structure.store');
+    Route::post('admin/struktur-organisasi', [StructureOrganizationController::class, 'store'])
+        ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
+        ->name('admin.structure.store');
 
-Route::put('admin/struktur-organisasi/hpp-approval-setting', [HppApprovalSettingController::class, 'update'])
-    ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
-    ->name('admin.structure.hpp-approval-setting.update');
+    Route::put('admin/struktur-organisasi/hpp-approval-setting', [HppApprovalSettingController::class, 'update'])
+        ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
+        ->name('admin.structure.hpp-approval-setting.update');
 
-Route::put('admin/struktur-organisasi/departments/{department}', [StructureOrganizationController::class, 'updateDepartment'])
-    ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
-    ->name('admin.structure.departments.update');
+    Route::put('admin/struktur-organisasi/departments/{department}', [StructureOrganizationController::class, 'updateDepartment'])
+        ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
+        ->name('admin.structure.departments.update');
 
-Route::post('admin/struktur-organisasi/vendor-structures', [StructureOrganizationController::class, 'storeVendorStructure'])
-    ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
-    ->name('admin.structure.vendor-structures.store');
+    Route::post('admin/struktur-organisasi/vendor-structures', [StructureOrganizationController::class, 'storeVendorStructure'])
+        ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
+        ->name('admin.structure.vendor-structures.store');
 
-Route::put('admin/struktur-organisasi/vendor-structures/{vendorWorkType}', [StructureOrganizationController::class, 'updateVendorStructure'])
-    ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
-    ->name('admin.structure.vendor-structures.update');
+    Route::put('admin/struktur-organisasi/vendor-structures/{vendorWorkType}', [StructureOrganizationController::class, 'updateVendorStructure'])
+        ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
+        ->name('admin.structure.vendor-structures.update');
 
-Route::delete('admin/struktur-organisasi/vendor-structures/{vendorWorkType}', [StructureOrganizationController::class, 'destroyVendorStructure'])
-    ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
-    ->name('admin.structure.vendor-structures.destroy');
+    Route::delete('admin/struktur-organisasi/vendor-structures/{vendorWorkType}', [StructureOrganizationController::class, 'destroyVendorStructure'])
+        ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
+        ->name('admin.structure.vendor-structures.destroy');
 
-Route::put('admin/struktur-organisasi/{unitWork}', [StructureOrganizationController::class, 'update'])
-    ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
-    ->name('admin.structure.update');
+    Route::put('admin/struktur-organisasi/{unitWork}', [StructureOrganizationController::class, 'update'])
+        ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
+        ->name('admin.structure.update');
 
-Route::delete('admin/struktur-organisasi/{unitWork}', [StructureOrganizationController::class, 'destroy'])
-    ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
-    ->name('admin.structure.destroy');
+    Route::delete('admin/struktur-organisasi/{unitWork}', [StructureOrganizationController::class, 'destroy'])
+        ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
+        ->name('admin.structure.destroy');
 
     Route::get('admin/kontrak-jasa-fabrikasi-konstruksi', [FabricationConstructionContractController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:kontrak_jasa_fabrikasi_konstruksi'])
@@ -373,6 +387,15 @@ Route::delete('admin/struktur-organisasi/{unitWork}', [StructureOrganizationCont
     Route::get('pkm/dashboard', [PkmDashboardController::class, 'index'])
         ->middleware('role:pkm')
         ->name('pkm.dashboard');
+    Route::get('pkm/profile', [ProfileController::class, 'editPkm'])
+        ->middleware('role:pkm')
+        ->name('pkm.profile.edit');
+    Route::patch('pkm/profile', [ProfileController::class, 'updatePkm'])
+        ->middleware('role:pkm')
+        ->name('pkm.profile.update');
+    Route::patch('pkm/profile/password', [ProfileController::class, 'updatePkmPassword'])
+        ->middleware('role:pkm')
+        ->name('pkm.profile.password.update');
 
     Route::get('pkm/jobwaiting', [JobWaitingController::class, 'index'])
         ->middleware('role:pkm')
@@ -472,7 +495,7 @@ Route::delete('admin/struktur-organisasi/{unitWork}', [StructureOrganizationCont
     Route::get('settings', fn () => redirect()->route('settings.profile'));
 
     Volt::route('settings/profile', 'settings.profile')->name('settings.profile');
-    Volt::route('settings/password', 'settings.password')->name('settings.password');
+    Route::redirect('settings/password', 'settings/profile')->name('settings.password');
     Volt::route('settings/appearance', 'settings.appearance')->name('settings.appearance');
 });
 
@@ -490,6 +513,9 @@ Route::prefix('admin/hpp')
         Route::post('/{hpp:nomor_order}/dirops-signed-document', [HppController::class, 'uploadDiropsSignedDocument'])->name('dirops-document.upload');
         Route::post('/{hpp:nomor_order}/regenerate-active-approval-token', [HppController::class, 'regenerateActiveApprovalToken'])->name('approval-token.regenerate');
         Route::post('/{hpp:nomor_order}/resend-active-approval', [HppController::class, 'resendActiveApproval'])->name('approval.resend');
+        Route::patch('/approval-signatures/{signature}/reassign', [ApprovalSignatureReassignmentController::class, 'hpp'])
+            ->whereNumber('signature')
+            ->name('approval-signatures.reassign');
         Route::get('/{hpp:nomor_order}/edit', [HppController::class, 'edit'])->name('edit');
         Route::post('/', [HppController::class, 'store'])->name('store');
         Route::put('/{hpp}', [HppController::class, 'update'])->name('update');

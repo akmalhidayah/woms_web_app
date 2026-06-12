@@ -6,7 +6,6 @@ use App\Http\Controllers\Admin\Orders\InitialWorkController as AdminInitialWorkC
 use App\Http\Controllers\Admin\Orders\OrderDocumentController;
 use App\Http\Controllers\Controller;
 use App\Models\InitialWorkSignature;
-use App\Models\User;
 use App\Services\InitialWorks\InitialWorkSignatureService;
 use App\Support\SignatureImageStorage;
 use Illuminate\Http\RedirectResponse;
@@ -21,8 +20,7 @@ class InitialWorkSignatureController extends Controller
 {
     public function __construct(
         private readonly InitialWorkSignatureService $signatureService,
-    ) {
-    }
+    ) {}
 
     public function show(Request $request, string $token): View
     {
@@ -155,8 +153,7 @@ class InitialWorkSignatureController extends Controller
     {
         $authenticatedUserId = $request->user()?->id;
         $expectedSignerUserId = $signature->signer_user_id;
-        $authorized = $request->user()?->role === User::ROLE_APPROVER
-            && $expectedSignerUserId !== null
+        $authorized = $expectedSignerUserId !== null
             && (int) $authenticatedUserId === (int) $expectedSignerUserId;
 
         if (! $authorized) {

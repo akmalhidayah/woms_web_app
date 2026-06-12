@@ -23,7 +23,7 @@ class ApprovalWhatsappLink
             $signature->signer,
             'Initial Work',
             (string) ($signature->initialWork?->nomor_initial_work ?: $signature->initialWork?->nomor_order),
-            (string) $signature->role_label,
+            $signature->displayRoleLabel(),
             $signature->approvalUrl(),
             $signature->token_expires_at,
         );
@@ -41,7 +41,7 @@ class ApprovalWhatsappLink
             $signature->signer,
             'HPP',
             (string) $signature->hpp?->nomor_order,
-            (string) $signature->role_label,
+            $signature->displayRoleLabel(),
             $signature->approvalUrl(),
             $signature->token_expires_at,
         );
@@ -60,7 +60,7 @@ class ApprovalWhatsappLink
             $signature->signer,
             'BAST/LHPP',
             trim((string) $signature->lhppBast?->nomor_order.' '.$termin),
-            (string) $signature->role_label,
+            $signature->displayRoleLabel(),
             $signature->approvalUrl(),
             $signature->token_expires_at,
         );
@@ -79,7 +79,7 @@ class ApprovalWhatsappLink
             $signature->signer,
             'Quality Control',
             (string) ($report?->report_no ?: $report?->order?->nomor_order),
-            (string) $signature->role_label,
+            $signature->displayRoleLabel(),
             $signature->approvalUrl(),
             $signature->token_expires_at,
         );

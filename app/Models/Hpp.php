@@ -102,7 +102,7 @@ class Hpp extends Model
     public function currentStepLabel(): string
     {
         if ($this->relationLoaded('activeSignature') && $this->activeSignature) {
-            return $this->activeSignature->role_label;
+            return $this->activeSignature->displayRoleLabel();
         }
 
         return match ($this->status) {
@@ -218,7 +218,7 @@ class Hpp extends Model
 
     public function currentApprovalSignerLabel(): ?string
     {
-        return $this->currentActiveSignature()?->role_label;
+        return $this->currentActiveSignature()?->displayRoleLabel();
     }
 
     public function currentApprovalSignerName(): ?string
@@ -246,7 +246,7 @@ class Hpp extends Model
         $signed = $this->approvalSignatureCollection()
             ->filter(fn (HppSignature $signature): bool => $signature->isSigned())
             ->map(fn (HppSignature $signature): string => trim(
-                $signature->role_label.' - '.$signature->signer_name_snapshot
+                $signature->displayRoleLabel().' - '.$signature->signer_name_snapshot
             ))
             ->values();
 

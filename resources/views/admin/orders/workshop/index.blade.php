@@ -177,7 +177,7 @@
                                 $activeQcApprovalUrl = $activeQcSignature?->approvalUrl();
                                 $activeQcApprovalWhatsappUrl = $activeQcApprovalUrl ? \App\Support\ApprovalWhatsappLink::forQualityControl($activeQcSignature) : null;
                                 $activeQcApprovalExpired = $activeQcSignature?->tokenExpired() ?? false;
-                                $activeQcRoleLabel = $activeQcSignature?->role_label ?: match ($activeQcSignature?->role_key) {
+                                $activeQcRoleLabel = $activeQcSignature?->displayRoleLabel() ?: match ($activeQcSignature?->role_key) {
                                     \App\Models\QualityControlSignature::ROLE_WORKSHOP_MANAGER => 'Manager Bengkel',
                                     \App\Models\QualityControlSignature::ROLE_USER_MANAGER => 'Manager Unit',
                                     default => 'Approval QC',
@@ -203,8 +203,10 @@
                                     ],
                                     [
                                         'step' => 2,
-                                        'role' => $qcWorkshopSignature?->role_label ?: 'Manager Bengkel',
+                                        'role' => $qcWorkshopSignature?->displayRoleLabel() ?: 'Manager Bengkel',
+                                        'original_role' => $qcWorkshopSignature?->role_label ?: 'Manager Bengkel',
                                         'name' => $qcWorkshopSignature?->signer_name ?: '-',
+                                        'signer_user_id' => $qcWorkshopSignature?->signer_user_id,
                                         'position' => $qcWorkshopSignature?->signer_position ?: $qcWorkshopSignature?->role_label ?: 'Manager Bengkel',
                                         'scope' => trim(collect([$qcWorkshopSignature?->source_unit, $qcWorkshopSignature?->source_section])->filter()->implode(' / ')),
                                         'status' => $qcWorkshopSignature?->status ?: 'missing',
@@ -215,13 +217,21 @@
                                             \App\Models\QualityControlSignature::STATUS_MISSING => 'Signer belum lengkap',
                                             default => 'Belum dibuat',
                                         },
+                                        'delegated_from_name' => $qcWorkshopSignature?->delegated_from_name ?: '',
+                                        'delegation_reason' => $qcWorkshopSignature?->delegation_reason ?: '',
+                                        'can_reassign' => $qcWorkshopSignature && ! in_array($qcWorkshopSignature->status, [\App\Models\QualityControlSignature::STATUS_SIGNED], true),
+                                        'reassign_url' => $qcWorkshopSignature ? route('admin.orders.approval-signatures.quality-control.reassign', $qcWorkshopSignature) : '',
                                         'signed_at' => $qcWorkshopSignature?->signed_at?->format('d/m/Y H:i') ?: '',
-                                        'is_active' => $qcWorkshopSignature?->isPending() && ! $qcWorkshopSignature?->tokenExpired(),
+                                        'is_active' => $qcWorkshopSignature
+                                            ? ($activeQcSignature?->is($qcWorkshopSignature) ?? false)
+                                            : false,
                                     ],
                                     [
                                         'step' => 3,
-                                        'role' => $qcUserSignature?->role_label ?: 'Manager Unit Terkait',
+                                        'role' => $qcUserSignature?->displayRoleLabel() ?: 'Manager Unit Terkait',
+                                        'original_role' => $qcUserSignature?->role_label ?: 'Manager Unit Terkait',
                                         'name' => $qcUserSignature?->signer_name ?: '-',
+                                        'signer_user_id' => $qcUserSignature?->signer_user_id,
                                         'position' => $qcUserSignature?->signer_position ?: $qcUserSignature?->role_label ?: 'Manager Unit Terkait',
                                         'scope' => trim(collect([$qcUserSignature?->source_unit, $qcUserSignature?->source_section])->filter()->implode(' / ')),
                                         'status' => $qcUserSignature?->status ?: 'missing',
@@ -232,8 +242,14 @@
                                             \App\Models\QualityControlSignature::STATUS_MISSING => 'Signer belum lengkap',
                                             default => 'Belum dibuat',
                                         },
+                                        'delegated_from_name' => $qcUserSignature?->delegated_from_name ?: '',
+                                        'delegation_reason' => $qcUserSignature?->delegation_reason ?: '',
+                                        'can_reassign' => $qcUserSignature && ! in_array($qcUserSignature->status, [\App\Models\QualityControlSignature::STATUS_SIGNED], true),
+                                        'reassign_url' => $qcUserSignature ? route('admin.orders.approval-signatures.quality-control.reassign', $qcUserSignature) : '',
                                         'signed_at' => $qcUserSignature?->signed_at?->format('d/m/Y H:i') ?: '',
-                                        'is_active' => $qcUserSignature?->isPending() && ! $qcUserSignature?->tokenExpired(),
+                                        'is_active' => $qcUserSignature
+                                            ? ($activeQcSignature?->is($qcUserSignature) ?? false)
+                                            : false,
                                     ],
                                 ])->values() : collect();
                                 $qcFlowSummary = match (true) {

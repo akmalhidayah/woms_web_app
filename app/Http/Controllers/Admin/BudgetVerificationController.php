@@ -10,26 +10,23 @@ use App\Models\Hpp;
 use App\Models\Order;
 use App\Models\OrderDocument;
 use App\Services\Orders\OrderDocumentService;
+use App\Support\PdfMergeService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
-use setasign\Fpdi\Fpdi;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
-use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
-use Symfony\Component\Process\Process;
 use Throwable;
 
 class BudgetVerificationController extends Controller
 {
     public function __construct(
         private readonly OrderDocumentService $documentService,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): View
     {
@@ -105,7 +102,7 @@ class BudgetVerificationController extends Controller
         try {
             $hpp->loadMissing(['order', 'budgetVerification']);
 
-            $verification = $hpp->budgetVerification ?? new BudgetVerification();
+            $verification = $hpp->budgetVerification ?? new BudgetVerification;
 
             if (! $verification->exists) {
                 $verification->hpp()->associate($hpp);
@@ -160,23 +157,25 @@ class BudgetVerificationController extends Controller
             ]);
 
             $abnormalitas = $this->findDocument($hpp->order, OrderDocumentType::Abnormalitas->value);
+            $pdfOutputs = [$this->hppPdfOutput($hpp)];
 
-            abort_unless($abnormalitas, Response::HTTP_NOT_FOUND, 'Dokumen Abnormalitas belum tersedia.');
+            if ($abnormalitas) {
+                $abnormalitasPath = $this->documentService->absolutePath($abnormalitas);
+                $abnormalitasMime = (string) $this->documentService->mimeType($abnormalitas);
 
-            $abnormalitasPath = $this->documentService->absolutePath($abnormalitas);
-            $abnormalitasMime = (string) $this->documentService->mimeType($abnormalitas);
+                if (
+                    $abnormalitasPath
+                    && is_file($abnormalitasPath)
+                    && (
+                        str_contains(strtolower($abnormalitasMime), 'pdf')
+                        || strtolower(pathinfo($abnormalitasPath, PATHINFO_EXTENSION)) === 'pdf'
+                    )
+                ) {
+                    $pdfOutputs[] = file_get_contents($abnormalitasPath) ?: '';
+                }
+            }
 
-            abort_unless($abnormalitasPath && is_file($abnormalitasPath), Response::HTTP_NOT_FOUND, 'File Abnormalitas tidak ditemukan di storage.');
-            abort_unless(
-                str_contains(strtolower($abnormalitasMime), 'pdf') || strtolower(pathinfo($abnormalitasPath, PATHINFO_EXTENSION)) === 'pdf',
-                Response::HTTP_UNPROCESSABLE_ENTITY,
-                'Dokumen Abnormalitas harus PDF agar bisa digabung dengan HPP.'
-            );
-
-            $mergedPdf = $this->mergePdfOutputs([
-                $this->hppPdfOutput($hpp),
-                file_get_contents($abnormalitasPath) ?: '',
-            ]);
+            $mergedPdf = $this->mergePdfOutputs($pdfOutputs);
 
             abort_if($mergedPdf === '', Response::HTTP_INTERNAL_SERVER_ERROR, 'PDF gabungan tidak berhasil dibuat.');
 
@@ -301,107 +300,9 @@ class BudgetVerificationController extends Controller
      */
     private function mergePdfOutputs(array $pdfOutputs): string
     {
-        $pdfOutputs = array_values(array_filter(
-            $pdfOutputs,
-            static fn ($pdfOutput): bool => is_string($pdfOutput) && trim($pdfOutput) !== ''
-        ));
-
-        if ($pdfOutputs === []) {
-            return '';
-        }
-
-        $temporaryFiles = [];
-        $mergedFile = null;
-
-        try {
-            foreach ($pdfOutputs as $pdfOutput) {
-                $temporaryFile = tempnam(sys_get_temp_dir(), 'woms-budget-pdf-');
-
-                if ($temporaryFile === false) {
-                    continue;
-                }
-
-                file_put_contents($temporaryFile, $pdfOutput);
-                $temporaryFiles[] = $temporaryFile;
-            }
-
-            $mergedFile = tempnam(sys_get_temp_dir(), 'woms-budget-merged-');
-
-            if ($mergedFile !== false) {
-                $externalMerge = $this->mergePdfFilesWithSystemTool($temporaryFiles, $mergedFile);
-
-                if ($externalMerge !== null) {
-                    return $externalMerge;
-                }
-            }
-
-            if (! class_exists(Fpdi::class)) {
-                throw new UnprocessableEntityHttpException('Server belum memiliki tool merge PDF yang mendukung file ini.');
-            }
-
-            $fpdi = new Fpdi();
-
-            foreach ($temporaryFiles as $temporaryFile) {
-                $pageCount = $fpdi->setSourceFile($temporaryFile);
-
-                for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
-                    $templateId = $fpdi->importPage($pageNumber);
-                    $templateSize = $fpdi->getTemplateSize($templateId);
-                    $orientation = $templateSize['width'] > $templateSize['height'] ? 'L' : 'P';
-
-                    $fpdi->AddPage($orientation, [$templateSize['width'], $templateSize['height']]);
-                    $fpdi->useTemplate($templateId);
-                }
-            }
-
-            return $fpdi->Output('S');
-        } catch (Throwable $exception) {
-            throw new UnprocessableEntityHttpException(
-                'PDF tidak bisa digabung dengan parser bawaan. Pastikan server memiliki qpdf, pdfunite, atau ghostscript (gs), atau upload Abnormalitas sebagai PDF standar.',
-                $exception
-            );
-        } finally {
-            foreach ($temporaryFiles as $temporaryFile) {
-                if (is_string($temporaryFile) && is_file($temporaryFile)) {
-                    @unlink($temporaryFile);
-                }
-            }
-
-            if (is_string($mergedFile) && is_file($mergedFile)) {
-                @unlink($mergedFile);
-            }
-        }
-    }
-
-    /**
-     * @param  list<string>  $inputFiles
-     */
-    private function mergePdfFilesWithSystemTool(array $inputFiles, string $outputFile): ?string
-    {
-        $commands = [
-            array_merge(['qpdf', '--empty', '--pages'], $inputFiles, ['--', $outputFile]),
-            array_merge(['pdfunite'], $inputFiles, [$outputFile]),
-            array_merge(['gs', '-dBATCH', '-dNOPAUSE', '-q', '-sDEVICE=pdfwrite', '-sOutputFile='.$outputFile], $inputFiles),
-            array_merge(['gswin64c', '-dBATCH', '-dNOPAUSE', '-q', '-sDEVICE=pdfwrite', '-sOutputFile='.$outputFile], $inputFiles),
-        ];
-
-        foreach ($commands as $command) {
-            try {
-                $process = new Process($command, null, null, null, 30);
-                $process->run();
-
-                if ($process->isSuccessful() && is_file($outputFile) && filesize($outputFile) > 0) {
-                    return file_get_contents($outputFile) ?: null;
-                }
-            } catch (Throwable $exception) {
-                Log::debug('PDF merge system tool failed.', [
-                    'tool' => $command[0] ?? 'unknown',
-                    'error' => $exception->getMessage(),
-                ]);
-            }
-        }
-
-        return null;
+        return app(PdfMergeService::class)->merge($pdfOutputs, context: [
+            'controller' => static::class,
+        ]);
     }
 
     /**

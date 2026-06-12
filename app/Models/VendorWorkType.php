@@ -11,6 +11,8 @@ class VendorWorkType extends Model
 {
     use HasFactory;
 
+    public const FIXED_VENDOR_NAME = 'PT. Prima Karya Manunggal';
+
     /**
      * @var list<string>
      */

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\PurchaseOrder\UpdatePurchaseOrderRequest;
 use App\Models\BudgetVerification;
 use App\Models\Hpp;
+use App\Models\Order;
 use App\Models\PurchaseOrder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -95,11 +96,11 @@ class PurchaseOrderController extends Controller
     public function update(UpdatePurchaseOrderRequest $request, Hpp $hpp): RedirectResponse
     {
         try {
-            $hpp->loadMissing(['order', 'budgetVerification', 'purchaseOrder']);
+            $hpp->loadMissing(['order.initialWork', 'budgetVerification', 'purchaseOrder']);
 
             abort_unless($hpp->budgetVerification?->status_anggaran === 'Tersedia', Response::HTTP_FORBIDDEN);
 
-            $purchaseOrder = $hpp->purchaseOrder ?? new PurchaseOrder();
+            $purchaseOrder = $hpp->purchaseOrder ?? new PurchaseOrder;
 
             if (! $purchaseOrder->exists) {
                 $purchaseOrder->hpp()->associate($hpp);
@@ -117,6 +118,23 @@ class PurchaseOrderController extends Controller
                 'approve_direktur_operasional' => $request->boolean('approve_direktur_operasional'),
                 'admin_note' => $this->normalizeNullableString($request->input('admin_note')),
             ]);
+
+            $initialWork = $hpp->order?->initialWork;
+            $isEmergencyOrder = in_array(
+                $hpp->order?->prioritas,
+                [Order::PRIORITY_URGENT, Order::PRIORITY_HIGH],
+                true
+            );
+
+            if ($isEmergencyOrder && $initialWork) {
+                $purchaseOrder->progress_pekerjaan = max(
+                    (int) ($purchaseOrder->progress_pekerjaan ?? 0),
+                    (int) ($initialWork->progress_pekerjaan ?? 0)
+                );
+                $purchaseOrder->tanggal_mulai_pekerjaan ??= $initialWork->tanggal_mulai_pekerjaan;
+                $purchaseOrder->tanggal_selesai_pekerjaan ??= $initialWork->tanggal_selesai_pekerjaan;
+                $purchaseOrder->vendor_note ??= $initialWork->vendor_note;
+            }
 
             if ($request->hasFile('po_document')) {
                 if ($purchaseOrder->po_document_path) {

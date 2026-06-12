@@ -28,7 +28,7 @@ class ApprovalSignerAuthorizationTest extends TestCase
     public function test_only_assigned_signer_can_open_each_approval_link(): void
     {
         $creator = User::factory()->create();
-        $signer = User::factory()->create(['role' => User::ROLE_APPROVER]);
+        $signer = User::factory()->create(['role' => User::ROLE_USER]);
         $otherApprover = User::factory()->create(['role' => User::ROLE_APPROVER]);
         $order = $this->createOrder($creator);
 

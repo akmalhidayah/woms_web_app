@@ -11,6 +11,7 @@ use App\Http\Requests\Admin\Orders\UpdateOrderUserNoteRequest;
 use App\Models\Order;
 use App\Models\OutlineAgreement;
 use App\Models\UnitWork;
+use App\Models\User;
 use App\Http\Controllers\Admin\Orders\InitialWorkController;
 use App\Services\Orders\OrderDocumentService;
 use Illuminate\Http\RedirectResponse;
@@ -45,7 +46,7 @@ class OrderController extends Controller
                 'scopeOfWork:id,order_id',
                 'latestHpp',
                 'initialWork:id,order_id,outline_agreement_id,nomor_initial_work,kepada_yth,perihal,tanggal_initial_work,functional_location,scope_pekerjaan,qty,stn,keterangan,keterangan_pekerjaan',
-                'initialWork.signatures:id,initial_work_id,role_key,role_label,signer_user_id,signer_name,status,token_encrypted,token_expires_at,signed_at',
+                'initialWork.signatures:id,initial_work_id,role_key,role_label,acting_as_label,signer_user_id,signer_name,status,token_encrypted,token_expires_at,signed_at,delegated_from_user_id,delegated_from_name,delegation_reason',
                 'initialWork.signatures.signer:id,name,email,nomor_hp',
             ])
             ->search($search)
@@ -87,6 +88,9 @@ class OrderController extends Controller
                 ->where('status', OutlineAgreement::STATUS_ACTIVE)
                 ->orderBy('nomor_oa')
                 ->get(['id', 'nomor_oa', 'unit_work_id', 'jenis_kontrak', 'nama_kontrak']),
+            'approvalReassignmentUsers' => User::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'email', 'role', 'nomor_hp']),
         ]);
     }
 

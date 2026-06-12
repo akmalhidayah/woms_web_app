@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Pkm;
 
+use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Http\Controllers\Controller;
 use App\Models\LhppBast;
 use App\Models\Order;
@@ -21,10 +22,17 @@ class DashboardController extends Controller
                     'hpps.order_id',
                     'hpps.nomor_order',
                 ]),
+                'initialWork' => fn ($query) => $query->select([
+                    'initial_works.id',
+                    'initial_works.order_id',
+                    'initial_works.target_penyelesaian',
+                    'initial_works.progress_pekerjaan',
+                ]),
                 'latestPurchaseOrder' => fn ($query) => $query->select([
                     'purchase_orders.id',
                     'purchase_orders.order_id',
                     'purchase_orders.purchase_order_number',
+                    'purchase_orders.approve_manager',
                     'purchase_orders.target_penyelesaian',
                     'purchase_orders.progress_pekerjaan',
                 ]),
@@ -44,11 +52,26 @@ class DashboardController extends Controller
                         'terminTwo:id,parent_lhpp_bast_id,termin_type',
                     ]),
             ])
-            ->whereHas('purchaseOrder', function (Builder $query): void {
+            ->whereIn('catatan_status', [
+                OrderUserNoteStatus::ApprovedJasa->value,
+                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+            ])
+            ->where(function (Builder $query): void {
                 $query
-                    ->where('approve_manager', true)
-                    ->whereNotNull('purchase_order_number')
-                    ->whereRaw("TRIM(purchase_order_number) <> ''");
+                    ->whereHas('purchaseOrder', function (Builder $purchaseOrderQuery): void {
+                        $purchaseOrderQuery
+                            ->where('approve_manager', true)
+                            ->whereNotNull('purchase_order_number')
+                            ->whereRaw("TRIM(purchase_order_number) <> ''");
+                    })
+                    ->orWhere(function (Builder $emergencyQuery): void {
+                        $emergencyQuery
+                            ->whereIn('prioritas', [
+                                Order::PRIORITY_URGENT,
+                                Order::PRIORITY_HIGH,
+                            ])
+                            ->has('initialWork');
+                    });
             })
             ->latest('id')
             ->get();
@@ -60,11 +83,22 @@ class DashboardController extends Controller
             $terminOne = $order->lhppBasts->first();
             $lpjPpl = $terminOne?->lpjPpl;
             $garansi = $terminOne?->garansi;
-            $targetDate = $order->latestPurchaseOrder?->target_penyelesaian;
-            $progress = (int) ($order->latestPurchaseOrder?->progress_pekerjaan ?? 0);
+            $purchaseOrder = $order->latestPurchaseOrder;
+            $initialWork = $order->initialWork;
+            $canUpdateByPurchaseOrder = (bool) (
+                $purchaseOrder
+                && $purchaseOrder->approve_manager
+                && filled($purchaseOrder->purchase_order_number)
+            );
+            $isEmergencyInitialWorkFlow = ! $canUpdateByPurchaseOrder
+                && in_array($order->prioritas, [Order::PRIORITY_URGENT, Order::PRIORITY_HIGH], true)
+                && (bool) $initialWork;
+            $jobSource = $canUpdateByPurchaseOrder ? $purchaseOrder : ($isEmergencyInitialWorkFlow ? $initialWork : null);
+            $targetDate = $purchaseOrder?->target_penyelesaian ?: $jobSource?->target_penyelesaian;
+            $progress = (int) ($jobSource?->progress_pekerjaan ?? 0);
 
             $hasHpp = (bool) $order->latestHpp;
-            $hasPo = filled($order->latestPurchaseOrder?->purchase_order_number);
+            $hasPo = $canUpdateByPurchaseOrder;
             $hasBast = (bool) $terminOne;
             $hasTerminTwo = (bool) $terminOne?->terminTwo;
             $hasLpjPpl = (bool) ($lpjPpl?->lpj_document_path_termin1 && $lpjPpl?->ppl_document_path_termin1);
@@ -129,6 +163,7 @@ class DashboardController extends Controller
                 'is_complete_document' => $isCompleteDocument,
                 'has_garansi' => $hasGaransi,
                 'garansi_aktif' => (bool) $garansiAktif,
+                'is_initial_work_flow' => $isEmergencyInitialWorkFlow,
                 'show_in_jobwaiting' => ! $isDone,
                 'is_done' => $isDone,
                 'is_overdue' => $isOverdue,
@@ -147,6 +182,10 @@ class DashboardController extends Controller
         $progressItems = $dashboardItems->pluck('progress')->values();
         $totalPekerjaan = $orders->count();
         $listPekerjaanCount = $dashboardItems->where('show_in_jobwaiting', true)->count();
+        $emergencyInitialWorkCount = $dashboardItems
+            ->where('show_in_jobwaiting', true)
+            ->where('is_initial_work_flow', true)
+            ->count();
         $listBerjalanCount = $dashboardItems->filter(fn (array $item) => $item['show_in_jobwaiting'] && $item['progress'] >= 11)->count();
         $listSiapMulaiCount = $dashboardItems->filter(fn (array $item) => $item['show_in_jobwaiting'] && $item['progress'] < 11)->count();
         $bastTerminOneCount = $dashboardItems->where('has_bast', true)->count();
@@ -305,6 +344,7 @@ class DashboardController extends Controller
             'totalPekerjaan' => $totalPekerjaan,
             'pekerjaanSelesai' => $dokumenFinalCount,
             'pekerjaanMenunggu' => $listPekerjaanCount,
+            'emergencyInitialWorkCount' => $emergencyInitialWorkCount,
             'totalProgress' => $totalProgress,
             'overdueCount' => $overdueCount,
             'todayCount' => $todayCount,

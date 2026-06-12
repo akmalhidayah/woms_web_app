@@ -125,7 +125,7 @@
                                 <tr>
                                     <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase">Nomor Order</th>
                                     <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase">Detail Pekerjaan</th>
-                                    <th class="w-[230px] px-4 py-3 text-left text-[11px] font-semibold uppercase">Status & Aksi</th>
+                                    <th class="w-[300px] px-4 py-3 text-left text-[11px] font-semibold uppercase">Status & Aksi</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-200">
@@ -143,7 +143,7 @@ $activeInitialWorkSignature = $order->initialWork?->signatures
 
 $activeInitialWorkApprovalUrl = $activeInitialWorkSignature?->approvalUrl();
 $activeInitialWorkWhatsappUrl = $activeInitialWorkApprovalUrl ? \App\Support\ApprovalWhatsappLink::forInitialWork($activeInitialWorkSignature) : null;
-$activeInitialWorkRoleLabel = $activeInitialWorkSignature?->role_label;
+$activeInitialWorkRoleLabel = $activeInitialWorkSignature?->displayRoleLabel();
 $activeInitialWorkDisplayLabel = $activeInitialWorkRoleLabel ?: match ($activeInitialWorkSignature?->role_key) {
     \App\Models\InitialWorkSignature::ROLE_MANAGER => 'Manager',
     \App\Models\InitialWorkSignature::ROLE_SENIOR_MANAGER => 'Senior Manager',
@@ -157,8 +157,10 @@ $initialWorkSeniorSignature = $order->initialWork?->signatures
 $initialWorkFlowItems = collect([$initialWorkManagerSignature, $initialWorkSeniorSignature])
     ->filter()
     ->map(fn ($signature) => [
-        'role' => $signature->role_label ?: $signature->role_key,
+        'role' => $signature->displayRoleLabel() ?: $signature->role_key,
+        'original_role' => $signature->role_label ?: $signature->role_key,
         'name' => $signature->signer_name ?: '-',
+        'signer_user_id' => $signature->signer_user_id,
         'status' => $signature->status,
         'status_label' => match ($signature->status) {
             \App\Models\InitialWorkSignature::STATUS_SIGNED => 'Sudah TTD',
@@ -167,7 +169,12 @@ $initialWorkFlowItems = collect([$initialWorkManagerSignature, $initialWorkSenio
             \App\Models\InitialWorkSignature::STATUS_MISSING => 'Signer belum lengkap',
             default => 'Belum dibuat',
         },
+        'delegated_from_name' => $signature->delegated_from_name ?: '',
+        'delegation_reason' => $signature->delegation_reason ?: '',
+        'can_reassign' => ! in_array($signature->status, [\App\Models\InitialWorkSignature::STATUS_SIGNED], true),
+        'reassign_url' => route('admin.orders.approval-signatures.initial-work.reassign', $signature),
         'signed_at' => $signature->signed_at?->format('d/m/Y H:i') ?: '',
+        'is_active' => $activeInitialWorkSignature?->is($signature) ?? false,
     ])->values();
 $initialWorkApprovalExpired = $activeInitialWorkSignature?->tokenExpired() ?? false;
 $initialWorkFlowSummary = match (true) {
@@ -327,131 +334,102 @@ $initialWorkFlowSummary = match (true) {
                                                     </div>
                                                 </div>
 
-                                                <div class="flex flex-wrap items-center gap-1">
-                                                    @foreach ($documentIndicators as $indicator)
-                                                        @if ($indicator['available'] && $indicator['url'])
-                                                            <a
-                                                                href="{{ $indicator['url'] }}"
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                class="inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-semibold transition hover:-translate-y-0.5 hover:shadow-sm {{ $indicator['classes'] }}"
-                                                                title="Buka {{ $indicator['label'] }}"
-                                                            >
-                                                                <i data-lucide="{{ $indicator['icon'] }}" class="h-3 w-3"></i>
-                                                                <span>{{ $indicator['label'] }}</span>
-                                                                <span class="rounded-full bg-white/80 px-1 py-0.5 text-[8px] font-semibold">
-                                                                    Ada
-                                                                </span>
-                                                            </a>
-                                                        @else
-                                                            <span class="inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-semibold {{ $indicator['classes'] }}">
-                                                                <i data-lucide="{{ $indicator['icon'] }}" class="h-3 w-3"></i>
-                                                                <span>{{ $indicator['label'] }}</span>
-                                                                <span class="rounded-full bg-white/80 px-1 py-0.5 text-[8px] font-semibold">
-                                                                    Belum
-                                                                </span>
-                                                            </span>
-                                                        @endif
-                                                    @endforeach
+                                            </div>
+                                        </td>
 
-                                                    <a
-                                                        href="{{ route('admin.orders.show', $order) }}"
-                                                        class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-                                                        title="Edit Dokumen"
-                                                    >
-                                                        <i data-lucide="folder-open" class="h-3 w-3"></i>
-                                                    </a>
-
+                                        <td class="px-3 py-2">
+                                            <div class="rounded-xl border border-slate-200 bg-white px-2 py-2 shadow-sm">
+                                                <div class="flex flex-wrap items-center justify-end gap-1.5">
                                                     @if ($canManageInitialWork)
                                                         @if ($order->initialWork)
-<div class="inline-flex flex-wrap items-center gap-2 rounded-2xl border border-orange-200 bg-orange-50/60 px-2.5 py-2">
-    <span class="text-[10px] font-semibold uppercase tracking-[0.12em] text-orange-700">
-        Initial Work
-    </span>
+                                                            <div class="mr-auto inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-1.5 py-1">
+                                                                <span class="text-[8px] font-semibold uppercase tracking-[0.1em] text-orange-700">
+                                                                    IW
+                                                                </span>
 
-    <a
-        href="{{ route('admin.orders.initial-work.pdf', [$order, $order->initialWork]) }}"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="inline-flex items-center gap-1.5 rounded-xl border border-orange-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-orange-700 transition hover:-translate-y-0.5 hover:bg-orange-100 hover:shadow-sm"
-        title="Lihat Initial Work PDF"
-    >
-        <i data-lucide="file-text" class="h-3 w-3"></i>
-        <span>PDF</span>
-    </a>
+                                                                <a
+                                                                    href="{{ route('admin.orders.initial-work.pdf', [$order, $order->initialWork]) }}"
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    class="inline-flex h-6 items-center gap-1 rounded-md border border-orange-200 bg-white px-1.5 text-[9px] font-semibold text-orange-700 transition hover:bg-orange-100"
+                                                                    title="Lihat Initial Work PDF"
+                                                                >
+                                                                    <i data-lucide="file-text" class="h-2.5 w-2.5"></i>
+                                                                    <span>PDF</span>
+                                                                </a>
 
-    <button
-        type="button"
-        class="edit-initial-work-trigger inline-flex items-center gap-1.5 rounded-xl border border-orange-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-orange-700 transition hover:-translate-y-0.5 hover:bg-orange-100 hover:shadow-sm"
-        data-mode="edit"
-        data-action="{{ route('admin.orders.initial-work.update', [$order, $order->initialWork]) }}"
-        data-order-key="{{ $order->getRouteKey() }}"
-        data-outline-agreement-id="{{ $order->initialWork->outline_agreement_id }}"
-        data-nomor-order="{{ $order->nomor_order }}"
-        data-notifikasi="{{ $order->notifikasi }}"
-        data-unit-kerja="{{ $order->unit_kerja }}"
-        data-seksi="{{ $order->seksi }}"
-        data-nama-pekerjaan="{{ $order->nama_pekerjaan }}"
-        data-document-number="{{ $order->initialWork->nomor_initial_work }}"
-        data-kepada-yth="{{ $order->initialWork->kepada_yth }}"
-        data-perihal="{{ $order->initialWork->perihal }}"
-        data-tanggal="{{ optional($order->initialWork->tanggal_initial_work)->format('Y-m-d') }}"
-        data-keterangan-pekerjaan="{{ $order->initialWork->keterangan_pekerjaan }}"
-        data-functional-location='@json($order->initialWork->functional_location ?? [])'
-        data-scope-pekerjaan='@json($order->initialWork->scope_pekerjaan ?? [])'
-        data-qty='@json($order->initialWork->qty ?? [])'
-        data-stn='@json($order->initialWork->stn ?? [])'
-        data-keterangan='@json($order->initialWork->keterangan ?? [])'
-        title="Edit Initial Work"
-    >
-        <i data-lucide="clipboard-pen-line" class="h-3 w-3"></i>
-        <span>Edit</span>
-    </button>
+                                                                <button
+                                                                    type="button"
+                                                                    class="edit-initial-work-trigger inline-flex h-6 items-center gap-1 rounded-md border border-orange-200 bg-white px-1.5 text-[9px] font-semibold text-orange-700 transition hover:bg-orange-100"
+                                                                    data-mode="edit"
+                                                                    data-action="{{ route('admin.orders.initial-work.update', [$order, $order->initialWork]) }}"
+                                                                    data-order-key="{{ $order->getRouteKey() }}"
+                                                                    data-outline-agreement-id="{{ $order->initialWork->outline_agreement_id }}"
+                                                                    data-nomor-order="{{ $order->nomor_order }}"
+                                                                    data-notifikasi="{{ $order->notifikasi }}"
+                                                                    data-unit-kerja="{{ $order->unit_kerja }}"
+                                                                    data-seksi="{{ $order->seksi }}"
+                                                                    data-nama-pekerjaan="{{ $order->nama_pekerjaan }}"
+                                                                    data-document-number="{{ $order->initialWork->nomor_initial_work }}"
+                                                                    data-kepada-yth="{{ $order->initialWork->kepada_yth }}"
+                                                                    data-perihal="{{ $order->initialWork->perihal }}"
+                                                                    data-tanggal="{{ optional($order->initialWork->tanggal_initial_work)->format('Y-m-d') }}"
+                                                                    data-keterangan-pekerjaan="{{ $order->initialWork->keterangan_pekerjaan }}"
+                                                                    data-functional-location='@json($order->initialWork->functional_location ?? [])'
+                                                                    data-scope-pekerjaan='@json($order->initialWork->scope_pekerjaan ?? [])'
+                                                                    data-qty='@json($order->initialWork->qty ?? [])'
+                                                                    data-stn='@json($order->initialWork->stn ?? [])'
+                                                                    data-keterangan='@json($order->initialWork->keterangan ?? [])'
+                                                                    title="Edit Initial Work"
+                                                                >
+                                                                    <i data-lucide="clipboard-pen-line" class="h-2.5 w-2.5"></i>
+                                                                    <span>Edit</span>
+                                                                </button>
 
-    <button
-        type="button"
-        class="approval-signature-info-trigger inline-flex h-8 w-8 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 transition hover:-translate-y-0.5 hover:bg-blue-100 hover:shadow-sm"
-        title="Informasi approval Initial Work"
-        aria-label="Informasi approval Initial Work"
-        data-title="Approval Initial Work"
-        data-summary="{{ $initialWorkFlowSummary }}"
-        data-checklist='@json($initialWorkFlowItems)'
-        data-active-role="{{ $activeInitialWorkSignature ? $activeInitialWorkDisplayLabel : '' }}"
-        data-active-signer="{{ $activeInitialWorkSignature?->signer_name ?: '' }}"
-        data-expiry="{{ $activeInitialWorkSignature?->token_expires_at ? ($initialWorkApprovalExpired ? 'Kedaluwarsa: ' : 'Berlaku sampai: ').$activeInitialWorkSignature->token_expires_at->format('d/m/Y H:i') : '' }}"
-        data-approval-url="{{ $activeInitialWorkApprovalUrl ?: '' }}"
-        data-whatsapp-url="{{ $activeInitialWorkWhatsappUrl ?: '' }}"
-        data-resend-url="{{ $activeInitialWorkApprovalUrl ? route('admin.orders.initial-work.approval.resend', [$order, $order->initialWork]) : '' }}"
-        data-regenerate-url="{{ $initialWorkApprovalExpired ? route('admin.orders.initial-work.approval.regenerate', [$order, $order->initialWork]) : '' }}"
-    >
-        <i data-lucide="info" class="h-3.5 w-3.5"></i>
-    </button>
+                                                                <button
+                                                                    type="button"
+                                                                    class="approval-signature-info-trigger inline-flex h-6 w-6 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100"
+                                                                    title="Informasi approval Initial Work"
+                                                                    aria-label="Informasi approval Initial Work"
+                                                                    data-title="Approval Initial Work"
+                                                                    data-summary="{{ $initialWorkFlowSummary }}"
+                                                                    data-checklist='@json($initialWorkFlowItems)'
+                                                                    data-active-role="{{ $activeInitialWorkSignature ? $activeInitialWorkDisplayLabel : '' }}"
+                                                                    data-active-signer="{{ $activeInitialWorkSignature?->signer_name ?: '' }}"
+                                                                    data-expiry="{{ $activeInitialWorkSignature?->token_expires_at ? ($initialWorkApprovalExpired ? 'Kedaluwarsa: ' : 'Berlaku sampai: ').$activeInitialWorkSignature->token_expires_at->format('d/m/Y H:i') : '' }}"
+                                                                    data-approval-url="{{ $activeInitialWorkApprovalUrl ?: '' }}"
+                                                                    data-whatsapp-url="{{ $activeInitialWorkWhatsappUrl ?: '' }}"
+                                                                    data-resend-url="{{ $activeInitialWorkApprovalUrl ? route('admin.orders.initial-work.approval.resend', [$order, $order->initialWork]) : '' }}"
+                                                                    data-regenerate-url="{{ $initialWorkApprovalExpired ? route('admin.orders.initial-work.approval.regenerate', [$order, $order->initialWork]) : '' }}"
+                                                                >
+                                                                    <i data-lucide="info" class="h-3 w-3"></i>
+                                                                </button>
 
-    @if (
-        $initialWorkManagerSignature?->status === \App\Models\InitialWorkSignature::STATUS_MISSING
-        || $initialWorkSeniorSignature?->status === \App\Models\InitialWorkSignature::STATUS_MISSING
-    )
-        <span
-            class="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[12px] font-semibold text-amber-700"
-            title="Token belum dibuat: Manager/Senior Manager belum terisi di Struktur Organisasi untuk OA ini."
-        >
-            <i data-lucide="user-x" class="h-3 w-3"></i>
-            <span>Signer belum lengkap</span>
-        </span>
-    @elseif ($initialWorkManagerSignature?->isSigned() && $initialWorkSeniorSignature?->isSigned())
-        <span
-            class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[12px] font-semibold text-emerald-700"
-            title="Semua approval Initial Work sudah selesai"
-        >
-            <i data-lucide="check-check" class="h-3 w-3"></i>
-            <span>Selesai</span>
-        </span>
-    @endif
-</div>
+                                                                @if (
+                                                                    $initialWorkManagerSignature?->status === \App\Models\InitialWorkSignature::STATUS_MISSING
+                                                                    || $initialWorkSeniorSignature?->status === \App\Models\InitialWorkSignature::STATUS_MISSING
+                                                                )
+                                                                    <span
+                                                                        class="inline-flex h-6 items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-1.5 text-[9px] font-semibold text-amber-700"
+                                                                        title="Token belum dibuat: Manager/Senior Manager belum terisi di Struktur Organisasi untuk OA ini."
+                                                                    >
+                                                                        <i data-lucide="user-x" class="h-2.5 w-2.5"></i>
+                                                                        <span>Signer</span>
+                                                                    </span>
+                                                                @elseif ($initialWorkManagerSignature?->isSigned() && $initialWorkSeniorSignature?->isSigned())
+                                                                    <span
+                                                                        class="inline-flex h-6 items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 text-[9px] font-semibold text-emerald-700"
+                                                                        title="Semua approval Initial Work sudah selesai"
+                                                                    >
+                                                                        <i data-lucide="check-check" class="h-2.5 w-2.5"></i>
+                                                                        <span>OK</span>
+                                                                    </span>
+                                                                @endif
+                                                            </div>
                                                         @else
                                                             <button
                                                                 type="button"
-                                                                class="create-initial-work-trigger inline-flex items-center gap-1.5 rounded-xl border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-[12px] font-semibold text-orange-700 transition hover:-translate-y-0.5 hover:shadow-sm"
+                                                                class="create-initial-work-trigger mr-auto inline-flex h-7 items-center justify-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2 text-[9px] font-semibold text-orange-700 transition hover:bg-orange-100"
                                                                 data-mode="create"
                                                                 data-action="{{ route('admin.orders.initial-work.store', $order) }}"
                                                                 data-order-key="{{ $order->getRouteKey() }}"
@@ -464,39 +442,27 @@ $initialWorkFlowSummary = match (true) {
                                                                 data-document-number="{{ $initialWorkPreviewNumber }}"
                                                                 title="Buat Initial Work"
                                                             >
-                                                                <i data-lucide="clipboard-plus" class="h-3 w-3"></i>
-                                                                <span>Buat Initial Work</span>
+                                                                <i data-lucide="clipboard-plus" class="h-2.5 w-2.5"></i>
+                                                                <span>Buat IW</span>
                                                             </button>
                                                         @endif
                                                     @endif
-                                                </div>
-                                            </div>
-                                        </td>
 
-                                        <td class="px-3 py-2">
-                                            <div class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-                                                <div class="flex flex-wrap gap-1">
-                                                    <span class="inline-flex rounded-full border px-2 py-0.5 text-[9px] font-semibold {{ $routeBadgeClasses }}">{{ $routeLabel }}</span>
-                                                    <span class="inline-flex rounded-full border px-2 py-0.5 text-[9px] font-semibold {{ $hppBadgeClasses }}">{{ $hppBadgeLabel }}</span>
-                                                    <span class="inline-flex rounded-full border px-2 py-0.5 text-[9px] font-semibold {{ $initialWorkBadgeClasses }}">{{ $initialWorkBadgeLabel }}</span>
-                                                </div>
-
-                                                <div class="mt-2 flex items-center justify-end gap-1.5 border-t border-slate-100 pt-2">
                                                     <button
                                                         type="button"
-                                                        class="order-flow-trigger inline-flex h-8 w-8 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100"
+                                                        class="order-flow-trigger inline-flex h-7 w-7 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100"
                                                         data-title="{{ $order->nomor_order }}"
                                                         data-route="{{ $routeLabel }}"
                                                         data-next="{{ $flowNextStep }}"
                                                         data-checklist='@json($flowChecklist)'
                                                         title="Detail alur"
                                                     >
-                                                        <i data-lucide="info" class="h-[13px] w-[13px]"></i>
+                                                        <i data-lucide="info" class="h-3 w-3"></i>
                                                     </button>
 
                                                     <button
                                                         type="button"
-                                                        class="edit-order-trigger inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm transition hover:bg-emerald-700"
+                                                        class="edit-order-trigger inline-flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm transition hover:bg-emerald-700"
                                                         data-action="{{ route('admin.orders.update', $order) }}"
                                                         data-order-key="{{ $order->getRouteKey() }}"
                                                         data-nomor-order="{{ $order->nomor_order }}"
@@ -511,7 +477,7 @@ $initialWorkFlowSummary = match (true) {
                                                         data-tanggal-order="{{ optional($order->tanggal_order)->format('Y-m-d') }}"
                                                         title="Edit"
                                                     >
-                                                        <i data-lucide="pencil" class="h-[13px] w-[13px]"></i>
+                                                        <i data-lucide="pencil" class="h-3 w-3"></i>
                                                     </button>
 
                                                     <form method="POST" action="{{ route('admin.orders.destroy', $order) }}" class="delete-order-form">
@@ -519,12 +485,55 @@ $initialWorkFlowSummary = match (true) {
                                                         @method('DELETE')
                                                         <button
                                                             type="submit"
-                                                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-rose-600 text-white shadow-sm transition hover:bg-rose-700"
+                                                            class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-rose-600 text-white shadow-sm transition hover:bg-rose-700"
                                                             title="Hapus"
                                                         >
-                                                            <i data-lucide="trash-2" class="h-[13px] w-[13px]"></i>
+                                                            <i data-lucide="trash-2" class="h-3 w-3"></i>
                                                         </button>
                                                     </form>
+                                                </div>
+
+                                                <div class="mt-1.5 flex flex-wrap items-center justify-end gap-1 border-t border-slate-100 pt-1.5">
+                                                    @foreach ($documentIndicators as $indicator)
+                                                        @php
+                                                            $shortDocumentLabel = match ($indicator['label']) {
+                                                                'Abnormalitas' => 'Abn',
+                                                                'Gambar Teknik' => 'Gambar',
+                                                                'Scope of Work' => 'SOW',
+                                                                default => $indicator['label'],
+                                                            };
+                                                        @endphp
+
+                                                        @if ($indicator['available'] && $indicator['url'])
+                                                            <a
+                                                                href="{{ $indicator['url'] }}"
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                class="inline-flex h-6 items-center gap-1 rounded-md border px-1.5 text-[9px] font-semibold transition hover:bg-white {{ $indicator['classes'] }}"
+                                                                title="Buka {{ $indicator['label'] }}"
+                                                            >
+                                                                <i data-lucide="{{ $indicator['icon'] }}" class="h-2.5 w-2.5"></i>
+                                                                <span>{{ $shortDocumentLabel }}</span>
+                                                            </a>
+                                                        @else
+                                                            <span
+                                                                class="inline-flex h-6 items-center gap-1 rounded-md border px-1.5 text-[9px] font-semibold {{ $indicator['classes'] }}"
+                                                                title="{{ $indicator['label'] }} belum tersedia"
+                                                            >
+                                                                <i data-lucide="{{ $indicator['icon'] }}" class="h-2.5 w-2.5"></i>
+                                                                <span>{{ $shortDocumentLabel }}</span>
+                                                            </span>
+                                                        @endif
+                                                    @endforeach
+
+                                                    <a
+                                                        href="{{ route('admin.orders.show', $order) }}"
+                                                        class="inline-flex h-6 items-center gap-1 rounded-md border border-slate-300 bg-white px-1.5 text-[9px] font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                                                        title="Edit Dokumen"
+                                                    >
+                                                        <i data-lucide="folder-open" class="h-2.5 w-2.5"></i>
+                                                        <span>Detail</span>
+                                                    </a>
                                                 </div>
                                             </div>
                                         </td>

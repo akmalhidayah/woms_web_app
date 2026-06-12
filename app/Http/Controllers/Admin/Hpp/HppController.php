@@ -13,6 +13,7 @@ use App\Http\Requests\Admin\Hpp\StoreHppRequest;
 use App\Models\Order;
 use App\Models\OutlineAgreement;
 use App\Models\UnitWork;
+use App\Models\User;
 use App\Services\Approvals\ApprovalNotificationService;
 use App\Support\HppApprovalFlow;
 use App\Support\HppApprovalSignatureBuilder;
@@ -78,6 +79,9 @@ class HppController extends Controller
             'status' => $status,
             'statusOptions' => Hpp::statusOptions(),
             'pendingHppOrders' => $pendingHppOrders,
+            'approvalReassignmentUsers' => User::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'email', 'role', 'nomor_hp']),
         ]);
     }
 

@@ -62,7 +62,7 @@
                     <div class="inline-flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1">
                         @foreach ($roleLabels as $roleKey => $label)
                             <a
-                                href="{{ route('admin.user-panel.index', ['role' => $roleKey]) }}"
+                                href="{{ route('admin.user-panel.index', array_filter(['role' => $roleKey, 'search' => $search ?: null])) }}"
                                 class="rounded-xl px-4 py-2 text-sm font-semibold transition {{ $role === $roleKey ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-white' }}"
                             >
                                 {{ $label }}
@@ -70,12 +70,12 @@
                         @endforeach
                     </div>
 
-                    <form method="GET" action="{{ route('admin.user-panel.index') }}" class="flex flex-wrap items-center gap-2">
+                    <form id="user-search-form" method="GET" action="{{ route('admin.user-panel.index') }}" class="flex flex-wrap items-center gap-2">
                         <input type="hidden" name="role" value="{{ $role }}">
                         <div class="relative">
                             <i data-lucide="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
                             <input
-                                id="searchUsersLive"
+                                id="searchUsers"
                                 type="text"
                                 name="search"
                                 value="{{ $search }}"
@@ -166,10 +166,13 @@
                                                     <i data-lucide="pencil" class="h-4 w-4"></i>
                                                 </button>
 
-                                                <form method="POST" action="{{ route('admin.user-panel.destroy', $user) }}" class="delete-user-form">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button
+                                                    <form method="POST" action="{{ route('admin.user-panel.destroy', $user) }}" class="delete-user-form">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <input type="hidden" name="_return_role" value="{{ $role }}">
+                                                        <input type="hidden" name="_return_search" value="{{ $search }}">
+                                                        <input type="hidden" name="_return_page" value="{{ $users->currentPage() }}">
+                                                        <button
                                                         type="submit"
                                                         data-name="{{ $user->name }}"
                                                         class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-rose-50 text-rose-600 transition hover:bg-rose-100 {{ auth()->id() === $user->id || ! $canManage ? 'opacity-50 cursor-not-allowed' : '' }}"
@@ -291,6 +294,9 @@
                     <form method="POST" :action="editAction" class="flex max-h-[88vh] flex-col">
                         @csrf
                         @method('PUT')
+                        <input type="hidden" name="_return_role" value="{{ $role }}">
+                        <input type="hidden" name="_return_search" value="{{ $search }}">
+                        <input type="hidden" name="_return_page" value="{{ $users->currentPage() }}">
 
                         <div class="overflow-y-auto px-6 pb-6 pt-6">
                             <div class="flex items-start justify-between gap-4 border-b border-slate-200 pb-5">
@@ -456,14 +462,16 @@
                 });
             });
 
-            const liveSearch = document.getElementById('searchUsersLive');
-            const tbody = document.getElementById('userTableBody');
-            if (liveSearch && tbody) {
-                liveSearch.addEventListener('keyup', function () {
-                    const query = (this.value || '').toLowerCase();
-                    tbody.querySelectorAll('tr').forEach((row) => {
-                        row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
-                    });
+            const searchInput = document.getElementById('searchUsers');
+            const searchForm = document.getElementById('user-search-form');
+            let searchTimer;
+
+            if (searchInput && searchForm) {
+                searchInput.addEventListener('input', function () {
+                    clearTimeout(searchTimer);
+                    searchTimer = setTimeout(() => {
+                        searchForm.submit();
+                    }, 450);
                 });
             }
         });

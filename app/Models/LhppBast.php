@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
 class LhppBast extends Model
@@ -14,7 +15,9 @@ class LhppBast extends Model
     use HasFactory;
 
     public const APPROVAL_IN_REVIEW = 'in_review';
+
     public const APPROVAL_APPROVED = 'approved';
+
     public const APPROVAL_REJECTED = 'rejected';
 
     public function getRouteKeyName(): string
@@ -175,6 +178,27 @@ class LhppBast extends Model
             ->exists();
     }
 
+    public function hasApprovalStarted(): bool
+    {
+        if ($this->relationLoaded('signatures')) {
+            return $this->signatures->contains(
+                fn (LhppBastSignature $signature): bool => in_array($signature->status, [
+                    LhppBastSignature::STATUS_PENDING,
+                    LhppBastSignature::STATUS_SIGNED,
+                    LhppBastSignature::STATUS_SKIPPED,
+                ], true)
+            );
+        }
+
+        return $this->signatures()
+            ->whereIn('status', [
+                LhppBastSignature::STATUS_PENDING,
+                LhppBastSignature::STATUS_SIGNED,
+                LhppBastSignature::STATUS_SKIPPED,
+            ])
+            ->exists();
+    }
+
     public function isApprovalLocked(): bool
     {
         return $this->approval_status === self::APPROVAL_REJECTED
@@ -274,7 +298,7 @@ class LhppBast extends Model
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, LhppBastSignature>
+     * @return Collection<int, LhppBastSignature>
      */
     private function approvalSignatureCollection()
     {

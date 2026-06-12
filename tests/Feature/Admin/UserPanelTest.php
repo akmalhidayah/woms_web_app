@@ -43,6 +43,67 @@ class UserPanelTest extends TestCase
         $this->assertTrue(Hash::check('bengkelmesin123', $user->password));
     }
 
+    public function test_user_panel_search_finds_users_outside_first_page(): void
+    {
+        $admin = $this->createSuperAdmin();
+
+        foreach (range(1, 12) as $index) {
+            User::factory()->create([
+                'name' => 'Approval Biasa '.$index,
+                'email' => 'approval-biasa-'.$index.'@example.com',
+                'role' => User::ROLE_APPROVER,
+            ]);
+        }
+
+        User::factory()->create([
+            'name' => 'Approval Target Khusus',
+            'email' => 'target-khusus@example.com',
+            'role' => User::ROLE_APPROVER,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.user-panel.index', [
+                'role' => User::ROLE_APPROVER,
+                'search' => 'Target Khusus',
+            ]))
+            ->assertOk()
+            ->assertSee('Approval Target Khusus')
+            ->assertDontSee('Approval Biasa 1');
+    }
+
+    public function test_user_panel_update_preserves_active_role_search_and_page(): void
+    {
+        $admin = $this->createSuperAdmin();
+        $target = User::factory()->create([
+            'name' => 'Approval Lama',
+            'email' => 'approval-lama@example.com',
+            'role' => User::ROLE_APPROVER,
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.user-panel.update', $target), [
+                'name' => 'Approval Baru',
+                'email' => $target->email,
+                'nomor_hp' => '081234567890',
+                'inisial' => 'AB',
+                'role' => User::ROLE_APPROVER,
+                '_return_role' => User::ROLE_APPROVER,
+                '_return_search' => 'Approval',
+                '_return_page' => 2,
+            ])
+            ->assertRedirect(route('admin.user-panel.index', [
+                'role' => User::ROLE_APPROVER,
+                'search' => 'Approval',
+                'page' => 2,
+            ]));
+
+        $this->assertDatabaseHas('users', [
+            'id' => $target->id,
+            'name' => 'Approval Baru',
+            'nomor_hp' => '081234567890',
+        ]);
+    }
+
     public function test_active_hpp_signer_cannot_be_deleted(): void
     {
         $admin = $this->createSuperAdmin();

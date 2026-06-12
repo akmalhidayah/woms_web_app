@@ -145,16 +145,22 @@
                                 });
                                 $approvalChecklist = $row->signatures->map(function (\App\Models\HppSignature $signature): array {
                                     return [
-                                        'label' => $signature->role_label,
+                                        'label' => $signature->displayRoleLabel(),
+                                        'original_label' => $signature->role_label,
                                         'name' => $signature->signer_name_snapshot ?: '-',
+                                        'signer_user_id' => $signature->signer_user_id,
                                         'status' => $signature->status,
+                                        'delegated_from_name' => $signature->delegated_from_name ?: '',
+                                        'delegation_reason' => $signature->delegation_reason ?: '',
+                                        'can_reassign' => ! in_array($signature->status, [\App\Models\HppSignature::STATUS_SIGNED, \App\Models\HppSignature::STATUS_SKIPPED], true),
+                                        'reassign_url' => route('admin.hpp.approval-signatures.reassign', $signature),
                                     ];
                                 })->values();
                                 $activeApprovalModalActions = [
                                     'link' => $activeApprovalLink && ! $isDiropsPending ? $activeApprovalLink : '',
                                     'whatsapp_url' => $activeApprovalLink && ! $isDiropsPending ? $activeApprovalWhatsappUrl : '',
                                     'resend_url' => $activeApprovalLink && ! $isDiropsPending ? route('admin.hpp.approval.resend', ['hpp' => $row->nomor_order]) : '',
-                                    'role_label' => $activeSignature?->role_label ?: '',
+                                    'role_label' => $activeSignature?->displayRoleLabel() ?: '',
                                     'signer_name' => $activeSignature?->signer_name_snapshot ?: '',
                                 ];
                             @endphp
@@ -379,6 +385,51 @@
         </div>
     </div>
 
+    <div id="hppApprovalReassignmentModal" class="fixed inset-0 z-[130] hidden overflow-y-auto" aria-hidden="true">
+        <div class="absolute inset-0 bg-slate-900/50"></div>
+        <div class="relative flex min-h-full items-start justify-center px-4 pb-6 pt-28 sm:pb-8 sm:pt-32">
+            <div data-hpp-reassignment-panel class="my-2 w-full max-w-md overflow-hidden rounded-[1.2rem] border border-slate-200 bg-white shadow-2xl">
+                <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3.5">
+                    <div>
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-orange-600">Alihkan Approver</div>
+                        <h2 id="hppApprovalReassignmentTitle" class="mt-1.5 text-[1.1rem] font-bold leading-tight text-slate-900">-</h2>
+                        <p id="hppApprovalReassignmentCurrent" class="mt-2 text-[11px] text-slate-500">-</p>
+                    </div>
+                    <button type="button" id="hppApprovalReassignmentClose" class="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="Tutup alih approver HPP">
+                        <i data-lucide="x" class="h-3.5 w-3.5"></i>
+                    </button>
+                </div>
+
+                <form id="hppApprovalReassignmentForm" method="POST" action="#" class="space-y-3 px-4 py-3.5">
+                    @csrf
+                    @method('PATCH')
+
+                    <div>
+                        <label for="hppApprovalReassignmentSigner" class="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Approver PLT</label>
+                        <select id="hppApprovalReassignmentSigner" name="signer_user_id" required class="block h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-[12px] font-semibold text-slate-800 focus:border-blue-500 focus:outline-none">
+                            <option value="">Pilih user</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="hppApprovalReassignmentReason" class="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Alasan</label>
+                        <textarea id="hppApprovalReassignmentReason" name="delegation_reason" required rows="3" class="block w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-[12px] text-slate-800 focus:border-blue-500 focus:outline-none" placeholder="Contoh: pejabat definitif sedang cuti/dinas, approval dialihkan ke PLT."></textarea>
+                    </div>
+
+                    <label class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-600">
+                        <input type="checkbox" name="send_email" value="1" checked class="rounded border-slate-300 text-blue-600">
+                        Kirim email approval setelah dialihkan
+                    </label>
+
+                    <div class="flex items-center justify-end gap-2 pt-1">
+                        <button type="button" id="hppApprovalReassignmentCancel" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50">Batal</button>
+                        <button type="submit" class="inline-flex items-center rounded-lg bg-orange-600 px-3 py-2 text-[11px] font-semibold text-white transition hover:bg-orange-700">Simpan Alih</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <div id="diropsUploadModal" class="fixed inset-0 z-[125] hidden overflow-y-auto" aria-hidden="true">
         <div class="absolute inset-0 bg-slate-900/45"></div>
         <div class="relative flex min-h-full items-start justify-center px-4 pb-6 pt-24 sm:pb-8 sm:pt-28">
@@ -445,6 +496,14 @@
             const approvalFlowModalPercent = document.getElementById('hppApprovalFlowModalPercent');
             const approvalFlowModalChecklist = document.getElementById('hppApprovalFlowModalChecklist');
             const approvalFlowModalClose = document.getElementById('hppApprovalFlowModalClose');
+            const approvalReassignmentModal = document.getElementById('hppApprovalReassignmentModal');
+            const approvalReassignmentForm = document.getElementById('hppApprovalReassignmentForm');
+            const approvalReassignmentTitle = document.getElementById('hppApprovalReassignmentTitle');
+            const approvalReassignmentCurrent = document.getElementById('hppApprovalReassignmentCurrent');
+            const approvalReassignmentSigner = document.getElementById('hppApprovalReassignmentSigner');
+            const approvalReassignmentReason = document.getElementById('hppApprovalReassignmentReason');
+            const approvalReassignmentClose = document.getElementById('hppApprovalReassignmentClose');
+            const approvalReassignmentCancel = document.getElementById('hppApprovalReassignmentCancel');
             const diropsUploadModal = document.getElementById('diropsUploadModal');
             const diropsUploadModalTitle = document.getElementById('diropsUploadModalTitle');
             const diropsUploadModalClose = document.getElementById('diropsUploadModalClose');
@@ -452,6 +511,13 @@
             const diropsUploadForm = document.getElementById('diropsUploadForm');
             const diropsUploadOrder = document.getElementById('diropsUploadOrder');
             const diropsUploadRouteTemplate = @json(route('admin.hpp.dirops-document.upload', ['hpp' => '__ORDER__']));
+            const reassignmentUsers = @json(($approvalReassignmentUsers ?? collect())->map(fn ($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'nomor_hp' => $user->nomor_hp,
+            ])->values());
 
             if (statusAlert?.dataset.message && window.Swal) {
                 window.Swal.fire({
@@ -514,7 +580,7 @@
             };
 
             const syncBodyScrollLock = () => {
-                const shouldLock = [approvalFlowModal, diropsUploadModal].some((modal) => modal && !modal.classList.contains('hidden'));
+                const shouldLock = [approvalFlowModal, approvalReassignmentModal, diropsUploadModal].some((modal) => modal && !modal.classList.contains('hidden'));
                 document.body.classList.toggle('overflow-hidden', shouldLock);
             };
 
@@ -562,6 +628,7 @@
                 approvalFlowModalChecklist.innerHTML = checklist.map((item) => {
                     const config = approvalStatusConfig[item.status] || approvalStatusConfig.locked;
                     const isActive = item.status === 'pending' && approvalLink;
+                    const canReassign = Boolean(item.can_reassign && item.reassign_url);
                     const actionButtons = isActive
                         ? `
                             <div class="mt-2 flex flex-wrap items-center gap-1.5">
@@ -607,19 +674,34 @@
                             </div>
                         `
                         : '';
+                    const reassignButton = canReassign
+                        ? `
+                            <button
+                                type="button"
+                                class="hpp-modal-reassign inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-orange-700 transition hover:bg-orange-100"
+                                data-item='${escapeHtml(JSON.stringify(item))}'
+                            >
+                                <i data-lucide="user-cog" class="h-3 w-3"></i>
+                                Alihkan
+                            </button>
+                        `
+                        : '';
 
                     return `
                         <div class="rounded-xl border px-3 py-2.5 ${config.rowClass}">
                             <div class="flex items-center justify-between gap-3">
                                 <div class="min-w-0">
-                                <div class="truncate text-[13px] font-medium text-slate-800">${escapeHtml(item.label || '-')}</div>
-                                <div class="mt-1 truncate text-[11px] text-slate-500">${escapeHtml(item.name || '-')}</div>
+                                    <div class="truncate text-[13px] font-medium text-slate-800">${escapeHtml(item.label || '-')}</div>
+                                    <div class="mt-1 truncate text-[11px] text-slate-500">${escapeHtml(item.name || '-')}</div>
+                                    ${item.delegated_from_name ? `<div class="mt-0.5 text-[9px] text-slate-500">Dialihkan dari ${escapeHtml(item.delegated_from_name)}</div>` : ''}
+                                    ${item.delegation_reason ? `<div class="mt-0.5 text-[9px] text-slate-500">Alasan: ${escapeHtml(item.delegation_reason)}</div>` : ''}
                                 </div>
                                 <span class="inline-flex shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${config.badgeClass}">
                                     ${config.label}
                                 </span>
                             </div>
                             ${actionButtons}
+                            ${reassignButton ? `<div class="mt-2 flex flex-wrap items-center gap-1.5">${reassignButton}</div>` : ''}
                         </div>
                     `;
                 }).join('');
@@ -643,8 +725,43 @@
                 syncBodyScrollLock();
             };
 
+            const openApprovalReassignmentModal = (item) => {
+                if (!approvalReassignmentModal || !approvalReassignmentForm || !approvalReassignmentSigner) {
+                    return;
+                }
+
+                approvalReassignmentForm.action = item.reassign_url || '#';
+                approvalReassignmentTitle.textContent = `PLT ${item.original_label || item.label || '-'}`;
+                approvalReassignmentCurrent.textContent = `Saat ini: ${item.name || '-'}${item.delegated_from_name ? ` (dialihkan dari ${item.delegated_from_name})` : ''}`;
+                approvalReassignmentReason.value = '';
+                approvalReassignmentSigner.innerHTML = '<option value="">Pilih user</option>' + reassignmentUsers.map((user) => `
+                    <option value="${escapeHtml(user.id)}" ${String(user.id) === String(item.signer_user_id || '') ? 'disabled' : ''}>
+                        ${escapeHtml(user.name || '-')} - ${escapeHtml(user.email || '-')} (${escapeHtml(user.role || '-')})
+                    </option>
+                `).join('');
+                approvalReassignmentModal.classList.remove('hidden');
+                approvalReassignmentModal.setAttribute('aria-hidden', 'false');
+                syncBodyScrollLock();
+            };
+
+            const closeApprovalReassignmentModal = () => {
+                approvalReassignmentModal?.classList.add('hidden');
+                approvalReassignmentModal?.setAttribute('aria-hidden', 'true');
+                syncBodyScrollLock();
+            };
+
             approvalFlowModalChecklist?.addEventListener('click', async (event) => {
                 const copyButton = event.target.closest('.hpp-modal-copy-link');
+                const reassignButton = event.target.closest('.hpp-modal-reassign');
+
+                if (reassignButton) {
+                    try {
+                        openApprovalReassignmentModal(JSON.parse(reassignButton.dataset.item || '{}'));
+                    } catch (error) {
+                        openApprovalReassignmentModal({});
+                    }
+                    return;
+                }
 
                 if (!copyButton) {
                     return;
@@ -703,9 +820,16 @@
             });
 
             approvalFlowModalClose?.addEventListener('click', closeApprovalFlowModal);
+            approvalReassignmentClose?.addEventListener('click', closeApprovalReassignmentModal);
+            approvalReassignmentCancel?.addEventListener('click', closeApprovalReassignmentModal);
             approvalFlowModal?.addEventListener('click', (event) => {
                 if (!event.target.closest('[data-hpp-approval-panel]')) {
                     closeApprovalFlowModal();
+                }
+            });
+            approvalReassignmentModal?.addEventListener('click', (event) => {
+                if (!event.target.closest('[data-hpp-reassignment-panel]')) {
+                    closeApprovalReassignmentModal();
                 }
             });
 

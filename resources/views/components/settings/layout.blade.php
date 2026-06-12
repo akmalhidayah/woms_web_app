@@ -4,7 +4,6 @@
             <div class="mb-3 px-2 text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Menu Settings</div>
             <flux:navlist>
                 <flux:navlist.item href="{{ route('settings.profile') }}" wire:navigate>Profile</flux:navlist.item>
-                <flux:navlist.item href="{{ route('settings.password') }}" wire:navigate>Password</flux:navlist.item>
                 <flux:navlist.item href="{{ route('settings.appearance') }}" wire:navigate>Appearance</flux:navlist.item>
             </flux:navlist>
         </div>

@@ -15,6 +15,7 @@ use App\Models\Order;
 use App\Services\Approvals\ApprovalNotificationService;
 use App\Support\BastApprovalFlow;
 use App\Support\BastApprovalSignatureBuilder;
+use App\Support\PdfMergeService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -26,7 +27,6 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use setasign\Fpdi\Fpdi;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
@@ -36,8 +36,7 @@ class LhppController extends Controller
     public function __construct(
         private readonly BastApprovalSignatureBuilder $signatureBuilder,
         private readonly ApprovalNotificationService $approvalNotificationService,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): View
     {
@@ -51,11 +50,11 @@ class LhppController extends Controller
 
             $baseQuery = LhppBast::query()
                 ->with([
-                    'terminTwo.signatures.signer:id,name',
-                    'terminTwo.activeSignature.signer:id,name',
+                    'terminTwo.signatures.signer:id,name,nomor_hp',
+                    'terminTwo.activeSignature.signer:id,name,nomor_hp',
                     'garansi',
-                    'signatures.signer:id,name',
-                    'activeSignature.signer:id,name',
+                    'signatures.signer:id,name,nomor_hp',
+                    'activeSignature.signer:id,name,nomor_hp',
                     'order:id,nomor_order,notifikasi',
                 ])
                 ->where('termin_type', 'termin_1')
@@ -419,21 +418,21 @@ class LhppController extends Controller
                 $request->date('tanggal_mulai_pekerjaan'),
                 $request->date('tanggal_selesai_pekerjaan'),
             );
-          $requestedTipePekerjaan = $request->input('tipe_pekerjaan');
+            $requestedTipePekerjaan = $request->input('tipe_pekerjaan');
 
-if (blank($requestedTipePekerjaan) && filled($lhpp->tipe_pekerjaan)) {
-    $requestedTipePekerjaan = $lhpp->tipe_pekerjaan;
-}
+            if (blank($requestedTipePekerjaan) && filled($lhpp->tipe_pekerjaan)) {
+                $requestedTipePekerjaan = $lhpp->tipe_pekerjaan;
+            }
 
-if (blank($requestedTipePekerjaan) && filled($parentLhpp?->tipe_pekerjaan)) {
-    $requestedTipePekerjaan = $parentLhpp->tipe_pekerjaan;
-}
+            if (blank($requestedTipePekerjaan) && filled($parentLhpp?->tipe_pekerjaan)) {
+                $requestedTipePekerjaan = $parentLhpp->tipe_pekerjaan;
+            }
 
-$tipePekerjaan = $this->resolveTipePekerjaanForBast(
-    $terminType,
-    $parentLhpp,
-    $requestedTipePekerjaan,
-);
+            $tipePekerjaan = $this->resolveTipePekerjaanForBast(
+                $terminType,
+                $parentLhpp,
+                $requestedTipePekerjaan,
+            );
             [$materialRowsPayload, $serviceRowsPayload] = $this->resolveActualRowsPayload(
                 $terminType,
                 $parentLhpp,
@@ -861,66 +860,13 @@ $tipePekerjaan = $this->resolveTipePekerjaanForBast(
     }
 
     /**
-     * @param array<int, string> $pdfOutputs
+     * @param  array<int, string>  $pdfOutputs
      */
     private function mergePdfOutputs(array $pdfOutputs): string
     {
-        $pdfOutputs = array_values(array_filter(
-            $pdfOutputs,
-            static fn ($pdfOutput): bool => is_string($pdfOutput) && trim($pdfOutput) !== ''
-        ));
-
-        if ($pdfOutputs === []) {
-            return '';
-        }
-
-        if (! class_exists(Fpdi::class)) {
-            Log::warning('FPDI package is unavailable. Returning the first PDF output without merge.', [
-                'controller' => static::class,
-                'pdf_count' => count($pdfOutputs),
-            ]);
-
-            return $pdfOutputs[0];
-        }
-
-        $fpdi = new Fpdi();
-        $temporaryFiles = [];
-
-        try {
-            foreach ($pdfOutputs as $pdfOutput) {
-                if (! is_string($pdfOutput) || trim($pdfOutput) === '') {
-                    continue;
-                }
-
-                $temporaryFile = tempnam(sys_get_temp_dir(), 'woms-pdf-');
-
-                if ($temporaryFile === false) {
-                    continue;
-                }
-
-                file_put_contents($temporaryFile, $pdfOutput);
-                $temporaryFiles[] = $temporaryFile;
-
-                $pageCount = $fpdi->setSourceFile($temporaryFile);
-
-                for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
-                    $templateId = $fpdi->importPage($pageNumber);
-                    $templateSize = $fpdi->getTemplateSize($templateId);
-                    $orientation = $templateSize['width'] > $templateSize['height'] ? 'L' : 'P';
-
-                    $fpdi->AddPage($orientation, [$templateSize['width'], $templateSize['height']]);
-                    $fpdi->useTemplate($templateId);
-                }
-            }
-
-            return $fpdi->Output('S');
-        } finally {
-            foreach ($temporaryFiles as $temporaryFile) {
-                if (is_string($temporaryFile) && is_file($temporaryFile)) {
-                    @unlink($temporaryFile);
-                }
-            }
-        }
+        return app(PdfMergeService::class)->merge($pdfOutputs, context: [
+            'controller' => static::class,
+        ]);
     }
 
     /**
@@ -1255,7 +1201,7 @@ $tipePekerjaan = $this->resolveTipePekerjaanForBast(
     }
 
     /**
-     * @param array<string, string> $meta
+     * @param  array<string, string>  $meta
      */
     private function buildFormView(Request $request, ?LhppBast $lhpp, array $meta, string $terminType, ?LhppBast $parentLhpp = null): View
     {
@@ -1299,24 +1245,25 @@ $tipePekerjaan = $this->resolveTipePekerjaanForBast(
             $materialRows->all(),
             $serviceRows->all(),
         );
-$selectedTipePekerjaan = old('tipe_pekerjaan');
+        $selectedTipePekerjaan = old('tipe_pekerjaan');
 
-if ($selectedTipePekerjaan === null) {
-    if (filled($lhpp?->tipe_pekerjaan)) {
-        $selectedTipePekerjaan = $lhpp->tipe_pekerjaan;
-    } elseif (filled($parentLhpp?->tipe_pekerjaan)) {
-        $selectedTipePekerjaan = $parentLhpp->tipe_pekerjaan;
-    } else {
-        $selectedTipePekerjaan = '';
-    }
-}
+        if ($selectedTipePekerjaan === null) {
+            if (filled($lhpp?->tipe_pekerjaan)) {
+                $selectedTipePekerjaan = $lhpp->tipe_pekerjaan;
+            } elseif (filled($parentLhpp?->tipe_pekerjaan)) {
+                $selectedTipePekerjaan = $parentLhpp->tipe_pekerjaan;
+            } else {
+                $selectedTipePekerjaan = '';
+            }
+        }
+
         return view('dashboards.pkm', [
             'pageTitle' => $meta['pageTitle'],
             'pageDescription' => $meta['pageDescription'],
             'bastOrderOptions' => $orderOptions,
             'selectedBastOrder' => $selectedOrder,
             'selectedThreshold' => old('approval_threshold', $lhpp?->approval_threshold ?? $parentLhpp?->approval_threshold ?? $this->resolveThresholdFromTotals($terminType, $calculation['totals'])),
-        'selectedTipePekerjaan' => $selectedTipePekerjaan,
+            'selectedTipePekerjaan' => $selectedTipePekerjaan,
             'tipePekerjaanOptions' => LhppBast::tipePekerjaanOptions(),
             'bastDate' => old('tanggal_bast', optional($lhpp?->tanggal_bast)->format('Y-m-d') ?? now()->format('Y-m-d')),
             'tanggalMulaiPekerjaan' => old('tanggal_mulai_pekerjaan', optional($lhpp?->tanggal_mulai_pekerjaan)->format('Y-m-d') ?? optional($parentLhpp?->tanggal_mulai_pekerjaan)->format('Y-m-d')),
@@ -1361,7 +1308,7 @@ if ($selectedTipePekerjaan === null) {
     }
 
     /**
-     * @param array<string, string> $totals
+     * @param  array<string, string>  $totals
      */
     private function resolveThresholdFromTotals(string $terminType, array $totals): string
     {
@@ -1373,7 +1320,7 @@ if ($selectedTipePekerjaan === null) {
     }
 
     /**
-     * @param array<string, mixed> $totals
+     * @param  array<string, mixed>  $totals
      * @return array{approval_threshold: string, approval_case: ?string, approval_flow: list<string>}
      */
     private function resolveApprovalPayload(string $terminType, ?LhppBast $parentLhpp, array $totals): array
@@ -1443,8 +1390,8 @@ if ($selectedTipePekerjaan === null) {
     }
 
     /**
-     * @param array<int, array<string, mixed>> $materialRows
-     * @param array<int, array<string, mixed>> $serviceRows
+     * @param  array<int, array<string, mixed>>  $materialRows
+     * @param  array<int, array<string, mixed>>  $serviceRows
      * @return array<string, mixed>
      */
     private function calculateRows(array $materialRows, array $serviceRows, bool $preserveEmptyRows = false): array
@@ -1495,7 +1442,7 @@ if ($selectedTipePekerjaan === null) {
     }
 
     /**
-     * @param array<int, array<string, mixed>> $rows
+     * @param  array<int, array<string, mixed>>  $rows
      * @return array<int, array<string, string>>
      */
     private function normalizeItemRows(array $rows, bool $preserveEmptyRows = false): array
@@ -1567,8 +1514,8 @@ if ($selectedTipePekerjaan === null) {
     }
 
     /**
-     * @param array<string, mixed> $row
-     * @param list<array<string, string>> $contractCatalog
+     * @param  array<string, mixed>  $row
+     * @param  list<array<string, string>>  $contractCatalog
      * @return array<string, mixed>
      */
     private function enrichLhppItemRow(array $row, array $contractCatalog): array
@@ -1623,8 +1570,8 @@ if ($selectedTipePekerjaan === null) {
     }
 
     /**
-     * @param array<int, array<string, mixed>> $materialRows
-     * @param array<int, array<string, mixed>> $serviceRows
+     * @param  array<int, array<string, mixed>>  $materialRows
+     * @param  array<int, array<string, mixed>>  $serviceRows
      * @return array{0: array<int, array<string, mixed>>, 1: array<int, array<string, mixed>>}
      */
     private function resolveActualRowsPayload(string $terminType, ?LhppBast $parentLhpp, array $materialRows, array $serviceRows): array
@@ -1640,7 +1587,7 @@ if ($selectedTipePekerjaan === null) {
     }
 
     /**
-     * @param array<int, array<string, string>> $rows
+     * @param  array<int, array<string, string>>  $rows
      */
     private function sumAmounts(array $rows): string
     {

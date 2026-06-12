@@ -703,6 +703,20 @@
             $adminNotifications = \App\Support\AdminNotificationCenter::signatureNotifications(5);
             $adminNotificationCount = \App\Support\AdminNotificationCenter::signatureNotificationCount();
             $adminNotificationBadge = $adminNotificationCount > 9 ? '9+' : (string) $adminNotificationCount;
+            $headerQuickLinks = collect([
+                [
+                    'key' => \App\Support\AdminMenuRegistry::MENU_UPLOAD_INFORMASI,
+                    'route' => 'admin.information-upload.index',
+                    'label' => 'Upload Informasi',
+                    'icon' => 'file-up',
+                ],
+                [
+                    'key' => \App\Support\AdminMenuRegistry::MENU_STRUKTUR_ORGANISASI,
+                    'route' => 'admin.structure.index',
+                    'label' => 'Struktur Organisasi',
+                    'icon' => 'network',
+                ],
+            ])->filter(fn (array $link): bool => \App\Support\AdminMenuRegistry::canAccess($user, $link['key']) && \Illuminate\Support\Facades\Route::has($link['route']));
             $notificationToneClasses = [
                 'blue' => 'bg-blue-50 text-blue-700 ring-blue-100',
                 'amber' => 'bg-amber-50 text-amber-700 ring-amber-100',
@@ -958,6 +972,17 @@
                         </div>
 
                         <div class="flex items-center gap-2">
+                            @foreach ($headerQuickLinks as $quickLink)
+                                <a
+                                    href="{{ route($quickLink['route']) }}"
+                                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-white transition hover:bg-white/10"
+                                    title="{{ $quickLink['label'] }}"
+                                    aria-label="{{ $quickLink['label'] }}"
+                                >
+                                    <i data-lucide="{{ $quickLink['icon'] }}" class="h-5 w-5"></i>
+                                </a>
+                            @endforeach
+
                             <div class="relative" @click.outside="notificationsOpen = false">
                                 <button
                                     type="button"
@@ -1043,7 +1068,7 @@
                                         <div class="text-xs text-slate-500">{{ $user?->email }}</div>
                                     </div>
 
-                                    <a href="{{ route('settings.profile') }}" class="block px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50">
+                                    <a href="{{ route('admin.profile.edit') }}" class="block px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50">
                                         Edit Profile
                                     </a>
 

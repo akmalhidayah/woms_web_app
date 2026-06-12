@@ -30,6 +30,7 @@
     $totalPekerjaan = $totalPekerjaan ?? $progressItems->count();
     $pekerjaanSelesai = $pekerjaanSelesai ?? $progressItems->filter(fn ($value) => $value >= 100)->count();
     $pekerjaanMenunggu = $pekerjaanMenunggu ?? $progressItems->filter(fn ($value) => $value < 100)->count();
+    $emergencyInitialWorkCount = $emergencyInitialWorkCount ?? 0;
     $totalProgress = $totalProgress ?? round($progressItems->avg() ?? 0, 2);
     $overdueCount = $overdueCount ?? $targets->where('is_overdue', true)->count();
     $todayCount = $todayCount ?? $targets->where('is_today', true)->count();
@@ -47,9 +48,19 @@
             'description' => 'Semua pekerjaan vendor',
             'meta' => $menuSummaries->firstWhere('title', 'List Pekerjaan')['meta'] ?? 'Ringkasan order aktif',
             'icon' => 'briefcase-business',
-            'tone' => 'border-[#dbe8fb] bg-[#f8fbff]',
-            'icon_tone' => 'bg-[#e7efff] text-[#4c79dd]',
-            'accent' => 'text-[#4c79dd]',
+            'color' => '#526f8f',
+            'icon_tone' => 'bg-black/10 text-white',
+            'accent' => 'text-white',
+        ],
+        [
+            'label' => 'Emergency Initial Work',
+            'value' => $emergencyInitialWorkCount,
+            'description' => 'Emergency masuk melalui Initial Work',
+            'meta' => $emergencyInitialWorkCount > 0 ? 'Perlu dipantau di List Pekerjaan' : 'Tidak ada emergency Initial Work',
+            'icon' => 'file-warning',
+            'color' => '#a96842',
+            'icon_tone' => 'bg-black/10 text-white',
+            'accent' => 'text-white',
         ],
         [
             'label' => 'Total Progress',
@@ -57,9 +68,9 @@
             'description' => 'Rata-rata progres seluruh pekerjaan',
             'meta' => $pekerjaanMenunggu > 0 ? "{$pekerjaanMenunggu} pekerjaan masih aktif" : 'Semua pekerjaan sudah tertangani',
             'icon' => 'activity',
-            'tone' => 'border-[#e4ddfb] bg-[#faf8ff]',
-            'icon_tone' => 'bg-[#ede7ff] text-[#6f59d9]',
-            'accent' => 'text-[#6f59d9]',
+            'color' => '#71658f',
+            'icon_tone' => 'bg-black/10 text-white',
+            'accent' => 'text-white',
         ],
         [
             'label' => 'Overdue',
@@ -67,9 +78,9 @@
             'description' => 'Pekerjaan melewati target',
             'meta' => $overdueCount > 0 ? 'Perlu segera ditindaklanjuti' : 'Tidak ada target yang terlambat',
             'icon' => 'triangle-alert',
-            'tone' => 'border-[#f4dddd] bg-[#fff8f8]',
-            'icon_tone' => 'bg-[#feeaea] text-[#db5c5c]',
-            'accent' => 'text-[#db5c5c]',
+            'color' => '#9b5555',
+            'icon_tone' => 'bg-black/10 text-white',
+            'accent' => 'text-white',
         ],
         [
             'label' => 'Selesai',
@@ -77,9 +88,9 @@
             'description' => 'Pekerjaan final di menu Dokumen',
             'meta' => $totalPekerjaan > 0 ? intval(round(($pekerjaanSelesai / max($totalPekerjaan, 1)) * 100)).'% dari total' : 'Belum ada pekerjaan final',
             'icon' => 'badge-check',
-            'tone' => 'border-[#dcecdc] bg-[#f7fcf8]',
-            'icon_tone' => 'bg-[#e3f4e5] text-[#2f8b57]',
-            'accent' => 'text-[#2f8b57]',
+            'color' => '#527a63',
+            'icon_tone' => 'bg-black/10 text-white',
+            'accent' => 'text-white',
         ],
     ];
 
@@ -177,23 +188,23 @@
 @endphp
 
 <div class="space-y-3">
-    <section class="grid grid-cols-2 gap-2 lg:grid-cols-4">
+    <section class="grid gap-1.5" style="grid-template-columns: repeat(5, minmax(0, 1fr));">
         @foreach ($topCards as $card)
-            <article class="rounded-[0.9rem] border px-2.5 py-2 shadow-sm {{ $card['tone'] }}">
-                <div class="flex items-center justify-between gap-2">
+            <article class="min-w-0 rounded-lg border border-black/10 px-2 py-1.5 shadow-sm" style="background-color: {{ $card['color'] }};">
+                <div class="flex items-center justify-between gap-1.5">
                     <div class="min-w-0">
-                        <div class="truncate text-[8px] font-bold uppercase tracking-[0.12em] text-slate-500">{{ $card['label'] }}</div>
-                        <div class="mt-1 text-[19px] font-black leading-none {{ $card['accent'] }}">{{ $card['value'] }}</div>
+                        <div class="truncate text-[7px] font-bold uppercase tracking-[0.08em] text-white/80">{{ $card['label'] }}</div>
+                        <div class="mt-0.5 text-[17px] font-black leading-none {{ $card['accent'] }}">{{ $card['value'] }}</div>
                     </div>
 
-                    <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg {{ $card['icon_tone'] }}">
-                        <i data-lucide="{{ $card['icon'] }}" class="h-3.5 w-3.5"></i>
+                    <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md {{ $card['icon_tone'] }}">
+                        <i data-lucide="{{ $card['icon'] }}" class="h-3 w-3"></i>
                     </span>
                 </div>
 
                 @if ($card['label'] === 'Total Progress')
-                    <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-white/90">
-                        <div class="h-full rounded-full bg-[#6f59d9]" style="width: {{ max(0, min(100, $totalProgress)) }}%"></div>
+                    <div class="mt-1 h-1 overflow-hidden rounded-full bg-black/20">
+                        <div class="h-full rounded-full bg-white" style="width: {{ max(0, min(100, $totalProgress)) }}%"></div>
                     </div>
                 @endif
             </article>

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\Orders\OrderController;
+use App\Http\Controllers\Admin\ApprovalSignatureReassignmentController;
 use App\Http\Controllers\Admin\Orders\OrderDocumentController;
 use App\Http\Controllers\Admin\Orders\InitialWorkController;
 use App\Http\Controllers\Admin\Orders\OrderScopeOfWorkController;
@@ -26,6 +27,9 @@ Route::prefix('admin/orders')
         Route::get('/workshop/{order}/quality-control/{qualityControlReport}/pdf', [OrderWorkshopQualityControlController::class, 'pdf'])->name('workshop.quality-control.pdf');
         Route::post('/workshop/{order}/quality-control/{qualityControlReport}/resend-approval', [OrderWorkshopQualityControlController::class, 'resendApproval'])->name('workshop.quality-control.approval.resend');
         Route::post('/workshop/{order}/quality-control/{qualityControlReport}/regenerate-approval-token', [OrderWorkshopQualityControlController::class, 'regenerateApprovalToken'])->name('workshop.quality-control.approval.regenerate');
+        Route::patch('/approval-signatures/quality-control/{signature}/reassign', [ApprovalSignatureReassignmentController::class, 'qualityControl'])
+            ->whereNumber('signature')
+            ->name('approval-signatures.quality-control.reassign');
         Route::get('/{order}', [OrderController::class, 'show'])->name('show');
         Route::get('/{order}/edit', [OrderController::class, 'edit'])->name('edit');
         Route::put('/{order}', [OrderController::class, 'update'])->name('update');
@@ -41,6 +45,9 @@ Route::prefix('admin/orders')
         Route::get('/{order}/initial-work/{initialWork}/pdf', [InitialWorkController::class, 'pdf'])->name('initial-work.pdf');
         Route::post('/{order}/initial-work/{initialWork}/resend-approval', [InitialWorkController::class, 'resendApproval'])->name('initial-work.approval.resend');
         Route::post('/{order}/initial-work/{initialWork}/regenerate-approval-token', [InitialWorkController::class, 'regenerateApprovalToken'])->name('initial-work.approval.regenerate');
+        Route::patch('/approval-signatures/initial-work/{signature}/reassign', [ApprovalSignatureReassignmentController::class, 'initialWork'])
+            ->whereNumber('signature')
+            ->name('approval-signatures.initial-work.reassign');
         Route::post('/{order}/scope-of-work', [OrderScopeOfWorkController::class, 'store'])->name('scope-of-work.store');
         Route::put('/{order}/scope-of-work/{scopeOfWork}', [OrderScopeOfWorkController::class, 'update'])->name('scope-of-work.update');
         Route::get('/{order}/scope-of-work/{scopeOfWork}/pdf', [OrderScopeOfWorkController::class, 'pdf'])->name('scope-of-work.pdf');

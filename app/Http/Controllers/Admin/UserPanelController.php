@@ -118,15 +118,17 @@ class UserPanelController extends Controller
 
     public function update(Request $request, User $user): RedirectResponse
     {
+        $returnTo = $this->returnRouteParameters($request, $request->input('role', $user->role));
+
         if (! $this->canManageExistingUser($request->user(), $user)) {
             return redirect()
-                ->route('admin.user-panel.index', ['role' => $user->role])
+                ->route('admin.user-panel.index', $returnTo)
                 ->with('error', 'Anda tidak memiliki izin untuk mengubah user ini.');
         }
 
         if (! $this->canManageRequestedRole($request->user(), $request->input('role', $user->role))) {
             return redirect()
-                ->route('admin.user-panel.index', ['role' => $user->role])
+                ->route('admin.user-panel.index', $returnTo)
                 ->with('error', 'Anda tidak memiliki izin untuk mengubah user ke tipe tersebut.');
         }
 
@@ -136,7 +138,7 @@ class UserPanelController extends Controller
 
             if ($requestedRole !== User::ROLE_ADMIN || $requestedAdminRole !== User::ADMIN_ROLE_SUPER_ADMIN) {
                 return redirect()
-                    ->route('admin.user-panel.index', ['role' => $user->role])
+                    ->route('admin.user-panel.index', $returnTo)
                     ->with('error', 'Super Admin aktif tidak dapat mengubah dirinya menjadi non-super admin.');
             }
         }
@@ -145,7 +147,7 @@ class UserPanelController extends Controller
 
         if ($validator->fails()) {
             return redirect()
-                ->route('admin.user-panel.index', ['role' => $request->input('role', $user->role)])
+                ->route('admin.user-panel.index', $returnTo)
                 ->withErrors($validator)
                 ->withInput()
                 ->with('user_panel_modal', 'edit')
@@ -169,39 +171,40 @@ class UserPanelController extends Controller
         }
 
         return redirect()
-            ->route('admin.user-panel.index', ['role' => $newRole])
+            ->route('admin.user-panel.index', $returnTo)
             ->with('success', 'Pengguna berhasil diperbarui.');
     }
 
     public function destroy(Request $request, User $user): RedirectResponse
     {
+        $returnTo = $this->returnRouteParameters($request, $user->role);
+
         if ($request->user()->is($user)) {
             return redirect()
-                ->route('admin.user-panel.index', ['role' => $user->role])
+                ->route('admin.user-panel.index', $returnTo)
                 ->with('error', 'Akun yang sedang dipakai tidak bisa dihapus.');
         }
 
         if (! $this->canManageExistingUser($request->user(), $user)) {
             return redirect()
-                ->route('admin.user-panel.index', ['role' => $user->role])
+                ->route('admin.user-panel.index', $returnTo)
                 ->with('error', 'Anda tidak memiliki izin untuk menghapus user ini.');
         }
 
         if ($documentName = $this->activeApprovalDocument($user)) {
             return redirect()
-                ->route('admin.user-panel.index', ['role' => $user->role])
+                ->route('admin.user-panel.index', $returnTo)
                 ->with('error', sprintf(
                     'Pengguna masih terdaftar pada alur approval %s yang belum selesai.',
                     $documentName
                 ));
         }
 
-        $role = $user->role;
         $user->adminMenuAccesses()->delete();
         $user->delete();
 
         return redirect()
-            ->route('admin.user-panel.index', ['role' => $role])
+            ->route('admin.user-panel.index', $returnTo)
             ->with('success', 'Pengguna berhasil dihapus.');
     }
 
@@ -275,5 +278,22 @@ class UserPanelController extends Controller
         }
 
         return $target->role !== User::ROLE_ADMIN;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function returnRouteParameters(Request $request, string $fallbackRole): array
+    {
+        $role = (string) $request->input('_return_role', $fallbackRole);
+        if (! in_array($role, User::roles(), true)) {
+            $role = $fallbackRole;
+        }
+
+        return array_filter([
+            'role' => $role,
+            'search' => trim((string) $request->input('_return_search', '')) ?: null,
+            'page' => $request->integer('_return_page') > 1 ? $request->integer('_return_page') : null,
+        ]);
     }
 }

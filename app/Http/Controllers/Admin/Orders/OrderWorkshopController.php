@@ -9,6 +9,7 @@ use App\Models\BengkelTask;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
 use App\Models\UnitWork;
+use App\Models\User;
 use App\Services\QualityControl\QualityControlSignatureService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -84,6 +85,9 @@ class OrderWorkshopController extends Controller
                 ->get(['id', 'name']),
             'userNoteStatusOptions' => OrderUserNoteStatus::options(),
             'userNoteDetailOptions' => Order::userNoteDetailOptions(),
+            'approvalReassignmentUsers' => User::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'email', 'role', 'nomor_hp']),
         ]);
     }
 

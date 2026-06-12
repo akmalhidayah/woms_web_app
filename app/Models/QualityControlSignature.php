@@ -26,7 +26,13 @@ class QualityControlSignature extends Model
         'step_order',
         'role_key',
         'role_label',
+        'acting_as_label',
         'signer_user_id',
+        'delegated_from_user_id',
+        'delegated_from_name',
+        'delegated_by_user_id',
+        'delegated_at',
+        'delegation_reason',
         'signer_name',
         'signer_position',
         'source_department',
@@ -51,6 +57,9 @@ class QualityControlSignature extends Model
             'quality_control_report_id' => 'integer',
             'step_order' => 'integer',
             'signer_user_id' => 'integer',
+            'delegated_from_user_id' => 'integer',
+            'delegated_by_user_id' => 'integer',
+            'delegated_at' => 'datetime',
             'token_encrypted' => 'encrypted',
             'token_expires_at' => 'datetime',
             'signed_at' => 'datetime',
@@ -89,6 +98,16 @@ class QualityControlSignature extends Model
         }
 
         return $this->appUrl(route('approval.quality-control.show', $this->token_encrypted, false));
+    }
+
+    public function displayRoleLabel(): string
+    {
+        return (string) ($this->acting_as_label ?: $this->role_label);
+    }
+
+    public function isDelegated(): bool
+    {
+        return filled($this->acting_as_label) || filled($this->delegated_from_user_id);
     }
 
     private function appUrl(string $path): string

@@ -93,6 +93,13 @@
                                     'rejected' => 'text-rose-600',
                                     default => 'text-slate-500',
                                 };
+                                $qualityControlLabel = match ($qualityControlStatus) {
+                                    'approved' => 'Disetujui',
+                                    'rejected' => 'Ditolak',
+                                    default => 'Pending',
+                                };
+                                $qualityControlLocked = $lhpp->hasApprovalStarted()
+                                    || ($terminTwo?->hasApprovalStarted() ?? false);
                                 $termin1Paid = ($lhpp->termin1_status ?? 'belum') === 'sudah';
                                 $termin2Paid = ! $isWithoutWarranty && ($lhpp->termin2_status ?? 'belum') === 'sudah';
                                 $termin1Amount = $termin1Paid
@@ -129,7 +136,7 @@
                                     \App\Models\LhppBast::APPROVAL_APPROVED => 'Approval selesai',
                                     \App\Models\LhppBast::APPROVAL_REJECTED => 'Approval ditolak',
                                     default => $activeSignature
-                                        ? 'Menunggu '.$activeSignature->role_label
+                                        ? 'Menunggu '.$activeSignature->displayRoleLabel()
                                         : ($qualityControlStatus === 'approved' ? 'Menunggu approval' : 'Menunggu QC Admin'),
                                 };
                                 $approvalClass = match ($approvalStatus) {
@@ -144,12 +151,18 @@
                                 $approvalSummaryCaption = $isApprovalComplete ? 'Approval selesai' : 'Approval berjalan';
                                 $approvalSummaryLabel = $isApprovalComplete
                                     ? 'Semua approver selesai'
-                                    : ($activeSignature?->role_label ? 'Menunggu '.$activeSignature->role_label : ($qualityControlStatus === 'approved' ? 'Menunggu approval' : 'Menunggu QC Admin'));
+                                    : ($activeSignature?->displayRoleLabel() ? 'Menunggu '.$activeSignature->displayRoleLabel() : ($qualityControlStatus === 'approved' ? 'Menunggu approval' : 'Menunggu QC Admin'));
                                 $approvalChecklist = $lhpp->signatures->map(function (\App\Models\LhppBastSignature $signature): array {
                                     return [
-                                        'label' => $signature->role_label,
+                                        'label' => $signature->displayRoleLabel(),
+                                        'original_label' => $signature->role_label,
                                         'name' => $signature->signer_name_snapshot ?: '-',
+                                        'signer_user_id' => $signature->signer_user_id,
                                         'status' => $signature->status,
+                                        'delegated_from_name' => $signature->delegated_from_name ?: '',
+                                        'delegation_reason' => $signature->delegation_reason ?: '',
+                                        'can_reassign' => ! in_array($signature->status, [\App\Models\LhppBastSignature::STATUS_SIGNED, \App\Models\LhppBastSignature::STATUS_SKIPPED], true),
+                                        'reassign_url' => route('admin.approval-signatures.bast.reassign', $signature),
                                     ];
                                 })->values();
                                 $activeApprovalModalActions = [
@@ -214,18 +227,27 @@
 
                                 <td class="px-4 py-3 align-top">
                                     <div class="flex items-start gap-2">
-                                        <form method="POST" action="{{ route('admin.lhpp.quality-control', ['lhppId' => $lhpp->id]) }}" class="w-[104px] shrink-0 space-y-1">
-                                            @csrf
-                                            @method('PATCH')
-                                            <input type="hidden" name="search" value="{{ $search }}">
-                                            <input type="hidden" name="page" value="{{ $lhpps->currentPage() }}">
-                                            <select name="quality_control_status" onchange="this.form.submit()" class="h-8 w-full rounded-lg border px-2 text-[10px] font-semibold focus:outline-none {{ $qualityControlSelectClass }}">
-                                                <option value="pending" @selected($qualityControlStatus === 'pending')>Pilih</option>
-                                                <option value="approved" @selected($qualityControlStatus === 'approved')>Setujui</option>
-                                                <option value="rejected" @selected($qualityControlStatus === 'rejected')>Tolak</option>
-                                            </select>
-                                            <p class="text-[8px] leading-snug {{ $qualityControlHelperClass }}">{{ $qualityControlHelper }}</p>
-                                        </form>
+                                        @if ($qualityControlLocked)
+                                            <div class="w-[104px] shrink-0 space-y-1">
+                                                <div class="flex h-8 w-full items-center rounded-lg border px-2 text-[10px] font-semibold {{ $qualityControlSelectClass }}">
+                                                    {{ $qualityControlLabel }}
+                                                </div>
+                                                <p class="text-[8px] leading-snug text-slate-500">Terkunci setelah approval dimulai.</p>
+                                            </div>
+                                        @else
+                                            <form method="POST" action="{{ route('admin.lhpp.quality-control', ['lhppId' => $lhpp->id]) }}" class="w-[104px] shrink-0 space-y-1">
+                                                @csrf
+                                                @method('PATCH')
+                                                <input type="hidden" name="search" value="{{ $search }}">
+                                                <input type="hidden" name="page" value="{{ $lhpps->currentPage() }}">
+                                                <select name="quality_control_status" onchange="this.form.submit()" class="h-8 w-full rounded-lg border px-2 text-[10px] font-semibold focus:outline-none {{ $qualityControlSelectClass }}">
+                                                    <option value="pending" @selected($qualityControlStatus === 'pending')>Pilih</option>
+                                                    <option value="approved" @selected($qualityControlStatus === 'approved')>Setujui</option>
+                                                    <option value="rejected" @selected($qualityControlStatus === 'rejected')>Tolak</option>
+                                                </select>
+                                                <p class="text-[8px] leading-snug {{ $qualityControlHelperClass }}">{{ $qualityControlHelper }}</p>
+                                            </form>
+                                        @endif
 
                                         <div class="min-w-0 flex-1 rounded-xl border border-blue-100 bg-blue-50 px-2 py-1.5 shadow-sm">
                                             <div class="flex items-center justify-between gap-2">
@@ -361,6 +383,51 @@
         </div>
     </div>
 
+    <div id="bastApprovalReassignmentModal" class="fixed inset-0 z-[130] hidden overflow-y-auto" aria-hidden="true">
+        <div class="absolute inset-0 bg-slate-900/50"></div>
+        <div class="relative flex min-h-full items-start justify-center px-4 pb-6 pt-28 sm:pb-8 sm:pt-32">
+            <div data-bast-reassignment-panel class="my-2 w-full max-w-md overflow-hidden rounded-[1.2rem] border border-slate-200 bg-white shadow-2xl">
+                <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3.5">
+                    <div>
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-orange-600">Alihkan Approver</div>
+                        <h2 id="bastApprovalReassignmentTitle" class="mt-1.5 text-[1.1rem] font-bold leading-tight text-slate-900">-</h2>
+                        <p id="bastApprovalReassignmentCurrent" class="mt-2 text-[11px] text-slate-500">-</p>
+                    </div>
+                    <button type="button" id="bastApprovalReassignmentClose" class="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="Tutup alih approver BAST">
+                        <i data-lucide="x" class="h-3.5 w-3.5"></i>
+                    </button>
+                </div>
+
+                <form id="bastApprovalReassignmentForm" method="POST" action="#" class="space-y-3 px-4 py-3.5">
+                    @csrf
+                    @method('PATCH')
+
+                    <div>
+                        <label for="bastApprovalReassignmentSigner" class="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Approver PLT</label>
+                        <select id="bastApprovalReassignmentSigner" name="signer_user_id" required class="block h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-[12px] font-semibold text-slate-800 focus:border-blue-500 focus:outline-none">
+                            <option value="">Pilih user</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="bastApprovalReassignmentReason" class="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Alasan</label>
+                        <textarea id="bastApprovalReassignmentReason" name="delegation_reason" required rows="3" class="block w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-[12px] text-slate-800 focus:border-blue-500 focus:outline-none" placeholder="Contoh: pejabat definitif sedang cuti/dinas, approval dialihkan ke PLT."></textarea>
+                    </div>
+
+                    <label class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-600">
+                        <input type="checkbox" name="send_email" value="1" checked class="rounded border-slate-300 text-blue-600">
+                        Kirim email approval setelah dialihkan
+                    </label>
+
+                    <div class="flex items-center justify-end gap-2 pt-1">
+                        <button type="button" id="bastApprovalReassignmentCancel" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50">Batal</button>
+                        <button type="submit" class="inline-flex items-center rounded-lg bg-orange-600 px-3 py-2 text-[11px] font-semibold text-white transition hover:bg-orange-700">Simpan Alih</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <div id="bastSignatureModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/55 px-4 py-6">
         <div class="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-2xl">
             <div class="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
@@ -414,6 +481,10 @@
                     <i data-lucide="message-circle" class="h-3.5 w-3.5"></i>
                     Kirim WhatsApp
                 </a>
+                <span id="bastSignatureNoWhatsappButton" class="hidden items-center justify-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-400" title="Nomor WhatsApp approver belum tersedia di user panel">
+                    <i data-lucide="message-circle-off" class="h-3.5 w-3.5"></i>
+                    No WA
+                </span>
                 <button id="bastSignatureCopyButton" type="button" class="hidden items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">
                     <i data-lucide="copy" class="h-3.5 w-3.5"></i>
                     Salin Link
@@ -453,6 +524,7 @@
             const signatureStatus = document.getElementById('bastSignatureModalStatus');
             const signatureNote = document.getElementById('bastSignatureModalNote');
             const signatureWhatsappButton = document.getElementById('bastSignatureWhatsappButton');
+            const signatureNoWhatsappButton = document.getElementById('bastSignatureNoWhatsappButton');
             const signatureCopyButton = document.getElementById('bastSignatureCopyButton');
             const signatureResendForm = document.getElementById('bastSignatureResendForm');
 
@@ -522,6 +594,10 @@
                     signatureWhatsappButton.href = whatsappUrl;
                 }
 
+                const showNoWhatsapp = Boolean(link && !whatsappUrl && !isExpired && !isDirops);
+                signatureNoWhatsappButton?.classList.toggle('hidden', !showNoWhatsapp);
+                signatureNoWhatsappButton?.classList.toggle('inline-flex', showNoWhatsapp);
+
                 signatureCopyButton?.classList.toggle('hidden', !link);
                 signatureCopyButton?.classList.toggle('inline-flex', Boolean(link));
                 if (signatureCopyButton && link) {
@@ -588,6 +664,21 @@
             const approvalFlowModalPercent = document.getElementById('bastApprovalFlowModalPercent');
             const approvalFlowModalChecklist = document.getElementById('bastApprovalFlowModalChecklist');
             const approvalFlowModalClose = document.getElementById('bastApprovalFlowModalClose');
+            const approvalReassignmentModal = document.getElementById('bastApprovalReassignmentModal');
+            const approvalReassignmentForm = document.getElementById('bastApprovalReassignmentForm');
+            const approvalReassignmentTitle = document.getElementById('bastApprovalReassignmentTitle');
+            const approvalReassignmentCurrent = document.getElementById('bastApprovalReassignmentCurrent');
+            const approvalReassignmentSigner = document.getElementById('bastApprovalReassignmentSigner');
+            const approvalReassignmentReason = document.getElementById('bastApprovalReassignmentReason');
+            const approvalReassignmentClose = document.getElementById('bastApprovalReassignmentClose');
+            const approvalReassignmentCancel = document.getElementById('bastApprovalReassignmentCancel');
+            const reassignmentUsers = @json(($approvalReassignmentUsers ?? collect())->map(fn ($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'nomor_hp' => $user->nomor_hp,
+            ])->values());
             const escapeHtml = (value) => String(value ?? '')
                 .replaceAll('&', '&amp;')
                 .replaceAll('<', '&lt;')
@@ -637,6 +728,7 @@
                 approvalFlowModalChecklist.innerHTML = checklist.map((item) => {
                     const config = approvalStatusConfig[item.status] || approvalStatusConfig.locked;
                     const isActive = item.status === 'pending' && approvalLink;
+                    const canReassign = Boolean(item.can_reassign && item.reassign_url);
                     const actionButtons = isActive
                         ? `
                             <div class="mt-2 flex flex-wrap items-center gap-1.5">
@@ -649,7 +741,12 @@
                                         <i data-lucide="message-circle" class="h-3 w-3"></i>
                                         WhatsApp
                                     </a>
-                                ` : ''}
+                                ` : `
+                                    <span class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-400" title="Nomor WhatsApp approver belum tersedia di user panel">
+                                        <i data-lucide="message-circle-off" class="h-3 w-3"></i>
+                                        No WA
+                                    </span>
+                                `}
                                 ${resendUrl ? `
                                     <form method="POST" action="${escapeHtml(resendUrl)}" class="inline-block">
                                         <input type="hidden" name="_token" value="{{ csrf_token() }}">
@@ -662,6 +759,14 @@
                             </div>
                         `
                         : '';
+                    const reassignButton = canReassign
+                        ? `
+                            <button type="button" class="bast-modal-reassign inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-orange-700 transition hover:bg-orange-100" data-item='${escapeHtml(JSON.stringify(item))}'>
+                                <i data-lucide="user-cog" class="h-3 w-3"></i>
+                                Alihkan
+                            </button>
+                        `
+                        : '';
 
                     return `
                         <div class="rounded-xl border px-3 py-2.5 ${config.rowClass}">
@@ -669,12 +774,15 @@
                                 <div class="min-w-0">
                                     <div class="truncate text-[13px] font-medium text-slate-800">${escapeHtml(item.label || '-')}</div>
                                     <div class="mt-1 truncate text-[11px] text-slate-500">${escapeHtml(item.name || '-')}</div>
+                                    ${item.delegated_from_name ? `<div class="mt-0.5 text-[9px] text-slate-500">Dialihkan dari ${escapeHtml(item.delegated_from_name)}</div>` : ''}
+                                    ${item.delegation_reason ? `<div class="mt-0.5 text-[9px] text-slate-500">Alasan: ${escapeHtml(item.delegation_reason)}</div>` : ''}
                                 </div>
                                 <span class="inline-flex shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${config.badgeClass}">
                                     ${config.label}
                                 </span>
                             </div>
                             ${actionButtons}
+                            ${reassignButton ? `<div class="mt-2 flex flex-wrap items-center gap-1.5">${reassignButton}</div>` : ''}
                         </div>
                     `;
                 }).join('');
@@ -688,20 +796,66 @@
             const closeApprovalFlowModal = () => {
                 approvalFlowModal?.classList.add('hidden');
                 approvalFlowModal?.setAttribute('aria-hidden', 'true');
-                document.body.classList.remove('overflow-hidden');
+                if (!approvalReassignmentModal || approvalReassignmentModal.classList.contains('hidden')) {
+                    document.body.classList.remove('overflow-hidden');
+                }
+            };
+
+            const openApprovalReassignmentModal = (item) => {
+                if (!approvalReassignmentModal || !approvalReassignmentForm || !approvalReassignmentSigner) {
+                    return;
+                }
+
+                approvalReassignmentForm.action = item.reassign_url || '#';
+                approvalReassignmentTitle.textContent = `PLT ${item.original_label || item.label || '-'}`;
+                approvalReassignmentCurrent.textContent = `Saat ini: ${item.name || '-'}${item.delegated_from_name ? ` (dialihkan dari ${item.delegated_from_name})` : ''}`;
+                approvalReassignmentReason.value = '';
+                approvalReassignmentSigner.innerHTML = '<option value="">Pilih user</option>' + reassignmentUsers.map((user) => `
+                    <option value="${escapeHtml(user.id)}" ${String(user.id) === String(item.signer_user_id || '') ? 'disabled' : ''}>
+                        ${escapeHtml(user.name || '-')} - ${escapeHtml(user.email || '-')} (${escapeHtml(user.role || '-')})
+                    </option>
+                `).join('');
+                approvalReassignmentModal.classList.remove('hidden');
+                approvalReassignmentModal.setAttribute('aria-hidden', 'false');
+                document.body.classList.add('overflow-hidden');
+            };
+
+            const closeApprovalReassignmentModal = () => {
+                approvalReassignmentModal?.classList.add('hidden');
+                approvalReassignmentModal?.setAttribute('aria-hidden', 'true');
+                if (!approvalFlowModal || approvalFlowModal.classList.contains('hidden')) {
+                    document.body.classList.remove('overflow-hidden');
+                }
             };
 
             document.querySelectorAll('.bast-approval-flow-trigger').forEach((button) => {
                 button.addEventListener('click', () => openApprovalFlowModal(button));
             });
             approvalFlowModalClose?.addEventListener('click', closeApprovalFlowModal);
+            approvalReassignmentClose?.addEventListener('click', closeApprovalReassignmentModal);
+            approvalReassignmentCancel?.addEventListener('click', closeApprovalReassignmentModal);
             approvalFlowModal?.addEventListener('click', (event) => {
                 if (!event.target.closest('[data-bast-approval-panel]')) {
                     closeApprovalFlowModal();
                 }
             });
+            approvalReassignmentModal?.addEventListener('click', (event) => {
+                if (!event.target.closest('[data-bast-reassignment-panel]')) {
+                    closeApprovalReassignmentModal();
+                }
+            });
             approvalFlowModalChecklist?.addEventListener('click', async (event) => {
                 const copyButton = event.target.closest('.bast-modal-copy-link');
+                const reassignButton = event.target.closest('.bast-modal-reassign');
+
+                if (reassignButton) {
+                    try {
+                        openApprovalReassignmentModal(JSON.parse(reassignButton.dataset.item || '{}'));
+                    } catch (error) {
+                        openApprovalReassignmentModal({});
+                    }
+                    return;
+                }
 
                 if (!copyButton) {
                     return;

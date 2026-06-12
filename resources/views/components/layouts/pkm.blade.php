@@ -175,7 +175,7 @@
                                         <div class="text-xs text-slate-500">{{ $user?->email }}</div>
                                     </div>
 
-                                    <a href="{{ route('settings.profile') }}" class="block px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50">
+                                    <a href="{{ route('pkm.profile.edit') }}" class="block px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50">
                                         Profile
                                     </a>
 

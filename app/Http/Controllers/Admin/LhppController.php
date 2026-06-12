@@ -5,14 +5,15 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\LhppBast;
 use App\Models\LhppBastSignature;
+use App\Models\User;
 use App\Services\Approvals\ApprovalNotificationService;
 use App\Support\BastApprovalSignatureBuilder;
+use App\Support\PdfMergeService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
-use setasign\Fpdi\Fpdi;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
@@ -21,20 +22,39 @@ class LhppController extends Controller
     public function __construct(
         private readonly BastApprovalSignatureBuilder $signatureBuilder,
         private readonly ApprovalNotificationService $approvalNotificationService,
-    ) {
-    }
+    ) {}
 
     public function updateQualityControl(Request $request, int $lhppId)
     {
-        try {
-            $lhpp = LhppBast::query()
-                ->with('childLhppBasts')
-                ->findOrFail($lhppId);
+        $lhpp = LhppBast::query()
+            ->with('childLhppBasts')
+            ->findOrFail($lhppId);
 
-            $validated = $request->validate([
-                'quality_control_status' => ['required', 'in:pending,approved,rejected'],
+        $validated = $request->validate([
+            'quality_control_status' => ['required', 'in:pending,approved,rejected'],
+        ]);
+
+        $approvalStartedDocument = collect([$lhpp])
+            ->merge($lhpp->childLhppBasts)
+            ->first(fn (LhppBast $document): bool => $document->hasApprovalStarted());
+
+        if ($approvalStartedDocument) {
+            Log::warning('Blocked BAST quality control status update after approval started.', [
+                'status_code' => Response::HTTP_FORBIDDEN,
+                'user_id' => $request->user()?->id,
+                'lhpp_id' => $lhpp->id,
+                'approval_started_lhpp_id' => $approvalStartedDocument->id,
+                'nomor_order' => $lhpp->nomor_order,
+                'termin_type' => $approvalStartedDocument->termin_type,
             ]);
 
+            abort(
+                Response::HTTP_FORBIDDEN,
+                'Status Quality Control tidak dapat diubah setelah approval BAST dimulai.'
+            );
+        }
+
+        try {
             $lhpp->quality_control_status = $validated['quality_control_status'];
             $lhpp->updated_by = $request->user()?->id;
             $lhpp->save();
@@ -114,6 +134,9 @@ class LhppController extends Controller
             return view('admin.lhpp.index', [
                 'search' => $search,
                 'lhpps' => $lhpps,
+                'approvalReassignmentUsers' => User::query()
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'email', 'role', 'nomor_hp']),
             ]);
         } catch (Throwable $exception) {
             Log::error('Failed to load admin BAST index page.', [
@@ -304,66 +327,13 @@ class LhppController extends Controller
     }
 
     /**
-     * @param array<int, string> $pdfOutputs
+     * @param  array<int, string>  $pdfOutputs
      */
     private function mergePdfOutputs(array $pdfOutputs): string
     {
-        $pdfOutputs = array_values(array_filter(
-            $pdfOutputs,
-            static fn ($pdfOutput): bool => is_string($pdfOutput) && trim($pdfOutput) !== ''
-        ));
-
-        if ($pdfOutputs === []) {
-            return '';
-        }
-
-        if (! class_exists(Fpdi::class)) {
-            Log::warning('FPDI package is unavailable. Returning the first PDF output without merge.', [
-                'controller' => static::class,
-                'pdf_count' => count($pdfOutputs),
-            ]);
-
-            return $pdfOutputs[0];
-        }
-
-        $fpdi = new Fpdi();
-        $temporaryFiles = [];
-
-        try {
-            foreach ($pdfOutputs as $pdfOutput) {
-                if (! is_string($pdfOutput) || trim($pdfOutput) === '') {
-                    continue;
-                }
-
-                $temporaryFile = tempnam(sys_get_temp_dir(), 'woms-pdf-');
-
-                if ($temporaryFile === false) {
-                    continue;
-                }
-
-                file_put_contents($temporaryFile, $pdfOutput);
-                $temporaryFiles[] = $temporaryFile;
-
-                $pageCount = $fpdi->setSourceFile($temporaryFile);
-
-                for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
-                    $templateId = $fpdi->importPage($pageNumber);
-                    $templateSize = $fpdi->getTemplateSize($templateId);
-                    $orientation = $templateSize['width'] > $templateSize['height'] ? 'L' : 'P';
-
-                    $fpdi->AddPage($orientation, [$templateSize['width'], $templateSize['height']]);
-                    $fpdi->useTemplate($templateId);
-                }
-            }
-
-            return $fpdi->Output('S');
-        } finally {
-            foreach ($temporaryFiles as $temporaryFile) {
-                if (is_string($temporaryFile) && is_file($temporaryFile)) {
-                    @unlink($temporaryFile);
-                }
-            }
-        }
+        return app(PdfMergeService::class)->merge($pdfOutputs, context: [
+            'controller' => static::class,
+        ]);
     }
 
     /**

@@ -13,8 +13,7 @@ class BastApproverResolver
 {
     public function __construct(
         private readonly HppApproverResolver $hppApproverResolver,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array{
@@ -93,7 +92,7 @@ class BastApproverResolver
                 'role_label' => $flowRoleLabel,
                 'user' => $vendorSection->manager,
                 'position' => $this->managerPosition($vendorSection->name),
-                'department' => 'PT. PKM',
+                'department' => VendorWorkType::FIXED_VENDOR_NAME,
                 'unit' => $vendorSection->vendorWorkType?->name,
                 'section' => $vendorSection->name,
             ];
@@ -115,7 +114,7 @@ class BastApproverResolver
             'role_label' => $flowRoleLabel,
             'user' => $vendorWorkType->manager,
             'position' => $this->managerPosition($vendorWorkType->name),
-            'department' => 'PT. PKM',
+            'department' => VendorWorkType::FIXED_VENDOR_NAME,
             'unit' => $vendorWorkType->name,
             'section' => null,
         ];

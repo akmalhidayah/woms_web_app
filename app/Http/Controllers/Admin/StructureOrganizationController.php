@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Department;
+use App\Models\HppApprovalSetting;
 use App\Models\UnitWork;
 use App\Models\UnitWorkSection;
 use App\Models\User;
@@ -49,7 +50,7 @@ class StructureOrganizationController extends Controller
             ->orderBy('name')
             ->get();
 
-        $hppApprovalSetting = \App\Models\HppApprovalSetting::query()
+        $hppApprovalSetting = HppApprovalSetting::query()
             ->with([
                 'plannerControl:id,name',
                 'counterPartUnit:id,name,senior_manager_id',
@@ -76,48 +77,28 @@ class StructureOrganizationController extends Controller
                 ->with('unitWork:id,name')
                 ->orderBy('name')
                 ->get(['id', 'unit_work_id', 'name', 'manager_id']),
-            'vendorWorkTypes' => VendorWorkType::query()
+            'vendorWorkType' => VendorWorkType::query()
                 ->with(['vendorSections.manager:id,name'])
-                ->orderBy('name')
-                ->get(),
+                ->where('name', VendorWorkType::FIXED_VENDOR_NAME)
+                ->firstOrFail(),
         ]);
     }
 
     public function storeVendorStructure(Request $request): RedirectResponse
     {
-        $validator = Validator::make($request->all(), [
-            'name' => ['required', 'string', 'max:255', 'unique:vendor_work_types,name'],
-            'sections' => ['required', 'array', 'min:1'],
-            'sections.*.name' => ['required', 'string', 'max:255'],
-            'sections.*.manager_id' => ['required', 'integer', 'exists:users,id'],
-        ]);
-
-        if ($validator->fails()) {
-            return redirect()
-                ->route('admin.structure.index')
-                ->withErrors($validator, 'vendorStructure')
-                ->withInput();
-        }
-
-        $validated = $validator->validated();
-
-        $vendorWorkType = VendorWorkType::create([
-            'name' => trim($validated['name']),
-        ]);
-
-        $this->syncVendorSections($vendorWorkType, $validated['sections']);
-
-        return redirect()
-            ->route('admin.structure.index')
-            ->with('success', 'Struktur vendor berhasil ditambahkan.');
+        abort(405, 'Vendor sudah ditetapkan sebagai '.VendorWorkType::FIXED_VENDOR_NAME.'. Kelola seksi melalui vendor tersebut.');
     }
 
     public function updateVendorStructure(Request $request, VendorWorkType $vendorWorkType): RedirectResponse
     {
+        abort_unless(
+            $vendorWorkType->name === VendorWorkType::FIXED_VENDOR_NAME,
+            404
+        );
+
         $validator = Validator::make($request->all(), [
-            'name' => ['required', 'string', 'max:255', Rule::unique('vendor_work_types', 'name')->ignore($vendorWorkType->id)],
             'sections' => ['required', 'array', 'min:1'],
-            'sections.*.name' => ['required', 'string', 'max:255'],
+            'sections.*.name' => ['required', 'string', 'max:255', 'distinct:ignore_case'],
             'sections.*.manager_id' => ['required', 'integer', 'exists:users,id'],
         ]);
 
@@ -130,24 +111,16 @@ class StructureOrganizationController extends Controller
 
         $validated = $validator->validated();
 
-        $vendorWorkType->update([
-            'name' => trim($validated['name']),
-        ]);
-
         $this->syncVendorSections($vendorWorkType, $validated['sections']);
 
         return redirect()
             ->route('admin.structure.index')
-            ->with('success', 'Struktur vendor berhasil diperbarui.');
+            ->with('success', 'Seksi vendor '.VendorWorkType::FIXED_VENDOR_NAME.' berhasil diperbarui.');
     }
 
     public function destroyVendorStructure(VendorWorkType $vendorWorkType): RedirectResponse
     {
-        $vendorWorkType->delete();
-
-        return redirect()
-            ->route('admin.structure.index')
-            ->with('success', 'Struktur vendor berhasil dihapus.');
+        abort(405, 'Vendor '.VendorWorkType::FIXED_VENDOR_NAME.' bersifat tetap dan tidak dapat dihapus.');
     }
 
     /**
@@ -324,7 +297,7 @@ class StructureOrganizationController extends Controller
     }
 
     /**
-     * @param list<array{name: string, manager_id: int|string}> $sections
+     * @param  list<array{name: string, manager_id: int|string}>  $sections
      */
     private function syncVendorSections(VendorWorkType $vendorWorkType, array $sections): void
     {

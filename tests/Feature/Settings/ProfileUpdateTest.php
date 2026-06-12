@@ -4,6 +4,7 @@ namespace Tests\Feature\Settings;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Livewire\Volt\Volt;
 use Tests\TestCase;
 
@@ -15,7 +16,11 @@ class ProfileUpdateTest extends TestCase
     {
         $this->actingAs($user = User::factory()->create());
 
-        $this->get('/settings/profile')->assertOk();
+        $this->get('/settings/profile')
+            ->assertOk()
+            ->assertSee('Informasi Profil')
+            ->assertSee('Update Password')
+            ->assertDontSee('href="'.route('settings.password').'"', false);
     }
 
     public function test_profile_information_can_be_updated(): void
@@ -52,6 +57,43 @@ class ProfileUpdateTest extends TestCase
         $response->assertHasNoErrors();
 
         $this->assertNotNull($user->refresh()->email_verified_at);
+    }
+
+    public function test_password_can_be_updated_from_profile_page(): void
+    {
+        $user = User::factory()->create([
+            'password' => Hash::make('password'),
+        ]);
+
+        $this->actingAs($user);
+
+        $response = Volt::test('settings.profile')
+            ->set('current_password', 'password')
+            ->set('password', 'new-password')
+            ->set('password_confirmation', 'new-password')
+            ->call('updatePassword');
+
+        $response->assertHasNoErrors();
+
+        $this->assertTrue(Hash::check('new-password', $user->refresh()->password));
+    }
+
+    public function test_correct_password_must_be_provided_to_update_password_from_profile_page(): void
+    {
+        $user = User::factory()->create([
+            'password' => Hash::make('password'),
+        ]);
+
+        $this->actingAs($user);
+
+        $response = Volt::test('settings.profile')
+            ->set('current_password', 'wrong-password')
+            ->set('password', 'new-password')
+            ->set('password_confirmation', 'new-password')
+            ->call('updatePassword');
+
+        $response->assertHasErrors(['current_password']);
+        $this->assertTrue(Hash::check('password', $user->refresh()->password));
     }
 
     public function test_user_can_delete_their_account(): void

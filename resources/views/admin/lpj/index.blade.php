@@ -50,11 +50,11 @@
                 <table class="w-full table-fixed border-collapse text-[10px] text-slate-700">
                     <colgroup>
                         <col class="w-[14%]">
-                        <col class="w-[20%]">
-                        <col class="w-[18%]">
-                        <col class="w-[12%]">
-                        <col class="w-[12%]">
+                        <col class="w-[19%]">
                         <col class="w-[17%]">
+                        <col class="w-[17%]">
+                        <col class="w-[11%]">
+                        <col class="w-[15%]">
                         <col class="w-[7%]">
                     </colgroup>
                     <thead class="border-b border-slate-200 bg-slate-50 text-slate-600 uppercase tracking-wide">
@@ -91,6 +91,13 @@
                                     || filled($lpj?->ppl_document_path_termin2))
                                         ? '2'
                                         : '1';
+                                $documentName = fn (?string $path): string => $path ? basename(str_replace('\\', '/', $path)) : '';
+                                $lpjPathTermin1 = $lpj?->lpj_document_path_termin1;
+                                $pplPathTermin1 = $lpj?->ppl_document_path_termin1;
+                                $lpjPathTermin2 = $lpj?->lpj_document_path_termin2;
+                                $pplPathTermin2 = $lpj?->ppl_document_path_termin2;
+                                $initialLpjPath = $initialTermin === '2' ? $lpjPathTermin2 : $lpjPathTermin1;
+                                $initialPplPath = $initialTermin === '2' ? $pplPathTermin2 : $pplPathTermin1;
                             @endphp
 
                             <tr id="lpj-row-{{ $row->id }}"
@@ -104,6 +111,10 @@
                                 data-ppl-url-t1="{{ e($lpj?->ppl_document_path_termin1 ? Storage::url($lpj->ppl_document_path_termin1) : '') }}"
                                 data-lpj-url-t2="{{ e($lpj?->lpj_document_path_termin2 ? Storage::url($lpj->lpj_document_path_termin2) : '') }}"
                                 data-ppl-url-t2="{{ e($lpj?->ppl_document_path_termin2 ? Storage::url($lpj->ppl_document_path_termin2) : '') }}"
+                                data-lpj-name-t1="{{ e($documentName($lpjPathTermin1)) }}"
+                                data-ppl-name-t1="{{ e($documentName($pplPathTermin1)) }}"
+                                data-lpj-name-t2="{{ e($documentName($lpjPathTermin2)) }}"
+                                data-ppl-name-t2="{{ e($documentName($pplPathTermin2)) }}"
                                 data-without-warranty="{{ $isWithoutWarranty ? '1' : '0' }}">
                                 <td class="px-3 py-3 align-top">
                                     <div class="space-y-1">
@@ -151,39 +162,45 @@
                                 </td>
 
                                 <td class="px-3 py-3 align-top">
-                                    <div class="flex items-start gap-1.5">
-                                        <div class="min-w-0 flex-1 text-center">
-                                            <div class="mb-1 text-[8px] font-bold text-slate-500">LPJ</div>
-                                            <div id="lpj-document-{{ $row->id }}" class="relative mx-auto hidden w-fit">
-                                                <button type="button" title="Hapus PDF LPJ" aria-label="Hapus PDF LPJ" class="absolute -right-2 -top-2 z-10 inline-flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-white shadow-sm hover:bg-rose-700" onclick="window.adminLpjRemoveDocument('{{ $row->id }}', 'lpj')">
-                                                    <i data-lucide="x" class="h-2.5 w-2.5"></i>
-                                                </button>
-                                                <a id="lpj-link-{{ $row->id }}" href="#" target="_blank" rel="noopener" title="Lihat PDF LPJ" aria-label="Lihat PDF LPJ" class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100">
-                                                    <i data-lucide="file-text" class="h-3.5 w-3.5"></i>
-                                                </a>
+                                    <div class="grid gap-1.5">
+                                        <div class="min-w-0">
+                                            <div id="lpj-document-{{ $row->id }}" class="{{ $initialLpjPath ? '' : 'hidden' }} h-8 rounded-md border border-rose-200 bg-rose-50 px-1.5 text-left">
+                                                <div class="flex h-full min-w-0 items-center gap-1.5">
+                                                    <span id="lpj-document-label-{{ $row->id }}" class="shrink-0 text-[8px] font-black uppercase tracking-[0.08em] text-rose-700">LPJ T{{ $initialTermin }}</span>
+                                                    <a id="lpj-link-{{ $row->id }}" href="{{ $initialLpjPath ? Storage::url($initialLpjPath) : '#' }}" target="_blank" rel="noopener" title="Lihat PDF LPJ" aria-label="Lihat PDF LPJ" class="{{ $initialLpjPath ? '' : 'hidden' }} inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-white text-rose-600 ring-1 ring-rose-200 hover:bg-rose-100">
+                                                        <i data-lucide="file-text" class="h-3 w-3"></i>
+                                                    </a>
+                                                    <span id="lpj-file-name-{{ $row->id }}" class="min-w-0 truncate text-[8px] font-semibold text-slate-700">{{ $documentName($initialLpjPath) }}</span>
+                                                    <button type="button" title="Hapus PDF LPJ" aria-label="Hapus PDF LPJ" class="ml-auto inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-rose-600 text-white shadow-sm hover:bg-rose-700" onclick="window.adminLpjRemoveDocument('{{ $row->id }}', 'lpj')">
+                                                        <i data-lucide="x" class="h-2.5 w-2.5"></i>
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <label id="lpj-upload-{{ $row->id }}" title="Upload PDF LPJ" aria-label="Upload PDF LPJ" class="mx-auto inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md bg-emerald-600 text-white transition hover:bg-emerald-700">
-                                                    <i data-lucide="upload" class="h-3.5 w-3.5"></i>
+                                            <label id="lpj-upload-{{ $row->id }}" title="Upload PDF LPJ" aria-label="Upload PDF LPJ" style="display: {{ $initialLpjPath ? 'none' : 'flex' }}; height: 2rem; width: 7.5rem; align-items: center; justify-content: center; gap: 0.375rem; border-radius: 0.5rem;" class="cursor-pointer bg-emerald-600 px-2 text-[9px] font-semibold text-white shadow-sm transition hover:bg-emerald-700">
+                                                <i data-lucide="upload" class="h-3.5 w-3.5"></i>
+                                                Upload LPJ
                                                 <input id="lpj-input-{{ $row->id }}" type="file" name="lpj_document" form="lpj-form-{{ $row->id }}" accept=".pdf,application/pdf" class="hidden" onchange="window.adminLpjSetFileName('{{ $row->id }}', 'lpj', this)">
                                             </label>
-                                            <div id="lpj-file-name-{{ $row->id }}" class="mt-1 truncate text-[8px] text-slate-500"></div>
                                         </div>
 
-                                        <div class="min-w-0 flex-1 text-center">
-                                            <div class="mb-1 text-[8px] font-bold text-slate-500">PPL</div>
-                                            <div id="ppl-document-{{ $row->id }}" class="relative mx-auto hidden w-fit">
-                                                <button type="button" title="Hapus PDF PPL" aria-label="Hapus PDF PPL" class="absolute -right-2 -top-2 z-10 inline-flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-white shadow-sm hover:bg-rose-700" onclick="window.adminLpjRemoveDocument('{{ $row->id }}', 'ppl')">
-                                                    <i data-lucide="x" class="h-2.5 w-2.5"></i>
-                                                </button>
-                                                <a id="ppl-link-{{ $row->id }}" href="#" target="_blank" rel="noopener" title="Lihat PDF PPL" aria-label="Lihat PDF PPL" class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100">
-                                                    <i data-lucide="file-text" class="h-3.5 w-3.5"></i>
-                                                </a>
+                                        <div class="min-w-0">
+                                            <div id="ppl-document-{{ $row->id }}" class="{{ $initialPplPath ? '' : 'hidden' }} h-8 rounded-md border border-indigo-200 bg-indigo-50 px-1.5 text-left">
+                                                <div class="flex h-full min-w-0 items-center gap-1.5">
+                                                    <span id="ppl-document-label-{{ $row->id }}" class="shrink-0 text-[8px] font-black uppercase tracking-[0.08em] text-indigo-700">PPL T{{ $initialTermin }}</span>
+                                                    <a id="ppl-link-{{ $row->id }}" href="{{ $initialPplPath ? Storage::url($initialPplPath) : '#' }}" target="_blank" rel="noopener" title="Lihat PDF PPL" aria-label="Lihat PDF PPL" class="{{ $initialPplPath ? '' : 'hidden' }} inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-white text-indigo-600 ring-1 ring-indigo-200 hover:bg-indigo-100">
+                                                        <i data-lucide="file-text" class="h-3 w-3"></i>
+                                                    </a>
+                                                    <span id="ppl-file-name-{{ $row->id }}" class="min-w-0 truncate text-[8px] font-semibold text-slate-700">{{ $documentName($initialPplPath) }}</span>
+                                                    <button type="button" title="Hapus PDF PPL" aria-label="Hapus PDF PPL" class="ml-auto inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-rose-600 text-white shadow-sm hover:bg-rose-700" onclick="window.adminLpjRemoveDocument('{{ $row->id }}', 'ppl')">
+                                                        <i data-lucide="x" class="h-2.5 w-2.5"></i>
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <label id="ppl-upload-{{ $row->id }}" title="Upload PDF PPL" aria-label="Upload PDF PPL" class="mx-auto inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md bg-emerald-600 text-white transition hover:bg-emerald-700">
+                                            <label id="ppl-upload-{{ $row->id }}" title="Upload PDF PPL" aria-label="Upload PDF PPL" style="display: {{ $initialPplPath ? 'none' : 'flex' }}; height: 2rem; width: 7.5rem; align-items: center; justify-content: center; gap: 0.375rem; border-radius: 0.5rem;" class="cursor-pointer bg-emerald-600 px-2 text-[9px] font-semibold text-white shadow-sm transition hover:bg-emerald-700">
                                                 <i data-lucide="upload" class="h-3.5 w-3.5"></i>
+                                                Upload PPL
                                                 <input id="ppl-input-{{ $row->id }}" type="file" name="ppl_document" form="lpj-form-{{ $row->id }}" accept=".pdf,application/pdf" class="hidden" onchange="window.adminLpjSetFileName('{{ $row->id }}', 'ppl', this)">
                                             </label>
-                                            <div id="ppl-file-name-{{ $row->id }}" class="mt-1 truncate text-[8px] text-slate-500"></div>
                                         </div>
                                     </div>
                                 </td>
@@ -269,8 +286,9 @@
             const documentBox = document.getElementById(`${type}-document-${rowId}`);
             const uploadButton = document.getElementById(`${type}-upload-${rowId}`);
             const link = document.getElementById(`${type}-link-${rowId}`);
+            const label = document.getElementById(`${type}-document-label-${rowId}`);
 
-            if (!target || !documentBox || !uploadButton || !link) {
+            if (!target || !documentBox || !uploadButton || !link || !label) {
                 return;
             }
 
@@ -279,9 +297,10 @@
 
             if (selectedFile) {
                 link.removeAttribute('href');
-                link.classList.add('pointer-events-none');
+                link.classList.add('hidden', 'pointer-events-none');
+                label.textContent = `${type.toUpperCase()} siap upload`;
                 documentBox.classList.remove('hidden');
-                uploadButton.classList.add('hidden');
+                uploadButton.style.display = 'none';
             }
         };
 
@@ -293,8 +312,9 @@
             const fileName = document.getElementById(`${type}-file-name-${rowId}`);
             const documentBox = document.getElementById(`${type}-document-${rowId}`);
             const uploadButton = document.getElementById(`${type}-upload-${rowId}`);
+            const link = document.getElementById(`${type}-link-${rowId}`);
 
-            if (!row || !terminSelect || !removeInput || !fileInput || !fileName || !documentBox || !uploadButton) {
+            if (!row || !terminSelect || !removeInput || !fileInput || !fileName || !documentBox || !uploadButton || !link) {
                 return;
             }
 
@@ -304,8 +324,10 @@
             removeInput.value = existingUrl ? '1' : '0';
             fileInput.value = '';
             fileName.textContent = '';
+            link.removeAttribute('href');
+            link.classList.add('hidden', 'pointer-events-none');
             documentBox.classList.add('hidden');
-            uploadButton.classList.remove('hidden');
+            uploadButton.style.display = 'flex';
         };
 
         window.adminLpjApplyTermin = function (rowId, termin) {
@@ -322,6 +344,8 @@
             const pplDocument = document.getElementById(`ppl-document-${rowId}`);
             const lpjUpload = document.getElementById(`lpj-upload-${rowId}`);
             const pplUpload = document.getElementById(`ppl-upload-${rowId}`);
+            const lpjDocumentLabel = document.getElementById(`lpj-document-label-${rowId}`);
+            const pplDocumentLabel = document.getElementById(`ppl-document-label-${rowId}`);
             const lpjInput = document.getElementById(`lpj-input-${rowId}`);
             const pplInput = document.getElementById(`ppl-input-${rowId}`);
             const removeLpjInput = document.getElementById(`remove-lpj-document-${rowId}`);
@@ -334,6 +358,8 @@
             const pplNumberValue = row.dataset[`pplNumber${suffix.charAt(0).toUpperCase()}${suffix.slice(1)}`] || '';
             const lpjUrl = row.dataset[`lpjUrl${suffix.charAt(0).toUpperCase()}${suffix.slice(1)}`] || '';
             const pplUrl = row.dataset[`pplUrl${suffix.charAt(0).toUpperCase()}${suffix.slice(1)}`] || '';
+            const lpjName = row.dataset[`lpjName${suffix.charAt(0).toUpperCase()}${suffix.slice(1)}`] || '';
+            const pplName = row.dataset[`pplName${suffix.charAt(0).toUpperCase()}${suffix.slice(1)}`] || '';
 
             if (lpjNumber) {
                 lpjNumber.value = lpjNumberValue;
@@ -344,11 +370,11 @@
             }
 
             if (lpjFileName) {
-                lpjFileName.textContent = '';
+                lpjFileName.textContent = lpjName;
             }
 
             if (pplFileName) {
-                pplFileName.textContent = '';
+                pplFileName.textContent = pplName;
             }
 
             if (lpjInput) {
@@ -372,13 +398,17 @@
                     lpjLink.href = lpjUrl;
                     lpjLink.title = `Lihat PDF LPJ T${termin}`;
                     lpjLink.setAttribute('aria-label', `Lihat PDF LPJ T${termin}`);
-                    lpjLink.classList.remove('pointer-events-none');
+                    lpjLink.classList.remove('hidden', 'pointer-events-none');
+                    if (lpjDocumentLabel) {
+                        lpjDocumentLabel.textContent = `LPJ T${termin}`;
+                    }
                     lpjDocument.classList.remove('hidden');
-                    lpjUpload.classList.add('hidden');
+                    lpjUpload.style.display = 'none';
                 } else {
                     lpjLink.removeAttribute('href');
+                    lpjLink.classList.add('hidden', 'pointer-events-none');
                     lpjDocument.classList.add('hidden');
-                    lpjUpload.classList.remove('hidden');
+                    lpjUpload.style.display = 'flex';
                 }
             }
 
@@ -387,13 +417,17 @@
                     pplLink.href = pplUrl;
                     pplLink.title = `Lihat PDF PPL T${termin}`;
                     pplLink.setAttribute('aria-label', `Lihat PDF PPL T${termin}`);
-                    pplLink.classList.remove('pointer-events-none');
+                    pplLink.classList.remove('hidden', 'pointer-events-none');
+                    if (pplDocumentLabel) {
+                        pplDocumentLabel.textContent = `PPL T${termin}`;
+                    }
                     pplDocument.classList.remove('hidden');
-                    pplUpload.classList.add('hidden');
+                    pplUpload.style.display = 'none';
                 } else {
                     pplLink.removeAttribute('href');
+                    pplLink.classList.add('hidden', 'pointer-events-none');
                     pplDocument.classList.add('hidden');
-                    pplUpload.classList.remove('hidden');
+                    pplUpload.style.display = 'flex';
                 }
             }
         };

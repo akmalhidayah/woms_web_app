@@ -7,9 +7,9 @@ use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Pkm\UpdateJobWaitingRequest;
 use App\Models\Hpp;
-use App\Models\InitialWork;
 use App\Models\Order;
 use App\Services\Orders\OrderDocumentService;
+use App\Support\PdfMergeService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -17,19 +17,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
-use setasign\Fpdi\Fpdi;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
-use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
-use Symfony\Component\Process\Process;
 use Throwable;
 
 class JobWaitingController extends Controller
 {
     public function __construct(
         private readonly OrderDocumentService $documentService,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): View
     {
@@ -113,6 +109,7 @@ class JobWaitingController extends Controller
 
                     if (is_array($mappedPriorities)) {
                         $query->whereIn('prioritas', $mappedPriorities);
+
                         return;
                     }
 
@@ -128,20 +125,20 @@ class JobWaitingController extends Controller
                             ->orWhere('seksi', 'like', "%{$search}%");
                     });
                 })
-                ->orderByRaw("
+                ->orderByRaw('
                     CASE
                         WHEN prioritas IN (?, ?) THEN 1
                         WHEN prioritas = ? THEN 2
                         WHEN prioritas = ? THEN 3
                         ELSE 4
                     END ASC
-                ", [
+                ', [
                     Order::PRIORITY_URGENT,
                     Order::PRIORITY_HIGH,
                     Order::PRIORITY_MEDIUM,
                     Order::PRIORITY_LOW,
                 ])
-                ->orderByRaw("
+                ->orderByRaw('
                     COALESCE(
                         (
                             SELECT purchase_orders.updated_at
@@ -173,7 +170,7 @@ class JobWaitingController extends Controller
                         ),
                         orders.created_at
                     ) ASC
-                ")
+                ')
                 ->orderBy('id')
                 ->paginate(8)
                 ->withQueryString();
@@ -311,23 +308,20 @@ class JobWaitingController extends Controller
             ]);
 
             $abnormalitas = $this->findDocument($hpp->order, OrderDocumentType::Abnormalitas);
+            $pdfOutputs = [$this->hppPdfOutput($hpp)];
 
-            abort_unless($abnormalitas, Response::HTTP_NOT_FOUND, 'Dokumen Abnormalitas belum tersedia.');
+            if ($abnormalitas) {
+                $abnormalitasPath = $this->documentService->absolutePath($abnormalitas);
+                $abnormalitasMime = (string) $this->documentService->mimeType($abnormalitas);
 
-            $abnormalitasPath = $this->documentService->absolutePath($abnormalitas);
-            $abnormalitasMime = (string) $this->documentService->mimeType($abnormalitas);
-
-            abort_unless($abnormalitasPath && is_file($abnormalitasPath), Response::HTTP_NOT_FOUND, 'File Abnormalitas tidak ditemukan di storage.');
-            abort_unless(
-                $this->isPdfPath($abnormalitasPath, $abnormalitasMime),
-                Response::HTTP_UNPROCESSABLE_ENTITY,
-                'Dokumen Abnormalitas harus PDF agar bisa digabung dengan HPP.'
-            );
-
-            $pdfOutputs = [
-                $this->hppPdfOutput($hpp),
-                file_get_contents($abnormalitasPath) ?: '',
-            ];
+                if (
+                    $abnormalitasPath
+                    && is_file($abnormalitasPath)
+                    && $this->isPdfPath($abnormalitasPath, $abnormalitasMime)
+                ) {
+                    $pdfOutputs[] = file_get_contents($abnormalitasPath) ?: '';
+                }
+            }
 
             $poPath = $hpp->purchaseOrder?->po_document_path;
 
@@ -344,7 +338,7 @@ class JobWaitingController extends Controller
 
             abort_if($mergedPdf === '', Response::HTTP_INTERNAL_SERVER_ERROR, 'PDF gabungan tidak berhasil dibuat.');
 
-            return response($mergedPdf, Response::HTTP_OK, $this->pdfInlineHeaders('hpp-abnormalitas-po-'.$hpp->nomor_order.'.pdf'));
+            return response($mergedPdf, Response::HTTP_OK, $this->pdfInlineHeaders('dokumen-pekerjaan-'.$hpp->nomor_order.'.pdf'));
         } catch (Throwable $exception) {
             $statusCode = $this->statusCodeFromThrowable($exception);
 
@@ -398,7 +392,8 @@ class JobWaitingController extends Controller
             'seksi' => $order->seksi,
             'unit' => $order->unit_kerja,
             'progress' => (int) ($jobSource?->progress_pekerjaan ?? 0),
-            'target_penyelesaian' => $jobSource?->target_penyelesaian?->format('Y-m-d')
+            'target_penyelesaian' => $latestPurchaseOrder?->target_penyelesaian?->format('Y-m-d')
+                ?: $jobSource?->target_penyelesaian?->format('Y-m-d')
                 ?: $order->target_selesai?->format('Y-m-d'),
             'approval_target' => $latestPurchaseOrder?->approval_target,
             'target_penyelesaian_locked' => $canUpdateByPurchaseOrder
@@ -410,11 +405,11 @@ class JobWaitingController extends Controller
             'is_initial_work_flow' => $isEmergencyInitialWorkFlow,
             'documents' => [
                 [
-                    'label' => 'HPP + Abnormalitas + PO',
+                    'label' => 'HPP + Dokumen Tersedia',
                     'icon' => 'file-stack',
                     'tone' => 'orange',
-                    'ready' => (bool) ($latestHpp && $abnormalDocument),
-                    'url' => ($latestHpp && $abnormalDocument)
+                    'ready' => (bool) $latestHpp,
+                    'url' => $latestHpp
                         ? route('pkm.jobwaiting.hpp.merged-document', ['hpp' => $latestHpp->nomor_order])
                         : null,
                 ],
@@ -510,108 +505,9 @@ class JobWaitingController extends Controller
      */
     private function mergePdfOutputs(array $pdfOutputs): string
     {
-        $pdfOutputs = array_values(array_filter(
-            $pdfOutputs,
-            static fn ($pdfOutput): bool => is_string($pdfOutput) && trim($pdfOutput) !== ''
-        ));
-
-        if ($pdfOutputs === []) {
-            return '';
-        }
-
-        $temporaryFiles = [];
-        $mergedFile = null;
-
-        try {
-            foreach ($pdfOutputs as $pdfOutput) {
-                $temporaryFile = tempnam(sys_get_temp_dir(), 'woms-pkm-pdf-');
-
-                if ($temporaryFile === false) {
-                    continue;
-                }
-
-                file_put_contents($temporaryFile, $pdfOutput);
-                $temporaryFiles[] = $temporaryFile;
-            }
-
-            $mergedFile = tempnam(sys_get_temp_dir(), 'woms-pkm-merged-');
-
-            if ($mergedFile !== false) {
-                $externalMerge = $this->mergePdfFilesWithSystemTool($temporaryFiles, $mergedFile);
-
-                if ($externalMerge !== null) {
-                    return $externalMerge;
-                }
-            }
-
-            if (count($temporaryFiles) === 1) {
-                return file_get_contents($temporaryFiles[0]) ?: '';
-            }
-
-            $pdf = new Fpdi();
-
-            foreach ($temporaryFiles as $temporaryFile) {
-                $pageCount = $pdf->setSourceFile($temporaryFile);
-
-                for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
-                    $templateId = $pdf->importPage($pageNumber);
-                    $size = $pdf->getTemplateSize($templateId);
-                    $orientation = ($size['width'] ?? 0) > ($size['height'] ?? 0) ? 'L' : 'P';
-
-                    $pdf->AddPage($orientation, [$size['width'], $size['height']]);
-                    $pdf->useTemplate($templateId);
-                }
-            }
-
-            return $pdf->Output('S');
-        } catch (Throwable $exception) {
-            if ($exception instanceof UnprocessableEntityHttpException) {
-                throw $exception;
-            }
-
-            throw new UnprocessableEntityHttpException(
-                'PDF tidak bisa digabung dengan parser bawaan. Pastikan server memiliki qpdf, pdfunite, atau ghostscript (gs), atau upload Abnormalitas sebagai PDF standar.',
-                $exception
-            );
-        } finally {
-            foreach ($temporaryFiles as $temporaryFile) {
-                if (is_file($temporaryFile)) {
-                    @unlink($temporaryFile);
-                }
-            }
-
-            if (is_string($mergedFile) && is_file($mergedFile)) {
-                @unlink($mergedFile);
-            }
-        }
-    }
-
-    private function mergePdfFilesWithSystemTool(array $inputFiles, string $outputFile): ?string
-    {
-        $commands = [
-            array_merge(['qpdf', '--empty', '--pages'], $inputFiles, ['--', $outputFile]),
-            array_merge(['pdfunite'], $inputFiles, [$outputFile]),
-            array_merge(['gs', '-dBATCH', '-dNOPAUSE', '-q', '-sDEVICE=pdfwrite', '-sOutputFile='.$outputFile], $inputFiles),
-            array_merge(['gswin64c', '-dBATCH', '-dNOPAUSE', '-q', '-sDEVICE=pdfwrite', '-sOutputFile='.$outputFile], $inputFiles),
-        ];
-
-        foreach ($commands as $command) {
-            try {
-                $process = new Process($command, null, null, null, 30);
-                $process->run();
-
-                if ($process->isSuccessful() && is_file($outputFile) && filesize($outputFile) > 0) {
-                    return file_get_contents($outputFile) ?: null;
-                }
-            } catch (Throwable $exception) {
-                Log::debug('PKM PDF merge system tool failed.', [
-                    'tool' => $command[0] ?? 'unknown',
-                    'error' => $exception->getMessage(),
-                ]);
-            }
-        }
-
-        return null;
+        return app(PdfMergeService::class)->merge($pdfOutputs, context: [
+            'controller' => static::class,
+        ]);
     }
 
     private function isPdfPath(string $path, ?string $mimeType): bool

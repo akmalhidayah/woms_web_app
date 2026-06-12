@@ -4,22 +4,29 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Notifications\ResetPasswordNotification;
+use App\Support\AdminMenuRegistry;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 
 class User extends Authenticatable // implements MustVerifyEmail
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
     public const ROLE_ADMIN = 'admin';
+
     public const ROLE_USER = 'user';
+
     public const ROLE_PKM = 'pkm';
+
     public const ROLE_APPROVER = 'approver';
+
     public const ADMIN_ROLE_SUPER_ADMIN = 'super_admin';
+
     public const ADMIN_ROLE_ADMIN = 'admin';
 
     /**
@@ -217,10 +224,13 @@ class User extends Authenticatable // implements MustVerifyEmail
             return true;
         }
 
-        if ($this->relationLoaded('adminMenuAccesses')) {
-            return $this->adminMenuAccesses->contains('menu_key', $menuKey);
+        if ($menuKey === AdminMenuRegistry::MENU_DASHBOARD) {
+            return true;
         }
 
-        return $this->adminMenuAccesses()->where('menu_key', $menuKey)->exists();
+        return AdminRoleMenuAccess::query()
+            ->where('admin_role', self::ADMIN_ROLE_ADMIN)
+            ->where('menu_key', $menuKey)
+            ->exists();
     }
 }

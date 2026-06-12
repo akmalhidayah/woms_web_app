@@ -54,49 +54,26 @@
                     </div>
                 </div>
 
-                <button
-                    type="button"
-                    @click="openCreate()"
-                    class="inline-flex min-w-[150px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                >
-                    <i data-lucide="plus" class="h-4 w-4"></i>
-                    <span>Tambah Unit</span>
-                </button>
+                <div class="flex flex-wrap items-center gap-2 lg:justify-end">
+                    <button type="button" @click="openHppApprovalModal()" class="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700">
+                        <i data-lucide="settings-2" class="h-4 w-4"></i>
+                        Edit Master HPP
+                    </button>
+                    <button type="button" @click="openVendorEditModal('vendor-{{ $vendorWorkType->id }}')" class="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-[#ca642f] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#b85b2b]">
+                        <i data-lucide="list-plus" class="h-4 w-4"></i>
+                        Kelola Seksi {{ $vendorWorkType->name }}
+                    </button>
+                    <button
+                        type="button"
+                        @click="openCreate()"
+                        class="inline-flex min-w-[150px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    >
+                        <i data-lucide="plus" class="h-4 w-4"></i>
+                        <span>Tambah Unit</span>
+                    </button>
+                </div>
             </div>
         </section>
-        <section class="rounded-[1.35rem] border border-violet-100 bg-white p-4 shadow-sm">
-    <div class="flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-            <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-600">Master Approval Khusus HPP</div>
-            <h2 class="mt-1 text-[1.15rem] font-bold text-slate-900">Planner Control, Counter Part, dan DIROPS</h2>
-            <p class="mt-1 text-sm text-slate-500">
-                Digunakan untuk melengkapi role approval HPP yang tidak berasal langsung dari hirarki Departemen / Unit / Seksi.
-            </p>
-        </div>
-        <button type="button" @click="openHppApprovalModal()" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700">
-            <i data-lucide="settings-2" class="h-4 w-4"></i>
-            Edit Master HPP
-        </button>
-    </div>
-
-    <div class="mt-4 grid gap-2 md:grid-cols-4">
-        <div class="rounded-xl border border-violet-100 bg-violet-50 px-3 py-2.5">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-600">Planner Control</div>
-            <div class="mt-1 truncate text-xs font-bold text-slate-900">{{ $hppApprovalSetting->plannerControl?->name ?? 'Belum dipilih' }}</div>
-        </div>
-        <div class="rounded-xl border border-violet-100 bg-white px-3 py-2.5">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-600">DIROPS</div>
-            <div class="mt-1 truncate text-xs font-bold text-slate-900">{{ $hppApprovalSetting->dirops?->name ?? 'Belum dipilih' }}</div>
-        </div>
-        <div class="rounded-xl border border-violet-100 bg-white px-3 py-2.5">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-600">Manager Counter Part</div>
-            <div class="mt-1 truncate text-xs font-bold text-slate-900">{{ $hppApprovalSetting->counterPartSection?->manager?->name ?? 'Belum dipilih' }}</div>
-        </div>
-        <div class="rounded-xl border border-violet-100 bg-white px-3 py-2.5">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-600">SM Counter Part</div>
-            <div class="mt-1 truncate text-xs font-bold text-slate-900">{{ $hppApprovalSetting->counterPartUnit?->seniorManager?->name ?? 'Belum dipilih' }}</div>
-        </div>
-    </div>
 
     <div x-show="showHppApprovalModal" x-transition.opacity x-cloak class="fixed inset-0 z-40 bg-slate-950/55" @click="closeHppApprovalModal()"></div>
     <div x-show="showHppApprovalModal" x-transition.opacity x-cloak class="fixed inset-0 z-50 overflow-y-auto p-4">
@@ -197,184 +174,42 @@
             </form>
         </div>
     </div>
-</section>
-
-        <section class="rounded-[1.35rem] border border-orange-100 bg-white p-4 shadow-sm">
-            <div class="flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                    <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ca642f]">Struktur Organisasi Vendor</div>
-                    <h2 class="mt-1 text-[1.15rem] font-bold text-slate-900">Master Tipe Pekerjaan BAST</h2>
-                    <p class="mt-1 text-sm text-slate-500">Nama vendor/tipe pekerjaan di sini akan menjadi pilihan pada field Tipe Pekerjaan BAST.</p>
-                </div>
-                <button type="button" @click="openVendorCreateModal()" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[#ca642f] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#b85b2b]">
-                    <i data-lucide="plus" class="h-4 w-4"></i>
-                    Tambah Vendor
-                </button>
-            </div>
-
-            @if ($errors->vendorStructure->any())
-                <div class="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                    <div class="font-semibold">Data struktur vendor belum bisa disimpan.</div>
-                    <ul class="mt-2 list-disc space-y-1 pl-5">
-                        @foreach ($errors->vendorStructure->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
-
-            <div x-show="showVendorCreateModal" x-transition.opacity x-cloak class="fixed inset-0 z-40 bg-slate-950/55" @click="closeVendorCreateModal()"></div>
-            <div x-show="showVendorCreateModal" x-transition.opacity x-cloak class="fixed inset-0 z-50 overflow-y-auto p-4">
-                <div class="flex min-h-full items-start justify-center py-10">
-            <form
-                method="POST"
-                action="{{ route('admin.structure.vendor-structures.store') }}"
-                x-data="vendorStructureForm(@js(collect($errors->vendorStructure->any() ? old('sections', []) : [['name' => '', 'manager_id' => '']])->map(fn ($section, $index) => [
-                    'uid' => 'create-'.$index,
-                    'name' => (string) ($section['name'] ?? ''),
-                    'manager_id' => (string) ($section['manager_id'] ?? ''),
+            <div
+                x-show="showVendorEditModal === 'vendor-{{ $vendorWorkType->id }}'"
+                x-transition.opacity
+                x-cloak
+                x-data="vendorStructureForm(@js(collect($errors->vendorStructure->any() ? old('sections', []) : $vendorWorkType->vendorSections)->map(fn ($section, $index) => [
+                    'uid' => $errors->vendorStructure->any() ? 'old-'.$index : 'section-'.$section->id,
+                    'name' => (string) (is_array($section) ? ($section['name'] ?? '') : $section->name),
+                    'manager_id' => (string) (is_array($section) ? ($section['manager_id'] ?? '') : $section->manager_id),
                 ])->values()->all()))"
-                class="w-full max-w-3xl rounded-[1.35rem] border border-slate-200 bg-white p-5 shadow-2xl"
-                @click.stop
+                class="fixed inset-0 z-50 overflow-y-auto bg-slate-950/55 p-4"
+                @click.self="closeVendorEditModal()"
             >
-                @csrf
-                <div class="mb-4 flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
-                    <div>
-                        <h2 class="text-xl font-bold text-slate-900">Tambah Struktur Vendor</h2>
-                        <p class="mt-1 text-sm text-slate-500">Isi vendor dan daftar seksi vendor.</p>
-                    </div>
-                    <button type="button" @click="closeVendorCreateModal()" class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100">
-                        <i data-lucide="x" class="h-4 w-4"></i>
-                    </button>
-                </div>
-                <div class="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
-                    <div>
-                        <label class="mb-1 block text-[11px] font-semibold text-slate-700">Nama Vendor</label>
-                        <input name="name" type="text" value="{{ $errors->vendorStructure->any() ? old('name') : '' }}" placeholder="Contoh: PT. Prima Karya Manunggal" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 placeholder:text-slate-400 focus:border-[#ca642f] focus:outline-none" required>
-                    </div>
-                    <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#ca642f] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#b85b2b]">
-                        <i data-lucide="plus" class="h-3.5 w-3.5"></i>
-                        Simpan Vendor
-                    </button>
-                </div>
-
-                <div class="mt-3 rounded-xl border border-dashed border-orange-200 bg-white p-3">
-                    <div class="mb-2 flex items-center justify-between gap-3">
-                        <div>
-                            <div class="text-[11px] font-semibold text-slate-800">Daftar Seksi Vendor</div>
-                            <div class="text-[10px] text-slate-500">Nama seksi dibuat manual dan tidak mengambil data unit kerja.</div>
-                        </div>
-                        <button type="button" @click="addSection()" class="inline-flex items-center gap-1.5 rounded-lg bg-orange-50 px-3 py-2 text-[11px] font-semibold text-[#ca642f] ring-1 ring-orange-200 hover:bg-orange-100">
-                            <i data-lucide="plus" class="h-3.5 w-3.5"></i>
-                            Tambah Seksi
-                        </button>
-                    </div>
-
-                    <div class="space-y-2">
-                        <template x-for="(section, index) in sections" :key="section.uid">
-                            <div class="grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
-                                <div>
-                                    <label class="mb-1 block text-[10px] font-semibold text-slate-600">Nama Seksi</label>
-                                    <input type="text" :name="`sections[${index}][name]`" x-model="section.name" placeholder="Contoh: Fabrikasi Plate" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:border-[#ca642f] focus:outline-none" required>
-                                </div>
-                                <div>
-                                    <label class="mb-1 block text-[10px] font-semibold text-slate-600">Manager Seksi</label>
-                                    <select :name="`sections[${index}][manager_id]`" x-model="section.manager_id" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:border-[#ca642f] focus:outline-none" required>
-                                        <option value="">Pilih Manager</option>
-                                        @foreach ($users as $user)
-                                            <option value="{{ $user->id }}">{{ $user->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <button type="button" @click="removeSection(index)" class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-rose-50 text-rose-600 transition hover:bg-rose-100" title="Hapus Seksi">
-                                    <i data-lucide="trash-2" class="h-4 w-4"></i>
-                                </button>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-            </form>
-                </div>
-            </div>
-
-            <div class="mt-4 space-y-3">
-                @forelse ($vendorWorkTypes as $vendorWorkType)
-                    <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                            <div class="min-w-0">
-                                <div class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#ca642f]">Vendor / Tipe Pekerjaan</div>
-                                <div class="mt-1 truncate text-sm font-bold text-slate-900">{{ $vendorWorkType->name }}</div>
-                                <div class="mt-1 flex flex-wrap gap-1.5">
-                                    @forelse ($vendorWorkType->vendorSections as $section)
-                                        <span class="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-1 text-[10px] font-semibold text-orange-700 ring-1 ring-orange-100">
-                                            {{ $section->name }}
-                                        </span>
-                                    @empty
-                                        <span class="text-[11px] italic text-slate-400">Belum ada seksi vendor.</span>
-                                    @endforelse
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-2">
-                                <button type="button" @click="openVendorEditModal('vendor-{{ $vendorWorkType->id }}')" class="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">
-                                    <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
-                                    Edit
-                                </button>
-                                <form method="POST" action="{{ route('admin.structure.vendor-structures.destroy', $vendorWorkType) }}" class="delete-structure-form">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100" data-name="{{ $vendorWorkType->name }}">
-                                        <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
-                                        Hapus
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                    <div
-                        x-show="showVendorEditModal === 'vendor-{{ $vendorWorkType->id }}'"
-                        x-transition.opacity
-                        x-cloak
-                        x-data="vendorStructureForm(@js($vendorWorkType->vendorSections->map(fn ($section) => [
-                            'uid' => 'section-'.$section->id,
-                            'name' => $section->name,
-                            'manager_id' => (string) $section->manager_id,
-                        ])->values()->all()))"
-                        class="fixed inset-0 z-50 overflow-y-auto bg-slate-950/55 p-4"
-                        @click.self="closeVendorEditModal()"
-                    >
-                        <div class="mx-auto my-8 w-full max-w-3xl rounded-[1.35rem] border border-slate-200 bg-white p-5 shadow-2xl" @click.stop>
+                <div class="mx-auto my-8 w-full max-w-3xl rounded-[1.35rem] border border-slate-200 bg-white p-5 shadow-2xl" @click.stop>
                         <div class="mb-4 flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
                             <div>
-                                <h2 class="text-xl font-bold text-slate-900">Edit Struktur Vendor</h2>
-                                <p class="mt-1 text-sm text-slate-500">{{ $vendorWorkType->name }}</p>
+                                <h2 class="text-xl font-bold text-slate-900">Kelola Seksi Vendor</h2>
+                                <p class="mt-1 text-sm text-slate-500">{{ $vendorWorkType->name }} bersifat tetap. Tambahkan atau ubah seksi di bawahnya.</p>
                             </div>
                             <button type="button" @click="closeVendorEditModal()" class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100">
                                 <i data-lucide="x" class="h-4 w-4"></i>
                             </button>
                         </div>
-                        <div class="grid gap-3 xl:grid-cols-[1fr_auto] xl:items-end">
-                            <form id="vendor-work-type-{{ $vendorWorkType->id }}" method="POST" action="{{ route('admin.structure.vendor-structures.update', $vendorWorkType) }}" class="contents">
-                                @csrf
-                                @method('PUT')
-                                <div>
-                                    <label class="mb-1 block text-[11px] font-semibold text-slate-700">Nama Vendor</label>
-                                    <input name="name" type="text" value="{{ $vendorWorkType->name }}" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:border-[#ca642f] focus:outline-none" required>
-                                </div>
-                            </form>
-
-                            <div class="flex items-center gap-2">
-                                <button type="submit" form="vendor-work-type-{{ $vendorWorkType->id }}" class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition hover:bg-blue-100" title="Simpan Struktur Vendor">
-                                    <i data-lucide="save" class="h-4 w-4"></i>
-                                </button>
-                                <form method="POST" action="{{ route('admin.structure.vendor-structures.destroy', $vendorWorkType) }}" class="delete-structure-form">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-rose-50 text-rose-600 transition hover:bg-rose-100" data-name="{{ $vendorWorkType->name }}" title="Hapus Struktur Vendor">
-                                        <i data-lucide="trash-2" class="h-4 w-4"></i>
-                                    </button>
-                                </form>
+                        @if ($errors->vendorStructure->any())
+                            <div class="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                                <div class="font-semibold">Data struktur vendor belum bisa disimpan.</div>
+                                <ul class="mt-2 list-disc space-y-1 pl-5">
+                                    @foreach ($errors->vendorStructure->all() as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                </ul>
                             </div>
-                        </div>
+                        @endif
+                        <form id="vendor-work-type-{{ $vendorWorkType->id }}" method="POST" action="{{ route('admin.structure.vendor-structures.update', $vendorWorkType) }}">
+                            @csrf
+                            @method('PUT')
+                        </form>
 
                         <div class="mt-3 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3">
                             <div class="mb-2 flex items-center justify-between gap-3">
@@ -411,16 +246,18 @@
                                 </template>
                             </div>
                         </div>
-                        </div>
-                    </div>
-                @empty
-                    <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm italic text-slate-500">
-                        Belum ada struktur vendor. Jika kosong, dropdown BAST masih memakai pilihan bawaan lama.
-                    </div>
-                @endforelse
-            </div>
-        </section>
 
+                    <div class="mt-4 flex justify-end gap-2 border-t border-slate-200 pt-4">
+                        <button type="button" @click="closeVendorEditModal()" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200">
+                            Batal
+                        </button>
+                        <button type="submit" form="vendor-work-type-{{ $vendorWorkType->id }}" class="inline-flex items-center gap-2 rounded-lg bg-[#ca642f] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#b85b2b]">
+                            <i data-lucide="save" class="h-4 w-4"></i>
+                            Simpan Seksi
+                        </button>
+                    </div>
+                </div>
+            </div>
         <section class="rounded-[1.35rem] border border-slate-200 bg-white p-4 shadow-sm">
             <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div class="text-xs text-slate-500">Menampilkan {{ $structureDepartments->count() }} departemen.</div>
@@ -810,8 +647,7 @@
                 || $errors->has('counter_part_unit_work_id')
                 || $errors->has('counter_part_section_id')
             ),
-            showVendorCreateModal: @js($errors->vendorStructure->any()),
-            showVendorEditModal: '',
+            showVendorEditModal: @js($errors->vendorStructure->any() ? 'vendor-'.$vendorWorkType->id : ''),
             mode: initialState.mode || 'create',
             formAction: initialState.action || '{{ route('admin.structure.store') }}',
             sectionDraft: '',
@@ -911,12 +747,6 @@
             },
             closeHppApprovalModal() {
                 this.showHppApprovalModal = false;
-            },
-            openVendorCreateModal() {
-                this.showVendorCreateModal = true;
-            },
-            closeVendorCreateModal() {
-                this.showVendorCreateModal = false;
             },
             openVendorEditModal(id) {
                 this.showVendorEditModal = id || '';

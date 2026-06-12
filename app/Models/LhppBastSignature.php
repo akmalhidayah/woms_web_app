@@ -23,7 +23,13 @@ class LhppBastSignature extends Model
         'step_order',
         'role_key',
         'role_label',
+        'acting_as_label',
         'signer_user_id',
+        'delegated_from_user_id',
+        'delegated_from_name',
+        'delegated_by_user_id',
+        'delegated_at',
+        'delegation_reason',
         'signer_name_snapshot',
         'signer_position_snapshot',
         'signer_department_snapshot',
@@ -54,6 +60,9 @@ class LhppBastSignature extends Model
             'lhpp_bast_id' => 'integer',
             'step_order' => 'integer',
             'signer_user_id' => 'integer',
+            'delegated_from_user_id' => 'integer',
+            'delegated_by_user_id' => 'integer',
+            'delegated_at' => 'datetime',
             'token' => 'encrypted',
             'token_expires_at' => 'datetime',
             'opened_at' => 'datetime',
@@ -104,6 +113,16 @@ class LhppBastSignature extends Model
         }
 
         return $this->appUrl(route('approval.bast.show', $this->token, false));
+    }
+
+    public function displayRoleLabel(): string
+    {
+        return (string) ($this->acting_as_label ?: $this->role_label);
+    }
+
+    public function isDelegated(): bool
+    {
+        return filled($this->acting_as_label) || filled($this->delegated_from_user_id);
     }
 
     private function appUrl(string $path): string

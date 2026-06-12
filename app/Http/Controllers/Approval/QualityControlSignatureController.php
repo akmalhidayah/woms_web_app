@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Approval;
 use App\Http\Controllers\Admin\Orders\OrderWorkshopQualityControlController;
 use App\Http\Controllers\Controller;
 use App\Models\QualityControlSignature;
-use App\Models\User;
 use App\Services\QualityControl\QualityControlSignatureService;
 use App\Support\SignatureImageStorage;
 use Illuminate\Http\RedirectResponse;
@@ -20,8 +19,7 @@ class QualityControlSignatureController extends Controller
 {
     public function __construct(
         private readonly QualityControlSignatureService $signatureService,
-    ) {
-    }
+    ) {}
 
     public function show(Request $request, string $token): View
     {
@@ -154,8 +152,7 @@ class QualityControlSignatureController extends Controller
     {
         $authenticatedUserId = $request->user()?->id;
         $expectedSignerUserId = $signature->signer_user_id;
-        $authorized = $request->user()?->role === User::ROLE_APPROVER
-            && $expectedSignerUserId !== null
+        $authorized = $expectedSignerUserId !== null
             && (int) $authenticatedUserId === (int) $expectedSignerUserId;
 
         if (! $authorized) {
@@ -177,5 +174,4 @@ class QualityControlSignatureController extends Controller
             'Link approval QC ini hanya untuk penanda tangan yang ditetapkan.'
         );
     }
-
 }

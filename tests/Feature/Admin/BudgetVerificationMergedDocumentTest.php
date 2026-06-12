@@ -51,6 +51,28 @@ class BudgetVerificationMergedDocumentTest extends TestCase
             ->assertHeader('content-disposition', 'inline; filename="hpp-abnormalitas-'.$hpp->nomor_order.'.pdf"');
     }
 
+    public function test_incompatible_abnormalitas_falls_back_to_hpp_pdf(): void
+    {
+        Storage::fake('local');
+
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+        $hpp = $this->createHppWithAbnormalitas($admin);
+        $document = OrderDocument::query()
+            ->where('order_id', $hpp->order_id)
+            ->where('jenis_dokumen', OrderDocumentType::Abnormalitas->value)
+            ->firstOrFail();
+
+        Storage::disk('local')->put($document->path_file, "%PDF-1.7\nfile abnormalitas rusak");
+
+        $this->actingAs($admin)
+            ->get(route('admin.budget-verification.merged-document', ['hpp' => $hpp->nomor_order]))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
+
     private function createHppWithAbnormalitas(User $admin): Hpp
     {
         $order = Order::query()->create([
@@ -100,7 +122,7 @@ class BudgetVerificationMergedDocumentTest extends TestCase
 
     private function pdfOutput(string $text): string
     {
-        $pdf = new \FPDF();
+        $pdf = new \FPDF;
         $pdf->AddPage();
         $pdf->SetFont('Arial', '', 12);
         $pdf->Cell(0, 10, $text);

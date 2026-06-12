@@ -147,6 +147,7 @@
 
                                     $activeSignature = $row->activeSignature ?: $row->signatures->first(fn (\App\Models\LhppBastSignature $signature): bool => $signature->isPending());
                                     $activeApprovalLink = $activeSignature?->approvalUrl();
+                                    $activeApprovalWhatsappUrl = $activeApprovalLink ? \App\Support\ApprovalWhatsappLink::forBast($activeSignature) : null;
                                     $isExpired = $activeSignature?->tokenExpired() ?? false;
                                     $approvalStatus = $row->approval_status ?? \App\Models\LhppBast::APPROVAL_IN_REVIEW;
                                     $isDiropsPending = $activeSignature?->role_key === 'dirops' && ! $isExpired;
@@ -160,6 +161,7 @@
 
                                     $terminTwoActiveSignature = $terminTwo?->activeSignature ?: ($terminTwo?->signatures?->first(fn (\App\Models\LhppBastSignature $signature): bool => $signature->isPending()));
                                     $terminTwoActiveApprovalLink = $terminTwoActiveSignature?->approvalUrl();
+                                    $terminTwoActiveApprovalWhatsappUrl = $terminTwoActiveApprovalLink ? \App\Support\ApprovalWhatsappLink::forBast($terminTwoActiveSignature) : null;
                                     $terminTwoIsExpired = $terminTwoActiveSignature?->tokenExpired() ?? false;
                                     $terminTwoIsDiropsPending = $terminTwoActiveSignature?->role_key === 'dirops' && ! $terminTwoIsExpired;
                                     $terminTwoApprovalStatus = $terminTwo?->approval_status ?? \App\Models\LhppBast::APPROVAL_IN_REVIEW;
@@ -218,6 +220,7 @@
                                     })->values();
                                     $activeApprovalModalActions = [
                                         'link' => $activeApprovalLink && $activeSignature?->role_key !== 'dirops' && ! $isExpired ? $activeApprovalLink : '',
+                                        'whatsapp_url' => $activeApprovalLink && $activeSignature?->role_key !== 'dirops' && ! $isExpired ? $activeApprovalWhatsappUrl : '',
                                         'resend_url' => $activeApprovalLink && $activeSignature?->role_key !== 'dirops' && ! $isExpired ? route('pkm.lhpp.approval.resend', ['lhppId' => $row->id]) : '',
                                     ];
                                     $terminTwoProgress = $terminTwo?->approvalProgressPercent() ?? 0;
@@ -239,6 +242,7 @@
                                         : collect();
                                     $terminTwoApprovalModalActions = [
                                         'link' => $terminTwoActiveApprovalLink && $terminTwoActiveSignature?->role_key !== 'dirops' && ! $terminTwoIsExpired ? $terminTwoActiveApprovalLink : '',
+                                        'whatsapp_url' => $terminTwoActiveApprovalLink && $terminTwoActiveSignature?->role_key !== 'dirops' && ! $terminTwoIsExpired ? $terminTwoActiveApprovalWhatsappUrl : '',
                                         'resend_url' => $terminTwoActiveApprovalLink && $terminTwoActiveSignature?->role_key !== 'dirops' && ! $terminTwoIsExpired ? route('pkm.lhpp.approval.resend', ['lhppId' => $terminTwo->id]) : '',
                                     ];
                                 @endphp
@@ -631,6 +635,7 @@
                     const checklist = parseArrayData(button.dataset.checklist);
                     const actions = parseObjectData(button.dataset.actions);
                     const approvalLink = actions.link || '';
+                    const whatsappUrl = actions.whatsapp_url || '';
                     const resendUrl = actions.resend_url || '';
                     const signedCount = button.dataset.signedCount || '0';
                     const totalSteps = button.dataset.totalSteps || '0';
@@ -649,6 +654,17 @@
                                         <i data-lucide="copy" class="h-3 w-3"></i>
                                         Salin Link
                                     </button>
+                                    ${whatsappUrl ? `
+                                        <a href="${escapeHtml(whatsappUrl)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-100">
+                                            <i data-lucide="message-circle" class="h-3 w-3"></i>
+                                            WhatsApp
+                                        </a>
+                                    ` : `
+                                        <span class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-400" title="Nomor WhatsApp approver belum tersedia di user panel">
+                                            <i data-lucide="message-circle-off" class="h-3 w-3"></i>
+                                            No WA
+                                        </span>
+                                    `}
                                     ${resendUrl ? `
                                         <form method="POST" action="${escapeHtml(resendUrl)}" class="inline-block">
                                             <input type="hidden" name="_token" value="{{ csrf_token() }}">

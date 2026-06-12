@@ -17,6 +17,7 @@ use App\Models\UnitWorkSection;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -290,6 +291,135 @@ class SignedDocumentImmutabilityTest extends TestCase
                 && $context['status_code'] === 403
                 && $context['lhpp_bast_id'] === $lhpp->id)
             ->once();
+    }
+
+    public function test_bast_quality_control_status_update_is_blocked_after_approval_starts(): void
+    {
+        Log::spy();
+
+        $admin = $this->createAdmin();
+        $order = $this->createOrder($admin, 'ORD-BAST-QC-LOCK');
+        $lhpp = LhppBast::create([
+            'order_id' => $order->id,
+            'termin_type' => 'termin_1',
+            'nomor_order' => $order->nomor_order,
+            'notifikasi' => $order->notifikasi,
+            'deskripsi_pekerjaan' => $order->nama_pekerjaan,
+            'unit_kerja' => $order->unit_kerja,
+            'seksi' => $order->seksi,
+            'tanggal_bast' => '2026-01-01',
+            'approval_threshold' => 'under_250',
+            'approval_flow' => ['Manager PKM'],
+            'approval_status' => LhppBast::APPROVAL_IN_REVIEW,
+            'quality_control_status' => 'approved',
+            'created_by' => $admin->id,
+            'updated_by' => $admin->id,
+        ]);
+        $lhpp->signatures()->create([
+            'step_order' => 1,
+            'role_key' => 'manager_pkm',
+            'role_label' => 'Manager PKM',
+            'signer_user_id' => $admin->id,
+            'status' => LhppBastSignature::STATUS_PENDING,
+        ]);
+
+        $response = $this->actingAs($admin)->patch(
+            route('admin.lhpp.quality-control', $lhpp),
+            ['quality_control_status' => 'rejected'],
+        );
+
+        $response->assertForbidden();
+        $this->assertSame('approved', $lhpp->fresh()->quality_control_status);
+
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $message, array $context): bool => $message === 'Blocked BAST quality control status update after approval started.'
+                && $context['status_code'] === 403
+                && $context['lhpp_id'] === $lhpp->id
+                && $context['approval_started_lhpp_id'] === $lhpp->id)
+            ->once();
+    }
+
+    public function test_parent_bast_quality_control_status_update_is_blocked_when_child_approval_started(): void
+    {
+        $admin = $this->createAdmin();
+        $order = $this->createOrder($admin, 'ORD-BAST-QC-CHILD-LOCK');
+        $parent = LhppBast::create([
+            'order_id' => $order->id,
+            'termin_type' => 'termin_1',
+            'nomor_order' => $order->nomor_order,
+            'tanggal_bast' => '2026-01-01',
+            'approval_threshold' => 'under_250',
+            'approval_status' => LhppBast::APPROVAL_IN_REVIEW,
+            'quality_control_status' => 'approved',
+            'created_by' => $admin->id,
+            'updated_by' => $admin->id,
+        ]);
+        $child = LhppBast::create([
+            'order_id' => $order->id,
+            'termin_type' => 'termin_2',
+            'parent_lhpp_bast_id' => $parent->id,
+            'nomor_order' => $order->nomor_order,
+            'tanggal_bast' => '2026-02-01',
+            'approval_threshold' => 'under_250',
+            'approval_status' => LhppBast::APPROVAL_IN_REVIEW,
+            'quality_control_status' => 'approved',
+            'created_by' => $admin->id,
+            'updated_by' => $admin->id,
+        ]);
+        $child->signatures()->create([
+            'step_order' => 1,
+            'role_key' => 'manager_pkm',
+            'role_label' => 'Manager PKM',
+            'signer_user_id' => $admin->id,
+            'status' => LhppBastSignature::STATUS_PENDING,
+        ]);
+
+        $response = $this->actingAs($admin)->patch(
+            route('admin.lhpp.quality-control', $parent),
+            ['quality_control_status' => 'rejected'],
+        );
+
+        $response->assertForbidden();
+        $this->assertSame('approved', $parent->fresh()->quality_control_status);
+        $this->assertSame('approved', $child->fresh()->quality_control_status);
+    }
+
+    public function test_bast_quality_control_can_be_approved_before_approval_starts(): void
+    {
+        Notification::fake();
+
+        $admin = $this->createAdmin();
+        $order = $this->createOrder($admin, 'ORD-BAST-QC-UNLOCKED');
+        $lhpp = LhppBast::create([
+            'order_id' => $order->id,
+            'termin_type' => 'termin_1',
+            'nomor_order' => $order->nomor_order,
+            'tanggal_bast' => '2026-01-01',
+            'approval_threshold' => 'under_250',
+            'approval_status' => LhppBast::APPROVAL_IN_REVIEW,
+            'quality_control_status' => 'pending',
+            'created_by' => $admin->id,
+            'updated_by' => $admin->id,
+        ]);
+        $signature = $lhpp->signatures()->create([
+            'step_order' => 1,
+            'role_key' => 'manager_pkm',
+            'role_label' => 'Manager PKM',
+            'signer_user_id' => $admin->id,
+            'status' => LhppBastSignature::STATUS_LOCKED,
+        ]);
+
+        $response = $this->actingAs($admin)->patch(
+            route('admin.lhpp.quality-control', $lhpp),
+            ['quality_control_status' => 'approved'],
+        );
+
+        $response->assertRedirect();
+        $signature->refresh();
+
+        $this->assertSame('approved', $lhpp->fresh()->quality_control_status);
+        $this->assertSame(LhppBastSignature::STATUS_PENDING, $signature->status);
+        $this->assertNotNull($signature->token_hash);
     }
 
     private function createAdmin(): User

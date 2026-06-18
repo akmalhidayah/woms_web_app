@@ -435,6 +435,12 @@ class OrderTrackingController extends Controller
         $abnormalitasDocument = $this->resolveOrderDocumentLink($order, 'abnormalitas');
         $gambarTeknikDocument = $this->resolveOrderDocumentLink($order, 'gambar_teknik');
         $qualityControlDocument = $this->resolveQualityControlDocumentLink($order);
+        $isCompleted = match ($order->catatan_status) {
+            OrderUserNoteStatus::ApprovedWorkshop,
+            OrderUserNoteStatus::ApprovedWorkshopJasa => $order->orderWorkshop?->progress_status === OrderWorkshop::PROGRESS_DONE,
+            OrderUserNoteStatus::ApprovedJasa => (int) ($progress['percent'] ?? 0) >= 100,
+            default => false,
+        };
 
         return [
             'nomor_order' => $order->nomor_order,
@@ -448,6 +454,7 @@ class OrderTrackingController extends Controller
             'status_label' => $isWorkshopOnly ? $this->resolveWorkshopPhase($order) : $this->resolveCurrentPhase($order),
             'status_tone' => $isWorkshopOnly ? $this->resolveWorkshopPhaseTone($order) : $this->resolveCurrentPhaseTone($order),
             'progress' => $progress,
+            'is_completed' => $isCompleted,
             'is_workshop_only' => $isWorkshopOnly,
             'document_completion_percentage' => $order->documentCompletionPercentage(),
             'show_url' => route('user.orders.show', $order),

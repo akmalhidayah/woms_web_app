@@ -27,27 +27,27 @@
 
         <div x-data="{ mobileMenu: false, profileOpen: false }" class="relative min-h-screen">
             <header class="sticky top-0 z-30 border-b border-red-900 bg-red-800/95 backdrop-blur">
-                <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+                <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2 sm:px-6 lg:px-8">
                     <div class="flex items-center gap-3">
-                        <div class="flex items-center gap-2 rounded-2xl border border-stone-200 bg-white px-3 py-2 shadow-sm">
-                            <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-white">
+                        <div class="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 shadow-sm">
+                            <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-white">
                                 <img src="{{ $logoSig }}" alt="SIG" class="max-h-full w-auto object-contain">
                             </div>
-                            <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50">
+                            <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50">
                                 <img src="{{ $logoSt }}" alt="Semen Tonasa" class="max-h-full w-auto object-contain">
                             </div>
                         </div>
 
                         <div class="hidden min-w-0 sm:block">
-                            <div class="truncate text-lg font-black tracking-tight text-white">User Order Tracking</div>
-                            <div class="truncate text-sm text-red-100">Pantau progress order dan seluruh dokumen pekerjaan</div>
+                            <div class="truncate text-base font-black tracking-tight text-white">User Order Tracking</div>
+                            <div class="truncate text-xs text-red-100">Pantau progress order dan seluruh dokumen pekerjaan</div>
                         </div>
                     </div>
 
                     <div class="hidden items-center gap-3 md:flex">
                         <a
                             href="{{ route('user.dashboard') }}"
-                            class="rounded-xl border px-4 py-2 text-sm font-semibold transition {{ $currentRoute === 'user.dashboard' ? 'border-red-800 bg-red-800 text-white' : 'border-stone-200 bg-white text-slate-600 hover:border-red-200 hover:text-red-800' }}"
+                            class="rounded-xl border px-3.5 py-1.5 text-sm font-semibold transition {{ $currentRoute === 'user.dashboard' ? 'border-red-800 bg-red-800 text-white' : 'border-stone-200 bg-white text-slate-600 hover:border-red-200 hover:text-red-800' }}"
                         >
                             Dashboard
                         </a>
@@ -55,9 +55,9 @@
                             <button
                                 type="button"
                                 @click="profileOpen = !profileOpen"
-                                class="inline-flex items-center gap-3 rounded-2xl border border-stone-200 bg-white px-3 py-2 shadow-sm transition hover:border-red-200 hover:bg-red-50/40"
+                                class="inline-flex items-center gap-2.5 rounded-xl border border-stone-200 bg-white px-3 py-1.5 shadow-sm transition hover:border-red-200 hover:bg-red-50/40"
                             >
-                                <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 text-sm font-bold text-red-700">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-xs font-bold text-red-700">
                                     {{ $user?->initials() ?: 'US' }}
                                 </div>
                                 <div class="max-w-[180px] text-left">
@@ -94,7 +94,7 @@
 
                     <button
                         type="button"
-                        class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-stone-200 bg-white text-slate-700 shadow-sm md:hidden"
+                        class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-stone-200 bg-white text-slate-700 shadow-sm md:hidden"
                         @click="mobileMenu = !mobileMenu"
                     >
                         <i data-lucide="menu" class="h-5 w-5"></i>
@@ -119,7 +119,7 @@
                 </div>
             </header>
 
-            <main class="relative mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
+            <main class="relative mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
                 {{ $slot }}
             </main>
         </div>

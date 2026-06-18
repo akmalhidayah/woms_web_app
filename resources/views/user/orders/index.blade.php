@@ -15,10 +15,37 @@
             'rose' => 'border-l-4 border-l-rose-400',
             'slate' => 'border-l-4 border-l-stone-300',
         ];
+
+        $summaryCards = [
+            [
+                'label' => 'Total Order',
+                'value' => $stats['total_orders'],
+                'icon' => 'clipboard-list',
+                'iconClass' => 'bg-sky-50 text-sky-700 ring-sky-100',
+            ],
+            [
+                'label' => 'Emergency',
+                'value' => $stats['emergency_orders'],
+                'icon' => 'siren',
+                'iconClass' => 'bg-rose-50 text-rose-700 ring-rose-100',
+            ],
+            [
+                'label' => 'PO Ready',
+                'value' => $stats['po_ready'],
+                'icon' => 'file-check-2',
+                'iconClass' => 'bg-amber-50 text-amber-700 ring-amber-100',
+            ],
+            [
+                'label' => 'BAST Ready',
+                'value' => $stats['bast_ready'],
+                'icon' => 'badge-check',
+                'iconClass' => 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+            ],
+        ];
     @endphp
 
     <div class="space-y-4">
-        <section class="sticky top-[88px] z-20 rounded-[22px] border border-stone-200 bg-white p-3.5 shadow-sm">
+        <section class="sticky top-[68px] z-20 rounded-2xl border border-stone-200 bg-white p-2.5 shadow-sm">
             <div class="overflow-x-auto">
                 <form method="GET" action="{{ route('user.dashboard') }}" class="flex min-w-[760px] items-center gap-2">
                     <input
@@ -26,59 +53,54 @@
                         name="notification_number"
                         value="{{ $filters['notification_number'] }}"
                         placeholder="Cari nomor order / notifikasi..."
-                        class="h-[42px] min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-700 placeholder:text-stone-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100"
+                        class="h-10 min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-700 placeholder:text-stone-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100"
                     >
 
-                    <select name="unit_work" class="h-[42px] w-[180px] rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100">
+                    <select name="unit_work" class="h-10 w-[180px] rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100">
                         <option value="">Semua Unit</option>
                         @foreach ($units as $u)
                             <option value="{{ $u }}" @selected($filters['unit_work'] === $u)>{{ $u }}</option>
                         @endforeach
                     </select>
 
-                    <select name="sortOrder" class="h-[42px] w-[140px] rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100">
+                    <select name="sortOrder" class="h-10 w-[140px] rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100">
                         <option value="latest" @selected($filters['sortOrder'] === 'latest')>Terbaru</option>
                         <option value="oldest" @selected($filters['sortOrder'] === 'oldest')>Terlama</option>
                     </select>
 
-                    <select name="entries" class="h-[42px] w-[90px] rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100">
+                    <select name="entries" class="h-10 w-[90px] rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100">
                         @foreach ([10, 25, 50, 100] as $n)
                             <option value="{{ $n }}" @selected((int) $filters['entries'] === $n)>{{ $n }}</option>
                         @endforeach
                     </select>
 
-                    <button type="submit" class="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl border border-red-800 bg-red-800 text-white transition hover:bg-red-900" title="Terapkan filter" aria-label="Terapkan filter">
+                    <button type="submit" class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-800 bg-red-800 text-white transition hover:bg-red-900" title="Terapkan filter" aria-label="Terapkan filter">
                         <i data-lucide="filter" class="h-4 w-4"></i>
                     </button>
-                    <a href="{{ route('user.dashboard') }}" class="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 transition hover:border-red-200 hover:text-red-800" title="Reset filter" aria-label="Reset filter">
+                    <a href="{{ route('user.dashboard') }}" class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 transition hover:border-red-200 hover:text-red-800" title="Reset filter" aria-label="Reset filter">
                         <i data-lucide="rotate-ccw" class="h-4 w-4"></i>
                     </a>
                 </form>
             </div>
         </section>
 
-        <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <article class="rounded-2xl border border-stone-200 bg-white p-3.5 shadow-sm">
-                <div class="text-[10px] font-bold uppercase tracking-[0.24em] text-red-700">Total Order</div>
-                <div class="mt-2 text-2xl font-black text-stone-900">{{ $stats['total_orders'] }}</div>
-            </article>
-            <article class="rounded-2xl border border-stone-200 bg-white p-3.5 shadow-sm">
-                <div class="text-[10px] font-bold uppercase tracking-[0.24em] text-red-700">Emergency</div>
-                <div class="mt-2 text-2xl font-black text-stone-900">{{ $stats['emergency_orders'] }}</div>
-            </article>
-            <article class="rounded-2xl border border-stone-200 bg-white p-3.5 shadow-sm">
-                <div class="text-[10px] font-bold uppercase tracking-[0.24em] text-red-700">PO Ready</div>
-                <div class="mt-2 text-2xl font-black text-stone-900">{{ $stats['po_ready'] }}</div>
-            </article>
-            <article class="rounded-2xl border border-stone-200 bg-white p-3.5 shadow-sm">
-                <div class="text-[10px] font-bold uppercase tracking-[0.24em] text-red-700">BAST Ready</div>
-                <div class="mt-2 text-2xl font-black text-stone-900">{{ $stats['bast_ready'] }}</div>
-            </article>
+        <section class="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+            @foreach ($summaryCards as $card)
+                <article class="flex items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white px-3 py-2.5 shadow-sm">
+                    <div class="min-w-0">
+                        <div class="truncate text-[9px] font-bold uppercase tracking-[0.2em] text-stone-500">{{ $card['label'] }}</div>
+                        <div class="mt-1 text-xl font-black leading-none text-stone-900">{{ $card['value'] }}</div>
+                    </div>
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 {{ $card['iconClass'] }}">
+                        <i data-lucide="{{ $card['icon'] }}" class="h-5 w-5"></i>
+                    </div>
+                </article>
+            @endforeach
         </section>
 
-        <section class="grid gap-4 xl:grid-cols-2">
-            <div class="rounded-[22px] border border-stone-200 bg-white p-4 shadow-sm">
-                <div class="mb-3 flex items-center justify-between gap-3">
+        <section class="grid gap-3 xl:grid-cols-2">
+            <div class="rounded-2xl border border-stone-200 bg-white p-3.5 shadow-sm">
+                <div class="mb-2.5 flex items-center justify-between gap-3">
                     <div>
                         <h3 class="flex items-center gap-2 text-sm font-semibold text-stone-900">
                             <i data-lucide="line-chart" class="h-4 w-4 text-red-700"></i>
@@ -87,13 +109,13 @@
                         <p class="mt-1 text-[11px] text-stone-500">Jumlah order yang sudah approved</p>
                     </div>
                 </div>
-                <div class="relative h-56">
+                <div class="relative h-48">
                     <canvas id="chartNotifikasi"></canvas>
                 </div>
             </div>
 
-            <div class="rounded-[22px] border border-stone-200 bg-white p-4 shadow-sm">
-                <div class="mb-3 flex items-center justify-between gap-3">
+            <div class="rounded-2xl border border-stone-200 bg-white p-3.5 shadow-sm">
+                <div class="mb-2.5 flex items-center justify-between gap-3">
                     <div>
                         <h3 class="flex items-center gap-2 text-sm font-semibold text-stone-900">
                             <i data-lucide="badge-dollar-sign" class="h-4 w-4 text-red-700"></i>
@@ -102,7 +124,7 @@
                         <p class="mt-1 text-[11px] text-stone-500">Akumulasi total biaya pekerjaan</p>
                     </div>
                 </div>
-                <div class="relative h-56">
+                <div class="relative h-48">
                     <canvas id="chartBiaya"></canvas>
                 </div>
             </div>

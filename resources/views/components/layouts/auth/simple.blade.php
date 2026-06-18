@@ -167,7 +167,7 @@
                     <section class="flex items-center justify-center px-5 py-8 sm:px-8 lg:px-12 lg:py-12">
                         <div class="w-full max-w-md space-y-6">
                             <a href="{{ route('home') }}" class="auth-reveal mx-auto flex w-full flex-col items-center gap-3 text-center text-sm text-slate-700 lg:hidden" wire:navigate>
-                                <span class="inline-flex items-center justify-center gap-3 px-2 py-1">
+                                <span class="inline-flex items-center justify-center gap-3 rounded-2xl bg-white/90 px-4 py-3 shadow-lg shadow-slate-200/60 ring-1 ring-white/80 backdrop-blur-sm">
                                     <img src="{{ $logoSt }}" alt="Logo ST2" class="h-10 w-auto object-contain">
                                     <span class="h-7 w-px bg-slate-300/70"></span>
                                     <img src="{{ $logoBms }}" alt="Logo BMS2" class="h-10 w-auto object-contain">

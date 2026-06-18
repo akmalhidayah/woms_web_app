@@ -47,8 +47,8 @@ class OrderTrackingController extends Controller
         $orders = (clone $filteredQuery)
             ->when(
                 $filters['sortOrder'] === 'oldest',
-                fn (Builder $query) => $query->orderBy('tanggal_order')->orderBy('id'),
-                fn (Builder $query) => $query->orderByDesc('tanggal_order')->orderByDesc('id')
+                fn (Builder $query) => $query->orderBy('created_at')->orderBy('id'),
+                fn (Builder $query) => $query->orderByDesc('created_at')->orderByDesc('id')
             )
             ->paginate($filters['entries'])
             ->withQueryString();

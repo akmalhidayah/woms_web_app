@@ -72,6 +72,19 @@ class OrderTrackingController extends Controller
             fn (Order $order) => $order->catatan_status === OrderUserNoteStatus::ApprovedJasa
         )->count();
 
+        $completedWorkshopOrders = $allOrders->filter(
+            fn (Order $order) => in_array($order->catatan_status, [
+                OrderUserNoteStatus::ApprovedWorkshop,
+                OrderUserNoteStatus::ApprovedWorkshopJasa,
+            ], true)
+                && $order->orderWorkshop?->progress_status === OrderWorkshop::PROGRESS_DONE
+        )->count();
+
+        $completedServiceOrders = $allOrders->filter(
+            fn (Order $order) => $order->catatan_status === OrderUserNoteStatus::ApprovedJasa
+                && (int) ($this->resolveProgress($order)['percent'] ?? 0) >= 100
+        )->count();
+
         return view('user.orders.index', [
             'orders' => $orders,
             'filters' => $filters,
@@ -79,6 +92,9 @@ class OrderTrackingController extends Controller
                 'total_orders' => $allOrders->count(),
                 'workshop_orders' => $workshopOrders,
                 'service_orders' => $serviceOrders,
+                'completed_orders' => $completedWorkshopOrders + $completedServiceOrders,
+                'completed_workshop_orders' => $completedWorkshopOrders,
+                'completed_service_orders' => $completedServiceOrders,
                 'emergency_orders' => $allOrders->filter(
                     fn (Order $order) => Order::priorityPrimaryFor($order->prioritas) === 'emergency'
                 )->count(),

@@ -34,19 +34,35 @@
                 ],
             ],
             [
+                'label' => 'Order Selesai',
+                'value' => $stats['completed_orders'],
+                'icon' => 'circle-check-big',
+                'iconClass' => 'bg-violet-50 text-violet-700 ring-violet-100',
+                'breakdown' => [
+                    [
+                        'label' => 'Bengkel',
+                        'value' => $stats['completed_workshop_orders'],
+                    ],
+                    [
+                        'label' => 'Jasa',
+                        'value' => $stats['completed_service_orders'],
+                    ],
+                ],
+            ],
+            [
                 'label' => 'Emergency',
                 'value' => $stats['emergency_orders'],
                 'icon' => 'siren',
                 'iconClass' => 'bg-rose-50 text-rose-700 ring-rose-100',
             ],
             [
-                'label' => 'PO Ready',
+                'label' => 'PO Order Jasa',
                 'value' => $stats['po_ready'],
                 'icon' => 'file-check-2',
                 'iconClass' => 'bg-amber-50 text-amber-700 ring-amber-100',
             ],
             [
-                'label' => 'BAST Ready',
+                'label' => 'BAST Order Jasa',
                 'value' => $stats['bast_ready'],
                 'icon' => 'badge-check',
                 'iconClass' => 'bg-emerald-50 text-emerald-700 ring-emerald-100',
@@ -94,7 +110,7 @@
             </div>
         </section>
 
-        <section class="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+        <section class="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-[1.22fr_1.22fr_0.82fr_0.82fr_0.82fr]">
             @foreach ($summaryCards as $card)
                 <article class="flex min-h-[76px] items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white px-3 py-2.5 shadow-sm">
                     <div class="min-w-0">

@@ -96,18 +96,18 @@
 
         <section class="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
             @foreach ($summaryCards as $card)
-                <article class="flex items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white px-3 py-2.5 shadow-sm">
+                <article class="flex min-h-[76px] items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white px-3 py-2.5 shadow-sm">
                     <div class="min-w-0">
-                        <div class="truncate text-[9px] font-bold uppercase tracking-[0.2em] text-stone-500">{{ $card['label'] }}</div>
+                        <div class="text-[9px] font-bold uppercase tracking-[0.16em] text-stone-500">{{ $card['label'] }}</div>
                         <div class="mt-1 text-xl font-black leading-none text-stone-900">{{ $card['value'] }}</div>
                     </div>
 
                     @if (isset($card['breakdown']))
-                        <div class="ml-auto grid shrink-0 grid-cols-2 gap-1.5">
+                        <div class="ml-auto flex min-w-0 flex-1 items-center justify-end gap-3">
                             @foreach ($card['breakdown'] as $item)
-                                <div class="min-w-[4.7rem] rounded-xl bg-stone-50 px-2 py-1.5 text-right ring-1 ring-stone-100">
-                                    <div class="truncate text-[8px] font-bold uppercase tracking-[0.12em] text-stone-500">{{ $item['label'] }}</div>
-                                    <div class="mt-0.5 text-sm font-black leading-none text-stone-900">{{ $item['value'] }}</div>
+                                <div class="min-w-0 border-l border-stone-100 pl-3 text-right first:border-l-0 first:pl-0">
+                                    <div class="text-[8px] font-bold uppercase leading-tight tracking-[0.1em] text-stone-400">{{ $item['label'] }}</div>
+                                    <div class="mt-1 text-sm font-black leading-none text-stone-900">{{ $item['value'] }}</div>
                                 </div>
                             @endforeach
                         </div>

@@ -74,7 +74,45 @@ new #[Layout('components.layouts.auth')] class extends Component {
     }
 }; ?>
 
-<div class="space-y-6">
+<div class="space-y-6" data-login-form>
+    <style>
+        [data-login-form] .login-field-control {
+            -webkit-text-size-adjust: 100%;
+        }
+
+        [data-login-form] .login-submit-button {
+            min-height: 48px;
+        }
+
+        [data-login-form] .login-submit-button:disabled {
+            cursor: not-allowed;
+            opacity: 0.78;
+            transform: none;
+        }
+
+        [data-login-form] .login-spinner {
+            height: 1rem;
+            width: 1rem;
+            border: 2px solid rgba(255, 255, 255, 0.45);
+            border-top-color: #ffffff;
+            border-radius: 9999px;
+            animation: login-spin 700ms linear infinite;
+        }
+
+        @keyframes login-spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 640px) {
+            [data-login-form] .login-field-control {
+                font-size: 16px;
+                line-height: 1.5;
+            }
+        }
+    </style>
+
     <x-auth-header
         title="Masuk ke WOMS"
         description="Masukkan akun Anda."
@@ -94,7 +132,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
                 autofocus
                 autocomplete="email"
                 placeholder="email@example.com"
-                class="auth-input"
+                class="auth-input login-field-control"
             />
             @error('email')
                 <p class="text-sm text-rose-600">{{ $message }}</p>
@@ -121,7 +159,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
                     required
                     autocomplete="current-password"
                     placeholder="Masukkan password"
-                    class="auth-input pr-12"
+                    class="auth-input login-field-control pr-12"
                 />
 
                 <button
@@ -147,9 +185,15 @@ new #[Layout('components.layouts.auth')] class extends Component {
 
         <button
             type="submit"
-            class="auth-button auth-reveal auth-delay-4"
+            class="auth-button auth-reveal auth-delay-4 login-submit-button gap-2 text-base sm:text-sm"
+            wire:loading.attr="disabled"
+            wire:target="login"
         >
-            Masuk
+            <span wire:loading.remove wire:target="login">Masuk</span>
+            <span wire:loading.flex wire:target="login" class="items-center gap-2">
+                <span class="login-spinner" aria-hidden="true"></span>
+                <span>Memproses...</span>
+            </span>
         </button>
     </form>
 

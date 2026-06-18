@@ -49,13 +49,13 @@
         @endphp
 
         <div class="relative isolate min-h-screen overflow-hidden" style="background: url('{{ $authPoster }}') center center / cover no-repeat;">
-            <div class="auth-orb left-[-5rem] top-[-3rem] -z-10 h-48 w-48 bg-pink-300/40 sm:h-64 sm:w-64"></div>
-            <div class="auth-orb auth-delay-2 right-[-4rem] top-[12%] -z-10 h-56 w-56 bg-sky-300/35 sm:h-72 sm:w-72"></div>
-            <div class="auth-orb auth-orb-soft bottom-[-4rem] left-[14%] -z-10 h-52 w-52 bg-violet-300/30 sm:h-72 sm:w-72"></div>
-            <div class="auth-orb auth-delay-4 auth-orb-soft bottom-[8%] right-[10%] -z-10 h-40 w-40 bg-amber-200/40 sm:h-56 sm:w-56"></div>
+            <div class="auth-orb left-[-5rem] top-[-3rem] -z-10 hidden h-48 w-48 bg-pink-300/40 sm:block sm:h-64 sm:w-64"></div>
+            <div class="auth-orb auth-delay-2 right-[-4rem] top-[12%] -z-10 hidden h-56 w-56 bg-sky-300/35 sm:block sm:h-72 sm:w-72"></div>
+            <div class="auth-orb auth-orb-soft bottom-[-4rem] left-[14%] -z-10 hidden h-52 w-52 bg-violet-300/30 sm:block sm:h-72 sm:w-72"></div>
+            <div class="auth-orb auth-delay-4 auth-orb-soft bottom-[8%] right-[10%] -z-10 hidden h-40 w-40 bg-amber-200/40 sm:block sm:h-56 sm:w-56"></div>
 
             <div class="relative z-10 mx-auto flex min-h-screen max-w-6xl items-center px-4 py-8 sm:px-6 lg:px-8">
-                <div class="grid w-full overflow-hidden rounded-[2rem] border border-white/60 bg-white/70 shadow-2xl shadow-slate-300/20 backdrop-blur-sm lg:grid-cols-[1.08fr_0.92fr]">
+                <div class="grid w-full overflow-hidden lg:rounded-[2rem] lg:border lg:border-white/60 lg:bg-white/70 lg:shadow-2xl lg:shadow-slate-300/20 lg:backdrop-blur-sm lg:grid-cols-[1.08fr_0.92fr]">
                     <section class="auth-panel relative hidden overflow-hidden px-10 py-12 text-white lg:flex lg:flex-col lg:justify-between">
                         <video
                             class="absolute inset-0 h-full w-full object-cover opacity-35"
@@ -166,56 +166,14 @@
 
                     <section class="flex items-center justify-center px-5 py-8 sm:px-8 lg:px-12 lg:py-12">
                         <div class="w-full max-w-md space-y-6">
-                            <a href="{{ route('home') }}" class="auth-reveal inline-flex flex-col items-start gap-3 text-sm text-slate-700 lg:hidden" wire:navigate>
-                                <span class="inline-flex items-center gap-3 rounded-2xl bg-white/80 px-4 py-3 shadow-lg shadow-slate-200/70 ring-1 ring-slate-200/70 backdrop-blur-sm">
+                            <a href="{{ route('home') }}" class="auth-reveal mx-auto flex w-full flex-col items-center gap-3 text-center text-sm text-slate-700 lg:hidden" wire:navigate>
+                                <span class="inline-flex items-center justify-center gap-3 px-2 py-1">
                                     <img src="{{ $logoSt }}" alt="Logo ST2" class="h-10 w-auto object-contain">
-                                    <span class="h-7 w-px bg-slate-200"></span>
+                                    <span class="h-7 w-px bg-slate-300/70"></span>
                                     <img src="{{ $logoBms }}" alt="Logo BMS2" class="h-10 w-auto object-contain">
                                 </span>
-                                <span>
-                                    <span class="block font-semibold leading-5 text-slate-900">Workshop Order Management System</span>
-                                </span>
+                                <span class="sr-only">Workshop Order Management System</span>
                             </a>
-
-                            @if ($showLoginInfoMenu)
-                                <div class="auth-reveal auth-delay-1 flex flex-wrap items-center gap-2 lg:hidden">
-                                    @if ($caraKerjaPns->isNotEmpty())
-                                        <a href="{{ route('public.information-upload.preview', $caraKerjaPns->first()) }}" target="_blank" rel="noopener" class="rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-600">
-                                            User PNS
-                                        </a>
-                                    @endif
-                                    @if ($caraKerjaPkm->isNotEmpty())
-                                        <a href="{{ route('public.information-upload.preview', $caraKerjaPkm->first()) }}" target="_blank" rel="noopener" class="rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-600">
-                                            User PKM
-                                        </a>
-                                    @endif
-                                    @if ($caraKerjaApproval->isNotEmpty())
-                                        <a href="{{ route('public.information-upload.preview', $caraKerjaApproval->first()) }}" target="_blank" rel="noopener" class="rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-600">
-                                            Approval
-                                        </a>
-                                    @endif
-                                    @if ($flowchartFiles->isNotEmpty())
-                                        <a href="{{ route('public.information-upload.preview', $flowchartFiles->first()) }}" target="_blank" rel="noopener" class="rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-600">
-                                            Flowchart
-                                        </a>
-                                    @endif
-                                    @if ($kontrakFiles->isNotEmpty())
-                                        <a href="{{ route('public.information-upload.preview', $kontrakFiles->first()) }}" target="_blank" rel="noopener" class="rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-600">
-                                            Kontrak PKM
-                                        </a>
-                                    @endif
-
-                                    <a href="{{ route('display.bengkel') }}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/90 px-3 py-1.5 text-xs font-semibold text-emerald-700 shadow-sm shadow-emerald-100/60 transition hover:bg-emerald-100">
-                                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <rect x="3" y="4" width="18" height="12" rx="2"></rect>
-                                            <path d="M8 20h8"></path>
-                                            <path d="M12 16v4"></path>
-                                            <path d="m10 10 2 2 3-4"></path>
-                                        </svg>
-                                        <span>Buka Display</span>
-                                    </a>
-                                </div>
-                            @endif
 
                             <div class="auth-card auth-reveal auth-delay-1 rounded-[1.75rem] border border-white/80 p-6 sm:p-8">
                                 {{ $slot }}

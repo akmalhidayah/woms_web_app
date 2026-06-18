@@ -22,6 +22,16 @@
                 'value' => $stats['total_orders'],
                 'icon' => 'clipboard-list',
                 'iconClass' => 'bg-sky-50 text-sky-700 ring-sky-100',
+                'breakdown' => [
+                    [
+                        'label' => 'Order Bengkel',
+                        'value' => $stats['workshop_orders'],
+                    ],
+                    [
+                        'label' => 'Order Jasa',
+                        'value' => $stats['service_orders'],
+                    ],
+                ],
             ],
             [
                 'label' => 'Emergency',
@@ -91,6 +101,18 @@
                         <div class="truncate text-[9px] font-bold uppercase tracking-[0.2em] text-stone-500">{{ $card['label'] }}</div>
                         <div class="mt-1 text-xl font-black leading-none text-stone-900">{{ $card['value'] }}</div>
                     </div>
+
+                    @if (isset($card['breakdown']))
+                        <div class="ml-auto grid shrink-0 grid-cols-2 gap-1.5">
+                            @foreach ($card['breakdown'] as $item)
+                                <div class="min-w-[4.7rem] rounded-xl bg-stone-50 px-2 py-1.5 text-right ring-1 ring-stone-100">
+                                    <div class="truncate text-[8px] font-bold uppercase tracking-[0.12em] text-stone-500">{{ $item['label'] }}</div>
+                                    <div class="mt-0.5 text-sm font-black leading-none text-stone-900">{{ $item['value'] }}</div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+
                     <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 {{ $card['iconClass'] }}">
                         <i data-lucide="{{ $card['icon'] }}" class="h-5 w-5"></i>
                     </div>

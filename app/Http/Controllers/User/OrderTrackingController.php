@@ -61,11 +61,24 @@ class OrderTrackingController extends Controller
 
         $allOrders = (clone $filteredQuery)->get();
 
+        $workshopOrders = $allOrders->filter(
+            fn (Order $order) => in_array($order->catatan_status, [
+                OrderUserNoteStatus::ApprovedWorkshop,
+                OrderUserNoteStatus::ApprovedWorkshopJasa,
+            ], true)
+        )->count();
+
+        $serviceOrders = $allOrders->filter(
+            fn (Order $order) => $order->catatan_status === OrderUserNoteStatus::ApprovedJasa
+        )->count();
+
         return view('user.orders.index', [
             'orders' => $orders,
             'filters' => $filters,
             'stats' => [
                 'total_orders' => $allOrders->count(),
+                'workshop_orders' => $workshopOrders,
+                'service_orders' => $serviceOrders,
                 'emergency_orders' => $allOrders->filter(
                     fn (Order $order) => Order::priorityPrimaryFor($order->prioritas) === 'emergency'
                 )->count(),

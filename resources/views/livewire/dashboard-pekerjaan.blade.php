@@ -9,13 +9,19 @@
         ->filter(fn ($row) => ($row['catatan'] ?? null) === 'Regu Bengkel (Refurbish)')
         ->values();
 
-    $fabrikasiPerPage = $fabrikasiTasks->contains(fn ($row) => count($row['person_in_charge_profiles'] ?? []) > 2)
-        ? 4
-        : max(1, (int) $perPageFabrikasi);
+    $isDisplayMode = ($mode ?? 'admin') === 'display';
 
-    $refurbishPerPage = $refurbishTasks->contains(fn ($row) => count($row['person_in_charge_profiles'] ?? []) > 2)
-        ? 2
-        : max(1, (int) $perPageRefurbish);
+    $fabrikasiPerPage = $isDisplayMode
+        ? 3
+        : ($fabrikasiTasks->contains(fn ($row) => count($row['person_in_charge_profiles'] ?? []) > 2)
+            ? 4
+            : max(1, (int) $perPageFabrikasi));
+
+    $refurbishPerPage = $isDisplayMode
+        ? 3
+        : ($refurbishTasks->contains(fn ($row) => count($row['person_in_charge_profiles'] ?? []) > 2)
+            ? 2
+            : max(1, (int) $perPageRefurbish));
 
     $fabrikasiChunks = $fabrikasiTasks->chunk($fabrikasiPerPage);
     $refurbishChunks = $refurbishTasks->chunk($refurbishPerPage);
@@ -155,17 +161,35 @@
                     </span>
                 </div>
 
-                <div class="text-center">
-                    <h1 class="tv-board-title text-white">Dashboard Pekerjaan Bengkel</h1>
+                <div class="text-left">
+                    <h1 class="tv-board-title text-white">Pekerjaan Bengkel</h1>
                     <div id="dateDisplay" class="tv-board-date text-slate-300"></div>
                 </div>
 
-                <div class="text-right">
-                    <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-slate-300">Jam</div>
-                    <div id="timeDisplay" class="tv-board-time tracking-tight text-white"></div>
-                    <div class="mt-1 text-[9px] font-semibold text-slate-300">
-                        Fabrikasi {{ $fabrikasiSlideCount > 0 ? ($fabrikasiSlideIndex + 1) : 0 }} / {{ $fabrikasiSlideCount }}
-                        | Refurbish {{ $refurbishSlideCount > 0 ? ($refurbishSlideIndex + 1) : 0 }} / {{ $refurbishSlideCount }}
+                <div class="tv-header-right">
+                    <div class="tv-summary-card">
+                        <div class="tv-summary-title">Total Order</div>
+                        <div class="tv-summary-values">
+                            <div><span>Bengkel</span><strong>{{ $orderSummary['total_workshop'] ?? 0 }}</strong></div>
+                            <div><span>Jasa</span><strong>{{ $orderSummary['total_service'] ?? 0 }}</strong></div>
+                        </div>
+                    </div>
+
+                    <div class="tv-summary-card">
+                        <div class="tv-summary-title">Diproses</div>
+                        <div class="tv-summary-values">
+                            <div><span>Bengkel</span><strong>{{ $orderSummary['processed_workshop'] ?? 0 }}</strong></div>
+                            <div><span>Jasa</span><strong>{{ $orderSummary['processed_service'] ?? 0 }}</strong></div>
+                        </div>
+                    </div>
+
+                    <div class="tv-header-clock text-right">
+                        <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-slate-300">Jam</div>
+                        <div id="timeDisplay" class="tv-board-time tracking-tight text-white"></div>
+                        <div class="mt-1 text-[9px] font-semibold text-slate-300">
+                            Fabrikasi {{ $fabrikasiSlideCount > 0 ? ($fabrikasiSlideIndex + 1) : 0 }} / {{ $fabrikasiSlideCount }}
+                            | Refurbish {{ $refurbishSlideCount > 0 ? ($refurbishSlideIndex + 1) : 0 }} / {{ $refurbishSlideCount }}
+                        </div>
                     </div>
                 </div>
             </div>

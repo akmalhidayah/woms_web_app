@@ -64,7 +64,7 @@
             box-shadow: 0 1px 6px rgba(15, 23, 42, 0.18);
         }
         .tv-board-title {
-            font-size: clamp(1.25rem, 1.75vw, 1.85rem);
+            font-size: clamp(1.6rem, 2.2vw, 2.35rem);
             line-height: 1.05;
             font-weight: 900;
         }
@@ -78,6 +78,61 @@
             font-size: clamp(1.1rem, 1.65vw, 1.55rem);
             line-height: 1;
             font-weight: 900;
+        }
+        .tv-header-right {
+            display: flex;
+            min-width: 0;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+        .tv-summary-card {
+            width: clamp(118px, 8.5vw, 154px);
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            border-radius: 0.6rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.45rem 0.55rem;
+        }
+        .tv-summary-title {
+            font-size: clamp(0.48rem, 0.55vw, 0.62rem);
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #fecaca;
+        }
+        .tv-summary-values {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            margin-top: 0.25rem;
+        }
+        .tv-summary-values > div {
+            display: flex;
+            min-width: 0;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 0.25rem;
+        }
+        .tv-summary-values > div + div {
+            margin-left: 0.4rem;
+            border-left: 1px solid rgba(255, 255, 255, 0.2);
+            padding-left: 0.4rem;
+        }
+        .tv-summary-values span {
+            overflow: hidden;
+            font-size: clamp(0.43rem, 0.48vw, 0.54rem);
+            font-weight: 600;
+            color: #e2e8f0;
+            text-overflow: ellipsis;
+        }
+        .tv-summary-values strong {
+            flex: 0 0 auto;
+            font-size: clamp(0.9rem, 1.05vw, 1.2rem);
+            line-height: 1;
+            font-weight: 900;
+            color: #fff;
+        }
+        .tv-header-clock {
+            min-width: 118px;
         }
         .tv-board-main {
             display: grid;
@@ -292,6 +347,16 @@
             .tv-board-time {
                 font-size: clamp(1rem, 1.45vw, 1.35rem);
             }
+            .tv-summary-card {
+                width: clamp(108px, 8vw, 138px);
+                padding: 0.3rem 0.45rem;
+            }
+            .tv-summary-values {
+                margin-top: 0.18rem;
+            }
+            .tv-header-clock {
+                min-width: 108px;
+            }
             .tv-regu-section {
                 padding: 0.45rem;
             }
@@ -353,6 +418,61 @@
                 line-height: 1.12;
             }
         }
+        .tv-task-grid,
+        .tv-task-grid-fabrikasi {
+            grid-template-columns: minmax(0, 1fr);
+            grid-template-rows: repeat(3, minmax(0, 1fr));
+        }
+        .tv-task-card,
+        .tv-task-grid-fabrikasi .tv-task-card {
+            padding: 0.5rem;
+        }
+        .tv-card-title,
+        .tv-task-grid-fabrikasi .tv-card-title {
+            font-size: clamp(0.78rem, 0.88vw, 1rem);
+            line-height: 1.12;
+        }
+        .tv-card-meta-text,
+        .tv-task-grid-fabrikasi .tv-card-meta-text {
+            font-size: clamp(0.58rem, 0.64vw, 0.74rem);
+            line-height: 0.92rem;
+        }
+        .tv-pic-grid,
+        .tv-board-main > section:nth-child(2) .tv-pic-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .tv-pic-item,
+        .tv-task-grid-fabrikasi .tv-pic-item {
+            min-height: 92px;
+            padding: 0.3rem;
+            grid-template-columns: 78px minmax(0, 1fr);
+        }
+        .tv-pic-photo,
+        .tv-task-grid-fabrikasi .tv-pic-photo {
+            height: 88px;
+        }
+        .tv-pic-img,
+        .tv-pic-fallback,
+        .tv-task-grid-fabrikasi .tv-pic-img,
+        .tv-task-grid-fabrikasi .tv-pic-fallback {
+            height: 66px;
+        }
+        .tv-pic-name,
+        .tv-task-grid-fabrikasi .tv-pic-name {
+            height: 22px;
+            font-size: 7.5px;
+        }
+        .tv-pic-desc,
+        .tv-task-grid-fabrikasi .tv-pic-desc {
+            max-height: 88px;
+        }
+        .tv-pic-desc-list,
+        .tv-task-grid-fabrikasi .tv-pic-desc-list {
+            -webkit-line-clamp: 5;
+            font-size: clamp(0.58rem, 0.64vw, 0.72rem);
+            line-height: 1.22;
+        }
+
         @media (max-width: 900px) {
             .tv-board-main,
             .tv-task-grid-fabrikasi {

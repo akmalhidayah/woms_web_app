@@ -2,6 +2,8 @@
 
 namespace App\Notifications;
 
+use App\Models\AdminInformationFile;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -29,6 +31,8 @@ class ApprovalRequestedNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
+        $guideFile = $this->approvalGuideFile();
+
         return (new MailMessage)
             ->from((string) config('mail.from.address'), (string) config('mail.from.name'))
             ->subject("Permintaan Approval {$this->documentType} - {$this->documentNumber}")
@@ -42,10 +46,21 @@ class ApprovalRequestedNotification extends Notification
                 'roleLabel' => $this->roleLabel,
                 'approvalUrl' => $this->approvalUrl,
                 'expiresAt' => $this->expiresAt?->format('d/m/Y H:i'),
+                'guideTitle' => $guideFile?->original_name ?: 'Buku Panduan Role Approval',
+                'guideUrl' => $guideFile ? route('public.information-upload.preview', $guideFile) : null,
                 'logoStPath' => public_path('assets/branding/logos/logo-st.png'),
                 'logoBmsPath' => public_path('assets/branding/logos/logo-bms2.png'),
                 'logoStUrl' => asset('assets/branding/logos/logo-st.png'),
                 'logoBmsUrl' => asset('assets/branding/logos/logo-bms2.png'),
             ]);
+    }
+
+    private function approvalGuideFile(): ?AdminInformationFile
+    {
+        return AdminInformationFile::query()
+            ->where('type', AdminInformationFile::TYPE_CARA_KERJA)
+            ->where('role', User::ROLE_APPROVER)
+            ->latest('id')
+            ->first();
     }
 }

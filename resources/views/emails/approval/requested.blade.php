@@ -2,6 +2,7 @@
     $safeName = trim((string) ($userName ?? 'Pengguna'));
     $logoStSource = $logoStUrl ?? '';
     $logoBmsSource = $logoBmsUrl ?? '';
+    $logoStrokeStyle = 'filter:drop-shadow(0 1px 0 #ffffff) drop-shadow(1px 0 0 #ffffff) drop-shadow(0 -1px 0 #ffffff) drop-shadow(-1px 0 0 #ffffff) drop-shadow(0 0 4px rgba(255,255,255,0.85));';
 
     if (isset($message) && ! empty($logoStPath) && file_exists($logoStPath)) {
         $logoStSource = $message->embedData(file_get_contents($logoStPath), 'semen-tonasa-logo.png', 'image/png');
@@ -20,7 +21,7 @@
 </head>
 <body style="margin:0;padding:0;background:#edf3f8;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
     <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
-        Permintaan approval dokumen {{ $documentType }} nomor {{ $documentNumber }} melalui sistem WOMS.
+        Mohon review dan approval dokumen {{ $documentType }} nomor {{ $documentNumber }} melalui sistem WOMS.
     </div>
 
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;background:#edf3f8;">
@@ -28,27 +29,45 @@
             <td align="center" style="padding:34px 16px;">
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:660px;background:#ffffff;border-radius:24px;overflow:hidden;">
                     <tr>
-                        <td style="background:#0f172a;padding:26px 32px;">
-                            @if (! empty($logoStSource))
-                                <img src="{{ $logoStSource }}" width="52" alt="Semen Tonasa" style="display:inline-block;background:#fff;border-radius:12px;padding:7px;vertical-align:middle;">
-                            @endif
+                        <td align="center" style="background:#0f172a;padding:30px 32px 28px;text-align:center;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;">
+                                <tr>
+                                    <td align="center" style="text-align:center;">
+                                        <table role="presentation" cellspacing="0" cellpadding="0" align="center" style="margin:0 auto;margin-left:auto;margin-right:auto;">
+                                            <tr>
+                                                @if (! empty($logoStSource))
+                                                    <td align="center" style="padding:0 8px;vertical-align:middle;">
+                                                        <img src="{{ $logoStSource }}" width="64" alt="Semen Tonasa" style="display:block;border:0;outline:none;text-decoration:none;{{ $logoStrokeStyle }}">
+                                                    </td>
+                                                @endif
 
-                            @if (! empty($logoBmsSource))
-                                <img src="{{ $logoBmsSource }}" width="54" alt="Bengkel Mesin" style="display:inline-block;background:#fff;border-radius:12px;padding:7px;margin-left:8px;vertical-align:middle;">
-                            @endif
-
-                            <span style="display:inline-block;margin-left:16px;color:#fff;font-size:21px;font-weight:800;vertical-align:middle;">
-                                Workshop Order Management System
-                            </span>
+                                                @if (! empty($logoBmsSource))
+                                                    <td align="center" style="padding:0 8px;vertical-align:middle;">
+                                                        <img src="{{ $logoBmsSource }}" width="78" alt="Bengkel Mesin" style="display:block;border:0;outline:none;text-decoration:none;{{ $logoStrokeStyle }}">
+                                                    </td>
+                                                @endif
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td align="center" style="padding-top:14px;color:#fff;font-size:24px;line-height:30px;font-weight:800;text-align:center;">
+                                        Workshop Order Management System
+                                    </td>
+                                </tr>
+                            </table>
                         </td>
                     </tr>
                     <tr>
                         <td style="padding:34px 34px 12px;">
                             <h1 style="margin:0;font-size:26px;line-height:34px;">
-                                Halo {{ $safeName }}
+                                Halo Bpk/Ibu {{ $safeName }},
                             </h1>
                             <p style="margin:16px 0 0;color:#475569;font-size:15px;line-height:25px;">
-                                Anda ditetapkan sebagai <strong>{{ $roleLabel }}</strong> untuk melakukan approval dokumen berikut.
+                                <strong>{{ $roleLabel }}</strong> PT. Semen Tonasa.
+                            </p>
+                            <p style="margin:10px 0 0;color:#475569;font-size:15px;line-height:25px;">
+                                Mohon lakukan review dan approval melalui tombol di bawah ini.
                             </p>
                         </td>
                     </tr>
@@ -70,10 +89,31 @@
                             </table>
                         </td>
                     </tr>
+                    @if (! empty($guideUrl))
+                        <tr>
+                            <td style="padding:8px 34px 4px;">
+                                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;">
+                                    <tr>
+                                        <td style="padding:16px 18px;color:#1e3a8a;font-size:13px;line-height:21px;">
+                                            <div style="font-weight:800;color:#1e40af;">Buku Panduan Approval</div>
+                                            <div style="margin-top:4px;color:#334155;">
+                                                Sebelum melakukan tanda tangan, mohon membaca panduan role approval yang sudah disediakan.
+                                            </div>
+                                            <div style="margin-top:10px;">
+                                                <a href="{{ $guideUrl }}" target="_blank" style="display:inline-block;color:#2563eb;font-weight:800;text-decoration:none;">
+                                                    Buka {{ $guideTitle }}
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    @endif
                     <tr>
                         <td align="center" style="padding:18px 34px 26px;">
                             <a href="{{ $approvalUrl }}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;border-radius:13px;padding:14px 28px;font-size:14px;font-weight:800;">
-                                Buka Halaman Approval
+                                Review dan Approval Dokumen
                             </a>
                         </td>
                     </tr>
@@ -81,12 +121,12 @@
                         <td style="padding:0 34px 30px;color:#64748b;font-size:12px;line-height:20px;">
                             @if ($expiresAt)
                                 <p style="margin:0 0 10px;">
-                                    Link berlaku sampai <strong>{{ $expiresAt }}</strong>.
+                                    Link approval ini berlaku sampai <strong>{{ $expiresAt }}</strong>.
                                 </p>
                             @endif
 
                             <p style="margin:0 0 10px;">
-                                Link hanya dapat digunakan oleh akun approval yang ditetapkan.
+                                Link hanya dapat digunakan oleh akun yang ditetapkan sebagai approver. Jangan meneruskan link ini kepada pihak lain.
                             </p>
 
                             <p style="margin:0 0 8px;">
@@ -96,6 +136,10 @@
                             <div style="word-break:break-all;color:#2563eb;">
                                 {{ $approvalUrl }}
                             </div>
+
+                            <p style="margin:12px 0 0;">
+                                Jika approval sudah Anda selesaikan, email ini dapat diabaikan.
+                            </p>
                         </td>
                     </tr>
                     <tr>

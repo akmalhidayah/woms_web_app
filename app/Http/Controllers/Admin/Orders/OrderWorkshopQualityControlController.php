@@ -84,7 +84,7 @@ class OrderWorkshopQualityControlController extends Controller
         $redirect = redirect()
             ->route('admin.orders.workshop.quality-control.edit', [$order, $report])
             ->with('status', $signatureResult['workshop_url']
-                ? 'Form Quality Control berhasil disimpan. Token TTD Manager Bengkel sudah dibuat.'
+                ? 'Form Quality Control berhasil disimpan.'
                 : 'Form Quality Control berhasil disimpan, tetapi penanda tangan Manager Bengkel belum ditemukan di struktur organisasi.');
 
         if ($signatureResult['workshop_url']) {
@@ -152,7 +152,7 @@ class OrderWorkshopQualityControlController extends Controller
         $redirect = redirect()
             ->route('admin.orders.workshop.quality-control.edit', [$order, $qualityControlReport])
             ->with('status', $signatureResult['workshop_url']
-                ? 'Form Quality Control berhasil diperbarui. Token TTD Manager Bengkel baru sudah dibuat.'
+                ? 'Form Quality Control berhasil diperbarui.'
                 : 'Form Quality Control berhasil diperbarui.');
 
         if ($signatureResult['workshop_url']) {

@@ -26,31 +26,6 @@
     @endif
 
     <div class="order-list-compact orders-index-compact space-y-4">
-        @if (session('initial_work_manager_approval_url'))
-            <section class="rounded-[1.25rem] border border-emerald-200 bg-emerald-50 px-5 py-4 shadow-sm">
-                <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                        <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">Token TTD Initial Work</div>
-                        <p class="mt-1 text-sm font-medium text-emerald-950">
-                            Link Manager sudah dibuat untuk {{ session('initial_work_manager_name') ?: 'penanda tangan Manager' }}
-                            @if (session('initial_work_manager_role'))
-                                <span class="font-normal text-emerald-700">({{ session('initial_work_manager_role') }})</span>
-                            @endif
-                        </p>
-                    </div>
-                    <a
-                        href="{{ session('initial_work_manager_approval_url') }}"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex w-fit items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-emerald-700"
-                    >
-                        <i data-lucide="pen-tool" class="h-3.5 w-3.5"></i>
-                        Buka Halaman TTD Manager
-                    </a>
-                </div>
-            </section>
-        @endif
-
         <div class="space-y-4">
             <section
                 class="order-list-hero rounded-[1.35rem] border border-blue-100 px-5 py-4 shadow-sm"

@@ -11,16 +11,6 @@
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">{{ session('status') }}</div>
     @endif
 
-    @if (session('quality_control_approval_url'))
-        <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-            <div class="font-semibold">Token TTD QC dibuat untuk {{ session('quality_control_approval_name') ?: 'Manager Bengkel' }}</div>
-            <a href="{{ session('quality_control_approval_url') }}" target="_blank" rel="noopener" class="mt-2 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-700">
-                <i data-lucide="external-link" class="h-3.5 w-3.5"></i>
-                Buka Link TTD {{ session('quality_control_approval_role') ?: 'Manager Bengkel' }}
-            </a>
-        </div>
-    @endif
-
     @if ($errors->any())
         <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
             <div class="font-semibold">Periksa kembali data QC.</div>

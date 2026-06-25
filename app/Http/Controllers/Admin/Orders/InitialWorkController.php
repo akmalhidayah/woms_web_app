@@ -78,7 +78,7 @@ class InitialWorkController extends Controller
         $redirect = redirect()
             ->route('admin.orders.index')
             ->with('status', $signatureResult['manager_url']
-                ? sprintf('Initial Work untuk order %s berhasil dibuat. Token TTD Manager sudah dibuat.', $initialWork->nomor_order)
+                ? sprintf('Initial Work untuk order %s berhasil dibuat.', $initialWork->nomor_order)
                 : sprintf('Initial Work untuk order %s berhasil dibuat, tetapi penanda tangan Manager belum ditemukan di struktur organisasi.', $initialWork->nomor_order));
 
         if ($signatureResult['manager_url']) {
@@ -144,7 +144,7 @@ class InitialWorkController extends Controller
         $redirect = redirect()
             ->route('admin.orders.index')
             ->with('status', $signatureResult['manager_url']
-                ? sprintf('Initial Work untuk order %s berhasil diperbarui. Token TTD Manager baru sudah dibuat.', $initialWork->nomor_order)
+                ? sprintf('Initial Work untuk order %s berhasil diperbarui.', $initialWork->nomor_order)
                 : sprintf('Initial Work untuk order %s berhasil diperbarui.', $initialWork->nomor_order));
 
         if ($signatureResult['manager_url']) {

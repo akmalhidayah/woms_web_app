@@ -1,18 +1,27 @@
-Halo {{ $userName ?? 'Pengguna' }}
+Halo Bpk/Ibu {{ $userName ?? 'Pengguna' }},
 
-Anda ditetapkan sebagai {{ $roleLabel }} untuk melakukan approval dokumen berikut:
+{{ $roleLabel }} PT. Semen Tonasa, Silahkan Lakukan review dan approval dokumen berikut melalui link di bawah ini.
 
 Dokumen        : {{ $documentType }}
 Nomor Dokumen : {{ $documentNumber }}
 Role Approval : {{ $roleLabel }}
 
-Silakan buka halaman approval melalui link berikut:
+@if (! empty($guideUrl))
+Sebelum melakukan tanda tangan, mohon membaca buku panduan role approval berikut:
+{{ $guideTitle ?? 'Buku Panduan Role Approval' }}
+{{ $guideUrl }}
+
+@endif
+
+Mohon lakukan review dan approval melalui link berikut:
 {{ $approvalUrl }}
 
 @if ($expiresAt)
-Link berlaku sampai {{ $expiresAt }}.
+Link approval ini berlaku sampai {{ $expiresAt }}.
 @endif
 
-Link hanya dapat digunakan oleh akun approval yang ditetapkan.
+Link hanya dapat digunakan oleh akun yang ditetapkan sebagai approver. Jangan meneruskan link ini kepada pihak lain.
+
+Jika approval sudah Anda selesaikan, email ini dapat diabaikan.
 
 Email ini dikirim otomatis oleh sistem WOMS. Mohon tidak membalas email ini.

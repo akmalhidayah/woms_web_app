@@ -35,25 +35,30 @@
                         <td style="border-radius:24px;overflow:hidden;background:#ffffff;box-shadow:0 22px 54px rgba(15,23,42,.16);">
                             <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                                 <tr>
-                                    <td style="background:#0f172a;padding:28px 32px;">
-                                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                                    <td align="center" style="background:#eef3f8;padding:30px 32px 28px;text-align:center;border-bottom:1px solid #dbe4ee;">
+                                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;">
                                             <tr>
-                                                <td style="vertical-align:middle;">
-                                                    <table role="presentation" cellspacing="0" cellpadding="0">
+                                                <td align="center" style="text-align:center;">
+                                                    <table role="presentation" cellspacing="0" cellpadding="0" align="center" style="margin:0 auto;margin-left:auto;margin-right:auto;">
                                                         <tr>
-                                                            <td style="width:78px;height:66px;border-radius:18px;background:#ffffff;text-align:center;vertical-align:middle;box-shadow:0 12px 28px rgba(2,6,23,.22);">
-                                                                <img src="{{ $logoStSource }}" width="56" alt="Semen Tonasa" style="width:56px;max-width:56px;height:auto;display:inline-block;border:0;vertical-align:middle;">
-                                                            </td>
-                                                            <td style="width:12px;"></td>
-                                                            <td style="width:78px;height:66px;border-radius:18px;background:#ffffff;text-align:center;vertical-align:middle;box-shadow:0 12px 28px rgba(2,6,23,.22);">
-                                                                <img src="{{ $logoBmsSource }}" width="58" alt="Bengkel Mesin" style="width:58px;max-width:58px;height:auto;display:inline-block;border:0;vertical-align:middle;">
-                                                            </td>
-                                                            <td style="padding-left:18px;color:#ffffff;">
-                                                                <div style="font-size:12px;line-height:18px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#93c5fd;">WOMS</div>
-                                                                <div style="font-size:24px;line-height:31px;font-weight:800;margin-top:2px;">Workshop Order Management System</div>
-                                                            </td>
+                                                            @if (! empty($logoStSource))
+                                                                <td align="center" style="padding:0 8px;vertical-align:middle;">
+                                                                    <img src="{{ $logoStSource }}" width="64" alt="Semen Tonasa" style="display:block;border:0;outline:none;text-decoration:none;">
+                                                                </td>
+                                                            @endif
+
+                                                            @if (! empty($logoBmsSource))
+                                                                <td align="center" style="padding:0 8px;vertical-align:middle;">
+                                                                    <img src="{{ $logoBmsSource }}" width="78" alt="Bengkel Mesin" style="display:block;border:0;outline:none;text-decoration:none;">
+                                                                </td>
+                                                            @endif
                                                         </tr>
                                                     </table>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td align="center" style="padding-top:14px;color:#0f172a;font-size:24px;line-height:30px;font-weight:800;text-align:center;">
+                                                    Workshop Order Management System
                                                 </td>
                                             </tr>
                                         </table>
@@ -61,15 +66,18 @@
                                 </tr>
                                 <tr>
                                     <td style="padding:36px 34px 12px;">
-                                        <h1 style="margin:0;color:#0f172a;font-size:28px;line-height:36px;font-weight:800;">Halo {{ $safeName }}</h1>
+                                        <h1 style="margin:0;color:#0f172a;font-size:28px;line-height:36px;font-weight:800;">Halo Bpk/Ibu {{ $safeName }},</h1>
                                         <p style="margin:16px 0 0;color:#475569;font-size:16px;line-height:26px;">
-                                            Kami menerima permintaan reset password untuk akun WOMS Anda. Gunakan tombol di bawah untuk membuat password baru.
+                                            Kami menerima permintaan reset password untuk akun WOMS Anda. Gunakan tombol di bawah ini untuk membuat password baru.
+                                        </p>
+                                        <p style="margin:10px 0 0;color:#475569;font-size:16px;line-height:26px;">
+                                            Jika permintaan ini bukan dari Anda, abaikan email ini. Password lama tetap aktif sampai Anda membuat password baru.
                                         </p>
                                     </td>
                                 </tr>
                                 <tr>
                                     <td align="center" style="padding:24px 34px 26px;">
-                                        <a href="{{ $resetUrl }}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:13px;padding:15px 30px;font-size:15px;line-height:20px;font-weight:800;box-shadow:0 12px 26px rgba(37,99,235,.3);">Reset Password</a>
+                                        <a href="{{ $resetUrl }}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:13px;padding:15px 30px;font-size:15px;line-height:20px;font-weight:800;box-shadow:0 12px 26px rgba(37,99,235,.3);">Buat Password Baru</a>
                                     </td>
                                 </tr>
                                 <tr>
@@ -78,7 +86,7 @@
                                             <tr>
                                                 <td style="padding:18px 20px;">
                                                     <div style="color:#0f172a;font-size:14px;font-weight:800;margin-bottom:6px;">Link berlaku {{ $expiresIn }} menit</div>
-                                                    <div style="color:#64748b;font-size:13px;line-height:22px;">Jika Anda tidak meminta reset password, abaikan email ini. Password lama tetap aktif sampai Anda membuat password baru.</div>
+                                                    <div style="color:#64748b;font-size:13px;line-height:22px;">Demi keamanan akun, jangan meneruskan link reset password ini kepada pihak lain.</div>
                                                 </td>
                                             </tr>
                                         </table>

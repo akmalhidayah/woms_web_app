@@ -2,7 +2,6 @@
     $safeName = trim((string) ($userName ?? 'Pengguna'));
     $logoStSource = $logoStUrl ?? '';
     $logoBmsSource = $logoBmsUrl ?? '';
-    $logoStrokeStyle = 'filter:drop-shadow(0 1px 0 #ffffff) drop-shadow(1px 0 0 #ffffff) drop-shadow(0 -1px 0 #ffffff) drop-shadow(-1px 0 0 #ffffff) drop-shadow(0 0 4px rgba(255,255,255,0.85));';
 
     if (isset($message) && ! empty($logoStPath) && file_exists($logoStPath)) {
         $logoStSource = $message->embedData(file_get_contents($logoStPath), 'semen-tonasa-logo.png', 'image/png');
@@ -29,7 +28,7 @@
             <td align="center" style="padding:34px 16px;">
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:660px;background:#ffffff;border-radius:24px;overflow:hidden;">
                     <tr>
-                        <td align="center" style="background:#0f172a;padding:30px 32px 28px;text-align:center;">
+                        <td align="center" style="background:#eef3f8;padding:30px 32px 28px;text-align:center;border-bottom:1px solid #dbe4ee;">
                             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;">
                                 <tr>
                                     <td align="center" style="text-align:center;">
@@ -37,13 +36,13 @@
                                             <tr>
                                                 @if (! empty($logoStSource))
                                                     <td align="center" style="padding:0 8px;vertical-align:middle;">
-                                                        <img src="{{ $logoStSource }}" width="64" alt="Semen Tonasa" style="display:block;border:0;outline:none;text-decoration:none;{{ $logoStrokeStyle }}">
+                                                        <img src="{{ $logoStSource }}" width="64" alt="Semen Tonasa" style="display:block;border:0;outline:none;text-decoration:none;">
                                                     </td>
                                                 @endif
 
                                                 @if (! empty($logoBmsSource))
                                                     <td align="center" style="padding:0 8px;vertical-align:middle;">
-                                                        <img src="{{ $logoBmsSource }}" width="78" alt="Bengkel Mesin" style="display:block;border:0;outline:none;text-decoration:none;{{ $logoStrokeStyle }}">
+                                                        <img src="{{ $logoBmsSource }}" width="78" alt="Bengkel Mesin" style="display:block;border:0;outline:none;text-decoration:none;">
                                                     </td>
                                                 @endif
                                             </tr>
@@ -51,7 +50,7 @@
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td align="center" style="padding-top:14px;color:#fff;font-size:24px;line-height:30px;font-weight:800;text-align:center;">
+                                    <td align="center" style="padding-top:14px;color:#0f172a;font-size:24px;line-height:30px;font-weight:800;text-align:center;">
                                         Workshop Order Management System
                                     </td>
                                 </tr>

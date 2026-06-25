@@ -54,21 +54,6 @@
                     </div>
                 @endif
 
-                @if ($nextApprovalUrl)
-                    <div class="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
-                        <div class="text-sm font-semibold text-blue-900">Token Senior Manager aktif</div>
-                        <p class="mt-1 text-xs leading-5 text-blue-700">
-                            Link ini tetap aman karena hanya akun Senior Manager yang ditetapkan yang bisa menandatangani.
-                        </p>
-                        <a
-                            href="{{ $nextApprovalUrl }}"
-                            class="mt-3 inline-flex rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-700"
-                        >
-                            Buka Halaman TTD Senior Manager
-                        </a>
-                    </div>
-                @endif
-
                 @if ($errors->any())
                     <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                         {{ $errors->first() }}

@@ -34,7 +34,6 @@ class HppSignatureController extends Controller
                 'signature' => null,
                 'token' => $token,
                 'isExpired' => false,
-                'nextApprovalUrl' => null,
                 'hppPdfUrl' => null,
                 'abnormalitasUrl' => null,
                 'gambarTeknikUrl' => null,
@@ -60,7 +59,6 @@ class HppSignatureController extends Controller
             'signature' => $signature,
             'token' => $token,
             'isExpired' => $signature->isPending() && $signature->tokenExpired(),
-            'nextApprovalUrl' => session('next_approval_url'),
             'hppPdfUrl' => route('approval.hpp.pdf', $token),
             'abnormalitasUrl' => route('approval.hpp.abnormalitas', $token),
             'gambarTeknikUrl' => route('approval.hpp.gambar-teknik', $token),
@@ -210,7 +208,7 @@ class HppSignatureController extends Controller
                 $this->authorizeSigner($request, $lockedSignature);
 
                 if ($lockedSignature->isSigned()) {
-                    return ['processed' => false, 'state' => 'signed', 'next_approval_url' => null];
+                    return ['processed' => false, 'state' => 'signed'];
                 }
 
                 $hpp = Hpp::query()
@@ -219,7 +217,7 @@ class HppSignatureController extends Controller
                     ->firstOrFail();
 
                 if ($hpp->status === Hpp::STATUS_REJECTED || $lockedSignature->isSkipped()) {
-                    return ['processed' => false, 'state' => 'rejected', 'next_approval_url' => null];
+                    return ['processed' => false, 'state' => 'rejected'];
                 }
 
                 abort_unless($lockedSignature->isPending(), 403, 'Tahap tanda tangan HPP ini belum aktif.');
@@ -235,10 +233,11 @@ class HppSignatureController extends Controller
                     'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
                 ]);
 
+                $this->signatureBuilder->activateNextSignature($lockedSignature);
+
                 return [
                     'processed' => true,
                     'state' => 'signed_now',
-                    'next_approval_url' => $this->signatureBuilder->activateNextSignature($lockedSignature),
                 ];
             });
         } catch (\Throwable $exception) {
@@ -260,9 +259,7 @@ class HppSignatureController extends Controller
         $redirect = redirect()
             ->route('approval.hpp.show', $token)
             ->with('approval_signed', true)
-            ->with('status', $result['next_approval_url']
-                ? 'Tanda tangan HPP berhasil disimpan.'
-                : 'Tanda tangan HPP berhasil disimpan. Approval HPP selesai.');
+            ->with('status', 'Tanda tangan HPP berhasil disimpan.');
 
         return $redirect;
     }

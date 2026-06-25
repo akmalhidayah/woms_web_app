@@ -35,7 +35,6 @@ class QualityControlSignatureController extends Controller
             'signature' => $signature,
             'token' => $token,
             'isExpired' => $signature->isPending() && $signature->tokenExpired(),
-            'nextApprovalUrl' => session('next_approval_url'),
             'qualityControlPdfUrl' => route('approval.quality-control.pdf', $token),
         ]);
     }
@@ -93,7 +92,7 @@ class QualityControlSignatureController extends Controller
                 $this->authorizeSigner($request, $lockedSignature);
 
                 if ($lockedSignature->isSigned()) {
-                    return ['processed' => false, 'next_approval_url' => null];
+                    return ['processed' => false];
                 }
 
                 abort_unless($lockedSignature->isPending(), 403, 'Tahap tanda tangan QC ini belum aktif.');
@@ -107,10 +106,9 @@ class QualityControlSignatureController extends Controller
                     'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
                 ]);
 
-                return [
-                    'processed' => true,
-                    'next_approval_url' => $this->signatureService->activateNextSignature($lockedSignature),
-                ];
+                $this->signatureService->activateNextSignature($lockedSignature);
+
+                return ['processed' => true];
             });
         } catch (\Throwable $exception) {
             Storage::disk('public')->delete($signaturePath);
@@ -126,19 +124,10 @@ class QualityControlSignatureController extends Controller
                 ->with('status', 'Dokumen QC ini sudah ditandatangani.');
         }
 
-        $nextApprovalUrl = $result['next_approval_url'];
-        $redirect = redirect()
+        return redirect()
             ->route('approval.quality-control.show', $token)
             ->with('approval_signed', true)
-            ->with('status', $nextApprovalUrl
-                ? 'Tanda tangan QC berhasil disimpan. Approval berikutnya sudah diaktifkan.'
-                : 'Tanda tangan QC berhasil disimpan.');
-
-        if ($nextApprovalUrl) {
-            $redirect->with('next_approval_url', $nextApprovalUrl);
-        }
-
-        return $redirect;
+            ->with('status', 'Tanda tangan QC berhasil disimpan.');
     }
 
     private function resolveSignatureByToken(string $token): QualityControlSignature

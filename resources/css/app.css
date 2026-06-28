@@ -320,3 +320,11 @@ html::-webkit-scrollbar,
 body::-webkit-scrollbar {
     display: none;
 }
+
+@media (max-width: 768px) {
+    .profile-zoom-safe input,
+    .profile-zoom-safe select,
+    .profile-zoom-safe textarea {
+        font-size: 16px !important;
+    }
+}

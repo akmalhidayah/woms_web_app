@@ -8,7 +8,7 @@
         <div id="profile-success" data-message="{{ session('success') }}" class="hidden"></div>
     @endif
 
-    <div class="mx-auto max-w-4xl space-y-4">
+    <div class="profile-zoom-safe mx-auto max-w-4xl space-y-4">
         <section class="flex flex-col gap-4 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div class="flex items-center gap-3">
                 <span class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">

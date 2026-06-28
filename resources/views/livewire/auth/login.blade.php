@@ -115,7 +115,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
 
     <x-auth-header
         title="Masuk ke WOMS"
-        description="Masukkan akun Anda."
+        description=""
     />
 
     <x-auth-session-status class="auth-reveal auth-delay-1 rounded-2xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-left text-sm font-medium text-emerald-700" :status="session('status')" />
@@ -168,8 +168,16 @@ new #[Layout('components.layouts.auth')] class extends Component {
                     :aria-label="showPassword ? 'Sembunyikan password' : 'Tampilkan password'"
                     @click="showPassword = !showPassword"
                 >
-                    <i x-show="!showPassword" data-lucide="eye" class="h-4 w-4"></i>
-                    <i x-show="showPassword" data-lucide="eye-off" class="h-4 w-4"></i>
+                    <svg x-show="!showPassword" class="h-4 w-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+                        <circle cx="12" cy="12" r="3" />
+                    </svg>
+                    <svg x-show="showPassword" class="h-4 w-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.7 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a17.9 17.9 0 0 1-2.1 3.1" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.6 6.6C3.6 8.6 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2 2l20 20" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.9 9.9A3 3 0 0 0 14.1 14.1" />
+                    </svg>
                 </button>
             </div>
 

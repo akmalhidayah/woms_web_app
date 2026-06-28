@@ -1,16 +1,27 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
+        @php
+            $showLoginInfoMenu = request()->routeIs('login');
+            $logoStAvif = asset('images/auth/st-logo.avif');
+            $logoStWebp = asset('images/auth/st-logo.webp');
+            $logoStFallback = asset('images/auth/st-logo.png');
+            $logoWorkshopAvif = asset('images/auth/workshop-logo.avif');
+            $logoWorkshopWebp = asset('images/auth/workshop-logo.webp');
+            $logoWorkshopFallback = asset('images/auth/workshop-logo.png');
+            $authPosterAvif = asset('images/auth/login-bg.avif');
+            $authPosterWebp = asset('images/auth/login-bg.webp');
+            $authPosterFallback = asset('images/auth/login-bg.jpg');
+        @endphp
+
         @include('partials.head')
+
+        @if ($showLoginInfoMenu)
+            <link rel="preload" as="image" href="{{ $authPosterAvif }}" type="image/avif" fetchpriority="high">
+        @endif
     </head>
     <body class="auth-shell min-h-screen antialiased">
         @php
-            $logoSt = asset('assets/branding/logos/logo-st2.png');
-            $logoBms = asset('assets/branding/logos/logo-bms2.png');
-            $authVideo = asset('assets/branding/illustrations/bg.mp4');
-            $authPoster = asset('assets/branding/illustrations/bg-login.jpg');
-            $showLoginInfoMenu = request()->routeIs('login');
-
             $caraKerjaPns = collect();
             $caraKerjaPkm = collect();
             $caraKerjaApproval = collect();
@@ -48,7 +59,10 @@
             }
         @endphp
 
-        <div class="relative isolate min-h-screen overflow-hidden" style="background: url('{{ $authPoster }}') center center / cover no-repeat;">
+        <div
+            class="relative isolate min-h-screen overflow-hidden"
+            style="background-image: url('{{ $authPosterFallback }}'); background-image: image-set(url('{{ $authPosterAvif }}') type('image/avif'), url('{{ $authPosterWebp }}') type('image/webp'), url('{{ $authPosterFallback }}') type('image/jpeg')); background-position: center center; background-size: cover; background-repeat: no-repeat;"
+        >
             <div class="auth-orb left-[-5rem] top-[-3rem] -z-10 hidden h-48 w-48 bg-pink-300/40 sm:block sm:h-64 sm:w-64"></div>
             <div class="auth-orb auth-delay-2 right-[-4rem] top-[12%] -z-10 hidden h-56 w-56 bg-sky-300/35 sm:block sm:h-72 sm:w-72"></div>
             <div class="auth-orb auth-orb-soft bottom-[-4rem] left-[14%] -z-10 hidden h-52 w-52 bg-violet-300/30 sm:block sm:h-72 sm:w-72"></div>
@@ -56,18 +70,10 @@
 
             <div class="relative z-10 mx-auto flex min-h-screen max-w-6xl items-center px-4 py-8 sm:px-6 lg:px-8">
                 <div class="grid w-full overflow-hidden lg:rounded-[2rem] lg:border lg:border-white/60 lg:bg-white/70 lg:shadow-2xl lg:shadow-slate-300/20 lg:backdrop-blur-sm lg:grid-cols-[1.08fr_0.92fr]">
-                    <section class="auth-panel relative hidden overflow-hidden px-10 py-12 text-white lg:flex lg:flex-col lg:justify-between">
-                        <video
-                            class="absolute inset-0 h-full w-full object-cover opacity-35"
-                            autoplay
-                            muted
-                            loop
-                            playsinline
-                            preload="metadata"
-                            poster="{{ $authPoster }}"
-                        >
-                            <source src="{{ $authVideo }}" type="video/mp4">
-                        </video>
+                    <section
+                        class="auth-panel relative hidden overflow-hidden px-10 py-12 text-white lg:flex lg:flex-col lg:justify-between"
+                        style="background-image: url('{{ $authPosterFallback }}'); background-image: image-set(url('{{ $authPosterAvif }}') type('image/avif'), url('{{ $authPosterWebp }}') type('image/webp'), url('{{ $authPosterFallback }}') type('image/jpeg')); background-position: center center; background-size: cover;"
+                    >
                         <div class="absolute inset-0 bg-slate-950/55"></div>
                         <div class="auth-orb left-[8%] top-[12%] h-28 w-28 bg-fuchsia-300/20"></div>
                         <div class="auth-orb auth-delay-3 right-[10%] top-[20%] h-36 w-36 bg-sky-300/15"></div>
@@ -76,9 +82,17 @@
                             <div class="auth-reveal">
                                 <a href="{{ route('home') }}" class="inline-flex items-center gap-4 text-sm text-slate-100" wire:navigate>
                                     <span class="flex items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/15 shadow-lg shadow-sky-950/20 backdrop-blur-sm">
-                                        <img src="{{ $logoSt }}" alt="Logo ST2" class="h-12 w-auto object-contain">
+                                        <picture>
+                                            <source srcset="{{ $logoStAvif }}" type="image/avif">
+                                            <source srcset="{{ $logoStWebp }}" type="image/webp">
+                                            <img src="{{ $logoStFallback }}" alt="Logo Semen Tonasa" width="220" height="220" decoding="async" class="h-12 w-auto object-contain">
+                                        </picture>
                                         <span class="h-8 w-px bg-white/15"></span>
-                                        <img src="{{ $logoBms }}" alt="Logo BMS2" class="h-12 w-auto object-contain">
+                                        <picture>
+                                            <source srcset="{{ $logoWorkshopAvif }}" type="image/avif">
+                                            <source srcset="{{ $logoWorkshopWebp }}" type="image/webp">
+                                            <img src="{{ $logoWorkshopFallback }}" alt="Logo Workshop" width="420" height="282" decoding="async" class="h-12 w-auto object-contain">
+                                        </picture>
                                     </span>
                                     <span class="max-w-[15rem] text-sm font-semibold leading-5 text-slate-100">
                                         Workshop Order Management System
@@ -167,10 +181,18 @@
                     <section class="flex items-center justify-center px-5 py-8 sm:px-8 lg:px-12 lg:py-12">
                         <div class="w-full max-w-md space-y-6">
                             <a href="{{ route('home') }}" class="auth-reveal mx-auto flex w-full flex-col items-center gap-3 text-center text-sm text-slate-700 lg:hidden" wire:navigate>
-                                <span class="inline-flex items-center justify-center gap-3 rounded-2xl bg-white/90 px-4 py-3 shadow-lg shadow-slate-200/60 ring-1 ring-white/80 backdrop-blur-sm">
-                                    <img src="{{ $logoSt }}" alt="Logo ST2" class="h-10 w-auto object-contain">
+                                <span class="inline-flex items-center justify-center gap-3 rounded-2xl bg-white/90 px-4 py-3 shadow-lg shadow-slate-200/60 ring-1 ring-white/80">
+                                    <picture>
+                                        <source srcset="{{ $logoStAvif }}" type="image/avif">
+                                        <source srcset="{{ $logoStWebp }}" type="image/webp">
+                                        <img src="{{ $logoStFallback }}" alt="Logo Semen Tonasa" width="220" height="220" loading="eager" decoding="async" class="h-10 w-auto object-contain">
+                                    </picture>
                                     <span class="h-7 w-px bg-slate-300/70"></span>
-                                    <img src="{{ $logoBms }}" alt="Logo BMS2" class="h-10 w-auto object-contain">
+                                    <picture>
+                                        <source srcset="{{ $logoWorkshopAvif }}" type="image/avif">
+                                        <source srcset="{{ $logoWorkshopWebp }}" type="image/webp">
+                                        <img src="{{ $logoWorkshopFallback }}" alt="Logo Workshop" width="420" height="282" loading="eager" decoding="async" class="h-10 w-auto object-contain">
+                                    </picture>
                                 </span>
                                 <span class="sr-only">Workshop Order Management System</span>
                             </a>

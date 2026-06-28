@@ -1,52 +1,26 @@
 <x-layouts.user>
     @php
-        $toneClasses = [
-            'emerald' => 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-            'blue' => 'bg-red-50 text-red-700 ring-red-200',
-            'amber' => 'bg-amber-50 text-amber-700 ring-amber-200',
-            'rose' => 'bg-rose-50 text-rose-700 ring-rose-200',
-            'slate' => 'bg-stone-50 text-stone-700 ring-stone-200',
-        ];
-
-        $cardAccentClasses = [
-            'emerald' => 'border-l-4 border-l-emerald-400',
-            'blue' => 'border-l-4 border-l-red-400',
-            'amber' => 'border-l-4 border-l-amber-400',
-            'rose' => 'border-l-4 border-l-rose-400',
-            'slate' => 'border-l-4 border-l-stone-300',
-        ];
-
         $summaryCards = [
             [
                 'label' => 'Total Order',
                 'value' => $stats['total_orders'],
                 'icon' => 'clipboard-list',
-                'iconClass' => 'bg-sky-50 text-sky-700 ring-sky-100',
+                'iconClass' => 'bg-red-50 text-red-700 ring-red-100',
+                'accent' => 'bg-red-700',
                 'breakdown' => [
-                    [
-                        'label' => 'Order Bengkel',
-                        'value' => $stats['workshop_orders'],
-                    ],
-                    [
-                        'label' => 'Order Jasa',
-                        'value' => $stats['service_orders'],
-                    ],
+                    ['label' => 'Order Bengkel', 'value' => $stats['workshop_orders']],
+                    ['label' => 'Order Jasa', 'value' => $stats['service_orders']],
                 ],
             ],
             [
                 'label' => 'Order Selesai',
                 'value' => $stats['completed_orders'],
                 'icon' => 'circle-check-big',
-                'iconClass' => 'bg-violet-50 text-violet-700 ring-violet-100',
+                'iconClass' => 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+                'accent' => 'bg-emerald-600',
                 'breakdown' => [
-                    [
-                        'label' => 'Bengkel',
-                        'value' => $stats['completed_workshop_orders'],
-                    ],
-                    [
-                        'label' => 'Jasa',
-                        'value' => $stats['completed_service_orders'],
-                    ],
+                    ['label' => 'Bengkel', 'value' => $stats['completed_workshop_orders']],
+                    ['label' => 'Jasa', 'value' => $stats['completed_service_orders']],
                 ],
             ],
             [
@@ -54,155 +28,269 @@
                 'value' => $stats['emergency_orders'],
                 'icon' => 'siren',
                 'iconClass' => 'bg-rose-50 text-rose-700 ring-rose-100',
+                'accent' => 'bg-rose-600',
             ],
             [
                 'label' => 'PO Order Jasa',
                 'value' => $stats['po_ready'],
                 'icon' => 'file-check-2',
                 'iconClass' => 'bg-amber-50 text-amber-700 ring-amber-100',
+                'accent' => 'bg-amber-500',
             ],
             [
                 'label' => 'BAST Order Jasa',
                 'value' => $stats['bast_ready'],
                 'icon' => 'badge-check',
-                'iconClass' => 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+                'iconClass' => 'bg-sky-50 text-sky-700 ring-sky-100',
+                'accent' => 'bg-sky-600',
             ],
         ];
+
+        $approvedLabels = $chartApproved['labels'] ?? [];
+        $approvedValues = array_map(static fn ($value) => (float) $value, $chartApproved['values'] ?? []);
+        $approvedMax = max($approvedValues ?: [0]);
+        $approvedRows = collect($approvedLabels)->map(fn ($label, $index) => [
+            'label' => (string) $label,
+            'value' => (float) ($approvedValues[$index] ?? 0),
+        ])->values();
+        $hasApprovedData = $approvedRows->contains(fn ($row) => $row['value'] > 0);
+
+        $biayaLabels = $chartBiaya['labels'] ?? [];
+        $biayaValues = array_map(static fn ($value) => (float) $value, $chartBiaya['values'] ?? []);
+        $biayaMax = max($biayaValues ?: [0]);
+        $biayaRows = collect($biayaLabels)->map(fn ($label, $index) => [
+            'label' => (string) $label,
+            'value' => (float) ($biayaValues[$index] ?? 0),
+        ])->values();
+        $hasBiayaData = $biayaRows->contains(fn ($row) => $row['value'] > 0);
     @endphp
 
-    <div class="space-y-4">
-        <section class="sticky top-[68px] z-20 rounded-2xl border border-stone-200 bg-white p-2.5 shadow-sm">
-            <div class="overflow-x-auto">
-                <form method="GET" action="{{ route('user.dashboard') }}" class="flex min-w-[760px] items-center gap-2">
+    <div class="user-dashboard space-y-6" data-user-dashboard>
+        <section class="dashboard-premium-card rounded-[1.35rem] p-4 sm:p-5">
+            <form method="GET" action="{{ route('user.dashboard') }}" class="grid gap-3 lg:grid-cols-[minmax(220px,1.6fr)_minmax(160px,0.9fr)_minmax(130px,0.6fr)_minmax(110px,0.45fr)_auto] lg:items-end" data-dashboard-filter-form>
+                <div class="space-y-1.5">
+                    <label for="notification_number" class="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Order / Notifikasi</label>
                     <input
+                        id="notification_number"
                         type="text"
                         name="notification_number"
                         value="{{ $filters['notification_number'] }}"
                         placeholder="Cari nomor order / notifikasi..."
-                        class="h-10 min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-700 placeholder:text-stone-400 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100"
+                        class="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-800 placeholder:text-slate-400 shadow-sm transition focus:border-red-300 focus:outline-none focus:ring-4 focus:ring-red-100"
                     >
+                </div>
 
-                    <select name="unit_work" class="h-10 w-[180px] rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100">
+                <div class="space-y-1.5">
+                    <label for="unit_work" class="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Unit</label>
+                    <select id="unit_work" name="unit_work" class="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-800 shadow-sm transition focus:border-red-300 focus:outline-none focus:ring-4 focus:ring-red-100">
                         <option value="">Semua Unit</option>
                         @foreach ($units as $u)
                             <option value="{{ $u }}" @selected($filters['unit_work'] === $u)>{{ $u }}</option>
                         @endforeach
                     </select>
+                </div>
 
-                    <select name="sortOrder" class="h-10 w-[140px] rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100">
+                <div class="space-y-1.5">
+                    <label for="sortOrder" class="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Sortir</label>
+                    <select id="sortOrder" name="sortOrder" class="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-800 shadow-sm transition focus:border-red-300 focus:outline-none focus:ring-4 focus:ring-red-100">
                         <option value="latest" @selected($filters['sortOrder'] === 'latest')>Terbaru</option>
                         <option value="oldest" @selected($filters['sortOrder'] === 'oldest')>Terlama</option>
                     </select>
+                </div>
 
-                    <select name="entries" class="h-10 w-[90px] rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-700 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100">
+                <div class="space-y-1.5">
+                    <label for="entries" class="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Limit</label>
+                    <select id="entries" name="entries" class="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-800 shadow-sm transition focus:border-red-300 focus:outline-none focus:ring-4 focus:ring-red-100">
                         @foreach ([10, 25, 50, 100] as $n)
                             <option value="{{ $n }}" @selected((int) $filters['entries'] === $n)>{{ $n }}</option>
                         @endforeach
                     </select>
+                </div>
 
-                    <button type="submit" class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-800 bg-red-800 text-white transition hover:bg-red-900" title="Terapkan filter" aria-label="Terapkan filter">
+                <div class="flex gap-2">
+                    <button type="submit" class="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-red-800 bg-red-800 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-red-900 focus:outline-none focus:ring-4 focus:ring-red-100 lg:flex-none" aria-label="Terapkan filter">
                         <i data-lucide="filter" class="h-4 w-4"></i>
+                        <span class="lg:hidden xl:inline">Filter</span>
                     </button>
-                    <a href="{{ route('user.dashboard') }}" class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 transition hover:border-red-200 hover:text-red-800" title="Reset filter" aria-label="Reset filter">
+                    <a href="{{ route('user.dashboard') }}" class="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-600 shadow-sm transition hover:border-red-200 hover:text-red-800 focus:outline-none focus:ring-4 focus:ring-red-100 lg:flex-none" aria-label="Reset filter" data-dashboard-reset>
                         <i data-lucide="rotate-ccw" class="h-4 w-4"></i>
+                        <span class="lg:hidden xl:inline">Reset</span>
                     </a>
-                </form>
-            </div>
+                </div>
+            </form>
         </section>
 
-        <section class="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-[1.22fr_1.22fr_0.82fr_0.82fr_0.82fr]">
+        <section class="dashboard-content grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.18fr_1.18fr_0.88fr_0.88fr_0.88fr]">
             @foreach ($summaryCards as $card)
-                <article class="flex min-h-[76px] items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white px-3 py-2.5 shadow-sm">
-                    <div class="min-w-0">
-                        <div class="text-[9px] font-bold uppercase tracking-[0.16em] text-stone-500">{{ $card['label'] }}</div>
-                        <div class="mt-1 text-xl font-black leading-none text-stone-900">{{ $card['value'] }}</div>
+                <article class="dashboard-soft-card group relative overflow-hidden rounded-[1.35rem] p-4 transition hover:-translate-y-0.5 hover:shadow-xl">
+                    <div class="absolute inset-x-0 top-0 h-1 {{ $card['accent'] }}"></div>
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="min-w-0">
+                            <div class="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">{{ $card['label'] }}</div>
+                            <div class="mt-3 text-3xl font-black leading-none tracking-tight text-slate-950" data-count-up data-count-value="{{ $card['value'] }}">{{ $card['value'] }}</div>
+                        </div>
+                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ring-1 {{ $card['iconClass'] }}">
+                            <i data-lucide="{{ $card['icon'] }}" class="h-5 w-5"></i>
+                        </div>
                     </div>
 
                     @if (isset($card['breakdown']))
-                        <div class="ml-auto flex min-w-0 flex-1 items-center justify-end gap-3">
+                        <div class="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
                             @foreach ($card['breakdown'] as $item)
-                                <div class="min-w-0 border-l border-stone-100 pl-3 text-right first:border-l-0 first:pl-0">
-                                    <div class="text-[8px] font-bold uppercase leading-tight tracking-[0.1em] text-stone-400">{{ $item['label'] }}</div>
-                                    <div class="mt-1 text-sm font-black leading-none text-stone-900">{{ $item['value'] }}</div>
+                                <div class="rounded-2xl bg-slate-50 px-3 py-2">
+                                    <div class="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">{{ $item['label'] }}</div>
+                                    <div class="mt-1 text-lg font-black leading-none text-slate-900" data-count-up data-count-value="{{ $item['value'] }}">{{ $item['value'] }}</div>
                                 </div>
                             @endforeach
                         </div>
                     @endif
-
-                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 {{ $card['iconClass'] }}">
-                        <i data-lucide="{{ $card['icon'] }}" class="h-5 w-5"></i>
-                    </div>
                 </article>
             @endforeach
         </section>
 
-        <section class="grid gap-3 xl:grid-cols-2">
-            <div class="rounded-2xl border border-stone-200 bg-white p-3.5 shadow-sm">
-                <div class="mb-2.5 flex items-center justify-between gap-3">
-                    <div>
-                        <h3 class="flex items-center gap-2 text-sm font-semibold text-stone-900">
-                            <i data-lucide="line-chart" class="h-4 w-4 text-red-700"></i>
-                            Top 10 Unit Kerja - Approved
-                        </h3>
-                        <p class="mt-1 text-[11px] text-stone-500">Jumlah order yang sudah approved</p>
-                    </div>
+        <section class="dashboard-skeleton grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-hidden="true">
+            @foreach (range(1, 5) as $item)
+                <div class="dashboard-soft-card rounded-[1.35rem] p-4">
+                    <div class="dashboard-skeleton-block h-4 w-28"></div>
+                    <div class="dashboard-skeleton-block mt-5 h-8 w-20"></div>
+                    <div class="dashboard-skeleton-block mt-5 h-10 w-full"></div>
                 </div>
-                <div class="relative h-48">
-                    <canvas id="chartNotifikasi"></canvas>
-                </div>
-            </div>
-
-            <div class="rounded-2xl border border-stone-200 bg-white p-3.5 shadow-sm">
-                <div class="mb-2.5 flex items-center justify-between gap-3">
-                    <div>
-                        <h3 class="flex items-center gap-2 text-sm font-semibold text-stone-900">
-                            <i data-lucide="badge-dollar-sign" class="h-4 w-4 text-red-700"></i>
-                            Top 10 Unit Kerja - Total Biaya LHPP
-                        </h3>
-                        <p class="mt-1 text-[11px] text-stone-500">Akumulasi total biaya pekerjaan</p>
-                    </div>
-                </div>
-                <div class="relative h-48">
-                    <canvas id="chartBiaya"></canvas>
-                </div>
-            </div>
+            @endforeach
         </section>
 
-        <section>
+        <section class="dashboard-content grid gap-4 xl:grid-cols-2">
+            <article class="dashboard-soft-card rounded-[1.35rem] p-4 sm:p-5">
+                <div class="mb-5 flex items-start justify-between gap-4">
+                    <div>
+                        <h2 class="flex items-center gap-2 text-base font-black text-slate-950">
+                            <i data-lucide="bar-chart-3" class="h-5 w-5 text-red-700"></i>
+                            Top 10 Unit Kerja - Approved
+                        </h2>
+                        <p class="mt-1 text-sm text-slate-500">Jumlah order yang sudah approved</p>
+                    </div>
+                </div>
+
+                @if ($hasApprovedData)
+                    <div class="space-y-4" role="img" aria-label="Top 10 Unit Kerja Approved">
+                        @foreach ($approvedRows as $row)
+                            @php
+                                $percent = $approvedMax > 0 ? max(7, ($row['value'] / $approvedMax) * 100) : 0;
+                            @endphp
+                            <div class="space-y-2" title="{{ $row['label'] }}: {{ (int) $row['value'] }} order approved">
+                                <div class="flex items-center justify-between gap-3 text-sm">
+                                    <span class="min-w-0 truncate font-bold text-slate-700">{{ \Illuminate\Support\Str::limit($row['label'], 34) }}</span>
+                                    <span class="shrink-0 font-black text-slate-950" data-count-up data-count-value="{{ (int) $row['value'] }}">{{ (int) $row['value'] }}</span>
+                                </div>
+                                <div class="dashboard-bar-track">
+                                    <div class="dashboard-bar-fill" style="--bar-width: {{ number_format($percent, 2, '.', '') }}%"></div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
+                        <div class="mx-auto mb-4 grid max-w-sm gap-2">
+                            @foreach ([70, 88, 54, 76] as $width)
+                                <div class="dashboard-skeleton-block h-3" style="width: {{ $width }}%"></div>
+                            @endforeach
+                        </div>
+                        <p class="text-sm font-semibold text-slate-700">Belum ada data approved yang dapat ditampilkan.</p>
+                    </div>
+                @endif
+            </article>
+
+            <article class="dashboard-soft-card rounded-[1.35rem] p-4 sm:p-5">
+                <div class="mb-5 flex items-start justify-between gap-4">
+                    <div>
+                        <h2 class="flex items-center gap-2 text-base font-black text-slate-950">
+                            <i data-lucide="badge-dollar-sign" class="h-5 w-5 text-red-700"></i>
+                            Top 10 Unit Kerja - Total Biaya LHPP
+                        </h2>
+                        <p class="mt-1 text-sm text-slate-500">Akumulasi total biaya pekerjaan</p>
+                    </div>
+                </div>
+
+                @if ($hasBiayaData)
+                    <div class="space-y-4" role="img" aria-label="Top 10 Unit Kerja Total Biaya LHPP">
+                        @foreach ($biayaRows as $row)
+                            @php
+                                $percent = $biayaMax > 0 ? max(7, ($row['value'] / $biayaMax) * 100) : 0;
+                            @endphp
+                            <div class="space-y-2" title="{{ $row['label'] }}: Rp {{ number_format($row['value'], 0, ',', '.') }}">
+                                <div class="flex items-center justify-between gap-3 text-sm">
+                                    <span class="min-w-0 truncate font-bold text-slate-700">{{ \Illuminate\Support\Str::limit($row['label'], 34) }}</span>
+                                    <span class="shrink-0 font-black text-slate-950" data-count-up data-count-format="currency" data-count-value="{{ (int) $row['value'] }}">Rp {{ number_format($row['value'], 0, ',', '.') }}</span>
+                                </div>
+                                <div class="dashboard-bar-track">
+                                    <div class="dashboard-bar-fill is-currency" style="--bar-width: {{ number_format($percent, 2, '.', '') }}%"></div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
+                        <div class="mx-auto mb-4 grid max-w-sm gap-2">
+                            @foreach ([82, 62, 76, 48] as $width)
+                                <div class="dashboard-skeleton-block h-3" style="width: {{ $width }}%"></div>
+                            @endforeach
+                        </div>
+                        <p class="text-sm font-semibold text-slate-700">Belum ada data biaya LHPP yang dapat ditampilkan.</p>
+                    </div>
+                @endif
+            </article>
+        </section>
+
+        <section class="dashboard-skeleton grid gap-4 xl:grid-cols-2" aria-hidden="true">
+            @foreach (range(1, 2) as $item)
+                <div class="dashboard-soft-card rounded-[1.35rem] p-5">
+                    <div class="dashboard-skeleton-block h-5 w-56"></div>
+                    <div class="mt-6 grid gap-4">
+                        @foreach ([92, 76, 84, 58, 68] as $width)
+                            <div>
+                                <div class="dashboard-skeleton-block mb-2 h-4 w-40"></div>
+                                <div class="dashboard-skeleton-block h-3" style="width: {{ $width }}%"></div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endforeach
+        </section>
+
+        <section class="dashboard-content">
             @if ($orders->count() > 0)
-                <div class="hidden overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm md:block">
-                    <table class="min-w-full divide-y divide-stone-100 text-left text-xs">
-                        <thead class="bg-stone-50 text-[10px] font-bold uppercase tracking-[0.18em] text-stone-500">
+                <div class="hidden overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-sm md:block">
+                    <table class="min-w-full divide-y divide-slate-100 text-left text-sm">
+                        <thead class="bg-slate-50 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">
                             <tr>
-                                <th class="px-3 py-2.5">Order / Notif</th>
-                                <th class="px-3 py-2.5">Nama Pekerjaan</th>
-                                <th class="px-3 py-2.5">Unit</th>
-                                <th class="px-3 py-2.5">Seksi</th>
-                                <th class="px-3 py-2.5">Tanggal</th>
-                                <th class="px-3 py-2.5">Prioritas</th>
-                                <th class="px-3 py-2.5 text-right">Aksi</th>
+                                <th class="px-4 py-3">Order / Notif</th>
+                                <th class="px-4 py-3">Nama Pekerjaan</th>
+                                <th class="px-4 py-3">Unit</th>
+                                <th class="px-4 py-3">Seksi</th>
+                                <th class="px-4 py-3">Tanggal</th>
+                                <th class="px-4 py-3">Prioritas</th>
+                                <th class="px-4 py-3 text-right">Aksi</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-stone-100">
+                        <tbody class="divide-y divide-slate-100">
                             @foreach ($orders as $order)
-                                <tr class="{{ $order['is_completed'] ? 'bg-emerald-50/70 hover:bg-emerald-50' : 'bg-white hover:bg-stone-50' }} transition">
-                                    <td class="whitespace-nowrap px-3 py-2.5 align-top">
-                                        <div class="max-w-[150px] truncate text-sm font-black tracking-tight text-stone-900">{{ $order['nomor_order'] }}</div>
-                                        <div class="mt-0.5 max-w-[150px] truncate text-[11px] text-stone-500">Notif: {{ $order['notifikasi'] ?: '-' }}</div>
+                                <tr class="{{ $order['is_completed'] ? 'bg-emerald-50/45 hover:bg-emerald-50/70' : 'bg-white hover:bg-slate-50/80' }} transition">
+                                    <td class="whitespace-nowrap px-4 py-4 align-top">
+                                        <div class="max-w-[160px] truncate font-black tracking-tight text-slate-950">{{ $order['nomor_order'] }}</div>
+                                        <div class="mt-1 max-w-[160px] truncate text-xs text-slate-500">Notif: {{ $order['notifikasi'] ?: '-' }}</div>
                                     </td>
-                                    <td class="px-3 py-2.5 align-top">
-                                        <div class="max-w-md line-clamp-2 text-xs font-bold leading-5 text-stone-900">{{ $order['nama_pekerjaan'] }}</div>
+                                    <td class="px-4 py-4 align-top">
+                                        <div class="max-w-md line-clamp-2 font-bold leading-5 text-slate-900">{{ $order['nama_pekerjaan'] }}</div>
                                     </td>
-                                    <td class="px-3 py-2.5 align-top text-stone-600">{{ $order['unit_kerja'] ?: '-' }}</td>
-                                    <td class="px-3 py-2.5 align-top text-stone-600">{{ $order['seksi'] ?: '-' }}</td>
-                                    <td class="whitespace-nowrap px-3 py-2.5 align-top text-stone-600">{{ $order['tanggal_order'] ?: '-' }}</td>
-                                    <td class="px-3 py-2.5 align-top">
-                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 {{ $order['prioritas_badge_classes'] }}">
+                                    <td class="px-4 py-4 align-top text-slate-600">{{ $order['unit_kerja'] ?: '-' }}</td>
+                                    <td class="px-4 py-4 align-top text-slate-600">{{ $order['seksi'] ?: '-' }}</td>
+                                    <td class="whitespace-nowrap px-4 py-4 align-top text-slate-600">{{ $order['tanggal_order'] ?: '-' }}</td>
+                                    <td class="px-4 py-4 align-top">
+                                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-black ring-1 {{ $order['prioritas_badge_classes'] }}">
                                             {{ $order['prioritas_label'] }}
                                         </span>
                                     </td>
-                                    <td class="whitespace-nowrap px-3 py-2.5 text-right align-top">
-                                        <a href="{{ $order['show_url'] }}" class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-800 bg-red-800 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-red-900">
+                                    <td class="whitespace-nowrap px-4 py-4 text-right align-top">
+                                        <a href="{{ $order['show_url'] }}" class="inline-flex items-center justify-center gap-2 rounded-xl border border-red-800 bg-red-800 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-red-900 focus:outline-none focus:ring-4 focus:ring-red-100">
                                             <i data-lucide="arrow-up-right" class="h-3.5 w-3.5"></i>
                                             Lihat Detail
                                         </a>
@@ -213,355 +301,66 @@
                     </table>
                 </div>
 
-                <div class="space-y-2.5 md:hidden">
+                <div class="space-y-3 md:hidden">
                     @foreach ($orders as $order)
-                        <article class="rounded-2xl border p-3 shadow-sm {{ $order['is_completed'] ? 'border-emerald-200 bg-emerald-50/60' : 'border-stone-200 bg-white' }}">
+                        <article class="dashboard-soft-card rounded-[1.35rem] p-4 {{ $order['is_completed'] ? 'bg-emerald-50/60' : 'bg-white' }}">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
-                                    <div class="text-[9px] font-bold uppercase tracking-[0.18em] text-stone-400">Order / Notif</div>
-                                    <div class="mt-1 truncate text-base font-black tracking-tight text-stone-900">{{ $order['nomor_order'] }}</div>
-                                    <div class="mt-0.5 truncate text-[11px] text-stone-500">Notif: {{ $order['notifikasi'] ?: '-' }}</div>
+                                    <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Order / Notif</div>
+                                    <div class="mt-1 truncate text-lg font-black tracking-tight text-slate-950">{{ $order['nomor_order'] }}</div>
+                                    <div class="mt-1 truncate text-xs text-slate-500">Notif: {{ $order['notifikasi'] ?: '-' }}</div>
                                 </div>
-                                <span class="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[9px] font-bold ring-1 {{ $order['prioritas_badge_classes'] }}">
+                                <span class="inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[10px] font-black ring-1 {{ $order['prioritas_badge_classes'] }}">
                                     {{ $order['prioritas_label'] }}
                                 </span>
                             </div>
 
-                            <div class="mt-2.5 rounded-xl border border-stone-200 bg-white/85 p-2.5">
-                                <div class="text-[9px] font-bold uppercase tracking-[0.16em] text-stone-400">Nama Pekerjaan</div>
-                                <div class="mt-1 line-clamp-2 text-xs font-black leading-5 text-stone-900">{{ $order['nama_pekerjaan'] }}</div>
-                                <div class="mt-2 grid gap-1 text-[11px] leading-4 text-stone-600">
-                                    <div><span class="font-semibold text-stone-500">Unit:</span> {{ $order['unit_kerja'] ?: '-' }}</div>
-                                    <div><span class="font-semibold text-stone-500">Seksi:</span> {{ $order['seksi'] ?: '-' }}</div>
-                                    <div><span class="font-semibold text-stone-500">Tanggal:</span> {{ $order['tanggal_order'] ?: '-' }}</div>
+                            <div class="mt-3 rounded-2xl border border-slate-200 bg-white/85 p-3">
+                                <div class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Nama Pekerjaan</div>
+                                <div class="mt-1.5 line-clamp-2 text-sm font-black leading-5 text-slate-900">{{ $order['nama_pekerjaan'] }}</div>
+                                <div class="mt-3 grid gap-1.5 text-xs leading-5 text-slate-600">
+                                    <div><span class="font-bold text-slate-500">Unit:</span> {{ $order['unit_kerja'] ?: '-' }}</div>
+                                    <div><span class="font-bold text-slate-500">Seksi:</span> {{ $order['seksi'] ?: '-' }}</div>
+                                    <div><span class="font-bold text-slate-500">Tanggal:</span> {{ $order['tanggal_order'] ?: '-' }}</div>
                                 </div>
                             </div>
 
-                            <a href="{{ $order['show_url'] }}" class="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-red-800 bg-red-800 px-3 py-2 text-[11px] font-semibold text-white transition hover:bg-red-900">
-                                <i data-lucide="arrow-up-right" class="h-3.5 w-3.5"></i>
+                            <a href="{{ $order['show_url'] }}" class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-red-800 bg-red-800 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-red-900 focus:outline-none focus:ring-4 focus:ring-red-100">
+                                <i data-lucide="arrow-up-right" class="h-4 w-4"></i>
                                 Lihat Detail
                             </a>
                         </article>
                     @endforeach
                 </div>
             @else
-                <div class="rounded-[22px] border border-dashed border-stone-300 bg-white px-6 py-14 text-center shadow-sm">
-                    <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-100 text-stone-400">
+                <div class="rounded-[1.35rem] border border-dashed border-slate-300 bg-white px-6 py-14 text-center shadow-sm">
+                    <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                         <i data-lucide="folder-search-2" class="h-6 w-6"></i>
                     </div>
-                    <h2 class="mt-4 text-lg font-black text-stone-900">Belum ada order yang tersedia.</h2>
-                    <p class="mt-2 text-sm leading-6 text-stone-500">Saat data order sudah tersedia di sistem, seluruh progress dan dokumennya akan muncul otomatis di dashboard ini.</p>
+                    <h2 class="mt-4 text-lg font-black text-slate-950">Belum ada order yang tersedia.</h2>
+                    <p class="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500">Saat data order sudah tersedia di sistem, seluruh progress dan dokumennya akan muncul otomatis di dashboard ini.</p>
                 </div>
             @endif
         </section>
 
-        <section class="hidden">
-            @forelse ($orders as $order)
-                <article class="overflow-hidden rounded-[22px] border border-stone-200 bg-white shadow-sm transition hover:border-red-200 {{ $cardAccentClasses[$order['status_tone']] ?? $cardAccentClasses['slate'] }}">
-                    <div class="grid gap-0 xl:grid-cols-[280px_minmax(0,1fr)]">
-                        <div class="border-b border-stone-200 bg-stone-50/70 p-4 xl:border-b-0 xl:border-r">
-                            <div class="flex items-start justify-between gap-3">
-                                <div class="min-w-0">
-                                    <div class="text-[10px] font-bold uppercase tracking-[0.22em] text-stone-400">Order / Notif</div>
-                                    <div class="mt-2 truncate text-xl font-black tracking-tight text-stone-900">{{ $order['nomor_order'] }}</div>
-                                    <div class="mt-1 truncate text-xs text-stone-500">Notif: {{ $order['notifikasi'] ?: '-' }}</div>
-                                </div>
-                                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold ring-1 {{ $order['prioritas_badge_classes'] }}">
-                                    {{ $order['prioritas_label'] }}
-                                </span>
-                            </div>
-
-                            <div class="mt-4 rounded-2xl border border-stone-200 bg-white p-3">
-                                <div class="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-400">Nama Pekerjaan</div>
-                                <div class="mt-2 line-clamp-2 text-sm font-bold leading-5 text-stone-900">{{ $order['nama_pekerjaan'] }}</div>
-
-                                <div class="mt-3 grid gap-2 text-xs text-stone-600">
-                                    <div><span class="font-semibold text-stone-500">Unit:</span> {{ $order['unit_kerja'] ?: '-' }}</div>
-                                    <div><span class="font-semibold text-stone-500">Seksi:</span> {{ $order['seksi'] ?: '-' }}</div>
-                                    <div><span class="font-semibold text-stone-500">Tanggal:</span> {{ $order['tanggal_order'] ?: '-' }}</div>
-                                </div>
-                            </div>
+        <section class="dashboard-skeleton" aria-hidden="true">
+            <div class="dashboard-soft-card rounded-[1.35rem] p-4">
+                <div class="grid gap-3">
+                    @foreach (range(1, 6) as $item)
+                        <div class="grid gap-3 md:grid-cols-[1fr_2fr_1fr_1fr_1fr_0.8fr_0.8fr]">
+                            @foreach (range(1, 7) as $cell)
+                                <div class="dashboard-skeleton-block h-5"></div>
+                            @endforeach
                         </div>
-
-                        <div class="p-4">
-                            <div class="flex flex-col gap-3">
-                                <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                                    <div class="space-y-1">
-                                        <div class="text-[10px] font-bold uppercase tracking-[0.22em] text-stone-400">Fase Saat Ini</div>
-                                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 {{ $toneClasses[$order['status_tone']] ?? $toneClasses['slate'] }}">
-                                            {{ $order['status_label'] }}
-                                        </span>
-                                    </div>
-
-                                    <a href="{{ $order['show_url'] }}" class="inline-flex items-center justify-center gap-2 rounded-xl border border-red-800 bg-red-800 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-red-900">
-                                        <i data-lucide="arrow-up-right" class="h-3.5 w-3.5"></i>
-                                        Lihat Detail
-                                    </a>
-                                </div>
-
-                                @if ($order['is_workshop_only'])
-                                    <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                                        <a href="{{ $order['quick_links']['abnormalitas'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['abnormalitas'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
-                                            Abnormalitas
-                                        </a>
-                                        <a href="{{ $order['quick_links']['gambar_teknik'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['gambar_teknik'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
-                                            Gambar Teknik
-                                        </a>
-                                        <a href="{{ $order['quick_links']['scope_of_work'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['scope_of_work'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
-                                            Scope of Work
-                                        </a>
-                                        <a href="{{ $order['quick_links']['quality_control'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['quality_control'] ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
-                                            PDF QC
-                                        </a>
-                                    </div>
-                                @else
-                                    <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-                                        <a href="{{ $order['quick_links']['abnormalitas'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['abnormalitas'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
-                                            Abnormalitas
-                                        </a>
-                                        <a href="{{ $order['quick_links']['hpp'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['hpp'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
-                                            HPP
-                                        </a>
-                                        <a href="{{ $order['quick_links']['bast_termin_1'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['bast_termin_1'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
-                                            BAST Termin 1
-                                        </a>
-                                        <a href="{{ $order['quick_links']['bast_termin_2'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['bast_termin_2'] ? 'border-stone-200 bg-white text-stone-700 hover:border-red-200 hover:text-red-800' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
-                                            BAST Termin 2
-                                        </a>
-                                        <a href="{{ $order['quick_links']['quality_control'] ?: '#' }}" class="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition {{ $order['quick_links']['quality_control'] ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}">
-                                            PDF QC
-                                        </a>
-                                    </div>
-                                @endif
-
-                                @if ($order['garansi'])
-                                    <div class="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-700">
-                                        Garansi tersedia: {{ $order['garansi']['months'] }} bulan{{ $order['garansi']['end'] ? ' • sampai '.$order['garansi']['end'] : '' }}
-                                    </div>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-                </article>
-            @empty
-                <div class="rounded-[22px] border border-dashed border-stone-300 bg-white px-6 py-14 text-center shadow-sm">
-                    <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-100 text-stone-400">
-                        <i data-lucide="folder-search-2" class="h-6 w-6"></i>
-                    </div>
-                    <h2 class="mt-4 text-lg font-black text-stone-900">Belum ada order yang tersedia.</h2>
-                    <p class="mt-2 text-sm leading-6 text-stone-500">Saat data order sudah tersedia di sistem, seluruh progress dan dokumennya akan muncul otomatis di dashboard ini.</p>
+                    @endforeach
                 </div>
-            @endforelse
+            </div>
         </section>
 
         @if ($orders->hasPages())
-            <div class="rounded-[20px] border border-stone-200 bg-white px-4 py-3 shadow-sm">
+            <div class="dashboard-content rounded-[1.35rem] border border-slate-200 bg-white px-4 py-3 shadow-sm">
                 {{ $orders->links() }}
             </div>
         @endif
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const approvedLabels = @json($chartApproved['labels']);
-            const approvedValues = @json($chartApproved['values']);
-            const biayaLabels = @json($chartBiaya['labels']);
-            const biayaValues = @json($chartBiaya['values']);
-
-            const modernChartOptions = {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: {
-                    intersect: false,
-                    mode: 'index'
-                },
-                animation: {
-                    duration: 1200,
-                    easing: 'easeOutCubic'
-                },
-                layout: {
-                    padding: {
-                        top: 8,
-                        right: 8,
-                        bottom: 0,
-                        left: 0
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(28,25,23,0.92)',
-                        titleColor: '#ffffff',
-                        bodyColor: '#f5f5f4',
-                        displayColors: false,
-                        padding: 12,
-                        cornerRadius: 12,
-                        titleFont: {
-                            size: 12,
-                            weight: '700'
-                        },
-                        bodyFont: {
-                            size: 12
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        display: true,
-                        grid: {
-                            display: false,
-                            drawBorder: false
-                        },
-                        border: {
-                            display: false
-                        },
-                        ticks: {
-                            color: '#78716c',
-                            font: {
-                                size: 10,
-                                weight: '600'
-                            },
-                            maxRotation: 0,
-                            minRotation: 0,
-                            callback: function (value) {
-                                const label = this.getLabelForValue(value) || '';
-
-                                return label.length > 16 ? label.slice(0, 16) + '…' : label;
-                            }
-                        }
-                    },
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            color: '#78716c',
-                            font: {
-                                size: 11,
-                                weight: '600'
-                            },
-                            padding: 10
-                        },
-                        grid: {
-                            display: false,
-                            drawBorder: false,
-                            drawTicks: false
-                        },
-                        border: {
-                            display: false
-                        }
-                    }
-                },
-                elements: {
-                    line: {
-                        borderWidth: 3,
-                        tension: 0.42,
-                        capBezierPoints: true
-                    },
-                    point: {
-                        radius: 4,
-                        hoverRadius: 6,
-                        hitRadius: 18,
-                        borderWidth: 2,
-                        backgroundColor: '#ffffff'
-                    }
-                }
-            };
-
-            const approvedCanvas = document.getElementById('chartNotifikasi');
-            if (approvedCanvas) {
-                new Chart(approvedCanvas, {
-                    type: 'line',
-                    data: {
-                        labels: approvedLabels,
-                        datasets: [{
-                            data: approvedValues,
-                            borderColor: '#991b1b',
-                            backgroundColor: 'rgba(153, 27, 27, 0.08)',
-                            fill: true,
-                            pointBackgroundColor: '#991b1b',
-                            pointHoverBackgroundColor: '#991b1b',
-                            pointHoverBorderColor: '#ffffff',
-                            pointBorderColor: '#991b1b'
-                        }]
-                    },
-                    options: {
-                        ...modernChartOptions,
-                        plugins: {
-                            ...modernChartOptions.plugins,
-                            tooltip: {
-                                ...modernChartOptions.plugins.tooltip,
-                                callbacks: {
-                                    title: function (items) {
-                                        return items[0]?.label || '';
-                                    },
-                                    label: function (context) {
-                                        return (context.parsed.y || 0) + ' order approved';
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
-            const biayaCanvas = document.getElementById('chartBiaya');
-            if (biayaCanvas) {
-                new Chart(biayaCanvas, {
-                    type: 'line',
-                    data: {
-                        labels: biayaLabels,
-                        datasets: [{
-                            data: biayaValues,
-                            borderColor: '#7f1d1d',
-                            backgroundColor: 'rgba(127, 29, 29, 0.08)',
-                            fill: true,
-                            pointBackgroundColor: '#7f1d1d',
-                            pointHoverBackgroundColor: '#7f1d1d',
-                            pointHoverBorderColor: '#ffffff',
-                            pointBorderColor: '#7f1d1d'
-                        }]
-                    },
-                    options: {
-                        ...modernChartOptions,
-                        scales: {
-                            ...modernChartOptions.scales,
-                            y: {
-                                ...modernChartOptions.scales.y,
-                                ticks: {
-                                    color: '#78716c',
-                                    font: {
-                                        size: 11,
-                                        weight: '600'
-                                    },
-                                    callback: function (value) {
-                                        return 'Rp ' + new Intl.NumberFormat('id-ID', {
-                                            notation: 'compact',
-                                            compactDisplay: 'short',
-                                            maximumFractionDigits: 1
-                                        }).format(value);
-                                    }
-                                }
-                            }
-                        },
-                        plugins: {
-                            ...modernChartOptions.plugins,
-                            tooltip: {
-                                ...modernChartOptions.plugins.tooltip,
-                                callbacks: {
-                                    title: function (items) {
-                                        return items[0]?.label || '';
-                                    },
-                                    label: function (context) {
-                                        return 'Rp ' + new Intl.NumberFormat('id-ID').format(context.parsed.y || 0);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-        });
-    </script>
 </x-layouts.user>

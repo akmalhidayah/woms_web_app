@@ -14,40 +14,52 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         @fluxAppearance
         <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-        <script defer src="https://unpkg.com/lucide@latest"></script>
         <style>[x-cloak]{ display:none !important; }</style>
     </head>
-    <body class="min-h-screen bg-stone-50 font-sans text-slate-800 antialiased">
+    <body class="min-h-screen bg-slate-50 font-sans text-slate-800 antialiased">
         @php
-            $logoSig = asset('assets/branding/logos/logo-sig.png');
-            $logoSt = asset('assets/branding/logos/logo-st2.png');
+            $logoSigAvif = asset('images/auth/sig-logo.avif');
+            $logoSigWebp = asset('images/auth/sig-logo.webp');
+            $logoSigFallback = asset('images/auth/sig-logo.png');
+            $logoStAvif = asset('images/auth/st-logo.avif');
+            $logoStWebp = asset('images/auth/st-logo.webp');
+            $logoStFallback = asset('images/auth/st-logo.png');
             $user = auth()->user();
             $currentRoute = request()->route()?->getName();
         @endphp
 
         <div x-data="{ mobileMenu: false, profileOpen: false }" class="relative min-h-screen">
-            <header class="sticky top-0 z-30 border-b border-red-900 bg-red-800/95 backdrop-blur">
-                <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2 sm:px-6 lg:px-8">
-                    <div class="flex items-center gap-3">
-                        <div class="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 shadow-sm">
-                            <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-white">
-                                <img src="{{ $logoSig }}" alt="SIG" class="max-h-full w-auto object-contain">
+            <header class="sticky top-0 z-30 border-b border-red-950/20 bg-red-800 shadow-lg shadow-red-950/10">
+                <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
+                    <div class="flex min-w-0 items-center gap-4">
+                        <div class="flex shrink-0 items-center gap-2 rounded-2xl border border-white/20 bg-white px-3 py-2 shadow-sm">
+                            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white">
+                                <picture>
+                                    <source srcset="{{ $logoSigAvif }}" type="image/avif">
+                                    <source srcset="{{ $logoSigWebp }}" type="image/webp">
+                                    <img src="{{ $logoSigFallback }}" alt="SIG" width="220" height="220" class="max-h-full w-auto object-contain">
+                                </picture>
                             </div>
-                            <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50">
-                                <img src="{{ $logoSt }}" alt="Semen Tonasa" class="max-h-full w-auto object-contain">
+                            <div class="h-8 w-px bg-slate-200"></div>
+                            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50">
+                                <picture>
+                                    <source srcset="{{ $logoStAvif }}" type="image/avif">
+                                    <source srcset="{{ $logoStWebp }}" type="image/webp">
+                                    <img src="{{ $logoStFallback }}" alt="Semen Tonasa" width="220" height="220" class="max-h-full w-auto object-contain">
+                                </picture>
                             </div>
                         </div>
 
-                        <div class="hidden min-w-0 sm:block">
-                            <div class="truncate text-base font-black tracking-tight text-white">User Order Tracking</div>
-                            <div class="truncate text-xs text-red-100">Pantau progress order dan seluruh dokumen pekerjaan</div>
+                        <div class="min-w-0">
+                            <div class="truncate text-lg font-black tracking-tight text-white sm:text-xl">User Order Tracking</div>
+                            <div class="mt-0.5 hidden truncate text-sm text-red-100 sm:block">Pantau progress order dan seluruh dokumen pekerjaan</div>
                         </div>
                     </div>
 
                     <div class="hidden items-center gap-3 md:flex">
                         <a
                             href="{{ route('user.dashboard') }}"
-                            class="rounded-xl border px-3.5 py-1.5 text-sm font-semibold transition {{ $currentRoute === 'user.dashboard' ? 'border-red-800 bg-red-800 text-white' : 'border-stone-200 bg-white text-slate-600 hover:border-red-200 hover:text-red-800' }}"
+                            class="rounded-xl border px-4 py-2 text-sm font-semibold transition {{ $currentRoute === 'user.dashboard' ? 'border-white/25 bg-white text-red-800 shadow-sm' : 'border-white/20 bg-white/10 text-white hover:bg-white/15' }}"
                         >
                             Dashboard
                         </a>
@@ -55,7 +67,7 @@
                             <button
                                 type="button"
                                 @click="profileOpen = !profileOpen"
-                                class="inline-flex items-center gap-2.5 rounded-xl border border-stone-200 bg-white px-3 py-1.5 shadow-sm transition hover:border-red-200 hover:bg-red-50/40"
+                                class="inline-flex items-center gap-2.5 rounded-2xl border border-white/20 bg-white px-3 py-2 shadow-sm transition hover:bg-red-50"
                             >
                                 <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-xs font-bold text-red-700">
                                     {{ $user?->initials() ?: 'US' }}
@@ -94,14 +106,15 @@
 
                     <button
                         type="button"
-                        class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-stone-200 bg-white text-slate-700 shadow-sm md:hidden"
+                        class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white text-red-800 shadow-sm md:hidden"
                         @click="mobileMenu = !mobileMenu"
+                        aria-label="Buka menu"
                     >
                         <i data-lucide="menu" class="h-5 w-5"></i>
                     </button>
                 </div>
 
-                <div x-show="mobileMenu" x-transition x-cloak class="border-t border-stone-200 bg-white px-4 py-4 md:hidden">
+                <div x-show="mobileMenu" x-transition x-cloak class="border-t border-red-700 bg-white px-4 py-4 md:hidden">
                     <div class="space-y-3">
                         <a href="{{ route('user.dashboard') }}" class="block rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-800">Dashboard</a>
                         <div class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
@@ -119,18 +132,10 @@
                 </div>
             </header>
 
-            <main class="relative mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
+            <main class="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
                 {{ $slot }}
             </main>
         </div>
-
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
-                if (window.lucide) {
-                    window.lucide.createIcons();
-                }
-            });
-        </script>
         @fluxScripts
     </body>
 </html>

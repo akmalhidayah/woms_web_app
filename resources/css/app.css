@@ -112,8 +112,8 @@ select:focus[data-flux-control] {
     .auth-orb {
         position: absolute;
         border-radius: 9999px;
-        filter: blur(24px);
-        animation: auth-float 10s ease-in-out infinite;
+        filter: blur(10px);
+        animation: auth-float 14s ease-in-out infinite;
         pointer-events: none;
     }
 
@@ -136,7 +136,7 @@ select:focus[data-flux-control] {
     .auth-input {
         @apply block w-full rounded-2xl border border-slate-200/90 bg-white/80 px-4 py-3 text-sm text-slate-900 outline-none transition duration-200;
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(10px);
+        backdrop-filter: blur(4px);
     }
 
     .auth-input:hover {
@@ -162,9 +162,8 @@ select:focus[data-flux-control] {
     }
 
     .auth-button:hover {
-        transform: translateY(-1px);
         background-color: #1e40af;
-        box-shadow: 0 20px 42px rgba(30, 64, 175, 0.22);
+        box-shadow: 0 16px 34px rgba(30, 64, 175, 0.2);
     }
 
     .auth-button:focus {
@@ -188,7 +187,18 @@ select:focus[data-flux-control] {
     .auth-accent-card {
         background: rgba(255, 255, 255, 0.06);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(8px);
+        backdrop-filter: blur(4px);
+    }
+}
+
+@media (max-width: 768px) {
+    .auth-input,
+    .auth-accent-card {
+        backdrop-filter: none;
+    }
+
+    .auth-card {
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
     }
 }
 
@@ -203,6 +213,91 @@ select:focus[data-flux-control] {
 
     .auth-button:hover {
         transform: none;
+    }
+}
+
+@keyframes dashboard-shimmer {
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+@keyframes dashboard-bar-grow {
+    from {
+        width: 0;
+    }
+
+    to {
+        width: var(--bar-width);
+    }
+}
+
+@layer components {
+    .dashboard-premium-card {
+        border: 1px solid rgba(226, 232, 240, 0.9);
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 18px 50px rgba(15, 23, 42, 0.06);
+    }
+
+    .dashboard-soft-card {
+        border: 1px solid rgba(226, 232, 240, 0.9);
+        background: #ffffff;
+        box-shadow: 0 12px 34px rgba(15, 23, 42, 0.05);
+    }
+
+    .dashboard-bar-track {
+        position: relative;
+        height: 0.75rem;
+        overflow: hidden;
+        border-radius: 9999px;
+        background: #f1f5f9;
+    }
+
+    .dashboard-bar-fill {
+        height: 100%;
+        width: var(--bar-width);
+        border-radius: inherit;
+        background: #b91c1c;
+        animation: dashboard-bar-grow 850ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    .dashboard-bar-fill.is-currency {
+        background: #991b1b;
+    }
+
+    .dashboard-skeleton-block {
+        position: relative;
+        overflow: hidden;
+        border-radius: 1rem;
+        background: #f1f5f9;
+    }
+
+    .dashboard-skeleton-block::after {
+        position: absolute;
+        inset: 0;
+        content: "";
+        transform: translateX(-100%);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+        animation: dashboard-shimmer 1.35s ease-in-out infinite;
+    }
+
+    .user-dashboard .dashboard-skeleton {
+        display: none;
+    }
+
+    .user-dashboard.is-loading .dashboard-content {
+        display: none;
+    }
+
+    .user-dashboard.is-loading .dashboard-skeleton {
+        display: grid;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dashboard-bar-fill,
+    .dashboard-skeleton-block::after {
+        animation: none;
     }
 }
 

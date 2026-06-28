@@ -75,20 +75,24 @@
     >
         <section class="dashboard-content grid grid-cols-3 items-stretch gap-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-[1.18fr_1.18fr_0.88fr_0.88fr_0.88fr] xl:gap-3">
             @foreach ($summaryCards as $card)
-                <article class="dashboard-soft-card group flex min-h-[84px] items-center rounded-lg px-2 py-2 transition hover:-translate-y-0.5 hover:border-red-100 hover:shadow-lg sm:min-h-[96px] sm:px-3 sm:py-3 xl:min-h-[112px] xl:rounded-[1.15rem] xl:px-4 xl:py-3.5">
-                    <div class="flex w-full flex-col gap-2 xl:flex-row xl:items-center xl:justify-between xl:gap-4">
-                        <div class="flex min-w-0 flex-col gap-1.5 xl:flex-row xl:items-center xl:gap-3">
-                            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 sm:h-9 sm:w-9 xl:h-10 xl:w-10 xl:rounded-xl {{ $card['iconClass'] }}">
-                                <i data-lucide="{{ $card['icon'] }}" class="h-4 w-4 xl:h-5 xl:w-5"></i>
+                @php
+                    $isPrimarySummary = $loop->index < 2;
+                @endphp
+
+                <article class="dashboard-soft-card group flex items-center rounded-lg transition hover:-translate-y-0.5 hover:border-red-100 hover:shadow-lg md:col-span-1 sm:min-h-[96px] sm:px-3 sm:py-3 xl:min-h-[112px] xl:rounded-[1.15rem] xl:px-4 xl:py-3.5 {{ $isPrimarySummary ? 'col-span-3 min-h-[96px] px-3 py-3' : 'col-span-1 min-h-[84px] px-2 py-2' }}">
+                    <div class="flex w-full xl:flex-row xl:items-center xl:justify-between xl:gap-4 {{ $isPrimarySummary ? 'items-center justify-between gap-3' : 'flex-col gap-2' }}">
+                        <div class="flex min-w-0 xl:flex-row xl:items-center xl:gap-3 {{ $isPrimarySummary ? 'items-center gap-3' : 'flex-col gap-1.5' }}">
+                            <div class="flex shrink-0 items-center justify-center rounded-lg ring-1 xl:h-10 xl:w-10 xl:rounded-xl {{ $card['iconClass'] }} {{ $isPrimarySummary ? 'h-10 w-10' : 'h-8 w-8 sm:h-9 sm:w-9' }}">
+                                <i data-lucide="{{ $card['icon'] }}" class="xl:h-5 xl:w-5 {{ $isPrimarySummary ? 'h-5 w-5' : 'h-4 w-4' }}"></i>
                             </div>
                             <div class="min-w-0">
-                                <div class="truncate text-[8px] font-black uppercase tracking-[0.1em] text-slate-500 sm:text-[10px] xl:text-[11px] xl:tracking-[0.14em]">{{ $card['label'] }}</div>
-                                <div class="mt-0.5 text-[1.45rem] font-black leading-none tracking-tight text-slate-950 sm:text-[1.7rem] xl:mt-1 xl:text-[2rem]" data-count-up data-count-value="{{ $card['value'] }}">{{ $card['value'] }}</div>
+                                <div class="truncate font-black uppercase text-slate-500 xl:text-[11px] xl:tracking-[0.14em] {{ $isPrimarySummary ? 'text-[11px] tracking-[0.14em]' : 'text-[8px] tracking-[0.1em] sm:text-[10px]' }}">{{ $card['label'] }}</div>
+                                <div class="font-black leading-none tracking-tight text-slate-950 xl:mt-1 xl:text-[2rem] {{ $isPrimarySummary ? 'mt-1 text-[2rem]' : 'mt-0.5 text-[1.45rem] sm:text-[1.7rem]' }}" data-count-up data-count-value="{{ $card['value'] }}">{{ $card['value'] }}</div>
                             </div>
                         </div>
 
                         @if (isset($card['breakdown']))
-                            <div class="hidden shrink-0 gap-2 border-l border-slate-100 pl-4 xl:grid">
+                            <div class="grid shrink-0 gap-2 border-l border-slate-100 pl-4 md:hidden xl:grid">
                                 @foreach ($card['breakdown'] as $item)
                                     <div class="min-w-[4.25rem]">
                                         <div class="truncate text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">{{ $item['label'] }}</div>

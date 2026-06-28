@@ -64,48 +64,6 @@
         ])->values();
         $hasBiayaData = $biayaRows->contains(fn ($row) => $row['value'] > 0);
 
-        $buildLinePoints = function ($rows, float $maxValue): array {
-            $items = $rows->values();
-            $count = max(1, $items->count());
-            $chartWidth = 620;
-            $chartHeight = 280;
-            $left = 28;
-            $right = 28;
-            $top = 44;
-            $bottom = 68;
-            $plotWidth = $chartWidth - $left - $right;
-            $plotHeight = $chartHeight - $top - $bottom;
-            $max = max(1, $maxValue);
-
-            return $items
-                ->map(function ($row, $index) use ($count, $left, $top, $plotWidth, $plotHeight, $max) {
-                    $x = $count === 1 ? $left + ($plotWidth / 2) : $left + (($plotWidth / ($count - 1)) * $index);
-                    $y = $top + (($max - max(0, (float) $row['value'])) / $max * $plotHeight);
-
-                    return [
-                        'label' => (string) $row['label'],
-                        'short_label' => \Illuminate\Support\Str::limit((string) $row['label'], 14),
-                        'value' => (float) $row['value'],
-                        'x' => round($x, 2),
-                        'y' => round($y, 2),
-                    ];
-                })
-                ->all();
-        };
-
-        $compactRupiah = function (float $value): string {
-            return match (true) {
-                $value >= 1_000_000_000 => 'Rp '.rtrim(rtrim(number_format($value / 1_000_000_000, 1, ',', '.'), '0'), ',').' M',
-                $value >= 1_000_000 => 'Rp '.rtrim(rtrim(number_format($value / 1_000_000, 1, ',', '.'), '0'), ',').' jt',
-                $value >= 1_000 => 'Rp '.rtrim(rtrim(number_format($value / 1_000, 1, ',', '.'), '0'), ',').' rb',
-                default => 'Rp '.number_format($value, 0, ',', '.'),
-            };
-        };
-
-        $approvedLinePoints = $buildLinePoints($approvedRows, (float) $approvedMax);
-        $approvedPolyline = collect($approvedLinePoints)->map(fn ($point) => $point['x'].','.$point['y'])->implode(' ');
-        $biayaLinePoints = $buildLinePoints($biayaRows, (float) $biayaMax);
-        $biayaPolyline = collect($biayaLinePoints)->map(fn ($point) => $point['x'].','.$point['y'])->implode(' ');
     @endphp
 
     <div
@@ -229,18 +187,8 @@
                 </div>
 
                 @if ($hasApprovedData)
-                    <div class="overflow-x-auto pb-1" role="img" aria-label="Top 10 Unit Kerja Approved">
-                        <svg class="dashboard-line-chart min-w-[620px]" viewBox="0 0 620 280" preserveAspectRatio="xMidYMid meet">
-                            <polyline class="dashboard-line-path" points="{{ $approvedPolyline }}"></polyline>
-
-                            @foreach ($approvedLinePoints as $index => $point)
-                                <g style="--point-index: {{ $index }}" title="{{ $point['label'] }}: {{ (int) $point['value'] }} order approved">
-                                    <circle class="dashboard-line-dot" cx="{{ $point['x'] }}" cy="{{ $point['y'] }}" r="6"></circle>
-                                    <text class="dashboard-line-value" x="{{ $point['x'] }}" y="{{ max(18, $point['y'] - 14) }}" text-anchor="middle">{{ (int) $point['value'] }}</text>
-                                    <text class="dashboard-line-label" x="{{ $point['x'] }}" y="258" text-anchor="middle">{{ $point['short_label'] }}</text>
-                                </g>
-                            @endforeach
-                        </svg>
+                    <div class="relative h-[19rem]" role="img" aria-label="Top 10 Unit Kerja Approved">
+                        <canvas id="chartApproved" class="h-full w-full"></canvas>
                     </div>
                 @else
                     <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
@@ -266,20 +214,8 @@
                 </div>
 
                 @if ($hasBiayaData)
-                    <div class="overflow-x-auto pb-1" role="img" aria-label="Top 10 Unit Kerja Total Biaya LHPP">
-                        <svg class="dashboard-line-chart min-w-[620px]" viewBox="0 0 620 280" preserveAspectRatio="xMidYMid meet">
-                            <polyline class="dashboard-line-path is-currency" points="{{ $biayaPolyline }}"></polyline>
-
-                            @foreach ($biayaLinePoints as $index => $point)
-                                <g style="--point-index: {{ $index }}" title="{{ $point['label'] }}: Rp {{ number_format($point['value'], 0, ',', '.') }}">
-                                    <circle class="dashboard-line-dot" cx="{{ $point['x'] }}" cy="{{ $point['y'] }}" r="6"></circle>
-                                    <text class="dashboard-line-value" x="{{ $point['x'] }}" y="{{ max(18, $point['y'] - 14) }}" text-anchor="middle">
-                                        {{ $compactRupiah($point['value']) }}
-                                    </text>
-                                    <text class="dashboard-line-label" x="{{ $point['x'] }}" y="258" text-anchor="middle">{{ $point['short_label'] }}</text>
-                                </g>
-                            @endforeach
-                        </svg>
+                    <div class="relative h-[19rem]" role="img" aria-label="Top 10 Unit Kerja Total Biaya LHPP">
+                        <canvas id="chartBiaya" class="h-full w-full"></canvas>
                     </div>
                 @else
                     <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
@@ -387,4 +323,163 @@
             </div>
         @endif
     </div>
+
+    @if ($hasApprovedData || $hasBiayaData)
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const approvedLabels = @json($approvedLabels);
+                const approvedValues = @json($approvedValues);
+                const biayaLabels = @json($biayaLabels);
+                const biayaValues = @json($biayaValues);
+
+                const compactRupiah = (value) => {
+                    const number = Number(value || 0);
+
+                    if (number >= 1000000000) return `Rp ${(number / 1000000000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} M`;
+                    if (number >= 1000000) return `Rp ${(number / 1000000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} jt`;
+                    if (number >= 1000) return `Rp ${(number / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} rb`;
+
+                    return `Rp ${number.toLocaleString('id-ID')}`;
+                };
+
+                const valueLabelPlugin = {
+                    id: 'valueLabelPlugin',
+                    afterDatasetsDraw(chart, args, options) {
+                        const { ctx } = chart;
+                        const meta = chart.getDatasetMeta(0);
+                        const values = chart.data.datasets[0].data;
+
+                        ctx.save();
+                        ctx.font = '900 14px ui-sans-serif, system-ui, sans-serif';
+                        ctx.fillStyle = '#020617';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+
+                        meta.data.forEach((point, index) => {
+                            const rawValue = values[index] || 0;
+                            const label = options.format === 'currency'
+                                ? compactRupiah(rawValue)
+                                : new Intl.NumberFormat('id-ID').format(rawValue);
+                            const y = Math.max(point.y - 10, 18);
+
+                            ctx.fillText(label, point.x, y);
+                        });
+
+                        ctx.restore();
+                    },
+                };
+
+                const createLineChart = (canvasId, labels, values, options = {}) => {
+                    const canvas = document.getElementById(canvasId);
+
+                    if (! canvas || ! values.some((value) => Number(value) > 0)) {
+                        return;
+                    }
+
+                    new Chart(canvas, {
+                        type: 'line',
+                        data: {
+                            labels,
+                            datasets: [{
+                                data: values,
+                                borderColor: options.color || '#b91c1c',
+                                backgroundColor: 'rgba(185, 28, 28, 0.08)',
+                                borderWidth: 4,
+                                tension: 0.38,
+                                fill: false,
+                                pointRadius: 5,
+                                pointHoverRadius: 7,
+                                pointBorderWidth: 4,
+                                pointBackgroundColor: '#ffffff',
+                                pointBorderColor: options.color || '#b91c1c',
+                                pointHitRadius: 18,
+                            }],
+                        },
+                        plugins: [valueLabelPlugin],
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: {
+                                duration: 1050,
+                                easing: 'easeOutQuart',
+                            },
+                            layout: {
+                                padding: {
+                                    top: 34,
+                                    right: 18,
+                                    bottom: 8,
+                                    left: 18,
+                                },
+                            },
+                            interaction: {
+                                intersect: false,
+                                mode: 'nearest',
+                            },
+                            plugins: {
+                                legend: {
+                                    display: false,
+                                },
+                                tooltip: {
+                                    backgroundColor: 'rgba(15, 23, 42, 0.94)',
+                                    titleColor: '#ffffff',
+                                    bodyColor: '#f8fafc',
+                                    displayColors: false,
+                                    padding: 12,
+                                    cornerRadius: 12,
+                                    callbacks: {
+                                        title(items) {
+                                            return items[0]?.label || '';
+                                        },
+                                        label(context) {
+                                            const value = context.parsed.y || 0;
+
+                                            return options.format === 'currency'
+                                                ? `Total biaya: Rp ${Number(value).toLocaleString('id-ID')}`
+                                                : `${Number(value).toLocaleString('id-ID')} order approved`;
+                                        },
+                                    },
+                                },
+                                valueLabelPlugin: {
+                                    format: options.format || 'number',
+                                },
+                            },
+                            scales: {
+                                x: {
+                                    display: false,
+                                    grid: {
+                                        display: false,
+                                        drawBorder: false,
+                                    },
+                                    border: {
+                                        display: false,
+                                    },
+                                },
+                                y: {
+                                    display: false,
+                                    beginAtZero: true,
+                                    suggestedMax: Math.max(...values.map(Number), 1) * 1.18,
+                                    grid: {
+                                        display: false,
+                                        drawBorder: false,
+                                    },
+                                    border: {
+                                        display: false,
+                                    },
+                                },
+                            },
+                        },
+                    });
+                };
+
+                createLineChart('chartApproved', approvedLabels, approvedValues, {
+                    color: '#b91c1c',
+                });
+                createLineChart('chartBiaya', biayaLabels, biayaValues, {
+                    color: '#991b1b',
+                    format: 'currency',
+                });
+            });
+        </script>
+    @endif
 </x-layouts.user>

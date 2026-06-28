@@ -238,14 +238,14 @@ new #[Layout('components.layouts.user')] class extends Component
             <div class="grid gap-4 sm:grid-cols-2">
                 <div class="sm:col-span-2">
                     <label for="name" class="mb-1.5 block text-xs font-semibold text-slate-700">Nama lengkap</label>
-                    <input id="name" wire:model="name" type="text" name="name" required autofocus autocomplete="name"
+                    <input id="name" wire:model="name" type="text" name="name" value="{{ $name }}" required autofocus autocomplete="name"
                         class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#7f1017] focus:ring-2 focus:ring-red-100">
                     @error('name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
                     <label for="email" class="mb-1.5 block text-xs font-semibold text-slate-700">Email</label>
-                    <input id="email" wire:model="email" type="email" name="email" required autocomplete="email"
+                    <input id="email" wire:model="email" type="email" name="email" value="{{ $email }}" required autocomplete="email"
                         class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#7f1017] focus:ring-2 focus:ring-red-100">
                     @error('email') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
 
@@ -265,14 +265,15 @@ new #[Layout('components.layouts.user')] class extends Component
 
                 <div>
                     <label for="nomor_hp" class="mb-1.5 block text-xs font-semibold text-slate-700">Nomor HP</label>
-                    <input id="nomor_hp" wire:model="nomor_hp" type="text" name="nomor_hp" autocomplete="tel"
+                    <input id="nomor_hp" wire:model="nomor_hp" type="text" name="nomor_hp" value="{{ $nomor_hp }}" autocomplete="tel"
                         class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#7f1017] focus:ring-2 focus:ring-red-100">
+                    <p class="mt-1.5 text-xs leading-5 text-slate-500">Mohon isi nomor HP aktif untuk kebutuhan notifikasi dan konfirmasi approval.</p>
                     @error('nomor_hp') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
                     <label for="inisial" class="mb-1.5 block text-xs font-semibold text-slate-700">Inisial</label>
-                    <input id="inisial" wire:model="inisial" type="text" name="inisial" maxlength="20"
+                    <input id="inisial" wire:model="inisial" type="text" name="inisial" value="{{ $inisial }}" maxlength="20"
                         class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm uppercase text-slate-800 outline-none transition focus:border-[#7f1017] focus:ring-2 focus:ring-red-100">
                     @error('inisial') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 </div>

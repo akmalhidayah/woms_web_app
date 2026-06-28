@@ -51,8 +51,8 @@
                         </div>
 
                         <div class="hidden min-w-0 sm:block">
-                            <div class="truncate text-lg font-black tracking-tight text-white sm:text-xl">Dept. Project Management &amp; Main Support</div>
-                            <div class="mt-0.5 hidden truncate text-sm text-red-100 sm:block">Section of Machine Workshop</div>
+                            <div class="truncate text-base font-black tracking-tight text-white sm:text-lg">Dept. Project Management &amp; Main Support</div>
+                            <div class="mt-0.5 hidden truncate text-xs text-red-100 sm:block">Section of Machine Workshop</div>
                         </div>
                     </div>
 

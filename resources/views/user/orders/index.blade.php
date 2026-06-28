@@ -234,15 +234,15 @@
             @if ($orders->count() > 0)
                 <div class="hidden overflow-hidden border border-slate-200 bg-white shadow-sm md:block">
                     <table class="min-w-full divide-y divide-slate-100 text-left text-sm">
-                        <thead class="bg-slate-50 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">
+                        <thead class="bg-[#7f1017] text-[11px] font-extrabold uppercase tracking-[0.1em] text-red-50">
                             <tr>
-                                <th class="px-4 py-3">Order / Notif</th>
-                                <th class="px-4 py-3">Nama Pekerjaan</th>
-                                <th class="px-4 py-3">Unit</th>
-                                <th class="px-4 py-3">Seksi</th>
-                                <th class="px-4 py-3">Tanggal</th>
-                                <th class="px-4 py-3">Prioritas</th>
-                                <th class="px-4 py-3 text-right">
+                                <th class="px-4 py-3.5">Order / Notif</th>
+                                <th class="px-4 py-3.5">Nama Pekerjaan</th>
+                                <th class="px-4 py-3.5">Unit</th>
+                                <th class="px-4 py-3.5">Seksi</th>
+                                <th class="px-4 py-3.5">Tanggal</th>
+                                <th class="px-4 py-3.5">Prioritas</th>
+                                <th class="px-4 py-3.5 text-right">
                                     <span class="sr-only">Lihat Detail</span>
                                 </th>
                             </tr>

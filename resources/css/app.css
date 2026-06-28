@@ -232,6 +232,24 @@ select:focus[data-flux-control] {
     }
 }
 
+@keyframes dashboard-line-draw {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+@keyframes dashboard-point-rise {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 @layer components {
     .dashboard-premium-card {
         border: 1px solid rgba(226, 232, 240, 0.9);
@@ -265,6 +283,53 @@ select:focus[data-flux-control] {
         background: #991b1b;
     }
 
+    .dashboard-line-chart {
+        width: 100%;
+        min-height: 18rem;
+        overflow: visible;
+    }
+
+    .dashboard-line-path {
+        fill: none;
+        stroke: #b91c1c;
+        stroke-width: 5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-dasharray: 1200;
+        stroke-dashoffset: 1200;
+        animation: dashboard-line-draw 1.05s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    .dashboard-line-path.is-currency {
+        stroke: #991b1b;
+    }
+
+    .dashboard-line-dot,
+    .dashboard-line-value,
+    .dashboard-line-label {
+        opacity: 0;
+        animation: dashboard-point-rise 520ms ease-out forwards;
+        animation-delay: calc(var(--point-index) * 70ms + 240ms);
+    }
+
+    .dashboard-line-dot {
+        fill: #ffffff;
+        stroke: #b91c1c;
+        stroke-width: 4;
+    }
+
+    .dashboard-line-value {
+        fill: #020617;
+        font-size: 18px;
+        font-weight: 900;
+    }
+
+    .dashboard-line-label {
+        fill: #475569;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
     .dashboard-skeleton-block {
         position: relative;
         overflow: hidden;
@@ -296,8 +361,14 @@ select:focus[data-flux-control] {
 
 @media (prefers-reduced-motion: reduce) {
     .dashboard-bar-fill,
+    .dashboard-line-path,
+    .dashboard-line-dot,
+    .dashboard-line-value,
+    .dashboard-line-label,
     .dashboard-skeleton-block::after {
         animation: none;
+        opacity: 1;
+        stroke-dashoffset: 0;
     }
 }
 

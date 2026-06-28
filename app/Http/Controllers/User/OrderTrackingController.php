@@ -633,7 +633,7 @@ class OrderTrackingController extends Controller
                     'tone' => 'done',
                 ],
                 [
-                    'label' => 'Persetujuan Awal',
+                    'label' => 'Status',
                     'value' => $order->catatan_status?->label() ?? 'Pending',
                     'tone' => $order->catatan_status && $order->catatan_status !== OrderUserNoteStatus::Pending ? 'done' : 'waiting',
                 ],
@@ -651,7 +651,7 @@ class OrderTrackingController extends Controller
                     'tone' => 'done',
                 ],
                 [
-                    'label' => 'Persetujuan Awal',
+                    'label' => 'Status',
                     'value' => $order->catatan_status?->label() ?? 'Pending',
                     'tone' => $order->catatan_status && $order->catatan_status !== OrderUserNoteStatus::Pending ? 'done' : 'waiting',
                 ],

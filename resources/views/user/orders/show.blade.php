@@ -32,9 +32,27 @@
             'rose' => 'border-rose-200 bg-rose-50 text-rose-700',
             'slate' => 'border-stone-200 bg-stone-100 text-slate-600',
         ];
+        $targetDateLabel = $order['progress']['target'] ?: $order['target_selesai_order'] ?: '-';
+        $targetRangeLabel = null;
+
+        try {
+            if (filled($order['tanggal_order']) && $order['tanggal_order'] !== '-' && $targetDateLabel !== '-') {
+                $orderDateForRange = \Illuminate\Support\Carbon::createFromFormat('d/m/Y', $order['tanggal_order'])->startOfDay();
+                $targetDateForRange = \Illuminate\Support\Carbon::createFromFormat('d/m/Y', $targetDateLabel)->startOfDay();
+                $targetRangeDays = (int) $orderDateForRange->diffInDays($targetDateForRange, false);
+
+                $targetRangeLabel = match (true) {
+                    $targetRangeDays > 0 => $targetRangeDays . ' hari lagi',
+                    $targetRangeDays < 0 => 'Lewat ' . abs($targetRangeDays) . ' hari',
+                    default => 'Hari yang sama',
+                };
+            }
+        } catch (\Throwable $exception) {
+            $targetRangeLabel = null;
+        }
     @endphp
 
-    <div class="space-y-5">
+    <div class="space-y-4 lg:-mx-3 xl:-mx-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <a href="{{ route('user.dashboard') }}" class="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:text-red-800">
                 <i data-lucide="arrow-left" class="h-4 w-4"></i>
@@ -45,8 +63,8 @@
             </span>
         </div>
 
-        <section class="overflow-hidden rounded-[20px] border border-stone-200 bg-white shadow-sm">
-            <div class="grid gap-0 lg:grid-cols-[1.08fr_0.92fr]">
+        <section class="overflow-hidden rounded-[18px] border border-stone-200 bg-white shadow-sm">
+            <div class="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
                 <div class="bg-white p-4 sm:p-5">
                     <div class="space-y-3.5">
                         <div class="flex items-start gap-3">
@@ -56,18 +74,14 @@
                                     <path d="M8 9h8M8 13h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
                                 </svg>
                             </span>
-                            <h1 class="min-w-0 text-2xl font-black tracking-tight text-slate-900 sm:text-[1.7rem]">{{ $order['nama_pekerjaan'] }}</h1>
+                            <h1 class="min-w-0 text-xl font-black tracking-tight text-slate-900 sm:text-2xl lg:text-[1.65rem]">{{ $order['nama_pekerjaan'] }}</h1>
                         </div>
 
-                        <div class="grid gap-2.5 sm:grid-cols-2">
+                        <div class="grid gap-2.5 sm:grid-cols-3">
                             <div class="rounded-xl border border-stone-200 bg-stone-50/60 p-3">
                                 <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Order / Notifikasi</div>
                                 <div class="mt-1.5 text-base font-bold text-slate-900">{{ $order['nomor_order'] }}</div>
                                 <div class="mt-1 text-xs font-semibold text-slate-500">Notif: {{ $order['notifikasi'] ?: '-' }}</div>
-                            </div>
-                            <div class="rounded-xl border border-stone-200 bg-stone-50/60 p-3">
-                                <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Tanggal Order</div>
-                                <div class="mt-1.5 text-base font-bold text-slate-900">{{ $order['tanggal_order'] ?: '-' }}</div>
                             </div>
                             <div class="rounded-xl border border-stone-200 bg-stone-50/60 p-3">
                                 <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Unit Kerja</div>
@@ -82,16 +96,37 @@
                 </div>
 
                 <div class="bg-white p-4 sm:p-5">
-                    <div class="rounded-[18px] border border-red-100 bg-white p-4">
-                        <div class="grid gap-2.5 sm:grid-cols-[0.82fr_1.18fr]">
-                            <div class="rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
-                                <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Target Selesai</div>
-                                <div class="mt-1.5 text-base font-semibold text-slate-900">{{ $order['progress']['target'] ?: $order['target_selesai_order'] ?: '-' }}</div>
+                    <div class="grid gap-2.5 sm:grid-cols-2">
+                        <div class="rounded-xl border border-stone-200 bg-stone-50/70 p-3">
+                            <div class="flex items-start gap-2.5">
+                                <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-50 text-[#7f1017] ring-1 ring-red-100" aria-hidden="true">
+                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none">
+                                        <path d="M7 3v3M17 3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                                    </svg>
+                                </span>
+                                <div class="min-w-0">
+                                    <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Tanggal Order</div>
+                                    <div class="mt-1 text-base font-bold text-slate-900">{{ $order['tanggal_order'] ?: '-' }}</div>
+                                    <div class="mt-2 text-sm font-semibold leading-5 text-slate-900">{{ $order['approval_label'] }}</div>
+                                    <div class="mt-0.5 text-xs leading-5 text-slate-600">{{ $order['approval_note'] ?: '-' }}</div>
+                                </div>
                             </div>
+                        </div>
 
-                            <div class="rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
-                                <div class="text-base font-semibold text-slate-900">{{ $order['approval_label'] }}</div>
-                                <div class="mt-1.5 text-sm leading-5 text-slate-600">{{ $order['approval_note'] ?: '-' }}</div>
+                        <div class="rounded-xl border border-stone-200 bg-stone-50/70 p-3">
+                            <div class="flex items-start gap-2.5">
+                                <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100" aria-hidden="true">
+                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none">
+                                        <path d="M12 6v6l4 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                </span>
+                                <div class="min-w-0">
+                                    <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Target Selesai</div>
+                                    <div class="mt-1 text-base font-bold text-slate-900">{{ $targetDateLabel }}</div>
+                                    @if ($targetRangeLabel)
+                                        <div class="mt-2 inline-flex rounded-full bg-white px-2 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-100">{{ $targetRangeLabel }}</div>
+                                    @endif
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -114,7 +149,7 @@
                     @foreach ($order['timeline'] as $item)
                         <article class="relative rounded-xl border p-3 {{ $timelineToneClasses[$item['tone']] ?? $timelineToneClasses['waiting'] }}">
                             @unless ($loop->last)
-                                <div class="absolute left-full top-7 hidden h-[2px] w-5 {{ $timelineLineClasses[$item['tone']] ?? $timelineLineClasses['waiting'] }} sm:block"></div>
+                                <div class="absolute left-full top-1/2 hidden h-[2px] w-5 -translate-y-1/2 {{ $timelineLineClasses[$item['tone']] ?? $timelineLineClasses['waiting'] }} sm:block"></div>
                             @endunless
 
                             <div class="relative z-10 flex items-start gap-2.5">

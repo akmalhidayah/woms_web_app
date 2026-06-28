@@ -28,9 +28,6 @@
                 </div>
                 <h2 class="mt-3 font-bold text-slate-900">{{ $user?->name }}</h2>
                 <p class="mt-1 break-all text-xs text-slate-500">{{ $user?->email }}</p>
-                <div class="mt-4 border-t border-[#ead4c7] pt-4 text-xs text-slate-500">
-                    Perubahan nama dan inisial akan langsung tampil pada menu profil dashboard.
-                </div>
             </aside>
 
             <form method="POST" action="{{ route('pkm.profile.update') }}" class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

@@ -47,16 +47,16 @@
 
         <section class="overflow-hidden rounded-[20px] border border-stone-200 bg-white shadow-sm">
             <div class="grid gap-0 lg:grid-cols-[1.08fr_0.92fr]">
-                <div class="border-b border-stone-200 bg-white p-4 sm:p-5 lg:border-b-0 lg:border-r">
+                <div class="bg-white p-4 sm:p-5">
                     <div class="space-y-3.5">
-                        <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#7f1017] text-white" title="Tracking Order" aria-label="Tracking Order">
-                            <svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                <path d="M5 5h14v14H5V5Z" stroke="currentColor" stroke-width="2" />
-                                <path d="M8 9h8M8 13h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                            </svg>
-                        </span>
-                        <div>
-                            <h1 class="text-2xl font-black tracking-tight text-slate-900 sm:text-[1.7rem]">{{ $order['nama_pekerjaan'] }}</h1>
+                        <div class="flex items-start gap-3">
+                            <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#7f1017] text-white" title="Tracking Order" aria-label="Tracking Order">
+                                <svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M5 5h14v14H5V5Z" stroke="currentColor" stroke-width="2" />
+                                    <path d="M8 9h8M8 13h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                                </svg>
+                            </span>
+                            <h1 class="min-w-0 text-2xl font-black tracking-tight text-slate-900 sm:text-[1.7rem]">{{ $order['nama_pekerjaan'] }}</h1>
                         </div>
 
                         <div class="grid gap-2.5 sm:grid-cols-2">
@@ -81,7 +81,7 @@
                     </div>
                 </div>
 
-                <div class="bg-stone-50/70 p-4 sm:p-5">
+                <div class="bg-white p-4 sm:p-5">
                     <div class="rounded-[18px] border border-red-100 bg-white p-4">
                         <div class="grid gap-2.5 sm:grid-cols-[0.82fr_1.18fr]">
                             <div class="rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
@@ -110,11 +110,11 @@
             </div>
 
             <div class="mt-4 overflow-x-auto pb-1">
-                <div class="grid min-w-[720px] grid-cols-3 gap-3 pr-2">
+                <div class="grid min-w-[720px] grid-cols-3 gap-5 pr-2">
                     @foreach ($order['timeline'] as $item)
                         <article class="relative rounded-xl border p-3 {{ $timelineToneClasses[$item['tone']] ?? $timelineToneClasses['waiting'] }}">
                             @unless ($loop->last)
-                                <div class="absolute left-[calc(100%-0.35rem)] top-6 hidden h-[2px] w-4 {{ $timelineLineClasses[$item['tone']] ?? $timelineLineClasses['waiting'] }} sm:block"></div>
+                                <div class="absolute left-full top-7 hidden h-[2px] w-5 {{ $timelineLineClasses[$item['tone']] ?? $timelineLineClasses['waiting'] }} sm:block"></div>
                             @endunless
 
                             <div class="relative z-10 flex items-start gap-2.5">

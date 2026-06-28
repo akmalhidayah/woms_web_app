@@ -67,28 +67,28 @@
     @endphp
 
     <div
-        class="user-dashboard -mt-5 space-y-4 sm:-mt-6 lg:-mt-6"
+        class="user-dashboard mt-1 space-y-3 sm:-mt-6 sm:space-y-4 lg:-mt-6"
         data-user-dashboard
         x-data="{ filterOpen: window.innerWidth >= 768, isDesktop: window.innerWidth >= 768 }"
         x-init="filterOpen = window.innerWidth >= 768; isDesktop = window.innerWidth >= 768"
         @resize.window="isDesktop = window.innerWidth >= 768; if (isDesktop) filterOpen = true"
     >
-        <section class="dashboard-content grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-[1.18fr_1.18fr_0.88fr_0.88fr_0.88fr]">
+        <section class="dashboard-content grid grid-cols-3 items-stretch gap-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-[1.18fr_1.18fr_0.88fr_0.88fr_0.88fr] xl:gap-3">
             @foreach ($summaryCards as $card)
-                <article class="dashboard-soft-card group flex min-h-[112px] items-center rounded-[1.15rem] px-4 py-3.5 transition hover:-translate-y-0.5 hover:border-red-100 hover:shadow-lg">
-                    <div class="flex w-full items-center justify-between gap-4">
-                        <div class="flex min-w-0 items-center gap-3">
-                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 {{ $card['iconClass'] }}">
-                                <i data-lucide="{{ $card['icon'] }}" class="h-5 w-5"></i>
+                <article class="dashboard-soft-card group flex min-h-[84px] items-center rounded-lg px-2 py-2 transition hover:-translate-y-0.5 hover:border-red-100 hover:shadow-lg sm:min-h-[96px] sm:px-3 sm:py-3 xl:min-h-[112px] xl:rounded-[1.15rem] xl:px-4 xl:py-3.5">
+                    <div class="flex w-full flex-col gap-2 xl:flex-row xl:items-center xl:justify-between xl:gap-4">
+                        <div class="flex min-w-0 flex-col gap-1.5 xl:flex-row xl:items-center xl:gap-3">
+                            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 sm:h-9 sm:w-9 xl:h-10 xl:w-10 xl:rounded-xl {{ $card['iconClass'] }}">
+                                <i data-lucide="{{ $card['icon'] }}" class="h-4 w-4 xl:h-5 xl:w-5"></i>
                             </div>
                             <div class="min-w-0">
-                                <div class="truncate text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">{{ $card['label'] }}</div>
-                                <div class="mt-1 text-[2rem] font-black leading-none tracking-tight text-slate-950" data-count-up data-count-value="{{ $card['value'] }}">{{ $card['value'] }}</div>
+                                <div class="truncate text-[8px] font-black uppercase tracking-[0.1em] text-slate-500 sm:text-[10px] xl:text-[11px] xl:tracking-[0.14em]">{{ $card['label'] }}</div>
+                                <div class="mt-0.5 text-[1.45rem] font-black leading-none tracking-tight text-slate-950 sm:text-[1.7rem] xl:mt-1 xl:text-[2rem]" data-count-up data-count-value="{{ $card['value'] }}">{{ $card['value'] }}</div>
                             </div>
                         </div>
 
                         @if (isset($card['breakdown']))
-                            <div class="grid shrink-0 gap-2 border-l border-slate-100 pl-4">
+                            <div class="hidden shrink-0 gap-2 border-l border-slate-100 pl-4 xl:grid">
                                 @foreach ($card['breakdown'] as $item)
                                     <div class="min-w-[4.25rem]">
                                         <div class="truncate text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">{{ $item['label'] }}</div>
@@ -160,7 +160,7 @@
 
         <button
             type="button"
-            class="fixed right-4 top-[5.75rem] z-50 inline-flex h-10 items-center gap-2 rounded-full border border-red-950/30 bg-[#7f1017] px-3.5 text-sm font-black text-white shadow-xl shadow-red-950/20 transition hover:bg-[#6f0d13] focus:outline-none focus:ring-4 focus:ring-red-100 md:hidden"
+            class="fixed bottom-20 right-4 z-50 inline-flex h-10 items-center gap-2 rounded-full border border-red-950/30 bg-[#7f1017] px-3.5 text-sm font-black text-white shadow-xl shadow-red-950/20 transition hover:bg-[#6f0d13] focus:outline-none focus:ring-4 focus:ring-red-100 md:hidden"
             @click="filterOpen = !filterOpen"
             :aria-expanded="filterOpen.toString()"
             aria-controls="dashboard-filter-panel"

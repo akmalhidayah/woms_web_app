@@ -66,7 +66,7 @@
     @endphp
 
     <div
-        class="user-dashboard -mt-12 space-y-4 sm:-mt-14 lg:-mt-16"
+        class="user-dashboard -mt-6 space-y-4 sm:-mt-7 lg:-mt-8"
         data-user-dashboard
         x-data="{ filterOpen: window.innerWidth >= 768, isDesktop: window.innerWidth >= 768 }"
         x-init="filterOpen = window.innerWidth >= 768; isDesktop = window.innerWidth >= 768"
@@ -74,7 +74,7 @@
     >
         <button
             type="button"
-            class="fixed bottom-20 right-4 z-50 inline-flex h-11 items-center gap-2 rounded-full border border-red-700 bg-red-800 px-4 text-sm font-black text-white shadow-xl shadow-red-950/20 transition hover:bg-red-900 focus:outline-none focus:ring-4 focus:ring-red-100 md:hidden"
+            class="fixed right-4 top-[5.75rem] z-50 inline-flex h-10 items-center gap-2 rounded-full border border-red-700 bg-red-800 px-3.5 text-sm font-black text-white shadow-xl shadow-red-950/20 transition hover:bg-red-900 focus:outline-none focus:ring-4 focus:ring-red-100 md:hidden"
             @click="filterOpen = !filterOpen"
             :aria-expanded="filterOpen.toString()"
             aria-controls="dashboard-filter-panel"
@@ -86,7 +86,7 @@
 
         <section
             id="dashboard-filter-panel"
-            class="dashboard-premium-card fixed bottom-36 left-3 right-3 z-40 max-h-[62vh] overflow-y-auto rounded-2xl p-2.5 shadow-2xl shadow-slate-900/20 backdrop-blur md:sticky md:bottom-auto md:left-auto md:right-auto md:top-[80px] md:z-20 md:max-h-none md:overflow-visible md:shadow-lg md:shadow-slate-900/5 lg:top-[92px]"
+            class="dashboard-premium-card fixed left-3 right-3 top-[8.75rem] z-40 max-h-[58vh] overflow-y-auto rounded-2xl p-2.5 shadow-2xl shadow-slate-900/20 backdrop-blur md:sticky md:left-auto md:right-auto md:top-0 md:z-20 md:max-h-none md:overflow-visible md:shadow-lg md:shadow-slate-900/5"
             x-show="filterOpen || isDesktop"
             x-transition.opacity.duration.150ms
             x-cloak

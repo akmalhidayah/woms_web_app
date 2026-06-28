@@ -30,18 +30,18 @@
 
         <div x-data="{ mobileMenu: false, profileOpen: false }" class="relative min-h-screen">
             <header class="sticky top-0 z-30 border-b border-red-950/20 bg-red-800 shadow-lg shadow-red-950/10">
-                <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
-                    <div class="flex min-w-0 items-center gap-4">
-                        <div class="flex shrink-0 items-center gap-2 rounded-2xl border border-white/20 bg-white px-3 py-2 shadow-sm">
-                            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white">
+                <div class="mx-auto flex max-w-none items-center justify-between gap-4 px-3 py-2.5 sm:px-4 lg:px-6 lg:py-3">
+                    <div class="flex min-w-0 items-center gap-3">
+                        <div class="flex shrink-0 items-center gap-2 rounded-xl border border-white/20 bg-white px-2.5 py-1.5 shadow-sm">
+                            <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-white">
                                 <picture>
                                     <source srcset="{{ $logoSigAvif }}" type="image/avif">
                                     <source srcset="{{ $logoSigWebp }}" type="image/webp">
                                     <img src="{{ $logoSigFallback }}" alt="SIG" width="220" height="220" class="max-h-full w-auto object-contain">
                                 </picture>
                             </div>
-                            <div class="h-8 w-px bg-slate-200"></div>
-                            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50">
+                            <div class="h-7 w-px bg-slate-200"></div>
+                            <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50">
                                 <picture>
                                     <source srcset="{{ $logoStAvif }}" type="image/avif">
                                     <source srcset="{{ $logoStWebp }}" type="image/webp">
@@ -59,7 +59,7 @@
                     <div class="hidden items-center gap-3 md:flex">
                         <a
                             href="{{ route('user.dashboard') }}"
-                            class="rounded-xl border px-4 py-2 text-sm font-semibold transition {{ $currentRoute === 'user.dashboard' ? 'border-white/25 bg-white text-red-800 shadow-sm' : 'border-white/20 bg-white/10 text-white hover:bg-white/15' }}"
+                            class="rounded-xl border px-4 py-1.5 text-sm font-semibold transition {{ $currentRoute === 'user.dashboard' ? 'border-white/25 bg-white text-red-800 shadow-sm' : 'border-white/20 bg-white/10 text-white hover:bg-white/15' }}"
                         >
                             Dashboard
                         </a>
@@ -67,9 +67,9 @@
                             <button
                                 type="button"
                                 @click="profileOpen = !profileOpen"
-                                class="inline-flex items-center gap-2.5 rounded-2xl border border-white/20 bg-white px-3 py-2 shadow-sm transition hover:bg-red-50"
+                                class="inline-flex items-center gap-2.5 rounded-xl border border-white/20 bg-white px-3 py-1.5 shadow-sm transition hover:bg-red-50"
                             >
-                                <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-xs font-bold text-red-700">
+                                <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-xs font-bold text-red-700">
                                     {{ $user?->initials() ?: 'US' }}
                                 </div>
                                 <div class="max-w-[180px] text-left">
@@ -106,7 +106,7 @@
 
                     <button
                         type="button"
-                        class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white text-red-800 shadow-sm md:hidden"
+                        class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white text-red-800 shadow-sm md:hidden"
                         @click="mobileMenu = !mobileMenu"
                         aria-label="Buka menu"
                     >
@@ -132,7 +132,7 @@
                 </div>
             </header>
 
-            <main class="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+            <main class="relative mx-auto max-w-none px-3 py-4 sm:px-4 lg:px-6 lg:py-5">
                 {{ $slot }}
             </main>
         </div>

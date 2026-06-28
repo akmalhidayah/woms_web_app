@@ -204,9 +204,6 @@ new #[Layout('components.layouts.user')] class extends Component
                 </div>
             </div>
 
-            <div class="mt-4 border-t border-red-100 pt-4 text-xs leading-5 text-slate-500">
-                Informasi akun yang tersimpan saat ini.
-            </div>
 
             @if ($showsOrganizationPositions && $organizationPositions !== [])
                 <div class="mt-4 space-y-2 border-t border-red-100 pt-4">
@@ -231,7 +228,6 @@ new #[Layout('components.layouts.user')] class extends Component
                 </span>
                 <div>
                     <h2 class="text-base font-bold text-slate-900">Informasi Profil</h2>
-                    <p class="text-xs text-slate-500">Data lama otomatis terisi dari akun saat ini.</p>
                 </div>
             </div>
 
@@ -298,7 +294,7 @@ new #[Layout('components.layouts.user')] class extends Component
                 <i data-lucide="lock-keyhole" class="h-5 w-5"></i>
             </div>
             <h2 class="mt-3 font-bold text-slate-900">Update Password</h2>
-            <p class="mt-1 text-xs leading-5 text-slate-500">Password lama tidak ditampilkan. Masukkan password saat ini untuk mengganti password.</p>
+         
         </aside>
 
         <form wire:submit="updatePassword" class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

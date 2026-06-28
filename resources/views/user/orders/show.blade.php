@@ -45,54 +45,54 @@
             </span>
         </div>
 
-        <section class="overflow-hidden rounded-[24px] border border-stone-200 bg-white shadow-sm">
-            <div class="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
-                <div class="border-b border-stone-200 bg-[linear-gradient(180deg,#fff_0%,#fafaf9_100%)] p-5 sm:p-6 lg:border-b-0 lg:border-r">
-                    <div class="space-y-4">
-                        <span class="inline-flex w-fit items-center gap-2 rounded-full bg-red-800 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-white">
-                            Tracking Order
+        <section class="overflow-hidden rounded-[20px] border border-stone-200 bg-white shadow-sm">
+            <div class="grid gap-0 lg:grid-cols-[1.08fr_0.92fr]">
+                <div class="border-b border-stone-200 bg-white p-4 sm:p-5 lg:border-b-0 lg:border-r">
+                    <div class="space-y-3.5">
+                        <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#7f1017] text-white" title="Tracking Order" aria-label="Tracking Order">
+                            <svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M5 5h14v14H5V5Z" stroke="currentColor" stroke-width="2" />
+                                <path d="M8 9h8M8 13h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            </svg>
                         </span>
                         <div>
                             <div class="text-sm font-semibold text-slate-500">Nomor Order {{ $order['nomor_order'] }}</div>
-                            <h1 class="mt-2 text-3xl font-black tracking-tight text-slate-900">{{ $order['nama_pekerjaan'] }}</h1>
-                            <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-600">{{ $order['deskripsi'] ?: 'Deskripsi order belum ditambahkan.' }}</p>
+                            <h1 class="mt-1.5 text-2xl font-black tracking-tight text-slate-900 sm:text-[1.7rem]">{{ $order['nama_pekerjaan'] }}</h1>
+                            <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{{ $order['deskripsi'] ?: 'Deskripsi order belum ditambahkan.' }}</p>
                         </div>
 
-                        <div class="grid gap-3 sm:grid-cols-2">
-                            <div class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-                                <div class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Notifikasi</div>
-                                <div class="mt-2 text-lg font-bold text-slate-900">{{ $order['notifikasi'] ?: '-' }}</div>
+                        <div class="grid gap-2.5 sm:grid-cols-2">
+                            <div class="rounded-xl border border-stone-200 bg-stone-50/60 p-3">
+                                <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Notifikasi</div>
+                                <div class="mt-1.5 text-base font-bold text-slate-900">{{ $order['notifikasi'] ?: '-' }}</div>
                             </div>
-                            <div class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-                                <div class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Tanggal Order</div>
-                                <div class="mt-2 text-lg font-bold text-slate-900">{{ $order['tanggal_order'] ?: '-' }}</div>
+                            <div class="rounded-xl border border-stone-200 bg-stone-50/60 p-3">
+                                <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Tanggal Order</div>
+                                <div class="mt-1.5 text-base font-bold text-slate-900">{{ $order['tanggal_order'] ?: '-' }}</div>
                             </div>
-                            <div class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-                                <div class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Unit Kerja</div>
-                                <div class="mt-2 text-base font-bold text-slate-900">{{ $order['unit_kerja'] ?: '-' }}</div>
+                            <div class="rounded-xl border border-stone-200 bg-stone-50/60 p-3">
+                                <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Unit Kerja</div>
+                                <div class="mt-1.5 text-base font-bold text-slate-900">{{ $order['unit_kerja'] ?: '-' }}</div>
                             </div>
-                            <div class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-                                <div class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Seksi</div>
-                                <div class="mt-2 text-base font-bold text-slate-900">{{ $order['seksi'] ?: '-' }}</div>
+                            <div class="rounded-xl border border-stone-200 bg-stone-50/60 p-3">
+                                <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Seksi</div>
+                                <div class="mt-1.5 text-base font-bold text-slate-900">{{ $order['seksi'] ?: '-' }}</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="bg-stone-50/70 p-5 sm:p-6">
-                    <div class="rounded-[22px] border border-red-100 bg-white p-5 shadow-sm">
-                        <div class="grid gap-3 sm:grid-cols-[0.85fr_1.15fr]">
-                            <div class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4">
-                                <div class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Target Selesai</div>
-                                <div class="mt-2 text-base font-semibold text-slate-900">{{ $order['progress']['target'] ?: $order['target_selesai_order'] ?: '-' }}</div>
+                <div class="bg-stone-50/70 p-4 sm:p-5">
+                    <div class="rounded-[18px] border border-red-100 bg-white p-4">
+                        <div class="grid gap-2.5 sm:grid-cols-[0.82fr_1.18fr]">
+                            <div class="rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
+                                <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Target Selesai</div>
+                                <div class="mt-1.5 text-base font-semibold text-slate-900">{{ $order['progress']['target'] ?: $order['target_selesai_order'] ?: '-' }}</div>
                             </div>
 
-                            <div class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4">
-                                <div class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Approval Awal</div>
-                                <div class="mt-2 text-base font-semibold text-slate-900">{{ $order['approval_label'] }}</div>
-
-                                <div class="mt-4 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Catatan</div>
-                                <div class="mt-2 text-sm leading-6 text-slate-700">{{ $order['approval_note'] ?: '-' }}</div>
+                            <div class="rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
+                                <div class="text-base font-semibold text-slate-900">{{ $order['approval_label'] }}</div>
+                                <div class="mt-1.5 text-sm leading-5 text-slate-600">{{ $order['approval_note'] ?: '-' }}</div>
                             </div>
                         </div>
                     </div>
@@ -100,37 +100,52 @@
             </div>
         </section>
 
-        <section class="rounded-[22px] border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
-            <div>
-                <h2 class="text-xl font-black text-slate-900">Timeline Proses</h2>
+        <section class="rounded-[20px] border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+            <div class="flex items-center gap-2">
+                <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#7f1017] text-white" aria-hidden="true">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none">
+                        <path d="M4 6h4v4H4V6Zm6 2h10M4 14h4v4H4v-4Zm6 2h10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </span>
+                <h2 class="text-lg font-black text-slate-900">Timeline Proses</h2>
             </div>
 
-            <div class="mt-5 overflow-x-auto pb-2">
-                <div class="flex min-w-max items-start gap-0 pr-4">
+            <div class="mt-4 overflow-x-auto pb-1">
+                <div class="grid min-w-[720px] grid-cols-3 gap-3 pr-2">
                     @foreach ($order['timeline'] as $item)
-                        <article class="relative w-[220px] shrink-0 pr-5 {{ $loop->last ? 'pr-0' : '' }}">
+                        <article class="relative rounded-xl border p-3 {{ $timelineToneClasses[$item['tone']] ?? $timelineToneClasses['waiting'] }}">
                             @unless ($loop->last)
-                                <div class="absolute left-[60px] top-5 h-[2px] w-[calc(100%-68px)] {{ $timelineLineClasses[$item['tone']] ?? $timelineLineClasses['waiting'] }}"></div>
+                                <div class="absolute left-[calc(100%-0.35rem)] top-6 hidden h-[2px] w-4 {{ $timelineLineClasses[$item['tone']] ?? $timelineLineClasses['waiting'] }} sm:block"></div>
                             @endunless
 
-                            <div class="relative z-10 flex items-center gap-3">
-                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 text-sm font-black {{ $timelineDotClasses[$item['tone']] ?? $timelineDotClasses['waiting'] }}">
-                                    {{ $loop->iteration }}
+                            <div class="relative z-10 flex items-start gap-2.5">
+                                <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 {{ $timelineDotClasses[$item['tone']] ?? $timelineDotClasses['waiting'] }}">
+                                    @if ($item['tone'] === 'done')
+                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                            <path d="m5 12 4 4L19 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    @elseif ($item['tone'] === 'danger')
+                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                            <path d="M12 8v5m0 4h.01M10.3 4.9 2.8 18a1.4 1.4 0 0 0 1.2 2h16a1.4 1.4 0 0 0 1.2-2L13.7 4.9a1.9 1.9 0 0 0-3.4 0Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    @else
+                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                            <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2" />
+                                        </svg>
+                                    @endif
                                 </div>
                                 <div class="min-w-0">
-                                    <div class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{{ $item['label'] }}</div>
-                                    <span class="mt-1 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold {{ $timelineBadgeClasses[$item['tone']] ?? $timelineBadgeClasses['waiting'] }}">
+                                    <div class="truncate text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{{ $item['label'] }}</div>
+                                    <span class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold {{ $timelineBadgeClasses[$item['tone']] ?? $timelineBadgeClasses['waiting'] }}">
                                         {{ $item['tone'] === 'done' ? 'Selesai' : ($item['tone'] === 'danger' ? 'Perhatian' : 'Pending') }}
                                     </span>
                                 </div>
                             </div>
 
-                            <div class="mt-4 rounded-[20px] border p-4 {{ $timelineToneClasses[$item['tone']] ?? $timelineToneClasses['waiting'] }}">
-                                <div class="text-sm font-bold leading-6 text-slate-900">{{ $item['value'] }}</div>
-                                @if (filled($item['detail'] ?? null))
-                                    <div class="mt-1 text-[11px] font-semibold leading-5 text-slate-500">{{ $item['detail'] }}</div>
-                                @endif
-                            </div>
+                            <div class="mt-3 text-sm font-bold leading-5 text-slate-900">{{ $item['value'] }}</div>
+                            @if (filled($item['detail'] ?? null))
+                                <div class="mt-1 text-[11px] font-semibold leading-5 text-slate-500">{{ $item['detail'] }}</div>
+                            @endif
                         </article>
                     @endforeach
                 </div>

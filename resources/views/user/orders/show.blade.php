@@ -56,15 +56,14 @@
                             </svg>
                         </span>
                         <div>
-                            <div class="text-sm font-semibold text-slate-500">Nomor Order {{ $order['nomor_order'] }}</div>
-                            <h1 class="mt-1.5 text-2xl font-black tracking-tight text-slate-900 sm:text-[1.7rem]">{{ $order['nama_pekerjaan'] }}</h1>
-                            <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{{ $order['deskripsi'] ?: 'Deskripsi order belum ditambahkan.' }}</p>
+                            <h1 class="text-2xl font-black tracking-tight text-slate-900 sm:text-[1.7rem]">{{ $order['nama_pekerjaan'] }}</h1>
                         </div>
 
                         <div class="grid gap-2.5 sm:grid-cols-2">
                             <div class="rounded-xl border border-stone-200 bg-stone-50/60 p-3">
-                                <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Notifikasi</div>
-                                <div class="mt-1.5 text-base font-bold text-slate-900">{{ $order['notifikasi'] ?: '-' }}</div>
+                                <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Order / Notifikasi</div>
+                                <div class="mt-1.5 text-base font-bold text-slate-900">{{ $order['nomor_order'] }}</div>
+                                <div class="mt-1 text-xs font-semibold text-slate-500">Notif: {{ $order['notifikasi'] ?: '-' }}</div>
                             </div>
                             <div class="rounded-xl border border-stone-200 bg-stone-50/60 p-3">
                                 <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Tanggal Order</div>

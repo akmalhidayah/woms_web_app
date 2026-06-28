@@ -4,7 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
-        <meta name="theme-color" content="#dc2626">
+        <meta name="theme-color" content="#7f1017">
 
         <title>{{ $title ?? config('app.name', 'WOMS') }}</title>
         <link rel="icon" type="image/png" href="{{ asset('assets/branding/logos/logo-st2.png') }}?v=tonasa">
@@ -29,7 +29,7 @@
         @endphp
 
         <div x-data="{ mobileMenu: false, profileOpen: false }" class="relative min-h-screen">
-            <header class="sticky top-0 z-30 border-b border-red-950/20 bg-red-800 shadow-lg shadow-red-950/10">
+            <header class="sticky top-0 z-30 border-b border-red-950/20 bg-[#7f1017] shadow-lg shadow-red-950/10">
                 <div class="mx-auto flex max-w-none items-center justify-between gap-4 px-3 py-2.5 sm:px-4 lg:px-6 lg:py-3">
                     <div class="flex min-w-0 items-center gap-3">
                         <div class="flex shrink-0 items-center gap-2 rounded-xl border border-white/20 bg-white px-2.5 py-1.5 shadow-sm">

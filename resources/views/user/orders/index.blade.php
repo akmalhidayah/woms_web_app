@@ -232,7 +232,7 @@
 
         <section class="dashboard-content">
             @if ($orders->count() > 0)
-                <div class="hidden overflow-hidden border border-slate-200 bg-white shadow-sm md:block">
+                <div class="hidden overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm md:block">
                     <table class="min-w-full divide-y divide-slate-100 text-left text-sm">
                         <thead class="bg-[#7f1017] text-[11px] font-extrabold uppercase tracking-[0.1em] text-red-50">
                             <tr>
@@ -250,30 +250,30 @@
                         <tbody class="divide-y divide-slate-100">
                             @foreach ($orders as $order)
                                 <tr
-                                    class="{{ $order['is_completed'] ? 'bg-emerald-50/45 hover:bg-emerald-50/70' : 'bg-white hover:bg-slate-50/80' }} cursor-pointer transition focus-within:bg-red-50/40"
+                                    class="{{ $order['is_completed'] ? 'bg-emerald-50/35 hover:bg-emerald-50/65' : 'bg-white hover:bg-red-50/25' }} cursor-pointer transition-colors focus-within:bg-red-50/35"
                                     role="link"
                                     tabindex="0"
                                     title="Lihat detail {{ $order['nomor_order'] }}"
                                     onclick="window.location.href = @js($order['show_url'])"
                                     onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); window.location.href = @js($order['show_url']); }"
                                 >
-                                    <td class="whitespace-nowrap px-4 py-4 align-top">
+                                    <td class="whitespace-nowrap px-4 py-3.5 align-middle">
                                         <div class="max-w-[160px] truncate font-black tracking-tight text-slate-950">{{ $order['nomor_order'] }}</div>
                                         <div class="mt-1 max-w-[160px] truncate text-xs text-slate-500">Notif: {{ $order['notifikasi'] ?: '-' }}</div>
                                     </td>
-                                    <td class="px-4 py-4 align-top">
+                                    <td class="px-4 py-3.5 align-middle">
                                         <div class="max-w-md line-clamp-2 font-bold leading-5 text-slate-900">{{ $order['nama_pekerjaan'] }}</div>
                                     </td>
-                                    <td class="px-4 py-4 align-top text-slate-600">{{ $order['unit_kerja'] ?: '-' }}</td>
-                                    <td class="px-4 py-4 align-top text-slate-600">{{ $order['seksi'] ?: '-' }}</td>
-                                    <td class="whitespace-nowrap px-4 py-4 align-top text-slate-600">{{ $order['tanggal_order'] ?: '-' }}</td>
-                                    <td class="px-4 py-4 align-top">
+                                    <td class="px-4 py-3.5 align-middle text-slate-600">{{ $order['unit_kerja'] ?: '-' }}</td>
+                                    <td class="px-4 py-3.5 align-middle text-slate-600">{{ $order['seksi'] ?: '-' }}</td>
+                                    <td class="whitespace-nowrap px-4 py-3.5 align-middle text-slate-600">{{ $order['tanggal_order'] ?: '-' }}</td>
+                                    <td class="px-4 py-3.5 align-middle">
                                         <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-black ring-1 {{ $order['prioritas_badge_classes'] }}">
                                             {{ $order['prioritas_label'] }}
                                         </span>
                                     </td>
-                                    <td class="whitespace-nowrap px-4 py-4 text-right align-top">
-                                        <a href="{{ $order['show_url'] }}" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-800 bg-red-800 text-white shadow-sm transition hover:bg-red-900 focus:outline-none focus:ring-4 focus:ring-red-100" title="Lihat Detail" aria-label="Lihat Detail {{ $order['nomor_order'] }}" onclick="event.stopPropagation();">
+                                    <td class="whitespace-nowrap px-4 py-3.5 text-right align-middle">
+                                        <a href="{{ $order['show_url'] }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[#7f1017] bg-[#7f1017] text-white transition hover:bg-[#6f0d13] focus:outline-none focus:ring-4 focus:ring-red-100" title="Lihat Detail" aria-label="Lihat Detail {{ $order['nomor_order'] }}" onclick="event.stopPropagation();">
                                             <i data-lucide="arrow-up-right" class="h-4 w-4"></i>
                                         </a>
                                     </td>
@@ -286,7 +286,7 @@
                 <div class="space-y-3 md:hidden">
                     @foreach ($orders as $order)
                         <article
-                            class="dashboard-soft-card cursor-pointer rounded-xl p-4 transition hover:border-red-100 {{ $order['is_completed'] ? 'bg-emerald-50/60' : 'bg-white' }}"
+                            class="dashboard-soft-card cursor-pointer rounded-lg p-4 transition hover:border-red-100 {{ $order['is_completed'] ? 'bg-emerald-50/50' : 'bg-white' }}"
                             role="link"
                             tabindex="0"
                             title="Lihat detail {{ $order['nomor_order'] }}"
@@ -304,7 +304,7 @@
                                 </span>
                             </div>
 
-                            <div class="mt-3 rounded-xl border border-slate-200 bg-white/85 p-3">
+                            <div class="mt-3 rounded-lg border border-slate-200 bg-white/85 p-3">
                                 <div class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Nama Pekerjaan</div>
                                 <div class="mt-1.5 line-clamp-2 text-sm font-black leading-5 text-slate-900">{{ $order['nama_pekerjaan'] }}</div>
                                 <div class="mt-3 grid gap-1.5 text-xs leading-5 text-slate-600">
@@ -314,7 +314,7 @@
                                 </div>
                             </div>
 
-                            <a href="{{ $order['show_url'] }}" class="mt-3 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-red-800 bg-red-800 text-white shadow-sm transition hover:bg-red-900 focus:outline-none focus:ring-4 focus:ring-red-100" title="Lihat Detail" aria-label="Lihat Detail {{ $order['nomor_order'] }}" onclick="event.stopPropagation();">
+                            <a href="{{ $order['show_url'] }}" class="mt-3 inline-flex h-10 w-10 items-center justify-center rounded-md border border-[#7f1017] bg-[#7f1017] text-white transition hover:bg-[#6f0d13] focus:outline-none focus:ring-4 focus:ring-red-100" title="Lihat Detail" aria-label="Lihat Detail {{ $order['nomor_order'] }}" onclick="event.stopPropagation();">
                                 <i data-lucide="arrow-up-right" class="h-4 w-4"></i>
                             </a>
                         </article>

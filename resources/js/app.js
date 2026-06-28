@@ -115,18 +115,6 @@ function initUserDashboard() {
 
     dashboard.classList.remove('is-loading');
     animateCountUp(dashboard);
-
-    dashboard.querySelectorAll('[data-dashboard-filter-form]').forEach((form) => {
-        form.addEventListener('submit', () => {
-            dashboard.classList.add('is-loading');
-        });
-    });
-
-    dashboard.querySelectorAll('[data-dashboard-reset]').forEach((link) => {
-        link.addEventListener('click', () => {
-            dashboard.classList.add('is-loading');
-        });
-    });
 }
 
 document.addEventListener('DOMContentLoaded', initUserDashboard);

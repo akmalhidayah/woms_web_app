@@ -282,15 +282,15 @@ select:focus[data-flux-control] {
     }
 
     .user-dashboard .dashboard-skeleton {
-        display: none;
+        display: none !important;
     }
 
     .user-dashboard.is-loading .dashboard-content {
-        display: none;
+        display: revert;
     }
 
     .user-dashboard.is-loading .dashboard-skeleton {
-        display: grid;
+        display: none !important;
     }
 }
 

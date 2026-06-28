@@ -66,23 +66,23 @@
     @endphp
 
     <div class="user-dashboard space-y-6" data-user-dashboard>
-        <section class="dashboard-premium-card rounded-[1.35rem] p-4 sm:p-5">
+        <section class="dashboard-premium-card sticky top-[92px] z-20 rounded-[1.15rem] p-3.5 shadow-lg shadow-slate-900/5 backdrop-blur sm:top-[118px] sm:p-4 lg:top-[150px]">
             <form method="GET" action="{{ route('user.dashboard') }}" class="grid gap-3 lg:grid-cols-[minmax(220px,1.6fr)_minmax(160px,0.9fr)_minmax(130px,0.6fr)_minmax(110px,0.45fr)_auto] lg:items-end" data-dashboard-filter-form>
                 <div class="space-y-1.5">
-                    <label for="notification_number" class="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Order / Notifikasi</label>
+                    <label for="notification_number" class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Order / Notifikasi</label>
                     <input
                         id="notification_number"
                         type="text"
                         name="notification_number"
                         value="{{ $filters['notification_number'] }}"
                         placeholder="Cari nomor order / notifikasi..."
-                        class="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-800 placeholder:text-slate-400 shadow-sm transition focus:border-red-300 focus:outline-none focus:ring-4 focus:ring-red-100"
+                        class="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 placeholder:text-slate-400 shadow-sm transition focus:border-red-300 focus:outline-none focus:ring-4 focus:ring-red-100"
                     >
                 </div>
 
                 <div class="space-y-1.5">
-                    <label for="unit_work" class="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Unit</label>
-                    <select id="unit_work" name="unit_work" class="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-800 shadow-sm transition focus:border-red-300 focus:outline-none focus:ring-4 focus:ring-red-100">
+                    <label for="unit_work" class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Unit</label>
+                    <select id="unit_work" name="unit_work" class="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 shadow-sm transition focus:border-red-300 focus:outline-none focus:ring-4 focus:ring-red-100">
                         <option value="">Semua Unit</option>
                         @foreach ($units as $u)
                             <option value="{{ $u }}" @selected($filters['unit_work'] === $u)>{{ $u }}</option>
@@ -91,16 +91,16 @@
                 </div>
 
                 <div class="space-y-1.5">
-                    <label for="sortOrder" class="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Sortir</label>
-                    <select id="sortOrder" name="sortOrder" class="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-800 shadow-sm transition focus:border-red-300 focus:outline-none focus:ring-4 focus:ring-red-100">
+                    <label for="sortOrder" class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Sortir</label>
+                    <select id="sortOrder" name="sortOrder" class="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 shadow-sm transition focus:border-red-300 focus:outline-none focus:ring-4 focus:ring-red-100">
                         <option value="latest" @selected($filters['sortOrder'] === 'latest')>Terbaru</option>
                         <option value="oldest" @selected($filters['sortOrder'] === 'oldest')>Terlama</option>
                     </select>
                 </div>
 
                 <div class="space-y-1.5">
-                    <label for="entries" class="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Limit</label>
-                    <select id="entries" name="entries" class="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-800 shadow-sm transition focus:border-red-300 focus:outline-none focus:ring-4 focus:ring-red-100">
+                    <label for="entries" class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Limit</label>
+                    <select id="entries" name="entries" class="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 shadow-sm transition focus:border-red-300 focus:outline-none focus:ring-4 focus:ring-red-100">
                         @foreach ([10, 25, 50, 100] as $n)
                             <option value="{{ $n }}" @selected((int) $filters['entries'] === $n)>{{ $n }}</option>
                         @endforeach
@@ -108,11 +108,11 @@
                 </div>
 
                 <div class="flex gap-2">
-                    <button type="submit" class="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-red-800 bg-red-800 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-red-900 focus:outline-none focus:ring-4 focus:ring-red-100 lg:flex-none" aria-label="Terapkan filter">
+                    <button type="submit" class="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-red-800 bg-red-800 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-red-900 focus:outline-none focus:ring-4 focus:ring-red-100 lg:flex-none" aria-label="Terapkan filter">
                         <i data-lucide="filter" class="h-4 w-4"></i>
                         <span class="lg:hidden xl:inline">Filter</span>
                     </button>
-                    <a href="{{ route('user.dashboard') }}" class="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-600 shadow-sm transition hover:border-red-200 hover:text-red-800 focus:outline-none focus:ring-4 focus:ring-red-100 lg:flex-none" aria-label="Reset filter" data-dashboard-reset>
+                    <a href="{{ route('user.dashboard') }}" class="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-600 shadow-sm transition hover:border-red-200 hover:text-red-800 focus:outline-none focus:ring-4 focus:ring-red-100 lg:flex-none" aria-label="Reset filter" data-dashboard-reset>
                         <i data-lucide="rotate-ccw" class="h-4 w-4"></i>
                         <span class="lg:hidden xl:inline">Reset</span>
                     </a>
@@ -120,41 +120,32 @@
             </form>
         </section>
 
-        <section class="dashboard-content grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.18fr_1.18fr_0.88fr_0.88fr_0.88fr]">
+        <section class="dashboard-content grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-[1.18fr_1.18fr_0.88fr_0.88fr_0.88fr]">
             @foreach ($summaryCards as $card)
-                <article class="dashboard-soft-card group relative overflow-hidden rounded-[1.35rem] p-4 transition hover:-translate-y-0.5 hover:shadow-xl">
-                    <div class="absolute inset-x-0 top-0 h-1 {{ $card['accent'] }}"></div>
-                    <div class="flex items-start justify-between gap-4">
-                        <div class="min-w-0">
-                            <div class="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">{{ $card['label'] }}</div>
-                            <div class="mt-3 text-3xl font-black leading-none tracking-tight text-slate-950" data-count-up data-count-value="{{ $card['value'] }}">{{ $card['value'] }}</div>
-                        </div>
-                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ring-1 {{ $card['iconClass'] }}">
-                            <i data-lucide="{{ $card['icon'] }}" class="h-5 w-5"></i>
+                <article class="dashboard-soft-card group rounded-[1.15rem] px-4 py-4 transition hover:-translate-y-0.5 hover:border-red-100 hover:shadow-lg">
+                    <div class="flex items-center justify-between gap-4">
+                        <div class="flex min-w-0 items-center gap-3">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 {{ $card['iconClass'] }}">
+                                <i data-lucide="{{ $card['icon'] }}" class="h-5 w-5"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="truncate text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">{{ $card['label'] }}</div>
+                                <div class="mt-1 text-[2rem] font-black leading-none tracking-tight text-slate-950" data-count-up data-count-value="{{ $card['value'] }}">{{ $card['value'] }}</div>
+                            </div>
                         </div>
                     </div>
 
                     @if (isset($card['breakdown']))
-                        <div class="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
+                        <div class="mt-3 flex items-center gap-4 border-t border-slate-100 pt-3">
                             @foreach ($card['breakdown'] as $item)
-                                <div class="rounded-2xl bg-slate-50 px-3 py-2">
-                                    <div class="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">{{ $item['label'] }}</div>
-                                    <div class="mt-1 text-lg font-black leading-none text-slate-900" data-count-up data-count-value="{{ $item['value'] }}">{{ $item['value'] }}</div>
+                                <div class="min-w-0">
+                                    <div class="truncate text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">{{ $item['label'] }}</div>
+                                    <div class="mt-0.5 text-lg font-black leading-none text-slate-900" data-count-up data-count-value="{{ $item['value'] }}">{{ $item['value'] }}</div>
                                 </div>
                             @endforeach
                         </div>
                     @endif
                 </article>
-            @endforeach
-        </section>
-
-        <section class="dashboard-skeleton grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-hidden="true">
-            @foreach (range(1, 5) as $item)
-                <div class="dashboard-soft-card rounded-[1.35rem] p-4">
-                    <div class="dashboard-skeleton-block h-4 w-28"></div>
-                    <div class="dashboard-skeleton-block mt-5 h-8 w-20"></div>
-                    <div class="dashboard-skeleton-block mt-5 h-10 w-full"></div>
-                </div>
             @endforeach
         </section>
 
@@ -238,22 +229,6 @@
                     </div>
                 @endif
             </article>
-        </section>
-
-        <section class="dashboard-skeleton grid gap-4 xl:grid-cols-2" aria-hidden="true">
-            @foreach (range(1, 2) as $item)
-                <div class="dashboard-soft-card rounded-[1.35rem] p-5">
-                    <div class="dashboard-skeleton-block h-5 w-56"></div>
-                    <div class="mt-6 grid gap-4">
-                        @foreach ([92, 76, 84, 58, 68] as $width)
-                            <div>
-                                <div class="dashboard-skeleton-block mb-2 h-4 w-40"></div>
-                                <div class="dashboard-skeleton-block h-3" style="width: {{ $width }}%"></div>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            @endforeach
         </section>
 
         <section class="dashboard-content">
@@ -341,20 +316,6 @@
                     <p class="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500">Saat data order sudah tersedia di sistem, seluruh progress dan dokumennya akan muncul otomatis di dashboard ini.</p>
                 </div>
             @endif
-        </section>
-
-        <section class="dashboard-skeleton" aria-hidden="true">
-            <div class="dashboard-soft-card rounded-[1.35rem] p-4">
-                <div class="grid gap-3">
-                    @foreach (range(1, 6) as $item)
-                        <div class="grid gap-3 md:grid-cols-[1fr_2fr_1fr_1fr_1fr_0.8fr_0.8fr]">
-                            @foreach (range(1, 7) as $cell)
-                                <div class="dashboard-skeleton-block h-5"></div>
-                            @endforeach
-                        </div>
-                    @endforeach
-                </div>
-            </div>
         </section>
 
         @if ($orders->hasPages())

@@ -51,8 +51,8 @@
                         </div>
 
                         <div class="min-w-0">
-                            <div class="truncate text-lg font-black tracking-tight text-white sm:text-xl">User Order Tracking</div>
-                            <div class="mt-0.5 hidden truncate text-sm text-red-100 sm:block">Pantau progress order dan seluruh dokumen pekerjaan</div>
+                            <div class="truncate text-lg font-black tracking-tight text-white sm:text-xl">Dept. Project Management &amp; Main Support</div>
+                            <div class="mt-0.5 hidden truncate text-sm text-red-100 sm:block">Section of Machine Workshop</div>
                         </div>
                     </div>
 

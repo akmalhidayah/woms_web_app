@@ -73,78 +73,6 @@
         x-init="filterOpen = window.innerWidth >= 768; isDesktop = window.innerWidth >= 768"
         @resize.window="isDesktop = window.innerWidth >= 768; if (isDesktop) filterOpen = true"
     >
-        <button
-            type="button"
-            class="fixed right-4 top-[5.75rem] z-50 inline-flex h-10 items-center gap-2 rounded-full border border-red-700 bg-red-800 px-3.5 text-sm font-black text-white shadow-xl shadow-red-950/20 transition hover:bg-red-900 focus:outline-none focus:ring-4 focus:ring-red-100 md:hidden"
-            @click="filterOpen = !filterOpen"
-            :aria-expanded="filterOpen.toString()"
-            aria-controls="dashboard-filter-panel"
-        >
-            <i x-show="!filterOpen" data-lucide="sliders-horizontal" class="h-4 w-4"></i>
-            <i x-show="filterOpen" data-lucide="x" class="h-4 w-4"></i>
-            <span x-text="filterOpen ? 'Tutup' : 'Filter'"></span>
-        </button>
-
-        <section
-            id="dashboard-filter-panel"
-            class="dashboard-premium-card fixed left-3 right-3 top-[8.75rem] z-40 max-h-[58vh] overflow-y-auto rounded-2xl p-2.5 shadow-2xl shadow-slate-900/20 backdrop-blur md:sticky md:left-auto md:right-auto md:top-0 md:z-20 md:mt-4 md:max-h-none md:overflow-visible md:shadow-lg md:shadow-slate-900/5"
-            x-show="filterOpen || isDesktop"
-            x-transition.opacity.duration.150ms
-            x-cloak
-        >
-            <form method="GET" action="{{ route('user.dashboard') }}" class="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-[minmax(220px,1.6fr)_minmax(160px,0.9fr)_minmax(130px,0.6fr)_minmax(110px,0.45fr)_auto] lg:items-end" data-dashboard-filter-form>
-                <div class="col-span-2 space-y-1 md:space-y-1.5 lg:col-span-1">
-                    <label for="notification_number" class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Order / Notifikasi</label>
-                    <input
-                        id="notification_number"
-                        type="text"
-                        name="notification_number"
-                        value="{{ $filters['notification_number'] }}"
-                        placeholder="Cari nomor order / notifikasi..."
-                        class="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 placeholder:text-slate-400 shadow-sm transition focus:border-red-300 focus:outline-none focus:ring-4 focus:ring-red-100 md:h-10 md:px-3.5"
-                    >
-                </div>
-
-                <div class="col-span-2 space-y-1 md:space-y-1.5 lg:col-span-1">
-                    <label for="unit_work" class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Unit</label>
-                    <select id="unit_work" name="unit_work" class="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 shadow-sm transition focus:border-red-300 focus:outline-none focus:ring-4 focus:ring-red-100 md:h-10 md:px-3.5">
-                        <option value="">Semua Unit</option>
-                        @foreach ($units as $u)
-                            <option value="{{ $u }}" @selected($filters['unit_work'] === $u)>{{ $u }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="space-y-1 md:space-y-1.5">
-                    <label for="sortOrder" class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Sortir</label>
-                    <select id="sortOrder" name="sortOrder" class="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 shadow-sm transition focus:border-red-300 focus:outline-none focus:ring-4 focus:ring-red-100 md:h-10 md:px-3.5">
-                        <option value="latest" @selected($filters['sortOrder'] === 'latest')>Terbaru</option>
-                        <option value="oldest" @selected($filters['sortOrder'] === 'oldest')>Terlama</option>
-                    </select>
-                </div>
-
-                <div class="space-y-1 md:space-y-1.5">
-                    <label for="entries" class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Limit</label>
-                    <select id="entries" name="entries" class="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 shadow-sm transition focus:border-red-300 focus:outline-none focus:ring-4 focus:ring-red-100 md:h-10 md:px-3.5">
-                        @foreach ([10, 25, 50, 100] as $n)
-                            <option value="{{ $n }}" @selected((int) $filters['entries'] === $n)>{{ $n }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="col-span-2 flex gap-2 lg:col-span-1">
-                    <button type="submit" class="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-xl border border-red-800 bg-red-800 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-red-900 focus:outline-none focus:ring-4 focus:ring-red-100 md:h-10 lg:flex-none" aria-label="Terapkan filter">
-                        <i data-lucide="filter" class="h-4 w-4"></i>
-                        <span class="lg:hidden xl:inline">Filter</span>
-                    </button>
-                    <a href="{{ route('user.dashboard') }}" class="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-600 shadow-sm transition hover:border-red-200 hover:text-red-800 focus:outline-none focus:ring-4 focus:ring-red-100 md:h-10 lg:flex-none" aria-label="Reset filter" data-dashboard-reset>
-                        <i data-lucide="rotate-ccw" class="h-4 w-4"></i>
-                        <span class="lg:hidden xl:inline">Reset</span>
-                    </a>
-                </div>
-            </form>
-        </section>
-
         <section class="dashboard-content grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-[1.18fr_1.18fr_0.88fr_0.88fr_0.88fr]">
             @foreach ($summaryCards as $card)
                 <article class="dashboard-soft-card group flex min-h-[112px] items-center rounded-[1.15rem] px-4 py-3.5 transition hover:-translate-y-0.5 hover:border-red-100 hover:shadow-lg">
@@ -228,6 +156,78 @@
                     </div>
                 @endif
             </article>
+        </section>
+
+        <button
+            type="button"
+            class="fixed right-4 top-[5.75rem] z-50 inline-flex h-10 items-center gap-2 rounded-full border border-red-950/30 bg-[#7f1017] px-3.5 text-sm font-black text-white shadow-xl shadow-red-950/20 transition hover:bg-[#6f0d13] focus:outline-none focus:ring-4 focus:ring-red-100 md:hidden"
+            @click="filterOpen = !filterOpen"
+            :aria-expanded="filterOpen.toString()"
+            aria-controls="dashboard-filter-panel"
+        >
+            <i x-show="!filterOpen" data-lucide="sliders-horizontal" class="h-4 w-4"></i>
+            <i x-show="filterOpen" data-lucide="x" class="h-4 w-4"></i>
+            <span x-text="filterOpen ? 'Tutup' : 'Filter'"></span>
+        </button>
+
+        <section
+            id="dashboard-filter-panel"
+            class="dashboard-premium-card fixed left-3 right-3 top-[8.75rem] z-40 max-h-[58vh] overflow-y-auto rounded-xl border-slate-300 p-2.5 shadow-2xl shadow-slate-900/20 backdrop-blur md:sticky md:left-auto md:right-auto md:top-0 md:z-20 md:max-h-none md:overflow-visible md:shadow-lg md:shadow-slate-900/5"
+            x-show="filterOpen || isDesktop"
+            x-transition.opacity.duration.150ms
+            x-cloak
+        >
+            <form method="GET" action="{{ route('user.dashboard') }}" class="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-[minmax(220px,1.6fr)_minmax(160px,0.9fr)_minmax(130px,0.6fr)_minmax(110px,0.45fr)_auto] lg:items-end" data-dashboard-filter-form>
+                <div class="col-span-2 space-y-1 md:space-y-1.5 lg:col-span-1">
+                    <label for="notification_number" class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-600">Order / Notifikasi</label>
+                    <input
+                        id="notification_number"
+                        type="text"
+                        name="notification_number"
+                        value="{{ $filters['notification_number'] }}"
+                        placeholder="Cari nomor order / notifikasi..."
+                        class="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 placeholder:text-slate-400 shadow-sm transition focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-red-100 md:h-10 md:px-3.5"
+                    >
+                </div>
+
+                <div class="col-span-2 space-y-1 md:space-y-1.5 lg:col-span-1">
+                    <label for="unit_work" class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-600">Unit</label>
+                    <select id="unit_work" name="unit_work" class="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 shadow-sm transition focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-red-100 md:h-10 md:px-3.5">
+                        <option value="">Semua Unit</option>
+                        @foreach ($units as $u)
+                            <option value="{{ $u }}" @selected($filters['unit_work'] === $u)>{{ $u }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="space-y-1 md:space-y-1.5">
+                    <label for="sortOrder" class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-600">Sortir</label>
+                    <select id="sortOrder" name="sortOrder" class="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 shadow-sm transition focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-red-100 md:h-10 md:px-3.5">
+                        <option value="latest" @selected($filters['sortOrder'] === 'latest')>Terbaru</option>
+                        <option value="oldest" @selected($filters['sortOrder'] === 'oldest')>Terlama</option>
+                    </select>
+                </div>
+
+                <div class="space-y-1 md:space-y-1.5">
+                    <label for="entries" class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-600">Limit</label>
+                    <select id="entries" name="entries" class="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 shadow-sm transition focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-red-100 md:h-10 md:px-3.5">
+                        @foreach ([10, 25, 50, 100] as $n)
+                            <option value="{{ $n }}" @selected((int) $filters['entries'] === $n)>{{ $n }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="col-span-2 flex gap-2 lg:col-span-1">
+                    <button type="submit" class="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg border border-red-950/30 bg-[#7f1017] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#6f0d13] focus:outline-none focus:ring-4 focus:ring-red-100 md:h-10 lg:flex-none" aria-label="Terapkan filter">
+                        <i data-lucide="filter" class="h-4 w-4"></i>
+                        <span class="lg:hidden xl:inline">Filter</span>
+                    </button>
+                    <a href="{{ route('user.dashboard') }}" class="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:border-slate-500 hover:text-slate-950 focus:outline-none focus:ring-4 focus:ring-red-100 md:h-10 lg:flex-none" aria-label="Reset filter" data-dashboard-reset>
+                        <i data-lucide="rotate-ccw" class="h-4 w-4"></i>
+                        <span class="lg:hidden xl:inline">Reset</span>
+                    </a>
+                </div>
+            </form>
         </section>
 
         <section class="dashboard-content">

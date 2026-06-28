@@ -383,12 +383,12 @@ class OrderTrackingController extends Controller
     {
         return $query
             ->when($filters['notification_number'] !== '', function (Builder $builder) use ($filters): void {
-                $needle = $filters['notification_number'];
+                $needle = addcslashes($filters['notification_number'], '\\%_');
 
                 $builder->where(function (Builder $query) use ($needle): void {
                     $query
-                        ->where('nomor_order', 'like', "%{$needle}%")
-                        ->orWhere('notifikasi', 'like', "%{$needle}%");
+                        ->where('nomor_order', 'like', "{$needle}%")
+                        ->orWhere('notifikasi', 'like', "{$needle}%");
                 });
             })
             ->when(

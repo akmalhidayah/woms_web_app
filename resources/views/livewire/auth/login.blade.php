@@ -84,6 +84,25 @@ new #[Layout('components.layouts.auth')] class extends Component {
             min-height: 48px;
         }
 
+        [data-login-form] .login-field-label {
+            display: inline-flex;
+            align-items: center;
+            padding-inline: 0.125rem;
+            font-size: 0.8125rem;
+            font-weight: 700;
+            line-height: 1.15;
+            color: #334155;
+        }
+
+        [data-login-form] .login-field-link {
+            display: inline-flex;
+            align-items: center;
+            padding-inline: 0.125rem;
+            font-size: 0.8125rem;
+            font-weight: 700;
+            line-height: 1.15;
+        }
+
         [data-login-form] .login-submit-button:disabled {
             cursor: not-allowed;
             opacity: 0.78;
@@ -121,8 +140,8 @@ new #[Layout('components.layouts.auth')] class extends Component {
     <x-auth-session-status class="auth-reveal auth-delay-1 rounded-2xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-left text-sm font-medium text-emerald-700" :status="session('status')" />
 
     <form wire:submit="login" class="space-y-5">
-        <div class="auth-reveal auth-delay-1 space-y-2">
-            <label for="email" class="text-sm font-medium text-slate-700">Email</label>
+        <div class="auth-reveal auth-delay-1 space-y-2.5">
+            <label for="email" class="login-field-label">Email</label>
             <input
                 wire:model="email"
                 id="email"
@@ -139,12 +158,12 @@ new #[Layout('components.layouts.auth')] class extends Component {
             @enderror
         </div>
 
-        <div class="auth-reveal auth-delay-2 space-y-2" x-data="{ showPassword: false }">
+        <div class="auth-reveal auth-delay-2 space-y-2.5" x-data="{ showPassword: false }">
             <div class="flex items-center justify-between gap-4">
-                <label for="password" class="text-sm font-medium text-slate-700">Password</label>
+                <label for="password" class="login-field-label">Password</label>
 
                 @if (Route::has('password.request'))
-                    <a href="{{ route('password.request') }}" class="auth-link text-sm" wire:navigate>
+                    <a href="{{ route('password.request') }}" class="auth-link login-field-link" wire:navigate>
                         Lupa password?
                     </a>
                 @endif

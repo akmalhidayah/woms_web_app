@@ -80,8 +80,8 @@
                 @endphp
 
                 <article class="dashboard-soft-card group flex items-center rounded-lg transition hover:-translate-y-0.5 hover:border-red-100 hover:shadow-lg md:col-span-1 sm:min-h-[96px] sm:px-3 sm:py-3 xl:min-h-[112px] xl:rounded-[1.15rem] xl:px-4 xl:py-3.5 {{ $isPrimarySummary ? 'col-span-3 min-h-[96px] px-3 py-3' : 'col-span-1 min-h-[84px] px-2 py-2' }}">
-                    <div class="flex w-full xl:flex-row xl:items-center xl:justify-between xl:gap-4 {{ $isPrimarySummary ? 'items-center justify-between gap-3' : 'flex-col gap-2' }}">
-                        <div class="flex min-w-0 xl:flex-row xl:items-center xl:gap-3 {{ $isPrimarySummary ? 'items-center gap-3' : 'flex-col gap-1.5' }}">
+                    <div class="flex w-full xl:flex-row xl:items-center xl:justify-between xl:gap-4 {{ $isPrimarySummary ? 'items-center justify-between gap-3' : 'flex-col items-center gap-2 text-center' }}">
+                        <div class="flex min-w-0 xl:flex-row xl:items-center xl:gap-3 {{ $isPrimarySummary ? 'items-center gap-3' : 'flex-col items-center gap-1.5' }}">
                             <div class="flex shrink-0 items-center justify-center rounded-lg ring-1 xl:h-10 xl:w-10 xl:rounded-xl {{ $card['iconClass'] }} {{ $isPrimarySummary ? 'h-10 w-10' : 'h-8 w-8 sm:h-9 sm:w-9' }}">
                                 <i data-lucide="{{ $card['icon'] }}" class="xl:h-5 xl:w-5 {{ $isPrimarySummary ? 'h-5 w-5' : 'h-4 w-4' }}"></i>
                             </div>
@@ -297,13 +297,12 @@
                             onclick="window.location.href = @js($order['show_url'])"
                             onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); window.location.href = @js($order['show_url']); }"
                         >
-                            <div class="flex items-start justify-between gap-3">
+                            <div class="flex items-center justify-between gap-3">
                                 <div class="min-w-0">
-                                    <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Order / Notif</div>
-                                    <div class="mt-1 truncate text-lg font-black tracking-tight text-slate-950">{{ $order['nomor_order'] }}</div>
+                                    <div class="truncate text-lg font-black tracking-tight text-slate-950">{{ $order['nomor_order'] }}</div>
                                     <div class="mt-1 truncate text-xs text-slate-500">Notif: {{ $order['notifikasi'] ?: '-' }}</div>
                                 </div>
-                                <span class="inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[10px] font-black ring-1 {{ $order['prioritas_badge_classes'] }}">
+                                <span class="inline-flex max-w-[8.5rem] shrink-0 items-center truncate rounded-full px-2.5 py-1 text-[10px] font-black leading-none ring-1 {{ $order['prioritas_badge_classes'] }}">
                                     {{ $order['prioritas_label'] }}
                                 </span>
                             </div>
@@ -318,8 +317,9 @@
                                 </div>
                             </div>
 
-                            <a href="{{ $order['show_url'] }}" class="mt-3 inline-flex h-10 w-10 items-center justify-center rounded-md border border-[#7f1017] bg-[#7f1017] text-white transition hover:bg-[#6f0d13] focus:outline-none focus:ring-4 focus:ring-red-100" title="Lihat Detail" aria-label="Lihat Detail {{ $order['nomor_order'] }}" onclick="event.stopPropagation();">
-                                <i data-lucide="arrow-up-right" class="h-4 w-4"></i>
+                            <a href="{{ $order['show_url'] }}" class="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-[#7f1017] bg-[#7f1017] px-3 text-xs font-black text-white transition hover:bg-[#6f0d13] focus:outline-none focus:ring-4 focus:ring-red-100" title="Lihat Detail" aria-label="Lihat Detail {{ $order['nomor_order'] }}" onclick="event.stopPropagation();">
+                                <i data-lucide="arrow-up-right" class="h-3.5 w-3.5"></i>
+                                Lihat Detail
                             </a>
                         </article>
                     @endforeach

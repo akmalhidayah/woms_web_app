@@ -87,7 +87,7 @@
 
         <section
             id="dashboard-filter-panel"
-            class="dashboard-premium-card fixed left-3 right-3 top-[8.75rem] z-40 max-h-[58vh] overflow-y-auto rounded-2xl p-2.5 shadow-2xl shadow-slate-900/20 backdrop-blur md:sticky md:left-auto md:right-auto md:top-0 md:z-20 md:max-h-none md:overflow-visible md:shadow-lg md:shadow-slate-900/5"
+            class="dashboard-premium-card fixed left-3 right-3 top-[8.75rem] z-40 max-h-[58vh] overflow-y-auto rounded-2xl p-2.5 shadow-2xl shadow-slate-900/20 backdrop-blur md:sticky md:left-auto md:right-auto md:top-0 md:z-20 md:mt-2 md:max-h-none md:overflow-visible md:shadow-lg md:shadow-slate-900/5"
             x-show="filterOpen || isDesktop"
             x-transition.opacity.duration.150ms
             x-cloak
@@ -145,10 +145,10 @@
             </form>
         </section>
 
-        <section class="dashboard-content grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-[1.18fr_1.18fr_0.88fr_0.88fr_0.88fr]">
+        <section class="dashboard-content grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-[1.18fr_1.18fr_0.88fr_0.88fr_0.88fr]">
             @foreach ($summaryCards as $card)
-                <article class="dashboard-soft-card group rounded-[1.15rem] px-4 py-4 transition hover:-translate-y-0.5 hover:border-red-100 hover:shadow-lg">
-                    <div class="flex items-center justify-between gap-4">
+                <article class="dashboard-soft-card group flex min-h-[112px] items-center rounded-[1.15rem] px-4 py-3.5 transition hover:-translate-y-0.5 hover:border-red-100 hover:shadow-lg">
+                    <div class="flex w-full items-center justify-between gap-4">
                         <div class="flex min-w-0 items-center gap-3">
                             <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 {{ $card['iconClass'] }}">
                                 <i data-lucide="{{ $card['icon'] }}" class="h-5 w-5"></i>
@@ -158,18 +158,18 @@
                                 <div class="mt-1 text-[2rem] font-black leading-none tracking-tight text-slate-950" data-count-up data-count-value="{{ $card['value'] }}">{{ $card['value'] }}</div>
                             </div>
                         </div>
-                    </div>
 
-                    @if (isset($card['breakdown']))
-                        <div class="mt-3 flex items-center gap-4 border-t border-slate-100 pt-3">
-                            @foreach ($card['breakdown'] as $item)
-                                <div class="min-w-0">
-                                    <div class="truncate text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">{{ $item['label'] }}</div>
-                                    <div class="mt-0.5 text-lg font-black leading-none text-slate-900" data-count-up data-count-value="{{ $item['value'] }}">{{ $item['value'] }}</div>
-                                </div>
-                            @endforeach
-                        </div>
-                    @endif
+                        @if (isset($card['breakdown']))
+                            <div class="grid shrink-0 gap-2 border-l border-slate-100 pl-4">
+                                @foreach ($card['breakdown'] as $item)
+                                    <div class="min-w-[4.25rem]">
+                                        <div class="truncate text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">{{ $item['label'] }}</div>
+                                        <div class="mt-0.5 text-lg font-black leading-none text-slate-900" data-count-up data-count-value="{{ $item['value'] }}">{{ $item['value'] }}</div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
                 </article>
             @endforeach
         </section>

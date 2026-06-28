@@ -175,8 +175,8 @@
         </section>
 
         <section class="dashboard-content grid gap-4 xl:grid-cols-2">
-            <article class="dashboard-soft-card rounded-[1.35rem] p-4 sm:p-5">
-                <div class="mb-5 flex items-start justify-between gap-4">
+            <article class="dashboard-soft-card rounded-[1.15rem] p-3.5 sm:p-4">
+                <div class="mb-3 flex items-start justify-between gap-4">
                     <div>
                         <h2 class="flex items-center gap-2 text-base font-black text-slate-950">
                             <i data-lucide="line-chart" class="h-5 w-5 text-red-700"></i>
@@ -187,12 +187,12 @@
                 </div>
 
                 @if ($hasApprovedData)
-                    <div class="relative h-[19rem]" role="img" aria-label="Top 10 Unit Kerja Approved">
+                    <div class="relative h-[12.5rem]" role="img" aria-label="Top 10 Unit Kerja Approved">
                         <canvas id="chartApproved" class="h-full w-full"></canvas>
                     </div>
                 @else
-                    <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
-                        <div class="mx-auto mb-4 grid max-w-sm gap-2">
+                    <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-center">
+                        <div class="mx-auto mb-3 grid max-w-sm gap-2">
                             @foreach ([70, 88, 54, 76] as $width)
                                 <div class="dashboard-skeleton-block h-3" style="width: {{ $width }}%"></div>
                             @endforeach
@@ -202,8 +202,8 @@
                 @endif
             </article>
 
-            <article class="dashboard-soft-card rounded-[1.35rem] p-4 sm:p-5">
-                <div class="mb-5 flex items-start justify-between gap-4">
+            <article class="dashboard-soft-card rounded-[1.15rem] p-3.5 sm:p-4">
+                <div class="mb-3 flex items-start justify-between gap-4">
                     <div>
                         <h2 class="flex items-center gap-2 text-base font-black text-slate-950">
                             <i data-lucide="badge-dollar-sign" class="h-5 w-5 text-red-700"></i>
@@ -214,12 +214,12 @@
                 </div>
 
                 @if ($hasBiayaData)
-                    <div class="relative h-[19rem]" role="img" aria-label="Top 10 Unit Kerja Total Biaya LHPP">
+                    <div class="relative h-[12.5rem]" role="img" aria-label="Top 10 Unit Kerja Total Biaya LHPP">
                         <canvas id="chartBiaya" class="h-full w-full"></canvas>
                     </div>
                 @else
-                    <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
-                        <div class="mx-auto mb-4 grid max-w-sm gap-2">
+                    <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-center">
+                        <div class="mx-auto mb-3 grid max-w-sm gap-2">
                             @foreach ([82, 62, 76, 48] as $width)
                                 <div class="dashboard-skeleton-block h-3" style="width: {{ $width }}%"></div>
                             @endforeach
@@ -333,43 +333,6 @@
                 const biayaLabels = @json($biayaLabels);
                 const biayaValues = @json($biayaValues);
 
-                const compactRupiah = (value) => {
-                    const number = Number(value || 0);
-
-                    if (number >= 1000000000) return `Rp ${(number / 1000000000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} M`;
-                    if (number >= 1000000) return `Rp ${(number / 1000000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} jt`;
-                    if (number >= 1000) return `Rp ${(number / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} rb`;
-
-                    return `Rp ${number.toLocaleString('id-ID')}`;
-                };
-
-                const valueLabelPlugin = {
-                    id: 'valueLabelPlugin',
-                    afterDatasetsDraw(chart, args, options) {
-                        const { ctx } = chart;
-                        const meta = chart.getDatasetMeta(0);
-                        const values = chart.data.datasets[0].data;
-
-                        ctx.save();
-                        ctx.font = '900 14px ui-sans-serif, system-ui, sans-serif';
-                        ctx.fillStyle = '#020617';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'bottom';
-
-                        meta.data.forEach((point, index) => {
-                            const rawValue = values[index] || 0;
-                            const label = options.format === 'currency'
-                                ? compactRupiah(rawValue)
-                                : new Intl.NumberFormat('id-ID').format(rawValue);
-                            const y = Math.max(point.y - 10, 18);
-
-                            ctx.fillText(label, point.x, y);
-                        });
-
-                        ctx.restore();
-                    },
-                };
-
                 const createLineChart = (canvasId, labels, values, options = {}) => {
                     const canvas = document.getElementById(canvasId);
 
@@ -396,7 +359,6 @@
                                 pointHitRadius: 18,
                             }],
                         },
-                        plugins: [valueLabelPlugin],
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
@@ -406,10 +368,10 @@
                             },
                             layout: {
                                 padding: {
-                                    top: 34,
-                                    right: 18,
-                                    bottom: 8,
-                                    left: 18,
+                                    top: 10,
+                                    right: 12,
+                                    bottom: 6,
+                                    left: 12,
                                 },
                             },
                             interaction: {
@@ -439,9 +401,6 @@
                                                 : `${Number(value).toLocaleString('id-ID')} order approved`;
                                         },
                                     },
-                                },
-                                valueLabelPlugin: {
-                                    format: options.format || 'number',
                                 },
                             },
                             scales: {

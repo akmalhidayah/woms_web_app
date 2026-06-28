@@ -67,7 +67,7 @@
     @endphp
 
     <div
-        class="user-dashboard mt-1 space-y-3 sm:-mt-6 sm:space-y-4 lg:-mt-6"
+        class="user-dashboard mt-3 space-y-3 sm:mt-2 sm:space-y-4 lg:mt-3"
         data-user-dashboard
         x-data="{ filterOpen: window.innerWidth >= 768, isDesktop: window.innerWidth >= 768 }"
         x-init="filterOpen = window.innerWidth >= 768; isDesktop = window.innerWidth >= 768"
@@ -172,7 +172,7 @@
 
         <section
             id="dashboard-filter-panel"
-            class="dashboard-premium-card fixed left-3 right-3 top-[8.75rem] z-40 max-h-[58vh] overflow-y-auto rounded-xl border-slate-300 p-2.5 shadow-2xl shadow-slate-900/20 backdrop-blur md:sticky md:left-auto md:right-auto md:top-0 md:z-20 md:max-h-none md:overflow-visible md:shadow-lg md:shadow-slate-900/5"
+            class="dashboard-premium-card fixed left-3 right-3 top-[8.75rem] z-40 max-h-[58vh] overflow-y-auto rounded-xl border-slate-300 p-2.5 shadow-2xl shadow-slate-900/20 backdrop-blur md:sticky md:left-auto md:right-auto md:top-[5.75rem] md:z-40 md:max-h-none md:overflow-visible md:shadow-lg md:shadow-slate-900/5"
             x-show="filterOpen || isDesktop"
             x-transition.opacity.duration.150ms
             x-cloak

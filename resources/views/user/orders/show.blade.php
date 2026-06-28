@@ -103,7 +103,6 @@
         <section class="rounded-[22px] border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
             <div>
                 <h2 class="text-xl font-black text-slate-900">Timeline Proses</h2>
-                <p class="mt-1 text-sm text-slate-500">Semua tahapan order diringkas dalam satu alur yang mudah dipantau.</p>
             </div>
 
             <div class="mt-5 overflow-x-auto pb-2">
@@ -143,7 +142,6 @@
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div>
                         <h2 class="text-xl font-black text-slate-900">Pusat Dokumen</h2>
-                        <p class="mt-1 text-sm text-slate-500">Pilih dokumen dari panel kiri lalu preview langsung tanpa pindah halaman.</p>
                     </div>
                     @if ($activeDocumentPreview)
                         <div class="flex flex-wrap items-center gap-2">
@@ -175,7 +173,6 @@
                         <div class="px-1">
                             <div class="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Panel Toggle</div>
                             <div class="mt-1 text-sm text-slate-500">
-                                {{ $order['is_workshop_only'] ? 'Order workshop hanya menampilkan dokumen awal yang relevan.' : 'Dokumen HPP final DIROPS akan otomatis diprioritaskan bila tersedia.' }}
                             </div>
                         </div>
 

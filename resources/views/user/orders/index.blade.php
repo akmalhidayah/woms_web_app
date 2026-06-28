@@ -8,8 +8,8 @@
                 'iconClass' => 'bg-red-50 text-red-700 ring-red-100',
                 'accent' => 'bg-red-700',
                 'breakdown' => [
-                    ['label' => 'Order Bengkel', 'value' => $stats['workshop_orders']],
-                    ['label' => 'Order Jasa', 'value' => $stats['service_orders']],
+                    ['label' => 'Bengkel', 'value' => $stats['workshop_orders']],
+                    ['label' => 'Jasa', 'value' => $stats['service_orders']],
                 ],
             ],
             [
@@ -31,14 +31,14 @@
                 'accent' => 'bg-rose-600',
             ],
             [
-                'label' => 'PO Order Jasa',
+                'label' => 'PO Jasa',
                 'value' => $stats['po_ready'],
                 'icon' => 'file-check-2',
                 'iconClass' => 'bg-amber-50 text-amber-700 ring-amber-100',
                 'accent' => 'bg-amber-500',
             ],
             [
-                'label' => 'BAST Order Jasa',
+                'label' => 'BAST Jasa',
                 'value' => $stats['bast_ready'],
                 'icon' => 'badge-check',
                 'iconClass' => 'bg-sky-50 text-sky-700 ring-sky-100',

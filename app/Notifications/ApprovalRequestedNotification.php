@@ -44,6 +44,8 @@ class ApprovalRequestedNotification extends Notification
                 'documentType' => $this->documentType,
                 'documentNumber' => $this->documentNumber,
                 'roleLabel' => $this->roleLabel,
+                'loginEmail' => $notifiable->email,
+                'defaultPassword' => 'bengkelmesin123',
                 'approvalUrl' => $this->approvalUrl,
                 'expiresAt' => $this->expiresAt?->format('d/m/Y H:i'),
                 'guideTitle' => $guideFile?->original_name ?: 'Buku Panduan Role Approval',

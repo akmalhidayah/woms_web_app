@@ -6,6 +6,10 @@ Dokumen        : {{ $documentType }}
 Nomor Dokumen : {{ $documentNumber }}
 Role Approval : {{ $roleLabel }}
 
+Akses Login Approval
+Email Resmi SIG  : {{ ($loginEmail ?? '') ?: '-' }}
+Password default : {{ $defaultPassword ?? 'bengkelmesin123' }}
+
 @if (! empty($guideUrl))
 Sebelum melakukan tanda tangan, mohon membaca buku panduan role approval berikut:
 {{ $guideTitle ?? 'Buku Panduan Role Approval' }}

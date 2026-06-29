@@ -28,30 +28,34 @@
             <td align="center" style="padding:34px 16px;">
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:660px;background:#ffffff;border-radius:24px;overflow:hidden;">
                     <tr>
-                        <td align="center" style="background:#eef3f8;padding:30px 32px 28px;text-align:center;border-bottom:1px solid #dbe4ee;">
+                        <td style="background:#8f111b;padding:24px 28px;text-align:left;">
                             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;">
                                 <tr>
-                                    <td align="center" style="text-align:center;">
-                                        <table role="presentation" cellspacing="0" cellpadding="0" align="center" style="margin:0 auto;margin-left:auto;margin-right:auto;">
+                                    <td width="148" style="vertical-align:middle;">
+                                        <table role="presentation" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:16px;padding:10px 12px;">
                                             <tr>
                                                 @if (! empty($logoStSource))
-                                                    <td align="center" style="padding:0 8px;vertical-align:middle;">
-                                                        <img src="{{ $logoStSource }}" width="64" alt="Semen Tonasa" style="display:block;border:0;outline:none;text-decoration:none;">
+                                                    <td align="center" style="padding:0 10px 0 0;vertical-align:middle;">
+                                                        <img src="{{ $logoStSource }}" width="52" alt="Semen Tonasa" style="display:block;border:0;outline:none;text-decoration:none;">
                                                     </td>
                                                 @endif
 
                                                 @if (! empty($logoBmsSource))
-                                                    <td align="center" style="padding:0 8px;vertical-align:middle;">
-                                                        <img src="{{ $logoBmsSource }}" width="78" alt="Bengkel Mesin" style="display:block;border:0;outline:none;text-decoration:none;">
+                                                    <td width="1" style="background:#e2e8f0;font-size:0;line-height:0;">&nbsp;</td>
+                                                    <td align="center" style="padding:0 0 0 10px;vertical-align:middle;">
+                                                        <img src="{{ $logoBmsSource }}" width="70" alt="Bengkel Mesin" style="display:block;border:0;outline:none;text-decoration:none;">
                                                     </td>
                                                 @endif
                                             </tr>
                                         </table>
                                     </td>
-                                </tr>
-                                <tr>
-                                    <td align="center" style="padding-top:14px;color:#0f172a;font-size:24px;line-height:30px;font-weight:800;text-align:center;">
-                                        Workshop Order Management System
+                                    <td style="padding-left:18px;vertical-align:middle;color:#ffffff;">
+                                        <div style="font-size:24px;line-height:30px;font-weight:800;">
+                                            Dept. Project Management &amp; Main Support
+                                        </div>
+                                        <div style="margin-top:5px;font-size:15px;line-height:21px;color:#ffe4e6;">
+                                            Section of Machine Workshop
+                                        </div>
                                     </td>
                                 </tr>
                             </table>
@@ -84,6 +88,27 @@
                                 <tr>
                                     <td style="padding:0 18px 16px;color:#64748b;font-size:13px;">Role Approval</td>
                                     <td style="padding:0 18px 16px;text-align:right;font-weight:800;">{{ $roleLabel }}</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:4px 34px 10px;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;">
+                                <tr>
+                                    <td style="padding:16px 18px;color:#7c2d12;font-size:13px;line-height:21px;">
+                                        <div style="font-weight:800;color:#9a3412;">Akses Login Approval</div>
+                                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:10px;">
+                                            <tr>
+                                                <td style="padding:6px 0;color:#64748b;">Email Resmi SIG</td>
+                                                <td style="padding:6px 0;text-align:right;font-weight:800;color:#0f172a;">{{ ($loginEmail ?? '') ?: '-' }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding:6px 0;color:#64748b;">Password default</td>
+                                                <td style="padding:6px 0;text-align:right;font-weight:800;color:#0f172a;">{{ $defaultPassword ?? 'bengkelmesin123' }}</td>
+                                            </tr>
+                                        </table>
+                                    </td>
                                 </tr>
                             </table>
                         </td>

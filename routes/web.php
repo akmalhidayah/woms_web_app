@@ -32,6 +32,7 @@ use App\Http\Controllers\Pkm\LhppController;
 use App\Http\Controllers\Pkm\PkmNotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\User\OrderTrackingController;
+use App\Http\Controllers\User\UserNotificationController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
@@ -357,6 +358,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('user/dashboard', [OrderTrackingController::class, 'index'])
         ->middleware('role:user,approver')
         ->name('user.dashboard');
+    Route::post('user/notifications/read', [UserNotificationController::class, 'read'])
+        ->middleware('role:user,approver')
+        ->name('user.notifications.read');
     Route::get('user/orders/{order}', [OrderTrackingController::class, 'show'])
         ->middleware('role:user,approver')
         ->name('user.orders.show');

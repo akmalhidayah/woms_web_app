@@ -52,7 +52,7 @@
         }
     @endphp
 
-    <div class="space-y-4 lg:-mx-3 xl:-mx-4">
+    <div class="space-y-3 lg:-mx-2">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <a href="{{ route('user.dashboard') }}" class="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:text-red-800">
                 <i data-lucide="arrow-left" class="h-4 w-4"></i>
@@ -134,7 +134,7 @@
             </div>
         </section>
 
-        <section class="rounded-[20px] border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+        <section class="rounded-[18px] border border-stone-200 bg-white p-3.5 shadow-sm sm:p-4">
             <div class="flex items-center gap-2">
                 <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#7f1017] text-white" aria-hidden="true">
                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none">
@@ -144,26 +144,26 @@
                 <h2 class="text-lg font-black text-slate-900">Timeline Proses</h2>
             </div>
 
-            <div class="mt-4 overflow-x-auto pb-1">
-                <div class="grid min-w-[720px] grid-cols-3 gap-5 pr-2">
+            <div class="mt-3 overflow-x-auto pb-1 md:overflow-visible">
+                <div class="grid min-w-[620px] grid-cols-3 gap-3 pr-1 md:min-w-0 md:gap-3">
                     @foreach ($order['timeline'] as $item)
-                        <article class="relative rounded-xl border p-3 {{ $timelineToneClasses[$item['tone']] ?? $timelineToneClasses['waiting'] }}">
+                        <article class="relative rounded-xl border p-2.5 {{ $timelineToneClasses[$item['tone']] ?? $timelineToneClasses['waiting'] }}">
                             @unless ($loop->last)
-                                <div class="absolute left-full top-1/2 hidden h-[2px] w-5 -translate-y-1/2 {{ $timelineLineClasses[$item['tone']] ?? $timelineLineClasses['waiting'] }} sm:block"></div>
+                                <div class="absolute left-full top-1/2 hidden h-[2px] w-3 -translate-y-1/2 {{ $timelineLineClasses[$item['tone']] ?? $timelineLineClasses['waiting'] }} sm:block"></div>
                             @endunless
 
                             <div class="relative z-10 flex items-start gap-2.5">
-                                <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 {{ $timelineDotClasses[$item['tone']] ?? $timelineDotClasses['waiting'] }}">
+                                <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 {{ $timelineDotClasses[$item['tone']] ?? $timelineDotClasses['waiting'] }}">
                                     @if ($item['tone'] === 'done')
-                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                             <path d="m5 12 4 4L19 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
                                         </svg>
                                     @elseif ($item['tone'] === 'danger')
-                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                             <path d="M12 8v5m0 4h.01M10.3 4.9 2.8 18a1.4 1.4 0 0 0 1.2 2h16a1.4 1.4 0 0 0 1.2-2L13.7 4.9a1.9 1.9 0 0 0-3.4 0Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                         </svg>
                                     @else
-                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                             <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2" />
                                         </svg>
                                     @endif
@@ -176,7 +176,7 @@
                                 </div>
                             </div>
 
-                            <div class="mt-3 text-sm font-bold leading-5 text-slate-900">{{ $item['value'] }}</div>
+                            <div class="mt-2.5 text-sm font-bold leading-5 text-slate-900">{{ $item['value'] }}</div>
                             @if (filled($item['detail'] ?? null))
                                 <div class="mt-1 text-[11px] font-semibold leading-5 text-slate-500">{{ $item['detail'] }}</div>
                             @endif

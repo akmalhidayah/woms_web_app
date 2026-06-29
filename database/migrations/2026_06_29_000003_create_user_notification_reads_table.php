@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('user_notification_reads', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->unsignedBigInteger('user_id')->index();
             $table->string('notification_key', 191);
             $table->timestamp('read_at')->useCurrent();
             $table->timestamps();

@@ -29,6 +29,7 @@ use App\Http\Controllers\Pkm\DashboardController as PkmDashboardController;
 use App\Http\Controllers\Pkm\DocumentsController as PkmDocumentsController;
 use App\Http\Controllers\Pkm\JobWaitingController;
 use App\Http\Controllers\Pkm\LhppController;
+use App\Http\Controllers\Pkm\PkmNotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\User\OrderTrackingController;
 use Illuminate\Support\Facades\Route;
@@ -400,6 +401,9 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('pkm/profile/password', [ProfileController::class, 'updatePkmPassword'])
         ->middleware('role:pkm')
         ->name('pkm.profile.password.update');
+    Route::post('pkm/notifications/read', [PkmNotificationController::class, 'read'])
+        ->middleware('role:pkm')
+        ->name('pkm.notifications.read');
 
     Route::get('pkm/jobwaiting', [JobWaitingController::class, 'index'])
         ->middleware('role:pkm')

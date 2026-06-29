@@ -11,6 +11,88 @@
                 align-items: end;
             }
         }
+
+        .order-form-modal-panel {
+            max-height: calc(100vh - 1rem);
+            overflow: hidden;
+        }
+
+        .order-form-modal-form {
+            max-height: calc(100vh - 1rem);
+            overflow-y: auto;
+            padding: 0.9rem;
+        }
+
+        .order-form-modal-header {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            margin: -0.9rem -0.9rem 0;
+            padding: 0.85rem 0.9rem;
+            background: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .order-form-modal-grid {
+            margin-top: 0.9rem;
+            gap: 0.75rem;
+        }
+
+        .order-form-modal-grid label {
+            margin-bottom: 0.35rem !important;
+            font-size: 0.78rem !important;
+            line-height: 1rem;
+        }
+
+        .order-form-modal-grid input:not([type="checkbox"]):not([type="radio"]),
+        .order-form-modal-grid select,
+        .order-form-modal-grid textarea {
+            min-height: 2.35rem;
+            border-color: #cbd5e1 !important;
+            border-radius: 0.65rem !important;
+            padding: 0.5rem 0.75rem !important;
+            font-size: 16px !important;
+        }
+
+        .order-form-modal-grid textarea {
+            min-height: 4.75rem;
+        }
+
+        .order-form-modal-actions {
+            position: sticky;
+            bottom: 0;
+            z-index: 2;
+            margin: 0.9rem -0.9rem -0.9rem;
+            padding: 0.75rem 0.9rem;
+            background: #ffffff;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        @media (min-width: 640px) {
+            .order-form-modal-panel,
+            .order-form-modal-form {
+                max-height: calc(100vh - 2rem);
+            }
+
+            .order-form-modal-form {
+                padding: 1.25rem;
+            }
+
+            .order-form-modal-header {
+                margin: -1.25rem -1.25rem 0;
+                padding: 1rem 1.25rem;
+            }
+
+            .order-form-modal-grid {
+                margin-top: 1.25rem;
+                gap: 1rem;
+            }
+
+            .order-form-modal-actions {
+                margin: 1.25rem -1.25rem -1.25rem;
+                padding: 1rem 1.25rem;
+            }
+        }
     </style>
 
     @php
@@ -559,20 +641,20 @@ $initialWorkFlowSummary = match (true) {
         </div>
     </div>
 
-    <div id="createOrderModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
-        <div class="rounded-3xl bg-white shadow-2xl" style="width:min(100%, 860px);">
-            <form method="POST" action="{{ route('admin.orders.store') }}" class="p-6">
+    <div id="createOrderModal" class="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto p-2 sm:items-center sm:p-4">
+        <div class="order-form-modal-panel w-full max-w-[860px] rounded-2xl bg-white shadow-2xl sm:rounded-3xl">
+            <form method="POST" action="{{ route('admin.orders.store') }}" class="order-form-modal-form">
                 @csrf
                 <input type="hidden" name="form_context" value="create">
                 <input type="hidden" name="tanggal_order" id="createTanggalOrder" value="{{ $today }}">
                 <input type="hidden" name="deskripsi" id="createDeskripsi" value="Order pekerjaan jasa">
 
-                <div class="flex items-center justify-between gap-4">
-                    <h2 class="text-2xl font-semibold text-slate-900">Order</h2>
-                    <button type="button" data-close-order-modal class="text-2xl text-slate-500 transition hover:text-slate-700">&times;</button>
+                <div class="order-form-modal-header flex items-center justify-between gap-4">
+                    <h2 class="text-lg font-bold text-slate-900 sm:text-xl">Buat Order Jasa</h2>
+                    <button type="button" data-close-order-modal class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-2xl leading-none text-slate-500 transition hover:bg-slate-50 hover:text-slate-700">&times;</button>
                 </div>
 
-                <div class="mt-6 grid gap-5 md:grid-cols-2">
+                <div class="order-form-modal-grid grid md:grid-cols-2">
                     <div>
                         <label class="mb-2 block text-sm text-slate-700">Nomor Order</label>
                         <input id="createNomorOrder" name="nomor_order" type="text" value="{{ old('form_context') === 'create' ? old('nomor_order') : '' }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
@@ -664,17 +746,17 @@ $initialWorkFlowSummary = match (true) {
                     </div>
                 </div>
 
-                <div class="mt-6 flex justify-end gap-3">
-                    <button type="submit" class="rounded-lg bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700">Submit</button>
-                    <button type="button" data-close-order-modal class="rounded-lg bg-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-300">Cancel</button>
+                <div class="order-form-modal-actions flex justify-end gap-2 sm:gap-3">
+                    <button type="button" data-close-order-modal class="inline-flex h-10 items-center justify-center rounded-lg bg-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-300">Cancel</button>
+                    <button type="submit" class="inline-flex h-10 items-center justify-center rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white transition hover:bg-indigo-700">Submit</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <div id="editOrderModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
-        <div class="rounded-3xl bg-white shadow-2xl" style="width:min(100%, 860px);">
-            <form method="POST" id="editOrderForm" action="#" class="p-6">
+    <div id="editOrderModal" class="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto p-2 sm:items-center sm:p-4">
+        <div class="order-form-modal-panel w-full max-w-[860px] rounded-2xl bg-white shadow-2xl sm:rounded-3xl">
+            <form method="POST" id="editOrderForm" action="#" class="order-form-modal-form">
                 @csrf
                 @method('PUT')
                 <input type="hidden" name="form_context" value="edit">
@@ -682,12 +764,12 @@ $initialWorkFlowSummary = match (true) {
                 <input type="hidden" name="tanggal_order" id="editTanggalOrder" value="{{ $today }}">
                 <input type="hidden" name="deskripsi" id="editDeskripsi" value="Order pekerjaan jasa">
 
-                <div class="flex items-center justify-between gap-4">
-                    <h2 class="text-2xl font-semibold text-slate-900">Order</h2>
-                    <button type="button" data-close-order-modal class="text-2xl text-slate-500 transition hover:text-slate-700">&times;</button>
+                <div class="order-form-modal-header flex items-center justify-between gap-4">
+                    <h2 class="text-lg font-bold text-slate-900 sm:text-xl">Edit Order Jasa</h2>
+                    <button type="button" data-close-order-modal class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-2xl leading-none text-slate-500 transition hover:bg-slate-50 hover:text-slate-700">&times;</button>
                 </div>
 
-                <div class="mt-6 grid gap-5 md:grid-cols-2">
+                <div class="order-form-modal-grid grid md:grid-cols-2">
                     <div>
                         <label class="mb-2 block text-sm text-slate-700">Nomor Order</label>
                         <input id="editNomorOrder" name="nomor_order" type="text" value="{{ old('form_context') === 'edit' ? old('nomor_order') : '' }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
@@ -779,9 +861,9 @@ $initialWorkFlowSummary = match (true) {
                     </div>
                 </div>
 
-                <div class="mt-6 flex justify-end gap-3">
-                    <button type="submit" class="rounded-lg bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700">Submit</button>
-                    <button type="button" data-close-order-modal class="rounded-lg bg-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-300">Cancel</button>
+                <div class="order-form-modal-actions flex justify-end gap-2 sm:gap-3">
+                    <button type="button" data-close-order-modal class="inline-flex h-10 items-center justify-center rounded-lg bg-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-300">Cancel</button>
+                    <button type="submit" class="inline-flex h-10 items-center justify-center rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white transition hover:bg-indigo-700">Submit</button>
                 </div>
             </form>
         </div>

@@ -700,8 +700,8 @@
             $isOrdersSection = $orderMenu && ($orderMenu['active'] ?? false);
             $isOtherSection = collect($otherMenus)->contains(fn (array $menu) => $menu['active'] ?? false);
             $roleBadge = $user?->isSuperAdmin() ? 'SUPER ADMIN' : strtoupper($user?->role ?? 'admin');
-            $adminNotifications = \App\Support\AdminNotificationCenter::signatureNotifications(5);
-            $adminNotificationCount = \App\Support\AdminNotificationCenter::signatureNotificationCount();
+            $adminNotifications = \App\Support\AdminNotificationCenter::signatureNotifications(5, $user);
+            $adminNotificationCount = \App\Support\AdminNotificationCenter::signatureNotificationCount($user);
             $adminNotificationBadge = $adminNotificationCount > 9 ? '9+' : (string) $adminNotificationCount;
             $headerQuickLinks = collect([
                 [
@@ -1014,20 +1014,28 @@
                                     <div class="max-h-[min(70vh,24rem)] overflow-y-auto">
                                         @forelse ($adminNotifications as $notification)
                                             @php($toneClass = $notificationToneClasses[$notification['tone'] ?? 'blue'] ?? $notificationToneClasses['blue'])
-                                            <a href="{{ $notification['url'] }}" class="flex gap-2.5 border-b border-slate-100 px-3 py-2.5 text-left transition last:border-b-0 hover:bg-slate-50 sm:gap-3 sm:px-4 sm:py-3">
-                                                <span class="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ring-1 sm:h-9 sm:w-9 {{ $toneClass }}">
-                                                    <i data-lucide="{{ $notification['icon'] }}" class="h-4 w-4"></i>
-                                                </span>
-                                                <span class="min-w-0 flex-1">
-                                                    <span class="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs">{{ $notification['type'] }}</span>
-                                                    <span class="mt-1 block text-[12px] font-semibold leading-4 text-slate-900 sm:text-sm sm:leading-5">{{ $notification['message'] }}</span>
-                                                    <span class="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-                                                        <span>{{ $notification['meta'] ?: '-' }}</span>
-                                                        <span class="text-slate-300">/</span>
-                                                        <span>{{ optional($notification['signed_at'])->diffForHumans() }}</span>
+                                            <form method="POST" action="{{ route('admin.notifications.read') }}" class="border-b border-slate-100 last:border-b-0">
+                                                @csrf
+                                                <input type="hidden" name="notification_key" value="{{ $notification['key'] }}">
+                                                <input type="hidden" name="redirect_url" value="{{ $notification['url'] }}">
+                                                <button type="submit" class="group flex w-full gap-2.5 px-3 py-2.5 text-left transition hover:bg-slate-50 sm:gap-3 sm:px-4 sm:py-3">
+                                                    <span class="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ring-1 sm:h-9 sm:w-9 {{ $toneClass }}">
+                                                        <i data-lucide="{{ $notification['icon'] }}" class="h-4 w-4"></i>
                                                     </span>
-                                                </span>
-                                            </a>
+                                                    <span class="min-w-0 flex-1">
+                                                        <span class="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs">{{ $notification['type'] }}</span>
+                                                        <span class="mt-1 block text-[12px] font-semibold leading-4 text-slate-900 sm:text-sm sm:leading-5">{{ $notification['message'] }}</span>
+                                                        <span class="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                                                            <span>{{ $notification['meta'] ?: '-' }}</span>
+                                                            <span class="text-slate-300">/</span>
+                                                            <span>{{ optional($notification['signed_at'])->diffForHumans() }}</span>
+                                                        </span>
+                                                    </span>
+                                                    <span class="mt-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition group-hover:text-slate-600">
+                                                        <i data-lucide="check-check" class="h-4 w-4"></i>
+                                                    </span>
+                                                </button>
+                                            </form>
                                         @empty
                                             <div class="px-4 py-8 text-center">
                                                 <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-400 ring-1 ring-slate-100">

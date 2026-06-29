@@ -923,7 +923,7 @@ class OrderTrackingController extends Controller
             ->values()
             ->all();
 
-        $isCompleted = $completedSteps >= $totalSteps && $approvalSignatures->isNotEmpty();
+        $isCompleted = $makerSigned && $report->approvalCompleted();
         $state = match (true) {
             $isCompleted => 'completed',
             $missingSignature !== null => 'missing',

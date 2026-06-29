@@ -98,8 +98,8 @@ class InitialWorkController extends Controller
     {
         abort_unless((int) $initialWork->order_id === (int) $order->getKey(), 404);
 
-        if ($initialWork->hasSignedApproval()) {
-            Log::warning('Blocked update to signed Initial Work document.', [
+        if ($initialWork->hasApprovalStarted()) {
+            Log::warning('Blocked update to Initial Work document with active approval.', [
                 'status_code' => Response::HTTP_FORBIDDEN,
                 'user_id' => $request->user()?->id,
                 'order_id' => $order->id,

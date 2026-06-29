@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AccessControlController;
+use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\ApprovalSignatureReassignmentController;
 use App\Http\Controllers\Admin\BengkelPicController;
 use App\Http\Controllers\Admin\BengkelTaskController;
@@ -109,6 +110,9 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('admin/profile/password', [ProfileController::class, 'updateAdminPassword'])
         ->middleware('role:admin')
         ->name('admin.profile.password.update');
+    Route::post('admin/notifications/read', [AdminNotificationController::class, 'read'])
+        ->middleware('role:admin')
+        ->name('admin.notifications.read');
 
     Route::get('admin/access-control', [AccessControlController::class, 'index'])
         ->middleware(['role:admin', 'admin_role:super_admin'])

@@ -109,7 +109,14 @@ class InitialWorkSignatureController extends Controller
 
                 $this->signatureService->activateNextSignature($lockedSignature);
 
-                return ['processed' => true];
+                $initialWork = $lockedSignature->initialWork()
+                    ->with('signatures')
+                    ->first();
+
+                return [
+                    'processed' => true,
+                    'completed' => $initialWork?->approvalCompleted() ?? false,
+                ];
             });
         } catch (\Throwable $exception) {
             Storage::disk('public')->delete($signaturePath);
@@ -128,7 +135,9 @@ class InitialWorkSignatureController extends Controller
         return redirect()
             ->route('approval.initial-work.show', $token)
             ->with('approval_signed', true)
-            ->with('status', 'Tanda tangan berhasil disimpan.');
+            ->with('status', $result['completed']
+                ? 'Tanda tangan berhasil disimpan. Approval Initial Work selesai.'
+                : 'Tanda tangan berhasil disimpan.');
     }
 
     private function resolveSignatureByToken(string $token): InitialWorkSignature

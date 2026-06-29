@@ -211,6 +211,11 @@ class User extends Authenticatable // implements MustVerifyEmail
         return $this->hasMany(AdminMenuAccess::class);
     }
 
+    public function adminNotificationReads(): HasMany
+    {
+        return $this->hasMany(AdminNotificationRead::class);
+    }
+
     /**
      * Determine if the admin user has access to a menu key.
      */

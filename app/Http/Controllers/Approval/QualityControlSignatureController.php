@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Approval;
 
 use App\Http\Controllers\Admin\Orders\OrderWorkshopQualityControlController;
 use App\Http\Controllers\Controller;
+use App\Models\QualityControlReport;
 use App\Models\QualityControlSignature;
 use App\Services\QualityControl\QualityControlSignatureService;
 use App\Support\SignatureImageStorage;
@@ -108,7 +109,19 @@ class QualityControlSignatureController extends Controller
 
                 $this->signatureService->activateNextSignature($lockedSignature);
 
-                return ['processed' => true];
+                $report = $lockedSignature->qualityControlReport()
+                    ->with('signatures')
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($report?->approvalCompleted()) {
+                    $report->update(['status' => QualityControlReport::STATUS_SUBMITTED]);
+                }
+
+                return [
+                    'processed' => true,
+                    'completed' => $report?->approvalCompleted() ?? false,
+                ];
             });
         } catch (\Throwable $exception) {
             Storage::disk('public')->delete($signaturePath);
@@ -127,7 +140,9 @@ class QualityControlSignatureController extends Controller
         return redirect()
             ->route('approval.quality-control.show', $token)
             ->with('approval_signed', true)
-            ->with('status', 'Tanda tangan QC berhasil disimpan.');
+            ->with('status', $result['completed']
+                ? 'Tanda tangan QC berhasil disimpan. Approval Quality Control selesai.'
+                : 'Tanda tangan QC berhasil disimpan.');
     }
 
     private function resolveSignatureByToken(string $token): QualityControlSignature

@@ -202,7 +202,7 @@ class LhppBast extends Model
     public function isApprovalLocked(): bool
     {
         return $this->approval_status === self::APPROVAL_REJECTED
-            || $this->hasSignedApproval();
+            || $this->hasApprovalStarted();
     }
 
     public function activeSignature(): HasOne

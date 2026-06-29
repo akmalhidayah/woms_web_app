@@ -123,8 +123,8 @@ class OrderWorkshopQualityControlController extends Controller
             return $redirect;
         }
 
-        if ($qualityControlReport->hasSignedApproval()) {
-            Log::warning('Blocked update to signed Quality Control report.', [
+        if ($qualityControlReport->hasApprovalStarted()) {
+            Log::warning('Blocked update to Quality Control report with active approval.', [
                 'status_code' => Response::HTTP_FORBIDDEN,
                 'user_id' => $request->user()?->id,
                 'order_id' => $order->id,
@@ -249,8 +249,8 @@ class OrderWorkshopQualityControlController extends Controller
             abort(404);
         }
 
-        if ($qualityControlReport->hasSignedApproval()) {
-            Log::warning('Blocked file deletion from signed Quality Control report.', [
+        if ($qualityControlReport->hasApprovalStarted()) {
+            Log::warning('Blocked file deletion from Quality Control report with active approval.', [
                 'status_code' => Response::HTTP_FORBIDDEN,
                 'user_id' => $request->user()?->id,
                 'quality_control_report_id' => $qualityControlReport->id,
@@ -258,7 +258,7 @@ class OrderWorkshopQualityControlController extends Controller
                 'report_no' => $qualityControlReport->report_no,
             ]);
 
-            abort(Response::HTTP_FORBIDDEN, 'Lampiran Quality Control tidak dapat dihapus setelah dokumen ditandatangani.');
+            abort(Response::HTTP_FORBIDDEN, 'Lampiran Quality Control tidak dapat dihapus setelah proses tanda tangan dimulai.');
         }
 
         Storage::disk('public')->delete($file->file_path);

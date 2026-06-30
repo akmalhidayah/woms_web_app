@@ -210,29 +210,6 @@
                     <div>
                         <h2 class="text-xl font-black text-slate-900">Pusat Dokumen</h2>
                     </div>
-                    @if ($activeDocumentPreview)
-                        <div class="flex flex-wrap items-center gap-2">
-                            <a
-                                id="user-document-open-link"
-                                href="{{ $activeDocumentPreview['url'] }}"
-                                target="_blank"
-                                rel="noopener"
-                                class="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:text-red-800"
-                            >
-                                <i data-lucide="external-link" class="h-3.5 w-3.5"></i>
-                                Buka Dokumen
-                            </a>
-                            <a
-                                id="user-document-download-link"
-                                href="{{ $activeDocumentPreview['url'] }}"
-                                download
-                                class="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:text-red-800"
-                            >
-                                <i data-lucide="download" class="h-3.5 w-3.5"></i>
-                                Download
-                            </a>
-                        </div>
-                    @endif
                 </div>
 
                 <div class="mt-5 grid gap-4 xl:grid-cols-[270px_minmax(0,1fr)]">
@@ -391,9 +368,7 @@
             const previewTitle = document.getElementById('user-document-preview-title');
             const previewLabel = document.getElementById('user-document-preview-label');
             const previewOpenLink = document.getElementById('user-document-preview-link');
-            const primaryOpenLink = document.getElementById('user-document-open-link');
             const previewDownloadLink = document.getElementById('user-document-preview-download-link');
-            const primaryDownloadLink = document.getElementById('user-document-download-link');
             const mobileOpenLink = document.getElementById('user-document-mobile-open-link');
             const mobileDownloadLink = document.getElementById('user-document-mobile-download-link');
             const embedWrapper = document.getElementById('user-document-preview-embed-wrapper');
@@ -468,7 +443,7 @@
                 previewTitle.textContent = tab.dataset.documentTitle || 'Preview Dokumen';
                 previewLabel.textContent = tab.dataset.documentLabel || '';
 
-                [previewOpenLink, primaryOpenLink, mobileOpenLink].forEach((link) => {
+                [previewOpenLink, mobileOpenLink].forEach((link) => {
                     if (! link) {
                         return;
                     }
@@ -476,7 +451,7 @@
                     link.href = tab.dataset.documentUrl || '#';
                 });
 
-                [previewDownloadLink, primaryDownloadLink, mobileDownloadLink].forEach((link) => {
+                [previewDownloadLink, mobileDownloadLink].forEach((link) => {
                     if (! link) {
                         return;
                     }

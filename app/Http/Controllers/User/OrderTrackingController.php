@@ -8,6 +8,10 @@ use App\Models\BengkelPic;
 use App\Models\BengkelTask;
 use App\Models\Hpp;
 use App\Models\HppSignature;
+use App\Models\InitialWork;
+use App\Models\InitialWorkSignature;
+use App\Models\LhppBast;
+use App\Models\LhppBastSignature;
 use App\Models\Order;
 use App\Models\OrderDocument;
 use App\Models\OrderWorkshop;
@@ -363,15 +367,15 @@ class OrderTrackingController extends Controller
             ->with([
                 'documents',
                 'scopeOfWork',
-                'initialWork',
-                'latestHpp',
+                'initialWork.signatures.signer:id,name,email,nomor_hp',
+                'latestHpp.signatures.signer:id,name,email,nomor_hp',
                 'budgetVerification',
                 'purchaseOrder',
                 'orderWorkshop',
                 'latestQualityControlReport.files',
-                'latestQualityControlReport.signatures',
+                'latestQualityControlReport.signatures.signer:id,name,email,nomor_hp',
                 'lhppBasts' => fn ($query) => $query
-                    ->with(['lpjPpl', 'garansi', 'terminTwo'])
+                    ->with(['lpjPpl', 'garansi', 'terminTwo.signatures.signer:id,name,email,nomor_hp', 'signatures.signer:id,name,email,nomor_hp'])
                     ->orderBy('id'),
             ]);
     }
@@ -402,19 +406,20 @@ class OrderTrackingController extends Controller
         $order->loadMissing([
             'documents',
             'scopeOfWork',
-            'initialWork',
+            'initialWork.signatures.signer:id,name,email,nomor_hp',
             'latestHpp.order',
             'latestHpp.outlineAgreement',
             'latestHpp.creator',
-            'latestHpp.signatures',
+            'latestHpp.signatures.signer:id,name,email,nomor_hp',
             'budgetVerification',
             'purchaseOrder',
             'orderWorkshop',
             'latestQualityControlReport.files',
-            'latestQualityControlReport.signatures',
+            'latestQualityControlReport.signatures.signer:id,name,email,nomor_hp',
             'lhppBasts.lpjPpl',
             'lhppBasts.garansi',
-            'lhppBasts.terminTwo',
+            'lhppBasts.terminTwo.signatures.signer:id,name,email,nomor_hp',
+            'lhppBasts.signatures.signer:id,name,email,nomor_hp',
         ]);
 
         return $order;
@@ -490,6 +495,10 @@ class OrderTrackingController extends Controller
         $terminTwo = $isWithoutWarranty ? null : $terminTwo;
         $hppDocument = $this->resolveHppDocumentLink($order);
         $qualityControlDocument = $this->resolveQualityControlDocumentLink($order);
+        $initialWorkApproval = $this->resolveInitialWorkApprovalShareInfo($order->initialWork);
+        $hppApproval = $this->resolveHppApprovalShareInfo($order->latestHpp);
+        $bastTerminOneApproval = $this->resolveBastApprovalShareInfo($terminOne, 'BAST Termin 1');
+        $bastTerminTwoApproval = $this->resolveBastApprovalShareInfo($terminTwo, 'BAST Termin 2');
         $qualityControlApproval = $this->resolveQualityControlApprovalShareInfo($order->latestQualityControlReport);
         $documentPreviewItems = [
             [
@@ -625,6 +634,28 @@ class OrderTrackingController extends Controller
             ));
         }
 
+        $budgetInfo = $this->buildTimelineInfoPayload('Verifikasi Anggaran', [
+            ['label' => 'Status', 'value' => $order->budgetVerification?->status_anggaran ?? 'Belum diverifikasi'],
+            ['label' => 'Kategori item', 'value' => $order->budgetVerification?->kategori_item ?: '-'],
+            ['label' => 'Kategori biaya', 'value' => $order->budgetVerification?->kategori_biaya ?: '-'],
+            ['label' => 'Cost element', 'value' => $order->budgetVerification?->cost_element ?: '-'],
+            ['label' => 'Keterangan', 'value' => $order->budgetVerification?->catatan ?: '-'],
+        ], match ($order->budgetVerification?->status_anggaran) {
+            'Tersedia' => 'done',
+            'Tidak Tersedia' => 'danger',
+            default => 'waiting',
+        });
+        $purchaseOrderInfo = $this->buildTimelineInfoPayload('Purchase Order', [
+            ['label' => 'Nomor PO', 'value' => $order->purchaseOrder?->purchase_order_number ?: '-'],
+            ['label' => 'Target selesai', 'value' => $order->purchaseOrder?->target_penyelesaian?->format('d/m/Y') ?: '-'],
+            ['label' => 'Keterangan', 'value' => $order->purchaseOrder?->admin_note ?: '-'],
+        ], filled($order->purchaseOrder?->purchase_order_number) ? 'done' : 'waiting');
+        $garansiInfo = $this->buildTimelineInfoPayload('Garansi', [
+            ['label' => 'Durasi', 'value' => $garansi ? sprintf('%s bulan', (int) $garansi->garansi_months) : '-'],
+            ['label' => 'Mulai', 'value' => $garansi?->start_date?->format('d/m/Y') ?: '-'],
+            ['label' => 'Berakhir', 'value' => $garansi?->end_date?->format('d/m/Y') ?: '-'],
+        ], $garansi ? 'done' : 'waiting');
+
         $timeline = $isWorkshopOnly
             ? [
                 [
@@ -636,12 +667,14 @@ class OrderTrackingController extends Controller
                     'label' => 'Status',
                     'value' => $order->catatan_status?->label() ?? 'Pending',
                     'tone' => $order->catatan_status && $order->catatan_status !== OrderUserNoteStatus::Pending ? 'done' : 'waiting',
+                    'approval' => $initialWorkApproval,
                 ],
                 [
-                    'label' => 'Pekerjaan Bengkel',
-                    'value' => $this->resolveWorkshopPhase($order),
+                    'label' => 'Quality Control',
+                    'value' => $qualityControlApproval['label'] ?? $this->resolveWorkshopPhase($order),
                     'detail' => $qualityControlApproval['timeline_detail'] ?? null,
                     'tone' => $this->resolveWorkshopPhaseTone($order) === 'emerald' ? 'done' : 'waiting',
+                    'approval' => $qualityControlApproval,
                 ],
             ]
             : [
@@ -654,11 +687,13 @@ class OrderTrackingController extends Controller
                     'label' => 'Status',
                     'value' => $order->catatan_status?->label() ?? 'Pending',
                     'tone' => $order->catatan_status && $order->catatan_status !== OrderUserNoteStatus::Pending ? 'done' : 'waiting',
+                    'approval' => $initialWorkApproval,
                 ],
                 [
                     'label' => 'HPP',
                     'value' => $order->latestHpp ? (Hpp::statusOptions()[$order->latestHpp->status] ?? ucfirst($order->latestHpp->status)) : 'Belum dibuat',
                     'tone' => $order->latestHpp ? 'done' : 'waiting',
+                    'approval' => $hppApproval,
                 ],
                 [
                     'label' => 'Verifikasi Anggaran',
@@ -668,26 +703,31 @@ class OrderTrackingController extends Controller
                         'Tidak Tersedia' => 'danger',
                         default => 'waiting',
                     },
+                    'info' => $budgetInfo,
                 ],
                 [
                     'label' => 'Purchase Order',
                     'value' => $order->purchaseOrder?->purchase_order_number ?? 'Belum tersedia',
                     'tone' => filled($order->purchaseOrder?->purchase_order_number) ? 'done' : 'waiting',
+                    'info' => $purchaseOrderInfo,
                 ],
                 [
                     'label' => 'BAST Termin 1',
                     'value' => $terminOne ? 'Siap dilihat' : 'Belum tersedia',
                     'tone' => $terminOne ? 'done' : 'waiting',
+                    'approval' => $bastTerminOneApproval,
                 ],
                 [
                     'label' => 'BAST Termin 2',
                     'value' => $terminTwo ? 'Siap dilihat' : 'Belum tersedia',
                     'tone' => $terminTwo ? 'done' : 'waiting',
+                    'approval' => $bastTerminTwoApproval,
                 ],
                 [
                     'label' => 'Garansi',
                     'value' => $garansi ? sprintf('%s bulan', (int) $garansi->garansi_months) : 'Belum tersedia',
                     'tone' => $garansi ? 'done' : 'waiting',
+                    'info' => $garansiInfo,
                 ],
             ];
 
@@ -767,7 +807,7 @@ class OrderTrackingController extends Controller
             'hpp' => [
                 'status' => $order->latestHpp ? (Hpp::statusOptions()[$order->latestHpp->status] ?? ucfirst($order->latestHpp->status)) : 'Belum dibuat',
                 'total' => $order->latestHpp?->total_keseluruhan,
-                'approval' => $this->resolveHppApprovalShareInfo($order->latestHpp),
+                'approval' => $hppApproval,
             ],
             'garansi' => $garansi ? [
                 'months' => $garansi->garansi_months,
@@ -780,66 +820,79 @@ class OrderTrackingController extends Controller
     /**
      * @return array<string, mixed>|null
      */
+    private function resolveInitialWorkApprovalShareInfo(?InitialWork $initialWork): ?array
+    {
+        if (! $initialWork) {
+            return null;
+        }
+
+        $initialWork->loadMissing('signatures.signer');
+        $signatures = $initialWork->signatures->sortBy('step_order')->values();
+        $items = $signatures
+            ->map(fn (InitialWorkSignature $signature): array => $this->mapApprovalSignatureItem($signature, 'initial_work'))
+            ->values();
+        $completedSteps = $items->whereIn('status', [InitialWorkSignature::STATUS_SIGNED])->count();
+
+        return $this->buildApprovalModalPayload(
+            'Initial Work',
+            $initialWork->nomor_order,
+            $items,
+            $completedSteps,
+            $signatures->count(),
+            $initialWork->approvalCompleted()
+        );
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
     private function resolveHppApprovalShareInfo(?Hpp $hpp): ?array
     {
         if (! $hpp) {
             return null;
         }
 
-        $hpp->loadMissing('signatures');
+        $hpp->loadMissing('signatures.signer');
+        $signatures = $hpp->signatures->sortBy('step_order')->values();
+        $items = $signatures
+            ->map(fn (HppSignature $signature): array => $this->mapApprovalSignatureItem($signature, 'hpp'))
+            ->values();
+        $completedSteps = $items->whereIn('status', [HppSignature::STATUS_SIGNED, HppSignature::STATUS_SKIPPED])->count();
 
-        $activeSignature = $hpp->signatures
-            ->first(fn ($signature): bool => $signature->isPending());
-        $signatureLinks = $hpp->signatures
-            ->filter(fn ($signature): bool => $signature->isPending() && ! $signature->tokenExpired() && filled($signature->token))
-            ->map(fn ($signature): array => [
-                'step' => $signature->step_order,
-                'role_label' => $signature->role_label,
-                'signer_name' => $signature->signer_name_snapshot,
-                'status' => $signature->status,
-                'status_label' => match ($signature->status) {
-                    HppSignature::STATUS_PENDING => $signature->tokenExpired() ? 'Token kedaluwarsa' : 'Menunggu TTD',
-                    HppSignature::STATUS_SIGNED => 'Sudah TTD',
-                    HppSignature::STATUS_LOCKED => 'Belum aktif',
-                    HppSignature::STATUS_SKIPPED => 'Dilewati',
-                    default => ucfirst((string) $signature->status),
-                },
-                'link' => route('approval.hpp.show', $signature->token),
-                'whatsapp_url' => ApprovalWhatsappLink::forHpp($signature),
-                'expires_at' => $signature->token_expires_at?->format('d/m/Y H:i'),
-                'is_expired' => $signature->tokenExpired(),
-                'is_active' => $signature->isPending(),
-            ])
-            ->values()
-            ->all();
+        return $this->buildApprovalModalPayload(
+            'HPP',
+            $hpp->nomor_order,
+            $items,
+            $completedSteps,
+            $hpp->approvalStepCount(),
+            $hpp->approvalCompleted()
+        );
+    }
 
-        if (! $activeSignature) {
-            return [
-                'state' => $hpp->approvalCompleted() ? 'completed' : 'none',
-                'label' => $hpp->approvalCompleted() ? 'Approval HPP selesai' : 'Tidak ada token aktif',
-                'link' => null,
-                'signer_name' => null,
-                'role_label' => null,
-                'step' => null,
-                'total_steps' => $hpp->approvalStepCount(),
-                'expires_at' => null,
-                'is_expired' => false,
-                'links' => $signatureLinks,
-            ];
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function resolveBastApprovalShareInfo(?LhppBast $bast, string $title): ?array
+    {
+        if (! $bast) {
+            return null;
         }
 
-        return [
-            'state' => $activeSignature->tokenExpired() ? 'expired' : 'pending',
-            'label' => $activeSignature->tokenExpired() ? 'Token TTD kedaluwarsa' : 'Menunggu TTD',
-            'link' => $activeSignature->approvalUrl(),
-            'signer_name' => $activeSignature->signer_name_snapshot,
-            'role_label' => $activeSignature->role_label,
-            'step' => $activeSignature->step_order,
-            'total_steps' => $hpp->approvalStepCount(),
-            'expires_at' => $activeSignature->token_expires_at?->format('d/m/Y H:i'),
-            'is_expired' => $activeSignature->tokenExpired(),
-            'links' => $signatureLinks,
-        ];
+        $bast->loadMissing('signatures.signer');
+        $signatures = $bast->signatures->sortBy('step_order')->values();
+        $items = $signatures
+            ->map(fn (LhppBastSignature $signature): array => $this->mapApprovalSignatureItem($signature, 'bast'))
+            ->values();
+        $completedSteps = $items->whereIn('status', [LhppBastSignature::STATUS_SIGNED, LhppBastSignature::STATUS_SKIPPED])->count();
+
+        return $this->buildApprovalModalPayload(
+            $title,
+            $bast->nomor_order,
+            $items,
+            $completedSteps,
+            $bast->approvalStepCount(),
+            $bast->approvalCompleted()
+        );
     }
 
     /**
@@ -894,15 +947,22 @@ class OrderTrackingController extends Controller
             ])
             ->values()
             ->all();
+        $makerStep = [
+            'step' => 1,
+            'role_label' => 'Pembuat QC',
+            'signer_name' => $makerName ?: '-',
+            'status' => $makerSigned ? QualityControlSignature::STATUS_SIGNED : QualityControlSignature::STATUS_PENDING,
+            'status_label' => $makerSigned ? 'Sudah TTD' : 'Belum TTD',
+            'signed_at' => filled($makerSignedAt) ? (string) $makerSignedAt : null,
+            'link' => null,
+            'whatsapp_url' => null,
+            'expires_at' => null,
+            'is_active' => false,
+            'is_expired' => false,
+        ];
         $steps = collect([
             [
-                'step' => 1,
-                'role_label' => 'Pembuat QC',
-                'signer_name' => $makerName ?: '-',
-                'status' => $makerSigned ? QualityControlSignature::STATUS_SIGNED : QualityControlSignature::STATUS_PENDING,
-                'status_label' => $makerSigned ? 'Sudah TTD' : 'Belum TTD',
-                'signed_at' => filled($makerSignedAt) ? (string) $makerSignedAt : null,
-                'link' => null,
+                ...$makerStep,
             ],
         ])
             ->merge($approvalSignatures->map(fn (QualityControlSignature $signature): array => [
@@ -957,8 +1017,22 @@ class OrderTrackingController extends Controller
             'pending', 'expired' => sprintf('Approval QC %d/%d - menunggu %s.', $completedSteps, $totalSteps, $nextText),
             default => 'Approval QC belum berjalan.',
         };
+        $modalItems = collect([$makerStep])
+            ->merge($approvalSignatures->map(
+                fn (QualityControlSignature $signature): array => $this->mapApprovalSignatureItem($signature, 'quality_control', 1)
+            ))
+            ->values();
+        $modalPayload = $this->buildApprovalModalPayload(
+            'Quality Control',
+            $report->order?->nomor_order,
+            $modalItems,
+            $completedSteps,
+            $totalSteps,
+            $isCompleted
+        );
 
         return [
+            ...$modalPayload,
             'state' => $state,
             'label' => $label,
             'completed_steps' => $completedSteps,
@@ -968,6 +1042,136 @@ class OrderTrackingController extends Controller
             'links' => $signatureLinks,
             'steps' => $steps,
         ];
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $items
+     * @return array<string, mixed>
+     */
+    private function buildApprovalModalPayload(
+        string $title,
+        ?string $documentNumber,
+        Collection $items,
+        int $completedSteps,
+        int $totalSteps,
+        bool $completed,
+    ): array {
+        $activeItem = $items->first(fn (array $item): bool => (bool) ($item['is_active'] ?? false));
+        $missingItem = $items->first(fn (array $item): bool => ($item['status'] ?? null) === 'missing');
+        $expiredItem = $items->first(fn (array $item): bool => (bool) ($item['is_expired'] ?? false) && ($item['status'] ?? null) === 'pending');
+        $state = match (true) {
+            $completed => 'completed',
+            $missingItem !== null => 'missing',
+            $expiredItem !== null => 'expired',
+            $activeItem !== null => 'pending',
+            $totalSteps > 0 => 'in_review',
+            default => 'none',
+        };
+        $label = match ($state) {
+            'completed' => 'Selesai',
+            'missing' => 'Signer belum lengkap',
+            'expired' => 'Token kedaluwarsa',
+            'pending' => 'Menunggu TTD',
+            'in_review' => 'In Review',
+            default => 'Belum ada alur',
+        };
+        $progressPercent = $totalSteps > 0
+            ? (int) round(($completedSteps / max(1, $totalSteps)) * 100)
+            : 0;
+
+        return [
+            'title' => $title,
+            'document_number' => $documentNumber,
+            'summary' => trim(sprintf('%s dari %s tanda tangan selesai.', $completedSteps, $totalSteps)),
+            'state' => $state,
+            'label' => $label,
+            'completed_steps' => $completedSteps,
+            'total_steps' => $totalSteps,
+            'progress_percent' => $progressPercent,
+            'items' => $items->values()->all(),
+            'links' => $items
+                ->filter(fn (array $item): bool => (bool) ($item['is_active'] ?? false) && filled($item['link'] ?? null))
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * @param  array<int, array{label: string, value: mixed}>  $rows
+     * @return array<string, mixed>
+     */
+    private function buildTimelineInfoPayload(string $title, array $rows, string $tone = 'waiting'): array
+    {
+        return [
+            'title' => $title,
+            'tone' => $tone,
+            'rows' => collect($rows)
+                ->map(fn (array $row): array => [
+                    'label' => $row['label'],
+                    'value' => filled($row['value']) ? (string) $row['value'] : '-',
+                ])
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function mapApprovalSignatureItem(object $signature, string $type, int $stepOffset = 0): array
+    {
+        $status = (string) ($signature->status ?? '');
+        $isExpired = method_exists($signature, 'tokenExpired') && $signature->tokenExpired();
+        $approvalUrl = method_exists($signature, 'approvalUrl') ? $signature->approvalUrl() : null;
+        $isActive = $status === 'pending' && filled($approvalUrl) && ! $isExpired;
+        $roleLabel = method_exists($signature, 'displayRoleLabel')
+            ? $signature->displayRoleLabel()
+            : (string) ($signature->role_label ?? '-');
+        $signerName = (string) (
+            $signature->signer_name_snapshot
+            ?? $signature->signer_name
+            ?? $signature->signer?->name
+            ?? '-'
+        );
+
+        return [
+            'step' => ((int) ($signature->step_order ?? 0)) + $stepOffset,
+            'role_label' => $roleLabel,
+            'signer_name' => $signerName !== '' ? $signerName : '-',
+            'status' => $status,
+            'status_label' => $this->approvalStatusLabel($status, $isExpired),
+            'link' => $isActive ? $approvalUrl : null,
+            'whatsapp_url' => $isActive ? $this->approvalWhatsappUrl($signature, $type) : null,
+            'expires_at' => $signature->token_expires_at?->format('d/m/Y H:i'),
+            'signed_at' => $signature->signed_at?->format('d/m/Y H:i'),
+            'is_active' => $isActive,
+            'is_expired' => $isExpired,
+            'delegated_from_name' => $signature->delegated_from_name ?? null,
+            'delegation_reason' => $signature->delegation_reason ?? null,
+        ];
+    }
+
+    private function approvalStatusLabel(string $status, bool $isExpired): string
+    {
+        return match ($status) {
+            'signed' => 'Sudah TTD',
+            'pending' => $isExpired ? 'Token kedaluwarsa' : 'Menunggu TTD',
+            'locked' => 'Belum aktif',
+            'missing' => 'Signer belum lengkap',
+            'skipped' => 'Dilewati',
+            default => ucfirst($status ?: '-'),
+        };
+    }
+
+    private function approvalWhatsappUrl(object $signature, string $type): ?string
+    {
+        return match ($type) {
+            'initial_work' => $signature instanceof InitialWorkSignature ? ApprovalWhatsappLink::forInitialWork($signature) : null,
+            'hpp' => $signature instanceof HppSignature ? ApprovalWhatsappLink::forHpp($signature) : null,
+            'bast' => $signature instanceof LhppBastSignature ? ApprovalWhatsappLink::forBast($signature) : null,
+            'quality_control' => $signature instanceof QualityControlSignature ? ApprovalWhatsappLink::forQualityControl($signature) : null,
+            default => null,
+        };
     }
 
     /**

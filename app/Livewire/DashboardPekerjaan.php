@@ -98,6 +98,14 @@ class DashboardPekerjaan extends Component
         $tasks = BengkelTask::query()
             ->with('order.orderWorkshop')
             ->whereNull('archived_at')
+            ->where(function ($builder): void {
+                $builder
+                    ->whereNull('order_id')
+                    ->orWhereNotIn('order_id', BengkelTask::query()
+                        ->whereNotNull('order_id')
+                        ->whereNotNull('archived_at')
+                        ->select('order_id'));
+            })
             ->select([
                 'id',
                 'order_id',

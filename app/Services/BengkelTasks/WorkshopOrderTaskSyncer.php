@@ -76,6 +76,16 @@ class WorkshopOrderTaskSyncer
 
     private function resolveTask(Order $order): BengkelTask
     {
+        $archivedTask = BengkelTask::query()
+            ->where('order_id', $order->id)
+            ->whereNotNull('archived_at')
+            ->latest('id')
+            ->first();
+
+        if ($archivedTask) {
+            return $archivedTask;
+        }
+
         $activeTask = BengkelTask::query()
             ->where('order_id', $order->id)
             ->whereNull('archived_at')
@@ -104,16 +114,6 @@ class WorkshopOrderTaskSyncer
             if ($manualTask) {
                 return $manualTask;
             }
-        }
-
-        $archivedTask = BengkelTask::query()
-            ->where('order_id', $order->id)
-            ->whereNotNull('archived_at')
-            ->latest('id')
-            ->first();
-
-        if ($archivedTask) {
-            return $archivedTask;
         }
 
         return new BengkelTask();

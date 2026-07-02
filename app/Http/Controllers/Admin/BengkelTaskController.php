@@ -55,6 +55,11 @@ class BengkelTaskController extends Controller
         $query = BengkelTask::query()
             ->with('order.orderWorkshop')
             ->whereNull('archived_at')
+            ->where(function ($builder): void {
+                $builder
+                    ->whereNull('order_id')
+                    ->orWhereNotIn('order_id', $this->archivedOrderIdQuery());
+            })
             ->latest('created_at')
             ->latest('id');
 
@@ -827,7 +832,6 @@ class BengkelTaskController extends Controller
     {
         return BengkelTask::query()
             ->whereNotNull('order_id')
-            ->whereNull('archived_at')
             ->get(['order_id'])
             ->pluck('order_id')
             ->map(fn ($orderId): int => (int) $orderId)
@@ -835,6 +839,14 @@ class BengkelTaskController extends Controller
             ->unique()
             ->values()
             ->all();
+    }
+
+    private function archivedOrderIdQuery()
+    {
+        return BengkelTask::query()
+            ->whereNotNull('order_id')
+            ->whereNotNull('archived_at')
+            ->select('order_id');
     }
 
     private function taskHasAssignedPic(BengkelTask $task): bool

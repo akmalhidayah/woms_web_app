@@ -66,10 +66,6 @@
                         <i data-lucide="user-round-cog" class="h-3.5 w-3.5"></i>
                         Master PIC
                     </a>
-                    <a href="{{ route('admin.bengkel-tasks.create') }}" class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-900 px-3 py-2 text-[11px] font-semibold text-white transition hover:bg-blue-800">
-                        <i data-lucide="plus" class="h-3.5 w-3.5"></i>
-                        Tambah Pekerjaan
-                    </a>
                 </div>
             </div>
         </section>
@@ -187,26 +183,6 @@
                 });
             }
 
-            document.querySelectorAll('.archive-bengkel-task-form').forEach((form) => {
-                form.addEventListener('submit', (event) => {
-                    event.preventDefault();
-
-                    window.Swal?.fire({
-                        icon: 'question',
-                        title: 'Arsipkan pekerjaan?',
-                        text: 'Data akan dipindahkan ke Order Pekerjaan Bengkel dan tidak tampil lagi di display.',
-                        showCancelButton: true,
-                        confirmButtonText: 'Arsipkan',
-                        cancelButtonText: 'Batal',
-                        confirmButtonColor: '#1d4ed8',
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            form.submit();
-                        }
-                    });
-                });
-            });
-
             document.querySelectorAll('.complete-bengkel-task-form').forEach((form) => {
                 form.addEventListener('submit', (event) => {
                     event.preventDefault();
@@ -227,60 +203,6 @@
                 });
             });
 
-            const selectAll = document.getElementById('select-all-bengkel-tasks');
-            const allCheckboxes = () => Array.from(document.querySelectorAll('.bengkel-task-checkbox'));
-            const visibleCheckboxes = () => allCheckboxes().filter((checkbox) => checkbox.offsetParent !== null);
-            const bulkArchiveForm = document.getElementById('bulk-archive-bengkel-tasks-form');
-            const syncSelectAllState = () => {
-                if (! selectAll) {
-                    return;
-                }
-
-                const checkboxes = visibleCheckboxes();
-                selectAll.checked = checkboxes.length > 0 && checkboxes.every((item) => item.checked);
-                selectAll.indeterminate = checkboxes.some((item) => item.checked) && ! selectAll.checked;
-            };
-
-            selectAll?.addEventListener('change', () => {
-                visibleCheckboxes().forEach((checkbox) => {
-                    checkbox.checked = selectAll.checked;
-                });
-            });
-
-            allCheckboxes().forEach((checkbox) => {
-                checkbox.addEventListener('change', syncSelectAllState);
-            });
-
-            bulkArchiveForm?.addEventListener('submit', (event) => {
-                const checkedCount = visibleCheckboxes().filter((checkbox) => checkbox.checked).length;
-
-                if (checkedCount === 0) {
-                    event.preventDefault();
-                    window.Swal?.fire({
-                        icon: 'info',
-                        title: 'Belum ada data dipilih',
-                        text: 'Centang pekerjaan yang ingin diarsipkan terlebih dahulu.',
-                        confirmButtonText: 'OK',
-                    });
-                    return;
-                }
-
-                event.preventDefault();
-
-                window.Swal?.fire({
-                    icon: 'question',
-                    title: 'Arsipkan pekerjaan terpilih?',
-                    text: `${checkedCount} pekerjaan bengkel akan dipindahkan ke Order Pekerjaan Bengkel.`,
-                    showCancelButton: true,
-                    confirmButtonText: 'Arsipkan',
-                    cancelButtonText: 'Batal',
-                    confirmButtonColor: '#1d4ed8',
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        bulkArchiveForm.submit();
-                    }
-                });
-            });
         });
     </script>
 </x-layouts.admin>

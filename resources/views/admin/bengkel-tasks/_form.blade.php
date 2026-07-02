@@ -46,6 +46,8 @@
     $selectedNotificationNumber = old('notification_number', $task?->notification_number);
     $selectedProgressStatus = old('progress_status', $task?->progress_status ?? \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL);
     $selectedPendingReason = old('pending_reason', $task?->pending_reason);
+    $linkedOrder = $task?->order;
+    $selectedRegu = old('catatan', $task?->catatan);
     $progressOptions = $progressOptions ?? \App\Models\OrderWorkshop::progressOptions();
     $unitsPayload = $units->map(fn ($unit) => [
         'name' => $unit->name,
@@ -74,16 +76,23 @@
                     <input id="order_id" type="hidden" name="order_id" value="{{ $selectedOrderId }}">
                     <input id="notification_number" type="hidden" name="notification_number" value="{{ $selectedNotificationNumber }}">
                     <label for="workshop_order_source" class="mb-1.5 block text-[11px] font-semibold text-slate-700">Nomor Order / Notifikasi</label>
-                    <select id="workshop_order_source" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
-                        <option value="">+ Isi manual / tambah nomor</option>
-                        @foreach ($workshopOrdersPayload as $order)
-                            <option value="{{ $order['id'] }}" @selected($selectedOrderId !== '' && (string) $order['id'] === $selectedOrderId)>
-                                {{ $order['nomor_order'] }} - {{ \Illuminate\Support\Str::limit($order['nama_pekerjaan'], 80) }}
-                            </option>
-                        @endforeach
-                    </select>
-                    <input id="notification_number_manual" type="text" value="{{ $selectedNotificationNumber }}" class="{{ $selectedOrderId !== '' ? 'hidden' : '' }} mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none" placeholder="Ketik nomor order / notifikasi manual">
-                    <div class="mt-1 text-[10px] text-slate-500">Pilih order untuk mengisi data otomatis, atau pilih isi manual jika nomor belum ada di daftar.</div>
+                    @if ($linkedOrder)
+                        <div class="rounded-xl border border-blue-100 bg-blue-50/60 px-3 py-2.5 text-sm font-semibold text-slate-800">
+                            {{ $linkedOrder->nomor_order ?: '-' }} - {{ \Illuminate\Support\Str::limit($linkedOrder->nama_pekerjaan, 90) }}
+                        </div>
+                        <div class="mt-1 text-[10px] text-slate-500">Data pekerjaan otomatis mengikuti Order Pekerjaan Bengkel. Lengkapi PIC, uraian, dan lampiran melalui tombol edit ini.</div>
+                    @else
+                        <select id="workshop_order_source" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
+                            <option value="">+ Isi manual / tambah nomor</option>
+                            @foreach ($workshopOrdersPayload as $order)
+                                <option value="{{ $order['id'] }}" @selected($selectedOrderId !== '' && (string) $order['id'] === $selectedOrderId)>
+                                    {{ $order['nomor_order'] }} - {{ \Illuminate\Support\Str::limit($order['nama_pekerjaan'], 80) }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <input id="notification_number_manual" type="text" value="{{ $selectedNotificationNumber }}" class="{{ $selectedOrderId !== '' ? 'hidden' : '' }} mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none" placeholder="Ketik nomor order / notifikasi manual">
+                        <div class="mt-1 text-[10px] text-slate-500">Pilih order untuk mengisi data otomatis, atau pilih isi manual jika nomor belum ada di daftar.</div>
+                    @endif
                     @error('order_id')
                         <div class="mt-1 text-[11px] font-medium text-rose-600">{{ $message }}</div>
                     @enderror
@@ -124,12 +133,19 @@
 
                     <div>
                         <label for="catatan" class="mb-1.5 block text-[11px] font-semibold text-slate-700">Regu</label>
-                        <select id="catatan" name="catatan" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
-                            <option value="">Pilih regu</option>
-                            @foreach ($catatanOptions as $option)
-                                <option value="{{ $option }}" @selected(old('catatan', $task?->catatan) === $option)>{{ $option }}</option>
-                            @endforeach
-                        </select>
+                        @if ($linkedOrder)
+                            <input type="hidden" name="catatan" value="{{ $selectedRegu }}">
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700">
+                                {{ $selectedRegu ?: 'Regu Fabrikasi' }}
+                            </div>
+                        @else
+                            <select id="catatan" name="catatan" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
+                                <option value="">Pilih regu</option>
+                                @foreach ($catatanOptions as $option)
+                                    <option value="{{ $option }}" @selected($selectedRegu === $option)>{{ $option }}</option>
+                                @endforeach
+                            </select>
+                        @endif
                     </div>
                 </div>
 

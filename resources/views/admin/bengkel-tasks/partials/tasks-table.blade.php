@@ -15,27 +15,10 @@
     @keydown.escape.window="closeAttachment()"
     class="bengkel-table-panel overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
 >
-    <form id="bulk-archive-bengkel-tasks-form" action="{{ route('admin.bengkel-tasks.bulk-archive', $indexQuery) }}" method="POST" class="border-b border-slate-200 bg-slate-50 px-3 py-2.5 sm:px-4">
-        @csrf
-        @method('PATCH')
-        <div class="flex items-center justify-between gap-2">
-            <label class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700">
-                <input id="select-all-bengkel-tasks" type="checkbox" class="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
-                Pilih Semua
-            </label>
-
-            <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-blue-700 transition hover:bg-slate-50 sm:px-4">
-                <i data-lucide="archive" class="h-3.5 w-3.5"></i>
-                Arsipkan Terpilih
-            </button>
-        </div>
-    </form>
-
     <div class="hidden overflow-x-auto lg:block">
         <table class="min-w-full text-xs text-slate-700">
             <thead class="bg-slate-100">
                 <tr>
-                    <th class="w-10 px-3 py-2.5 text-left font-semibold">Pilih</th>
                     <th class="px-3 py-2.5 text-left font-semibold">Nama Pekerjaan</th>
                     <th class="px-3 py-2.5 text-left font-semibold">Nomor Order</th>
                     <th class="px-3 py-2.5 text-left font-semibold">Penanggung Jawab</th>
@@ -62,10 +45,6 @@
                     @endphp
                     <tr class="{{ $isCompleted ? 'bg-emerald-50/70 hover:bg-emerald-50' : 'hover:bg-slate-50/80' }}">
                         <td class="px-3 py-2.5">
-                            <input form="bulk-archive-bengkel-tasks-form" type="checkbox" name="task_ids[]" value="{{ $task->id }}" class="bengkel-task-checkbox h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
-                        </td>
-
-                        <td class="px-3 py-2.5">
                             <div class="font-semibold text-slate-900">{{ $jobName }}</div>
                             <div class="mt-1 text-[11px] leading-snug text-slate-600">
                                 <div class="truncate">{{ $task->unit_work ?: '-' }}</div>
@@ -76,7 +55,7 @@
                         <td class="px-3 py-2.5">
                             <div class="font-semibold text-slate-900">{{ $task->notification_number ?: '-' }}</div>
                             @if ($task->notification_number)
-                                <div class="text-[10px] text-slate-500">Notification</div>
+                                <div class="text-[10px] text-slate-500">Order</div>
                             @endif
                         </td>
 
@@ -119,7 +98,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-7 text-center text-xs text-slate-500">Belum ada pekerjaan bengkel.</td>
+                        <td colspan="5" class="px-4 py-7 text-center text-xs text-slate-500">Belum ada pekerjaan bengkel.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -146,8 +125,6 @@
 
             <article class="{{ $isCompleted ? 'bg-emerald-50/60' : 'bg-white' }} px-4 py-3">
                 <div class="flex items-start gap-3">
-                    <input form="bulk-archive-bengkel-tasks-form" type="checkbox" name="task_ids[]" value="{{ $task->id }}" class="bengkel-task-checkbox mt-1 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
-
                     <div class="min-w-0 flex-1">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">

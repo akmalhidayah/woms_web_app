@@ -11,6 +11,7 @@ use App\Models\OrderWorkshop;
 use App\Models\UnitWork;
 use App\Models\User;
 use App\Services\QualityControl\QualityControlSignatureService;
+use App\Services\BengkelTasks\WorkshopOrderTaskSyncer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -19,6 +20,7 @@ class OrderWorkshopController extends Controller
 {
     public function __construct(
         private readonly QualityControlSignatureService $qualityControlSignatureService,
+        private readonly WorkshopOrderTaskSyncer $workshopOrderTaskSyncer,
     ) {
     }
 
@@ -131,6 +133,7 @@ class OrderWorkshopController extends Controller
         }
 
         $order->orderWorkshop()->save($workshop);
+        $this->workshopOrderTaskSyncer->syncOrder($order->fresh('orderWorkshop'), $workshop->fresh());
         $this->syncBengkelTaskProgress($order, $workshop);
 
         return response()->json([

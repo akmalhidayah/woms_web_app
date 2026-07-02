@@ -8,6 +8,8 @@ use App\Models\BengkelPic;
 use App\Models\BengkelTask;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
+use App\Services\BengkelTasks\WorkshopOrderTaskSyncer;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
 class DashboardPekerjaan extends Component
@@ -77,6 +79,10 @@ class DashboardPekerjaan extends Component
 
     public function loadTasks(): void
     {
+        if (Cache::add('bengkel_tasks:auto_sync_display', true, now()->addSeconds(20))) {
+            app(WorkshopOrderTaskSyncer::class)->syncOpenWorkshopOrders();
+        }
+
         $this->loadDisplaySettings();
         $this->loadOrderSummary();
 

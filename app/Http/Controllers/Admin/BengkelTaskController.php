@@ -12,6 +12,7 @@ use App\Models\Order;
 use App\Models\OrderWorkshop;
 use App\Models\QualityControlReport;
 use App\Models\UnitWork;
+use App\Services\BengkelTasks\WorkshopOrderTaskSyncer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,8 +31,15 @@ class BengkelTaskController extends Controller
         'Regu Bengkel (Refurbish)',
     ];
 
+    public function __construct(
+        private readonly WorkshopOrderTaskSyncer $workshopOrderTaskSyncer,
+    ) {
+    }
+
     public function index(Request $request): View
     {
+        $this->workshopOrderTaskSyncer->syncOpenWorkshopOrders();
+
         $q = trim((string) $request->get('q', ''));
         $regu = trim((string) $request->get('regu', ''));
         $perPage = (int) $request->get('per_page', 10);
@@ -153,21 +161,13 @@ class BengkelTaskController extends Controller
         return view('admin.bengkel-tasks.index', compact('tasks', 'q', 'regu', 'perPage', 'displaySetting'));
     }
 
-    public function create(): View
+    public function create(Request $request): RedirectResponse
     {
-        $picOptions = BengkelPic::query()->orderBy('name')->get();
-        $catatanOptions = self::CATATAN_REGU_ALLOWED;
-        $units = UnitWork::with('sections')->orderBy('name')->get();
-        $workshopOrders = $this->workshopOrderOptions();
-        $progressOptions = OrderWorkshop::progressOptions();
+        $this->workshopOrderTaskSyncer->syncOpenWorkshopOrders();
 
-        return view('admin.bengkel-tasks.create', compact(
-            'picOptions',
-            'catatanOptions',
-            'units',
-            'workshopOrders',
-            'progressOptions',
-        ));
+        return redirect()
+            ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
+            ->with('status', 'Pekerjaan dari Order Pekerjaan Bengkel sudah otomatis tampil. Gunakan tombol edit untuk melengkapi PIC dan uraian.');
     }
 
     public function store(Request $request): RedirectResponse
@@ -192,6 +192,9 @@ class BengkelTaskController extends Controller
 
     public function edit(BengkelTask $bengkel_task): View
     {
+        $this->workshopOrderTaskSyncer->syncOpenWorkshopOrders();
+        $bengkel_task->refresh()->loadMissing('order');
+
         $picOptions = BengkelPic::query()->orderBy('name')->get();
         $catatanOptions = self::CATATAN_REGU_ALLOWED;
         $units = UnitWork::with('sections')->orderBy('name')->get();

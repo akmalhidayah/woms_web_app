@@ -5,7 +5,7 @@
         @include('admin.bengkel-tasks._form', [
             'task' => $bengkel_task,
             'title' => 'Edit Pekerjaan Bengkel',
-            'description' => 'Perbarui informasi pekerjaan bengkel, regu, dan PIC yang ditampilkan.',
+            'description' => 'Lengkapi PIC, uraian pekerjaan, progress, dan lampiran untuk display bengkel.',
             'submitLabel' => 'Perbarui Pekerjaan',
         ])
     </form>

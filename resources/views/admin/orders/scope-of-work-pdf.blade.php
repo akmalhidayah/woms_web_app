@@ -75,8 +75,8 @@
                 @else
                     <div style="height:80px; margin:20px 0; border-bottom:1px solid #000;"></div>
                 @endif
-                <p style="margin:0; font-weight:bold;">{{ $scopeOfWork->nama_penginput }}</p>
-                <p style="margin:0;">{{ $order->unit_kerja }}</p>
+                <p style="margin:0; font-weight:bold;">{{ $creatorName ?? ($scopeOfWork->creator?->name ?: $scopeOfWork->nama_penginput) }}</p>
+                <p style="margin:0;">{{ $creatorUnitLabel ?? '-' }}</p>
             </td>
         </tr>
     </table>

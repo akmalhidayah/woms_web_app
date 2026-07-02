@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\Orders\StoreOrderScopeOfWorkRequest;
 use App\Http\Requests\Admin\Orders\UpdateOrderScopeOfWorkRequest;
 use App\Models\Order;
 use App\Models\OrderScopeOfWork;
+use App\Support\ScopeOfWorkPdfPresenter;
 use App\Support\SignatureImageStorage;
 use Illuminate\Http\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -74,13 +75,20 @@ class OrderScopeOfWorkController extends Controller
         abort_unless((int) $scopeOfWork->order_id === (int) $order->getKey(), 404);
 
         $scopeOfWork->loadMissing('creator');
-        $order->loadMissing('creator');
+        $order->loadMissing([
+            'creator',
+            'initialWork.outlineAgreement',
+            'latestHpp.outlineAgreement',
+        ]);
+        $presenter = app(ScopeOfWorkPdfPresenter::class);
 
         $pdf = Pdf::loadView('admin.orders.scope-of-work-pdf', [
             'order' => $order,
             'scopeOfWork' => $scopeOfWork,
             'scopeItems' => $scopeOfWork->scope_items ?? [],
             'signaturePath' => SignatureImageStorage::imageSource($scopeOfWork->tanda_tangan),
+            'creatorName' => $presenter->creatorName($scopeOfWork),
+            'creatorUnitLabel' => $presenter->creatorUnitLabel($order),
         ])->setPaper('a4', 'portrait');
 
         return $pdf->stream('scope-of-work-'.$order->nomor_order.'.pdf');

@@ -21,6 +21,7 @@ use App\Services\Orders\OrderDocumentService;
 use App\Services\QualityControl\QualityControlSignatureService;
 use App\Support\ApprovalWhatsappLink;
 use App\Support\PdfMergeService;
+use App\Support\ScopeOfWorkPdfPresenter;
 use App\Support\SignatureImageStorage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Contracts\View\View;
@@ -147,13 +148,20 @@ class OrderTrackingController extends Controller
         abort_if(! $scopeOfWork, 404);
 
         $scopeOfWork->loadMissing('creator');
-        $order->loadMissing('creator');
+        $order->loadMissing([
+            'creator',
+            'initialWork.outlineAgreement',
+            'latestHpp.outlineAgreement',
+        ]);
+        $presenter = app(ScopeOfWorkPdfPresenter::class);
 
         $pdf = Pdf::loadView('admin.orders.scope-of-work-pdf', [
             'order' => $order,
             'scopeOfWork' => $scopeOfWork,
             'scopeItems' => $scopeOfWork->scope_items ?? [],
             'signaturePath' => SignatureImageStorage::imageSource($scopeOfWork->tanda_tangan),
+            'creatorName' => $presenter->creatorName($scopeOfWork),
+            'creatorUnitLabel' => $presenter->creatorUnitLabel($order),
         ])->setPaper('a4', 'portrait');
 
         return $pdf->stream('scope-of-work-'.$order->nomor_order.'.pdf');

@@ -51,8 +51,8 @@ class OrderTrackingController extends Controller
         $orders = (clone $filteredQuery)
             ->when(
                 $filters['sortOrder'] === 'oldest',
-                fn (Builder $query) => $query->orderBy('created_at')->orderBy('id'),
-                fn (Builder $query) => $query->orderByDesc('created_at')->orderByDesc('id')
+                fn (Builder $query) => $query->orderBy('tanggal_order')->orderBy('id'),
+                fn (Builder $query) => $query->orderByDesc('tanggal_order')->orderByDesc('id')
             )
             ->paginate($filters['entries'])
             ->withQueryString();
@@ -503,8 +503,8 @@ class OrderTrackingController extends Controller
         $workshopInfo = $this->buildWorkshopTimelineInfoPayload($order, $workshopTask);
         $workshopTimelineItem = [
             'label' => 'Pekerjaan Bengkel',
-            'value' => $this->resolveWorkshopPhase($order),
-            'detail' => $this->resolveWorkshopTimelineDetail($order),
+            'value' => $this->resolveWorkshopTimelineValue($order),
+            'detail' => null,
             'tone' => $this->resolveWorkshopTimelineTone($order),
             'info' => $workshopInfo,
         ];
@@ -680,7 +680,7 @@ class OrderTrackingController extends Controller
                 $workshopTimelineItem,
                 [
                     'label' => 'Quality Control',
-                    'value' => $qualityControlApproval['label'] ?? $this->resolveWorkshopPhase($order),
+                    'value' => $qualityControlApproval['label'] ?? $this->resolveWorkshopTimelineValue($order),
                     'detail' => $qualityControlApproval['timeline_detail'] ?? null,
                     'tone' => $this->resolveWorkshopPhaseTone($order) === 'emerald' ? 'done' : 'waiting',
                     'approval' => $qualityControlApproval,
@@ -1155,19 +1155,11 @@ class OrderTrackingController extends Controller
         ], $this->resolveWorkshopTimelineTone($order));
     }
 
-    private function resolveWorkshopTimelineDetail(Order $order): string
+    private function resolveWorkshopTimelineValue(Order $order): string
     {
-        $workshop = $order->orderWorkshop;
-
-        if (! $workshop?->konfirmasi_anggaran) {
-            return 'Menunggu konfirmasi material dari bengkel.';
-        }
-
-        if ($workshop->konfirmasi_anggaran === OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY) {
-            return 'Budget / Transfer: '.($workshop->status_anggaran ?: 'Belum dipilih');
-        }
-
-        return 'Status material: '.($workshop->status_material ?: 'Belum diisi');
+        return $order->orderWorkshop?->progress_status
+            ? $this->resolveWorkshopPhase($order)
+            : 'Pending';
     }
 
     private function resolveWorkshopTimelineTone(Order $order): string

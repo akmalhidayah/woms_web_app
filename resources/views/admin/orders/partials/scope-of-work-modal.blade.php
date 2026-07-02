@@ -45,7 +45,14 @@
                 @method('PUT')
             @endif
 
-            <input type="file" name="tanda_tangan_file" accept="image/png,image/jpeg" x-ref="signatureFile" class="hidden">
+            <input
+                type="file"
+                name="tanda_tangan_file"
+                accept="image/png"
+                x-ref="signatureFile"
+                class="hidden"
+                @change="uploadSignatureFile($event)"
+            >
 
             <div class="flex items-center justify-between gap-4">
                 <div>
@@ -163,16 +170,30 @@
                 <div class="flex items-center justify-between gap-3">
                     <div>
                         <h3 class="text-lg font-semibold text-slate-900">Tanda Tangan Pembuat</h3>
-                        <p class="mt-1 text-sm text-slate-500">Tanda tangan langsung di area ini sebelum menyimpan scope of work.</p>
+                        <p class="mt-1 text-sm text-slate-500">Tanda tangan langsung di area ini atau upload file PNG tanda tangan.</p>
+                        <p class="mt-1 text-xs font-medium text-slate-400">
+                            PNG transparan lebih disarankan. Maksimal 1 MB.
+                            <span x-show="signatureUploadLabel" x-text="`File: ${signatureUploadLabel}`" class="ml-1 font-semibold text-blue-600"></span>
+                        </p>
                     </div>
 
-                    <button
-                        type="button"
-                        @click="clearSignature()"
-                        class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                    >
-                        Bersihkan
-                    </button>
+                    <div class="flex flex-wrap items-center justify-end gap-2">
+                        <button
+                            type="button"
+                            @click="$refs.signatureFile?.click()"
+                            class="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                        >
+                            <i data-lucide="upload" class="h-4 w-4"></i>
+                            Upload PNG
+                        </button>
+                        <button
+                            type="button"
+                            @click="clearSignature()"
+                            class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                        >
+                            Bersihkan
+                        </button>
+                    </div>
                 </div>
 
                 <div class="mt-4 rounded-2xl border border-slate-300 bg-white p-3">
@@ -206,6 +227,7 @@
             canvas: null,
             ctx: null,
             isDrawing: false,
+            signatureUploadLabel: '',
 
             openSowModal() {
                 this.showSowModal = true;
@@ -253,6 +275,10 @@
                     event.preventDefault();
                     const current = point(event);
                     this.isDrawing = true;
+                    this.signatureUploadLabel = '';
+                    if (this.$refs.signatureFile) {
+                        this.$refs.signatureFile.value = '';
+                    }
                     this.ctx.beginPath();
                     this.ctx.moveTo(current.x, current.y);
                 };
@@ -287,17 +313,71 @@
 
                 const image = new Image();
                 image.onload = () => {
-                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                    this.ctx.drawImage(image, 0, 0, this.canvas.getBoundingClientRect().width, this.canvas.getBoundingClientRect().height);
+                    this.drawSignatureImage(image);
                     this.signatureData = existing;
                 };
                 image.src = existing;
+            },
+
+            drawSignatureImage(image) {
+                if (!this.ctx || !this.canvas) return;
+
+                const rect = this.canvas.getBoundingClientRect();
+                const maxWidth = rect.width * 0.8;
+                const maxHeight = rect.height * 0.8;
+                const scale = Math.min(maxWidth / image.width, maxHeight / image.height, 1);
+                const width = image.width * scale;
+                const height = image.height * scale;
+                const x = (rect.width - width) / 2;
+                const y = (rect.height - height) / 2;
+
+                this.ctx.clearRect(0, 0, rect.width, rect.height);
+                this.ctx.drawImage(image, x, y, width, height);
+            },
+
+            uploadSignatureFile(event) {
+                const file = event.target.files?.[0];
+
+                if (!file) {
+                    return;
+                }
+
+                if (file.type !== 'image/png') {
+                    alert('Upload tanda tangan harus file PNG.');
+                    event.target.value = '';
+                    this.signatureUploadLabel = '';
+                    return;
+                }
+
+                if (file.size > 1024 * 1024) {
+                    alert('Ukuran tanda tangan maksimal 1 MB.');
+                    event.target.value = '';
+                    this.signatureUploadLabel = '';
+                    return;
+                }
+
+                if (!this.canvas || !this.ctx) {
+                    this.setupSignatureCanvas();
+                }
+
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const image = new Image();
+                    image.onload = () => {
+                        this.drawSignatureImage(image);
+                        this.signatureData = this.canvas.toDataURL('image/png');
+                        this.signatureUploadLabel = file.name;
+                    };
+                    image.src = reader.result;
+                };
+                reader.readAsDataURL(file);
             },
 
             clearSignature() {
                 if (!this.ctx || !this.canvas) return;
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 this.signatureData = '';
+                this.signatureUploadLabel = '';
                 if (this.$refs.signatureFile) {
                     this.$refs.signatureFile.value = '';
                 }

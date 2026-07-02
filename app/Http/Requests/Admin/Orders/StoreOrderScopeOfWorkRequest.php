@@ -37,7 +37,7 @@ class StoreOrderScopeOfWorkRequest extends FormRequest
             'keterangan.*' => ['nullable', 'string', 'max:255'],
             'catatan' => ['nullable', 'string'],
             'tanda_tangan' => ['nullable', 'string'],
-            'tanda_tangan_file' => ['nullable', 'file', 'mimetypes:image/png,image/jpeg', 'max:2048'],
+            'tanda_tangan_file' => ['nullable', 'file', 'mimetypes:image/png', 'max:1024'],
         ];
     }
 

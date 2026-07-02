@@ -1152,6 +1152,7 @@ class OrderTrackingController extends Controller
             default => 'Status bengkel masih menunggu update dari admin workshop.',
         };
 
+        $workers = $this->resolveBengkelTaskPicAssignments($workshopTask);
         return [
             ...$this->buildTimelineInfoPayload('Pekerjaan Bengkel', [
             ['label' => 'Konfirmasi Anggaran', 'value' => $konfirmasi ?: 'Belum dikonfirmasi'],
@@ -1159,6 +1160,7 @@ class OrderTrackingController extends Controller
             ['label' => 'Status Material', 'value' => $materialStatus],
             ['label' => 'Progress Pekerjaan', 'value' => $progressLabel],
             ['label' => 'Regu', 'value' => $workshopTask?->catatan ?: $order->catatan ?: '-'],
+            ['label' => 'Dikerjakan Oleh', 'value' => $workers !== [] ? count($workers).' PIC' : 'Belum ada PIC'],
             ['label' => 'Catatan Konfirmasi', 'value' => $workshop?->keterangan_konfirmasi ?: '-'],
             ['label' => 'Catatan Material', 'value' => $workshop?->keterangan_material ?: '-'],
             ['label' => 'Catatan Progress', 'value' => $workshop?->keterangan_progress ?: '-'],
@@ -1166,6 +1168,7 @@ class OrderTrackingController extends Controller
             'headline' => $progressLabel,
             'summary' => $summary,
             'badge' => $konfirmasi ?: 'Belum dikonfirmasi',
+            'workers' => $workers,
         ];
     }
 

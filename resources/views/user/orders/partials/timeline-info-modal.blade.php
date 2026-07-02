@@ -51,6 +51,7 @@
             if (normalized.includes('material')) return 'package-check';
             if (normalized.includes('progress')) return 'activity';
             if (normalized.includes('regu')) return 'users';
+            if (normalized.includes('dikerjakan')) return 'hard-hat';
             if (normalized.includes('catatan')) return 'message-square-text';
 
             return 'info';
@@ -106,10 +107,55 @@
             return noteRows.find((row) => String(row.label || '').toLowerCase() === wanted) || null;
         };
 
+        const workerAvatar = (worker) => {
+            const avatar = displayValue(worker.avatar_url || '', '');
+            const position = displayValue(worker.avatar_position || '', '50% 50%');
+            const initials = displayValue(worker.initials || '', '?');
+            const name = displayValue(worker.name || '', 'PIC Bengkel');
+
+            if (avatar) {
+                return `<img src="${escapeHtml(avatar)}" alt="${escapeHtml(name)}" class="h-9 w-9 rounded-full object-cover ring-1 ring-stone-200" style="object-position: ${escapeHtml(position)};" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden');">`
+                    + `<span class="hidden inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-black text-slate-600 ring-1 ring-stone-200">${escapeHtml(initials)}</span>`;
+            }
+
+            return `<span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-black text-slate-600 ring-1 ring-stone-200">${escapeHtml(initials)}</span>`;
+        };
+
+        const renderWorkers = (workers) => {
+            if (! Array.isArray(workers) || workers.length === 0) {
+                return '<div class="mt-2.5 rounded-xl border border-dashed border-stone-200 bg-stone-50 px-3 py-3 text-sm font-semibold text-slate-500">Belum ada PIC bengkel.</div>';
+            }
+
+            return `
+                <div class="mt-2.5 grid gap-2">
+                    ${workers.map((worker) => {
+                        const descriptions = Array.isArray(worker.work_descriptions) ? worker.work_descriptions.filter(Boolean) : [];
+
+                        return `
+                            <div class="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5">
+                                <div class="flex items-start gap-2.5">
+                                    ${workerAvatar(worker)}
+                                    <div class="min-w-0">
+                                        <div class="text-sm font-black leading-5 text-slate-900">${escapeHtml(displayValue(worker.name, 'PIC Bengkel'))}</div>
+                                        ${descriptions.length > 0 ? `
+                                            <ul class="mt-1 list-disc space-y-0.5 pl-4 text-[12px] font-semibold leading-5 text-slate-600">
+                                                ${descriptions.map((description) => `<li>${escapeHtml(description)}</li>`).join('')}
+                                            </ul>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        };
+
         const openModal = (payload) => {
             const rows = Array.isArray(payload.rows) ? payload.rows : [];
             const noteRows = rows.filter((row) => String(row.label || '').toLowerCase().includes('catatan'));
             const statusRows = rows.filter((row) => ! String(row.label || '').toLowerCase().includes('catatan'));
+            const workers = Array.isArray(payload.workers) ? payload.workers : [];
 
             title.textContent = payload.title || 'Detail';
             rowsContainer.innerHTML = rows.length > 0
@@ -121,9 +167,10 @@
                             const tone = rowTone(value);
                             const note = noteForStatus(row.label, noteRows);
                             const noteValue = note ? displayValue(note.value, '') : '';
+                            const isWorkerRow = String(row.label || '').toLowerCase().includes('dikerjakan');
 
                             return `
-                                <div class="rounded-2xl border border-stone-200 bg-white p-3 shadow-sm">
+                                <div class="rounded-2xl border border-stone-200 bg-white p-3 shadow-sm ${isWorkerRow ? 'md:col-span-2' : ''}">
                                     <div class="flex items-start gap-2.5">
                                         <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${tone}">
                                             <i data-lucide="${icon}" class="h-4 w-4"></i>
@@ -133,6 +180,7 @@
                                             <div class="mt-0.5 text-sm font-black leading-5 text-slate-900">${escapeHtml(value)}</div>
                                         </div>
                                     </div>
+                                    ${isWorkerRow ? renderWorkers(workers) : ''}
                                     ${hasMeaningfulNote(noteValue) ? `
                                         <div class="mt-2.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-semibold leading-5 text-slate-600">
                                             ${escapeHtml(noteValue)}

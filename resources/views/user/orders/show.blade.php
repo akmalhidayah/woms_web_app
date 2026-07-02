@@ -144,12 +144,12 @@
                 <h2 class="text-lg font-black text-slate-900">Timeline Proses</h2>
             </div>
 
-            <div class="mt-3 overflow-x-auto pb-1 md:overflow-visible">
-                <div class="grid min-w-[620px] grid-cols-3 gap-3 pr-1 md:min-w-0 md:gap-3">
+            <div class="mt-3 pb-1">
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
                     @foreach ($order['timeline'] as $item)
                         <article class="relative rounded-xl border p-2.5 {{ $timelineToneClasses[$item['tone']] ?? $timelineToneClasses['waiting'] }}">
                             @unless ($loop->last || $loop->iteration % 3 === 0)
-                                <div class="absolute left-full top-1/2 hidden h-[2px] w-3 -translate-y-1/2 {{ $timelineLineClasses[$item['tone']] ?? $timelineLineClasses['waiting'] }} sm:block"></div>
+                                <div class="absolute left-full top-1/2 hidden h-[2px] w-3 -translate-y-1/2 {{ $timelineLineClasses[$item['tone']] ?? $timelineLineClasses['waiting'] }} md:block"></div>
                             @endunless
 
                             @php
@@ -208,7 +208,7 @@
             <div class="rounded-[22px] border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <h2 class="text-xl font-black text-slate-900">Pusat Dokumen</h2>
+                        <h2 class="text-xl font-black text-slate-900">Daftar Dokumen</h2>
                     </div>
                 </div>
 

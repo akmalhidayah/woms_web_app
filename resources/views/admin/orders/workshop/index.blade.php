@@ -116,11 +116,11 @@
                                     \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_READY,
                                     \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY,
                                 ], true);
-                                $showEkorin = $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY;
+                                $showBudgetTransfer = $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY;
                                 $workshopSummary = match (true) {
                                     filled($workshop?->progress_status) => $progressOptions[$workshop?->progress_status] ?? 'Progress Bengkel',
                                     $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_READY => 'Material Ready',
-                                    $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY => 'E-Korin',
+                                    $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY => $workshop?->status_anggaran ?: 'Material Not Ready',
                                     default => 'Belum Konfirmasi',
                                 };
                                 $workshopSummaryClasses = match (true) {
@@ -136,17 +136,14 @@
                                 $workshopNextStep = match (true) {
                                     blank($konfirmasi) => 'Pilih konfirmasi anggaran/material.',
                                     $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_READY && blank($workshop?->status_material) => 'Isi status material.',
-                                    $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY && blank($workshop?->nomor_e_korin) => 'Isi nomor E-Korin.',
-                                    $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY && blank($workshop?->status_anggaran) => 'Isi status anggaran.',
-                                    $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY && blank($workshop?->status_e_korin) => 'Isi status E-Korin.',
+                                    $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY && blank($workshop?->status_anggaran) => 'Pilih Waiting Budget atau Complete Transfer.',
                                     $showProgress && blank($workshop?->progress_status) => 'Update progress bengkel.',
                                     $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_DONE => 'Pekerjaan bengkel selesai.',
                                     default => 'Pantau catatan dan progress bengkel.',
                                 };
                                 $workshopFlowChecklist = [
                                     ['label' => 'Konfirmasi', 'value' => $konfirmasi ?: '-', 'ready' => filled($konfirmasi)],
-                                    ['label' => 'E-Korin', 'value' => $workshop?->nomor_e_korin ?: ($showEkorin ? '-' : 'N/A'), 'ready' => ! $showEkorin || filled($workshop?->nomor_e_korin)],
-                                    ['label' => 'Status Anggaran', 'value' => $workshop?->status_anggaran ?: ($showEkorin ? '-' : 'N/A'), 'ready' => ! $showEkorin || filled($workshop?->status_anggaran)],
+                                    ['label' => 'Budget / Transfer', 'value' => $workshop?->status_anggaran ?: ($showBudgetTransfer ? '-' : 'N/A'), 'ready' => ! $showBudgetTransfer || filled($workshop?->status_anggaran)],
                                     ['label' => 'Status Material', 'value' => $workshop?->status_material ?: ($showMaterial ? '-' : 'N/A'), 'ready' => ! $showMaterial || filled($workshop?->status_material)],
                                     ['label' => 'Progress', 'value' => $progressOptions[$workshop?->progress_status] ?? '-', 'ready' => filled($workshop?->progress_status)],
                                 ];
@@ -304,24 +301,16 @@
                                             </button>
                                         </div>
 
-                                        @if ($showEkorin)
+                                        @if ($showBudgetTransfer)
                                             <div class="rounded-md border border-slate-200 bg-slate-50 p-2.5 text-[9px] text-slate-700 shadow-sm">
-                                                <div class="mb-2 font-semibold text-slate-800">E-Korin</div>
+                                                <div class="mb-2 font-semibold text-slate-800">Budget / Transfer</div>
                                                 <div class="space-y-2">
-                                                    <input type="text" name="nomor_e_korin" value="{{ $workshop?->nomor_e_korin }}" class="w-full rounded-md border border-blue-900/25 px-2 py-1.5 text-[10px] focus:border-blue-600 focus:outline-none" placeholder="Nomor E-Korin">
                                                     <select name="status_anggaran" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="status_anggaran">
-                                                        <option value="">Pilih status anggaran</option>
+                                                        <option value="">Pilih status budget/transfer</option>
                                                         @foreach ($statusAnggaranOptions as $value => $label)
                                                             <option value="{{ $value }}" @selected(($workshop?->status_anggaran ?? '') === $value)>{{ $label }}</option>
                                                         @endforeach
                                                     </select>
-                                                    <select name="status_e_korin" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="status_e_korin">
-                                                        <option value="">Pilih status E-Korin</option>
-                                                        @foreach ($eKorinStatusOptions as $value => $label)
-                                                            <option value="{{ $value }}" @selected(($workshop?->status_e_korin ?? '') === $value)>{{ $label }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    <button type="button" class="save-note-btn inline-flex h-7 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-3 text-[10px] font-semibold text-blue-700 shadow-sm transition hover:bg-blue-100" data-field="nomor_e_korin">Simpan No. E-Korin</button>
                                                 </div>
                                             </div>
                                         @endif

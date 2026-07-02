@@ -74,7 +74,6 @@ class OrderWorkshopController extends Controller
             'materialOptions' => OrderWorkshop::materialOptions(),
             'konfirmasiOptions' => OrderWorkshop::konfirmasiAnggaranOptions(),
             'statusAnggaranOptions' => OrderWorkshop::statusAnggaranOptions(),
-            'eKorinStatusOptions' => OrderWorkshop::eKorinStatusOptions(),
             'reguOptions' => [
                 'Regu Fabrikasi',
                 'Regu Bengkel (Refurbish)',
@@ -112,6 +111,8 @@ class OrderWorkshopController extends Controller
         if (($workshop->konfirmasi_anggaran ?? null) === OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY) {
             $workshop->status_material = null;
             $workshop->keterangan_material = null;
+            $workshop->nomor_e_korin = null;
+            $workshop->status_e_korin = null;
         } elseif (($workshop->konfirmasi_anggaran ?? null) === OrderWorkshop::KONFIRMASI_MATERIAL_READY) {
             $workshop->status_anggaran = null;
             $workshop->keterangan_anggaran = null;

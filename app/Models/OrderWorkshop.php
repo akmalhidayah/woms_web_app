@@ -14,8 +14,7 @@ class OrderWorkshop extends Model
     public const KONFIRMASI_MATERIAL_NOT_READY = 'Material Not Ready';
 
     public const STATUS_ANGGARAN_WAITING_BUDGET = 'Waiting Budget';
-    public const STATUS_ANGGARAN_PENDING = 'Pending';
-    public const STATUS_ANGGARAN_COMPLETE = 'Complete';
+    public const STATUS_ANGGARAN_COMPLETE_TRANSFER = 'Complete Transfer';
 
     public const STATUS_MATERIAL_GOOD_ISSUE = 'Good Issue';
     public const STATUS_MATERIAL_TRANSPORT = 'Transport Material';
@@ -56,8 +55,7 @@ class OrderWorkshop extends Model
     {
         return [
             self::STATUS_ANGGARAN_WAITING_BUDGET => 'Waiting Budget',
-            self::STATUS_ANGGARAN_PENDING => 'Pending',
-            self::STATUS_ANGGARAN_COMPLETE => 'Complete',
+            self::STATUS_ANGGARAN_COMPLETE_TRANSFER => 'Complete Transfer',
         ];
     }
 
@@ -77,16 +75,6 @@ class OrderWorkshop extends Model
             self::PROGRESS_QUALITY_CONTROL => 'Proses Quality Control',
             self::PROGRESS_PENDING => 'Pending',
             self::PROGRESS_DONE => 'Selesai',
-        ];
-    }
-
-    public static function eKorinStatusOptions(): array
-    {
-        return [
-            'waiting_korin' => 'Waiting Korin',
-            'waiting_approval' => 'Waiting Approval',
-            'waiting_transfer' => 'Waiting Transfer',
-            'complete_transfer' => 'Complete Transfer',
         ];
     }
 

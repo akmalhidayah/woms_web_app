@@ -28,8 +28,6 @@ class UpdateOrderWorkshopRequest extends FormRequest
             'progress_status' => ['sometimes', 'nullable', Rule::in(array_keys(OrderWorkshop::progressOptions()))],
             'keterangan_progress' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'catatan' => ['sometimes', 'nullable', 'string', 'max:2000'],
-            'nomor_e_korin' => ['sometimes', 'nullable', 'string', 'max:191'],
-            'status_e_korin' => ['sometimes', 'nullable', Rule::in(array_keys(OrderWorkshop::eKorinStatusOptions()))],
         ];
     }
 }

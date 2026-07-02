@@ -80,33 +80,47 @@
             return text === '' ? fallback : text;
         };
 
+        const hasMeaningfulNote = (value) => {
+            const text = String(value ?? '').trim();
+            const normalized = text.toLowerCase();
+
+            return text !== ''
+                && text !== '-'
+                && normalized !== 'belum ada catatan.';
+        };
+
+        const noteForStatus = (statusLabel, noteRows) => {
+            const normalized = String(statusLabel || '').toLowerCase();
+            const wanted = normalized.includes('konfirmasi')
+                ? 'catatan konfirmasi'
+                : normalized.includes('material')
+                    ? 'catatan material'
+                    : normalized.includes('progress')
+                        ? 'catatan progress'
+                        : '';
+
+            if (!wanted) {
+                return null;
+            }
+
+            return noteRows.find((row) => String(row.label || '').toLowerCase() === wanted) || null;
+        };
+
         const openModal = (payload) => {
             const rows = Array.isArray(payload.rows) ? payload.rows : [];
             const noteRows = rows.filter((row) => String(row.label || '').toLowerCase().includes('catatan'));
             const statusRows = rows.filter((row) => ! String(row.label || '').toLowerCase().includes('catatan'));
-            const summary = displayValue(payload.summary || '', '');
-            const headline = displayValue(payload.headline || '', payload.title || 'Detail');
-            const badge = displayValue(payload.badge || '', '');
 
             title.textContent = payload.title || 'Detail';
             rowsContainer.innerHTML = rows.length > 0
                 ? `
-                    <div class="rounded-[18px] border border-red-100 bg-red-50/60 px-3.5 py-3 sm:px-4">
-                        <div class="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
-                            <div class="min-w-0">
-                                <div class="text-[10px] font-black uppercase tracking-[0.2em] text-[#7f1017]">Ringkasan</div>
-                                <div class="mt-1 text-lg font-black leading-tight text-slate-900 sm:text-xl">${escapeHtml(headline)}</div>
-                                ${summary ? `<div class="mt-1.5 max-w-2xl text-sm font-semibold leading-5 text-slate-600">${escapeHtml(summary)}</div>` : ''}
-                            </div>
-                            ${badge ? `<span class="inline-flex w-fit shrink-0 rounded-full border border-red-200 bg-white px-2.5 py-1 text-[11px] font-black text-[#7f1017]">${escapeHtml(badge)}</span>` : ''}
-                        </div>
-                    </div>
-
-                    <div class="mt-3 grid gap-2.5 md:grid-cols-2">
+                    <div class="grid gap-2.5 md:grid-cols-2">
                         ${statusRows.map((row) => {
                             const icon = rowIcon(row.label);
                             const value = displayValue(row.value);
                             const tone = rowTone(value);
+                            const note = noteForStatus(row.label, noteRows);
+                            const noteValue = note ? displayValue(note.value, '') : '';
 
                             return `
                                 <div class="rounded-2xl border border-stone-200 bg-white p-3 shadow-sm">
@@ -119,33 +133,15 @@
                                             <div class="mt-0.5 text-sm font-black leading-5 text-slate-900">${escapeHtml(value)}</div>
                                         </div>
                                     </div>
+                                    ${hasMeaningfulNote(noteValue) ? `
+                                        <div class="mt-2.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-semibold leading-5 text-slate-600">
+                                            ${escapeHtml(noteValue)}
+                                        </div>
+                                    ` : ''}
                                 </div>
                             `;
                         }).join('')}
                     </div>
-
-                    ${noteRows.length > 0 ? `
-                        <div class="mt-3 rounded-[18px] border border-stone-200 bg-stone-50/80 p-3">
-                            <div class="mb-2.5 flex items-center gap-2">
-                                <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white text-[#7f1017] ring-1 ring-stone-200">
-                                    <i data-lucide="notebook-text" class="h-3.5 w-3.5"></i>
-                                </span>
-                                <div class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Catatan</div>
-                            </div>
-                            <div class="grid gap-2 md:grid-cols-3">
-                                ${noteRows.map((row) => {
-                                    const value = displayValue(row.value, 'Belum ada catatan.');
-
-                                    return `
-                                        <div class="rounded-xl border border-stone-200 bg-white px-3 py-2.5">
-                                            <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">${escapeHtml(row.label || '-')}</div>
-                                            <div class="mt-1 text-sm font-semibold leading-5 text-slate-700">${escapeHtml(value === '-' ? 'Belum ada catatan.' : value)}</div>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        </div>
-                    ` : ''}
                 `
                 : '<div class="rounded-2xl border border-dashed border-stone-200 bg-stone-50 px-4 py-8 text-center text-sm font-semibold text-slate-500">Belum ada informasi.</div>';
 

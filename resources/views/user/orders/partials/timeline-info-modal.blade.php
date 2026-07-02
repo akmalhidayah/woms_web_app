@@ -1,15 +1,15 @@
-<div id="userTimelineInfoModal" class="fixed inset-0 z-[90] hidden items-center justify-center p-4">
+<div id="userTimelineInfoModal" class="fixed inset-0 z-[90] hidden items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-5">
     <button type="button" data-close-user-timeline-info class="absolute inset-0 bg-slate-950/55" aria-label="Tutup detail timeline"></button>
 
-    <div class="relative z-10 w-full max-w-4xl overflow-hidden rounded-[26px] bg-white shadow-2xl">
-        <div class="flex items-start justify-between gap-4 border-b border-slate-100 bg-white px-5 py-4 sm:px-6">
+    <div class="relative z-10 my-3 flex max-h-[calc(100dvh-1.5rem)] w-full max-w-3xl flex-col overflow-hidden rounded-[22px] bg-white shadow-2xl sm:my-0 sm:max-h-[calc(100dvh-2.5rem)]">
+        <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3 sm:px-5">
             <div class="flex min-w-0 items-start gap-3">
-                <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#7f1017] text-white shadow-sm">
-                    <i data-lucide="list-checks" class="h-5 w-5"></i>
+                <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#7f1017] text-white shadow-sm">
+                    <i data-lucide="list-checks" class="h-4 w-4"></i>
                 </span>
                 <div class="min-w-0">
                     <div class="text-[10px] font-black uppercase tracking-[0.2em] text-[#7f1017]">Informasi Timeline</div>
-                    <h2 id="userTimelineInfoTitle" class="mt-1 truncate text-xl font-black text-slate-900 sm:text-2xl">Detail</h2>
+                    <h2 id="userTimelineInfoTitle" class="mt-0.5 truncate text-lg font-black text-slate-900 sm:text-xl">Detail</h2>
                 </div>
             </div>
             <button type="button" data-close-user-timeline-info class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-800" aria-label="Tutup">
@@ -17,7 +17,7 @@
             </button>
         </div>
 
-        <div id="userTimelineInfoRows" class="max-h-[calc(100vh-10rem)] overflow-y-auto px-5 py-5 sm:px-6"></div>
+        <div id="userTimelineInfoRows" class="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5"></div>
     </div>
 </div>
 
@@ -91,32 +91,32 @@
             title.textContent = payload.title || 'Detail';
             rowsContainer.innerHTML = rows.length > 0
                 ? `
-                    <div class="rounded-[22px] border border-red-100 bg-red-50/60 px-4 py-4 sm:px-5">
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div class="rounded-[18px] border border-red-100 bg-red-50/60 px-3.5 py-3 sm:px-4">
+                        <div class="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
                             <div class="min-w-0">
                                 <div class="text-[10px] font-black uppercase tracking-[0.2em] text-[#7f1017]">Ringkasan</div>
-                                <div class="mt-1 text-xl font-black leading-tight text-slate-900">${escapeHtml(headline)}</div>
-                                ${summary ? `<div class="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-600">${escapeHtml(summary)}</div>` : ''}
+                                <div class="mt-1 text-lg font-black leading-tight text-slate-900 sm:text-xl">${escapeHtml(headline)}</div>
+                                ${summary ? `<div class="mt-1.5 max-w-2xl text-sm font-semibold leading-5 text-slate-600">${escapeHtml(summary)}</div>` : ''}
                             </div>
-                            ${badge ? `<span class="inline-flex w-fit shrink-0 rounded-full border border-red-200 bg-white px-3 py-1 text-xs font-black text-[#7f1017]">${escapeHtml(badge)}</span>` : ''}
+                            ${badge ? `<span class="inline-flex w-fit shrink-0 rounded-full border border-red-200 bg-white px-2.5 py-1 text-[11px] font-black text-[#7f1017]">${escapeHtml(badge)}</span>` : ''}
                         </div>
                     </div>
 
-                    <div class="mt-4 grid gap-3 md:grid-cols-2">
+                    <div class="mt-3 grid gap-2.5 md:grid-cols-2">
                         ${statusRows.map((row) => {
                             const icon = rowIcon(row.label);
                             const value = displayValue(row.value);
                             const tone = rowTone(value);
 
                             return `
-                                <div class="rounded-[18px] border border-stone-200 bg-white p-4 shadow-sm">
-                                    <div class="flex items-start gap-3">
-                                        <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border ${tone}">
+                                <div class="rounded-2xl border border-stone-200 bg-white p-3 shadow-sm">
+                                    <div class="flex items-start gap-2.5">
+                                        <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${tone}">
                                             <i data-lucide="${icon}" class="h-4 w-4"></i>
                                         </span>
                                         <div class="min-w-0">
                                             <div class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">${escapeHtml(row.label || '-')}</div>
-                                            <div class="mt-1 text-sm font-black leading-6 text-slate-900">${escapeHtml(value)}</div>
+                                            <div class="mt-0.5 text-sm font-black leading-5 text-slate-900">${escapeHtml(value)}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -125,10 +125,10 @@
                     </div>
 
                     ${noteRows.length > 0 ? `
-                        <div class="mt-4 rounded-[22px] border border-stone-200 bg-stone-50/80 p-4">
-                            <div class="mb-3 flex items-center gap-2">
-                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white text-[#7f1017] ring-1 ring-stone-200">
-                                    <i data-lucide="notebook-text" class="h-4 w-4"></i>
+                        <div class="mt-3 rounded-[18px] border border-stone-200 bg-stone-50/80 p-3">
+                            <div class="mb-2.5 flex items-center gap-2">
+                                <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white text-[#7f1017] ring-1 ring-stone-200">
+                                    <i data-lucide="notebook-text" class="h-3.5 w-3.5"></i>
                                 </span>
                                 <div class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Catatan</div>
                             </div>
@@ -137,9 +137,9 @@
                                     const value = displayValue(row.value, 'Belum ada catatan.');
 
                                     return `
-                                        <div class="rounded-2xl border border-stone-200 bg-white px-4 py-3">
+                                        <div class="rounded-xl border border-stone-200 bg-white px-3 py-2.5">
                                             <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">${escapeHtml(row.label || '-')}</div>
-                                            <div class="mt-1 text-sm font-semibold leading-6 text-slate-700">${escapeHtml(value === '-' ? 'Belum ada catatan.' : value)}</div>
+                                            <div class="mt-1 text-sm font-semibold leading-5 text-slate-700">${escapeHtml(value === '-' ? 'Belum ada catatan.' : value)}</div>
                                         </div>
                                     `;
                                 }).join('')}
@@ -151,6 +151,7 @@
 
             modal.classList.remove('hidden');
             modal.classList.add('flex');
+            rowsContainer.scrollTop = 0;
             window.lucide?.createIcons();
         };
 

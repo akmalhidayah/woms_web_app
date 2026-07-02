@@ -1143,16 +1143,30 @@ class OrderTrackingController extends Controller
             default => 'Menunggu konfirmasi material',
         };
 
-        return $this->buildTimelineInfoPayload('Pekerjaan Bengkel', [
+        $progressLabel = $this->resolveWorkshopTimelineValue($order);
+        $summary = match (true) {
+            $workshop?->progress_status === OrderWorkshop::PROGRESS_DONE => 'Pekerjaan bengkel sudah selesai dan siap masuk tahap berikutnya.',
+            $isMaterialNotReady && $workshop?->status_anggaran === OrderWorkshop::STATUS_ANGGARAN_COMPLETE_TRANSFER => 'Material belum ready, tetapi proses transfer sudah selesai.',
+            $isMaterialNotReady && $workshop?->status_anggaran === OrderWorkshop::STATUS_ANGGARAN_WAITING_BUDGET => 'Material belum ready dan masih menunggu budget.',
+            $isMaterialReady => 'Material sudah ready untuk diproses bengkel.',
+            default => 'Status bengkel masih menunggu update dari admin workshop.',
+        };
+
+        return [
+            ...$this->buildTimelineInfoPayload('Pekerjaan Bengkel', [
             ['label' => 'Konfirmasi Anggaran', 'value' => $konfirmasi ?: 'Belum dikonfirmasi'],
             ['label' => 'Budget / Transfer', 'value' => $budgetTransferStatus],
             ['label' => 'Status Material', 'value' => $materialStatus],
-            ['label' => 'Progress Pekerjaan', 'value' => $this->resolveWorkshopPhase($order)],
+            ['label' => 'Progress Pekerjaan', 'value' => $progressLabel],
             ['label' => 'Regu', 'value' => $workshopTask?->catatan ?: $order->catatan ?: '-'],
             ['label' => 'Catatan Konfirmasi', 'value' => $workshop?->keterangan_konfirmasi ?: '-'],
             ['label' => 'Catatan Material', 'value' => $workshop?->keterangan_material ?: '-'],
             ['label' => 'Catatan Progress', 'value' => $workshop?->keterangan_progress ?: '-'],
-        ], $this->resolveWorkshopTimelineTone($order));
+            ], $this->resolveWorkshopTimelineTone($order)),
+            'headline' => $progressLabel,
+            'summary' => $summary,
+            'badge' => $konfirmasi ?: 'Belum dikonfirmasi',
+        ];
     }
 
     private function resolveWorkshopTimelineValue(Order $order): string

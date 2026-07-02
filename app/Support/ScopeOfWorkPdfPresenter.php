@@ -19,6 +19,7 @@ class ScopeOfWorkPdfPresenter
             $order->initialWork?->outlineAgreement?->jenis_kontrak,
             $order->latestHpp?->seksi_pengendali,
             $order->initialWork?->seksi_pengendali,
+            $order->seksi,
         ];
 
         foreach ($candidates as $candidate) {

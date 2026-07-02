@@ -161,13 +161,21 @@ class BengkelTaskController extends Controller
         return view('admin.bengkel-tasks.index', compact('tasks', 'q', 'regu', 'perPage', 'displaySetting'));
     }
 
-    public function create(Request $request): RedirectResponse
+    public function create(): View
     {
-        $this->workshopOrderTaskSyncer->syncOpenWorkshopOrders();
+        $picOptions = BengkelPic::query()->orderBy('name')->get();
+        $catatanOptions = self::CATATAN_REGU_ALLOWED;
+        $units = UnitWork::with('sections')->orderBy('name')->get();
+        $workshopOrders = $this->workshopOrderOptions();
+        $progressOptions = OrderWorkshop::progressOptions();
 
-        return redirect()
-            ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
-            ->with('status', 'Pekerjaan dari Order Pekerjaan Bengkel sudah otomatis tampil. Gunakan tombol edit untuk melengkapi PIC dan uraian.');
+        return view('admin.bengkel-tasks.create', compact(
+            'picOptions',
+            'catatanOptions',
+            'units',
+            'workshopOrders',
+            'progressOptions',
+        ));
     }
 
     public function store(Request $request): RedirectResponse
@@ -819,12 +827,8 @@ class BengkelTaskController extends Controller
     {
         return BengkelTask::query()
             ->whereNotNull('order_id')
-            ->get(['order_id', 'is_completed', 'progress_status', 'person_in_charge', 'person_in_charge_profiles'])
-            ->filter(function (BengkelTask $task): bool {
-                return (bool) $task->is_completed
-                    || $task->progress_status === OrderWorkshop::PROGRESS_DONE
-                    || $this->taskHasAssignedPic($task);
-            })
+            ->whereNull('archived_at')
+            ->get(['order_id'])
             ->pluck('order_id')
             ->map(fn ($orderId): int => (int) $orderId)
             ->reject(fn (int $orderId): bool => $currentOrderId !== null && $orderId === (int) $currentOrderId)

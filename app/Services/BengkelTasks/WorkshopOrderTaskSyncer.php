@@ -106,6 +106,16 @@ class WorkshopOrderTaskSyncer
             }
         }
 
+        $archivedTask = BengkelTask::query()
+            ->where('order_id', $order->id)
+            ->whereNotNull('archived_at')
+            ->latest('id')
+            ->first();
+
+        if ($archivedTask) {
+            return $archivedTask;
+        }
+
         return new BengkelTask();
     }
 

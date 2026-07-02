@@ -150,8 +150,8 @@ class OrderTrackingController extends Controller
         $scopeOfWork->loadMissing('creator');
         $order->loadMissing([
             'creator',
-            'initialWork.outlineAgreement',
-            'latestHpp.outlineAgreement',
+            'initialWork.outlineAgreement.unitWork',
+            'latestHpp.outlineAgreement.unitWork',
         ]);
         $presenter = app(ScopeOfWorkPdfPresenter::class);
 

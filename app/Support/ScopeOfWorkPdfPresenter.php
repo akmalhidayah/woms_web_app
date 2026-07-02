@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Order;
 use App\Models\OrderScopeOfWork;
+use App\Models\OutlineAgreement;
 
 class ScopeOfWorkPdfPresenter
 {
@@ -15,11 +16,11 @@ class ScopeOfWorkPdfPresenter
     public function creatorUnitLabel(Order $order): string
     {
         $candidates = [
-            $order->latestHpp?->outlineAgreement?->jenis_kontrak,
-            $order->initialWork?->outlineAgreement?->jenis_kontrak,
-            $order->latestHpp?->seksi_pengendali,
-            $order->initialWork?->seksi_pengendali,
-            $order->seksi,
+            $order->latestHpp?->outlineAgreement?->unitWork?->name,
+            $order->initialWork?->outlineAgreement?->unitWork?->name,
+            $order->latestHpp?->unit_kerja_pengendali,
+            $order->initialWork?->unit_kerja_pengendali,
+            $this->activeOutlineAgreementUnitName(),
         ];
 
         foreach ($candidates as $candidate) {
@@ -31,5 +32,16 @@ class ScopeOfWorkPdfPresenter
         }
 
         return '-';
+    }
+
+    private function activeOutlineAgreementUnitName(): ?string
+    {
+        return OutlineAgreement::query()
+            ->with('unitWork:id,name')
+            ->where('status', OutlineAgreement::STATUS_ACTIVE)
+            ->latest('id')
+            ->first(['id', 'unit_work_id'])
+            ?->unitWork
+            ?->name;
     }
 }

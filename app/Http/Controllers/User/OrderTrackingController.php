@@ -485,7 +485,7 @@ class OrderTrackingController extends Controller
     private function mapOrderForDetail(Order $order): array
     {
         $isWorkshopOnly = $this->isWorkshopOnly($order);
-        $workshopTask = $isWorkshopOnly ? $this->resolveBengkelTask($order) : null;
+        $workshopTask = $this->isWorkshopRouted($order) ? $this->resolveBengkelTask($order) : null;
         $progress = $this->resolveProgress($order);
         $terminOne = $order->lhppBasts->firstWhere('termin_type', 'termin_1');
         $terminTwo = $order->lhppBasts->firstWhere('termin_type', 'termin_2') ?: $terminOne?->terminTwo;
@@ -500,6 +500,14 @@ class OrderTrackingController extends Controller
         $bastTerminOneApproval = $this->resolveBastApprovalShareInfo($terminOne, 'BAST Termin 1');
         $bastTerminTwoApproval = $this->resolveBastApprovalShareInfo($terminTwo, 'BAST Termin 2');
         $qualityControlApproval = $this->resolveQualityControlApprovalShareInfo($order->latestQualityControlReport);
+        $workshopInfo = $this->buildWorkshopTimelineInfoPayload($order, $workshopTask);
+        $workshopTimelineItem = [
+            'label' => 'Pekerjaan Bengkel',
+            'value' => $this->resolveWorkshopPhase($order),
+            'detail' => $this->resolveWorkshopTimelineDetail($order),
+            'tone' => $this->resolveWorkshopTimelineTone($order),
+            'info' => $workshopInfo,
+        ];
         $documentPreviewItems = [
             [
                 'key' => 'hpp',
@@ -669,6 +677,7 @@ class OrderTrackingController extends Controller
                     'tone' => $order->catatan_status && $order->catatan_status !== OrderUserNoteStatus::Pending ? 'done' : 'waiting',
                     'approval' => $initialWorkApproval,
                 ],
+                $workshopTimelineItem,
                 [
                     'label' => 'Quality Control',
                     'value' => $qualityControlApproval['label'] ?? $this->resolveWorkshopPhase($order),
@@ -689,6 +698,7 @@ class OrderTrackingController extends Controller
                     'tone' => $order->catatan_status && $order->catatan_status !== OrderUserNoteStatus::Pending ? 'done' : 'waiting',
                     'approval' => $initialWorkApproval,
                 ],
+                ...($this->isWorkshopRouted($order) ? [$workshopTimelineItem] : []),
                 [
                     'label' => 'HPP',
                     'value' => $order->latestHpp ? (Hpp::statusOptions()[$order->latestHpp->status] ?? ucfirst($order->latestHpp->status)) : 'Belum dibuat',
@@ -1115,6 +1125,60 @@ class OrderTrackingController extends Controller
         ];
     }
 
+    private function buildWorkshopTimelineInfoPayload(Order $order, ?BengkelTask $workshopTask): array
+    {
+        $workshop = $order->orderWorkshop;
+        $konfirmasi = $workshop?->konfirmasi_anggaran;
+        $isMaterialReady = $konfirmasi === OrderWorkshop::KONFIRMASI_MATERIAL_READY;
+        $isMaterialNotReady = $konfirmasi === OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY;
+
+        $budgetTransferStatus = match (true) {
+            $isMaterialNotReady => $workshop?->status_anggaran ?: 'Belum dipilih',
+            $isMaterialReady => 'Tidak berlaku',
+            default => 'Menunggu konfirmasi material',
+        };
+        $materialStatus = match (true) {
+            $isMaterialReady => $workshop?->status_material ?: 'Belum diisi',
+            $isMaterialNotReady => 'Tidak berlaku karena material belum ready',
+            default => 'Menunggu konfirmasi material',
+        };
+
+        return $this->buildTimelineInfoPayload('Pekerjaan Bengkel', [
+            ['label' => 'Konfirmasi Anggaran', 'value' => $konfirmasi ?: 'Belum dikonfirmasi'],
+            ['label' => 'Budget / Transfer', 'value' => $budgetTransferStatus],
+            ['label' => 'Status Material', 'value' => $materialStatus],
+            ['label' => 'Progress Pekerjaan', 'value' => $this->resolveWorkshopPhase($order)],
+            ['label' => 'Regu', 'value' => $workshopTask?->catatan ?: $order->catatan ?: '-'],
+            ['label' => 'Catatan Konfirmasi', 'value' => $workshop?->keterangan_konfirmasi ?: '-'],
+            ['label' => 'Catatan Material', 'value' => $workshop?->keterangan_material ?: '-'],
+            ['label' => 'Catatan Progress', 'value' => $workshop?->keterangan_progress ?: '-'],
+        ], $this->resolveWorkshopTimelineTone($order));
+    }
+
+    private function resolveWorkshopTimelineDetail(Order $order): string
+    {
+        $workshop = $order->orderWorkshop;
+
+        if (! $workshop?->konfirmasi_anggaran) {
+            return 'Menunggu konfirmasi material dari bengkel.';
+        }
+
+        if ($workshop->konfirmasi_anggaran === OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY) {
+            return 'Budget / Transfer: '.($workshop->status_anggaran ?: 'Belum dipilih');
+        }
+
+        return 'Status material: '.($workshop->status_material ?: 'Belum diisi');
+    }
+
+    private function resolveWorkshopTimelineTone(Order $order): string
+    {
+        return match ($order->orderWorkshop?->progress_status) {
+            OrderWorkshop::PROGRESS_DONE => 'done',
+            OrderWorkshop::PROGRESS_PENDING => 'danger',
+            default => 'waiting',
+        };
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -1256,6 +1320,14 @@ class OrderTrackingController extends Controller
     private function isWorkshopOnly(Order $order): bool
     {
         return $order->catatan_status === OrderUserNoteStatus::ApprovedWorkshop;
+    }
+
+    private function isWorkshopRouted(Order $order): bool
+    {
+        return in_array($order->catatan_status, [
+            OrderUserNoteStatus::ApprovedWorkshop,
+            OrderUserNoteStatus::ApprovedWorkshopJasa,
+        ], true);
     }
 
     private function resolveBengkelTask(Order $order): ?BengkelTask

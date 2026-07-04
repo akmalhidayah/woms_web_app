@@ -42,10 +42,13 @@ class OrderTrackingController extends Controller
     {
         $orderType = $request->string('order_type')->toString();
         $orderType = in_array($orderType, ['workshop', 'service'], true) ? $orderType : 'all';
+        $currentYear = (int) now()->year;
+        $year = (int) $request->integer('year', $currentYear);
 
         $filters = [
             'notification_number' => trim((string) $request->string('notification_number')),
             'order_type' => $orderType,
+            'year' => $year > 0 ? $year : $currentYear,
             'unit_work' => trim((string) $request->string('unit_work')),
             'sortOrder' => $request->string('sortOrder')->toString() === 'oldest' ? 'oldest' : 'latest',
             'entries' => max(10, min(100, (int) $request->integer('entries', 10))),
@@ -97,6 +100,7 @@ class OrderTrackingController extends Controller
         return view('user.orders.index', [
             'orders' => $orders,
             'filters' => $filters,
+            'yearOptions' => $this->dashboardYearOptions($currentYear),
             'stats' => [
                 'total_orders' => $allOrders->count(),
                 'workshop_orders' => $workshopOrders,
@@ -418,10 +422,28 @@ class OrderTrackingController extends Controller
                 $filters['order_type'] === 'service',
                 fn (Builder $builder) => $builder->where('catatan_status', OrderUserNoteStatus::ApprovedJasa->value)
             )
+            ->whereYear('tanggal_order', (int) $filters['year'])
             ->when(
                 $filters['unit_work'] !== '',
                 fn (Builder $builder) => $builder->where('unit_kerja', $filters['unit_work'])
             );
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function dashboardYearOptions(int $currentYear): array
+    {
+        return Order::query()
+            ->whereNotNull('tanggal_order')
+            ->get(['tanggal_order'])
+            ->map(fn (Order $order): ?int => $order->tanggal_order?->year)
+            ->filter()
+            ->push($currentYear)
+            ->unique()
+            ->sortDesc()
+            ->values()
+            ->all();
     }
 
     private function ownedOrder(Order $order): Order

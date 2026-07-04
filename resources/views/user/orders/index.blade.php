@@ -181,7 +181,10 @@
             x-transition.opacity.duration.150ms
             x-cloak
         >
-            <form method="GET" action="{{ route('user.dashboard') }}" class="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-[minmax(220px,1.45fr)_minmax(180px,0.72fr)_minmax(150px,0.8fr)_minmax(120px,0.55fr)_minmax(95px,0.4fr)_auto] lg:items-end" data-dashboard-filter-form>
+            <form method="GET" action="{{ route('user.dashboard') }}" class="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-[minmax(220px,1.6fr)_minmax(160px,0.9fr)_minmax(130px,0.6fr)_minmax(110px,0.45fr)_auto] lg:items-end" data-dashboard-filter-form>
+                <input type="hidden" name="order_type" value="{{ $filters['order_type'] ?? 'all' }}">
+                <input type="hidden" name="year" value="{{ $filters['year'] ?? now()->year }}">
+
                 <div class="col-span-2 space-y-1 md:space-y-1.5 lg:col-span-1">
                     <label for="notification_number" class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-600">Order / Notifikasi / Pekerjaan</label>
                     <input
@@ -192,24 +195,6 @@
                         placeholder="Cari nomor order / notifikasi / pekerjaan..."
                         class="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 placeholder:text-slate-400 shadow-sm transition focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-red-100 md:h-10 md:px-3.5"
                     >
-                </div>
-
-                <div class="col-span-2 space-y-1 md:space-y-1.5 lg:col-span-1">
-                    <div class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-600">Jenis</div>
-                    <div class="grid h-9 grid-cols-3 rounded-lg border border-slate-300 bg-white p-1 shadow-sm md:h-10">
-                        @foreach ([
-                            'all' => 'Semua',
-                            'workshop' => 'Bengkel',
-                            'service' => 'Jasa',
-                        ] as $value => $label)
-                            <label class="relative min-w-0">
-                                <input type="radio" name="order_type" value="{{ $value }}" class="peer sr-only" @checked(($filters['order_type'] ?? 'all') === $value)>
-                                <span class="flex h-full min-w-0 cursor-pointer items-center justify-center rounded-md px-2 text-[11px] font-black text-slate-500 transition peer-checked:bg-[#7f1017] peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-red-200">
-                                    {{ $label }}
-                                </span>
-                            </label>
-                        @endforeach
-                    </div>
                 </div>
 
                 <div class="col-span-2 space-y-1 md:space-y-1.5 lg:col-span-1">
@@ -270,6 +255,40 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
+                            <tr>
+                                <td colspan="7" class="bg-white px-4 py-3">
+                                    <form method="GET" action="{{ route('user.dashboard') }}" class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                        <input type="hidden" name="notification_number" value="{{ $filters['notification_number'] }}">
+                                        <input type="hidden" name="unit_work" value="{{ $filters['unit_work'] }}">
+                                        <input type="hidden" name="sortOrder" value="{{ $filters['sortOrder'] }}">
+                                        <input type="hidden" name="entries" value="{{ $filters['entries'] }}">
+
+                                        <div class="grid h-10 w-full grid-cols-3 rounded-lg border border-slate-300 bg-slate-50 p-1 shadow-sm sm:w-[18rem]">
+                                            @foreach ([
+                                                'all' => 'Semua',
+                                                'workshop' => 'Bengkel',
+                                                'service' => 'Jasa',
+                                            ] as $value => $label)
+                                                <label class="relative min-w-0">
+                                                    <input type="radio" name="order_type" value="{{ $value }}" class="peer sr-only" @checked(($filters['order_type'] ?? 'all') === $value) onchange="this.form.submit()">
+                                                    <span class="flex h-full min-w-0 cursor-pointer items-center justify-center rounded-md px-2 text-[11px] font-black text-slate-500 transition peer-checked:bg-[#7f1017] peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-red-200">
+                                                        {{ $label }}
+                                                    </span>
+                                                </label>
+                                            @endforeach
+                                        </div>
+
+                                        <label class="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
+                                            Tahun
+                                            <select name="year" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-bold normal-case tracking-normal text-slate-700 shadow-sm transition focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-red-100" onchange="this.form.submit()">
+                                                @foreach ($yearOptions as $yearOption)
+                                                    <option value="{{ $yearOption }}" @selected((int) ($filters['year'] ?? now()->year) === (int) $yearOption)>{{ $yearOption }}</option>
+                                                @endforeach
+                                            </select>
+                                        </label>
+                                    </form>
+                                </td>
+                            </tr>
                             @foreach ($orders as $order)
                                 <tr
                                     class="{{ $order['is_completed'] ? 'bg-emerald-50/35 hover:bg-emerald-50/65' : 'bg-white hover:bg-red-50/25' }} cursor-pointer transition-colors focus-within:bg-red-50/35"
@@ -306,6 +325,37 @@
                 </div>
 
                 <div class="space-y-3 md:hidden">
+                    <form method="GET" action="{{ route('user.dashboard') }}" class="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                        <input type="hidden" name="notification_number" value="{{ $filters['notification_number'] }}">
+                        <input type="hidden" name="unit_work" value="{{ $filters['unit_work'] }}">
+                        <input type="hidden" name="sortOrder" value="{{ $filters['sortOrder'] }}">
+                        <input type="hidden" name="entries" value="{{ $filters['entries'] }}">
+
+                        <div class="grid h-10 grid-cols-3 rounded-lg border border-slate-300 bg-slate-50 p-1 shadow-sm">
+                            @foreach ([
+                                'all' => 'Semua',
+                                'workshop' => 'Bengkel',
+                                'service' => 'Jasa',
+                            ] as $value => $label)
+                                <label class="relative min-w-0">
+                                    <input type="radio" name="order_type" value="{{ $value }}" class="peer sr-only" @checked(($filters['order_type'] ?? 'all') === $value) onchange="this.form.submit()">
+                                    <span class="flex h-full min-w-0 cursor-pointer items-center justify-center rounded-md px-2 text-[11px] font-black text-slate-500 transition peer-checked:bg-[#7f1017] peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-red-200">
+                                        {{ $label }}
+                                    </span>
+                                </label>
+                            @endforeach
+                        </div>
+
+                        <label class="mt-3 flex items-center justify-between gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
+                            Tahun
+                            <select name="year" class="h-10 min-w-[7rem] rounded-lg border border-slate-300 bg-white px-3 text-sm font-bold normal-case tracking-normal text-slate-700 shadow-sm transition focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-red-100" onchange="this.form.submit()">
+                                @foreach ($yearOptions as $yearOption)
+                                    <option value="{{ $yearOption }}" @selected((int) ($filters['year'] ?? now()->year) === (int) $yearOption)>{{ $yearOption }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                    </form>
+
                     @foreach ($orders as $order)
                         <article
                             class="dashboard-soft-card cursor-pointer rounded-lg p-4 transition hover:border-red-100 {{ $order['is_completed'] ? 'bg-emerald-50/50' : 'bg-white' }}"
@@ -343,6 +393,39 @@
                     @endforeach
                 </div>
             @else
+                <div class="space-y-3">
+                    <form method="GET" action="{{ route('user.dashboard') }}" class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                        <input type="hidden" name="notification_number" value="{{ $filters['notification_number'] }}">
+                        <input type="hidden" name="unit_work" value="{{ $filters['unit_work'] }}">
+                        <input type="hidden" name="sortOrder" value="{{ $filters['sortOrder'] }}">
+                        <input type="hidden" name="entries" value="{{ $filters['entries'] }}">
+
+                        <div class="grid h-10 grid-cols-3 rounded-lg border border-slate-300 bg-slate-50 p-1 shadow-sm sm:w-[18rem]">
+                            @foreach ([
+                                'all' => 'Semua',
+                                'workshop' => 'Bengkel',
+                                'service' => 'Jasa',
+                            ] as $value => $label)
+                                <label class="relative min-w-0">
+                                    <input type="radio" name="order_type" value="{{ $value }}" class="peer sr-only" @checked(($filters['order_type'] ?? 'all') === $value) onchange="this.form.submit()">
+                                    <span class="flex h-full min-w-0 cursor-pointer items-center justify-center rounded-md px-2 text-[11px] font-black text-slate-500 transition peer-checked:bg-[#7f1017] peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-red-200">
+                                        {{ $label }}
+                                    </span>
+                                </label>
+                            @endforeach
+                        </div>
+
+                        <label class="flex items-center justify-between gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
+                            Tahun
+                            <select name="year" class="h-10 min-w-[7rem] rounded-lg border border-slate-300 bg-white px-3 text-sm font-bold normal-case tracking-normal text-slate-700 shadow-sm transition focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-red-100" onchange="this.form.submit()">
+                                @foreach ($yearOptions as $yearOption)
+                                    <option value="{{ $yearOption }}" @selected((int) ($filters['year'] ?? now()->year) === (int) $yearOption)>{{ $yearOption }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                    </form>
+                </div>
+
                 <div class="rounded-[1.35rem] border border-dashed border-slate-300 bg-white px-6 py-14 text-center shadow-sm">
                     <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                         <i data-lucide="folder-search-2" class="h-6 w-6"></i>

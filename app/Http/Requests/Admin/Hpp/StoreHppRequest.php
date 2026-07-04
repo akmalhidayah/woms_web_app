@@ -25,9 +25,18 @@ class StoreHppRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        $approvalFlow = $this->input('approval_flow', []);
+
         $this->merge([
             'action' => (string) $this->input('action', 'draft'),
             'area_pekerjaan' => HppApprovalFlow::displayArea((string) $this->input('area_pekerjaan', '')),
+            'approval_flow' => is_array($approvalFlow)
+                ? collect($approvalFlow)
+                    ->map(fn (mixed $role): string => trim((string) $role))
+                    ->filter()
+                    ->values()
+                    ->all()
+                : [],
         ]);
     }
 
@@ -92,6 +101,8 @@ class StoreHppRequest extends FormRequest
             'kategori_pekerjaan' => ['required', Rule::in(HppApprovalFlow::kategoriOptions())],
             'area_pekerjaan' => ['required', Rule::in(array_keys(HppApprovalFlow::areaOptions()))],
             'cost_centre' => ['nullable', 'string', 'max:255'],
+            'approval_flow' => ['nullable', 'array'],
+            'approval_flow.*' => ['required', 'string', 'max:100'],
             'jenis_label_visible' => ['nullable', 'array'],
             'jenis_label_visible.*' => ['nullable', 'string', 'max:255'],
             'sub_jenis_item' => ['nullable', 'array'],

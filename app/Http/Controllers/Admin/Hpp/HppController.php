@@ -446,10 +446,14 @@ class HppController extends Controller
             $nilaiHppBucket,
         );
 
-        $approvalFlow = HppApprovalFlow::resolveApprovalFlow(
+        $defaultApprovalFlow = HppApprovalFlow::resolveApprovalFlow(
             $validated['kategori_pekerjaan'],
             $validated['area_pekerjaan'],
             $nilaiHppBucket,
+        );
+        $approvalFlow = $this->resolveApprovalFlowSnapshot(
+            $defaultApprovalFlow,
+            $payload['approval_flow'] ?? [],
         );
 
         $hpp->fill([
@@ -478,6 +482,52 @@ class HppController extends Controller
             'status' => $validated['action'] === 'submit' ? Hpp::STATUS_IN_REVIEW : Hpp::STATUS_DRAFT,
             'submitted_at' => $validated['action'] === 'submit' ? now() : null,
         ]);
+    }
+
+    /**
+     * @param list<string> $defaultFlow
+     * @return list<string>
+     */
+    private function resolveApprovalFlowSnapshot(array $defaultFlow, mixed $submittedFlow): array
+    {
+        $submittedFlow = is_array($submittedFlow)
+            ? collect($submittedFlow)
+                ->map(fn (mixed $role): string => trim((string) $role))
+                ->filter()
+                ->values()
+                ->all()
+            : [];
+
+        if ($submittedFlow === []) {
+            return array_values($defaultFlow);
+        }
+
+        if ($defaultFlow === [] || ! $this->hasSameApprovalRoles($defaultFlow, $submittedFlow)) {
+            throw ValidationException::withMessages([
+                'approval_flow' => 'Snapshot approval flow hanya boleh diubah urutannya. Role approval tidak boleh ditambah, dihapus, atau diganti.',
+            ]);
+        }
+
+        if (in_array('DIROPS', $submittedFlow, true) && end($submittedFlow) !== 'DIROPS') {
+            throw ValidationException::withMessages([
+                'approval_flow' => 'DIROPS harus tetap menjadi step terakhir karena tahap ini memakai upload dokumen final.',
+            ]);
+        }
+
+        return array_values($submittedFlow);
+    }
+
+    /**
+     * @param list<string> $left
+     * @param list<string> $right
+     */
+    private function hasSameApprovalRoles(array $left, array $right): bool
+    {
+        if (count($left) !== count($right)) {
+            return false;
+        }
+
+        return array_count_values($left) === array_count_values($right);
     }
 
     private function resolvePendingDiropsSignature(Hpp $hpp): ?HppSignature

@@ -96,6 +96,7 @@ class CreateHppForm extends Component
                     $this->hpp?->total_keseluruhan ?? 0,
                 ),
                 'costCentre' => old('cost_centre', $this->hpp?->cost_centre ?? ''),
+                'approvalFlow' => array_values((array) old('approval_flow', $this->hpp?->approval_flow ?? [])),
             ],
             'isEdit' => $this->hpp?->exists ?? false,
             'submitRoute' => $this->hpp?->exists ? route('admin.hpp.update', $this->hpp) : route('admin.hpp.store'),

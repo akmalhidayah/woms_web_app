@@ -29,11 +29,13 @@ class HppApprovalSignatureBuilder
                 return;
             }
 
-            $flow = HppApprovalFlow::resolveApprovalFlow(
-                (string) $hpp->kategori_pekerjaan,
-                (string) $hpp->area_pekerjaan,
-                (string) $hpp->nilai_hpp_bucket,
-            );
+            $flow = is_array($hpp->approval_flow) && $hpp->approval_flow !== []
+                ? array_values($hpp->approval_flow)
+                : HppApprovalFlow::resolveApprovalFlow(
+                    (string) $hpp->kategori_pekerjaan,
+                    (string) $hpp->area_pekerjaan,
+                    (string) $hpp->nilai_hpp_bucket,
+                );
 
             if ($flow === []) {
                 throw ValidationException::withMessages([

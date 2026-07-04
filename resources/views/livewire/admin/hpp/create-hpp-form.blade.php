@@ -42,6 +42,9 @@
         @if ($isEdit)
             @method('PUT')
         @endif
+        <template x-for="(step, index) in approvalFlow" :key="`approval-flow-input-${index}-${step}`">
+            <input type="hidden" name="approval_flow[]" :value="step">
+        </template>
 
         <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div class="mb-3 flex items-start justify-between gap-3">
@@ -232,20 +235,64 @@
                             <div class="mt-0.5 text-[9px] font-semibold text-slate-700" x-text="`${kategoriPekerjaan} / ${areaPekerjaan} / ${bucketOptions[nilaiBucket] || '-'}`"></div>
                         </div>
 
+                        <div class="mt-2 flex items-center justify-between gap-2">
+                            <span class="text-[8px] font-medium text-slate-500" x-text="isDefaultApprovalFlow() ? 'Default flow' : 'Flow disesuaikan'"></span>
+                            <button
+                                type="button"
+                                class="rounded-md border border-slate-200 bg-white px-2 py-1 text-[8px] font-semibold text-slate-600 transition hover:bg-slate-50"
+                                x-show="! isDefaultApprovalFlow()"
+                                @click="resetApprovalFlow()"
+                            >
+                                Reset Default
+                            </button>
+                        </div>
+
                         <ol class="mt-2 space-y-1.5">
-                            <template x-for="(step, index) in approvalFlow" :key="`${previewCase}-${index}`">
+                            <template x-for="(step, index) in approvalFlow" :key="`${previewCase}-${step}-${index}`">
                                 <li
-                                    class="flex items-start gap-2 rounded-lg border px-2.5 py-1.5"
+                                    class="flex items-start gap-2 rounded-lg border px-2.5 py-1.5 transition"
                                     :class="index === 0 ? 'border-emerald-100 bg-emerald-50' : 'border-slate-200 bg-white'"
+                                    draggable="true"
+                                    @dragstart="startApprovalDrag(index)"
+                                    @dragover.prevent
+                                    @drop.prevent="dropApprovalStep(index)"
+                                    @dragend="endApprovalDrag()"
                                 >
+                                    <button
+                                        type="button"
+                                        class="mt-0.5 inline-flex h-4 w-4 shrink-0 cursor-grab items-center justify-center rounded bg-white text-slate-400 ring-1 ring-slate-200 active:cursor-grabbing"
+                                        title="Geser urutan"
+                                    >
+                                        <i data-lucide="grip-vertical" class="h-3 w-3"></i>
+                                    </button>
                                     <span
                                         class="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[8px] font-bold"
                                         :class="index === 0 ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'"
                                         x-text="index + 1"
                                     ></span>
-                                    <div class="min-w-0">
+                                    <div class="min-w-0 flex-1">
                                         <div class="text-[9px] font-semibold leading-4 text-slate-800" x-text="step"></div>
                                         <div class="text-[8px]" :class="index === 0 ? 'text-emerald-700' : 'text-slate-500'" x-text="index === 0 ? 'Aktif pertama' : 'Waiting'"></div>
+                                    </div>
+                                    <div class="flex shrink-0 flex-col gap-1">
+                                        <button
+                                            type="button"
+                                            class="inline-flex h-4 w-4 items-center justify-center rounded border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                            title="Naikkan"
+                                            @click="moveApprovalStep(index, index - 1)"
+                                            :disabled="! canMoveApprovalStep(index, index - 1)"
+                                        >
+                                            <i data-lucide="chevron-up" class="h-3 w-3"></i>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="inline-flex h-4 w-4 items-center justify-center rounded border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                            title="Turunkan"
+                                            @click="moveApprovalStep(index, index + 1)"
+                                            :disabled="! canMoveApprovalStep(index, index + 1)"
+                                        >
+                                            <i data-lucide="chevron-down" class="h-3 w-3"></i>
+                                        </button>
                                     </div>
                                 </li>
                             </template>
@@ -322,6 +369,8 @@
             unitKerja: '',
             seksiPeminta: '',
             seksiPengendali: '',
+            approvalFlow: [],
+            draggedApprovalIndex: null,
             init() {
                 if (! this.selectedOrder && this.orderOptions.length > 0) {
                     this.selectedOrder = String(this.orderOptions[0].value);
@@ -333,8 +382,13 @@
 
                 this.syncOrderFields();
                 this.syncOutlineAgreementFields();
+                this.syncApprovalFlow(config.initialState.approvalFlow ?? []);
                 this.$watch('selectedOrder', () => this.syncOrderFields());
                 this.$watch('selectedOutlineAgreement', () => this.syncOutlineAgreementFields());
+                this.$watch('kategoriPekerjaan', () => this.resetApprovalFlow());
+                this.$watch('areaPekerjaan', () => this.resetApprovalFlow());
+                this.$watch('nilaiBucket', () => this.resetApprovalFlow());
+                this.refreshApprovalIcons();
             },
             get selectedOrderData() {
                 return this.orderOptions.find((order) => String(order.value) === String(this.selectedOrder)) ?? {};
@@ -364,10 +418,85 @@
 
                 return `${prefix}-${area}-${bucket}`;
             },
-            get approvalFlow() {
+            defaultApprovalFlow() {
                 const areaKey = this.areaKeysByLabel?.[this.areaPekerjaan] ?? this.areaPekerjaan;
 
-                return this.flowMatrix?.[this.kategoriPekerjaan]?.[areaKey]?.[this.nilaiBucket] ?? [];
+                return [...(this.flowMatrix?.[this.kategoriPekerjaan]?.[areaKey]?.[this.nilaiBucket] ?? [])];
+            },
+            syncApprovalFlow(candidate = []) {
+                const defaultFlow = this.defaultApprovalFlow();
+                const flow = Array.isArray(candidate)
+                    ? candidate.map((step) => String(step ?? '').trim()).filter(Boolean)
+                    : [];
+
+                this.approvalFlow = this.hasSameApprovalRoles(flow, defaultFlow) ? flow : defaultFlow;
+                this.refreshApprovalIcons();
+            },
+            resetApprovalFlow() {
+                this.approvalFlow = this.defaultApprovalFlow();
+                this.refreshApprovalIcons();
+            },
+            hasSameApprovalRoles(left, right) {
+                if (! Array.isArray(left) || ! Array.isArray(right) || left.length !== right.length) {
+                    return false;
+                }
+
+                const counts = (items) => items.reduce((result, item) => {
+                    result[item] = (result[item] ?? 0) + 1;
+
+                    return result;
+                }, {});
+
+                const leftCounts = counts(left);
+                const rightCounts = counts(right);
+
+                return Object.keys(leftCounts).length === Object.keys(rightCounts).length
+                    && Object.keys(leftCounts).every((key) => leftCounts[key] === rightCounts[key]);
+            },
+            isDefaultApprovalFlow() {
+                const defaultFlow = this.defaultApprovalFlow();
+
+                return this.approvalFlow.length === defaultFlow.length
+                    && this.approvalFlow.every((step, index) => step === defaultFlow[index]);
+            },
+            canMoveApprovalStep(from, to) {
+                if (to < 0 || to >= this.approvalFlow.length || from === to) {
+                    return false;
+                }
+
+                const flow = [...this.approvalFlow];
+                const [step] = flow.splice(from, 1);
+                flow.splice(to, 0, step);
+
+                return ! flow.includes('DIROPS') || flow[flow.length - 1] === 'DIROPS';
+            },
+            moveApprovalStep(from, to) {
+                if (! this.canMoveApprovalStep(from, to)) {
+                    return;
+                }
+
+                const flow = [...this.approvalFlow];
+                const [step] = flow.splice(from, 1);
+                flow.splice(to, 0, step);
+                this.approvalFlow = flow;
+                this.refreshApprovalIcons();
+            },
+            startApprovalDrag(index) {
+                this.draggedApprovalIndex = index;
+            },
+            dropApprovalStep(index) {
+                if (this.draggedApprovalIndex === null) {
+                    return;
+                }
+
+                this.moveApprovalStep(this.draggedApprovalIndex, index);
+                this.draggedApprovalIndex = null;
+            },
+            endApprovalDrag() {
+                this.draggedApprovalIndex = null;
+            },
+            refreshApprovalIcons() {
+                this.$nextTick(() => window.lucide?.createIcons());
             },
         };
     }

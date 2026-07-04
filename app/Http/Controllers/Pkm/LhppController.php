@@ -291,7 +291,12 @@ class LhppController extends Controller
                 $serviceRowsPayload,
             );
             $qualityControlStatus = $terminType === 'termin_2' ? 'approved' : 'pending';
-            $approvalPayload = $this->resolveApprovalPayload($terminType, $parentLhpp, $calculation['totals']);
+            $approvalPayload = $this->resolveApprovalPayload(
+                $terminType,
+                $parentLhpp,
+                $calculation['totals'],
+                $request->input('approval_flow', []),
+            );
 
             $lhpp = DB::transaction(function () use (
                 $order,
@@ -443,7 +448,12 @@ class LhppController extends Controller
                 $materialRowsPayload,
                 $serviceRowsPayload,
             );
-            $approvalPayload = $this->resolveApprovalPayload($terminType, $parentLhpp, $calculation['totals']);
+            $approvalPayload = $this->resolveApprovalPayload(
+                $terminType,
+                $parentLhpp,
+                $calculation['totals'],
+                $request->input('approval_flow', []),
+            );
             $hasSignatures = $lhpp->signatures()->exists();
 
             $lhpp = DB::transaction(function () use (
@@ -1263,6 +1273,8 @@ class LhppController extends Controller
             'bastOrderOptions' => $orderOptions,
             'selectedBastOrder' => $selectedOrder,
             'selectedThreshold' => old('approval_threshold', $lhpp?->approval_threshold ?? $parentLhpp?->approval_threshold ?? $this->resolveThresholdFromTotals($terminType, $calculation['totals'])),
+            'selectedApprovalFlow' => array_values((array) old('approval_flow', $lhpp?->approval_flow ?? $parentLhpp?->approval_flow ?? [])),
+            'approvalFlowMatrix' => BastApprovalFlow::flowMatrix(),
             'selectedTipePekerjaan' => $selectedTipePekerjaan,
             'tipePekerjaanOptions' => LhppBast::tipePekerjaanOptions(),
             'bastDate' => old('tanggal_bast', optional($lhpp?->tanggal_bast)->format('Y-m-d') ?? now()->format('Y-m-d')),
@@ -1323,24 +1335,71 @@ class LhppController extends Controller
      * @param  array<string, mixed>  $totals
      * @return array{approval_threshold: string, approval_case: ?string, approval_flow: list<string>}
      */
-    private function resolveApprovalPayload(string $terminType, ?LhppBast $parentLhpp, array $totals): array
+    private function resolveApprovalPayload(string $terminType, ?LhppBast $parentLhpp, array $totals, mixed $submittedFlow = []): array
     {
         $threshold = $terminType === 'termin_2' && $parentLhpp
             ? (string) ($parentLhpp->approval_threshold ?: $this->resolveThresholdFromTotals('termin_1', $totals))
             : $this->resolveThresholdFromTotals($terminType, $totals);
 
-        $flow = $terminType === 'termin_2'
+        $defaultFlow = $terminType === 'termin_2'
             && $parentLhpp
             && is_array($parentLhpp->approval_flow)
             && $parentLhpp->approval_flow !== []
                 ? array_values($parentLhpp->approval_flow)
                 : BastApprovalFlow::resolveApprovalFlow($threshold);
+        $flow = $this->resolveApprovalFlowSnapshot($defaultFlow, $submittedFlow);
 
         return [
             'approval_threshold' => $threshold,
             'approval_case' => BastApprovalFlow::resolveApprovalCase($terminType, $threshold),
             'approval_flow' => $flow,
         ];
+    }
+
+    /**
+     * @param list<string> $defaultFlow
+     * @return list<string>
+     */
+    private function resolveApprovalFlowSnapshot(array $defaultFlow, mixed $submittedFlow): array
+    {
+        $submittedFlow = is_array($submittedFlow)
+            ? collect($submittedFlow)
+                ->map(fn (mixed $role): string => trim((string) $role))
+                ->filter()
+                ->values()
+                ->all()
+            : [];
+
+        if ($submittedFlow === []) {
+            return array_values($defaultFlow);
+        }
+
+        if ($defaultFlow === [] || ! $this->hasSameApprovalRoles($defaultFlow, $submittedFlow)) {
+            throw ValidationException::withMessages([
+                'approval_flow' => 'Snapshot approval flow BAST hanya boleh diubah urutannya. Role approval tidak boleh ditambah, dihapus, atau diganti.',
+            ]);
+        }
+
+        if (in_array('DIROPS', $submittedFlow, true) && end($submittedFlow) !== 'DIROPS') {
+            throw ValidationException::withMessages([
+                'approval_flow' => 'DIROPS harus tetap menjadi step terakhir karena tahap ini memakai upload dokumen final.',
+            ]);
+        }
+
+        return array_values($submittedFlow);
+    }
+
+    /**
+     * @param list<string> $left
+     * @param list<string> $right
+     */
+    private function hasSameApprovalRoles(array $left, array $right): bool
+    {
+        if (count($left) !== count($right)) {
+            return false;
+        }
+
+        return array_count_values($left) === array_count_values($right);
     }
 
     private function normalizeTerminType(string $termin): string

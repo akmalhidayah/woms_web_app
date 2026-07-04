@@ -16,6 +16,21 @@ class StoreLhppBastRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $approvalFlow = $this->input('approval_flow', []);
+
+        $this->merge([
+            'approval_flow' => is_array($approvalFlow)
+                ? collect($approvalFlow)
+                    ->map(fn (mixed $role): string => trim((string) $role))
+                    ->filter()
+                    ->values()
+                    ->all()
+                : [],
+        ]);
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -28,6 +43,8 @@ class StoreLhppBastRequest extends FormRequest
             'tanggal_bast' => ['required', 'date'],
             'nomor_order' => ['required', 'exists:orders,nomor_order'],
             'approval_threshold' => ['required', 'in:under_250,over_250'],
+            'approval_flow' => ['nullable', 'array'],
+            'approval_flow.*' => ['required', 'string', 'max:100'],
             'tipe_pekerjaan' => ['required', Rule::in(array_keys(LhppBast::tipePekerjaanOptions() + LhppBast::legacyTipePekerjaanOptions()))],
             'tanggal_mulai_pekerjaan' => ['nullable', 'date'],
             'tanggal_selesai_pekerjaan' => ['nullable', 'date', 'after_or_equal:tanggal_mulai_pekerjaan'],

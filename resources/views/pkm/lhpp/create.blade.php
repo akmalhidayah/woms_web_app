@@ -23,6 +23,8 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
             $bastOrderOptions = collect($bastOrderOptions ?? []);
             $selectedBastOrder = (string) old('nomor_order', $selectedBastOrder ?? '');
             $selectedThreshold = (string) old('approval_threshold', $selectedThreshold ?? 'under_250');
+            $approvalFlowMatrix = $approvalFlowMatrix ?? [];
+            $selectedApprovalFlow = array_values((array) old('approval_flow', $selectedApprovalFlow ?? []));
             $existingImages = collect($existingImages ?? []);
             $materialRows = collect($initialMaterialRows ?? [
                 ['jenis_item' => '', 'kategori_item' => '', 'name' => '', 'volume' => '', 'unit' => '', 'unit_price' => '', 'amount' => '0.00', 'amount_display' => '0'],
@@ -67,12 +69,14 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     isTipePekerjaanLocked: @js($isTipePekerjaanLocked),
                     selectedTipePekerjaan: @js($selectedTipePekerjaan),
                     tipePekerjaanOptions: @js($tipePekerjaanOptions->all()),
+                    approvalFlowMatrix: @js($approvalFlowMatrix),
+                    approvalFlow: @js($selectedApprovalFlow),
                     workStartDate: @js($tanggalMulaiPekerjaan),
                     workFinishDate: @js($tanggalSelesaiPekerjaan),
                     useFixedWorkDates: @js($useFixedWorkDates),
                     hppValueMatchesBast: false,
                 })"
-                x-init="recalculate()"
+                x-init="syncApprovalFlow(approvalFlow); recalculate()"
                 class="mt-4 rounded-[1.2rem] border border-slate-200 bg-white p-4 shadow-sm"
             >
                 <form id="pkm-lhpp-create-form" method="POST" action="{{ $formAction }}" enctype="multipart/form-data" class="space-y-4">
@@ -82,6 +86,9 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     @endif
                     <input type="hidden" name="termin_type" value="{{ $terminType }}">
                     <input type="hidden" name="approval_threshold" :value="approvalThreshold">
+                    <template x-for="(step, index) in approvalFlow" :key="`bast-approval-flow-input-${index}-${step}`">
+                        <input type="hidden" name="approval_flow[]" :value="step">
+                    </template>
                     @if ($errors->has('form'))
                         <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                             {{ $errors->first('form') }}
@@ -170,48 +177,81 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                         <div class="text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-500">Flow Approval</div>
                                         <div class="mt-0.5 text-[11px] font-black text-slate-900">BAST {{ $terminLabel }}</div>
                                     </div>
-                                    <span class="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-[8px] font-bold text-[#ca642f] ring-1 ring-orange-200" x-text="approvalThreshold === 'over_250' ? '> 250 JT' : '< 250 JT'"></span>
+                                    <div class="flex shrink-0 items-center gap-1.5">
+                                        <span class="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-[8px] font-bold text-[#ca642f] ring-1 ring-orange-200" x-text="approvalThreshold === 'over_250' ? '> 250 JT' : '< 250 JT'"></span>
+                                        <span class="inline-flex items-center rounded-full bg-white px-2 py-0.5 text-[8px] font-bold text-slate-600 ring-1 ring-slate-200" x-text="`${approvalFlow.length} step`"></span>
+                                    </div>
                                 </div>
 
-                                <div class="mt-2 space-y-1">
-                                    <div class="flex items-center gap-1.5">
-                                        <div class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[8px] font-black text-slate-700">1</div>
-                                        <div class="min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
-                                            <div class="truncate text-[9px] font-bold text-slate-900">Manager PKM</div>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center gap-1.5">
-                                        <div class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[8px] font-black text-slate-700">2</div>
-                                        <div class="min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
-                                            <div class="truncate text-[9px] font-bold text-slate-900">Manager Pengendali</div>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center gap-1.5">
-                                        <div class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[8px] font-black text-slate-700">3</div>
-                                        <div class="min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
-                                            <div class="truncate text-[9px] font-bold text-slate-900">Manager Peminta</div>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center gap-1.5">
-                                        <div class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[8px] font-black text-slate-700">4</div>
-                                        <div class="min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
-                                            <div class="truncate text-[9px] font-bold text-slate-900">GM Pengendali</div>
-                                        </div>
-                                    </div>
+                                <div class="mt-2 flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
+                                    <span class="text-[8px] font-semibold text-slate-500" x-text="isDefaultApprovalFlow() ? 'Default flow' : 'Flow disesuaikan'"></span>
+                                    <button
+                                        type="button"
+                                        class="rounded-md border border-slate-200 bg-white px-2 py-1 text-[8px] font-bold text-slate-600 transition hover:bg-slate-50"
+                                        x-show="! isDefaultApprovalFlow()"
+                                        @click="resetApprovalFlow()"
+                                    >
+                                        Reset Default
+                                    </button>
+                                </div>
 
-                                    <template x-if="approvalThreshold === 'over_250'">
-                                        <div>
-                                            <div class="flex items-center gap-1.5">
-                                                <div class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#fde9db] text-[8px] font-black text-[#ca642f]">5</div>
-                                                <div class="min-w-0 flex-1 rounded-md border border-orange-200 bg-orange-50 px-2 py-1.5">
-                                                    <div class="truncate text-[9px] font-bold text-[#9a4f28]">Dirops</div>
-                                                </div>
+                                <ol class="mt-2 space-y-1">
+                                    <template x-for="(step, index) in approvalFlow" :key="`${approvalThreshold}-${step}-${index}`">
+                                        <li
+                                            class="flex items-center gap-1.5 rounded-md border px-2 py-1.5 transition"
+                                            :class="index === 0 ? 'border-emerald-100 bg-emerald-50' : (step === 'DIROPS' ? 'border-orange-200 bg-orange-50' : 'border-slate-200 bg-slate-50')"
+                                            draggable="true"
+                                            @dragstart="startApprovalDrag(index)"
+                                            @dragover.prevent
+                                            @drop.prevent="dropApprovalStep(index)"
+                                            @dragend="endApprovalDrag()"
+                                        >
+                                            <button
+                                                type="button"
+                                                class="inline-flex h-5 w-5 shrink-0 cursor-grab items-center justify-center rounded bg-white text-slate-400 ring-1 ring-slate-200 active:cursor-grabbing"
+                                                title="Geser urutan"
+                                            >
+                                                <i data-lucide="grip-vertical" class="h-3 w-3"></i>
+                                            </button>
+                                            <div
+                                                class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[8px] font-black"
+                                                :class="index === 0 ? 'bg-emerald-600 text-white' : (step === 'DIROPS' ? 'bg-[#fde9db] text-[#ca642f]' : 'bg-slate-100 text-slate-700')"
+                                                x-text="index + 1"
+                                            ></div>
+                                            <div class="min-w-0 flex-1">
+                                                <div class="truncate text-[9px] font-bold" :class="step === 'DIROPS' ? 'text-[#9a4f28]' : 'text-slate-900'" x-text="step"></div>
+                                                <div class="text-[8px]" :class="index === 0 ? 'text-emerald-700' : 'text-slate-500'" x-text="index === 0 ? 'Aktif pertama' : 'Waiting'"></div>
                                             </div>
-                                        </div>
+                                            <div class="flex shrink-0 flex-col gap-1">
+                                                <button
+                                                    type="button"
+                                                    class="inline-flex h-4 w-4 items-center justify-center rounded border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                                    title="Naikkan"
+                                                    @click="moveApprovalStep(index, index - 1)"
+                                                    :disabled="! canMoveApprovalStep(index, index - 1)"
+                                                >
+                                                    <i data-lucide="chevron-up" class="h-3 w-3"></i>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    class="inline-flex h-4 w-4 items-center justify-center rounded border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                                    title="Turunkan"
+                                                    @click="moveApprovalStep(index, index + 1)"
+                                                    :disabled="! canMoveApprovalStep(index, index + 1)"
+                                                >
+                                                    <i data-lucide="chevron-down" class="h-3 w-3"></i>
+                                                </button>
+                                            </div>
+                                        </li>
                                     </template>
-                                </div>
+                                </ol>
+                                <p class="mt-2 text-[8px] leading-relaxed text-slate-500">Urutan bisa digeser sebelum approval berjalan. DIROPS tetap di akhir karena memakai upload dokumen final.</p>
+                                @error('approval_flow')
+                                    <p class="mt-2 text-[9px] font-semibold text-rose-600">{{ $message }}</p>
+                                @enderror
                             </div>
                         </div>
+                    </div>
                     </div>
 
                     @unless ($isTerminTwoLocked)
@@ -485,6 +525,9 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     selectedTipePekerjaan: config.selectedTipePekerjaan,
                     isTipePekerjaanLocked: config.isTipePekerjaanLocked,
                     tipePekerjaanOptions: config.tipePekerjaanOptions,
+                    approvalFlowMatrix: config.approvalFlowMatrix,
+                    approvalFlow: Array.isArray(config.approvalFlow) ? config.approvalFlow : [],
+                    draggedApprovalIndex: null,
                     workStartDate: config.workStartDate,
                     workFinishDate: config.workFinishDate,
                     useFixedWorkDates: config.useFixedWorkDates,
@@ -558,6 +601,83 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     },
                     approvalThresholdLabel() {
                         return this.approvalThreshold === 'over_250' ? 'Diatas 250 JT' : 'Dibawah 250 JT';
+                    },
+                    defaultApprovalFlow() {
+                        return [...(this.approvalFlowMatrix?.[this.approvalThreshold] ?? [])];
+                    },
+                    syncApprovalFlow(candidate = []) {
+                        const defaultFlow = this.defaultApprovalFlow();
+                        const flow = Array.isArray(candidate)
+                            ? candidate.map((step) => String(step ?? '').trim()).filter(Boolean)
+                            : [];
+
+                        this.approvalFlow = this.hasSameApprovalRoles(flow, defaultFlow) ? flow : defaultFlow;
+                        this.refreshApprovalIcons();
+                    },
+                    resetApprovalFlow() {
+                        this.approvalFlow = this.defaultApprovalFlow();
+                        this.refreshApprovalIcons();
+                    },
+                    hasSameApprovalRoles(left, right) {
+                        if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) {
+                            return false;
+                        }
+
+                        const counts = (items) => items.reduce((result, item) => {
+                            result[item] = (result[item] ?? 0) + 1;
+
+                            return result;
+                        }, {});
+                        const leftCounts = counts(left);
+                        const rightCounts = counts(right);
+
+                        return Object.keys(leftCounts).length === Object.keys(rightCounts).length
+                            && Object.keys(leftCounts).every((key) => leftCounts[key] === rightCounts[key]);
+                    },
+                    isDefaultApprovalFlow() {
+                        const defaultFlow = this.defaultApprovalFlow();
+
+                        return this.approvalFlow.length === defaultFlow.length
+                            && this.approvalFlow.every((step, index) => step === defaultFlow[index]);
+                    },
+                    canMoveApprovalStep(from, to) {
+                        if (to < 0 || to >= this.approvalFlow.length || from === to) {
+                            return false;
+                        }
+
+                        const flow = [...this.approvalFlow];
+                        const [step] = flow.splice(from, 1);
+                        flow.splice(to, 0, step);
+
+                        return !flow.includes('DIROPS') || flow[flow.length - 1] === 'DIROPS';
+                    },
+                    moveApprovalStep(from, to) {
+                        if (!this.canMoveApprovalStep(from, to)) {
+                            return;
+                        }
+
+                        const flow = [...this.approvalFlow];
+                        const [step] = flow.splice(from, 1);
+                        flow.splice(to, 0, step);
+                        this.approvalFlow = flow;
+                        this.refreshApprovalIcons();
+                    },
+                    startApprovalDrag(index) {
+                        this.draggedApprovalIndex = index;
+                    },
+                    dropApprovalStep(index) {
+                        if (this.draggedApprovalIndex === null) {
+                            return;
+                        }
+
+                        this.moveApprovalStep(this.draggedApprovalIndex, index);
+                        this.draggedApprovalIndex = null;
+                    },
+                    endApprovalDrag() {
+                        this.draggedApprovalIndex = null;
+                    },
+                    refreshApprovalIcons() {
+                        this.$nextTick(() => window.lucide?.createIcons());
                     },
                     formatCurrency(value) {
                         const amount = Number(value || 0);
@@ -665,7 +785,12 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                             this.materialRows = result.material_rows;
                             this.serviceRows = result.service_rows;
                             this.calculation = result.totals;
-                            this.approvalThreshold = this.resolveThreshold();
+                            const nextThreshold = this.resolveThreshold();
+
+                            if (nextThreshold !== this.approvalThreshold) {
+                                this.approvalThreshold = nextThreshold;
+                                this.resetApprovalFlow();
+                            }
 
                             this.$nextTick(() => {
                                 if (window.lucide?.createIcons) {

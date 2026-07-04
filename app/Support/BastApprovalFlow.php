@@ -43,14 +43,14 @@ class BastApprovalFlow
         return [
             'under_250' => [
                 'Manager PKM',
-                'Manager Pengendali',
                 'Manager Peminta',
+                'Manager Pengendali',
                 'GM Pengendali',
             ],
             'over_250' => [
                 'Manager PKM',
-                'Manager Pengendali',
                 'Manager Peminta',
+                'Manager Pengendali',
                 'GM Pengendali',
                 'DIROPS',
             ],

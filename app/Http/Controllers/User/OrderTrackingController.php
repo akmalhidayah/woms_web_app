@@ -40,8 +40,12 @@ class OrderTrackingController extends Controller
 
     public function index(Request $request): View
     {
+        $orderType = $request->string('order_type')->toString();
+        $orderType = in_array($orderType, ['workshop', 'service'], true) ? $orderType : 'all';
+
         $filters = [
             'notification_number' => trim((string) $request->string('notification_number')),
+            'order_type' => $orderType,
             'unit_work' => trim((string) $request->string('unit_work')),
             'sortOrder' => $request->string('sortOrder')->toString() === 'oldest' ? 'oldest' : 'latest',
             'entries' => max(10, min(100, (int) $request->integer('entries', 10))),
@@ -399,10 +403,21 @@ class OrderTrackingController extends Controller
 
                 $builder->where(function (Builder $query) use ($needle): void {
                     $query
-                        ->where('nomor_order', 'like', "{$needle}%")
-                        ->orWhere('notifikasi', 'like', "{$needle}%");
+                        ->where('nomor_order', 'like', "%{$needle}%")
+                        ->orWhere('notifikasi', 'like', "%{$needle}%")
+                        ->orWhere('nama_pekerjaan', 'like', "%{$needle}%");
                 });
             })
+            ->when($filters['order_type'] === 'workshop', function (Builder $builder): void {
+                $builder->whereIn('catatan_status', [
+                    OrderUserNoteStatus::ApprovedWorkshop->value,
+                    OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+                ]);
+            })
+            ->when(
+                $filters['order_type'] === 'service',
+                fn (Builder $builder) => $builder->where('catatan_status', OrderUserNoteStatus::ApprovedJasa->value)
+            )
             ->when(
                 $filters['unit_work'] !== '',
                 fn (Builder $builder) => $builder->where('unit_kerja', $filters['unit_work'])

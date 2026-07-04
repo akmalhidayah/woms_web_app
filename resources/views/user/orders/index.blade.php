@@ -181,17 +181,35 @@
             x-transition.opacity.duration.150ms
             x-cloak
         >
-            <form method="GET" action="{{ route('user.dashboard') }}" class="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-[minmax(220px,1.6fr)_minmax(160px,0.9fr)_minmax(130px,0.6fr)_minmax(110px,0.45fr)_auto] lg:items-end" data-dashboard-filter-form>
+            <form method="GET" action="{{ route('user.dashboard') }}" class="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-[minmax(220px,1.45fr)_minmax(180px,0.72fr)_minmax(150px,0.8fr)_minmax(120px,0.55fr)_minmax(95px,0.4fr)_auto] lg:items-end" data-dashboard-filter-form>
                 <div class="col-span-2 space-y-1 md:space-y-1.5 lg:col-span-1">
-                    <label for="notification_number" class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-600">Order / Notifikasi</label>
+                    <label for="notification_number" class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-600">Order / Notifikasi / Pekerjaan</label>
                     <input
                         id="notification_number"
                         type="text"
                         name="notification_number"
                         value="{{ $filters['notification_number'] }}"
-                        placeholder="Cari nomor order / notifikasi..."
+                        placeholder="Cari nomor order / notifikasi / pekerjaan..."
                         class="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 placeholder:text-slate-400 shadow-sm transition focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-red-100 md:h-10 md:px-3.5"
                     >
+                </div>
+
+                <div class="col-span-2 space-y-1 md:space-y-1.5 lg:col-span-1">
+                    <div class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-600">Jenis</div>
+                    <div class="grid h-9 grid-cols-3 rounded-lg border border-slate-300 bg-white p-1 shadow-sm md:h-10">
+                        @foreach ([
+                            'all' => 'Semua',
+                            'workshop' => 'Bengkel',
+                            'service' => 'Jasa',
+                        ] as $value => $label)
+                            <label class="relative min-w-0">
+                                <input type="radio" name="order_type" value="{{ $value }}" class="peer sr-only" @checked(($filters['order_type'] ?? 'all') === $value)>
+                                <span class="flex h-full min-w-0 cursor-pointer items-center justify-center rounded-md px-2 text-[11px] font-black text-slate-500 transition peer-checked:bg-[#7f1017] peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-red-200">
+                                    {{ $label }}
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
                 </div>
 
                 <div class="col-span-2 space-y-1 md:space-y-1.5 lg:col-span-1">

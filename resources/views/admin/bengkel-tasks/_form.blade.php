@@ -47,13 +47,19 @@
     $selectedProgressStatus = old('progress_status', $task?->progress_status ?? \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL);
     $selectedPendingReason = old('pending_reason', $task?->pending_reason);
     $linkedOrder = $task?->order;
+    $isDisplayManagedOrder = $linkedOrder
+        && (
+            str_contains((string) $linkedOrder->deskripsi, 'Dibuat dari Display Pekerjaan Bengkel.')
+            || str_contains((string) $linkedOrder->deskripsi, 'Arsip dari Display Pekerjaan Bengkel.')
+            || str_starts_with((string) $linkedOrder->nomor_order, 'MANUAL-BENGKEL-')
+        );
+    $isOrderLocked = $linkedOrder && ! $isDisplayManagedOrder;
     $selectedRegu = old('catatan', $task?->catatan);
     $progressOptions = $progressOptions ?? \App\Models\OrderWorkshop::progressOptions();
     $unitsPayload = $units->map(fn ($unit) => [
         'name' => $unit->name,
         'sections' => $unit->sections->pluck('name')->values()->all(),
     ])->values()->all();
-    $workshopOrdersPayload = collect($workshopOrders ?? [])->values()->all();
 @endphp
 
 <div class="space-y-6">
@@ -74,24 +80,16 @@
             <div class="space-y-4">
                 <div>
                     <input id="order_id" type="hidden" name="order_id" value="{{ $selectedOrderId }}">
-                    <input id="notification_number" type="hidden" name="notification_number" value="{{ $selectedNotificationNumber }}">
-                    <label for="workshop_order_source" class="mb-1.5 block text-[11px] font-semibold text-slate-700">Nomor Order / Notifikasi</label>
-                    @if ($linkedOrder)
+                    <label for="notification_number" class="mb-1.5 block text-[11px] font-semibold text-slate-700">Nomor Order / Notifikasi</label>
+                    @if ($isOrderLocked)
+                        <input id="notification_number" type="hidden" name="notification_number" value="{{ $selectedNotificationNumber }}">
                         <div class="rounded-xl border border-blue-100 bg-blue-50/60 px-3 py-2.5 text-sm font-semibold text-slate-800">
                             {{ $linkedOrder->nomor_order ?: '-' }} - {{ \Illuminate\Support\Str::limit($linkedOrder->nama_pekerjaan, 90) }}
                         </div>
                         <div class="mt-1 text-[10px] text-slate-500">Data pekerjaan otomatis mengikuti Order Pekerjaan Bengkel. Lengkapi PIC, uraian, dan lampiran melalui tombol edit ini.</div>
                     @else
-                        <select id="workshop_order_source" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
-                            <option value="">+ Isi manual / tambah nomor</option>
-                            @foreach ($workshopOrdersPayload as $order)
-                                <option value="{{ $order['id'] }}" @selected($selectedOrderId !== '' && (string) $order['id'] === $selectedOrderId)>
-                                    {{ $order['nomor_order'] }} - {{ \Illuminate\Support\Str::limit($order['nama_pekerjaan'], 80) }}
-                                </option>
-                            @endforeach
-                        </select>
-                        <input id="notification_number_manual" type="text" value="{{ $selectedNotificationNumber }}" class="{{ $selectedOrderId !== '' ? 'hidden' : '' }} mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none" placeholder="Ketik nomor order / notifikasi manual">
-                        <div class="mt-1 text-[10px] text-slate-500">Pilih order untuk mengisi data otomatis, atau pilih isi manual jika nomor belum ada di daftar.</div>
+                        <input id="notification_number" type="text" name="notification_number" value="{{ $selectedNotificationNumber }}" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none" placeholder="Ketik nomor order / notifikasi manual">
+                        <div class="mt-1 text-[10px] text-slate-500">Isi manual. Data ini otomatis dibuatkan Order Pekerjaan Bengkel agar tampil juga di dashboard user.</div>
                     @endif
                     @error('order_id')
                         <div class="mt-1 text-[11px] font-medium text-rose-600">{{ $message }}</div>
@@ -133,7 +131,7 @@
 
                     <div>
                         <label for="catatan" class="mb-1.5 block text-[11px] font-semibold text-slate-700">Regu</label>
-                        @if ($linkedOrder)
+                        @if ($isOrderLocked)
                             <input type="hidden" name="catatan" value="{{ $selectedRegu }}">
                             <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700">
                                 {{ $selectedRegu ?: 'Regu Fabrikasi' }}
@@ -405,14 +403,6 @@
         const sectionSelect = document.getElementById('seksi');
         const units = @json($unitsPayload);
         const selectedSection = @json($selectedSection);
-        const workshopOrderSelect = document.getElementById('workshop_order_source');
-        const workshopOrders = @json($workshopOrdersPayload);
-        const jobNameInput = document.getElementById('job_name');
-        const notificationInput = document.getElementById('notification_number');
-        const notificationManualInput = document.getElementById('notification_number_manual');
-        const usagePlanInput = document.getElementById('usage_plan_date');
-        const orderIdInput = document.getElementById('order_id');
-        const progressStatusSelect = document.getElementById('progress_status');
 
         if (! unitSelect || ! sectionSelect) {
             return;
@@ -444,74 +434,6 @@
 
         unitSelect.addEventListener('change', () => {
             renderSections(unitSelect.value, '');
-        });
-
-        workshopOrderSelect?.addEventListener('change', () => {
-            const selected = workshopOrders.find((order) => String(order.id) === workshopOrderSelect.value);
-
-            if (! selected) {
-                if (orderIdInput) {
-                    orderIdInput.value = '';
-                }
-
-                if (notificationManualInput) {
-                    notificationManualInput.classList.remove('hidden');
-                    notificationManualInput.focus();
-                }
-
-                if (notificationInput && notificationManualInput) {
-                    notificationInput.value = notificationManualInput.value || '';
-                }
-
-                return;
-            }
-
-            if (orderIdInput) {
-                orderIdInput.value = selected.id || '';
-            }
-
-            if (jobNameInput) {
-                jobNameInput.value = selected.nama_pekerjaan || '';
-            }
-
-            if (notificationInput) {
-                notificationInput.value = selected.nomor_order || selected.notifikasi || '';
-            }
-
-            if (notificationManualInput) {
-                notificationManualInput.value = selected.nomor_order || selected.notifikasi || '';
-                notificationManualInput.classList.add('hidden');
-            }
-
-            if (unitSelect) {
-                const unitExists = units.some((unit) => unit.name === selected.unit_kerja);
-                unitSelect.value = unitExists ? selected.unit_kerja : '';
-            }
-
-            renderSections(unitSelect.value, selected.seksi || '');
-
-            if (selected.seksi && ! Array.from(sectionSelect.options).some((option) => option.value === selected.seksi)) {
-                const option = document.createElement('option');
-                option.value = selected.seksi;
-                option.textContent = selected.seksi;
-                option.selected = true;
-                sectionSelect.appendChild(option);
-            }
-
-            if (usagePlanInput) {
-                usagePlanInput.value = selected.target_selesai || '';
-            }
-
-            if (progressStatusSelect && selected.progress_status) {
-                progressStatusSelect.value = selected.progress_status;
-                progressStatusSelect.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        });
-
-        notificationManualInput?.addEventListener('input', () => {
-            if (notificationInput) {
-                notificationInput.value = notificationManualInput.value || '';
-            }
         });
     });
 </script>

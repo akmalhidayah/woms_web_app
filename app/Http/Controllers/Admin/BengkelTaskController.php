@@ -25,6 +25,8 @@ class BengkelTaskController extends Controller
     private const ATTACHMENT_DISK = 'public';
     private const ATTACHMENT_DIRECTORY = 'bengkel-task-attachments';
     private const ARCHIVE_ORDER_PREFIX = 'MANUAL-BENGKEL-';
+    private const MANUAL_DISPLAY_DESCRIPTION = 'Dibuat dari Display Pekerjaan Bengkel.';
+    private const ARCHIVE_DISPLAY_DESCRIPTION = 'Arsip dari Display Pekerjaan Bengkel.';
 
     private const CATATAN_REGU_ALLOWED = [
         'Regu Fabrikasi',
@@ -39,6 +41,7 @@ class BengkelTaskController extends Controller
     public function index(Request $request): View
     {
         $this->workshopOrderTaskSyncer->syncOpenWorkshopOrders();
+        $this->syncActiveManualTasksToOrders($request->user()?->id);
 
         $q = trim((string) $request->get('q', ''));
         $regu = trim((string) $request->get('regu', ''));
@@ -171,14 +174,12 @@ class BengkelTaskController extends Controller
         $picOptions = BengkelPic::query()->orderBy('name')->get();
         $catatanOptions = self::CATATAN_REGU_ALLOWED;
         $units = UnitWork::with('sections')->orderBy('name')->get();
-        $workshopOrders = $this->workshopOrderOptions();
         $progressOptions = OrderWorkshop::progressOptions();
 
         return view('admin.bengkel-tasks.create', compact(
             'picOptions',
             'catatanOptions',
             'units',
-            'workshopOrders',
             'progressOptions',
         ));
     }
@@ -196,6 +197,7 @@ class BengkelTaskController extends Controller
         $data = $this->mergeUploadedAttachment($request, $data);
 
         $task = BengkelTask::create($data);
+        $task = $this->syncDisplayTaskOrder($task->fresh('order.orderWorkshop'), $request->user()?->id);
         $this->syncWorkshopProgressFromTask($task);
 
         return redirect()
@@ -211,7 +213,6 @@ class BengkelTaskController extends Controller
         $picOptions = BengkelPic::query()->orderBy('name')->get();
         $catatanOptions = self::CATATAN_REGU_ALLOWED;
         $units = UnitWork::with('sections')->orderBy('name')->get();
-        $workshopOrders = $this->workshopOrderOptions($bengkel_task->order_id);
         $progressOptions = OrderWorkshop::progressOptions();
 
         $picsById = $picOptions->keyBy('id');
@@ -283,7 +284,6 @@ class BengkelTaskController extends Controller
             'picAssignments',
             'catatanOptions',
             'units',
-            'workshopOrders',
             'progressOptions',
         ));
     }
@@ -306,7 +306,11 @@ class BengkelTaskController extends Controller
         $data = $this->mergeUploadedAttachment($request, $data, $bengkel_task);
 
         $bengkel_task->update($data);
-        $this->syncWorkshopProgressFromTask($bengkel_task->fresh('order.orderWorkshop'));
+        $freshTask = $bengkel_task->fresh('order.orderWorkshop');
+        if ($this->isDisplayManagedTask($freshTask)) {
+            $freshTask = $this->syncDisplayTaskOrder($freshTask, $request->user()?->id);
+        }
+        $this->syncWorkshopProgressFromTask($freshTask);
 
         return redirect()
             ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
@@ -412,6 +416,82 @@ class BengkelTaskController extends Controller
             ->with('status', $tasks->count().' pekerjaan bengkel diarsipkan ke Order Pekerjaan Bengkel.');
     }
 
+    private function syncActiveManualTasksToOrders(?int $userId): void
+    {
+        BengkelTask::query()
+            ->whereNull('order_id')
+            ->whereNull('archived_at')
+            ->orderBy('id')
+            ->chunkById(50, function ($tasks) use ($userId): void {
+                $tasks->each(fn (BengkelTask $task) => $this->syncDisplayTaskOrder($task, $userId));
+            });
+    }
+
+    private function syncDisplayTaskOrder(BengkelTask $task, ?int $userId): BengkelTask
+    {
+        return DB::transaction(function () use ($task, $userId): BengkelTask {
+            $lockedTask = BengkelTask::query()
+                ->with('order.orderWorkshop')
+                ->lockForUpdate()
+                ->findOrFail($task->id);
+
+            if ($lockedTask->archived_at) {
+                return $lockedTask;
+            }
+
+            $order = $lockedTask->order;
+            if ($order && ! $this->isDisplayManagedOrder($order)) {
+                return $lockedTask;
+            }
+
+            $orderData = $this->displayTaskOrderData($lockedTask, self::MANUAL_DISPLAY_DESCRIPTION);
+
+            if (! $order) {
+                $nomorOrder = $this->archiveOrderNumber($lockedTask);
+
+                $order = Order::create([
+                    ...$orderData,
+                    'nomor_order' => $nomorOrder,
+                    'notifikasi' => $this->archiveNotificationNumber($lockedTask, $nomorOrder),
+                    'created_by' => $userId,
+                ]);
+            } else {
+                $order->update($orderData);
+            }
+
+            if ((int) $lockedTask->order_id !== (int) $order->id) {
+                $lockedTask->forceFill(['order_id' => $order->id])->save();
+            }
+
+            $this->copyTaskAttachmentToOrderGambarTeknik($lockedTask, $order, $userId);
+
+            return $lockedTask->fresh('order.orderWorkshop') ?: $lockedTask;
+        });
+    }
+
+    private function isDisplayManagedTask(?BengkelTask $task): bool
+    {
+        if (! $task) {
+            return false;
+        }
+
+        return ! $task->order_id || $this->isDisplayManagedOrder($task->order);
+    }
+
+    private function isDisplayManagedOrder(?Order $order): bool
+    {
+        if (! $order) {
+            return false;
+        }
+
+        $description = (string) $order->deskripsi;
+        $orderNumber = (string) $order->nomor_order;
+
+        return str_contains($description, self::MANUAL_DISPLAY_DESCRIPTION)
+            || str_contains($description, self::ARCHIVE_DISPLAY_DESCRIPTION)
+            || str_starts_with($orderNumber, self::ARCHIVE_ORDER_PREFIX);
+    }
+
     private function archiveTaskToWorkshopOrder(BengkelTask $task, ?int $userId): Order
     {
         return DB::transaction(function () use ($task, $userId): Order {
@@ -425,24 +505,7 @@ class BengkelTaskController extends Controller
             }
 
             $order = $lockedTask->order;
-            $tanggalOrder = optional($lockedTask->created_at)->format('Y-m-d') ?: now()->toDateString();
-            $targetSelesai = optional($lockedTask->usage_plan_date)->format('Y-m-d') ?: $tanggalOrder;
-
-            if ($targetSelesai < $tanggalOrder) {
-                $tanggalOrder = $targetSelesai;
-            }
-
-            $orderData = [
-                'nama_pekerjaan' => mb_strtoupper(trim((string) $lockedTask->job_name)),
-                'unit_kerja' => filled($lockedTask->unit_work) ? $lockedTask->unit_work : '-',
-                'seksi' => filled($lockedTask->seksi) ? $lockedTask->seksi : '-',
-                'deskripsi' => $this->archiveDescription($lockedTask),
-                'prioritas' => Order::PRIORITY_LOW,
-                'tanggal_order' => $tanggalOrder,
-                'target_selesai' => $targetSelesai,
-                'catatan_status' => OrderUserNoteStatus::ApprovedWorkshop->value,
-                'catatan' => $this->archiveRegu($lockedTask),
-            ];
+            $orderData = $this->displayTaskOrderData($lockedTask, self::ARCHIVE_DISPLAY_DESCRIPTION);
 
             if (! $order) {
                 $nomorOrder = $this->archiveOrderNumber($lockedTask);
@@ -534,9 +597,31 @@ class BengkelTaskController extends Controller
         return $regu !== '' ? $regu : 'Regu Fabrikasi';
     }
 
-    private function archiveDescription(BengkelTask $task): string
+    private function displayTaskOrderData(BengkelTask $task, string $descriptionPrefix): array
     {
-        $lines = ['Arsip dari Display Pekerjaan Bengkel.'];
+        $tanggalOrder = optional($task->created_at)->format('Y-m-d') ?: now()->toDateString();
+        $targetSelesai = optional($task->usage_plan_date)->format('Y-m-d') ?: $tanggalOrder;
+
+        if ($targetSelesai < $tanggalOrder) {
+            $tanggalOrder = $targetSelesai;
+        }
+
+        return [
+            'nama_pekerjaan' => mb_strtoupper(trim((string) $task->job_name)),
+            'unit_kerja' => filled($task->unit_work) ? $task->unit_work : '-',
+            'seksi' => filled($task->seksi) ? $task->seksi : '-',
+            'deskripsi' => $this->displayTaskDescription($task, $descriptionPrefix),
+            'prioritas' => Order::PRIORITY_LOW,
+            'tanggal_order' => $tanggalOrder,
+            'target_selesai' => $targetSelesai,
+            'catatan_status' => OrderUserNoteStatus::ApprovedWorkshop->value,
+            'catatan' => $this->archiveRegu($task),
+        ];
+    }
+
+    private function displayTaskDescription(BengkelTask $task, string $prefix): string
+    {
+        $lines = [$prefix];
         $profiles = collect(is_array($task->person_in_charge_profiles) ? $task->person_in_charge_profiles : [])
             ->filter(fn ($profile): bool => is_array($profile) && trim((string) ($profile['name'] ?? '')) !== '')
             ->map(function (array $profile): string {
@@ -778,51 +863,6 @@ class BengkelTaskController extends Controller
         return collect($request->only('q', 'regu', 'per_page', 'page'))
             ->filter(fn ($value) => $value !== null && $value !== '')
             ->all();
-    }
-
-    /**
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
-     */
-    private function workshopOrderOptions(?int $currentOrderId = null)
-    {
-        $unavailableOrderIds = $this->unavailableWorkshopOrderIds($currentOrderId);
-
-        return Order::query()
-            ->with('orderWorkshop:id,order_id,progress_status')
-            ->whereIn('catatan_status', [
-                OrderUserNoteStatus::ApprovedWorkshop->value,
-                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
-            ])
-            ->when($unavailableOrderIds !== [], function ($query) use ($unavailableOrderIds): void {
-                $query->whereNotIn('id', $unavailableOrderIds);
-            })
-            ->where(function ($query) use ($currentOrderId): void {
-                $query
-                    ->whereDoesntHave('orderWorkshop')
-                    ->orWhereHas('orderWorkshop', fn ($builder) => $builder->where(function ($progress): void {
-                        $progress
-                            ->whereNull('progress_status')
-                            ->orWhere('progress_status', '!=', OrderWorkshop::PROGRESS_DONE);
-                    }));
-
-                if ($currentOrderId) {
-                    $query->orWhere('id', $currentOrderId);
-                }
-            })
-            ->orderByDesc('id')
-            ->get(['id', 'nomor_order', 'notifikasi', 'nama_pekerjaan', 'unit_kerja', 'seksi', 'target_selesai'])
-            ->map(fn (Order $order): array => [
-                'id' => $order->id,
-                'nomor_order' => $order->nomor_order,
-                'notifikasi' => $order->notifikasi,
-                'nama_pekerjaan' => $order->nama_pekerjaan,
-                'unit_kerja' => $order->unit_kerja,
-                'seksi' => $order->seksi,
-                'target_selesai' => optional($order->target_selesai)->format('Y-m-d'),
-                'progress_status' => $order->orderWorkshop?->progress_status ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
-                'label' => trim($order->nomor_order.' - '.$order->nama_pekerjaan),
-            ])
-            ->values();
     }
 
     /**

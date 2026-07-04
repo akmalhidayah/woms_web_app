@@ -137,24 +137,57 @@
                                             <p class="mt-1 text-xs text-slate-500">Snapshot aktif dipakai untuk dashboard dan proses kontrak berjalan.</p>
                                         </div>
 
-                                        <button
-                                            type="button"
-                                            class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700"
-                                            data-edit-trigger
-                                            data-id="{{ $agreement->id }}"
-                                            data-nomor="{{ $agreement->nomor_oa }}"
-                                            data-unit-work-id="{{ $agreement->unit_work_id }}"
-                                            data-jenis="{{ $agreement->jenis_kontrak }}"
-                                            data-nama="{{ $agreement->nama_kontrak }}"
-                                            data-total="{{ (float) $agreement->current_total_nilai }}"
-                                            data-period-start="{{ optional($agreement->current_period_start)->format('Y-m-d') }}"
-                                            data-period-end="{{ optional($agreement->current_period_end)->format('Y-m-d') }}"
-                                            data-initial-value="{{ (float) $agreement->nilai_kontrak_awal }}"
-                                            data-targets='@json($agreement->yearlyTargets->map(fn ($target) => ["year" => $target->tahun, "value" => (float) $target->nilai_target])->values())'
-                                        >
-                                            <i data-lucide="pencil" class="h-4 w-4"></i>
-                                            Edit OA
-                                        </button>
+                                        <div class="flex flex-wrap items-center justify-end gap-2">
+                                            <button
+                                                type="button"
+                                                class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700"
+                                                data-edit-trigger
+                                                data-id="{{ $agreement->id }}"
+                                                data-nomor="{{ $agreement->nomor_oa }}"
+                                                data-unit-work-id="{{ $agreement->unit_work_id }}"
+                                                data-jenis="{{ $agreement->jenis_kontrak }}"
+                                                data-nama="{{ $agreement->nama_kontrak }}"
+                                                data-total="{{ (float) $agreement->current_total_nilai }}"
+                                                data-period-start="{{ optional($agreement->current_period_start)->format('Y-m-d') }}"
+                                                data-period-end="{{ optional($agreement->current_period_end)->format('Y-m-d') }}"
+                                                data-initial-value="{{ (float) $agreement->nilai_kontrak_awal }}"
+                                                data-targets='@json($agreement->yearlyTargets->map(fn ($target) => ["year" => $target->tahun, "value" => (float) $target->nilai_target])->values())'
+                                            >
+                                                <i data-lucide="pencil" class="h-4 w-4"></i>
+                                                Edit OA
+                                            </button>
+
+                                            <form
+                                                method="POST"
+                                                action="{{ route('admin.outline-agreements.status.toggle', $agreement) }}"
+                                                data-toggle-oa-status-form
+                                                data-oa-number="{{ $agreement->nomor_oa }}"
+                                                data-next-action="{{ $agreement->status === \App\Models\OutlineAgreement::STATUS_CLOSED ? 'activate' : 'deactivate' }}"
+                                            >
+                                                @csrf
+                                                @method('PATCH')
+                                                @if ($agreement->status === \App\Models\OutlineAgreement::STATUS_CLOSED)
+                                                    <button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-700">
+                                                        <i data-lucide="power" class="h-4 w-4"></i>
+                                                        Aktifkan
+                                                    </button>
+                                                @else
+                                                    <button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-amber-600">
+                                                        <i data-lucide="power-off" class="h-4 w-4"></i>
+                                                        Nonaktifkan
+                                                    </button>
+                                                @endif
+                                            </form>
+
+                                            <form method="POST" action="{{ route('admin.outline-agreements.destroy', $agreement) }}" data-delete-oa-form data-oa-number="{{ $agreement->nomor_oa }}">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-rose-700">
+                                                    <i data-lucide="trash-2" class="h-4 w-4"></i>
+                                                    Hapus OA
+                                                </button>
+                                            </form>
+                                        </div>
                                     </div>
 
                                     <dl class="mt-4 grid gap-3 sm:grid-cols-2">

@@ -22,6 +22,69 @@
             });
         }
 
+        document.querySelectorAll('[data-delete-oa-form]').forEach((form) => {
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                const oaNumber = form.dataset.oaNumber || 'OA ini';
+                let confirmed = false;
+
+                if (window.Swal) {
+                    const result = await window.Swal.fire({
+                        icon: 'warning',
+                        title: 'Hapus OA?',
+                        text: `${oaNumber} akan dihapus beserta histori dan target biayanya. Snapshot di dokumen yang sudah dibuat tetap tersimpan.`,
+                        showCancelButton: true,
+                        confirmButtonText: 'Ya, hapus',
+                        cancelButtonText: 'Batal',
+                        confirmButtonColor: '#e11d48',
+                    });
+
+                    confirmed = result.isConfirmed;
+                } else {
+                    confirmed = window.confirm(`Hapus ${oaNumber}? Histori dan target biaya OA ini ikut terhapus.`);
+                }
+
+                if (confirmed) {
+                    form.submit();
+                }
+            });
+        });
+
+        document.querySelectorAll('[data-toggle-oa-status-form]').forEach((form) => {
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                const oaNumber = form.dataset.oaNumber || 'OA ini';
+                const isActivate = form.dataset.nextAction === 'activate';
+                const title = isActivate ? 'Aktifkan OA?' : 'Nonaktifkan OA?';
+                const text = isActivate
+                    ? `${oaNumber} akan tersedia kembali untuk proses yang memakai OA aktif.`
+                    : `${oaNumber} tidak akan dihitung sebagai OA aktif sampai diaktifkan kembali.`;
+                let confirmed = false;
+
+                if (window.Swal) {
+                    const result = await window.Swal.fire({
+                        icon: isActivate ? 'question' : 'warning',
+                        title,
+                        text,
+                        showCancelButton: true,
+                        confirmButtonText: isActivate ? 'Ya, aktifkan' : 'Ya, nonaktifkan',
+                        cancelButtonText: 'Batal',
+                        confirmButtonColor: isActivate ? '#2563eb' : '#d97706',
+                    });
+
+                    confirmed = result.isConfirmed;
+                } else {
+                    confirmed = window.confirm(`${title} ${oaNumber}`);
+                }
+
+                if (confirmed) {
+                    form.submit();
+                }
+            });
+        });
+
         const makeYearOptions = (selectedYear = '') => {
             let output = '<option value="">Pilih Tahun</option>';
             for (let i = 0; i < 4; i += 1) {

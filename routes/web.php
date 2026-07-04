@@ -283,6 +283,12 @@ Route::middleware(['auth'])->group(function () {
     Route::put('admin/outline-agreements/{outlineAgreement}', [OutlineAgreementController::class, 'update'])
         ->middleware(['role:admin', 'admin_menu:kuota_anggaran_oa'])
         ->name('admin.outline-agreements.update');
+    Route::patch('admin/outline-agreements/{outlineAgreement}/status', [OutlineAgreementController::class, 'toggleStatus'])
+        ->middleware(['role:admin', 'admin_menu:kuota_anggaran_oa'])
+        ->name('admin.outline-agreements.status.toggle');
+    Route::delete('admin/outline-agreements/{outlineAgreement}', [OutlineAgreementController::class, 'destroy'])
+        ->middleware(['role:admin', 'admin_menu:kuota_anggaran_oa'])
+        ->name('admin.outline-agreements.destroy');
     Route::post('admin/outline-agreements/{outlineAgreement}/amendments', [OutlineAgreementController::class, 'addAmendment'])
         ->middleware(['role:admin', 'admin_menu:kuota_anggaran_oa'])
         ->name('admin.outline-agreements.amendments.store');

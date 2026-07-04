@@ -96,4 +96,35 @@ class OutlineAgreementController extends Controller
             ->route('admin.outline-agreements.index')
             ->with('success', 'Outline Agreement berhasil diperbarui.');
     }
+
+    public function toggleStatus(Request $request, OutlineAgreement $outlineAgreement): RedirectResponse
+    {
+        $isClosed = $outlineAgreement->status === OutlineAgreement::STATUS_CLOSED;
+        $nextStatus = $isClosed
+            ? $outlineAgreement->resolvedStatus()
+            : OutlineAgreement::STATUS_CLOSED;
+
+        $outlineAgreement->update([
+            'status' => $nextStatus,
+            'updated_by' => $request->user()?->id,
+        ]);
+
+        $message = $nextStatus === OutlineAgreement::STATUS_CLOSED
+            ? "Outline Agreement {$outlineAgreement->nomor_oa} berhasil dinonaktifkan."
+            : "Outline Agreement {$outlineAgreement->nomor_oa} berhasil diaktifkan kembali.";
+
+        return redirect()
+            ->route('admin.outline-agreements.index')
+            ->with('success', $message);
+    }
+
+    public function destroy(OutlineAgreement $outlineAgreement): RedirectResponse
+    {
+        $nomorOa = $outlineAgreement->nomor_oa;
+        $outlineAgreement->delete();
+
+        return redirect()
+            ->route('admin.outline-agreements.index')
+            ->with('success', "Outline Agreement {$nomorOa} berhasil dihapus.");
+    }
 }

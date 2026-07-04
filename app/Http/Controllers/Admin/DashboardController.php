@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Orders\Enums\OrderDocumentType;
+use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Hpp;
 use App\Models\LhppBast;
@@ -75,6 +76,10 @@ class DashboardController extends Controller
     private function countOutstandingOrders(): int
     {
         return Order::query()
+            ->whereIn('catatan_status', [
+                OrderUserNoteStatus::ApprovedJasa->value,
+                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+            ])
             ->whereHas('documents', fn (Builder $query) => $query->where('jenis_dokumen', OrderDocumentType::Abnormalitas->value))
             ->whereHas('documents', fn (Builder $query) => $query->where('jenis_dokumen', OrderDocumentType::GambarTeknik->value))
             ->whereHas('scopeOfWork')
@@ -85,6 +90,7 @@ class DashboardController extends Controller
     private function countPendingHppApprovals(): int
     {
         return Hpp::query()
+            ->whereHas('order')
             ->where('status', Hpp::STATUS_IN_REVIEW)
             ->whereNotNull('submitted_at')
             ->count();
@@ -93,6 +99,7 @@ class DashboardController extends Controller
     private function countApprovedHppsWaitingForPo(): int
     {
         return Hpp::query()
+            ->whereHas('order')
             ->where('status', Hpp::STATUS_APPROVED)
             ->whereDoesntHave('purchaseOrder', fn (Builder $query) => $query
                 ->whereNotNull('purchase_order_number')
@@ -103,6 +110,8 @@ class DashboardController extends Controller
     private function countPurchaseOrdersWithNumberAndDocument(): int
     {
         return PurchaseOrder::query()
+            ->whereHas('order')
+            ->whereHas('hpp', fn (Builder $query) => $query->whereHas('order'))
             ->whereNotNull('purchase_order_number')
             ->whereRaw("TRIM(purchase_order_number) <> ''")
             ->whereNotNull('po_document_path')
@@ -113,6 +122,7 @@ class DashboardController extends Controller
     private function sumPendingHppApprovalAmount(): int
     {
         return $this->moneyInt(Hpp::query()
+            ->whereHas('order')
             ->where('status', Hpp::STATUS_IN_REVIEW)
             ->whereNotNull('submitted_at')
             ->sum('total_keseluruhan'));
@@ -121,6 +131,7 @@ class DashboardController extends Controller
     private function sumApprovedHppsWaitingForPoAmount(): int
     {
         return $this->moneyInt(Hpp::query()
+            ->whereHas('order')
             ->where('status', Hpp::STATUS_APPROVED)
             ->whereDoesntHave('purchaseOrder', fn (Builder $query) => $query
                 ->whereNotNull('purchase_order_number')
@@ -133,7 +144,9 @@ class DashboardController extends Controller
     private function sumPurchaseOrdersWithNumberAndDocumentAmount(): int
     {
         return $this->moneyInt(Hpp::query()
+            ->whereHas('order')
             ->whereHas('purchaseOrder', fn (Builder $query) => $query
+                ->whereHas('order')
                 ->whereNotNull('purchase_order_number')
                 ->whereRaw("TRIM(purchase_order_number) <> ''")
                 ->whereNotNull('po_document_path')
@@ -160,6 +173,7 @@ class DashboardController extends Controller
     private function baseLhppBastRealizationQuery(): Builder
     {
         return LhppBast::query()
+            ->whereHas('order')
             ->where('termin_type', 'termin_1')
             ->whereNull('parent_lhpp_bast_id');
     }
@@ -192,6 +206,7 @@ class DashboardController extends Controller
     private function sumVerifiedMaintenanceServiceAmount(): int
     {
         return $this->moneyInt(Hpp::query()
+            ->whereHas('order')
             ->whereHas('budgetVerification', fn (Builder $query) => $query
                 ->where('status_anggaran', 'Tersedia')
                 ->where('kategori_item', 'jasa')

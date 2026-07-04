@@ -90,6 +90,8 @@
                 && normalized !== 'belum ada catatan.';
         };
 
+        const isNotApplicable = (value) => String(value ?? '').trim().toLowerCase().includes('tidak berlaku');
+
         const noteForStatus = (statusLabel, noteRows) => {
             const normalized = String(statusLabel || '').toLowerCase();
             const wanted = normalized.includes('konfirmasi')
@@ -154,11 +156,12 @@
         const openModal = (payload) => {
             const rows = Array.isArray(payload.rows) ? payload.rows : [];
             const noteRows = rows.filter((row) => String(row.label || '').toLowerCase().includes('catatan'));
-            const statusRows = rows.filter((row) => ! String(row.label || '').toLowerCase().includes('catatan'));
+            const statusRows = rows.filter((row) => ! String(row.label || '').toLowerCase().includes('catatan'))
+                .filter((row) => ! isNotApplicable(row.value));
             const workers = Array.isArray(payload.workers) ? payload.workers : [];
 
             title.textContent = payload.title || 'Detail';
-            rowsContainer.innerHTML = rows.length > 0
+            rowsContainer.innerHTML = statusRows.length > 0
                 ? `
                     <div class="grid gap-2.5 md:grid-cols-2">
                         ${statusRows.map((row) => {

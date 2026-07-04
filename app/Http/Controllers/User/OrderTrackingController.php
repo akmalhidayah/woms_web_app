@@ -507,7 +507,7 @@ class OrderTrackingController extends Controller
             'is_completed' => $isCompleted,
             'is_workshop_only' => $isWorkshopOnly,
             'document_completion_percentage' => $order->documentCompletionPercentage(),
-            'show_url' => route('user.orders.show', $order),
+            'show_url' => route('user.orders.show', array_merge(['order' => $order], request()->query())),
             'quick_links' => [
                 'abnormalitas' => $abnormalitasDocument['url'] ?? null,
                 'gambar_teknik' => $gambarTeknikDocument['url'] ?? null,

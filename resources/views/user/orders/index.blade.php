@@ -443,6 +443,55 @@
         @endif
     </div>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.querySelector('[data-dashboard-filter-form]');
+
+            if (! form) {
+                return;
+            }
+
+            const searchInput = form.querySelector('input[name="notification_number"]');
+            const selects = form.querySelectorAll('select[name="unit_work"], select[name="sortOrder"], select[name="entries"]');
+            let debounceTimer = null;
+            let isComposing = false;
+
+            const submitForm = () => {
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                    return;
+                }
+
+                form.submit();
+            };
+
+            if (searchInput) {
+                searchInput.addEventListener('compositionstart', () => {
+                    isComposing = true;
+                });
+
+                searchInput.addEventListener('compositionend', () => {
+                    isComposing = false;
+                    window.clearTimeout(debounceTimer);
+                    debounceTimer = window.setTimeout(submitForm, 700);
+                });
+
+                searchInput.addEventListener('input', () => {
+                    if (isComposing) {
+                        return;
+                    }
+
+                    window.clearTimeout(debounceTimer);
+                    debounceTimer = window.setTimeout(submitForm, 700);
+                });
+            }
+
+            selects.forEach((select) => {
+                select.addEventListener('change', submitForm);
+            });
+        });
+    </script>
+
     @if ($hasApprovedData || $hasBiayaData)
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <script>

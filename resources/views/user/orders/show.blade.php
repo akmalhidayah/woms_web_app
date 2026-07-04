@@ -54,7 +54,7 @@
 
     <div class="space-y-3 lg:-mx-2">
         <div class="flex flex-wrap items-center justify-between gap-3">
-            <a href="{{ route('user.dashboard') }}" class="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:text-red-800">
+            <a href="{{ route('user.dashboard', request()->query()) }}" class="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:text-red-800">
                 <i data-lucide="arrow-left" class="h-4 w-4"></i>
                 Kembali ke dashboard
             </a>

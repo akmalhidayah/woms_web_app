@@ -836,7 +836,6 @@
                 jenisOptions.length > 0 ? 'Pilih jenis item' : 'Belum ada jenis item master',
                 titleVal,
             );
-            searchableController(jenisLabelEl, 'Cari jenis item...');
 
             wrap.querySelector('.tambah-item').addEventListener('click', () => {
                 addItem(itemsContainer, subtotalEl, g, null);

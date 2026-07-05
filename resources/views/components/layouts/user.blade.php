@@ -175,49 +175,77 @@
                         </div>
                     </div>
 
-                    <button
-                        type="button"
-                        class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white text-red-800 shadow-sm md:hidden"
-                        @click="mobileMenu = !mobileMenu"
-                        aria-label="Buka menu"
-                    >
-                        <i data-lucide="menu" class="h-5 w-5"></i>
-                    </button>
+                    <div class="flex items-center gap-2 md:hidden">
+                        <div class="relative" @click.outside="notificationsOpen = false">
+                            <button
+                                type="button"
+                                @click="notificationsOpen = !notificationsOpen; mobileMenu = false"
+                                class="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white text-red-800 shadow-sm"
+                                aria-label="Pemberitahuan"
+                            >
+                                <i data-lucide="bell" class="h-5 w-5"></i>
+                                @if ($userNotificationCount > 0)
+                                    <span class="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">{{ $userNotificationBadge }}</span>
+                                @endif
+                            </button>
+
+                            <div
+                                x-show="notificationsOpen"
+                                x-transition.origin.top.right
+                                x-cloak
+                                class="absolute right-0 z-50 mt-2 w-[min(86vw,22rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-xl"
+                            >
+                                <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
+                                    <div class="text-sm font-bold text-slate-900">Pemberitahuan</div>
+                                    @if ($userNotificationCount > 0)
+                                        <span class="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-700 ring-1 ring-red-100">{{ $userNotificationBadge }}</span>
+                                    @endif
+                                </div>
+
+                                <div class="max-h-[min(62vh,22rem)] overflow-y-auto">
+                                    @forelse ($userNotifications as $notification)
+                                        @php($toneClass = $notificationToneClasses[$notification['tone'] ?? 'blue'] ?? $notificationToneClasses['blue'])
+                                        <form method="POST" action="{{ route('user.notifications.read') }}" class="border-b border-slate-100 last:border-b-0">
+                                            @csrf
+                                            <input type="hidden" name="notification_key" value="{{ $notification['key'] }}">
+                                            <input type="hidden" name="redirect_url" value="{{ $notification['url'] }}">
+                                            <button type="submit" class="group flex w-full gap-3 px-4 py-3 text-left transition hover:bg-slate-50">
+                                                <span class="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 {{ $toneClass }}">
+                                                    <i data-lucide="{{ $notification['icon'] }}" class="h-4 w-4"></i>
+                                                </span>
+                                                <span class="min-w-0 flex-1">
+                                                    <span class="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{{ $notification['type'] }}</span>
+                                                    <span class="mt-1 block text-xs font-semibold leading-4 text-slate-900">{{ $notification['message'] }}</span>
+                                                    <span class="mt-1 block truncate text-[11px] text-slate-500">{{ $notification['meta'] ?: '-' }}</span>
+                                                </span>
+                                            </button>
+                                        </form>
+                                    @empty
+                                        <div class="px-4 py-8 text-center">
+                                            <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-400 ring-1 ring-slate-100">
+                                                <i data-lucide="bell-off" class="h-5 w-5"></i>
+                                            </div>
+                                            <div class="mt-3 text-sm font-semibold text-slate-700">Belum ada pemberitahuan</div>
+                                        </div>
+                                    @endforelse
+                                </div>
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white text-red-800 shadow-sm"
+                            @click="mobileMenu = !mobileMenu; notificationsOpen = false"
+                            aria-label="Buka menu"
+                        >
+                            <i data-lucide="menu" class="h-5 w-5"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <div x-show="mobileMenu" x-transition x-cloak class="border-t border-red-700 bg-white px-4 py-4 md:hidden">
                     <div class="space-y-3">
                         <a href="{{ route('user.dashboard') }}" class="block rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-800">Dashboard</a>
-                        <div class="rounded-2xl border border-stone-200 bg-white">
-                            <div class="flex items-center justify-between border-b border-stone-100 px-4 py-3">
-                                <div class="text-sm font-bold text-slate-900">Pemberitahuan</div>
-                                @if ($userNotificationCount > 0)
-                                    <span class="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-700 ring-1 ring-red-100">{{ $userNotificationBadge }}</span>
-                                @endif
-                            </div>
-                            <div class="max-h-72 overflow-y-auto">
-                                @forelse ($userNotifications as $notification)
-                                    @php($toneClass = $notificationToneClasses[$notification['tone'] ?? 'blue'] ?? $notificationToneClasses['blue'])
-                                    <form method="POST" action="{{ route('user.notifications.read') }}" class="border-b border-stone-100 last:border-b-0">
-                                        @csrf
-                                        <input type="hidden" name="notification_key" value="{{ $notification['key'] }}">
-                                        <input type="hidden" name="redirect_url" value="{{ $notification['url'] }}">
-                                        <button type="submit" class="flex w-full gap-3 px-4 py-3 text-left">
-                                            <span class="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ring-1 {{ $toneClass }}">
-                                                <i data-lucide="{{ $notification['icon'] }}" class="h-4 w-4"></i>
-                                            </span>
-                                            <span class="min-w-0 flex-1">
-                                                <span class="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{{ $notification['type'] }}</span>
-                                                <span class="mt-1 block text-xs font-semibold leading-4 text-slate-900">{{ $notification['message'] }}</span>
-                                                <span class="mt-1 block truncate text-[11px] text-slate-500">{{ $notification['meta'] ?: '-' }}</span>
-                                            </span>
-                                        </button>
-                                    </form>
-                                @empty
-                                    <div class="px-4 py-5 text-center text-xs font-semibold text-slate-500">Belum ada pemberitahuan</div>
-                                @endforelse
-                            </div>
-                        </div>
                         <div class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
                             <div class="text-sm font-semibold text-slate-900">{{ $user?->name }}</div>
                             <div class="text-xs text-slate-500">{{ $user?->email }}</div>

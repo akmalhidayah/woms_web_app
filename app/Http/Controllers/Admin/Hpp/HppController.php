@@ -287,7 +287,7 @@ class HppController extends Controller
         $hpp = DB::transaction(function () use ($request, $validated): Hpp {
             $hpp = new Hpp();
 
-            $this->fillHppFromRequest($hpp, $validated, $request->all());
+            $this->fillHppFromRequest($hpp, $validated, $request->all(), true);
             $hpp->created_by = $request->user()?->id;
             $hpp->save();
 
@@ -313,8 +313,10 @@ class HppController extends Controller
 
         $validated = $request->validated();
 
-        DB::transaction(function () use ($request, $hpp, $validated): void {
-            $this->fillHppFromRequest($hpp, $validated, $request->all());
+        $canReorderApprovalFlow = $hpp->isDraft();
+
+        DB::transaction(function () use ($request, $hpp, $validated, $canReorderApprovalFlow): void {
+            $this->fillHppFromRequest($hpp, $validated, $request->all(), $canReorderApprovalFlow);
             $hpp->save();
 
             if ($hpp->status === Hpp::STATUS_IN_REVIEW) {
@@ -450,7 +452,12 @@ class HppController extends Controller
      * @param array<string, mixed> $validated
      * @param array<string, mixed> $payload
      */
-    private function fillHppFromRequest(Hpp $hpp, array $validated, array $payload): void
+    private function fillHppFromRequest(
+        Hpp $hpp,
+        array $validated,
+        array $payload,
+        bool $canReorderApprovalFlow = true,
+    ): void
     {
         $order = Order::query()->findOrFail($validated['order_id']);
         $outlineAgreement = OutlineAgreement::query()
@@ -477,10 +484,12 @@ class HppController extends Controller
             $validated['area_pekerjaan'],
             $nilaiHppBucket,
         );
-        $approvalFlow = $this->resolveApprovalFlowSnapshot(
-            $defaultApprovalFlow,
-            $payload['approval_flow'] ?? [],
-        );
+        $approvalFlow = $canReorderApprovalFlow
+            ? $this->resolveApprovalFlowSnapshot(
+                $defaultApprovalFlow,
+                $payload['approval_flow'] ?? [],
+            )
+            : $this->existingApprovalFlowOrDefault($hpp, $defaultApprovalFlow);
 
         $hpp->fill([
             'order_id' => $order->id,
@@ -508,6 +517,23 @@ class HppController extends Controller
             'status' => $validated['action'] === 'submit' ? Hpp::STATUS_IN_REVIEW : Hpp::STATUS_DRAFT,
             'submitted_at' => $validated['action'] === 'submit' ? now() : null,
         ]);
+    }
+
+    /**
+     * @param list<string> $defaultFlow
+     * @return list<string>
+     */
+    private function existingApprovalFlowOrDefault(Hpp $hpp, array $defaultFlow): array
+    {
+        $existingFlow = is_array($hpp->approval_flow)
+            ? collect($hpp->approval_flow)
+                ->map(fn (mixed $role): string => trim((string) $role))
+                ->filter()
+                ->values()
+                ->all()
+            : [];
+
+        return $existingFlow !== [] ? $existingFlow : array_values($defaultFlow);
     }
 
     /**

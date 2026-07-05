@@ -284,19 +284,25 @@
                             <button
                                 type="button"
                                 class="rounded-md border border-slate-200 bg-white px-2 py-1 text-[8px] font-semibold text-slate-600 transition hover:bg-slate-50"
-                                x-show="! isDefaultApprovalFlow()"
+                                x-show="canReorderApprovalFlow && ! isDefaultApprovalFlow()"
                                 @click="resetApprovalFlow()"
                             >
                                 Reset Default
                             </button>
                         </div>
+                        <p
+                            x-show="! canReorderApprovalFlow"
+                            class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[9px] font-medium text-amber-700"
+                        >
+                            Flow terkunci karena HPP sudah diajukan.
+                        </p>
 
                         <ol class="mt-2 space-y-1.5">
                             <template x-for="(step, index) in approvalFlow" :key="`${previewCase}-${step}-${index}`">
                                 <li
                                     class="flex items-start gap-2 rounded-lg border px-2.5 py-1.5 transition"
                                     :class="index === 0 ? 'border-emerald-100 bg-emerald-50' : 'border-slate-200 bg-white'"
-                                    draggable="true"
+                                    :draggable="canReorderApprovalFlow"
                                     @dragstart="startApprovalDrag(index)"
                                     @dragover.prevent
                                     @drop.prevent="dropApprovalStep(index)"
@@ -304,7 +310,8 @@
                                 >
                                     <button
                                         type="button"
-                                        class="mt-0.5 inline-flex h-4 w-4 shrink-0 cursor-grab items-center justify-center rounded bg-white text-slate-400 ring-1 ring-slate-200 active:cursor-grabbing"
+                                        class="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-white text-slate-400 ring-1 ring-slate-200"
+                                        :class="canReorderApprovalFlow ? 'cursor-grab active:cursor-grabbing' : 'cursor-not-allowed opacity-40'"
                                         title="Geser urutan"
                                     >
                                         <i data-lucide="grip-vertical" class="h-3 w-3"></i>
@@ -417,6 +424,7 @@
             seksiPeminta: '',
             seksiPengendali: '',
             approvalFlow: [],
+            canReorderApprovalFlow: Boolean(config.initialState.canReorderApprovalFlow ?? true),
             draggedApprovalIndex: null,
             init() {
                 if (! this.selectedOrder && this.orderOptions.length > 0) {
@@ -432,9 +440,21 @@
                 this.syncApprovalFlow(config.initialState.approvalFlow ?? []);
                 this.$watch('selectedOrder', () => this.syncOrderFields());
                 this.$watch('selectedOutlineAgreement', () => this.syncOutlineAgreementFields());
-                this.$watch('kategoriPekerjaan', () => this.resetApprovalFlow());
-                this.$watch('areaPekerjaan', () => this.resetApprovalFlow());
-                this.$watch('nilaiBucket', () => this.resetApprovalFlow());
+                this.$watch('kategoriPekerjaan', () => {
+                    if (this.canReorderApprovalFlow) {
+                        this.resetApprovalFlow();
+                    }
+                });
+                this.$watch('areaPekerjaan', () => {
+                    if (this.canReorderApprovalFlow) {
+                        this.resetApprovalFlow();
+                    }
+                });
+                this.$watch('nilaiBucket', () => {
+                    if (this.canReorderApprovalFlow) {
+                        this.resetApprovalFlow();
+                    }
+                });
                 this.refreshApprovalIcons();
             },
             get selectedOrderData() {
@@ -476,10 +496,21 @@
                     ? candidate.map((step) => String(step ?? '').trim()).filter(Boolean)
                     : [];
 
+                if (! this.canReorderApprovalFlow) {
+                    this.approvalFlow = flow.length > 0 ? flow : defaultFlow;
+                    this.refreshApprovalIcons();
+
+                    return;
+                }
+
                 this.approvalFlow = this.hasSameApprovalRoles(flow, defaultFlow) ? flow : defaultFlow;
                 this.refreshApprovalIcons();
             },
             resetApprovalFlow() {
+                if (! this.canReorderApprovalFlow) {
+                    return;
+                }
+
                 this.approvalFlow = this.defaultApprovalFlow();
                 this.refreshApprovalIcons();
             },
@@ -507,6 +538,10 @@
                     && this.approvalFlow.every((step, index) => step === defaultFlow[index]);
             },
             canMoveApprovalStep(from, to) {
+                if (! this.canReorderApprovalFlow) {
+                    return false;
+                }
+
                 if (to < 0 || to >= this.approvalFlow.length || from === to) {
                     return false;
                 }
@@ -529,9 +564,19 @@
                 this.refreshApprovalIcons();
             },
             startApprovalDrag(index) {
+                if (! this.canReorderApprovalFlow) {
+                    return;
+                }
+
                 this.draggedApprovalIndex = index;
             },
             dropApprovalStep(index) {
+                if (! this.canReorderApprovalFlow) {
+                    this.draggedApprovalIndex = null;
+
+                    return;
+                }
+
                 if (this.draggedApprovalIndex === null) {
                     return;
                 }

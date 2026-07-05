@@ -24,6 +24,7 @@ class CreateHppForm extends Component
     public function render()
     {
         $itemGroupPresets = $this->resolveItemGroupPresets();
+        $canReorderApprovalFlow = ! ($this->hpp?->exists) || $this->hpp->isDraft();
 
         $orders = Order::query()
             ->when(
@@ -96,7 +97,13 @@ class CreateHppForm extends Component
                     $this->hpp?->total_keseluruhan ?? 0,
                 ),
                 'costCentre' => old('cost_centre', $this->hpp?->cost_centre ?? ''),
-                'approvalFlow' => array_values((array) old('approval_flow', $this->hpp?->approval_flow ?? [])),
+                'approvalFlow' => array_values((array) (
+                    $canReorderApprovalFlow
+                        ? old('approval_flow', $this->hpp?->approval_flow ?? [])
+                        : ($this->hpp?->approval_flow ?? [])
+                )),
+                'status' => $this->hpp?->status,
+                'canReorderApprovalFlow' => $canReorderApprovalFlow,
             ],
             'isEdit' => $this->hpp?->exists ?? false,
             'submitRoute' => $this->hpp?->exists ? route('admin.hpp.update', $this->hpp) : route('admin.hpp.store'),

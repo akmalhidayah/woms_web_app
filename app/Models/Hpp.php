@@ -130,6 +130,11 @@ class Hpp extends Model
         return ! $this->signatures()->exists();
     }
 
+    public function isDraft(): bool
+    {
+        return $this->status === self::STATUS_DRAFT;
+    }
+
     public function isDeletable(): bool
     {
         return in_array($this->status, [

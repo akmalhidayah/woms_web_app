@@ -593,14 +593,45 @@
     $isOver = str_contains($approvalCase, 'OVER250');
 
     $groupsByJenis = [];
-    $itemGroups = is_array($hpp->item_groups) ? $hpp->item_groups : [];
+    $normalizeSnapshotArray = function ($value): array {
+        if ($value instanceof \Illuminate\Contracts\Support\Arrayable) {
+            return $value->toArray();
+        }
+
+        if ($value instanceof \Illuminate\Support\Collection) {
+            return $value->toArray();
+        }
+
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (is_object($value)) {
+            $decoded = json_decode(json_encode($value), true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return [];
+    };
+
+    $itemGroups = $normalizeSnapshotArray($hpp->item_groups ?? []);
 
     foreach ($itemGroups as $group) {
-        $label = trim((string) ($group['jenis_item'] ?? ''));
+        $group = $normalizeSnapshotArray($group);
+        $label = trim((string) ($group['jenis_item'] ?? $group['title'] ?? $group['label'] ?? ''));
         $groupKey = $label !== '' ? $label : 'Lainnya';
         $groupsByJenis[$groupKey] ??= [];
+        $items = $normalizeSnapshotArray($group['items'] ?? $group['uraian'] ?? []);
 
-        foreach (($group['items'] ?? []) as $item) {
+        foreach ($items as $item) {
+            $item = $normalizeSnapshotArray($item);
             $kategoriLabel = trim((string) ($item['kategori_item'] ?? ''));
             $lastEntryIndex = array_key_last($groupsByJenis[$groupKey]);
 
@@ -616,12 +647,12 @@
             }
 
             $groupsByJenis[$groupKey][$lastEntryIndex]['items'][] = [
-                'nama' => $item['nama_item'] ?? '',
-                'jumlah' => $item['jumlah_item'] ?? '',
+                'nama' => $item['nama_item'] ?? $item['nama'] ?? '',
+                'jumlah' => $item['jumlah_item'] ?? $item['jumlah'] ?? '',
                 'qty' => $item['qty'] ?? null,
                 'satuan' => $item['satuan'] ?? '',
                 'harga_satuan' => $item['harga_satuan'] ?? null,
-                'harga_total' => $item['harga_total'] ?? null,
+                'harga_total' => $item['harga_total'] ?? $item['total'] ?? null,
                 'keterangan' => $item['keterangan'] ?? '',
             ];
         }
@@ -740,6 +771,9 @@
             </thead>
             <tbody>
             @if(empty($groupsByJenis))
+                @if((float) ($hpp->total_keseluruhan ?? 0) > 0)
+                    {{-- item_groups kosong, total ada. Cek cast item_groups atau format snapshot HPP. --}}
+                @endif
                 <tr>
                     @php($oaCell = $nextOutlineAgreementCell())
                     <td class="oa-cell {{ $oaCell['class'] }}">{{ $oaCell['text'] }}</td>

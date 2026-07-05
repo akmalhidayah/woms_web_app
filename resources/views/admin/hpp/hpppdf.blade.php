@@ -141,6 +141,7 @@
 
         .table-hpp tbody tr:first-child td.oa-cell {
             border-top: 1px solid #000 !important;
+            padding-top: 10px !important;
         }
 
         .table-hpp tbody td.oa-cell-close {

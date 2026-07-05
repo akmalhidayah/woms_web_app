@@ -63,16 +63,6 @@
             'accent' => 'text-white',
         ],
         [
-            'label' => 'Total Progress',
-            'value' => round($totalProgress, 2).'%',
-            'description' => 'Rata-rata progres seluruh pekerjaan',
-            'meta' => $pekerjaanMenunggu > 0 ? "{$pekerjaanMenunggu} pekerjaan masih aktif" : 'Semua pekerjaan sudah tertangani',
-            'icon' => 'activity',
-            'color' => '#71658f',
-            'icon_tone' => 'bg-black/10 text-white',
-            'accent' => 'text-white',
-        ],
-        [
             'label' => 'Overdue',
             'value' => $overdueCount,
             'description' => 'Pekerjaan melewati target',
@@ -185,28 +175,50 @@
             'button' => 'border-amber-200 text-amber-700 hover:bg-amber-50',
         ],
     ];
+
+    $statusCardClasses = [
+        'Selesai' => [
+            'card' => 'border-emerald-100 bg-emerald-50/80',
+            'icon' => 'badge-check',
+            'icon_tone' => 'bg-emerald-100 text-emerald-700',
+            'text' => 'text-emerald-700',
+        ],
+        'Proses' => [
+            'card' => 'border-blue-100 bg-blue-50/80',
+            'icon' => 'activity',
+            'icon_tone' => 'bg-blue-100 text-blue-700',
+            'text' => 'text-blue-700',
+        ],
+        'Menunggu' => [
+            'card' => 'border-amber-100 bg-amber-50/80',
+            'icon' => 'clock-3',
+            'icon_tone' => 'bg-amber-100 text-amber-700',
+            'text' => 'text-amber-700',
+        ],
+        'Overdue' => [
+            'card' => 'border-rose-100 bg-rose-50/80',
+            'icon' => 'triangle-alert',
+            'icon_tone' => 'bg-rose-100 text-rose-700',
+            'text' => 'text-rose-700',
+        ],
+    ];
 @endphp
 
 <div class="space-y-3">
-    <section class="grid gap-1.5" style="grid-template-columns: repeat(5, minmax(0, 1fr));">
+    <section class="grid grid-cols-2 gap-2 sm:grid-cols-4">
         @foreach ($topCards as $card)
-            <article class="min-w-0 rounded-lg border border-black/10 px-2 py-1.5 shadow-sm" style="background-color: {{ $card['color'] }};">
-                <div class="flex items-center justify-between gap-1.5">
+            <article class="min-w-0 rounded-xl border border-black/10 px-3 py-2.5 shadow-sm sm:px-3.5 sm:py-3" style="background-color: {{ $card['color'] }};">
+                <div class="flex items-start justify-between gap-2">
                     <div class="min-w-0">
-                        <div class="truncate text-[7px] font-bold uppercase tracking-[0.08em] text-white/80">{{ $card['label'] }}</div>
-                        <div class="mt-0.5 text-[17px] font-black leading-none {{ $card['accent'] }}">{{ $card['value'] }}</div>
+                        <div class="truncate text-[8px] font-bold uppercase tracking-[0.12em] text-white/80 sm:text-[9px]">{{ $card['label'] }}</div>
+                        <div class="mt-1 text-[24px] font-black leading-none {{ $card['accent'] }} sm:text-[27px]">{{ $card['value'] }}</div>
+                        <div class="mt-1 line-clamp-1 text-[9px] font-semibold text-white/75">{{ $card['meta'] }}</div>
                     </div>
 
-                    <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md {{ $card['icon_tone'] }}">
-                        <i data-lucide="{{ $card['icon'] }}" class="h-3 w-3"></i>
+                    <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg {{ $card['icon_tone'] }}">
+                        <i data-lucide="{{ $card['icon'] }}" class="h-4 w-4"></i>
                     </span>
                 </div>
-
-                @if ($card['label'] === 'Total Progress')
-                    <div class="mt-1 h-1 overflow-hidden rounded-full bg-black/20">
-                        <div class="h-full rounded-full bg-white" style="width: {{ max(0, min(100, $totalProgress)) }}%"></div>
-                    </div>
-                @endif
             </article>
         @endforeach
     </section>
@@ -276,49 +288,31 @@
                 <h2 class="text-[13px] font-black text-slate-900">Status Pekerjaan</h2>
             </div>
 
-            <div class="grid gap-3 p-2.5 sm:grid-cols-[105px_1fr] sm:items-center">
-                <div class="flex justify-center">
-                    <div class="relative h-20 w-20">
-                        <svg viewBox="0 0 80 80" class="h-20 w-20 -rotate-90">
-                            <circle cx="40" cy="40" r="{{ $donutRadius }}" fill="none" stroke="#e5e7eb" stroke-width="14" />
-                            @foreach ($donutSegments as $segment)
-                                <circle
-                                    cx="40"
-                                    cy="40"
-                                    r="{{ $donutRadius }}"
-                                    fill="none"
-                                    stroke="{{ $segment['color'] }}"
-                                    stroke-width="14"
-                                    stroke-dasharray="{{ $segment['length'] }} {{ $segment['gap'] }}"
-                                    stroke-dashoffset="{{ $segment['offset'] }}"
-                                />
-                            @endforeach
-                        </svg>
-                        <div class="absolute inset-[13px] flex flex-col items-center justify-center rounded-full bg-white text-center">
-                            <div class="text-[8px] font-semibold uppercase tracking-[0.14em] text-slate-400">Total</div>
-                            <div class="mt-0.5 text-[16px] font-black text-slate-900">{{ $totalPekerjaan }}</div>
+            <div class="grid grid-cols-2 gap-2 p-2.5">
+                @forelse ($statusBreakdown as $item)
+                    @php($statusCard = $statusCardClasses[$item['label']] ?? $statusCardClasses['Menunggu'])
+                    <div class="rounded-xl border px-3 py-3 shadow-sm {{ $statusCard['card'] }}">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                <div class="truncate text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">{{ $item['label'] }}</div>
+                                <div class="mt-1 text-[24px] font-black leading-none text-slate-900">{{ $item['count'] }}</div>
+                            </div>
+                            <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg {{ $statusCard['icon_tone'] }}">
+                                <i data-lucide="{{ $statusCard['icon'] }}" class="h-4 w-4"></i>
+                            </span>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between gap-2">
+                            <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-white/80">
+                                <div class="h-full rounded-full {{ $statusToneClasses[strtolower($item['label'])]['bar'] ?? 'bg-slate-300' }}" style="width: {{ max(0, min(100, $item['percentage'])) }}%"></div>
+                            </div>
+                            <span class="text-[10px] font-black {{ $statusCard['text'] }}">{{ $item['percentage'] }}%</span>
                         </div>
                     </div>
-                </div>
-
-                <div class="space-y-1.5">
-                    @forelse ($statusBreakdown as $item)
-                        <div class="flex items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5">
-                            <div class="flex items-center gap-2">
-                                <span class="inline-flex h-2.5 w-2.5 rounded-full {{ $item['class'] }}"></span>
-                                <span class="text-[10px] font-medium text-slate-700">{{ $item['label'] }}</span>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-[10px] font-bold text-slate-900">{{ $item['count'] }}</div>
-                                <div class="text-[9px] text-slate-500">{{ $item['percentage'] }}%</div>
-                            </div>
-                        </div>
-                    @empty
-                        <div class="rounded-[1rem] border border-dashed border-slate-200 bg-slate-50 px-3 py-6 text-center text-[11px] text-slate-500">
-                            Belum ada status.
-                        </div>
-                    @endforelse
-                </div>
+                @empty
+                    <div class="col-span-2 rounded-[1rem] border border-dashed border-slate-200 bg-slate-50 px-3 py-6 text-center text-[11px] text-slate-500">
+                        Belum ada status.
+                    </div>
+                @endforelse
             </div>
         </article>
     </section>

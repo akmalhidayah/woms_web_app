@@ -128,6 +128,12 @@
             background-color: #B0C4DE;
         }
 
+        .table-hpp .oa-cell {
+            width: 14%;
+            text-align: center;
+            vertical-align: top;
+        }
+
         .table-hpp tr {
             page-break-inside: avoid;
         }
@@ -622,21 +628,17 @@
         return $letters;
     };
 
-    $totalRows = 0;
-    foreach ($groupsByJenis as $kategoriGroups) {
-        $totalRows += 1;
-
-        foreach ($kategoriGroups as $kategoriGroup) {
-            if (($kategoriGroup['label'] ?? '') !== '') {
-                $totalRows += 1;
-            }
-
-            $totalRows += count($kategoriGroup['items'] ?? []);
+    $outlineAgreementNumber = trim((string) ($hpp->outline_agreement ?: optional($hpp->outlineAgreement)->nomor_oa ?: ''));
+    $outlineAgreementPrinted = false;
+    $printOutlineAgreement = function () use (&$outlineAgreementPrinted, $outlineAgreementNumber): string {
+        if ($outlineAgreementPrinted) {
+            return '';
         }
-    }
-    if ($totalRows === 0) {
-        $totalRows = 1;
-    }
+
+        $outlineAgreementPrinted = true;
+
+        return $outlineAgreementNumber;
+    };
 @endphp
 <body>
 <div class="container">
@@ -724,47 +726,33 @@
             <tbody>
             @if(empty($groupsByJenis))
                 <tr>
-                    <td style="border: 1px solid black; text-align: center;">{{ $hpp->outline_agreement ?? '' }}</td>
+                    <td class="oa-cell" style="border: 1px solid black;">{{ $printOutlineAgreement() }}</td>
                     <td colspan="6" style="border: 1px solid black; text-align: center; padding: 6px;">Tidak ada data</td>
                 </tr>
             @else
-                @php $printedOA = false; $groupIndex = 0; @endphp
+                @php $groupIndex = 0; @endphp
 
                 @foreach ($groupsByJenis as $label => $kategoriGroups)
                     <tr>
-                        @if (! $printedOA)
-                            <td style="border: 1px solid black; text-align: center; vertical-align: top;" rowspan="{{ $totalRows }}">
-                                {{ $hpp->outline_agreement ?? '' }}
-                            </td>
-                            @php $printedOA = true; @endphp
-                        @endif
-
-                        <td style="border: 1px solid black; padding: 4px 8px; font-weight: bold;">
+                        <td class="oa-cell" style="border: 1px solid black;">{{ $printOutlineAgreement() }}</td>
+                        <td colspan="6" style="border: 1px solid black; padding: 4px 8px; font-weight: bold;">
                             {{ $indexToLetters($groupIndex) }}. {{ $label }}
                         </td>
-                        <td style="border: 1px solid black;"></td>
-                        <td style="border: 1px solid black;"></td>
-                        <td style="border: 1px solid black;"></td>
-                        <td style="border: 1px solid black;"></td>
-                        <td style="border: 1px solid black;"></td>
                     </tr>
 
                     @foreach ($kategoriGroups as $kategoriGroup)
                         @if(($kategoriGroup['label'] ?? '') !== '')
                             <tr>
-                                <td style="border: 1px solid black; padding: 4px 18px; font-weight: bold;">
+                                <td class="oa-cell" style="border: 1px solid black;">{{ $printOutlineAgreement() }}</td>
+                                <td colspan="6" style="border: 1px solid black; padding: 4px 18px; font-weight: bold;">
                                     {{ $kategoriGroup['label'] }}
                                 </td>
-                                <td style="border: 1px solid black;"></td>
-                                <td style="border: 1px solid black;"></td>
-                                <td style="border: 1px solid black;"></td>
-                                <td style="border: 1px solid black;"></td>
-                                <td style="border: 1px solid black;"></td>
                             </tr>
                         @endif
 
                         @foreach (($kategoriGroup['items'] ?? []) as $it)
                             <tr>
+                                <td class="oa-cell" style="border: 1px solid black;">{{ $printOutlineAgreement() }}</td>
                                 <td class="uraian-cell" style="border: 1px solid black;">
                                     <table class="uraian-table">
                                         <tr>

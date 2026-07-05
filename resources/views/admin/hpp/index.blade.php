@@ -139,7 +139,7 @@
                                     fn (\App\Models\HppSignature $signature): bool => $signature->role_key === 'dirops' && $signature->hasUploadedSignedDocument()
                                 );
                                 $diropsSignedDocumentUrl = $diropsSignedDocumentSignature
-                                    ? route('admin.hpp.dirops-document.show', ['hpp' => $row->nomor_order])
+                                    ? route('admin.hpp.dirops-document.show.by-id', $row)
                                     : null;
                                 $currentSignerName = $row->currentApprovalSignerName();
                                 $currentSignerLabel = $row->currentApprovalSignerLabel();
@@ -168,7 +168,7 @@
                                 $activeApprovalModalActions = [
                                     'link' => $activeApprovalLink && ! $isDiropsPending ? $activeApprovalLink : '',
                                     'whatsapp_url' => $activeApprovalLink && ! $isDiropsPending ? $activeApprovalWhatsappUrl : '',
-                                    'resend_url' => $activeApprovalLink && ! $isDiropsPending ? route('admin.hpp.approval.resend', ['hpp' => $row->nomor_order]) : '',
+                                    'resend_url' => $activeApprovalLink && ! $isDiropsPending ? route('admin.hpp.approval.resend.by-id', $row) : '',
                                     'role_label' => $activeSignature?->displayRoleLabel() ?: '',
                                     'signer_name' => $activeSignature?->signer_name_snapshot ?: '',
                                 ];
@@ -284,7 +284,7 @@
                                                     <div class="mb-1 text-[8px] font-bold uppercase tracking-[0.14em] text-slate-400">Aksi Approval</div>
                                                     <div class="flex flex-wrap gap-1.5">
                                                         @if ($isActiveApprovalExpired)
-                                                            <form method="POST" action="{{ route('admin.hpp.approval-token.regenerate', ['hpp' => $row->nomor_order]) }}">
+                                                            <form method="POST" action="{{ route('admin.hpp.approval-token.regenerate.by-id', $row) }}">
                                                                 @csrf
                                                                 <button
                                                                     type="submit"
@@ -298,7 +298,7 @@
                                                         @endif
 
                                                         @if ($isDiropsPending)
-                                                            <a href="{{ route('admin.hpp.pdf', ['hpp' => $row->nomor_order]) }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-white px-2 py-1 text-[8px] font-semibold text-amber-700 transition hover:bg-amber-100" title="Print HPP untuk tanda tangan DIROPS">
+                                                            <a href="{{ route('admin.hpp.pdf.by-id', $row) }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-white px-2 py-1 text-[8px] font-semibold text-amber-700 transition hover:bg-amber-100" title="Print HPP untuk tanda tangan DIROPS">
                                                                 <i data-lucide="printer" class="h-2.5 w-2.5"></i>
                                                                 Print
                                                             </a>
@@ -308,7 +308,7 @@
                                                                 class="dirops-upload-trigger inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2 py-1 text-[8px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
                                                                 title="Upload dokumen tanda tangan DIROPS"
                                                                 data-order="{{ $row->nomor_order }}"
-                                                                data-upload-action="{{ route('admin.hpp.dirops-document.upload', ['hpp' => $row->nomor_order]) }}"
+                                                                data-upload-action="{{ route('admin.hpp.dirops-document.upload.by-id', $row) }}"
                                                             >
                                                                 <i data-lucide="upload" class="h-2.5 w-2.5"></i>
                                                                 Upload Final
@@ -329,12 +329,19 @@
                                 </td>
                                 <td class="px-5 py-3">
                                     <div class="flex flex-nowrap items-center gap-1">
-                                        <a href="{{ route('admin.hpp.pdf', ['hpp' => $row->nomor_order]) }}" target="_blank" rel="noopener noreferrer" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50" title="Lihat PDF HPP">
+                                        <a href="{{ route('admin.hpp.pdf.by-id', $row) }}" target="_blank" rel="noopener noreferrer" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50" title="Lihat PDF HPP">
                                             <i data-lucide="file-text" class="h-3 w-3"></i>
                                         </a>
 
+                                        <form method="POST" action="{{ route('admin.hpp.duplicate', $row) }}" class="duplicate-hpp-form" data-order="{{ $row->nomor_order }}">
+                                            @csrf
+                                            <button type="submit" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100" title="Duplicate HPP">
+                                                <i data-lucide="copy-plus" class="h-3 w-3"></i>
+                                            </button>
+                                        </form>
+
                                         @if ($row->isEditable())
-                                            <a href="{{ route('admin.hpp.edit', ['hpp' => $row->nomor_order]) }}" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100" title="Edit HPP">
+                                            <a href="{{ route('admin.hpp.edit.by-id', $row) }}" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100" title="Edit HPP">
                                                 <i data-lucide="pencil" class="h-3 w-3"></i>
                                             </a>
                                         @endif
@@ -878,6 +885,32 @@
                         confirmButtonText: 'Ya, hapus',
                         cancelButtonText: 'Batal',
                         confirmButtonColor: '#dc2626',
+                    });
+
+                    if (result.isConfirmed) {
+                        form.submit();
+                    }
+                });
+            });
+
+            document.querySelectorAll('.duplicate-hpp-form').forEach((form) => {
+                form.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+
+                    if (!window.Swal) {
+                        form.submit();
+                        return;
+                    }
+
+                    const orderNumber = form.dataset.order || 'HPP ini';
+                    const result = await window.Swal.fire({
+                        icon: 'question',
+                        title: 'Duplicate HPP?',
+                        html: `Buat draft baru dari HPP order <b>${orderNumber}</b>?<br><span class="text-xs text-slate-500">Data item disalin, approval lama tidak ikut disalin.</span>`,
+                        showCancelButton: true,
+                        confirmButtonText: 'Ya, duplicate',
+                        cancelButtonText: 'Batal',
+                        confirmButtonColor: '#059669',
                     });
 
                     if (result.isConfirmed) {

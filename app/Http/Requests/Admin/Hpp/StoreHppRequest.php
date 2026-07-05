@@ -49,14 +49,16 @@ class StoreHppRequest extends FormRequest
     {
         /** @var Hpp|null $hpp */
         $hpp = $this->route('hpp');
+        $keepsCurrentOrder = $hpp?->exists
+            && (int) $this->input('order_id') === (int) $hpp->order_id;
 
         return [
             'action' => ['required', Rule::in(['draft', 'submit'])],
-            'order_id' => [
+            'order_id' => array_values(array_filter([
                 'required',
                 'integer',
                 'exists:orders,id',
-                Rule::unique('hpps', 'order_id')->ignore($hpp?->id),
+                $keepsCurrentOrder ? null : Rule::unique('hpps', 'order_id')->ignore($hpp?->id),
                 function (string $attribute, mixed $value, \Closure $fail) use ($hpp): void {
                     if ($hpp?->exists) {
                         return;
@@ -96,7 +98,7 @@ class StoreHppRequest extends FormRequest
                         $fail('Order belum memiliki Scope of Work.');
                     }
                 },
-            ],
+            ])),
             'outline_agreement_id' => ['required', 'integer', 'exists:outline_agreements,id'],
             'kategori_pekerjaan' => ['required', Rule::in(HppApprovalFlow::kategoriOptions())],
             'area_pekerjaan' => ['required', Rule::in(array_keys(HppApprovalFlow::areaOptions()))],

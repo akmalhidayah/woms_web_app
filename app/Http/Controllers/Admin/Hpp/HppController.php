@@ -331,6 +331,32 @@ class HppController extends Controller
             ));
     }
 
+    public function duplicate(Request $request, Hpp $hpp): RedirectResponse
+    {
+        $duplicate = DB::transaction(function () use ($request, $hpp): Hpp {
+            $copy = $hpp->replicate([
+                'status',
+                'submitted_at',
+                'created_at',
+                'updated_at',
+            ]);
+
+            $copy->status = Hpp::STATUS_DRAFT;
+            $copy->submitted_at = null;
+            $copy->created_by = $request->user()?->id;
+            $copy->save();
+
+            return $copy;
+        });
+
+        return redirect()
+            ->route('admin.hpp.edit.by-id', $duplicate)
+            ->with('status', sprintf(
+                'Draft duplicate HPP untuk order %s berhasil dibuat. Data item disalin, approval lama tidak ikut disalin.',
+                $duplicate->nomor_order,
+            ));
+    }
+
     public function destroy(Hpp $hpp): RedirectResponse
     {
         abort_unless($hpp->isDeletable(), 403);

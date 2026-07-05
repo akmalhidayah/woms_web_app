@@ -530,6 +530,17 @@ Route::prefix('admin/hpp')
     ->group(function () {
         Route::get('/', [HppController::class, 'index'])->name('index');
         Route::get('/create', [HppController::class, 'create'])->name('create');
+        Route::prefix('id/{hpp}')
+            ->whereNumber('hpp')
+            ->group(function () {
+                Route::get('/pdf', [HppController::class, 'pdf'])->name('pdf.by-id');
+                Route::get('/dirops-signed-document', [HppController::class, 'diropsSignedDocument'])->name('dirops-document.show.by-id');
+                Route::post('/dirops-signed-document', [HppController::class, 'uploadDiropsSignedDocument'])->name('dirops-document.upload.by-id');
+                Route::post('/regenerate-active-approval-token', [HppController::class, 'regenerateActiveApprovalToken'])->name('approval-token.regenerate.by-id');
+                Route::post('/resend-active-approval', [HppController::class, 'resendActiveApproval'])->name('approval.resend.by-id');
+                Route::get('/edit', [HppController::class, 'edit'])->name('edit.by-id');
+                Route::post('/duplicate', [HppController::class, 'duplicate'])->name('duplicate');
+            });
         Route::get('/{hpp:nomor_order}/pdf', [HppController::class, 'pdf'])->name('pdf');
         Route::get('/{hpp:nomor_order}/dirops-signed-document', [HppController::class, 'diropsSignedDocument'])->name('dirops-document.show');
         Route::post('/{hpp:nomor_order}/dirops-signed-document', [HppController::class, 'uploadDiropsSignedDocument'])->name('dirops-document.upload');

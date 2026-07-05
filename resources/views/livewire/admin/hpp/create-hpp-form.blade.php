@@ -304,13 +304,6 @@
 
         <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div class="flex flex-col items-start gap-2 md:flex-row md:items-center">
-                <button
-                    type="button"
-                    id="tambah-jenis-btn"
-                    class="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-[10px] font-semibold text-white transition hover:bg-blue-700"
-                >
-                    Tambah Jenis
-                </button>
                 <span class="text-[9px] text-slate-500">Pilih jenis item dari master kontrak, lalu pilih detail item agar satuan dan harga terisi otomatis.</span>
             </div>
 
@@ -321,6 +314,16 @@
             @endif
 
             <div id="jenis-container" class="mt-3 space-y-3"></div>
+
+            <div class="mt-4 flex justify-start">
+                <button
+                    type="button"
+                    id="tambah-jenis-btn"
+                    class="inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 sm:w-auto"
+                >
+                    Tambah Jenis
+                </button>
+            </div>
 
             <div class="mt-3 border-t border-slate-200 pt-3">
                 <label for="total_keseluruhan" class="text-[10px] font-semibold text-slate-700">Total Keseluruhan (Rp)</label>
@@ -524,6 +527,19 @@
             return [...new Set(values.map(normalizeKey).filter(Boolean))];
         }
 
+        function isDummyOption(value) {
+            const normalized = normalizeKey(value).toLowerCase();
+
+            return normalized === ''
+                || normalized === 'tanpa sub jenis'
+                || normalized === 'tanpa subjenis'
+                || normalized === 'tanpa kategori';
+        }
+
+        function uniqueRealValues(values) {
+            return uniqueValues(values).filter((value) => ! isDummyOption(value));
+        }
+
         const jenisOptions = uniqueValues(contractCatalog.map((item) => item.jenis_item));
 
         function normalizeDecimalString(value) {
@@ -622,30 +638,77 @@
         }
 
         function getSubJenisOptions(jenisItem) {
-            return uniqueValues(
+            return uniqueRealValues(
                 contractCatalog
                     .filter((item) => normalizeKey(item.jenis_item) === normalizeKey(jenisItem))
                     .map((item) => item.sub_jenis_item),
             );
         }
 
-        function getKategoriOptions(jenisItem, subJenisItem) {
-            return uniqueValues(
+        function getKategoriOptions(jenisItem, subJenisItem, useSubJenis = true) {
+            return uniqueRealValues(
                 contractCatalog
                     .filter((item) =>
                         normalizeKey(item.jenis_item) === normalizeKey(jenisItem)
-                        && normalizeKey(item.sub_jenis_item) === normalizeKey(subJenisItem)
+                        && (! useSubJenis || normalizeKey(item.sub_jenis_item) === normalizeKey(subJenisItem))
                     )
                     .map((item) => item.kategori_item),
             );
         }
 
-        function getItemOptions(jenisItem, subJenisItem, kategoriItem) {
+        function getItemOptions(jenisItem, subJenisItem, kategoriItem, useSubJenis = true, useKategori = true) {
             return contractCatalog.filter((item) =>
                 normalizeKey(item.jenis_item) === normalizeKey(jenisItem)
-                && normalizeKey(item.sub_jenis_item) === normalizeKey(subJenisItem)
-                && normalizeKey(item.kategori_item) === normalizeKey(kategoriItem)
+                && (! useSubJenis || normalizeKey(item.sub_jenis_item) === normalizeKey(subJenisItem))
+                && (! useKategori || normalizeKey(item.kategori_item) === normalizeKey(kategoriItem))
             );
+        }
+
+        function searchableController(selectEl, searchPlaceholder) {
+            if (! selectEl) {
+                return null;
+            }
+
+            if (selectEl._hppSearchable) {
+                return selectEl._hppSearchable;
+            }
+
+            const input = document.createElement('input');
+            input.type = 'search';
+            input.autocomplete = 'off';
+            input.placeholder = searchPlaceholder;
+            input.className = 'mb-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100';
+
+            selectEl.parentNode.insertBefore(input, selectEl);
+
+            const controller = {
+                input,
+                refresh() {
+                    const query = normalizeKey(input.value).toLowerCase();
+
+                    Array.from(selectEl.options).forEach((option, index) => {
+                        option.hidden = index !== 0 && query !== '' && ! option.textContent.toLowerCase().includes(query);
+                    });
+                },
+                clear() {
+                    input.value = '';
+                    this.refresh();
+                },
+            };
+
+            input.addEventListener('input', () => controller.refresh());
+            selectEl.addEventListener('change', () => controller.clear());
+            selectEl._hppSearchable = controller;
+
+            return controller;
+        }
+
+        function refreshSearchableSelect(selectEl) {
+            selectEl?._hppSearchable?.refresh();
+        }
+
+        function clearSearchableSelect(selectEl) {
+            selectEl?._hppSearchable?.clear();
         }
 
         function populateItemSelect(selectEl, options, placeholder, selectedValue = '') {
@@ -686,6 +749,7 @@
 
             selectEl.innerHTML = '';
             selectEl.appendChild(fragment);
+            refreshSearchableSelect(selectEl);
         }
 
         function populateSelect(selectEl, options, placeholder, selectedValue = '') {
@@ -725,6 +789,7 @@
 
             selectEl.innerHTML = '';
             selectEl.appendChild(fragment);
+            refreshSearchableSelect(selectEl);
         }
 
         function addJenis(preset = null) {
@@ -734,22 +799,24 @@
             const titleVal = preset?.title ?? (jenisOptions[0] ?? '');
 
             wrap.innerHTML = `
-                <div class="mb-3 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div class="flex-1">
-                        <label class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Jenis Item</label>
-                        <select name="jenis_label_visible[${g}]" class="jenis-label mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700"></select>
+                <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Jenis Item</div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button type="button" class="hapus-jenis rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] font-semibold text-rose-700 transition hover:bg-rose-100">
-                            Hapus Jenis
-                        </button>
-                        <button type="button" class="tambah-item rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] font-semibold text-emerald-700 transition hover:bg-emerald-100">
-                            Tambah Item
-                        </button>
-                    </div>
+                    <button type="button" class="hapus-jenis inline-flex w-full items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-bold text-rose-600 transition hover:bg-rose-100 sm:w-auto">
+                        Hapus Jenis
+                    </button>
                 </div>
 
+                <select name="jenis_label_visible[${g}]" class="jenis-label mb-3 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700"></select>
+
                 <div class="items-container space-y-3" data-g="${g}"></div>
+
+                <div class="mt-4 flex justify-end">
+                        <button type="button" class="tambah-item inline-flex w-full items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-700 transition hover:bg-emerald-100 sm:w-auto">
+                            Tambah Item
+                        </button>
+                </div>
 
                 <div class="mt-3 text-right text-[13px] text-slate-700">
                     <span>Subtotal: </span>
@@ -769,6 +836,7 @@
                 jenisOptions.length > 0 ? 'Pilih jenis item' : 'Belum ada jenis item master',
                 titleVal,
             );
+            searchableController(jenisLabelEl, 'Cari jenis item...');
 
             wrap.querySelector('.tambah-item').addEventListener('click', () => {
                 addItem(itemsContainer, subtotalEl, g, null);
@@ -804,19 +872,19 @@
             let initialNamaItem = data?.nama_item ?? '';
 
             item.innerHTML = `
-                <div class="mb-3 flex items-center justify-between gap-2">
+                <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <h4 class="text-[13px] font-semibold text-slate-800">Deskripsi Item</h4>
-                    <button type="button" class="remove-item text-[12px] font-semibold text-rose-600 transition hover:text-rose-700">
-                        Hapus
+                    <button type="button" class="remove-item inline-flex w-full items-center justify-center rounded-lg bg-rose-50 px-3 py-2 text-[12px] font-semibold text-rose-600 transition hover:bg-rose-100 hover:text-rose-700 sm:w-auto">
+                        Hapus Item
                     </button>
                 </div>
 
                 <div class="mb-3 grid gap-3 md:grid-cols-2">
-                    <div>
+                    <div class="sub-jenis-field">
                         <label class="mb-1 block text-[11px] font-medium text-slate-600">Sub Jenis Item</label>
                         <select name="sub_jenis_item[${gIndex}][]" class="sub-jenis-item w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[12px] text-slate-700"></select>
                     </div>
-                    <div>
+                    <div class="kategori-field">
                         <label class="mb-1 block text-[11px] font-medium text-slate-600">Kategori Item</label>
                         <select name="kategori_item[${gIndex}][]" class="kategori-item w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[12px] text-slate-700"></select>
                     </div>
@@ -861,6 +929,8 @@
             list.appendChild(item);
 
             const jenisLabelEl = list.closest('.jenis-block').querySelector('.jenis-label');
+            const subJenisField = item.querySelector('.sub-jenis-field');
+            const kategoriField = item.querySelector('.kategori-field');
             const subJenisEl = item.querySelector('.sub-jenis-item');
             const kategoriEl = item.querySelector('.kategori-item');
             const namaItemEl = item.querySelector('.nama-item');
@@ -868,6 +938,10 @@
             const satuanEl = item.querySelector('.satuan');
             const hsEl = item.querySelector('.harga-satuan');
             const htEl = item.querySelector('.harga-total');
+
+            searchableController(subJenisEl, 'Cari sub jenis item...');
+            searchableController(kategoriEl, 'Cari kategori item...');
+            searchableController(namaItemEl, 'Cari nama item...');
 
             function recompute() {
                 htEl.value = multiplyToCurrencyString(qtyEl.value, hsEl.value);
@@ -878,17 +952,20 @@
             function syncSubJenis(reset = false) {
                 const selectedValue = reset ? '' : (initialSubJenis || subJenisEl.value);
                 const options = getSubJenisOptions(jenisLabelEl.value).map((value) => ({ value, label: value }));
+                const shouldShow = options.length > 0 || ! isDummyOption(selectedValue);
 
                 populateSelect(
                     subJenisEl,
                     options,
-                    options.length > 0 ? 'Pilih sub jenis item' : 'Tanpa sub jenis',
+                    'Pilih sub jenis item',
                     selectedValue,
                 );
+                clearSearchableSelect(subJenisEl);
 
-                subJenisEl.disabled = options.length === 0;
-                if (options.length === 0) {
+                subJenisField.classList.toggle('hidden', ! shouldShow);
+                if (! shouldShow) {
                     subJenisEl.value = '';
+                    clearSearchableSelect(subJenisEl);
                 }
 
                 initialSubJenis = '';
@@ -896,18 +973,22 @@
 
             function syncKategori(reset = false) {
                 const selectedValue = reset ? '' : (initialKategori || kategoriEl.value);
-                const options = getKategoriOptions(jenisLabelEl.value, subJenisEl.value).map((value) => ({ value, label: value }));
+                const useSubJenis = ! subJenisField.classList.contains('hidden');
+                const options = getKategoriOptions(jenisLabelEl.value, subJenisEl.value, useSubJenis).map((value) => ({ value, label: value }));
+                const shouldShow = options.length > 0 || ! isDummyOption(selectedValue);
 
                 populateSelect(
                     kategoriEl,
                     options,
-                    options.length > 0 ? 'Pilih kategori item' : 'Tanpa kategori',
+                    'Pilih kategori item',
                     selectedValue,
                 );
+                clearSearchableSelect(kategoriEl);
 
-                kategoriEl.disabled = options.length === 0;
-                if (options.length === 0) {
+                kategoriField.classList.toggle('hidden', ! shouldShow);
+                if (! shouldShow) {
                     kategoriEl.value = '';
+                    clearSearchableSelect(kategoriEl);
                 }
 
                 initialKategori = '';
@@ -915,7 +996,13 @@
 
             function syncNamaItem(reset = false) {
                 const selectedValue = reset ? '' : (initialNamaItem || namaItemEl.value);
-                const options = getItemOptions(jenisLabelEl.value, subJenisEl.value, kategoriEl.value);
+                const options = getItemOptions(
+                    jenisLabelEl.value,
+                    subJenisEl.value,
+                    kategoriEl.value,
+                    ! subJenisField.classList.contains('hidden'),
+                    ! kategoriField.classList.contains('hidden'),
+                );
 
                 populateItemSelect(
                     namaItemEl,
@@ -923,6 +1010,7 @@
                     options.length > 0 ? 'Pilih nama item' : 'Tidak ada item tersedia',
                     selectedValue,
                 );
+                clearSearchableSelect(namaItemEl);
 
                 namaItemEl.disabled = options.length === 0;
                 if (options.length === 0) {

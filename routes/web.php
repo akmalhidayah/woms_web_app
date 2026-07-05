@@ -363,39 +363,39 @@ Route::middleware(['auth'])->group(function () {
         ->name('admin.fabrication-construction-contracts.destroy');
 
     Route::get('user/dashboard', [OrderTrackingController::class, 'index'])
-        ->middleware('role:user,approver')
+        ->middleware('role:user,approver,pkm')
         ->name('user.dashboard');
     Route::post('user/notifications/read', [UserNotificationController::class, 'read'])
         ->middleware('role:user,approver')
         ->name('user.notifications.read');
     Route::get('user/orders/{order}', [OrderTrackingController::class, 'show'])
-        ->middleware('role:user,approver')
+        ->middleware('role:user,approver,pkm')
         ->name('user.orders.show');
     Route::get('user/orders/{order}/documents/{document}', [OrderTrackingController::class, 'previewDocument'])
-        ->middleware('role:user,approver')
+        ->middleware('role:user,approver,pkm')
         ->whereNumber('document')
         ->name('user.orders.documents.preview');
     Route::get('user/orders/{order}/scope-of-work/pdf', [OrderTrackingController::class, 'scopeOfWorkPdf'])
-        ->middleware('role:user,approver')
+        ->middleware('role:user,approver,pkm')
         ->name('user.orders.scope-of-work.pdf');
     Route::get('user/orders/{order}/initial-work/pdf', [OrderTrackingController::class, 'initialWorkPdf'])
-        ->middleware('role:user,approver')
+        ->middleware('role:user,approver,pkm')
         ->name('user.orders.initial-work.pdf');
     Route::get('user/orders/{order}/hpp/pdf', [OrderTrackingController::class, 'hppPdf'])
-        ->middleware('role:user,approver')
+        ->middleware('role:user,approver,pkm')
         ->name('user.orders.hpp.pdf');
     Route::get('user/orders/{order}/purchase-order/document', [OrderTrackingController::class, 'purchaseOrderDocument'])
-        ->middleware('role:user,approver')
+        ->middleware('role:user,approver,pkm')
         ->name('user.orders.purchase-order.document');
     Route::get('user/orders/{order}/quality-control/pdf', [OrderTrackingController::class, 'qualityControlPdf'])
-        ->middleware('role:user,approver')
+        ->middleware('role:user,approver,pkm')
         ->name('user.orders.quality-control.pdf');
     Route::get('user/orders/{order}/{termin}/bast/pdf', [OrderTrackingController::class, 'bastPdf'])
-        ->middleware('role:user,approver')
+        ->middleware('role:user,approver,pkm')
         ->where('termin', 'termin-1|termin-2')
         ->name('user.orders.bast.pdf');
     Route::get('user/orders/{order}/laporan/{kind}/{termin}', [OrderTrackingController::class, 'previewLpjPpl'])
-        ->middleware('role:user,approver')
+        ->middleware('role:user,approver,pkm')
         ->where('kind', 'lpj|ppl')
         ->whereNumber('termin')
         ->name('user.orders.laporan.preview');

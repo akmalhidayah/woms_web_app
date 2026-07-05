@@ -165,6 +165,12 @@
                                     Profile
                                 </a>
 
+                                @if ($user?->role === 'pkm')
+                                    <a href="{{ route('pkm.dashboard') }}" class="block px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50">
+                                        Kembali ke Dashboard PKM
+                                    </a>
+                                @endif
+
                                 <form method="POST" action="{{ route('logout') }}">
                                     @csrf
                                     <button type="submit" class="block w-full px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50">
@@ -251,6 +257,9 @@
                             <div class="text-xs text-slate-500">{{ $user?->email }}</div>
                         </div>
                         <a href="{{ route('settings.profile') }}" class="block rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700">Profile</a>
+                        @if ($user?->role === 'pkm')
+                            <a href="{{ route('pkm.dashboard') }}" class="block rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700">Kembali ke Dashboard PKM</a>
+                        @endif
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit" class="block w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700">

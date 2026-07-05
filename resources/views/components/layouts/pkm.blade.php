@@ -284,6 +284,10 @@
                                         Profile
                                     </a>
 
+                                    <a href="{{ route('user.dashboard') }}" class="block px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50">
+                                        Lihat Halaman User
+                                    </a>
+
                                     <form method="POST" action="{{ route('logout') }}">
                                         @csrf
                                         <button type="submit" class="block w-full px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50">

@@ -10,8 +10,52 @@
         initialState: @js($initialState),
     })"
     @hpp-total-updated.window="nilaiBucket = $event.detail.bucket"
-    class="space-y-3"
+    class="hpp-form-tomselect space-y-3"
 >
+    @once
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.css">
+        <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
+        <style>
+            .hpp-form-tomselect .ts-wrapper.single .ts-control {
+                min-height: 2.55rem;
+                border-radius: 0.75rem;
+                border-color: rgb(203 213 225);
+                background: #fff;
+                padding: 0.45rem 0.75rem;
+                font-size: 0.76rem;
+                color: rgb(51 65 85);
+                box-shadow: none;
+            }
+
+            .hpp-form-tomselect .ts-wrapper.single.focus .ts-control {
+                border-color: rgb(59 130 246);
+                box-shadow: 0 0 0 2px rgb(219 234 254);
+            }
+
+            .hpp-form-tomselect .ts-wrapper.disabled .ts-control {
+                background: rgb(248 250 252);
+                color: rgb(100 116 139);
+            }
+
+            .hpp-form-tomselect .ts-dropdown {
+                border-color: rgb(203 213 225);
+                border-radius: 0.75rem;
+                font-size: 0.76rem;
+                overflow: hidden;
+                z-index: 60;
+            }
+
+            .hpp-form-tomselect .ts-dropdown .option {
+                padding: 0.55rem 0.75rem;
+            }
+
+            .hpp-form-tomselect .ts-dropdown .active {
+                background: rgb(239 246 255);
+                color: rgb(30 64 175);
+            }
+        </style>
+    @endonce
+
     @if ($errors->any())
         <div class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
             <div class="font-semibold">Data HPP belum bisa disimpan.</div>
@@ -673,34 +717,67 @@
                 return selectEl._hppSearchable;
             }
 
-            const input = document.createElement('input');
-            input.type = 'search';
-            input.autocomplete = 'off';
-            input.placeholder = searchPlaceholder;
-            input.className = 'mb-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100';
-
-            selectEl.parentNode.insertBefore(input, selectEl);
-
             const controller = {
-                input,
-                refresh() {
-                    const query = normalizeKey(input.value).toLowerCase();
+                instance: null,
+                init() {
+                    if (! window.TomSelect) {
+                        return this;
+                    }
 
-                    Array.from(selectEl.options).forEach((option, index) => {
-                        option.hidden = index !== 0 && query !== '' && ! option.textContent.toLowerCase().includes(query);
+                    this.instance = selectEl.tomselect ?? new TomSelect(selectEl, {
+                        create: false,
+                        persist: false,
+                        maxOptions: null,
+                        placeholder: searchPlaceholder,
+                        sortField: [{ field: '$order' }],
+                        render: {
+                            no_results() {
+                                return '<div class="no-results px-3 py-2 text-slate-500">Tidak ada data</div>';
+                            },
+                        },
                     });
+
+                    return this;
+                },
+                refresh() {
+                    if (! window.TomSelect) {
+                        return;
+                    }
+
+                    if (! selectEl.tomselect) {
+                        this.init();
+
+                        return;
+                    }
+
+                    this.instance = selectEl.tomselect;
+                    this.instance.sync();
+                    this.instance.refreshOptions(false);
                 },
                 clear() {
-                    input.value = '';
-                    this.refresh();
+                    if (! selectEl.tomselect) {
+                        return;
+                    }
+
+                    selectEl.tomselect.setTextboxValue('');
+                    selectEl.tomselect.refreshOptions(false);
+                },
+                destroy() {
+                    if (selectEl.tomselect) {
+                        selectEl.tomselect.destroy();
+                    }
+
+                    this.instance = null;
                 },
             };
 
-            input.addEventListener('input', () => controller.refresh());
-            selectEl.addEventListener('change', () => controller.clear());
             selectEl._hppSearchable = controller;
 
-            return controller;
+            return controller.init();
+        }
+
+        function destroySearchableSelect(selectEl) {
+            selectEl?._hppSearchable?.destroy();
         }
 
         function refreshSearchableSelect(selectEl) {
@@ -711,8 +788,21 @@
             selectEl?._hppSearchable?.clear();
         }
 
+        function syncSearchableDisabled(selectEl) {
+            if (! selectEl?.tomselect) {
+                return;
+            }
+
+            if (selectEl.disabled) {
+                selectEl.tomselect.disable();
+            } else {
+                selectEl.tomselect.enable();
+            }
+        }
+
         function populateItemSelect(selectEl, options, placeholder, selectedValue = '') {
             const normalizedSelected = normalizeKey(selectedValue);
+            destroySearchableSelect(selectEl);
             const fragment = document.createDocumentFragment();
             const firstOption = document.createElement('option');
             firstOption.value = '';
@@ -754,6 +844,7 @@
 
         function populateSelect(selectEl, options, placeholder, selectedValue = '') {
             const normalizedSelected = normalizeKey(selectedValue);
+            destroySearchableSelect(selectEl);
             const fragment = document.createDocumentFragment();
             const firstOption = document.createElement('option');
             firstOption.value = '';
@@ -836,6 +927,7 @@
                 jenisOptions.length > 0 ? 'Pilih jenis item' : 'Belum ada jenis item master',
                 titleVal,
             );
+            searchableController(jenisLabelEl, 'Cari jenis item...');
 
             wrap.querySelector('.tambah-item').addEventListener('click', () => {
                 addItem(itemsContainer, subtotalEl, g, null);
@@ -1012,6 +1104,7 @@
                 clearSearchableSelect(namaItemEl);
 
                 namaItemEl.disabled = options.length === 0;
+                syncSearchableDisabled(namaItemEl);
                 if (options.length === 0) {
                     namaItemEl.value = '';
                 }

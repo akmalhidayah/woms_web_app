@@ -333,12 +333,12 @@
                                             <i data-lucide="file-text" class="h-3 w-3"></i>
                                         </a>
 
-                                        <form method="POST" action="{{ route('admin.hpp.duplicate', $row) }}" class="duplicate-hpp-form" data-order="{{ $row->nomor_order }}">
+                                        <!-- <form method="POST" action="{{ route('admin.hpp.duplicate', $row) }}" class="duplicate-hpp-form" data-order="{{ $row->nomor_order }}">
                                             @csrf
                                             <button type="submit" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100" title="Duplicate HPP">
                                                 <i data-lucide="copy-plus" class="h-3 w-3"></i>
                                             </button>
-                                        </form>
+                                        </form> -->
 
                                         @if ($row->isEditable())
                                             <a href="{{ route('admin.hpp.edit.by-id', $row) }}" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100" title="Edit HPP">

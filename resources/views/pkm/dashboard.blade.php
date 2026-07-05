@@ -327,47 +327,47 @@
             </div>
 
             <div class="space-y-2 p-2.5">
-                @if ($jobHighlights->isNotEmpty())
-                    @foreach ($jobHighlights as $job)
-                        @php
-                            $tone = $statusToneClasses[$job['status_key']] ?? $statusToneClasses['menunggu'];
-                        @endphp
-                        <div class="rounded-[1rem] border border-slate-200 bg-[#fbfcfd] px-3 py-2.5">
-                            <div class="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
-                                <div class="min-w-0 flex-1">
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <div class="text-[12px] font-bold text-slate-900">{{ $job['label'] }}</div>
-                                        <span class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold {{ $tone['badge'] }}">{{ $job['status_label'] }}</span>
-                                    </div>
-
-                                    <div class="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] text-slate-600">
-                                        <span class="inline-flex items-center gap-1.5">
-                                            <i data-lucide="calendar" class="h-3 w-3"></i>{{ $job['date'] }}
-                                        </span>
-                                        <span class="text-slate-300">|</span>
-                                        <span>{{ $job['status_text'] }}</span>
-                                    </div>
+                @foreach ($jobHighlights as $job)
+                    @php
+                        $tone = $statusToneClasses[$job['status_key']] ?? $statusToneClasses['menunggu'];
+                    @endphp
+                    <div class="rounded-[1rem] border border-slate-200 bg-[#fbfcfd] px-3 py-2.5">
+                        <div class="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <div class="text-[12px] font-bold text-slate-900">{{ $job['label'] }}</div>
+                                    <span class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold {{ $tone['badge'] }}">{{ $job['status_label'] }}</span>
                                 </div>
 
-                                <div class="flex min-w-[180px] items-center gap-2.5">
-                                    <div class="flex-1">
-                                        <div class="mb-1 flex items-center justify-between text-[10px]">
-                                            <span class="text-slate-500">Progress</span>
-                                            <span class="font-bold text-slate-700">{{ $job['progress'] }}%</span>
-                                        </div>
-                                        <div class="h-2 overflow-hidden rounded-full bg-slate-100">
-                                            <div class="h-full rounded-full {{ $tone['bar'] }}" style="width: {{ max(0, min(100, $job['progress'])) }}%"></div>
-                                        </div>
-                                    </div>
-
-                                    <a href="{{ $job['action_url'] }}" class="inline-flex items-center justify-center rounded-lg border px-3 py-1.5 text-[10px] font-bold transition {{ $tone['button'] }}">
-                                        {{ $job['action_label'] }}
-                                    </a>
+                                <div class="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] text-slate-600">
+                                    <span class="inline-flex items-center gap-1.5">
+                                        <i data-lucide="calendar" class="h-3 w-3"></i>{{ $job['date'] }}
+                                    </span>
+                                    <span class="text-slate-300">|</span>
+                                    <span>{{ $job['status_text'] }}</span>
                                 </div>
                             </div>
+
+                            <div class="flex min-w-[180px] items-center gap-2.5">
+                                <div class="flex-1">
+                                    <div class="mb-1 flex items-center justify-between text-[10px]">
+                                        <span class="text-slate-500">Progress</span>
+                                        <span class="font-bold text-slate-700">{{ $job['progress'] }}%</span>
+                                    </div>
+                                    <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+                                        <div class="h-full rounded-full {{ $tone['bar'] }}" style="width: {{ max(0, min(100, $job['progress'])) }}%"></div>
+                                    </div>
+                                </div>
+
+                                <a href="{{ $job['action_url'] }}" class="inline-flex items-center justify-center rounded-lg border px-3 py-1.5 text-[10px] font-bold transition {{ $tone['button'] }}">
+                                    {{ $job['action_label'] }}
+                                </a>
+                            </div>
                         </div>
-                    @endforeach
-                @else
+                    </div>
+                @endforeach
+
+                @if ($jobHighlights->isEmpty())
                     <div class="rounded-[1rem] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-[11px] text-slate-500">
                         Belum ada pekerjaan.
                     </div>

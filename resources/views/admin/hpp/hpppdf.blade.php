@@ -143,6 +143,14 @@
             border-top: 1px solid #000 !important;
         }
 
+        .table-hpp tbody td.oa-cell-close {
+            border-bottom: 1px solid #000 !important;
+        }
+
+        .table-hpp tbody tr:nth-last-child(2) td.oa-cell {
+            border-bottom: 1px solid #000 !important;
+        }
+
         .table-hpp tr {
             page-break-inside: avoid;
         }

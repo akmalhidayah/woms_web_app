@@ -128,23 +128,10 @@
             background-color: #B0C4DE;
         }
 
-        .table-hpp td.oa-cell {
+        .table-hpp .oa-cell {
             width: 14%;
             text-align: center;
             vertical-align: top;
-            border-left: 1px solid #000 !important;
-            border-right: 1px solid #000 !important;
-            background: #fff;
-        }
-
-        .table-hpp td.oa-cell-first {
-            border-top: 1px solid #000 !important;
-            border-bottom: 0 !important;
-        }
-
-        .table-hpp td.oa-cell-blank {
-            border-top: 0 !important;
-            border-bottom: 0 !important;
         }
 
         .table-hpp tr {
@@ -643,27 +630,14 @@
 
     $outlineAgreementNumber = trim((string) ($hpp->outline_agreement ?: optional($hpp->outlineAgreement)->nomor_oa ?: ''));
     $outlineAgreementPrinted = false;
-    $nextOutlineAgreementCell = function () use (&$outlineAgreementPrinted, $outlineAgreementNumber): array {
-        $isFirst = ! $outlineAgreementPrinted;
-
-        if ($isFirst) {
-            $outlineAgreementPrinted = true;
+    $printOutlineAgreement = function () use (&$outlineAgreementPrinted, $outlineAgreementNumber): string {
+        if ($outlineAgreementPrinted) {
+            return '';
         }
 
-        return [
-            'class' => $isFirst ? 'oa-cell-first' : 'oa-cell-blank',
-            'text' => $isFirst ? ($outlineAgreementNumber ?: '-') : '',
-        ];
-    };
+        $outlineAgreementPrinted = true;
 
-    $oaCellStyle = function (string $class): string {
-        $base = 'border-left: 1px solid #000; border-right: 1px solid #000; text-align: center; vertical-align: top; width: 14%; background: #fff;';
-
-        if ($class === 'oa-cell-first') {
-            return $base.' border-top: 1px solid #000; border-bottom: 0;';
-        }
-
-        return $base.' border-top: 0; border-bottom: 0;';
+        return $outlineAgreementNumber;
     };
 @endphp
 <body>
@@ -752,8 +726,7 @@
             <tbody>
             @if(empty($groupsByJenis))
                 <tr>
-                    @php($oaCell = $nextOutlineAgreementCell())
-                    <td class="oa-cell {{ $oaCell['class'] }}" style="{{ $oaCellStyle($oaCell['class']) }}">{{ $oaCell['text'] }}</td>
+                    <td class="oa-cell" style="border: 1px solid black;">{{ $printOutlineAgreement() }}</td>
                     <td colspan="6" style="border: 1px solid black; text-align: center; padding: 6px;">Tidak ada data</td>
                 </tr>
             @else
@@ -761,8 +734,7 @@
 
                 @foreach ($groupsByJenis as $label => $kategoriGroups)
                     <tr>
-                        @php($oaCell = $nextOutlineAgreementCell())
-                        <td class="oa-cell {{ $oaCell['class'] }}" style="{{ $oaCellStyle($oaCell['class']) }}">{{ $oaCell['text'] }}</td>
+                        <td class="oa-cell" style="border: 1px solid black;">{{ $printOutlineAgreement() }}</td>
                         <td colspan="6" style="border: 1px solid black; padding: 4px 8px; font-weight: bold;">
                             {{ $indexToLetters($groupIndex) }}. {{ $label }}
                         </td>
@@ -771,8 +743,7 @@
                     @foreach ($kategoriGroups as $kategoriGroup)
                         @if(($kategoriGroup['label'] ?? '') !== '')
                             <tr>
-                                @php($oaCell = $nextOutlineAgreementCell())
-                                <td class="oa-cell {{ $oaCell['class'] }}" style="{{ $oaCellStyle($oaCell['class']) }}">{{ $oaCell['text'] }}</td>
+                                <td class="oa-cell" style="border: 1px solid black;">{{ $printOutlineAgreement() }}</td>
                                 <td colspan="6" style="border: 1px solid black; padding: 4px 18px; font-weight: bold;">
                                     {{ $kategoriGroup['label'] }}
                                 </td>
@@ -781,8 +752,7 @@
 
                         @foreach (($kategoriGroup['items'] ?? []) as $it)
                             <tr>
-                                @php($oaCell = $nextOutlineAgreementCell())
-                                <td class="oa-cell {{ $oaCell['class'] }}" style="{{ $oaCellStyle($oaCell['class']) }}">{{ $oaCell['text'] }}</td>
+                                <td class="oa-cell" style="border: 1px solid black;">{{ $printOutlineAgreement() }}</td>
                                 <td class="uraian-cell" style="border: 1px solid black;">
                                     <table class="uraian-table">
                                         <tr>

@@ -473,15 +473,17 @@ class HppController extends Controller
             ]);
         }
 
+        $areaPekerjaanKey = HppApprovalFlow::normalizeAreaKey($validated['area_pekerjaan']);
+
         $approvalCase = HppApprovalFlow::resolvePreviewCase(
             $validated['kategori_pekerjaan'],
-            $validated['area_pekerjaan'],
+            $areaPekerjaanKey,
             $nilaiHppBucket,
         );
 
         $defaultApprovalFlow = HppApprovalFlow::resolveApprovalFlow(
             $validated['kategori_pekerjaan'],
-            $validated['area_pekerjaan'],
+            $areaPekerjaanKey,
             $nilaiHppBucket,
         );
         $approvalFlow = $canReorderApprovalFlow
@@ -501,7 +503,7 @@ class HppController extends Controller
             'unit_work_id' => $outlineAgreement->unit_work_id,
             'cost_centre' => ($validated['cost_centre'] ?? null) ?: null,
             'kategori_pekerjaan' => $validated['kategori_pekerjaan'],
-            'area_pekerjaan' => HppApprovalFlow::displayArea($validated['area_pekerjaan']),
+            'area_pekerjaan' => HppApprovalFlow::displayArea($areaPekerjaanKey),
             'nilai_hpp_bucket' => $nilaiHppBucket,
             'unit_kerja_pengendali' => $outlineAgreement->unitWork?->name,
             'seksi_pengendali' => trim((string) $outlineAgreement->jenis_kontrak) !== ''
@@ -550,11 +552,17 @@ class HppController extends Controller
                 ->all()
             : [];
 
+        if ($defaultFlow === []) {
+            throw ValidationException::withMessages([
+                'approval_flow' => 'Default approval flow tidak ditemukan untuk kombinasi kategori, area, dan nilai HPP yang dipilih.',
+            ]);
+        }
+
         if ($submittedFlow === []) {
             return array_values($defaultFlow);
         }
 
-        if ($defaultFlow === [] || ! $this->hasSameApprovalRoles($defaultFlow, $submittedFlow)) {
+        if (! $this->hasSameApprovalRoles($defaultFlow, $submittedFlow)) {
             throw ValidationException::withMessages([
                 'approval_flow' => 'Snapshot approval flow hanya boleh diubah urutannya. Role approval tidak boleh ditambah, dihapus, atau diganti.',
             ]);

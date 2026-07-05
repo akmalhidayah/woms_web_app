@@ -962,8 +962,7 @@
             let initialNamaItem = data?.nama_item ?? '';
 
             item.innerHTML = `
-                <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <h4 class="text-[13px] font-semibold text-slate-800">Deskripsi Item</h4>
+                <div class="mb-3 flex justify-end">
                     <button type="button" class="remove-item inline-flex w-full items-center justify-center rounded-lg bg-rose-50 px-3 py-2 text-[12px] font-semibold text-rose-600 transition hover:bg-rose-100 hover:text-rose-700 sm:w-auto">
                         Hapus Item
                     </button>

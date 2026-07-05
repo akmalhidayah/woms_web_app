@@ -39,7 +39,45 @@
     $calendarMonth = $now->copy()->startOfMonth();
     $start = $calendarMonth->copy()->startOfWeek();
     $end = $calendarMonth->copy()->endOfMonth()->endOfWeek();
-    $cursor = $start->copy();
+
+    $calendarRows = [];
+    $calendarCursor = $start->copy();
+
+    while ($calendarCursor->lte($end)) {
+        $week = [];
+
+        for ($i = 0; $i < 7; $i++) {
+            $inMonth = $calendarCursor->isSameMonth($calendarMonth);
+            $dateKey = $calendarCursor->format('Y-m-d');
+            $targetForDate = $targets->first(fn ($item) => $item['date_str'] === $dateKey);
+            $isTodayDate = $calendarCursor->isToday();
+            $dotClass = 'bg-[#7eb7b0]';
+
+            if ($targetForDate) {
+                if ($targetForDate['is_done']) {
+                    $dotClass = 'bg-[#38a169]';
+                } elseif ($targetForDate['is_overdue']) {
+                    $dotClass = 'bg-[#db5c5c]';
+                } elseif ($targetForDate['is_today']) {
+                    $dotClass = 'bg-[#b86c43]';
+                } else {
+                    $dotClass = 'bg-[#d79a2b]';
+                }
+            }
+
+            $week[] = [
+                'day' => $inMonth ? $calendarCursor->day : '',
+                'in_month' => $inMonth,
+                'is_today' => $isTodayDate,
+                'has_target' => (bool) $targetForDate,
+                'dot_class' => $dotClass,
+            ];
+
+            $calendarCursor->addDay();
+        }
+
+        $calendarRows[] = $week;
+    }
 
     $topCards = [
         [
@@ -406,42 +444,22 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @while ($cursor <= $end)
+                        @foreach ($calendarRows as $week)
                             <tr>
-                                @for ($i = 0; $i < 7; $i++)
-                                    @php
-                                        $inMonth = $cursor->month === $calendarMonth->month;
-                                        $dateKey = $cursor->format('Y-m-d');
-                                        $targetForDate = $targets->first(fn ($item) => $item['date_str'] === $dateKey);
-                                        $isTodayDate = $cursor->isToday();
-                                        $dotClass = 'bg-[#7eb7b0]';
-
-                                        if ($targetForDate) {
-                                            if ($targetForDate['is_done']) {
-                                                $dotClass = 'bg-[#38a169]';
-                                            } elseif ($targetForDate['is_overdue']) {
-                                                $dotClass = 'bg-[#db5c5c]';
-                                            } elseif ($targetForDate['is_today']) {
-                                                $dotClass = 'bg-[#b86c43]';
-                                            } else {
-                                                $dotClass = 'bg-[#d79a2b]';
-                                            }
-                                        }
-                                    @endphp
+                                @foreach ($week as $day)
                                     <td class="align-top">
-                                        <div class="h-[48px] rounded-xl border px-2 py-1.5 {{ $inMonth ? 'border-slate-200 bg-white' : 'border-transparent bg-slate-50' }} {{ $isTodayDate ? 'ring-2 ring-[#ead7c6]' : '' }}">
+                                        <div class="h-[48px] rounded-xl border px-2 py-1.5 {{ $day['in_month'] ? 'border-slate-200 bg-white' : 'border-transparent bg-slate-50' }} {{ $day['is_today'] ? 'ring-2 ring-[#ead7c6]' : '' }}">
                                             <div class="flex items-center justify-between">
-                                                <span class="text-[10px] font-bold {{ $inMonth ? 'text-slate-800' : 'text-slate-300' }}">{{ $inMonth ? $cursor->day : '' }}</span>
-                                                @if ($targetForDate)
-                                                    <span class="inline-flex h-2.5 w-2.5 rounded-full {{ $dotClass }}"></span>
+                                                <span class="text-[10px] font-bold {{ $day['in_month'] ? 'text-slate-800' : 'text-slate-300' }}">{{ $day['day'] }}</span>
+                                                @if ($day['has_target'])
+                                                    <span class="inline-flex h-2.5 w-2.5 rounded-full {{ $day['dot_class'] }}"></span>
                                                 @endif
                                             </div>
                                         </div>
                                     </td>
-                                    @php $cursor->addDay(); @endphp
-                                @endfor
+                                @endforeach
                             </tr>
-                        @endwhile
+                        @endforeach
                     </tbody>
                 </table>
 

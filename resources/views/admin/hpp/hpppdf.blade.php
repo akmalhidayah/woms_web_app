@@ -128,10 +128,19 @@
             background-color: #B0C4DE;
         }
 
-        .table-hpp .oa-cell {
-            width: 14%;
-            text-align: center;
-            vertical-align: top;
+        .table-hpp tbody td.oa-cell {
+            width: 14% !important;
+            text-align: center !important;
+            vertical-align: top !important;
+            background: #fff !important;
+            border-left: 1px solid #000 !important;
+            border-right: 1px solid #000 !important;
+            border-top: 1px solid #fff !important;
+            border-bottom: 1px solid #fff !important;
+        }
+
+        .table-hpp tbody tr:first-child td.oa-cell {
+            border-top: 1px solid #000 !important;
         }
 
         .table-hpp tr {

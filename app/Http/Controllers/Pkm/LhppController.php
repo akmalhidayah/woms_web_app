@@ -293,7 +293,6 @@ class LhppController extends Controller
             $qualityControlStatus = $terminType === 'termin_2' ? 'approved' : 'pending';
             $approvalPayload = $this->resolveApprovalPayload(
                 $terminType,
-                $parentLhpp,
                 $calculation['totals'],
                 $request->input('approval_flow', []),
             );
@@ -351,8 +350,13 @@ class LhppController extends Controller
 
                 $this->syncParentTipePekerjaanIfMissing($terminType, $parentLhpp, $tipePekerjaan);
                 $this->syncGaransiToTerminOne($terminType, $order, $lhpp);
-                $this->signatureBuilder->ensureSignatures($lhpp);
-                if ($terminType === 'termin_2' || $lhpp->quality_control_status === 'approved') {
+
+                if (! $lhpp->hasApprovalStarted()) {
+                    $this->syncBastSignaturesBeforeApprovalStarts($lhpp);
+                }
+
+                if ($this->shouldStartBastApproval($lhpp)) {
+                    $this->signatureBuilder->ensureSignatures($lhpp);
                     $this->signatureBuilder->activateFirstSignature($lhpp);
                 }
 
@@ -450,11 +454,10 @@ class LhppController extends Controller
             );
             $approvalPayload = $this->resolveApprovalPayload(
                 $terminType,
-                $parentLhpp,
                 $calculation['totals'],
                 $request->input('approval_flow', []),
             );
-            $hasSignatures = $lhpp->signatures()->exists();
+            $approvalStarted = $lhpp->hasApprovalStarted();
 
             $lhpp = DB::transaction(function () use (
                 $lhpp,
@@ -467,7 +470,7 @@ class LhppController extends Controller
                 $request,
                 $tanggalMulaiPekerjaan,
                 $tanggalSelesaiPekerjaan,
-                $hasSignatures,
+                $approvalStarted,
                 $approvalPayload,
                 $calculation,
             ): LhppBast {
@@ -487,10 +490,10 @@ class LhppController extends Controller
                     'tanggal_bast' => $request->date('tanggal_bast'),
                     'tanggal_mulai_pekerjaan' => $tanggalMulaiPekerjaan,
                     'tanggal_selesai_pekerjaan' => $tanggalSelesaiPekerjaan,
-                    'approval_threshold' => $hasSignatures ? $lhpp->approval_threshold : $approvalPayload['approval_threshold'],
-                    'approval_case' => $hasSignatures ? $lhpp->approval_case : $approvalPayload['approval_case'],
-                    'approval_flow' => $hasSignatures ? $lhpp->approval_flow : $approvalPayload['approval_flow'],
-                    'approval_status' => $hasSignatures ? $lhpp->approval_status : LhppBast::APPROVAL_IN_REVIEW,
+                    'approval_threshold' => $approvalStarted ? $lhpp->approval_threshold : $approvalPayload['approval_threshold'],
+                    'approval_case' => $approvalStarted ? $lhpp->approval_case : $approvalPayload['approval_case'],
+                    'approval_flow' => $approvalStarted ? $lhpp->approval_flow : $approvalPayload['approval_flow'],
+                    'approval_status' => $approvalStarted ? $lhpp->approval_status : LhppBast::APPROVAL_IN_REVIEW,
                     'nilai_hpp' => $latestHpp?->total_keseluruhan ?? 0,
                     'material_items' => $calculation['material_rows'],
                     'service_items' => $calculation['service_rows'],
@@ -508,8 +511,13 @@ class LhppController extends Controller
                 $lhpp->save();
                 $this->syncParentTipePekerjaanIfMissing($terminType, $parentLhpp, $tipePekerjaan);
                 $this->syncGaransiToTerminOne($terminType, $order, $lhpp);
-                $this->signatureBuilder->ensureSignatures($lhpp);
-                if ($terminType === 'termin_2' || $lhpp->quality_control_status === 'approved') {
+
+                if (! $lhpp->hasApprovalStarted()) {
+                    $this->syncBastSignaturesBeforeApprovalStarts($lhpp);
+                }
+
+                if ($this->shouldStartBastApproval($lhpp)) {
+                    $this->signatureBuilder->ensureSignatures($lhpp);
                     $this->signatureBuilder->activateFirstSignature($lhpp);
                 }
 
@@ -1272,8 +1280,8 @@ class LhppController extends Controller
             'pageDescription' => $meta['pageDescription'],
             'bastOrderOptions' => $orderOptions,
             'selectedBastOrder' => $selectedOrder,
-            'selectedThreshold' => old('approval_threshold', $lhpp?->approval_threshold ?? $parentLhpp?->approval_threshold ?? $this->resolveThresholdFromTotals($terminType, $calculation['totals'])),
-            'selectedApprovalFlow' => array_values((array) old('approval_flow', $lhpp?->approval_flow ?? $parentLhpp?->approval_flow ?? [])),
+            'selectedThreshold' => old('approval_threshold', $lhpp?->approval_threshold ?? $this->resolveThresholdFromTotals($terminType, $calculation['totals'])),
+            'selectedApprovalFlow' => array_values((array) old('approval_flow', $lhpp?->approval_flow ?? [])),
             'approvalFlowMatrix' => BastApprovalFlow::flowMatrix(),
             'selectedTipePekerjaan' => $selectedTipePekerjaan,
             'tipePekerjaanOptions' => LhppBast::tipePekerjaanOptions(),
@@ -1319,6 +1327,51 @@ class LhppController extends Controller
             ->values();
     }
 
+    private function shouldStartBastApproval(LhppBast $lhpp): bool
+    {
+        return $lhpp->termin_type === 'termin_2'
+            || $lhpp->quality_control_status === 'approved';
+    }
+
+    private function syncBastSignaturesBeforeApprovalStarts(LhppBast $lhpp): void
+    {
+        $lhpp->refresh();
+
+        if ($lhpp->hasApprovalStarted()) {
+            return;
+        }
+
+        $flow = is_array($lhpp->approval_flow)
+            ? array_values(array_filter(
+                array_map(static fn (mixed $role): string => trim((string) $role), $lhpp->approval_flow),
+                static fn (string $role): bool => $role !== ''
+            ))
+            : [];
+
+        if ($flow === []) {
+            return;
+        }
+
+        $lockedFlow = $lhpp->signatures()
+            ->where('status', LhppBastSignature::STATUS_LOCKED)
+            ->orderBy('step_order')
+            ->pluck('role_label')
+            ->map(static fn (mixed $role): string => trim((string) $role))
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($lockedFlow === [] || $lockedFlow === $flow) {
+            return;
+        }
+
+        $lhpp->signatures()
+            ->where('status', LhppBastSignature::STATUS_LOCKED)
+            ->delete();
+
+        $lhpp->unsetRelation('signatures');
+    }
+
     /**
      * @param  array<string, string>  $totals
      */
@@ -1335,18 +1388,10 @@ class LhppController extends Controller
      * @param  array<string, mixed>  $totals
      * @return array{approval_threshold: string, approval_case: ?string, approval_flow: list<string>}
      */
-    private function resolveApprovalPayload(string $terminType, ?LhppBast $parentLhpp, array $totals, mixed $submittedFlow = []): array
+    private function resolveApprovalPayload(string $terminType, array $totals, mixed $submittedFlow = []): array
     {
-        $threshold = $terminType === 'termin_2' && $parentLhpp
-            ? (string) ($parentLhpp->approval_threshold ?: $this->resolveThresholdFromTotals('termin_1', $totals))
-            : $this->resolveThresholdFromTotals($terminType, $totals);
-
-        $defaultFlow = $terminType === 'termin_2'
-            && $parentLhpp
-            && is_array($parentLhpp->approval_flow)
-            && $parentLhpp->approval_flow !== []
-                ? array_values($parentLhpp->approval_flow)
-                : BastApprovalFlow::resolveApprovalFlow($threshold);
+        $threshold = $this->resolveThresholdFromTotals($terminType, $totals);
+        $defaultFlow = BastApprovalFlow::resolveApprovalFlow($threshold);
         $flow = $this->resolveApprovalFlowSnapshot($defaultFlow, $submittedFlow);
 
         return [
@@ -1357,11 +1402,17 @@ class LhppController extends Controller
     }
 
     /**
-     * @param list<string> $defaultFlow
+     * @param  list<string>  $defaultFlow
      * @return list<string>
      */
     private function resolveApprovalFlowSnapshot(array $defaultFlow, mixed $submittedFlow): array
     {
+        if ($defaultFlow === []) {
+            throw ValidationException::withMessages([
+                'approval_flow' => 'Default approval flow BAST tidak ditemukan untuk threshold nilai yang dipilih.',
+            ]);
+        }
+
         $submittedFlow = is_array($submittedFlow)
             ? collect($submittedFlow)
                 ->map(fn (mixed $role): string => trim((string) $role))
@@ -1374,32 +1425,61 @@ class LhppController extends Controller
             return array_values($defaultFlow);
         }
 
-        if ($defaultFlow === [] || ! $this->hasSameApprovalRoles($defaultFlow, $submittedFlow)) {
+        if (! $this->hasSameApprovalRoles($defaultFlow, $submittedFlow)) {
             throw ValidationException::withMessages([
                 'approval_flow' => 'Snapshot approval flow BAST hanya boleh diubah urutannya. Role approval tidak boleh ditambah, dihapus, atau diganti.',
             ]);
         }
 
-        if (in_array('DIROPS', $submittedFlow, true) && end($submittedFlow) !== 'DIROPS') {
-            throw ValidationException::withMessages([
-                'approval_flow' => 'DIROPS harus tetap menjadi step terakhir karena tahap ini memakai upload dokumen final.',
-            ]);
-        }
+        $this->ensureDiropsIsLastForBast($submittedFlow);
 
         return array_values($submittedFlow);
     }
 
     /**
-     * @param list<string> $left
-     * @param list<string> $right
+     * @param  list<string>  $left
+     * @param  list<string>  $right
      */
     private function hasSameApprovalRoles(array $left, array $right): bool
     {
+        $normalize = static function (array $roles): array {
+            return array_values(array_filter(
+                array_map(
+                    static fn (mixed $role): string => trim((string) $role),
+                    $roles
+                ),
+                static fn (string $role): bool => $role !== ''
+            ));
+        };
+
+        $left = $normalize($left);
+        $right = $normalize($right);
+
         if (count($left) !== count($right)) {
             return false;
         }
 
-        return array_count_values($left) === array_count_values($right);
+        $leftCounts = array_count_values($left);
+        $rightCounts = array_count_values($right);
+
+        ksort($leftCounts);
+        ksort($rightCounts);
+
+        return $leftCounts === $rightCounts;
+    }
+
+    /**
+     * @param  list<string>  $flow
+     */
+    private function ensureDiropsIsLastForBast(array $flow): void
+    {
+        $diropsIndex = array_search('DIROPS', $flow, true);
+
+        if ($diropsIndex !== false && $diropsIndex !== array_key_last($flow)) {
+            throw ValidationException::withMessages([
+                'approval_flow' => 'DIROPS harus tetap menjadi step terakhir karena tahap ini memakai upload dokumen final.',
+            ]);
+        }
     }
 
     private function normalizeTerminType(string $termin): string

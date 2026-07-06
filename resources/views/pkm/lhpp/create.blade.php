@@ -808,10 +808,6 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         this.serviceRows.push(this.emptyRow());
                     },
                     resolveThreshold() {
-                        if (this.terminType === 'termin_2') {
-                            return this.approvalThreshold;
-                        }
-
                         const thresholdBase = this.terminType === 'termin_2'
                             ? Number(this.calculation.termin_2_nilai || 0)
                             : Number(this.calculation.termin_1_nilai || 0);

@@ -93,12 +93,52 @@ class LhppController extends Controller
     {
         $lhpp->loadMissing('signatures');
 
-        if ($lhpp->approval_status === LhppBast::APPROVAL_REJECTED) {
+        if ($lhpp->approval_status === LhppBast::APPROVAL_REJECTED || $lhpp->hasApprovalStarted()) {
             return;
         }
 
+        $this->syncBastSignaturesBeforeApprovalStarts($lhpp);
         $this->signatureBuilder->ensureSignatures($lhpp);
         $this->signatureBuilder->activateFirstSignature($lhpp);
+    }
+
+    private function syncBastSignaturesBeforeApprovalStarts(LhppBast $lhpp): void
+    {
+        $lhpp->refresh();
+
+        if ($lhpp->hasApprovalStarted()) {
+            return;
+        }
+
+        $flow = is_array($lhpp->approval_flow)
+            ? array_values(array_filter(
+                array_map(static fn (mixed $role): string => trim((string) $role), $lhpp->approval_flow),
+                static fn (string $role): bool => $role !== ''
+            ))
+            : [];
+
+        if ($flow === []) {
+            return;
+        }
+
+        $lockedFlow = $lhpp->signatures()
+            ->where('status', LhppBastSignature::STATUS_LOCKED)
+            ->orderBy('step_order')
+            ->pluck('role_label')
+            ->map(static fn (mixed $role): string => trim((string) $role))
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($lockedFlow === [] || $lockedFlow === $flow) {
+            return;
+        }
+
+        $lhpp->signatures()
+            ->where('status', LhppBastSignature::STATUS_LOCKED)
+            ->delete();
+
+        $lhpp->unsetRelation('signatures');
     }
 
     public function index(Request $request): View

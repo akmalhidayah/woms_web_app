@@ -132,9 +132,13 @@
                                 $totalSteps = $row->approvalStepCount();
                                 $activeSignature = $row->activeSignature ?: $row->signatures->first(fn (\App\Models\HppSignature $signature): bool => $signature->isPending());
                                 $isActiveApprovalExpired = $activeSignature?->isPending() && $activeSignature->tokenExpired();
-                                $activeApprovalLink = $isActiveApprovalExpired ? null : $row->latestActiveApprovalLink();
-                                $activeApprovalWhatsappUrl = $activeApprovalLink ? \App\Support\ApprovalWhatsappLink::forHpp($activeSignature) : null;
                                 $isDiropsPending = $activeSignature?->role_key === 'dirops';
+                                $activeApprovalLink = $isActiveApprovalExpired ? null : $row->latestActiveApprovalLink();
+                                $isActiveApprovalMissingToken = $activeSignature?->isPending() && ! $isActiveApprovalExpired && ! $activeApprovalLink;
+                                $canRegenerateActiveApproval = $activeSignature?->isPending()
+                                    && ! $isDiropsPending
+                                    && ($isActiveApprovalExpired || $isActiveApprovalMissingToken);
+                                $activeApprovalWhatsappUrl = $activeApprovalLink ? \App\Support\ApprovalWhatsappLink::forHpp($activeSignature) : null;
                                 $diropsSignedDocumentSignature = $row->signatures->first(
                                     fn (\App\Models\HppSignature $signature): bool => $signature->role_key === 'dirops' && $signature->hasUploadedSignedDocument()
                                 );
@@ -169,6 +173,7 @@
                                     'link' => $activeApprovalLink && ! $isDiropsPending ? $activeApprovalLink : '',
                                     'whatsapp_url' => $activeApprovalLink && ! $isDiropsPending ? $activeApprovalWhatsappUrl : '',
                                     'resend_url' => $activeApprovalLink && ! $isDiropsPending ? route('admin.hpp.approval.resend.by-id', $row) : '',
+                                    'regenerate_url' => $canRegenerateActiveApproval ? route('admin.hpp.approval-token.regenerate.by-id', $row) : '',
                                     'role_label' => $activeSignature?->displayRoleLabel() ?: '',
                                     'signer_name' => $activeSignature?->signer_name_snapshot ?: '',
                                 ];
@@ -279,17 +284,17 @@
                                                 </button>
                                             </div>
 
-                                            @if ($isActiveApprovalExpired || $isDiropsPending || $diropsSignedDocumentUrl)
+                                            @if ($canRegenerateActiveApproval || $isDiropsPending || $diropsSignedDocumentUrl)
                                                 <div class="mt-2 border-t border-blue-100 pt-2">
                                                     <div class="mb-1 text-[8px] font-bold uppercase tracking-[0.14em] text-slate-400">Aksi Approval</div>
                                                     <div class="flex flex-wrap gap-1.5">
-                                                        @if ($isActiveApprovalExpired)
+                                                        @if ($canRegenerateActiveApproval)
                                                             <form method="POST" action="{{ route('admin.hpp.approval-token.regenerate.by-id', $row) }}">
                                                                 @csrf
                                                                 <button
                                                                     type="submit"
                                                                     class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-white px-2 py-1 text-[8px] font-semibold text-amber-700 transition hover:bg-amber-100"
-                                                                    title="Perbarui token approval yang sudah expired"
+                                                                    title="{{ $isActiveApprovalExpired ? 'Perbarui token approval yang sudah expired' : 'Buat ulang token approval yang hilang' }}"
                                                                 >
                                                                     <i data-lucide="refresh-cw" class="h-2.5 w-2.5"></i>
                                                                     Regenerate Token
@@ -630,6 +635,7 @@
                 const approvalLink = actions.link || '';
                 const whatsappUrl = actions.whatsapp_url || '';
                 const resendUrl = actions.resend_url || '';
+                const regenerateUrl = actions.regenerate_url || '';
 
                 approvalFlowModalTitle.textContent = button.dataset.title || '-';
                 approvalFlowModalCount.textContent = `${signedCount}/${totalSteps} TTD`;
@@ -637,50 +643,64 @@
 
                 approvalFlowModalChecklist.innerHTML = checklist.map((item) => {
                     const config = approvalStatusConfig[item.status] || approvalStatusConfig.locked;
-                    const isActive = item.status === 'pending' && approvalLink;
+                    const isPending = item.status === 'pending';
+                    const hasApprovalActions = isPending && (approvalLink || regenerateUrl);
                     const canReassign = Boolean(item.can_reassign && item.reassign_url);
-                    const actionButtons = isActive
+                    const actionButtons = hasApprovalActions
                         ? `
                             <div class="mt-2 flex flex-wrap items-center gap-1.5">
-                                <button
-                                    type="button"
-                                    class="hpp-modal-copy-link inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-blue-700 transition hover:bg-blue-100"
-                                    data-link="${escapeHtml(approvalLink)}"
-                                >
-                                    <i data-lucide="copy" class="h-3 w-3"></i>
-                                    Salin Link
-                                </button>
-                                ${whatsappUrl ? `
-                                    <a
-                                        href="${escapeHtml(whatsappUrl)}"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        class="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                                ${approvalLink ? `
+                                    <button
+                                        type="button"
+                                        class="hpp-modal-copy-link inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-blue-700 transition hover:bg-blue-100"
+                                        data-link="${escapeHtml(approvalLink)}"
                                     >
-                                        <i data-lucide="message-circle" class="h-3 w-3"></i>
-                                        WhatsApp
-                                    </a>
+                                        <i data-lucide="copy" class="h-3 w-3"></i>
+                                        Salin Link
+                                    </button>
+                                    ${whatsappUrl ? `
+                                        <a
+                                            href="${escapeHtml(whatsappUrl)}"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                                        >
+                                            <i data-lucide="message-circle" class="h-3 w-3"></i>
+                                            WhatsApp
+                                        </a>
+                                    ` : `
+                                        <span
+                                            class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-400"
+                                            title="Nomor WhatsApp approver belum tersedia di user panel"
+                                        >
+                                            <i data-lucide="message-circle-off" class="h-3 w-3"></i>
+                                            No WA
+                                        </span>
+                                    `}
+                                    ${resendUrl ? `
+                                        <form method="POST" action="${escapeHtml(resendUrl)}" class="inline-block">
+                                            <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                            <button
+                                                type="submit"
+                                                class="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-sky-700 transition hover:bg-sky-100"
+                                            >
+                                                <i data-lucide="send" class="h-3 w-3"></i>
+                                                Resend
+                                            </button>
+                                        </form>
+                                    ` : ''}
                                 ` : `
-                                    <span
-                                        class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-400"
-                                        title="Nomor WhatsApp approver belum tersedia di user panel"
-                                    >
-                                        <i data-lucide="message-circle-off" class="h-3 w-3"></i>
-                                        No WA
-                                    </span>
-                                `}
-                                ${resendUrl ? `
-                                    <form method="POST" action="${escapeHtml(resendUrl)}" class="inline-block">
+                                    <form method="POST" action="${escapeHtml(regenerateUrl)}" class="inline-block">
                                         <input type="hidden" name="_token" value="{{ csrf_token() }}">
                                         <button
                                             type="submit"
-                                            class="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-sky-700 transition hover:bg-sky-100"
+                                            class="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-amber-700 transition hover:bg-amber-100"
                                         >
-                                            <i data-lucide="send" class="h-3 w-3"></i>
-                                            Resend
+                                            <i data-lucide="refresh-cw" class="h-3 w-3"></i>
+                                            Regenerate Token
                                         </button>
                                     </form>
-                                ` : ''}
+                                `}
                             </div>
                         `
                         : '';
@@ -928,4 +948,3 @@
         });
     </script>
 </x-layouts.admin>
-

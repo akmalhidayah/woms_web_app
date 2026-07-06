@@ -244,7 +244,7 @@ class HppController extends Controller
             ]);
         }
 
-        if (! $signature->tokenExpired()) {
+        if (! $signature->tokenExpired() && $signature->approvalUrl()) {
             throw ValidationException::withMessages([
                 'approval' => 'Token approval aktif belum kedaluwarsa.',
             ]);

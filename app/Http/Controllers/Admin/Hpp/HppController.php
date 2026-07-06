@@ -583,11 +583,30 @@ class HppController extends Controller
      */
     private function hasSameApprovalRoles(array $left, array $right): bool
     {
+        $normalize = static function (array $roles): array {
+            return array_values(array_filter(
+                array_map(
+                    static fn (mixed $role): string => trim((string) $role),
+                    $roles
+                ),
+                static fn (string $role): bool => $role !== ''
+            ));
+        };
+
+        $left = $normalize($left);
+        $right = $normalize($right);
+
         if (count($left) !== count($right)) {
             return false;
         }
 
-        return array_count_values($left) === array_count_values($right);
+        $leftCounts = array_count_values($left);
+        $rightCounts = array_count_values($right);
+
+        ksort($leftCounts);
+        ksort($rightCounts);
+
+        return $leftCounts === $rightCounts;
     }
 
     private function resolvePendingDiropsSignature(Hpp $hpp): ?HppSignature

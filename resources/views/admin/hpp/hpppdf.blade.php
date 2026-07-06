@@ -128,6 +128,32 @@
             background-color: #B0C4DE;
         }
 
+        .table-hpp tbody td {
+            vertical-align: middle !important;
+        }
+
+        .table-hpp .cell-center {
+            text-align: center !important;
+            vertical-align: middle !important;
+        }
+
+        .table-hpp .cell-money {
+            text-align: right !important;
+            vertical-align: middle !important;
+            padding-right: 6px !important;
+            white-space: nowrap;
+        }
+
+        .table-hpp .cell-text {
+            text-align: left !important;
+            vertical-align: middle !important;
+        }
+
+        .table-hpp .cell-uraian {
+            text-align: left !important;
+            vertical-align: top !important;
+        }
+
         .table-hpp tbody td.oa-cell {
             width: 14% !important;
             text-align: center !important;
@@ -781,7 +807,7 @@
                         @foreach (($kategoriGroup['items'] ?? []) as $it)
                             <tr>
                                 <td class="oa-cell" style="border: 1px solid black;">{{ $printOutlineAgreement() }}</td>
-                                <td class="uraian-cell" style="border: 1px solid black;">
+                                <td class="uraian-cell cell-uraian" style="border: 1px solid black;">
                                     <table class="uraian-table">
                                         <tr>
                                             <td class="uraian-bullet">-</td>
@@ -794,19 +820,19 @@
                                         </tr>
                                     </table>
                                 </td>
-                                <td style="border: 1px solid black; text-align: center;">
+                                <td class="cell-center" style="border: 1px solid black;">
                                     {{ $formatQty($it['qty']) }}
                                 </td>
-                                <td style="border: 1px solid black; text-align: center;">
+                                <td class="cell-center" style="border: 1px solid black;">
                                     {{ $it['satuan'] ?? '' }}
                                 </td>
-                                <td style="border: 1px solid black; text-align: right; padding-right: 6px;">
+                                <td class="cell-money" style="border: 1px solid black;">
                                     {{ $formatMoney($it['harga_satuan']) }}
                                 </td>
-                                <td style="border: 1px solid black; text-align: right; padding-right: 6px;">
+                                <td class="cell-money" style="border: 1px solid black;">
                                     {{ $formatMoney($it['harga_total']) }}
                                 </td>
-                                <td style="border: 1px solid black; padding: 4px;">
+                                <td class="cell-text" style="border: 1px solid black; padding: 4px;">
                                     {{ $it['keterangan'] ?? '' }}
                                 </td>
                             </tr>

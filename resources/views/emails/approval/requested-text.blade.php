@@ -3,6 +3,7 @@ Halo Bpk/Ibu {{ $userName ?? 'Pengguna' }},
 {{ $roleLabel }} PT. Semen Tonasa, Silahkan Lakukan review dan approval dokumen berikut melalui link di bawah ini.
 
 Dokumen        : {{ $documentType }}
+Deskripsi      : {{ trim((string) ($documentDescription ?? '')) !== '' ? trim((string) $documentDescription) : '-' }}
 Nomor Dokumen : {{ $documentNumber }}
 Role Approval : {{ $roleLabel }}
 

@@ -16,6 +16,7 @@ class ApprovalRequestedNotification extends Notification
     public function __construct(
         public readonly string $documentType,
         public readonly string $documentNumber,
+        public readonly string $documentDescription,
         public readonly string $roleLabel,
         public readonly string $approvalUrl,
         public readonly ?Carbon $expiresAt,
@@ -43,6 +44,7 @@ class ApprovalRequestedNotification extends Notification
                 'userName' => $notifiable->name,
                 'documentType' => $this->documentType,
                 'documentNumber' => $this->documentNumber,
+                'documentDescription' => $this->documentDescription,
                 'roleLabel' => $this->roleLabel,
                 'loginEmail' => $notifiable->email,
                 'defaultPassword' => 'bengkelmesin123',

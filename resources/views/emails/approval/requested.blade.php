@@ -1,5 +1,6 @@
 @php
     $safeName = trim((string) ($userName ?? 'Pengguna'));
+    $safeDocumentDescription = trim((string) ($documentDescription ?? ''));
     $logoStSource = $logoStUrl ?? '';
     $logoBmsSource = $logoBmsUrl ?? '';
 
@@ -80,6 +81,10 @@
                                 <tr>
                                     <td style="padding:16px 18px;color:#64748b;font-size:13px;">Dokumen</td>
                                     <td style="padding:16px 18px;text-align:right;font-weight:800;">{{ $documentType }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:0 18px 16px;color:#64748b;font-size:13px;">Deskripsi Pekerjaan</td>
+                                    <td style="padding:0 18px 16px;text-align:right;font-weight:800;line-height:20px;">{{ $safeDocumentDescription !== '' ? $safeDocumentDescription : '-' }}</td>
                                 </tr>
                                 <tr>
                                     <td style="padding:0 18px 16px;color:#64748b;font-size:13px;">Nomor</td>

@@ -87,7 +87,7 @@
                                     <td style="padding:0 18px 16px;text-align:right;font-weight:800;line-height:20px;">{{ $safeDocumentDescription !== '' ? $safeDocumentDescription : '-' }}</td>
                                 </tr>
                                 <tr>
-                                    <td style="padding:0 18px 16px;color:#64748b;font-size:13px;">Nomor</td>
+                                    <td style="padding:0 18px 16px;color:#64748b;font-size:13px;">Nomor Order</td>
                                     <td style="padding:0 18px 16px;text-align:right;font-weight:800;">{{ $documentNumber }}</td>
                                 </tr>
                                 <tr>

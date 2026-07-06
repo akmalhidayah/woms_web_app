@@ -4,7 +4,7 @@ Halo Bpk/Ibu {{ $userName ?? 'Pengguna' }},
 
 Dokumen        : {{ $documentType }}
 Deskripsi      : {{ trim((string) ($documentDescription ?? '')) !== '' ? trim((string) $documentDescription) : '-' }}
-Nomor Dokumen : {{ $documentNumber }}
+Nomor Order : {{ $documentNumber }}
 Role Approval : {{ $roleLabel }}
 
 Akses Login Approval

@@ -280,6 +280,12 @@
             let drawing = false;
             let hasDrawn = false;
             let preparedSubmit = false;
+            let lastPoint = null;
+            let strokePointCount = 0;
+            let strokeDistance = 0;
+
+            const minimumStrokePoints = 8;
+            const minimumStrokeDistance = 40;
 
             const resizeCanvas = () => {
                 const rect = canvas.getBoundingClientRect();
@@ -316,8 +322,8 @@
             const start = (event) => {
                 event.preventDefault();
                 drawing = true;
-                hasDrawn = true;
                 const pos = point(event);
+                lastPoint = pos;
                 ctx.beginPath();
                 ctx.moveTo(pos.x, pos.y);
             };
@@ -329,12 +335,19 @@
 
                 event.preventDefault();
                 const pos = point(event);
+                if (lastPoint) {
+                    strokeDistance += Math.hypot(pos.x - lastPoint.x, pos.y - lastPoint.y);
+                }
+                strokePointCount++;
+                lastPoint = pos;
                 ctx.lineTo(pos.x, pos.y);
                 ctx.stroke();
+                hasDrawn = true;
             };
 
             const stop = () => {
                 drawing = false;
+                lastPoint = null;
             };
 
             resizeCanvas();
@@ -349,8 +362,17 @@
             clearButton?.addEventListener('click', () => {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 hasDrawn = false;
+                lastPoint = null;
+                strokePointCount = 0;
+                strokeDistance = 0;
                 signatureFile.value = '';
             });
+
+            const hasEnoughSignatureStroke = () => {
+                return hasDrawn
+                    && strokePointCount >= minimumStrokePoints
+                    && strokeDistance >= minimumStrokeDistance;
+            };
 
             const beginSubmission = (action) => {
                 preparedSubmit = true;
@@ -406,9 +428,9 @@
                     return;
                 }
 
-                if (!hasDrawn) {
+                if (!hasEnoughSignatureStroke()) {
                     event.preventDefault();
-                    alert('Silakan isi tanda tangan terlebih dahulu.');
+                    alert('Tanda tangan terlalu sedikit. Silakan tanda tangani dengan coretan yang jelas.');
                     return;
                 }
 

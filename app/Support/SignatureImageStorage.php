@@ -42,6 +42,16 @@ class SignatureImageStorage
             ]);
         }
 
+        $binary = file_get_contents($file->getRealPath());
+
+        if ($binary === false) {
+            throw ValidationException::withMessages([
+                'signature_file' => 'Tanda tangan belum terbaca. Silakan tanda tangani ulang.',
+            ]);
+        }
+
+        self::ensureImageHasVisibleSignature($binary, 'signature_file');
+
         $extension = $file->extension() ?: 'png';
 
         return $file->storeAs($directory, $prefix.'-'.now()->format('YmdHis').'-'.Str::uuid().'.'.$extension, 'public');
@@ -70,6 +80,8 @@ class SignatureImageStorage
             ]);
         }
 
+        self::ensureImageHasVisibleSignature($binary, 'signature_data');
+
         $path = $directory.'/'.$prefix.'-'.now()->format('YmdHis').'-'.Str::uuid().'.png';
         Storage::disk('public')->put($path, $binary);
 
@@ -93,5 +105,55 @@ class SignatureImageStorage
         }
 
         return File::exists($value) ? $value : null;
+    }
+
+    private static function ensureImageHasVisibleSignature(string $binary, string $errorKey): void
+    {
+        if (! function_exists('imagecreatefromstring')) {
+            return;
+        }
+
+        $image = @imagecreatefromstring($binary);
+
+        if (! $image) {
+            throw ValidationException::withMessages([
+                $errorKey => 'Format tanda tangan tidak valid.',
+            ]);
+        }
+
+        $width = imagesx($image);
+        $height = imagesy($image);
+        $inkPixels = 0;
+
+        for ($y = 0; $y < $height; $y += 2) {
+            for ($x = 0; $x < $width; $x += 2) {
+                $rgba = imagecolorat($image, $x, $y);
+                $alpha = ($rgba >> 24) & 0x7F;
+
+                if ($alpha >= 120) {
+                    continue;
+                }
+
+                $red = ($rgba >> 16) & 0xFF;
+                $green = ($rgba >> 8) & 0xFF;
+                $blue = $rgba & 0xFF;
+
+                if ($red < 245 || $green < 245 || $blue < 245) {
+                    $inkPixels++;
+                }
+
+                if ($inkPixels >= 30) {
+                    imagedestroy($image);
+
+                    return;
+                }
+            }
+        }
+
+        imagedestroy($image);
+
+        throw ValidationException::withMessages([
+            $errorKey => 'Tanda tangan terlalu sedikit. Silakan tanda tangani dengan coretan yang jelas.',
+        ]);
     }
 }

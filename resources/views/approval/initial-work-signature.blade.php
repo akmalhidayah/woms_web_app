@@ -361,6 +361,12 @@
                     let drawing = false;
                     let hasStroke = false;
                     let preparedSubmit = false;
+                    let lastPoint = null;
+                    let strokePointCount = 0;
+                    let strokeDistance = 0;
+
+                    const minimumStrokePoints = 8;
+                    const minimumStrokeDistance = 40;
 
                     const setupCanvasStyle = () => {
                         context.lineWidth = 2.4;
@@ -405,6 +411,7 @@
                         event.preventDefault();
                         drawing = true;
                         const point = getPoint(event);
+                        lastPoint = point;
                         context.beginPath();
                         context.moveTo(point.x, point.y);
                     };
@@ -414,6 +421,11 @@
 
                         event.preventDefault();
                         const point = getPoint(event);
+                        if (lastPoint) {
+                            strokeDistance += Math.hypot(point.x - lastPoint.x, point.y - lastPoint.y);
+                        }
+                        strokePointCount++;
+                        lastPoint = point;
                         context.lineTo(point.x, point.y);
                         context.stroke();
                         hasStroke = true;
@@ -421,6 +433,7 @@
 
                     const stopDrawing = () => {
                         drawing = false;
+                        lastPoint = null;
                     };
 
                     resizeCanvas();
@@ -438,17 +451,26 @@
                         context.clearRect(0, 0, canvas.width, canvas.height);
                         setupCanvasStyle();
                         hasStroke = false;
+                        lastPoint = null;
+                        strokePointCount = 0;
+                        strokeDistance = 0;
                         signatureFile.value = '';
                     });
+
+                    const hasEnoughSignatureStroke = () => {
+                        return hasStroke
+                            && strokePointCount >= minimumStrokePoints
+                            && strokeDistance >= minimumStrokeDistance;
+                    };
 
                     form.addEventListener('submit', async (event) => {
                         if (preparedSubmit) {
                             return;
                         }
 
-                        if (!hasStroke) {
+                        if (!hasEnoughSignatureStroke()) {
                             event.preventDefault();
-                            alert('Silakan isi tanda tangan terlebih dahulu.');
+                            alert('Tanda tangan terlalu sedikit. Silakan tanda tangani dengan coretan yang jelas.');
                             return;
                         }
 

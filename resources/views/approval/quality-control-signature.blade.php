@@ -160,6 +160,12 @@
             let drawing = false;
             let touched = false;
             let preparedSubmit = false;
+            let lastPoint = null;
+            let strokePointCount = 0;
+            let strokeDistance = 0;
+
+            const minimumStrokePoints = 8;
+            const minimumStrokeDistance = 40;
 
             const resizeCanvas = () => {
                 const rect = canvas.getBoundingClientRect();
@@ -193,8 +199,8 @@
             const start = (event) => {
                 event.preventDefault();
                 drawing = true;
-                touched = true;
                 const p = point(event);
+                lastPoint = p;
                 ctx.beginPath();
                 ctx.moveTo(p.x, p.y);
             };
@@ -203,12 +209,19 @@
                 if (!drawing) return;
                 event.preventDefault();
                 const p = point(event);
+                if (lastPoint) {
+                    strokeDistance += Math.hypot(p.x - lastPoint.x, p.y - lastPoint.y);
+                }
+                strokePointCount++;
+                lastPoint = p;
                 ctx.lineTo(p.x, p.y);
                 ctx.stroke();
+                touched = true;
             };
 
             const stop = () => {
                 drawing = false;
+                lastPoint = null;
             };
 
             canvas.addEventListener('mousedown', start);
@@ -223,17 +236,26 @@
                 const rect = canvas.getBoundingClientRect();
                 ctx.clearRect(0, 0, rect.width, rect.height);
                 touched = false;
+                lastPoint = null;
+                strokePointCount = 0;
+                strokeDistance = 0;
                 signatureFile.value = '';
             });
+
+            const hasEnoughSignatureStroke = () => {
+                return touched
+                    && strokePointCount >= minimumStrokePoints
+                    && strokeDistance >= minimumStrokeDistance;
+            };
 
             form.addEventListener('submit', async (event) => {
                 if (preparedSubmit) {
                     return;
                 }
 
-                if (!touched) {
+                if (!hasEnoughSignatureStroke()) {
                     event.preventDefault();
-                    alert('Silakan isi tanda tangan terlebih dahulu.');
+                    alert('Tanda tangan terlalu sedikit. Silakan tanda tangani dengan coretan yang jelas.');
                     return;
                 }
 

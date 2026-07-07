@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Approval;
 use App\Http\Controllers\Admin\Orders\InitialWorkController as AdminInitialWorkController;
 use App\Http\Controllers\Admin\Orders\OrderDocumentController;
 use App\Http\Controllers\Controller;
+use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Models\InitialWorkSignature;
 use App\Services\InitialWorks\InitialWorkSignatureService;
 use App\Support\SignatureImageStorage;
@@ -33,12 +34,16 @@ class InitialWorkSignatureController extends Controller
             'signer',
         ]);
 
+        $orderDocuments = $signature->initialWork->order?->documents ?? collect();
+        $hasAbnormalitas = $this->hasOrderDocument($orderDocuments, OrderDocumentType::Abnormalitas);
+        $hasGambarTeknik = $this->hasOrderDocument($orderDocuments, OrderDocumentType::GambarTeknik);
+
         return view('approval.initial-work-signature', [
             'signature' => $signature,
             'token' => $token,
             'isExpired' => $signature->isPending() && $signature->tokenExpired(),
-            'abnormalitasUrl' => route('approval.initial-work.abnormalitas', $token),
-            'gambarTeknikUrl' => route('approval.initial-work.gambar-teknik', $token),
+            'abnormalitasUrl' => $hasAbnormalitas ? route('approval.initial-work.abnormalitas', $token) : null,
+            'gambarTeknikUrl' => $hasGambarTeknik ? route('approval.initial-work.gambar-teknik', $token) : null,
             'initialWorkPdfUrl' => route('approval.initial-work.pdf', $token),
         ]);
     }
@@ -206,5 +211,26 @@ class InitialWorkSignatureController extends Controller
 
         return app(OrderDocumentController::class)
             ->preview($order, $document);
+    }
+
+    private function hasOrderDocument(iterable $documents, OrderDocumentType $type): bool
+    {
+        foreach ($documents as $document) {
+            $documentType = $document->jenis_dokumen;
+
+            if ($documentType instanceof OrderDocumentType) {
+                if ($documentType === $type) {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if ((string) $documentType === $type->value) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

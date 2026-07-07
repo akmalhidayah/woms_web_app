@@ -159,16 +159,18 @@
                                 <div class="flex flex-wrap gap-2">
                                     <button
                                         type="button"
-                                        class="preview-tab-btn rounded-xl border border-transparent px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-rose-50 hover:text-rose-700"
+                                        class="preview-tab-btn rounded-xl border px-3 py-2 text-xs font-semibold transition {{ $abnormalitasUrl ? 'border-transparent text-slate-600 hover:bg-rose-50 hover:text-rose-700' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}"
                                         data-preview-target="abnormalitas"
+                                        @disabled(! $abnormalitasUrl)
                                     >
                                         Abnormalitas
                                     </button>
 
                                     <button
                                         type="button"
-                                        class="preview-tab-btn rounded-xl border border-transparent px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"
+                                        class="preview-tab-btn rounded-xl border px-3 py-2 text-xs font-semibold transition {{ $gambarTeknikUrl ? 'border-transparent text-slate-600 hover:bg-blue-50 hover:text-blue-700' : 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400' }}"
                                         data-preview-target="gambar-teknik"
+                                        @disabled(! $gambarTeknikUrl)
                                     >
                                         Gambar Teknik
                                     </button>
@@ -323,12 +325,14 @@
                     url: @json($abnormalitasUrl),
                     activeBtn: 'bg-rose-50 text-rose-700 border-rose-100',
                     inactiveBtn: 'text-slate-600 hover:bg-rose-50 hover:text-rose-700 border-transparent',
+                    unavailableBtn: 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400',
                 },
                 'gambar-teknik': {
                     title: 'Preview Gambar Teknik',
                     url: @json($gambarTeknikUrl),
                     activeBtn: 'bg-blue-50 text-blue-700 border-blue-100',
                     inactiveBtn: 'text-slate-600 hover:bg-blue-50 hover:text-blue-700 border-transparent',
+                    unavailableBtn: 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400',
                 },
                 'initial-work': {
                     title: 'Preview PDF Initial Work',
@@ -345,7 +349,7 @@
 
             const setActivePreview = (key) => {
                 const config = previewConfig[key];
-                if (!config || !previewFrame || !previewTitle || !previewOpen) return;
+                if (!config || !config.url || !previewFrame || !previewTitle || !previewOpen) return;
 
                 previewFrame.src = config.url;
                 previewTitle.textContent = config.title;
@@ -356,6 +360,14 @@
                     const isActive = target === key;
                     const targetConfig = previewConfig[target];
 
+                    if (!targetConfig?.url) {
+                        button.disabled = true;
+                        button.className = `preview-tab-btn rounded-xl border px-3 py-2 text-xs font-semibold transition ${targetConfig?.unavailableBtn ?? 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400'}`;
+
+                        return;
+                    }
+
+                    button.disabled = false;
                     button.className = `preview-tab-btn rounded-xl border px-3 py-2 text-xs font-semibold transition ${isActive ? config.activeBtn : targetConfig.inactiveBtn}`;
                 });
             };

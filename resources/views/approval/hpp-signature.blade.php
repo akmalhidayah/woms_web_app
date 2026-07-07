@@ -167,15 +167,17 @@
                                     </button>
                                     <button
                                         type="button"
-                                        class="preview-tab-btn rounded-xl border border-transparent px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-rose-50 hover:text-rose-700"
+                                        class="preview-tab-btn rounded-xl border px-3 py-2 text-xs font-semibold transition {{ $abnormalitasUrl ? 'border-transparent text-slate-600 hover:bg-rose-50 hover:text-rose-700' : 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400' }}"
                                         data-preview-target="abnormalitas"
+                                        @disabled(! $abnormalitasUrl)
                                     >
                                         Abnormalitas
                                     </button>
                                     <button
                                         type="button"
-                                        class="preview-tab-btn rounded-xl border border-transparent px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-sky-50 hover:text-sky-700"
+                                        class="preview-tab-btn rounded-xl border px-3 py-2 text-xs font-semibold transition {{ $gambarTeknikUrl ? 'border-transparent text-slate-600 hover:bg-sky-50 hover:text-sky-700' : 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400' }}"
                                         data-preview-target="gambar-teknik"
+                                        @disabled(! $gambarTeknikUrl)
                                     >
                                         Gambar Teknik
                                     </button>
@@ -342,12 +344,14 @@
                     url: @json($abnormalitasUrl),
                     activeBtn: 'border-rose-200 bg-rose-50 text-rose-700',
                     inactiveBtn: 'border-transparent text-slate-600 hover:bg-rose-50 hover:text-rose-700',
+                    unavailableBtn: 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400',
                 },
                 'gambar-teknik': {
                     title: 'Preview Gambar Teknik',
                     url: @json($gambarTeknikUrl),
                     activeBtn: 'border-sky-200 bg-sky-50 text-sky-700',
                     inactiveBtn: 'border-transparent text-slate-600 hover:bg-sky-50 hover:text-sky-700',
+                    unavailableBtn: 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400',
                 },
             };
 
@@ -372,6 +376,14 @@
                     const targetConfig = previewConfig[target];
                     const isActive = target === key;
 
+                    if (!targetConfig?.url) {
+                        button.disabled = true;
+                        button.className = `preview-tab-btn rounded-xl border px-3 py-2 text-xs font-semibold transition ${targetConfig?.unavailableBtn ?? 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400'}`;
+
+                        return;
+                    }
+
+                    button.disabled = false;
                     button.className = `preview-tab-btn rounded-xl border px-3 py-2 text-xs font-semibold transition ${isActive ? config.activeBtn : targetConfig.inactiveBtn}`;
                 });
             };

@@ -55,13 +55,17 @@ class HppSignatureController extends Controller
             $signature->update(['opened_at' => now()]);
         }
 
+        $orderDocuments = $signature->hpp->order?->documents ?? collect();
+        $hasAbnormalitas = $this->hasOrderDocument($orderDocuments, OrderDocumentType::Abnormalitas);
+        $hasGambarTeknik = $this->hasOrderDocument($orderDocuments, OrderDocumentType::GambarTeknik);
+
         return view('approval.hpp-signature', [
             'signature' => $signature,
             'token' => $token,
             'isExpired' => $signature->isPending() && $signature->tokenExpired(),
             'hppPdfUrl' => route('approval.hpp.pdf', $token),
-            'abnormalitasUrl' => route('approval.hpp.abnormalitas', $token),
-            'gambarTeknikUrl' => route('approval.hpp.gambar-teknik', $token),
+            'abnormalitasUrl' => $hasAbnormalitas ? route('approval.hpp.abnormalitas', $token) : null,
+            'gambarTeknikUrl' => $hasGambarTeknik ? route('approval.hpp.gambar-teknik', $token) : null,
             'progressPercent' => $signature->hpp->approvalProgressPercent(),
             'signedCount' => $signature->hpp->approvalSignedCount(),
             'totalSteps' => $signature->hpp->approvalStepCount(),
@@ -326,5 +330,26 @@ class HppSignatureController extends Controller
         $normalized = trim((string) $value);
 
         return $normalized === '' ? null : $normalized;
+    }
+
+    private function hasOrderDocument(iterable $documents, OrderDocumentType $type): bool
+    {
+        foreach ($documents as $document) {
+            $documentType = $document->jenis_dokumen;
+
+            if ($documentType instanceof OrderDocumentType) {
+                if ($documentType === $type) {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if ((string) $documentType === $type->value) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

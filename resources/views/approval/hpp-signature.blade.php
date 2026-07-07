@@ -91,13 +91,19 @@
                     <div class="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4 shadow-sm sm:p-5 lg:p-6">
                         <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                             <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                                <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Nomor Order</div>
-                                <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $hpp?->nomor_order ?: '-' }}</div>
+                                <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Penanda Tangan</div>
+                                <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $signature->signer_name_snapshot }}</div>
+                                <div class="mt-1 text-sm leading-5 text-slate-600">{{ $signature->acting_as_label ?: $signature->signer_position_snapshot }}</div>
+                                <span class="mt-3 inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ring-1 {{ $statusClasses }}">
+                                    {{ $statusLabel }}
+                                </span>
                             </div>
 
                             <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                                <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Approval Case</div>
-                                <div class="mt-2 text-sm font-bold text-slate-900">{{ $hpp?->approval_case ?: '-' }}</div>
+                                <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Nomor Order</div>
+                                <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $hpp?->nomor_order ?: '-' }}</div>
+                                <div class="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Notifikasi</div>
+                                <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $hpp?->order?->notifikasi ?: '-' }}</div>
                             </div>
 
                             <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4 md:col-span-2">
@@ -105,10 +111,10 @@
                                 <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $hpp?->nama_pekerjaan ?: '-' }}</div>
                                 <div class="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
                                     <span class="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700 ring-1 ring-blue-100">
-                                        {{ $hpp?->kategori_pekerjaan ?: '-' }}
+                                        Unit: {{ $hpp?->unit_kerja ?: '-' }}
                                     </span>
                                     <span class="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600 ring-1 ring-slate-200">
-                                        {{ $hpp?->unit_kerja ?: '-' }}
+                                        Seksi: {{ $hpp?->order?->seksi ?: '-' }}
                                     </span>
                                 </div>
                             </div>
@@ -121,27 +127,6 @@
                                 <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
                                     <div class="h-full rounded-full bg-blue-600" style="width: {{ $progressPercent }}%"></div>
                                 </div>
-                            </div>
-
-                            <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4 md:col-span-2 xl:col-span-3">
-                                <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Penanda Tangan</div>
-                                <div class="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div>
-                                        <div class="text-base font-bold text-slate-900">{{ $signature->signer_name_snapshot }}</div>
-                                        <div class="text-sm text-slate-600">{{ $signature->acting_as_label ?: $signature->signer_position_snapshot }}</div>
-                                    </div>
-                                    <span class="inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ring-1 {{ $statusClasses }}">
-                                        {{ $statusLabel }}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4 md:col-span-2">
-                                <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Progress Approval</div>
-                                <div class="mt-2 text-sm font-bold text-slate-900">{{ $signedCount }}/{{ $totalSteps }} signed</div>
-                                <p class="mt-2 text-sm leading-6 text-slate-500">
-                                    Step sebelumnya wajib selesai sebelum step berikutnya aktif.
-                                </p>
                             </div>
                         </div>
                     </div>

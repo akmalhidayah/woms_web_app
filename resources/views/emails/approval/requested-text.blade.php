@@ -18,7 +18,8 @@ Sebelum melakukan tanda tangan, mohon membaca buku panduan role approval berikut
 
 @endif
 
-Mohon lakukan review dan approval melalui link berikut:
+TINDAKAN DIPERLUKAN
+Klik/buka link berikut untuk masuk ke halaman review, melihat dokumen, dan melakukan approval:
 {{ $approvalUrl }}
 
 @if ($expiresAt)

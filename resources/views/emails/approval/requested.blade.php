@@ -145,15 +145,15 @@
                                 <tr>
                                     <td style="padding:20px 22px;text-align:center;">
                                         <div style="font-size:18px;line-height:26px;font-weight:800;color:#0f172a;">
-                                            Klik tombol ini untuk review dan approval dokumen.
-                                        </div>
-                                        <div style="margin-top:6px;font-size:13px;line-height:21px;color:#475569;">
-                                            Tombol akan membuka halaman approval WOMS untuk melihat dokumen dan melakukan tanda tangan digital.
+                                           Untuk Review dan Approve Klik Tombol di Bawah ini
                                         </div>
                                         <div style="margin-top:16px;">
                                             <a href="{{ $approvalUrl }}" style="display:inline-block;background:#5b0f1b;color:#ffffff;text-decoration:none;border-radius:14px;border-bottom:4px solid #3f0a13;padding:15px 30px;font-size:15px;line-height:20px;font-weight:900;">
                                                 Review &amp; Approval Dokumen &rarr;
                                             </a>
+                                        </div>
+                                        <div style="margin-top:6px;font-size:13px;line-height:21px;color:#475569;">
+                                            Tombol akan membuka halaman approval WOMS untuk melihat dokumen dan melakukan tanda tangan digital.
                                         </div>
                                     </td>
                                 </tr>

@@ -88,7 +88,7 @@
                         </p>
                     </div>
                 @else
-                    <div class="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4 shadow-sm sm:p-5 lg:p-6">
+                    <div class="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4 sm:p-5 lg:p-6">
                         <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                             <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
                                 <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Penanda Tangan</div>
@@ -100,21 +100,39 @@
                             </div>
 
                             <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                                <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Nomor Order</div>
-                                <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $hpp?->nomor_order ?: '-' }}</div>
-                                <div class="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Notifikasi</div>
-                                <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $hpp?->order?->notifikasi ?: '-' }}</div>
+                                <div class="space-y-4">
+                                    <div class="flex items-start gap-3">
+                                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 ring-1 ring-slate-200">
+                                            <i data-lucide="hash" class="h-4 w-4"></i>
+                                        </span>
+                                        <div class="min-w-0">
+                                            <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Nomor Order</div>
+                                            <div class="mt-1 break-words text-sm font-bold text-slate-900">{{ $hpp?->nomor_order ?: '-' }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-start gap-3">
+                                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
+                                            <i data-lucide="bell" class="h-4 w-4"></i>
+                                        </span>
+                                        <div class="min-w-0">
+                                            <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Notifikasi</div>
+                                            <div class="mt-1 break-words text-sm font-bold text-slate-900">{{ $hpp?->order?->notifikasi ?: '-' }}</div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4 md:col-span-2">
                                 <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Pekerjaan</div>
                                 <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $hpp?->nama_pekerjaan ?: '-' }}</div>
                                 <div class="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
-                                    <span class="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700 ring-1 ring-blue-100">
-                                        Unit: {{ $hpp?->unit_kerja ?: '-' }}
+                                    <span class="inline-flex max-w-full items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-blue-700 ring-1 ring-blue-100">
+                                        <i data-lucide="building-2" class="h-3.5 w-3.5 shrink-0"></i>
+                                        <span class="min-w-0 break-words">Unit: {{ $hpp?->unit_kerja ?: '-' }}</span>
                                     </span>
-                                    <span class="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600 ring-1 ring-slate-200">
-                                        Seksi: {{ $hpp?->order?->seksi ?: '-' }}
+                                    <span class="inline-flex max-w-full items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-slate-600 ring-1 ring-slate-200">
+                                        <i data-lucide="network" class="h-3.5 w-3.5 shrink-0"></i>
+                                        <span class="min-w-0 break-words">Seksi: {{ $hpp?->order?->seksi ?: '-' }}</span>
                                     </span>
                                 </div>
                             </div>

@@ -246,11 +246,13 @@
             vertical-align: middle;
         }
 
-        .sig-box > img {
-            bottom: -6px;
-            height: auto;
-            max-height: 54px;
-            max-width: 95%;
+        .approval-signature .sig-box > img {
+            bottom: -8px;
+            height: 52px;
+            max-height: 58px;
+            max-width: 130px;
+            width: auto;
+            object-fit: contain;
         }
 
         .sig-fallback {

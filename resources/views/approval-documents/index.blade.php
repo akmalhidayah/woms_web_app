@@ -1,6 +1,6 @@
 <x-layouts.user title="Dokumen Approval - WOMS">
     @php
-        $filters = ['' => 'Semua'] + $typeLabels;
+        $filters = empty($typeLabels) ? [] : ['' => 'Semua'] + $typeLabels;
         $typeTone = [
             'hpp' => 'bg-blue-50 text-blue-700 ring-blue-100',
             'bast' => 'bg-orange-50 text-orange-700 ring-orange-100',
@@ -29,19 +29,21 @@
                 </div>
             </div>
 
-            <div class="px-5 py-4 sm:px-6">
-                <div class="flex flex-wrap gap-2">
-                    @foreach ($filters as $filterType => $filterLabel)
-                        @php($active = ($selectedType ?? null) === ($filterType !== '' ? $filterType : null))
-                        <a
-                            href="{{ route('approval-documents.index', $filterType !== '' ? ['type' => $filterType] : []) }}"
-                            class="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition {{ $active ? 'border-red-800 bg-red-800 text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-800' }}"
-                        >
-                            {{ $filterLabel }}
-                        </a>
-                    @endforeach
+            @if ($filters !== [])
+                <div class="px-5 py-4 sm:px-6">
+                    <div class="flex flex-wrap gap-2">
+                        @foreach ($filters as $filterType => $filterLabel)
+                            @php($active = ($selectedType ?? null) === ($filterType !== '' ? $filterType : null))
+                            <a
+                                href="{{ route('approval-documents.index', $filterType !== '' ? ['type' => $filterType] : []) }}"
+                                class="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition {{ $active ? 'border-red-800 bg-red-800 text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-800' }}"
+                            >
+                                {{ $filterLabel }}
+                            </a>
+                        @endforeach
+                    </div>
                 </div>
-            </div>
+            @endif
         </section>
 
         <section class="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">

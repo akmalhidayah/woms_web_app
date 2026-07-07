@@ -84,56 +84,43 @@
                         </p>
                     </div>
                 @else
-                    <div class="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4 shadow-sm sm:p-5 lg:p-6">
-                        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                            <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                    <div class="rounded-[1.5rem] border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 p-4 shadow-sm sm:p-5 lg:p-6">
+                        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-12 xl:items-stretch">
+                            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-3">
+                                <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Penanda Tangan</div>
+                                <div class="mt-3 break-words text-base font-bold leading-6 text-slate-950">{{ $signature->signer_name_snapshot }}</div>
+                                <div class="mt-1 text-sm leading-5 text-slate-600">{{ $signature->acting_as_label ?: $signature->signer_position_snapshot }}</div>
+                                <span class="mt-4 inline-flex max-w-full items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 {{ $statusClasses }}">
+                                    {{ $statusLabel }}
+                                </span>
+                            </div>
+
+                            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
                                 <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Nomor Order</div>
-                                <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $lhpp?->nomor_order ?: '-' }}</div>
+                                <div class="mt-3 break-words text-base font-bold leading-6 text-slate-950">{{ $lhpp?->nomor_order ?: '-' }}</div>
+                                <div class="mt-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Notifikasi</div>
+                                <div class="mt-3 break-words text-base font-bold leading-6 text-slate-950">{{ $lhpp?->notifikasi ?: '-' }}</div>
                             </div>
 
-                            <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                                <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Termin</div>
-                                <div class="mt-2 text-sm font-bold text-slate-900">{{ $lhpp?->termin_type === 'termin_2' ? 'Termin 2' : 'Termin 1' }}</div>
-                            </div>
-
-                            <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4 md:col-span-2">
+                            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:col-span-2 xl:col-span-5">
                                 <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Pekerjaan</div>
-                                <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $lhpp?->deskripsi_pekerjaan ?: '-' }}</div>
-                                <div class="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
-                                    <span class="rounded-full bg-orange-50 px-2.5 py-1 text-orange-700 ring-1 ring-orange-100">
-                                        {{ $lhpp?->approval_threshold === 'over_250' ? 'Diatas 250 JT' : 'Dibawah 250 JT' }}
+                                <div class="mt-3 break-words text-base font-bold leading-6 text-slate-950">{{ $lhpp?->deskripsi_pekerjaan ?: '-' }}</div>
+                                <div class="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
+                                    <span class="inline-flex max-w-full rounded-full bg-orange-50 px-3 py-1.5 text-orange-700 ring-1 ring-orange-100">
+                                        Unit: {{ $lhpp?->unit_kerja ?: '-' }}
                                     </span>
-                                    <span class="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600 ring-1 ring-slate-200">
-                                        {{ $lhpp?->tipe_pekerjaan ?: '-' }}
+                                    <span class="inline-flex max-w-full rounded-full bg-slate-100 px-3 py-1.5 text-slate-600 ring-1 ring-slate-200">
+                                        Seksi: {{ $lhpp?->seksi ?: '-' }}
                                     </span>
                                 </div>
                             </div>
 
-                            <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
                                 <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Step</div>
-                                <div class="mt-2 text-sm font-bold text-slate-900">{{ $signature->step_order }} dari {{ $totalSteps }}</div>
-                                <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                <div class="mt-3 text-base font-bold leading-6 text-slate-950">{{ $signature->step_order }} dari {{ $totalSteps }}</div>
+                                <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
                                     <div class="h-full rounded-full bg-[#ca642f]" style="width: {{ $progressPercent }}%"></div>
                                 </div>
-                            </div>
-
-                            <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4 md:col-span-2 xl:col-span-3">
-                                <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Penanda Tangan</div>
-                                <div class="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div>
-                                        <div class="text-base font-bold text-slate-900">{{ $signature->signer_name_snapshot }}</div>
-                                        <div class="text-sm text-slate-600">{{ $signature->acting_as_label ?: $signature->signer_position_snapshot }}</div>
-                                    </div>
-                                    <span class="inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ring-1 {{ $statusClasses }}">
-                                        {{ $statusLabel }}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4 md:col-span-2">
-                                <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Progress Approval</div>
-                                <div class="mt-2 text-sm font-bold text-slate-900">{{ $signedCount }}/{{ $totalSteps }} signed</div>
-                                <p class="mt-2 text-sm leading-6 text-slate-500">Step sebelumnya wajib selesai sebelum step berikutnya aktif.</p>
                             </div>
                         </div>
                     </div>

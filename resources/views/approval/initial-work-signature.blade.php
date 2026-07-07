@@ -15,6 +15,14 @@
             'high' => 'bg-amber-100 text-amber-700 ring-amber-200',
             default => 'bg-emerald-100 text-emerald-700 ring-emerald-200',
         };
+        $initialWorkTotalSteps = $initialWork->approvalStepCount();
+        $initialWorkProgressPercent = $initialWork->approvalProgressPercent();
+        $statusLabel = $signature->isSigned()
+            ? 'Sudah Ditandatangani'
+            : ($isExpired ? 'Token Kedaluwarsa' : 'Menunggu Tanda Tangan');
+        $statusClasses = $signature->isSigned()
+            ? 'bg-emerald-100 text-emerald-700 ring-emerald-200'
+            : ($isExpired ? 'bg-amber-100 text-amber-700 ring-amber-200' : 'bg-blue-100 text-blue-700 ring-blue-200');
     @endphp
 
     <main class="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
@@ -68,62 +76,46 @@
 
                 {{-- Info utama --}}
                 <div class="rounded-[1.75rem] border border-stone-200 bg-gradient-to-br from-stone-50 to-white p-4 shadow-sm sm:p-5 lg:p-6">
-                    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                        <div class="rounded-2xl border border-stone-200 bg-white px-4 py-4">
+                    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-12 xl:items-stretch">
+                        <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm xl:col-span-3">
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">Penanda Tangan</div>
+                            <div class="mt-3 break-words text-base font-bold leading-6 text-slate-950">{{ $signature->signer_name }}</div>
+                            <div class="mt-1 text-sm leading-5 text-slate-600">{{ $signature->displayRoleLabel() }}</div>
+                            <span class="mt-4 inline-flex max-w-full items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 {{ $statusClasses }}">
+                                {{ $statusLabel }}
+                            </span>
+                        </div>
+
+                        <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm xl:col-span-2">
                             <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">Nomor Order</div>
-                            <div class="mt-2 break-words text-sm font-bold text-slate-900">
-                                {{ $initialWork->nomor_order ?: '-' }}
-                            </div>
+                            <div class="mt-3 break-words text-base font-bold leading-6 text-slate-950">{{ $initialWork->nomor_order ?: '-' }}</div>
+                            <div class="mt-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">Notifikasi</div>
+                            <div class="mt-3 break-words text-base font-bold leading-6 text-slate-950">{{ $initialWork->notifikasi ?: ($order?->notifikasi ?: '-') }}</div>
                         </div>
 
-                        <div class="rounded-2xl border border-stone-200 bg-white px-4 py-4">
-                            <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">Tanggal Dokumen</div>
-                            <div class="mt-2 text-sm font-bold text-slate-900">
-                                {{ optional($initialWork->tanggal_initial_work)->format('d/m/Y') ?: '-' }}
-                            </div>
-                        </div>
-
-                        <div class="rounded-2xl border border-stone-200 bg-white px-4 py-4 md:col-span-2">
+                        <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm md:col-span-2 xl:col-span-5">
                             <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">Pekerjaan</div>
-                            <div class="mt-2 break-words text-sm font-bold text-slate-900">
+                            <div class="mt-3 break-words text-base font-bold leading-6 text-slate-950">
                                 {{ $initialWork->nama_pekerjaan ?: '-' }}
                             </div>
-                            <div class="mt-3 flex flex-wrap items-center gap-2">
-                                <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 {{ $priorityBadgeClasses }}">
-                                    {{ $priorityLabel }}
+                            <div class="mt-4 flex flex-wrap items-center gap-2">
+                                <span class="inline-flex max-w-full rounded-full px-3 py-1.5 text-xs font-semibold ring-1 {{ $priorityBadgeClasses }}">
+                                    Unit: {{ $initialWork->unit_kerja ?: ($order?->unit_kerja ?: '-') }}
                                 </span>
-                                <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200">
-                                    {{ $order?->unit_kerja ?: '-' }}
+                                <span class="inline-flex max-w-full rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">
+                                    Seksi: {{ $initialWork->seksi ?: ($order?->seksi ?: '-') }}
                                 </span>
                             </div>
                         </div>
 
-                        <div class="rounded-2xl border border-stone-200 bg-white px-4 py-4">
-                            <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">Unit Work Pengendali</div>
-                            <div class="mt-2 text-sm font-bold text-slate-900">
-                                {{ $signature->source_unit ?: '-' }} / {{ $signature->source_section ?: '-' }}
+                        <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm xl:col-span-2">
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">Step</div>
+                            <div class="mt-3 text-base font-bold leading-6 text-slate-950">
+                                {{ $signature->step_order }} dari {{ $initialWorkTotalSteps }}
                             </div>
-                        </div>
-
-                        <div class="rounded-2xl border border-stone-200 bg-white px-4 py-4 md:col-span-2 xl:col-span-3">
-                            <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">Penanda Tangan</div>
-                            <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
-                                    <div class="text-base font-bold text-slate-900">{{ $signature->signer_name }}</div>
-                                    <div class="text-sm text-slate-600">{{ $signature->displayRoleLabel() }}</div>
-                                </div>
-
-                                <div class="inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold {{ $signature->isSigned() ? 'bg-emerald-100 text-emerald-700' : ($isExpired ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700') }}">
-                                    {{ $signature->isSigned() ? 'Sudah Ditandatangani' : ($isExpired ? 'Token Kedaluwarsa' : 'Menunggu Tanda Tangan') }}
-                                </div>
+                            <div class="mt-4 h-2 overflow-hidden rounded-full bg-stone-100">
+                                <div class="h-full rounded-full bg-blue-600" style="width: {{ $initialWorkProgressPercent }}%"></div>
                             </div>
-                        </div>
-
-                        <div class="rounded-2xl border border-stone-200 bg-white px-4 py-4 md:col-span-2 xl:col-span-2">
-                            <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">Panduan</div>
-                            <p class="mt-2 text-sm leading-6 text-slate-600">
-                                Tinjau dokumen pada panel preview, lalu lakukan tanda tangan digital pada area yang tersedia.
-                            </p>
                         </div>
                     </div>
                 </div>

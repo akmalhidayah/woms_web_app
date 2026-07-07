@@ -14,6 +14,8 @@
         $statusClasses = $signature->isSigned()
             ? 'bg-emerald-100 text-emerald-700 ring-emerald-200'
             : ($isExpired ? 'bg-amber-100 text-amber-700 ring-amber-200' : 'bg-blue-100 text-blue-700 ring-blue-200');
+        $qualityControlTotalSteps = $report->approvalStepCount();
+        $qualityControlProgressPercent = $report->approvalProgressPercent();
     @endphp
 
     <main class="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
@@ -63,22 +65,39 @@
                     </div>
                 @endif
 
-                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                    <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                        <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Nomor Order</div>
-                        <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $order?->nomor_order ?: '-' }}</div>
-                    </div>
-                    <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                        <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Tanggal QC</div>
-                        <div class="mt-2 text-sm font-bold text-slate-900">{{ optional($report->report_date)->format('d/m/Y') ?: '-' }}</div>
-                    </div>
-                    <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 md:col-span-2">
-                        <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Pekerjaan</div>
-                        <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $order?->nama_pekerjaan ?: '-' }}</div>
-                    </div>
-                    <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                        <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Status</div>
-                        <div class="mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 {{ $statusClasses }}">{{ $statusLabel }}</div>
+                <div class="rounded-[1.5rem] border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 p-4 shadow-sm sm:p-5 lg:p-6">
+                    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-12 xl:items-stretch">
+                        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-3">
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Penanda Tangan</div>
+                            <div class="mt-3 break-words text-base font-bold leading-6 text-slate-950">{{ $signature->signer_name }}</div>
+                            <div class="mt-1 text-sm leading-5 text-slate-600">{{ $signature->signer_position ?: $signature->displayRoleLabel() }}</div>
+                            <span class="mt-4 inline-flex max-w-full items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 {{ $statusClasses }}">{{ $statusLabel }}</span>
+                        </div>
+                        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Nomor Order</div>
+                            <div class="mt-3 break-words text-base font-bold leading-6 text-slate-950">{{ $order?->nomor_order ?: '-' }}</div>
+                            <div class="mt-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Notifikasi</div>
+                            <div class="mt-3 break-words text-base font-bold leading-6 text-slate-950">{{ $order?->notifikasi ?: '-' }}</div>
+                        </div>
+                        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:col-span-2 xl:col-span-5">
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Pekerjaan</div>
+                            <div class="mt-3 break-words text-base font-bold leading-6 text-slate-950">{{ $order?->nama_pekerjaan ?: '-' }}</div>
+                            <div class="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
+                                <span class="inline-flex max-w-full rounded-full bg-blue-50 px-3 py-1.5 text-blue-700 ring-1 ring-blue-100">
+                                    Unit: {{ $order?->unit_kerja ?: '-' }}
+                                </span>
+                                <span class="inline-flex max-w-full rounded-full bg-slate-100 px-3 py-1.5 text-slate-600 ring-1 ring-slate-200">
+                                    Seksi: {{ $order?->seksi ?: '-' }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Step</div>
+                            <div class="mt-3 text-base font-bold leading-6 text-slate-950">{{ $signature->step_order }} dari {{ $qualityControlTotalSteps }}</div>
+                            <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
+                                <div class="h-full rounded-full bg-blue-600" style="width: {{ $qualityControlProgressPercent }}%"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -102,15 +121,6 @@
                     </div>
 
                     <div class="space-y-5">
-                        <div class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-                            <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Penanda Tangan</div>
-                            <div class="mt-3 text-base font-bold text-slate-900">{{ $signature->signer_name }}</div>
-                            <div class="text-sm text-slate-600">{{ $signature->signer_position ?: $signature->displayRoleLabel() }}</div>
-                            <div class="mt-2 text-xs leading-5 text-slate-500">
-                                {{ $signature->source_unit ?: '-' }} / {{ $signature->source_section ?: '-' }}
-                            </div>
-                        </div>
-
                         @if ($signature->isSigned())
                             <div class="rounded-[1.75rem] border border-emerald-200 bg-emerald-50 p-5 text-center shadow-sm">
                                 <h2 class="text-xl font-bold text-emerald-900">Tanda tangan tersimpan</h2>

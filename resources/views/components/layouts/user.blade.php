@@ -29,6 +29,7 @@
             $userNotifications = \App\Support\UserNotificationCenter::notifications(5, $user);
             $userNotificationCount = \App\Support\UserNotificationCenter::notificationCount($user);
             $userNotificationBadge = $userNotificationCount > 9 ? '9+' : (string) $userNotificationCount;
+            $isApprover = $user?->role === \App\Models\User::ROLE_APPROVER;
             $notificationToneClasses = [
                 'blue' => 'bg-blue-50 text-blue-700 ring-blue-100',
                 'amber' => 'bg-amber-50 text-amber-700 ring-amber-100',
@@ -71,6 +72,15 @@
                         >
                             Dashboard
                         </a>
+                        @if ($isApprover)
+                            <a
+                                href="{{ route('approval-documents.index') }}"
+                                class="inline-flex items-center gap-2 rounded-xl border px-4 py-1.5 text-sm font-semibold transition {{ request()->routeIs('approval-documents.*') ? 'border-white/25 bg-white text-red-800 shadow-sm' : 'border-white/20 bg-white/10 text-white hover:bg-white/15' }}"
+                            >
+                                <i data-lucide="clipboard-pen-line" class="h-4 w-4"></i>
+                                Dokumen Approval
+                            </a>
+                        @endif
                         <div class="relative" @click.outside="notificationsOpen = false">
                             <button
                                 type="button"
@@ -252,6 +262,12 @@
                 <div x-show="mobileMenu" x-transition x-cloak class="border-t border-red-700 bg-white px-4 py-4 md:hidden">
                     <div class="space-y-3">
                         <a href="{{ route('user.dashboard') }}" class="block rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-800">Dashboard</a>
+                        @if ($isApprover)
+                            <a href="{{ route('approval-documents.index') }}" class="flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-800">
+                                <i data-lucide="clipboard-pen-line" class="h-4 w-4"></i>
+                                Dokumen Approval
+                            </a>
+                        @endif
                         <div class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
                             <div class="text-sm font-semibold text-slate-900">{{ $user?->name }}</div>
                             <div class="text-xs text-slate-500">{{ $user?->email }}</div>

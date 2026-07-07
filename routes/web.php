@@ -25,6 +25,7 @@ use App\Http\Controllers\Approval\BastSignatureController;
 use App\Http\Controllers\Approval\HppSignatureController;
 use App\Http\Controllers\Approval\InitialWorkSignatureController;
 use App\Http\Controllers\Approval\QualityControlSignatureController;
+use App\Http\Controllers\ApprovalDocumentController;
 use App\Http\Controllers\Pkm\DashboardController as PkmDashboardController;
 use App\Http\Controllers\Pkm\DocumentsController as PkmDocumentsController;
 use App\Http\Controllers\Pkm\JobWaitingController;
@@ -399,6 +400,15 @@ Route::middleware(['auth'])->group(function () {
         ->where('kind', 'lpj|ppl')
         ->whereNumber('termin')
         ->name('user.orders.laporan.preview');
+
+    Route::get('approval-documents', [ApprovalDocumentController::class, 'index'])
+        ->middleware('role:approver')
+        ->name('approval-documents.index');
+    Route::get('approval-documents/{type}/{id}/open', [ApprovalDocumentController::class, 'open'])
+        ->middleware('role:approver')
+        ->where('type', 'hpp|bast|initial_work|quality_control')
+        ->whereNumber('id')
+        ->name('approval-documents.open');
 
     Route::get('pkm/dashboard', [PkmDashboardController::class, 'index'])
         ->middleware('role:pkm')

@@ -32,4 +32,44 @@ class SignatureImageStorageTest extends TestCase
 
         Storage::disk('public')->assertExists($path);
     }
+
+    public function test_signature_canvas_whitespace_is_trimmed_before_storage(): void
+    {
+        if (! function_exists('imagecreatetruecolor')) {
+            $this->markTestSkipped('GD extension is not available.');
+        }
+
+        Storage::fake('public');
+
+        $image = imagecreatetruecolor(300, 120);
+        imagealphablending($image, false);
+        imagesavealpha($image, true);
+
+        $transparent = imagecolorallocatealpha($image, 255, 255, 255, 127);
+        imagefilledrectangle($image, 0, 0, 300, 120, $transparent);
+
+        $ink = imagecolorallocatealpha($image, 10, 10, 10, 0);
+        imagesetthickness($image, 4);
+        imageline($image, 110, 58, 180, 62, $ink);
+        imageline($image, 120, 72, 170, 42, $ink);
+
+        ob_start();
+        imagepng($image);
+        $binary = ob_get_clean();
+        imagedestroy($image);
+
+        $path = SignatureImageStorage::storeDataUri(
+            'data:image/png;base64,'.base64_encode($binary),
+            'signatures',
+            'trimmed'
+        );
+
+        $stored = imagecreatefromstring(Storage::disk('public')->get($path));
+
+        $this->assertNotFalse($stored);
+        $this->assertLessThan(300, imagesx($stored));
+        $this->assertLessThan(120, imagesy($stored));
+
+        imagedestroy($stored);
+    }
 }

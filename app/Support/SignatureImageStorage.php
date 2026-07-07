@@ -52,9 +52,11 @@ class SignatureImageStorage
 
         self::ensureImageHasVisibleSignature($binary, 'signature_file');
 
-        $extension = $file->extension() ?: 'png';
+        $binary = self::trimSignatureWhitespace($binary);
+        $path = $directory.'/'.$prefix.'-'.now()->format('YmdHis').'-'.Str::uuid().'.png';
+        Storage::disk('public')->put($path, $binary);
 
-        return $file->storeAs($directory, $prefix.'-'.now()->format('YmdHis').'-'.Str::uuid().'.'.$extension, 'public');
+        return $path;
     }
 
     public static function storeDataUri(string $signatureData, string $directory, string $prefix): string
@@ -81,6 +83,7 @@ class SignatureImageStorage
         }
 
         self::ensureImageHasVisibleSignature($binary, 'signature_data');
+        $binary = self::trimSignatureWhitespace($binary);
 
         $path = $directory.'/'.$prefix.'-'.now()->format('YmdHis').'-'.Str::uuid().'.png';
         Storage::disk('public')->put($path, $binary);
@@ -155,5 +158,92 @@ class SignatureImageStorage
         throw ValidationException::withMessages([
             $errorKey => 'Tanda tangan terlalu sedikit. Silakan tanda tangani dengan coretan yang jelas.',
         ]);
+    }
+
+    private static function trimSignatureWhitespace(string $binary): string
+    {
+        if (! function_exists('imagecreatefromstring')) {
+            return $binary;
+        }
+
+        $image = @imagecreatefromstring($binary);
+
+        if (! $image) {
+            return $binary;
+        }
+
+        $width = imagesx($image);
+        $height = imagesy($image);
+        $minX = $width;
+        $minY = $height;
+        $maxX = -1;
+        $maxY = -1;
+
+        for ($y = 0; $y < $height; $y++) {
+            for ($x = 0; $x < $width; $x++) {
+                if (! self::isInkPixel(imagecolorat($image, $x, $y))) {
+                    continue;
+                }
+
+                $minX = min($minX, $x);
+                $minY = min($minY, $y);
+                $maxX = max($maxX, $x);
+                $maxY = max($maxY, $y);
+            }
+        }
+
+        if ($maxX < 0 || $maxY < 0) {
+            imagedestroy($image);
+
+            return $binary;
+        }
+
+        $padding = 12;
+        $cropX = max(0, $minX - $padding);
+        $cropY = max(0, $minY - $padding);
+        $cropRight = min($width - 1, $maxX + $padding);
+        $cropBottom = min($height - 1, $maxY + $padding);
+        $cropWidth = $cropRight - $cropX + 1;
+        $cropHeight = $cropBottom - $cropY + 1;
+
+        if ($cropWidth >= $width && $cropHeight >= $height) {
+            imagedestroy($image);
+
+            return $binary;
+        }
+
+        $cropped = imagecreatetruecolor($cropWidth, $cropHeight);
+        imagealphablending($cropped, false);
+        imagesavealpha($cropped, true);
+
+        $transparent = imagecolorallocatealpha($cropped, 255, 255, 255, 127);
+        imagefilledrectangle($cropped, 0, 0, $cropWidth, $cropHeight, $transparent);
+        imagecopy($cropped, $image, 0, 0, $cropX, $cropY, $cropWidth, $cropHeight);
+
+        ob_start();
+        $written = imagepng($cropped);
+        $croppedBinary = ob_get_clean();
+
+        imagedestroy($cropped);
+        imagedestroy($image);
+
+        return $written && is_string($croppedBinary) && $croppedBinary !== ''
+            ? $croppedBinary
+            : $binary;
+    }
+
+    private static function isInkPixel(int $rgba): bool
+    {
+        $alpha = ($rgba >> 24) & 0x7F;
+
+        if ($alpha >= 120) {
+            return false;
+        }
+
+        $red = ($rgba >> 16) & 0xFF;
+        $green = ($rgba >> 8) & 0xFF;
+        $blue = $rgba & 0xFF;
+
+        return $red < 245 || $green < 245 || $blue < 245;
     }
 }

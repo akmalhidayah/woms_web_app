@@ -160,7 +160,7 @@ class SignatureImageStorage
         ]);
     }
 
-    private static function trimSignatureWhitespace(string $binary): string
+    public static function trimSignatureWhitespace(string $binary): string
     {
         if (! function_exists('imagecreatefromstring')) {
             return $binary;

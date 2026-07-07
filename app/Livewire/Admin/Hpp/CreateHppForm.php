@@ -253,7 +253,6 @@ class CreateHppForm extends Component
                 OrderUserNoteStatus::ApprovedWorkshopJasa->value,
             ])
             ->whereHas('documents', fn (Builder $documentQuery) => $documentQuery->where('jenis_dokumen', OrderDocumentType::Abnormalitas->value))
-            ->whereHas('documents', fn (Builder $documentQuery) => $documentQuery->where('jenis_dokumen', OrderDocumentType::GambarTeknik->value))
             ->whereHas('scopeOfWork');
     }
 }

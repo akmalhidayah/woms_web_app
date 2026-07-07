@@ -81,7 +81,6 @@ class DashboardController extends Controller
                 OrderUserNoteStatus::ApprovedWorkshopJasa->value,
             ])
             ->whereHas('documents', fn (Builder $query) => $query->where('jenis_dokumen', OrderDocumentType::Abnormalitas->value))
-            ->whereHas('documents', fn (Builder $query) => $query->where('jenis_dokumen', OrderDocumentType::GambarTeknik->value))
             ->whereHas('scopeOfWork')
             ->doesntHave('hpps')
             ->count();

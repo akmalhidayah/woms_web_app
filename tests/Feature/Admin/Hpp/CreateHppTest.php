@@ -178,6 +178,53 @@ class CreateHppTest extends TestCase
         $this->assertSame('Plat baja', $hpp->item_groups[0]['items'][0]['nama_item']);
     }
 
+    public function test_it_stores_hpp_without_gambar_teknik_document(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+
+        $outlineAgreement = $this->createApprovalStructureAndOutlineAgreement($admin);
+        $order = $this->makeEligibleOrder($admin, [
+            'nomor_order' => 'ORD-2026-NO-GAMBAR',
+            'nama_pekerjaan' => 'Pekerjaan HPP tanpa gambar teknik',
+            'unit_kerja' => 'Unit Produksi Raw Mill',
+            'seksi' => 'Maintenance',
+            'deskripsi' => 'Gambar teknik tidak wajib untuk create HPP.',
+            'prioritas' => Order::PRIORITY_MEDIUM,
+            'tanggal_order' => '2026-05-01',
+            'target_selesai' => '2026-05-10',
+        ]);
+
+        $order->documents()
+            ->where('jenis_dokumen', OrderDocumentType::GambarTeknik->value)
+            ->delete();
+
+        $this
+            ->actingAs($admin)
+            ->post(route('admin.hpp.store'), [
+                'action' => 'submit',
+                'order_id' => $order->id,
+                'outline_agreement_id' => $outlineAgreement->id,
+                'kategori_pekerjaan' => 'Fabrikasi',
+                'area_pekerjaan' => HppApprovalFlow::displayArea('Dalam'),
+                'jenis_label_visible' => [0 => 'Jasa'],
+                'nama_item' => [0 => ['Pekerjaan tanpa gambar teknik']],
+                'jumlah_item' => [0 => ['1 lot']],
+                'qty' => [0 => [1]],
+                'satuan' => [0 => ['Lot']],
+                'harga_satuan' => [0 => [1000000]],
+                'keterangan' => [0 => ['Tetap valid tanpa gambar teknik']],
+            ])
+            ->assertRedirect(route('admin.hpp.index'));
+
+        $this->assertDatabaseHas('hpps', [
+            'order_id' => $order->id,
+            'nomor_order' => 'ORD-2026-NO-GAMBAR',
+        ]);
+    }
+
     public function test_hpp_bucket_and_approval_flow_are_derived_from_server_total(): void
     {
         $admin = User::factory()->create([

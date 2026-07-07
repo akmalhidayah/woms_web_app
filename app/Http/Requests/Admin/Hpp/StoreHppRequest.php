@@ -90,10 +90,6 @@ class StoreHppRequest extends FormRequest
                         $fail('Order belum memiliki dokumen Abnormalitas.');
                     }
 
-                    if (! in_array(OrderDocumentType::GambarTeknik->value, $documentTypes, true)) {
-                        $fail('Order belum memiliki dokumen Gambar Teknik.');
-                    }
-
                     if (! $order->scopeOfWork) {
                         $fail('Order belum memiliki Scope of Work.');
                     }

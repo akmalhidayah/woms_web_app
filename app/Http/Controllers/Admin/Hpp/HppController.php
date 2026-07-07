@@ -59,7 +59,6 @@ class HppController extends Controller
                 OrderUserNoteStatus::ApprovedWorkshopJasa->value,
             ])
             ->whereHas('documents', fn (Builder $documentQuery) => $documentQuery->where('jenis_dokumen', OrderDocumentType::Abnormalitas->value))
-            ->whereHas('documents', fn (Builder $documentQuery) => $documentQuery->where('jenis_dokumen', OrderDocumentType::GambarTeknik->value))
             ->whereHas('scopeOfWork')
             ->doesntHave('hpps')
             ->orderByDesc('tanggal_order')

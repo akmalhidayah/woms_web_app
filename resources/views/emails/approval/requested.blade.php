@@ -144,9 +144,6 @@
                             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#fff1f2;border:1px solid #fecdd3;border-radius:18px;">
                                 <tr>
                                     <td style="padding:20px 22px;text-align:center;">
-                                        <div style="display:inline-block;margin-bottom:8px;background:#8f111b;color:#ffffff;border-radius:999px;padding:5px 12px;font-size:11px;line-height:15px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">
-                                            Tindakan diperlukan
-                                        </div>
                                         <div style="font-size:18px;line-height:26px;font-weight:800;color:#0f172a;">
                                             Klik tombol ini untuk review dan approval dokumen.
                                         </div>

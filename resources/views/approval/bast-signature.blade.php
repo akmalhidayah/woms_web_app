@@ -237,13 +237,13 @@
                                                 <div class="text-xs text-slate-400">Mouse / touch screen didukung</div>
                                             </div>
 
+                                            <div class="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-3">
+                                                <canvas id="signatureCanvas" width="620" height="260" class="h-60 w-full rounded-xl bg-white sm:h-72"></canvas>
+                                            </div>
+
                                             <div class="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-4">
                                                 <label for="approvalNote" class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Catatan Approval</label>
                                                 <textarea id="approvalNote" name="approval_note" rows="4" maxlength="2000" class="mt-3 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-[#ca642f] focus:outline-none" placeholder="Tulis catatan approval bila diperlukan...">{{ old('approval_note', $signature->approval_note) }}</textarea>
-                                            </div>
-
-                                            <div class="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-3">
-                                                <canvas id="signatureCanvas" width="620" height="260" class="h-60 w-full rounded-xl bg-white sm:h-72"></canvas>
                                             </div>
 
                                             <div class="flex flex-col gap-2 pt-4 sm:flex-row sm:justify-between">

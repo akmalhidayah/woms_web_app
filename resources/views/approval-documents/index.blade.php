@@ -19,7 +19,7 @@
                     </div>
                     <h1 class="mt-3 text-2xl font-black tracking-tight text-slate-950">Dokumen Approval</h1>
                     <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                        Daftar dokumen yang menunggu tanda tangan Anda. Tombol buka approval akan melakukan validasi ulang sebelum masuk ke halaman approval bertoken.
+                        Daftar dokumen yang menunggu tanda tangan Anda.
                     </p>
                 </div>
 

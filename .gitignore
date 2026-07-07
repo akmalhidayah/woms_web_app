@@ -22,3 +22,6 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+# Local Codex guidance / analysis notes
+AGENTS.md
+docs/ANALISIS_WOMS.md

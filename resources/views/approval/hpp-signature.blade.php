@@ -32,28 +32,34 @@
 
     <main class="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <section class="overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.10)]">
-            <div class="border-b-4 border-blue-600 bg-slate-950 px-5 py-6 text-white sm:px-8 sm:py-7">
+            <div class="border-b-4 border-[#8f1d2c] bg-[#5b0f1b] px-5 py-6 text-white sm:px-8 sm:py-7">
                 <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
                     <div class="min-w-0">
-                        <div class="text-[11px] font-semibold uppercase tracking-[0.28em] text-blue-300">
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/70">
                             HPP Digital Approval
                         </div>
                         <h1 class="mt-3 break-words text-2xl font-bold tracking-tight sm:text-3xl">
-                            {{ $hpp?->approval_case ?: 'Approval HPP' }}
+                            {{ $hpp?->nama_pekerjaan ?: ($hpp?->approval_case ?: 'Approval HPP') }}
                         </h1>
-                        <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                        <p class="mt-2 max-w-3xl text-sm leading-6 text-white/75">
                             Halaman approval bertoken ini hanya dapat digunakan oleh akun penanda tangan yang ditetapkan.
                         </p>
                     </div>
 
-                    <div class="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm">
-                        <div class="text-slate-400">Login sebagai</div>
-                        <div class="mt-1 font-semibold text-white">{{ auth()->user()->name }}</div>
-                        <div class="text-xs text-slate-400">{{ auth()->user()->email }}</div>
-                        <a href="{{ route(auth()->user()->dashboardRouteName()) }}" class="mt-3 inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-slate-900 transition hover:bg-slate-100">
-                            <i data-lucide="layout-dashboard" class="h-3.5 w-3.5"></i>
-                            Ke Dashboard
-                        </a>
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-end xl:min-w-[22rem]">
+                        <div class="w-fit rounded-2xl bg-white/95 p-2 shadow-sm">
+                            <img src="{{ asset('assets/branding/logos/logo-st.png') }}" alt="Logo ST" class="h-12 w-auto object-contain sm:h-14">
+                        </div>
+
+                        <div class="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm shadow-sm backdrop-blur">
+                            <div class="text-white/70">Login sebagai</div>
+                            <div class="mt-1 font-semibold text-white">{{ auth()->user()->name }}</div>
+                            <div class="text-xs text-white/70">{{ auth()->user()->email }}</div>
+                            <a href="{{ route(auth()->user()->dashboardRouteName()) }}" class="mt-3 inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-[#5b0f1b] transition hover:bg-white/90">
+                                <i data-lucide="layout-dashboard" class="h-3.5 w-3.5"></i>
+                                Ke Dashboard
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>

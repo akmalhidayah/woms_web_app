@@ -38,6 +38,23 @@ class PkmNotificationCenter
     }
 
     /**
+     * @return Collection<int, string>
+     */
+    public static function unreadNotificationKeys(?User $user = null): Collection
+    {
+        if (! $user) {
+            return collect();
+        }
+
+        return self::allNotifications()
+            ->reject(fn (array $notification): bool => self::isRead($notification, $user))
+            ->pluck('key')
+            ->filter()
+            ->unique()
+            ->values();
+    }
+
+    /**
      * @return Collection<int, array<string, mixed>>
      */
     private static function allNotifications(?int $limit = null): Collection

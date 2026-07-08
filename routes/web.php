@@ -117,6 +117,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('admin/notifications/read', [AdminNotificationController::class, 'read'])
         ->middleware('role:admin')
         ->name('admin.notifications.read');
+    Route::post('admin/notifications/read-all', [AdminNotificationController::class, 'readAll'])
+        ->middleware('role:admin')
+        ->name('admin.notifications.read-all');
 
     Route::get('admin/access-control', [AccessControlController::class, 'index'])
         ->middleware(['role:admin', 'admin_role:super_admin'])
@@ -369,6 +372,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('user/notifications/read', [UserNotificationController::class, 'read'])
         ->middleware('role:user,approver')
         ->name('user.notifications.read');
+    Route::post('user/notifications/read-all', [UserNotificationController::class, 'readAll'])
+        ->middleware('role:user,approver')
+        ->name('user.notifications.read-all');
     Route::get('user/orders/{order}', [OrderTrackingController::class, 'show'])
         ->middleware('role:user,approver,pkm')
         ->name('user.orders.show');
@@ -425,6 +431,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('pkm/notifications/read', [PkmNotificationController::class, 'read'])
         ->middleware('role:pkm')
         ->name('pkm.notifications.read');
+    Route::post('pkm/notifications/read-all', [PkmNotificationController::class, 'readAll'])
+        ->middleware('role:pkm')
+        ->name('pkm.notifications.read-all');
     Route::put('pkm/vendor-structure/{vendorWorkType}', [PkmVendorStructureController::class, 'update'])
         ->middleware('role:pkm')
         ->name('pkm.vendor-structure.update');

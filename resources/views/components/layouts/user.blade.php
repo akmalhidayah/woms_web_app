@@ -101,7 +101,17 @@
                                 class="absolute right-0 z-50 mt-2 w-[min(92vw,24rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
                             >
                                 <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
-                                    <div class="text-sm font-bold text-slate-900">Pemberitahuan</div>
+                                    <div>
+                                        <div class="text-sm font-bold text-slate-900">Pemberitahuan</div>
+                                        @if ($userNotificationCount > 0)
+                                            <form method="POST" action="{{ route('user.notifications.read-all') }}" class="mt-1">
+                                                @csrf
+                                                <button type="submit" class="text-[11px] font-bold text-blue-700 transition hover:text-blue-900">
+                                                    Tandai semua dibaca
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
                                     @if ($userNotificationCount > 0)
                                         <span class="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-700 ring-1 ring-red-100">{{ $userNotificationBadge }}</span>
                                     @endif
@@ -212,7 +222,17 @@
                                 class="absolute right-0 z-50 mt-2 w-[min(86vw,22rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-xl"
                             >
                                 <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
-                                    <div class="text-sm font-bold text-slate-900">Pemberitahuan</div>
+                                    <div>
+                                        <div class="text-sm font-bold text-slate-900">Pemberitahuan</div>
+                                        @if ($userNotificationCount > 0)
+                                            <form method="POST" action="{{ route('user.notifications.read-all') }}" class="mt-1">
+                                                @csrf
+                                                <button type="submit" class="text-[11px] font-bold text-blue-700 transition hover:text-blue-900">
+                                                    Tandai semua dibaca
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
                                     @if ($userNotificationCount > 0)
                                         <span class="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-700 ring-1 ring-red-100">{{ $userNotificationBadge }}</span>
                                     @endif

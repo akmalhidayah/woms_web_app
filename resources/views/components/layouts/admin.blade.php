@@ -1005,6 +1005,14 @@
                                     <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-3 py-2.5 sm:px-4 sm:py-3">
                                         <div>
                                             <div class="text-sm font-bold text-slate-900">Pemberitahuan</div>
+                                            @if ($adminNotificationCount > 0)
+                                                <form method="POST" action="{{ route('admin.notifications.read-all') }}" class="mt-1">
+                                                    @csrf
+                                                    <button type="submit" class="text-[11px] font-bold text-blue-700 transition hover:text-blue-900">
+                                                        Tandai semua dibaca
+                                                    </button>
+                                                </form>
+                                            @endif
                                         </div>
                                         @if ($adminNotificationCount > 0)
                                             <span class="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-700 ring-1 ring-red-100">{{ $adminNotificationBadge }}</span>

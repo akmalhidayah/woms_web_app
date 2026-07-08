@@ -23,15 +23,6 @@
         ];
         $documentPreviewItems = collect($order['document_preview_items'] ?? []);
         $activeDocumentPreview = $documentPreviewItems->first(fn (array $item) => filled($item['url']));
-        $activeDocumentPreviewType = $activeDocumentPreview['preview_type'] ?? 'file';
-        $documentToneClasses = [
-            'blue' => 'border-sky-200 bg-sky-50 text-sky-700',
-            'emerald' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
-            'violet' => 'border-violet-200 bg-violet-50 text-violet-700',
-            'orange' => 'border-amber-200 bg-amber-50 text-amber-700',
-            'rose' => 'border-rose-200 bg-rose-50 text-rose-700',
-            'slate' => 'border-stone-200 bg-stone-100 text-slate-600',
-        ];
         $targetDateLabel = $order['progress']['target'] ?: $order['target_selesai_order'] ?: '-';
         $targetRangeLabel = null;
 
@@ -212,45 +203,33 @@
                     </div>
                 </div>
 
-                <div class="mt-5 grid gap-4 xl:grid-cols-[270px_minmax(0,1fr)]">
-                    <div class="rounded-[20px] border border-stone-200 bg-stone-50/80 p-3">
-                        <div class="px-1">
-                            <div class="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Panel Toggle</div>
-                            <div class="mt-1 text-sm text-slate-500">
-                            </div>
-                        </div>
-
-                        <div class="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-                            @foreach ($documentPreviewItems as $item)
-                                @php
-                                    $iconClasses = $documentToneClasses[$item['tone'] ?? 'slate'] ?? $documentToneClasses['slate'];
-                                @endphp
-                                <button
-                                    type="button"
-                                    data-document-tab
+                <div class="mt-5 space-y-4">
+                    <div class="rounded-[20px] border border-stone-200 bg-stone-50/80 p-4">
+                        <label for="user-document-selector" class="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Pilih Dokumen</label>
+                        <select
+                            id="user-document-selector"
+                            class="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-3 py-3 text-sm font-semibold text-slate-800 shadow-sm outline-none transition focus:border-red-300 focus:ring-4 focus:ring-red-100 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-slate-400"
+                            @disabled($documentPreviewItems->isEmpty())
+                        >
+                            @forelse ($documentPreviewItems as $item)
+                                <option
+                                    value="{{ $item['url'] }}"
                                     data-document-title="{{ $item['title'] }}"
                                     data-document-label="{{ $item['label'] }}"
                                     data-document-url="{{ $item['url'] }}"
-                                    data-document-preview-type="{{ $item['preview_type'] ?? 'file' }}"
                                     data-document-available="{{ filled($item['url']) ? '1' : '0' }}"
+                                    @selected(($activeDocumentPreview['url'] ?? null) === ($item['url'] ?? null))
                                     @disabled(blank($item['url']))
-                                    class="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white px-3 py-2.5 text-left transition {{ filled($item['url']) ? 'hover:border-red-200 hover:bg-red-50/30' : 'cursor-not-allowed opacity-50' }}"
                                 >
-                                    <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border {{ $iconClasses }}">
-                                        <i data-lucide="{{ $item['icon'] }}" class="h-3.5 w-3.5"></i>
-                                    </span>
-                                    <span class="min-w-0 flex-1">
-                                        <span class="block truncate text-sm font-semibold text-slate-900">{{ $item['title'] }}</span>
-                                        <span class="mt-0.5 block truncate text-[11px] text-slate-500">
-                                            {{ filled($item['url']) ? $item['label'] : 'Belum tersedia' }}
-                                        </span>
-                                    </span>
-                                </button>
-                            @endforeach
-                        </div>
+                                    {{ $item['title'] }} - {{ filled($item['url']) ? $item['label'] : 'Belum tersedia' }}
+                                </option>
+                            @empty
+                                <option value="">Belum ada dokumen</option>
+                            @endforelse
+                        </select>
                     </div>
 
-                    <div class="overflow-hidden rounded-[20px] border border-stone-200 bg-white">
+                    <div class="overflow-visible rounded-[20px] border border-stone-200 bg-white">
                         <div class="flex flex-wrap items-start justify-between gap-3 border-b border-stone-200 px-4 py-3 sm:px-5">
                             <div>
                                 <div class="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Preview Dokumen</div>
@@ -271,7 +250,7 @@
                                         class="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:bg-white hover:text-red-800"
                                     >
                                         <i data-lucide="file-search" class="h-3.5 w-3.5"></i>
-                                        Buka di Tab Baru
+                                        Buka Dokumen
                                     </a>
                                     <a
                                         id="user-document-preview-download-link"
@@ -287,61 +266,12 @@
                         </div>
 
                         @if ($activeDocumentPreview)
-                            <div id="user-document-preview-embed-wrapper" class="{{ $activeDocumentPreviewType === 'pdf' ? '' : 'hidden' }}">
-                                <iframe
-                                    id="user-document-preview-frame"
-                                    src=""
-                                    data-document-src="{{ $activeDocumentPreviewType === 'pdf' ? $activeDocumentPreview['url'] : '' }}"
-                                    class="h-[720px] w-full bg-stone-100"
-                                    title="Preview dokumen order {{ $order['nomor_order'] }}"
-                                ></iframe>
-                            </div>
-                            <div id="user-document-preview-image-wrapper" class="{{ $activeDocumentPreviewType === 'image' ? '' : 'hidden' }} bg-stone-50">
-                                <div class="flex min-h-[420px] items-center justify-center p-4">
-                                    <img
-                                        id="user-document-preview-image"
-                                        src="{{ $activeDocumentPreviewType === 'image' ? $activeDocumentPreview['url'] : '' }}"
-                                        alt="Preview dokumen {{ $activeDocumentPreview['title'] ?? 'order' }}"
-                                        class="max-h-[760px] w-auto max-w-full rounded-2xl border border-stone-200 bg-white object-contain shadow-sm"
-                                    >
-                                </div>
-                            </div>
-                            <div id="user-document-preview-mobile-fallback" class="{{ $activeDocumentPreviewType === 'file' ? 'flex' : 'hidden' }} min-h-[320px] items-center justify-center bg-stone-50 px-6 py-10 text-center">
-                                <div class="max-w-md">
-                                    <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-stone-200 bg-white text-slate-400">
-                                        <i data-lucide="file-stack" class="h-5 w-5"></i>
-                                    </div>
-                                    <div id="user-document-preview-fallback-title" class="mt-4 text-base font-semibold text-slate-800">
-                                        {{ $activeDocumentPreviewType === 'pdf' ? 'Preview langsung dibatasi di browser mobile' : 'Dokumen ini tidak mendukung preview langsung' }}
-                                    </div>
-                                    <p id="user-document-preview-fallback-message" class="mt-2 text-sm leading-6 text-slate-500">
-                                        {{ $activeDocumentPreviewType === 'pdf'
-                                            ? 'Chrome Android sering tidak menampilkan PDF atau dokumen inline dengan stabil. Gunakan tombol buka atau download untuk melihat file dengan lebih aman.'
-                                            : 'File jenis Office atau dokumen non-gambar sebaiknya dibuka di tab baru atau diunduh terlebih dahulu.' }}
-                                    </p>
-                                    <div class="mt-5 flex flex-wrap items-center justify-center gap-2">
-                                        <a
-                                            id="user-document-mobile-open-link"
-                                            href="{{ $activeDocumentPreview['url'] }}"
-                                            target="_blank"
-                                            rel="noopener"
-                                            class="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:text-red-800"
-                                        >
-                                            <i data-lucide="external-link" class="h-3.5 w-3.5"></i>
-                                            Buka Dokumen
-                                        </a>
-                                        <a
-                                            id="user-document-mobile-download-link"
-                                            href="{{ $activeDocumentPreview['url'] }}"
-                                            download
-                                            class="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:text-red-800"
-                                        >
-                                            <i data-lucide="download" class="h-3.5 w-3.5"></i>
-                                            Download
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
+                            <iframe
+                                id="user-document-preview-frame"
+                                src="{{ $activeDocumentPreview['url'] }}"
+                                class="h-[60vh] min-h-[520px] w-full overflow-auto bg-stone-100 lg:h-[75vh] lg:min-h-[720px]"
+                                title="Preview dokumen order {{ $order['nomor_order'] }}"
+                            ></iframe>
                         @else
                             <div class="flex h-[420px] items-center justify-center bg-stone-50 px-6 text-center">
                                 <div>
@@ -364,112 +294,47 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            const documentSelector = document.getElementById('user-document-selector');
             const previewFrame = document.getElementById('user-document-preview-frame');
             const previewTitle = document.getElementById('user-document-preview-title');
             const previewLabel = document.getElementById('user-document-preview-label');
             const previewOpenLink = document.getElementById('user-document-preview-link');
             const previewDownloadLink = document.getElementById('user-document-preview-download-link');
-            const mobileOpenLink = document.getElementById('user-document-mobile-open-link');
-            const mobileDownloadLink = document.getElementById('user-document-mobile-download-link');
-            const embedWrapper = document.getElementById('user-document-preview-embed-wrapper');
-            const imageWrapper = document.getElementById('user-document-preview-image-wrapper');
-            const previewImage = document.getElementById('user-document-preview-image');
-            const mobileFallback = document.getElementById('user-document-preview-mobile-fallback');
-            const fallbackTitle = document.getElementById('user-document-preview-fallback-title');
-            const fallbackMessage = document.getElementById('user-document-preview-fallback-message');
-            const tabs = Array.from(document.querySelectorAll('[data-document-tab]'));
-            const isMobileBrowser = window.matchMedia('(max-width: 1024px)').matches
-                || /Android|iPhone|iPad|iPod|Mobile/i.test(window.navigator.userAgent);
 
-            if (! previewFrame || tabs.length === 0) {
+            if (! documentSelector || ! previewFrame) {
                 return;
             }
 
-            const setPreviewMode = (previewType, documentUrl) => {
-                const type = previewType || 'file';
-                const showPdfEmbed = type === 'pdf' && ! isMobileBrowser;
-                const showImagePreview = type === 'image';
-                const showFallback = ! showPdfEmbed && ! showImagePreview;
-
-                if (embedWrapper) {
-                    embedWrapper.classList.toggle('hidden', ! showPdfEmbed);
-                }
-
-                if (imageWrapper) {
-                    imageWrapper.classList.toggle('hidden', ! showImagePreview);
-                }
-
-                if (mobileFallback) {
-                    mobileFallback.classList.toggle('hidden', ! showFallback);
-                    mobileFallback.classList.toggle('flex', showFallback);
-                }
-
-                if (previewFrame) {
-                    previewFrame.src = showPdfEmbed ? documentUrl : '';
-                }
-
-                if (previewImage) {
-                    previewImage.src = showImagePreview ? documentUrl : '';
-                }
-
-                if (fallbackTitle && fallbackMessage) {
-                    const fallbackIsPdf = type === 'pdf';
-
-                    fallbackTitle.textContent = fallbackIsPdf
-                        ? 'Preview langsung dibatasi di browser mobile'
-                        : 'Dokumen ini tidak mendukung preview langsung';
-
-                    fallbackMessage.textContent = fallbackIsPdf
-                        ? 'Chrome Android sering tidak menampilkan PDF atau dokumen inline dengan stabil. Gunakan tombol buka atau download untuk melihat file dengan lebih aman.'
-                        : 'File jenis Office atau dokumen non-gambar sebaiknya dibuka di tab baru atau diunduh terlebih dahulu.';
-                }
-            };
-
-            const setActiveTab = (tab) => {
-                if (! tab || tab.dataset.documentAvailable !== '1') {
+            const setActiveDocument = (option) => {
+                if (! option || option.dataset.documentAvailable !== '1') {
                     return;
                 }
 
-                tabs.forEach((button) => {
-                    const isActive = button === tab;
+                const documentUrl = option.dataset.documentUrl || option.value || '';
 
-                    button.classList.toggle('border-red-200', isActive);
-                    button.classList.toggle('bg-red-50', isActive);
-                    button.classList.toggle('shadow-sm', isActive);
-                    button.classList.toggle('border-stone-200', ! isActive);
-                    button.classList.toggle('bg-white', ! isActive);
-                });
+                previewTitle.textContent = option.dataset.documentTitle || 'Preview Dokumen';
+                previewLabel.textContent = option.dataset.documentLabel || '';
+                previewFrame.src = documentUrl;
 
-                previewTitle.textContent = tab.dataset.documentTitle || 'Preview Dokumen';
-                previewLabel.textContent = tab.dataset.documentLabel || '';
-
-                [previewOpenLink, mobileOpenLink].forEach((link) => {
+                [previewOpenLink, previewDownloadLink].forEach((link) => {
                     if (! link) {
                         return;
                     }
 
-                    link.href = tab.dataset.documentUrl || '#';
+                    link.href = documentUrl || '#';
                 });
-
-                [previewDownloadLink, mobileDownloadLink].forEach((link) => {
-                    if (! link) {
-                        return;
-                    }
-
-                    link.href = tab.dataset.documentUrl || '#';
-                });
-
-                setPreviewMode(tab.dataset.documentPreviewType || 'file', tab.dataset.documentUrl || '');
             };
 
-            tabs.forEach((tab) => {
-                tab.addEventListener('click', () => setActiveTab(tab));
+            documentSelector.addEventListener('change', () => {
+                setActiveDocument(documentSelector.selectedOptions[0]);
             });
 
-            const firstAvailableTab = tabs.find((tab) => tab.dataset.documentAvailable === '1');
+            const firstAvailableOption = Array.from(documentSelector.options)
+                .find((option) => option.dataset.documentAvailable === '1');
 
-            if (firstAvailableTab) {
-                setActiveTab(firstAvailableTab);
+            if (firstAvailableOption) {
+                documentSelector.value = firstAvailableOption.value;
+                setActiveDocument(firstAvailableOption);
             }
         });
     </script>

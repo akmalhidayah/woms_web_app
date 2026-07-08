@@ -17,6 +17,7 @@ class AdminSidebarBadgeCounter
      */
     public function counts(): array
     {
+        $orderJasaIncomplete = $this->orderJasaIncompleteCount();
         $createHpp = $this->createHppCount();
         $verifikasiAnggaran = $this->verifikasiAnggaranCount();
         $purchaseOrder = $this->purchaseOrderCount();
@@ -25,6 +26,8 @@ class AdminSidebarBadgeCounter
         $lpjPpl = $this->lpjPplCount();
 
         return [
+            'order_jasa_incomplete' => $orderJasaIncomplete,
+            'orders_total' => $orderJasaIncomplete,
             'create_hpp' => $createHpp,
             'verifikasi_anggaran' => $verifikasiAnggaran,
             'purchase_order' => $purchaseOrder,
@@ -33,6 +36,22 @@ class AdminSidebarBadgeCounter
             'bast_total' => $setGaransi + $cekBast,
             'lpj_ppl' => $lpjPpl,
         ];
+    }
+
+    private function orderJasaIncompleteCount(): int
+    {
+        return Order::query()
+            ->whereIn('catatan_status', [
+                OrderUserNoteStatus::ApprovedJasa->value,
+                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+            ])
+            ->where(function (Builder $query): void {
+                $query
+                    ->whereDoesntHave('documents', fn (Builder $documentQuery): Builder => $documentQuery
+                        ->where('jenis_dokumen', OrderDocumentType::Abnormalitas->value))
+                    ->orWhereDoesntHave('scopeOfWork');
+            })
+            ->count();
     }
 
     private function createHppCount(): int

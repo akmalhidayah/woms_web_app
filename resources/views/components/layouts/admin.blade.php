@@ -822,6 +822,15 @@
                                         <i data-lucide="{{ $orderMenu['icon'] }}" class="h-4 w-4"></i>
                                     </span>
                                     <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 text-left font-medium">{{ $orderMenu['label'] }}</span>
+                                    @if (($orderMenu['badge_count'] ?? 0) > 0)
+                                        <span
+                                            x-show="sidebarOpen"
+                                            x-transition.opacity.duration.200ms
+                                            class="inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
+                                        >
+                                            {{ $orderMenu['badge_count'] > 99 ? '99+' : $orderMenu['badge_count'] }}
+                                        </span>
+                                    @endif
                                     <i
                                         data-lucide="chevron-down"
                                         class="h-4 w-4 transition"
@@ -835,6 +844,11 @@
                                     @foreach ($orderMenus as $menu)
                                         <a href="{{ $menu['href'] }}" class="flex items-center justify-between rounded-md px-2.5 py-1.5 transition {{ $menu['active'] ? 'bg-white text-blue-900' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
                                             <span>{{ $menu['label'] }}</span>
+                                            @if (($menu['badge_count'] ?? 0) > 0)
+                                                <span class="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
+                                                    {{ $menu['badge_count'] > 99 ? '99+' : $menu['badge_count'] }}
+                                                </span>
+                                            @endif
                                         </a>
                                     @endforeach
                                 </div>

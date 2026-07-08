@@ -44,6 +44,7 @@ class AdminMenuRegistry
             self::MENU_ORDERS => [
                 'key' => self::MENU_ORDERS,
                 'label' => 'Order',
+                'badge_key' => 'orders_total',
                 'icon' => 'inbox',
                 'group' => 'main',
                 'route_name' => 'admin.orders.index',
@@ -51,6 +52,7 @@ class AdminMenuRegistry
                 'children' => [
                     [
                         'label' => 'Order Pekerjaan Jasa',
+                        'badge_key' => 'order_jasa_incomplete',
                         'route_name' => 'admin.orders.index',
                         'active_patterns' => ['admin.orders.index', 'admin.orders.show', 'admin.orders.edit', 'admin.orders.create', 'admin.orders.scope-of-work.*'],
                     ],

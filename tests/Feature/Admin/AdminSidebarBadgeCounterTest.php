@@ -22,6 +22,47 @@ class AdminSidebarBadgeCounterTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_order_jasa_incomplete_count_tracks_required_service_documents_only(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $order = $this->makeOrder($admin, 'BADGE-ORDER-JASA-001', [
+            'catatan_status' => OrderUserNoteStatus::ApprovedJasa->value,
+        ]);
+
+        $this->assertSame(1, $this->counts()['order_jasa_incomplete']);
+        $this->assertSame(1, $this->counts()['orders_total']);
+
+        OrderDocument::query()->create([
+            'order_id' => $order->id,
+            'jenis_dokumen' => OrderDocumentType::Abnormalitas->value,
+            'nama_file_asli' => 'abnormalitas.pdf',
+            'path_file' => 'orders/abnormalitas.pdf',
+            'uploaded_by' => $admin->id,
+            'uploaded_at' => now(),
+        ]);
+
+        $this->assertSame(1, $this->counts()['order_jasa_incomplete']);
+
+        OrderScopeOfWork::query()->create([
+            'order_id' => $order->id,
+            'tanggal_dokumen' => '2026-07-01',
+            'scope_items' => [['pekerjaan' => 'Scope test']],
+            'created_by' => $admin->id,
+        ]);
+
+        $this->assertSame(0, $this->counts()['order_jasa_incomplete']);
+        $this->assertSame(0, $this->counts()['orders_total']);
+
+        $this->makeOrder($admin, 'BADGE-ORDER-WORKSHOP-001', [
+            'catatan_status' => OrderUserNoteStatus::ApprovedWorkshop->value,
+        ]);
+        $this->makeOrder($admin, 'BADGE-ORDER-PENDING-001', [
+            'catatan_status' => OrderUserNoteStatus::Pending->value,
+        ]);
+
+        $this->assertSame(0, $this->counts()['order_jasa_incomplete']);
+    }
+
     public function test_create_hpp_count_tracks_eligible_orders_without_hpp(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);

@@ -27,6 +27,7 @@
             $pkmNotifications = \App\Support\PkmNotificationCenter::notifications(5, $user);
             $pkmNotificationCount = \App\Support\PkmNotificationCenter::notificationCount($user);
             $pkmNotificationBadge = $pkmNotificationCount > 9 ? '9+' : (string) $pkmNotificationCount;
+            $pkmBadgeCounts = app(\App\Support\PkmSidebarBadgeCounter::class)->counts();
             $notificationToneClasses = [
                 'blue' => 'bg-blue-50 text-blue-700 ring-blue-100',
                 'amber' => 'bg-amber-50 text-amber-700 ring-amber-100',
@@ -35,9 +36,9 @@
             ];
             $pkmMenus = [
                 ['route' => 'pkm.dashboard', 'icon' => 'layout-dashboard', 'label' => 'Dashboard'],
-                ['route' => 'pkm.jobwaiting', 'icon' => 'bell', 'label' => 'List Pekerjaan'],
-                ['route' => 'pkm.lhpp.index', 'icon' => 'file-text', 'label' => 'Buat BAST/LHPP'],
-                ['route' => 'pkm.laporan', 'icon' => 'folder-open', 'label' => 'Dokumen'],
+                ['route' => 'pkm.jobwaiting', 'icon' => 'bell', 'label' => 'List Pekerjaan', 'badge_count' => $pkmBadgeCounts['jobwaiting'] ?? 0],
+                ['route' => 'pkm.lhpp.index', 'icon' => 'file-text', 'label' => 'Buat BAST/LHPP', 'badge_count' => $pkmBadgeCounts['lhpp'] ?? 0],
+                ['route' => 'pkm.laporan', 'icon' => 'folder-open', 'label' => 'Dokumen', 'badge_count' => $pkmBadgeCounts['documents'] ?? 0],
             ];
             $pkmVendorWorkType = \App\Models\VendorWorkType::query()
                 ->with(['vendorSections.manager:id,name'])
@@ -134,7 +135,16 @@
                                 <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg transition {{ request()->routeIs($menu['route']) ? 'bg-[#fde9db] text-[#c7612c]' : 'bg-white/12 text-white/90 group-hover:bg-white/16' }}">
                                     <i data-lucide="{{ $menu['icon'] }}" class="h-4 w-4"></i>
                                 </span>
-                                <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="font-medium">{{ $menu['label'] }}</span>
+                                <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 font-medium">{{ $menu['label'] }}</span>
+                                @if (($menu['badge_count'] ?? 0) > 0)
+                                    <span
+                                        x-show="sidebarOpen"
+                                        x-transition.opacity.duration.200ms
+                                        class="inline-flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-[#c7612c]"
+                                    >
+                                        {{ $menu['badge_count'] > 99 ? '99+' : $menu['badge_count'] }}
+                                    </span>
+                                @endif
                             </a>
                         @endforeach
                     </nav>

@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('approval_signature_rollbacks')) {
+            return;
+        }
+
         Schema::create('approval_signature_rollbacks', function (Blueprint $table): void {
             $table->id();
             $table->string('document_type', 40)->index();

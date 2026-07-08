@@ -154,7 +154,7 @@
                             <div class="flex flex-col gap-4 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                                 <div>
                                     <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Preview Dokumen</div>
-                                    <h2 id="activePreviewTitle" class="mt-1 text-lg font-bold text-slate-900">Preview PDF HPP</h2>
+                                    <h2 class="mt-1 text-lg font-bold text-slate-900">Preview PDF HPP</h2>
                                 </div>
 
                                 <div class="flex flex-wrap items-center gap-2">
@@ -181,17 +181,14 @@
                                     >
                                         Gambar Teknik
                                     </button>
-                                    <a id="activePreviewOpen" href="{{ $hppPdfUrl }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100">
-                                        <i data-lucide="external-link" class="h-3.5 w-3.5"></i>
-                                        Buka Dokumen
-                                    </a>
                                 </div>
                             </div>
 
                             <div class="p-4 sm:p-5">
-                                <div class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                                    <iframe id="activePreviewFrame" src="{{ $hppPdfUrl }}" class="h-[32rem] w-full bg-white sm:h-[42rem] xl:h-[54rem]"></iframe>
-                                </div>
+                                @include('approval.partials.pdfjs-preview', [
+                                    'title' => 'Preview PDF HPP',
+                                    'url' => $hppPdfUrl,
+                                ])
                             </div>
                         </div>
 
@@ -355,7 +352,6 @@
                 },
             };
 
-            const previewFrame = document.getElementById('activePreviewFrame');
             const previewTitle = document.getElementById('activePreviewTitle');
             const previewOpen = document.getElementById('activePreviewOpen');
             const previewButtons = document.querySelectorAll('.preview-tab-btn');
@@ -363,13 +359,19 @@
             const setActivePreview = (key) => {
                 const config = previewConfig[key];
 
-                if (!config || !config.url || !previewFrame || !previewTitle || !previewOpen) {
+                if (!config || !config.url) {
                     return;
                 }
 
-                previewFrame.src = config.url;
-                previewTitle.textContent = config.title;
-                previewOpen.href = config.url;
+                if (previewTitle) {
+                    previewTitle.textContent = config.title;
+                }
+
+                if (previewOpen) {
+                    previewOpen.href = config.url;
+                }
+
+                window.approvalPdfPreview?.load(config.title, config.url);
 
                 previewButtons.forEach((button) => {
                     const target = button.dataset.previewTarget;

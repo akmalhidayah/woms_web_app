@@ -125,14 +125,13 @@
                                     <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Preview Dokumen</div>
                                     <h2 class="mt-1 text-lg font-bold text-slate-900">PDF Quality Control</h2>
                                 </div>
-                                <a href="{{ $qualityControlPdfUrl }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100">
-                                    <i data-lucide="external-link" class="h-3.5 w-3.5"></i>
-                                    Buka Dokumen
-                                </a>
                             </div>
                         </div>
                         <div class="p-4 sm:p-5">
-                            <iframe src="{{ $qualityControlPdfUrl }}" class="h-[32rem] w-full rounded-2xl border border-slate-200 bg-white sm:h-[42rem] xl:h-[54rem]"></iframe>
+                            @include('approval.partials.pdfjs-preview', [
+                                'title' => 'PDF Quality Control',
+                                'url' => $qualityControlPdfUrl,
+                            ])
                         </div>
                     </div>
 

@@ -148,7 +148,7 @@
                                     <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">
                                         Preview Dokumen
                                     </div>
-                                    <h2 id="activePreviewTitle" class="mt-1 text-lg font-bold text-slate-900">
+                                    <h2 class="mt-1 text-lg font-bold text-slate-900">
                                         Preview PDF Initial Work
                                     </h2>
                                     <p class="mt-1 text-sm text-slate-500">
@@ -187,30 +187,10 @@
                         </div>
 
                         <div class="p-4 sm:p-5">
-                            <div class="overflow-hidden rounded-2xl border border-stone-200 bg-stone-50">
-                                <div class="flex flex-col gap-3 border-b border-stone-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div class="text-xs text-slate-500">
-                                        Preview diperbesar agar isi dokumen lebih mudah dibaca.
-                                    </div>
-
-                                    <a
-                                        id="activePreviewOpen"
-                                        href="{{ $initialWorkPdfUrl }}"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-                                    >
-                                        <i data-lucide="external-link" class="h-3.5 w-3.5"></i>
-                                        Buka Dokumen
-                                    </a>
-                                </div>
-
-                                <iframe
-                                    id="activePreviewFrame"
-                                    src="{{ $initialWorkPdfUrl }}"
-                                    class="h-[30rem] w-full bg-white sm:h-[38rem] xl:h-[52rem]"
-                                ></iframe>
-                            </div>
+                            @include('approval.partials.pdfjs-preview', [
+                                'title' => 'Preview PDF Initial Work',
+                                'url' => $initialWorkPdfUrl,
+                            ])
                         </div>
                     </div>
 
@@ -342,18 +322,23 @@
                 },
             };
 
-            const previewFrame = document.getElementById('activePreviewFrame');
             const previewTitle = document.getElementById('activePreviewTitle');
             const previewOpen = document.getElementById('activePreviewOpen');
             const previewButtons = document.querySelectorAll('.preview-tab-btn');
 
             const setActivePreview = (key) => {
                 const config = previewConfig[key];
-                if (!config || !config.url || !previewFrame || !previewTitle || !previewOpen) return;
+                if (!config || !config.url) return;
 
-                previewFrame.src = config.url;
-                previewTitle.textContent = config.title;
-                previewOpen.href = config.url;
+                if (previewTitle) {
+                    previewTitle.textContent = config.title;
+                }
+
+                if (previewOpen) {
+                    previewOpen.href = config.url;
+                }
+
+                window.approvalPdfPreview?.load(config.title, config.url);
 
                 previewButtons.forEach((button) => {
                     const target = button.dataset.previewTarget;

@@ -204,7 +204,7 @@
                 </div>
 
                 <div class="mt-2">
-                    <div class="overflow-visible rounded-[20px] border border-stone-200 bg-white">
+                    <div class="overflow-hidden rounded-[20px] border border-stone-200 bg-white">
                         <div class="grid gap-3 border-b border-stone-200 px-3 py-3 sm:px-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
                             <div class="min-w-0 md:max-w-md">
                                 <label for="user-document-selector" class="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">Pilih Dokumen</label>
@@ -238,50 +238,125 @@
                                 <p id="user-document-preview-label" class="sr-only">
                                     {{ $activeDocumentPreview['label'] ?? 'Belum ada dokumen yang dapat dipreview.' }}
                                 </p>
-                                @if ($activeDocumentPreview)
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <a
-                                            id="user-document-preview-link"
-                                            href="{{ $activeDocumentPreview['url'] }}"
-                                            target="_blank"
-                                            rel="noopener"
-                                            class="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-red-200 hover:bg-white hover:text-red-800"
-                                        >
-                                            <i data-lucide="file-search" class="h-3.5 w-3.5"></i>
-                                            Buka Dokumen
-                                        </a>
-                                        <a
-                                            id="user-document-preview-download-link"
-                                            href="{{ $activeDocumentPreview['url'] }}"
-                                            download
-                                            class="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-red-200 hover:bg-white hover:text-red-800"
-                                        >
-                                            <i data-lucide="download" class="h-3.5 w-3.5"></i>
-                                            Download
-                                        </a>
-                                    </div>
-                                @endif
                             </div>
                         </div>
 
-                        @if ($activeDocumentPreview)
-                            <iframe
-                                id="user-document-preview-frame"
-                                src="{{ $activeDocumentPreview['url'] }}"
-                                class="h-[60vh] min-h-[520px] w-full overflow-auto bg-stone-100 lg:h-[75vh] lg:min-h-[720px]"
-                                title="Preview dokumen order {{ $order['nomor_order'] }}"
-                            ></iframe>
-                        @else
-                            <div class="flex h-[420px] items-center justify-center bg-stone-50 px-6 text-center">
-                                <div>
-                                    <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-stone-200 bg-white text-slate-400">
-                                        <i data-lucide="files" class="h-5 w-5"></i>
-                                    </div>
-                                    <div class="mt-4 text-base font-semibold text-slate-700">Belum ada dokumen yang dapat ditampilkan</div>
-                                    <p class="mt-2 text-sm leading-6 text-slate-500">Dokumen akan muncul di panel ini setelah file order mulai diunggah.</p>
+                        <div id="user-document-preview-panel" class="bg-stone-50">
+                            <div
+                                id="user-document-pdf-toolbar"
+                                class="flex flex-wrap items-center gap-2 border-b border-stone-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 sm:px-4"
+                            >
+                                <span id="user-document-toolbar-title" class="min-w-0 flex-1 truncate text-sm font-black text-slate-900">
+                                    {{ $activeDocumentPreview['title'] ?? 'Preview Dokumen' }}
+                                </span>
+                                <button
+                                    type="button"
+                                    id="user-document-prev-page"
+                                    class="inline-flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 transition hover:border-red-200 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <i data-lucide="chevron-left" class="h-3.5 w-3.5"></i>
+                                    Prev
+                                </button>
+                                <span id="user-document-page-indicator" class="rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-slate-600">
+                                    Halaman 0 / 0
+                                </span>
+                                <button
+                                    type="button"
+                                    id="user-document-next-page"
+                                    class="inline-flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 transition hover:border-red-200 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    Next
+                                    <i data-lucide="chevron-right" class="h-3.5 w-3.5"></i>
+                                </button>
+                                <button
+                                    type="button"
+                                    id="user-document-zoom-out"
+                                    class="inline-flex items-center rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 transition hover:border-red-200 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    Zoom -
+                                </button>
+                                <span id="user-document-zoom-label" class="rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-slate-600">100%</span>
+                                <button
+                                    type="button"
+                                    id="user-document-zoom-in"
+                                    class="inline-flex items-center rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 transition hover:border-red-200 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    Zoom +
+                                </button>
+                                <button
+                                    type="button"
+                                    id="user-document-fit-width"
+                                    class="inline-flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 transition hover:border-red-200 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <i data-lucide="maximize" class="h-3.5 w-3.5"></i>
+                                    Fit Width
+                                </button>
+                                <div
+                                    id="user-document-action-buttons"
+                                    class="{{ $activeDocumentPreview ? 'flex' : 'hidden' }} flex-wrap items-center gap-2"
+                                >
+                                    <a
+                                        id="user-document-preview-link"
+                                        href="{{ $activeDocumentPreview['url'] ?? '#' }}"
+                                        target="_blank"
+                                        rel="noopener"
+                                        class="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-red-200 hover:bg-white hover:text-red-800"
+                                    >
+                                        <i data-lucide="file-search" class="h-3.5 w-3.5"></i>
+                                        Buka Dokumen
+                                    </a>
+                                    <a
+                                        id="user-document-preview-download-link"
+                                        href="{{ $activeDocumentPreview['url'] ?? '#' }}"
+                                        download
+                                        class="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-red-200 hover:bg-white hover:text-red-800"
+                                    >
+                                        <i data-lucide="download" class="h-3.5 w-3.5"></i>
+                                        Download
+                                    </a>
                                 </div>
                             </div>
-                        @endif
+
+                            <div class="relative min-h-[520px] overflow-hidden bg-stone-100 lg:min-h-[720px]">
+                                <div
+                                    id="user-document-empty-state"
+                                    class="hidden h-[520px] items-center justify-center px-6 text-center lg:h-[720px]"
+                                >
+                                    <div>
+                                        <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-stone-200 bg-white text-slate-400">
+                                            <i data-lucide="files" class="h-5 w-5"></i>
+                                        </div>
+                                        <div class="mt-4 text-base font-semibold text-slate-700">Belum ada dokumen yang dapat ditampilkan</div>
+                                        <p class="mt-2 text-sm leading-6 text-slate-500">Dokumen akan muncul di panel ini setelah file order mulai diunggah.</p>
+                                    </div>
+                                </div>
+
+                                <div
+                                    id="user-document-loading-state"
+                                    class="hidden h-[520px] items-center justify-center px-6 text-center text-sm font-semibold text-slate-600 lg:h-[720px]"
+                                >
+                                    Memuat dokumen...
+                                </div>
+
+                                <div
+                                    id="user-document-error-state"
+                                    class="hidden border-b border-stone-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800"
+                                >
+                                    Preview PDF tidak dapat dimuat. Silakan gunakan tombol Buka Dokumen.
+                                </div>
+
+                                <div id="user-document-canvas-wrapper" class="hidden h-[60vh] min-h-[520px] max-w-full overflow-auto p-3 lg:h-[75vh] lg:min-h-[720px] lg:p-5">
+                                    <canvas id="user-document-pdf-canvas" class="mx-auto block max-w-full rounded-sm bg-white"></canvas>
+                                </div>
+
+                                <iframe
+                                    id="user-document-preview-frame"
+                                    src="{{ $activeDocumentPreview['url'] ?? 'about:blank' }}"
+                                    class="hidden h-[60vh] min-h-[520px] w-full overflow-auto bg-stone-100 lg:h-[75vh] lg:min-h-[720px]"
+                                    title="Preview dokumen order {{ $order['nomor_order'] }}"
+                                ></iframe>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -291,6 +366,7 @@
     @include('user.orders.partials.approval-flow-modal')
     @include('user.orders.partials.timeline-info-modal')
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const documentSelector = document.getElementById('user-document-selector');
@@ -299,21 +375,286 @@
             const previewLabel = document.getElementById('user-document-preview-label');
             const previewOpenLink = document.getElementById('user-document-preview-link');
             const previewDownloadLink = document.getElementById('user-document-preview-download-link');
+            const actionButtons = document.getElementById('user-document-action-buttons');
+            const toolbar = document.getElementById('user-document-pdf-toolbar');
+            const toolbarTitle = document.getElementById('user-document-toolbar-title');
+            const prevButton = document.getElementById('user-document-prev-page');
+            const nextButton = document.getElementById('user-document-next-page');
+            const zoomOutButton = document.getElementById('user-document-zoom-out');
+            const zoomInButton = document.getElementById('user-document-zoom-in');
+            const fitWidthButton = document.getElementById('user-document-fit-width');
+            const pageIndicator = document.getElementById('user-document-page-indicator');
+            const zoomLabel = document.getElementById('user-document-zoom-label');
+            const emptyState = document.getElementById('user-document-empty-state');
+            const loadingState = document.getElementById('user-document-loading-state');
+            const errorState = document.getElementById('user-document-error-state');
+            const canvasWrapper = document.getElementById('user-document-canvas-wrapper');
+            const canvas = document.getElementById('user-document-pdf-canvas');
 
-            if (! documentSelector || ! previewFrame) {
+            if (! documentSelector || ! previewFrame || ! canvas) {
                 return;
             }
 
+            const pdfjsLib = window.pdfjsLib;
+            const canvasContext = canvas.getContext('2d');
+            const controlButtons = [prevButton, nextButton, zoomOutButton, zoomInButton, fitWidthButton];
+            let activeDocumentUrl = '';
+            let activeRenderKey = 0;
+            let loadingTask = null;
+            let renderTask = null;
+            let pdfDocument = null;
+            let currentPage = 1;
+            let currentScale = 1;
+
+            if (pdfjsLib) {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            }
+
+            const showElement = (element, displayClass = 'block') => {
+                if (! element) {
+                    return;
+                }
+
+                element.classList.remove('hidden', 'flex', 'block');
+                element.classList.add(displayClass);
+            };
+
+            const hideElement = (element) => {
+                if (! element) {
+                    return;
+                }
+
+                element.classList.add('hidden');
+                element.classList.remove('flex', 'block');
+            };
+
+            const setControlsDisabled = (disabled) => {
+                controlButtons.forEach((button) => {
+                    if (button) {
+                        button.disabled = disabled;
+                    }
+                });
+            };
+
+            const updatePageControls = () => {
+                const totalPages = pdfDocument ? pdfDocument.numPages : 0;
+
+                if (pageIndicator) {
+                    pageIndicator.textContent = `Halaman ${totalPages ? currentPage : 0} / ${totalPages}`;
+                }
+
+                if (zoomLabel) {
+                    zoomLabel.textContent = `${Math.round(currentScale * 100)}%`;
+                }
+
+                if (prevButton) {
+                    prevButton.disabled = ! pdfDocument || currentPage <= 1;
+                }
+
+                if (nextButton) {
+                    nextButton.disabled = ! pdfDocument || currentPage >= totalPages;
+                }
+
+                [zoomOutButton, zoomInButton, fitWidthButton].forEach((button) => {
+                    if (button) {
+                        button.disabled = ! pdfDocument;
+                    }
+                });
+            };
+
+            const resetCanvas = () => {
+                if (! canvasContext) {
+                    return;
+                }
+
+                canvasContext.clearRect(0, 0, canvas.width || 1, canvas.height || 1);
+                canvas.width = 0;
+                canvas.height = 0;
+            };
+
+            const cancelActiveRender = () => {
+                activeRenderKey += 1;
+
+                if (renderTask) {
+                    renderTask.cancel();
+                    renderTask = null;
+                }
+
+                if (loadingTask) {
+                    loadingTask.destroy();
+                    loadingTask = null;
+                }
+
+                pdfDocument = null;
+            };
+
+            const showEmptyState = () => {
+                hideElement(toolbar);
+                hideElement(loadingState);
+                hideElement(errorState);
+                hideElement(canvasWrapper);
+                hideElement(previewFrame);
+                showElement(emptyState, 'flex');
+                resetCanvas();
+                setControlsDisabled(true);
+                updatePageControls();
+            };
+
+            const showLoadingState = () => {
+                showElement(toolbar, 'flex');
+                hideElement(emptyState);
+                hideElement(errorState);
+                hideElement(canvasWrapper);
+                hideElement(previewFrame);
+                showElement(loadingState, 'flex');
+                setControlsDisabled(true);
+            };
+
+            const showCanvasState = () => {
+                showElement(toolbar, 'flex');
+                hideElement(emptyState);
+                hideElement(loadingState);
+                hideElement(errorState);
+                hideElement(previewFrame);
+                showElement(canvasWrapper, 'block');
+            };
+
+            const showFallbackFrame = (documentUrl) => {
+                showElement(toolbar, 'flex');
+                hideElement(emptyState);
+                hideElement(loadingState);
+                showElement(errorState, 'block');
+                hideElement(canvasWrapper);
+                previewFrame.src = documentUrl || 'about:blank';
+                showElement(previewFrame, 'block');
+                resetCanvas();
+                setControlsDisabled(true);
+                updatePageControls();
+            };
+
+            const renderPage = async (renderKey = activeRenderKey) => {
+                if (! pdfDocument || renderKey !== activeRenderKey) {
+                    return;
+                }
+
+                if (renderTask) {
+                    renderTask.cancel();
+                    renderTask = null;
+                }
+
+                const page = await pdfDocument.getPage(currentPage);
+
+                if (renderKey !== activeRenderKey) {
+                    return;
+                }
+
+                const viewport = page.getViewport({ scale: currentScale });
+                const pixelRatio = window.devicePixelRatio || 1;
+
+                canvas.width = Math.floor(viewport.width * pixelRatio);
+                canvas.height = Math.floor(viewport.height * pixelRatio);
+                canvas.style.width = `${Math.floor(viewport.width)}px`;
+                canvas.style.height = `${Math.floor(viewport.height)}px`;
+
+                const transform = pixelRatio !== 1 ? [pixelRatio, 0, 0, pixelRatio, 0, 0] : null;
+
+                showCanvasState();
+                updatePageControls();
+
+                renderTask = page.render({
+                    canvasContext,
+                    viewport,
+                    transform,
+                });
+
+                try {
+                    await renderTask.promise;
+                } catch (error) {
+                    if (error?.name !== 'RenderingCancelledException' && renderKey === activeRenderKey) {
+                        showFallbackFrame(activeDocumentUrl);
+                    }
+                } finally {
+                    if (renderKey === activeRenderKey) {
+                        renderTask = null;
+                    }
+                }
+            };
+
+            const fitToWidth = async () => {
+                if (! pdfDocument || ! canvasWrapper) {
+                    return;
+                }
+
+                const page = await pdfDocument.getPage(currentPage);
+                const baseViewport = page.getViewport({ scale: 1 });
+                const availableWidth = Math.max(canvasWrapper.clientWidth - 32, 240);
+                currentScale = Math.min(Math.max(availableWidth / baseViewport.width, 0.5), 2.5);
+                await renderPage();
+            };
+
+            const loadPdfDocument = async (documentUrl) => {
+                const renderKey = activeRenderKey;
+
+                if (! pdfjsLib) {
+                    showFallbackFrame(documentUrl);
+                    return;
+                }
+
+                showLoadingState();
+                previewFrame.src = 'about:blank';
+
+                try {
+                    loadingTask = pdfjsLib.getDocument({
+                        url: documentUrl,
+                        withCredentials: true,
+                    });
+                    pdfDocument = await loadingTask.promise;
+
+                    if (renderKey !== activeRenderKey) {
+                        return;
+                    }
+
+                    currentPage = 1;
+                    currentScale = 1;
+                    await fitToWidth();
+                } catch (error) {
+                    if (renderKey === activeRenderKey) {
+                        showFallbackFrame(documentUrl);
+                    }
+                } finally {
+                    if (renderKey === activeRenderKey) {
+                        loadingTask = null;
+                    }
+                }
+            };
+
             const setActiveDocument = (option) => {
+                cancelActiveRender();
+
                 if (! option || option.dataset.documentAvailable !== '1') {
+                    activeDocumentUrl = '';
+                [previewOpenLink, previewDownloadLink].forEach((link) => {
+                    if (link) {
+                        link.href = '#';
+                        link.setAttribute('aria-disabled', 'true');
+                    }
+                });
+                    hideElement(actionButtons);
+                    showEmptyState();
                     return;
                 }
 
                 const documentUrl = option.dataset.documentUrl || option.value || '';
+                activeDocumentUrl = documentUrl;
+                currentPage = 1;
+                currentScale = 1;
 
                 previewTitle.textContent = option.dataset.documentTitle || 'Preview Dokumen';
                 previewLabel.textContent = option.dataset.documentLabel || '';
-                previewFrame.src = documentUrl;
+
+                if (toolbarTitle) {
+                    toolbarTitle.textContent = option.dataset.documentTitle || 'Preview Dokumen';
+                }
 
                 [previewOpenLink, previewDownloadLink].forEach((link) => {
                     if (! link) {
@@ -321,11 +662,62 @@
                     }
 
                     link.href = documentUrl || '#';
+                    link.removeAttribute('aria-disabled');
                 });
+                showElement(actionButtons, 'flex');
+
+                loadPdfDocument(documentUrl);
             };
 
             documentSelector.addEventListener('change', () => {
                 setActiveDocument(documentSelector.selectedOptions[0]);
+            });
+
+            prevButton?.addEventListener('click', async () => {
+                if (! pdfDocument || currentPage <= 1) {
+                    return;
+                }
+
+                currentPage -= 1;
+                await renderPage();
+            });
+
+            nextButton?.addEventListener('click', async () => {
+                if (! pdfDocument || currentPage >= pdfDocument.numPages) {
+                    return;
+                }
+
+                currentPage += 1;
+                await renderPage();
+            });
+
+            zoomOutButton?.addEventListener('click', async () => {
+                if (! pdfDocument) {
+                    return;
+                }
+
+                currentScale = Math.max(currentScale - 0.15, 0.5);
+                await renderPage();
+            });
+
+            zoomInButton?.addEventListener('click', async () => {
+                if (! pdfDocument) {
+                    return;
+                }
+
+                currentScale = Math.min(currentScale + 0.15, 3);
+                await renderPage();
+            });
+
+            fitWidthButton?.addEventListener('click', fitToWidth);
+
+            window.addEventListener('resize', () => {
+                if (! pdfDocument) {
+                    return;
+                }
+
+                window.clearTimeout(window.userDocumentPreviewResizeTimer);
+                window.userDocumentPreviewResizeTimer = window.setTimeout(fitToWidth, 200);
             });
 
             const firstAvailableOption = Array.from(documentSelector.options)
@@ -334,6 +726,8 @@
             if (firstAvailableOption) {
                 documentSelector.value = firstAvailableOption.value;
                 setActiveDocument(firstAvailableOption);
+            } else {
+                showEmptyState();
             }
         });
     </script>

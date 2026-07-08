@@ -310,6 +310,33 @@ select:focus[data-flux-control] {
     scrollbar-width: none;
 }
 
+html,
+body {
+    overflow-y: auto;
+    -ms-overflow-style: auto;
+    scrollbar-width: auto;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+    display: initial;
+    width: 12px;
+    height: 12px;
+}
+
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-color: rgb(148 163 184 / 0.8);
+    background-clip: padding-box;
+}
+
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track {
+    background-color: transparent;
+}
+
 @media (max-width: 768px) {
     .profile-zoom-safe input,
     .profile-zoom-safe select,

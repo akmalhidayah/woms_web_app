@@ -196,73 +196,73 @@
         </section>
 
         <section>
-            <div class="rounded-[22px] border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
-                <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="rounded-[18px] border border-stone-200 bg-white p-3 shadow-sm sm:p-4">
+                <div class="flex flex-wrap items-center justify-between gap-3 px-1">
                     <div>
-                        <h2 class="text-xl font-black text-slate-900">Daftar Dokumen</h2>
+                        <h2 class="text-lg font-black text-slate-900">Daftar Dokumen</h2>
                     </div>
                 </div>
 
-                <div class="mt-5 space-y-4">
-                    <div class="rounded-[20px] border border-stone-200 bg-stone-50/80 p-4">
-                        <label for="user-document-selector" class="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Pilih Dokumen</label>
-                        <select
-                            id="user-document-selector"
-                            class="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-3 py-3 text-sm font-semibold text-slate-800 shadow-sm outline-none transition focus:border-red-300 focus:ring-4 focus:ring-red-100 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-slate-400"
-                            @disabled($documentPreviewItems->isEmpty())
-                        >
-                            @forelse ($documentPreviewItems as $item)
-                                <option
-                                    value="{{ $item['url'] }}"
-                                    data-document-title="{{ $item['title'] }}"
-                                    data-document-label="{{ $item['label'] }}"
-                                    data-document-url="{{ $item['url'] }}"
-                                    data-document-available="{{ filled($item['url']) ? '1' : '0' }}"
-                                    @selected(($activeDocumentPreview['url'] ?? null) === ($item['url'] ?? null))
-                                    @disabled(blank($item['url']))
-                                >
-                                    {{ $item['title'] }} - {{ filled($item['url']) ? $item['label'] : 'Belum tersedia' }}
-                                </option>
-                            @empty
-                                <option value="">Belum ada dokumen</option>
-                            @endforelse
-                        </select>
-                    </div>
-
+                <div class="mt-2">
                     <div class="overflow-visible rounded-[20px] border border-stone-200 bg-white">
-                        <div class="flex flex-wrap items-start justify-between gap-3 border-b border-stone-200 px-4 py-3 sm:px-5">
-                            <div>
-                                <div class="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Preview Dokumen</div>
-                                <h3 id="user-document-preview-title" class="mt-1 text-lg font-black text-slate-900">
+                        <div class="grid gap-3 border-b border-stone-200 px-3 py-3 sm:px-4 md:grid-cols-[minmax(0,1fr)_minmax(13rem,18rem)] md:items-start">
+                            <div class="min-w-0">
+                                <div class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Preview Dokumen</div>
+                                <h3 id="user-document-preview-title" class="mt-0.5 text-base font-black leading-5 text-slate-900">
                                     {{ $activeDocumentPreview['title'] ?? 'Dokumen Belum Tersedia' }}
                                 </h3>
-                                <p id="user-document-preview-label" class="mt-1 text-sm text-slate-500">
+                                <p id="user-document-preview-label" class="mt-0.5 text-xs font-semibold text-slate-500">
                                     {{ $activeDocumentPreview['label'] ?? 'Belum ada dokumen yang dapat dipreview.' }}
                                 </p>
+                                @if ($activeDocumentPreview)
+                                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                                        <a
+                                            id="user-document-preview-link"
+                                            href="{{ $activeDocumentPreview['url'] }}"
+                                            target="_blank"
+                                            rel="noopener"
+                                            class="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-red-200 hover:bg-white hover:text-red-800"
+                                        >
+                                            <i data-lucide="file-search" class="h-3.5 w-3.5"></i>
+                                            Buka Dokumen
+                                        </a>
+                                        <a
+                                            id="user-document-preview-download-link"
+                                            href="{{ $activeDocumentPreview['url'] }}"
+                                            download
+                                            class="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-red-200 hover:bg-white hover:text-red-800"
+                                        >
+                                            <i data-lucide="download" class="h-3.5 w-3.5"></i>
+                                            Download
+                                        </a>
+                                    </div>
+                                @endif
                             </div>
-                            @if ($activeDocumentPreview)
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <a
-                                        id="user-document-preview-link"
-                                        href="{{ $activeDocumentPreview['url'] }}"
-                                        target="_blank"
-                                        rel="noopener"
-                                        class="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:bg-white hover:text-red-800"
-                                    >
-                                        <i data-lucide="file-search" class="h-3.5 w-3.5"></i>
-                                        Buka Dokumen
-                                    </a>
-                                    <a
-                                        id="user-document-preview-download-link"
-                                        href="{{ $activeDocumentPreview['url'] }}"
-                                        download
-                                        class="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:bg-white hover:text-red-800"
-                                    >
-                                        <i data-lucide="download" class="h-3.5 w-3.5"></i>
-                                        Download
-                                    </a>
-                                </div>
-                            @endif
+
+                            <div class="min-w-0">
+                                <label for="user-document-selector" class="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">Pilih Dokumen</label>
+                                <select
+                                    id="user-document-selector"
+                                    class="mt-1.5 w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-red-300 focus:ring-4 focus:ring-red-100 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-slate-400"
+                                    @disabled($documentPreviewItems->isEmpty())
+                                >
+                                    @forelse ($documentPreviewItems as $item)
+                                        <option
+                                            value="{{ $item['url'] }}"
+                                            data-document-title="{{ $item['title'] }}"
+                                            data-document-label="{{ $item['label'] }}"
+                                            data-document-url="{{ $item['url'] }}"
+                                            data-document-available="{{ filled($item['url']) ? '1' : '0' }}"
+                                            @selected(($activeDocumentPreview['url'] ?? null) === ($item['url'] ?? null))
+                                            @disabled(blank($item['url']))
+                                        >
+                                            {{ $item['title'] }}{{ blank($item['url']) ? ' - Belum tersedia' : '' }}
+                                        </option>
+                                    @empty
+                                        <option value="">Belum ada dokumen</option>
+                                    @endforelse
+                                </select>
+                            </div>
                         </div>
 
                         @if ($activeDocumentPreview)

@@ -64,6 +64,7 @@ class AdminMenuRegistry
             self::MENU_CREATE_HPP => [
                 'key' => self::MENU_CREATE_HPP,
                 'label' => 'Create HPP',
+                'badge_key' => 'create_hpp',
                 'icon' => 'pencil',
                 'group' => 'main',
                 'route_name' => 'admin.hpp.index',
@@ -72,6 +73,7 @@ class AdminMenuRegistry
             self::MENU_VERIFIKASI_ANGGARAN => [
                 'key' => self::MENU_VERIFIKASI_ANGGARAN,
                 'label' => 'Verifikasi Anggaran',
+                'badge_key' => 'verifikasi_anggaran',
                 'icon' => 'wallet',
                 'group' => 'main',
                 'route_name' => 'admin.budget-verification.index',
@@ -80,6 +82,7 @@ class AdminMenuRegistry
             self::MENU_PURCHASE_ORDER => [
                 'key' => self::MENU_PURCHASE_ORDER,
                 'label' => 'Purchase Order',
+                'badge_key' => 'purchase_order',
                 'icon' => 'list-checks',
                 'group' => 'main',
                 'route_name' => 'admin.purchase-order.index',
@@ -88,6 +91,7 @@ class AdminMenuRegistry
             self::MENU_LHPP_BAST => [
                 'key' => self::MENU_LHPP_BAST,
                 'label' => 'BAST',
+                'badge_key' => 'bast_total',
                 'icon' => 'file-text',
                 'group' => 'main',
                 'route_name' => 'admin.lhpp.index',
@@ -96,12 +100,14 @@ class AdminMenuRegistry
                     [
                         'key' => self::MENU_GARANSI,
                         'label' => 'Set Garansi',
+                        'badge_key' => 'set_garansi',
                         'route_name' => 'admin.garansi.index',
                         'active_patterns' => ['admin.garansi.*'],
                     ],
                     [
                         'key' => self::MENU_LHPP_BAST,
                         'label' => 'Cek BAST',
+                        'badge_key' => 'cek_bast',
                         'route_name' => 'admin.lhpp.index',
                         'active_patterns' => ['admin.lhpp.*'],
                     ],
@@ -110,6 +116,7 @@ class AdminMenuRegistry
             self::MENU_LPJ_PPL => [
                 'key' => self::MENU_LPJ_PPL,
                 'label' => 'LPJ / PPL',
+                'badge_key' => 'lpj_ppl',
                 'icon' => 'folder-open',
                 'group' => 'main',
                 'route_name' => 'admin.lpj.index',
@@ -226,6 +233,9 @@ class AdminMenuRegistry
     public static function sidebarForUser(?User $user): array
     {
         $items = [];
+        $badgeCounts = $user && $user->hasRole(User::ROLE_ADMIN)
+            ? app(AdminSidebarBadgeCounter::class)->counts()
+            : [];
 
         foreach (static::definitions() as $item) {
             $resolvedChildren = [];
@@ -237,11 +247,11 @@ class AdminMenuRegistry
                     continue;
                 }
 
-                $resolvedChildren[] = [
+                $resolvedChildren[] = static::withBadge([
                     ...$child,
                     'href' => static::resolveUrl($child),
                     'active' => static::isItemActive($child),
-                ];
+                ], $badgeCounts);
             }
 
             if (! static::canAccess($user, $item['key']) && $resolvedChildren === []) {
@@ -257,7 +267,7 @@ class AdminMenuRegistry
                 $resolved['children'] = $resolvedChildren;
             }
 
-            $items[$item['key']] = $resolved;
+            $items[$item['key']] = static::withBadge($resolved, $badgeCounts);
         }
 
         return [
@@ -292,6 +302,30 @@ class AdminMenuRegistry
         }
 
         return $item['href'] ?? '#';
+    }
+
+    /**
+     * Attach a sidebar badge count when the mapped count is non-zero.
+     *
+     * @param  array<string, mixed>  $item
+     * @param  array<string, int>  $badgeCounts
+     * @return array<string, mixed>
+     */
+    private static function withBadge(array $item, array $badgeCounts): array
+    {
+        $badgeKey = $item['badge_key'] ?? $item['key'] ?? null;
+
+        if (! is_string($badgeKey)) {
+            return $item;
+        }
+
+        $count = (int) ($badgeCounts[$badgeKey] ?? 0);
+
+        if ($count > 0) {
+            $item['badge_count'] = $count;
+        }
+
+        return $item;
     }
 
     /**

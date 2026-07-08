@@ -17,9 +17,9 @@ return new class extends Migration
             $table->unsignedSmallInteger('step_order');
             $table->string('role_key', 80)->nullable();
             $table->string('role_label', 120)->nullable();
-            $table->foreignId('signer_user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedBigInteger('signer_user_id')->nullable()->index();
             $table->string('signer_name')->nullable();
-            $table->foreignId('rollback_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedBigInteger('rollback_by')->nullable()->index();
             $table->text('rollback_reason');
             $table->timestamp('rolled_back_at')->index();
             $table->json('affected_signature_ids')->nullable();

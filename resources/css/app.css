@@ -310,17 +310,6 @@ select:focus[data-flux-control] {
     scrollbar-width: none;
 }
 
-html,
-body {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-
-html::-webkit-scrollbar,
-body::-webkit-scrollbar {
-    display: none;
-}
-
 @media (max-width: 768px) {
     .profile-zoom-safe input,
     .profile-zoom-safe select,

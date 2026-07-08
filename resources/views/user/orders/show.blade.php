@@ -205,41 +205,8 @@
 
                 <div class="mt-2">
                     <div class="overflow-visible rounded-[20px] border border-stone-200 bg-white">
-                        <div class="grid gap-3 border-b border-stone-200 px-3 py-3 sm:px-4 md:grid-cols-[minmax(0,1fr)_minmax(13rem,18rem)] md:items-start">
-                            <div class="min-w-0">
-                                <div class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Preview Dokumen</div>
-                                <h3 id="user-document-preview-title" class="mt-0.5 text-base font-black leading-5 text-slate-900">
-                                    {{ $activeDocumentPreview['title'] ?? 'Dokumen Belum Tersedia' }}
-                                </h3>
-                                <p id="user-document-preview-label" class="mt-0.5 text-xs font-semibold text-slate-500">
-                                    {{ $activeDocumentPreview['label'] ?? 'Belum ada dokumen yang dapat dipreview.' }}
-                                </p>
-                                @if ($activeDocumentPreview)
-                                    <div class="mt-2 flex flex-wrap items-center gap-2">
-                                        <a
-                                            id="user-document-preview-link"
-                                            href="{{ $activeDocumentPreview['url'] }}"
-                                            target="_blank"
-                                            rel="noopener"
-                                            class="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-red-200 hover:bg-white hover:text-red-800"
-                                        >
-                                            <i data-lucide="file-search" class="h-3.5 w-3.5"></i>
-                                            Buka Dokumen
-                                        </a>
-                                        <a
-                                            id="user-document-preview-download-link"
-                                            href="{{ $activeDocumentPreview['url'] }}"
-                                            download
-                                            class="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-red-200 hover:bg-white hover:text-red-800"
-                                        >
-                                            <i data-lucide="download" class="h-3.5 w-3.5"></i>
-                                            Download
-                                        </a>
-                                    </div>
-                                @endif
-                            </div>
-
-                            <div class="min-w-0">
+                        <div class="grid gap-3 border-b border-stone-200 px-3 py-3 sm:px-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                            <div class="min-w-0 md:max-w-md">
                                 <label for="user-document-selector" class="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">Pilih Dokumen</label>
                                 <select
                                     id="user-document-selector"
@@ -262,6 +229,38 @@
                                         <option value="">Belum ada dokumen</option>
                                     @endforelse
                                 </select>
+                            </div>
+
+                            <div class="min-w-0">
+                                <h3 id="user-document-preview-title" class="sr-only">
+                                    {{ $activeDocumentPreview['title'] ?? 'Dokumen Belum Tersedia' }}
+                                </h3>
+                                <p id="user-document-preview-label" class="sr-only">
+                                    {{ $activeDocumentPreview['label'] ?? 'Belum ada dokumen yang dapat dipreview.' }}
+                                </p>
+                                @if ($activeDocumentPreview)
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <a
+                                            id="user-document-preview-link"
+                                            href="{{ $activeDocumentPreview['url'] }}"
+                                            target="_blank"
+                                            rel="noopener"
+                                            class="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-red-200 hover:bg-white hover:text-red-800"
+                                        >
+                                            <i data-lucide="file-search" class="h-3.5 w-3.5"></i>
+                                            Buka Dokumen
+                                        </a>
+                                        <a
+                                            id="user-document-preview-download-link"
+                                            href="{{ $activeDocumentPreview['url'] }}"
+                                            download
+                                            class="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-red-200 hover:bg-white hover:text-red-800"
+                                        >
+                                            <i data-lucide="download" class="h-3.5 w-3.5"></i>
+                                            Download
+                                        </a>
+                                    </div>
+                                @endif
                             </div>
                         </div>
 

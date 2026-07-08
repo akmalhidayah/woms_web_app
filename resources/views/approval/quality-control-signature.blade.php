@@ -155,9 +155,18 @@
                                 @csrf
                                 <input type="file" name="signature_file" id="signatureFile" accept="image/png,image/jpeg" class="hidden">
                                 <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Tanda Tangan Digital</div>
-                                <div class="mt-3 rounded-2xl border border-dashed border-slate-300 bg-white p-3">
-                                    <canvas id="signatureCanvas" width="620" height="260" class="h-60 w-full rounded-xl bg-white sm:h-72"></canvas>
+                                <div id="signaturePadShell" class="relative mt-3 overflow-hidden rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-3 transition">
+                                    <canvas id="signatureCanvas" width="620" height="260" class="relative z-10 h-60 w-full rounded-xl bg-transparent sm:h-72"></canvas>
+                                    <div id="signaturePadPlaceholder" class="pointer-events-none absolute inset-3 z-0 flex items-center justify-center rounded-xl text-center">
+                                        <div class="px-4 text-slate-400">
+                                            <i data-lucide="pen-line" class="mx-auto h-8 w-8 opacity-70"></i>
+                                            <div class="mt-2 text-sm font-bold text-slate-500">Tanda tangan di sini</div>
+                                            <div class="mt-1 text-xs font-medium text-slate-400">Gunakan mouse atau layar sentuh</div>
+                                        </div>
+                                    </div>
                                 </div>
+                                <p id="signaturePadReadyState" class="mt-2 hidden text-xs font-semibold text-emerald-700">Tanda tangan siap disimpan</p>
+                                <p id="signaturePadErrorState" class="mt-2 hidden text-xs font-semibold text-rose-700">Silakan tanda tangan terlebih dahulu.</p>
                                 <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-between">
                                     <button type="button" id="clearSignature" class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
                                         Hapus
@@ -175,6 +184,7 @@
     </main>
 
     @include('approval.partials.signed-success-alert')
+    @include('approval.partials.signature-pad-visuals')
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -182,6 +192,8 @@
             const form = document.getElementById('signatureForm');
             const signatureFile = document.getElementById('signatureFile');
             const clearButton = document.getElementById('clearSignature');
+            const signatureVisuals = window.createSignaturePadVisuals?.();
+            signatureVisuals?.idle();
 
             if (!canvas || !form || !signatureFile) {
                 return;
@@ -230,6 +242,7 @@
             const start = (event) => {
                 event.preventDefault();
                 drawing = true;
+                signatureVisuals?.active();
                 const p = point(event);
                 lastPoint = p;
                 ctx.beginPath();
@@ -253,6 +266,10 @@
             const stop = () => {
                 drawing = false;
                 lastPoint = null;
+
+                if (touched) {
+                    signatureVisuals?.completed();
+                }
             };
 
             canvas.addEventListener('mousedown', start);
@@ -271,6 +288,7 @@
                 strokePointCount = 0;
                 strokeDistance = 0;
                 signatureFile.value = '';
+                signatureVisuals?.idle();
             });
 
             const hasEnoughSignatureStroke = () => {
@@ -286,7 +304,11 @@
 
                 if (!hasEnoughSignatureStroke()) {
                     event.preventDefault();
-                    alert('Tanda tangan terlalu sedikit. Silakan tanda tangani dengan coretan yang jelas.');
+                    const message = touched
+                        ? 'Tanda tangan terlalu sedikit. Silakan tanda tangani dengan coretan yang jelas.'
+                        : 'Silakan tanda tangan terlebih dahulu.';
+                    signatureVisuals?.error(message);
+                    alert(message);
                     return;
                 }
 

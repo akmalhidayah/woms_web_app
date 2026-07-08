@@ -175,6 +175,10 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
         ->whereNumber('signature')
         ->name('admin.approval-signatures.bast.reassign');
+    Route::post('admin/lhpp/{lhppBast}/signatures/{signature}/rollback', [AdminLhppController::class, 'rollbackSignature'])
+        ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
+        ->whereNumber(['lhppBast', 'signature'])
+        ->name('admin.lhpp.approval-signatures.rollback');
     Route::get('admin/lhpp/{nomorOrder}/{termin}/pdf', [AdminLhppController::class, 'pdfByOrder'])
         ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
         ->where('termin', 'termin-1|termin-2')
@@ -557,6 +561,9 @@ Route::prefix('admin/hpp')
                 Route::post('/dirops-signed-document', [HppController::class, 'uploadDiropsSignedDocument'])->name('dirops-document.upload.by-id');
                 Route::post('/regenerate-active-approval-token', [HppController::class, 'regenerateActiveApprovalToken'])->name('approval-token.regenerate.by-id');
                 Route::post('/resend-active-approval', [HppController::class, 'resendActiveApproval'])->name('approval.resend.by-id');
+                Route::post('/signatures/{signature}/rollback', [HppController::class, 'rollbackSignature'])
+                    ->whereNumber('signature')
+                    ->name('approval-signatures.rollback.by-id');
                 Route::get('/edit', [HppController::class, 'edit'])->name('edit.by-id');
                 Route::post('/duplicate', [HppController::class, 'duplicate'])->name('duplicate');
             });
@@ -565,6 +572,9 @@ Route::prefix('admin/hpp')
         Route::post('/{hpp:nomor_order}/dirops-signed-document', [HppController::class, 'uploadDiropsSignedDocument'])->name('dirops-document.upload');
         Route::post('/{hpp:nomor_order}/regenerate-active-approval-token', [HppController::class, 'regenerateActiveApprovalToken'])->name('approval-token.regenerate');
         Route::post('/{hpp:nomor_order}/resend-active-approval', [HppController::class, 'resendActiveApproval'])->name('approval.resend');
+        Route::post('/{hpp:nomor_order}/signatures/{signature}/rollback', [HppController::class, 'rollbackSignature'])
+            ->whereNumber('signature')
+            ->name('approval-signatures.rollback');
         Route::patch('/approval-signatures/{signature}/reassign', [ApprovalSignatureReassignmentController::class, 'hpp'])
             ->whereNumber('signature')
             ->name('approval-signatures.reassign');

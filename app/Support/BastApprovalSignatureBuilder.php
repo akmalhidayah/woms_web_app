@@ -138,7 +138,7 @@ class BastApprovalSignatureBuilder
         ]);
     }
 
-    public function issueToken(LhppBastSignature $signature): string
+    public function issueToken(LhppBastSignature $signature, bool $sendEmail = true): string
     {
         $token = Str::random(64);
 
@@ -148,9 +148,11 @@ class BastApprovalSignatureBuilder
             'token_expires_at' => now()->addDays(self::TOKEN_TTL_DAYS),
         ]);
 
-        DB::afterCommit(function () use ($signature): void {
-            $this->approvalNotificationService->sendBast($signature->fresh());
-        });
+        if ($sendEmail) {
+            DB::afterCommit(function () use ($signature): void {
+                $this->approvalNotificationService->sendBast($signature->fresh());
+            });
+        }
 
         return $token;
     }

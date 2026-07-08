@@ -29,7 +29,24 @@ class BastApprovalModalTest extends TestCase
             ->assertSee('wa.me', false)
             ->assertSee('6281234567890', false)
             ->assertSee('No WA', false)
-            ->assertSee('admin\/lhpp\/'.$signature->lhpp_bast_id.'\/resend-active-approval', false);
+            ->assertSee('admin\/lhpp\/'.$signature->lhpp_bast_id.'\/resend-active-approval', false)
+            ->assertDontSee('admin\/lhpp\/'.$signature->lhpp_bast_id.'\/signatures', false);
+    }
+
+    public function test_admin_bast_approval_flow_includes_rollback_for_signed_step(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+        $signature = $this->createPendingBastSignature($admin, 'bast-admin-signed-token', LhppBastSignature::STATUS_SIGNED);
+
+        $response = $this->actingAs($admin)->get(route('admin.lhpp.index'));
+
+        $response
+            ->assertOk()
+            ->assertSee('bast-modal-rollback', false)
+            ->assertSee('admin\/lhpp\/'.$signature->lhpp_bast_id.'\/signatures\/'.$signature->id.'\/rollback', false);
     }
 
     public function test_pkm_bast_approval_flow_includes_whatsapp_action(): void
@@ -45,10 +62,16 @@ class BastApprovalModalTest extends TestCase
             ->assertSee('wa.me', false)
             ->assertSee('6281234567890', false)
             ->assertSee('No WA', false)
-            ->assertSee('pkm\/lhpp\/'.$signature->lhpp_bast_id.'\/resend-active-approval', false);
+            ->assertSee('pkm\/lhpp\/'.$signature->lhpp_bast_id.'\/resend-active-approval', false)
+            ->assertDontSee('bast-modal-rollback', false)
+            ->assertDontSee('rollback_url', false);
     }
 
-    private function createPendingBastSignature(User $creator, string $token): LhppBastSignature
+    private function createPendingBastSignature(
+        User $creator,
+        string $token,
+        string $status = LhppBastSignature::STATUS_PENDING,
+    ): LhppBastSignature
     {
         $order = Order::query()->create([
             'nomor_order' => 'ORD-BAST-WA-'.$creator->role,
@@ -95,7 +118,9 @@ class BastApprovalModalTest extends TestCase
             'signer_user_id' => $approver->id,
             'signer_name_snapshot' => $approver->name,
             'signer_position_snapshot' => 'Manager PKM',
-            'status' => LhppBastSignature::STATUS_PENDING,
+            'status' => $status,
+            'signed_at' => $status === LhppBastSignature::STATUS_SIGNED ? now() : null,
+            'signature_data' => $status === LhppBastSignature::STATUS_SIGNED ? 'data:image/png;base64,test' : null,
             'token_hash' => hash('sha256', $token),
             'token' => $token,
             'token_expires_at' => now()->addDay(),

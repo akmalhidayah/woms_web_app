@@ -15,6 +15,7 @@ use App\Models\OutlineAgreement;
 use App\Models\UnitWork;
 use App\Models\User;
 use App\Services\Approvals\ApprovalNotificationService;
+use App\Services\Approvals\ApprovalSignatureRollbackService;
 use App\Support\HppApprovalFlow;
 use App\Support\HppApprovalSignatureBuilder;
 use Illuminate\Database\Eloquent\Builder;
@@ -32,6 +33,7 @@ class HppController extends Controller
     public function __construct(
         private readonly HppApprovalSignatureBuilder $signatureBuilder,
         private readonly ApprovalNotificationService $approvalNotificationService,
+        private readonly ApprovalSignatureRollbackService $rollbackService,
     ) {
     }
 
@@ -276,6 +278,28 @@ class HppController extends Controller
         return back()->with('status', sprintf(
             'Link approval HPP berhasil dikirim ulang ke %s.',
             $signature->signer?->email ?: 'email approver',
+        ));
+    }
+
+    public function rollbackSignature(Request $request, Hpp $hpp, HppSignature $signature): RedirectResponse
+    {
+        $validated = $request->validate([
+            'rollback_reason' => ['required', 'string', 'min:5', 'max:2000'],
+            'send_email' => ['nullable', 'boolean'],
+        ]);
+
+        $rolledBackSignature = $this->rollbackService->rollbackHpp(
+            $hpp,
+            $signature,
+            $request->user(),
+            $validated['rollback_reason'],
+            $request->boolean('send_email'),
+        );
+
+        return back()->with('status', sprintf(
+            'Rollback TTD HPP step %s berhasil. Step aktif kembali ke %s.',
+            $rolledBackSignature->step_order,
+            $rolledBackSignature->displayRoleLabel(),
         ));
     }
 

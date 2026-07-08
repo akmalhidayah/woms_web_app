@@ -164,7 +164,7 @@
                                 $approvalSummaryLabel = $isApprovalComplete
                                     ? 'Semua approver selesai'
                                     : ($activeSignature?->displayRoleLabel() ? 'Menunggu '.$activeSignature->displayRoleLabel() : ($qualityControlStatus === 'approved' ? 'Menunggu approval' : 'Menunggu QC Admin'));
-                                $approvalChecklist = $lhpp->signatures->map(function (\App\Models\LhppBastSignature $signature): array {
+                                $approvalChecklist = $lhpp->signatures->map(function (\App\Models\LhppBastSignature $signature) use ($lhpp): array {
                                     return [
                                         'label' => $signature->displayRoleLabel(),
                                         'original_label' => $signature->role_label,
@@ -175,6 +175,10 @@
                                         'delegation_reason' => $signature->delegation_reason ?: '',
                                         'can_reassign' => ! in_array($signature->status, [\App\Models\LhppBastSignature::STATUS_SIGNED, \App\Models\LhppBastSignature::STATUS_SKIPPED], true),
                                         'reassign_url' => route('admin.approval-signatures.bast.reassign', $signature),
+                                        'can_rollback' => $signature->status === \App\Models\LhppBastSignature::STATUS_SIGNED,
+                                        'rollback_url' => $signature->status === \App\Models\LhppBastSignature::STATUS_SIGNED
+                                            ? route('admin.lhpp.approval-signatures.rollback', [$lhpp, $signature])
+                                            : '',
                                     ];
                                 })->values();
                                 $activeApprovalModalActions = [
@@ -440,6 +444,47 @@
         </div>
     </div>
 
+    <div id="bastApprovalRollbackModal" class="fixed inset-0 z-[135] hidden overflow-y-auto" aria-hidden="true">
+        <div class="absolute inset-0 bg-slate-900/50"></div>
+        <div class="relative flex min-h-full items-start justify-center px-4 pb-6 pt-28 sm:pb-8 sm:pt-32">
+            <div data-bast-rollback-panel class="my-2 w-full max-w-md overflow-hidden rounded-[1.2rem] border border-slate-200 bg-white shadow-2xl">
+                <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3.5">
+                    <div>
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Rollback Tanda Tangan</div>
+                        <h2 id="bastApprovalRollbackTitle" class="mt-1.5 text-[1.1rem] font-bold leading-tight text-slate-900">-</h2>
+                        <p id="bastApprovalRollbackCurrent" class="mt-2 text-[11px] text-slate-500">-</p>
+                    </div>
+                    <button type="button" id="bastApprovalRollbackClose" class="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="Tutup rollback TTD BAST">
+                        <i data-lucide="x" class="h-3.5 w-3.5"></i>
+                    </button>
+                </div>
+
+                <form id="bastApprovalRollbackForm" method="POST" action="#" class="space-y-3 px-4 py-3.5">
+                    @csrf
+
+                    <p class="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-800">
+                        Step ini akan dikembalikan menjadi aktif. Step setelahnya akan dikunci ulang. Tanda tangan pada step ini dan step setelahnya akan dibatalkan dari dokumen aktif.
+                    </p>
+
+                    <div>
+                        <label for="bastApprovalRollbackReason" class="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Alasan Rollback</label>
+                        <textarea id="bastApprovalRollbackReason" name="rollback_reason" required minlength="5" maxlength="2000" rows="3" class="block w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-[12px] text-slate-800 focus:border-amber-500 focus:outline-none" placeholder="Tuliskan alasan rollback tanda tangan."></textarea>
+                    </div>
+
+                    <label class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-600">
+                        <input id="bastApprovalRollbackSendEmail" type="checkbox" name="send_email" value="1" class="rounded border-slate-300 text-amber-600">
+                        Kirim ulang link approval ke signer ini setelah rollback
+                    </label>
+
+                    <div class="flex items-center justify-end gap-2 pt-1">
+                        <button type="button" id="bastApprovalRollbackCancel" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50">Batal</button>
+                        <button type="submit" id="bastApprovalRollbackSubmit" class="inline-flex items-center rounded-lg bg-amber-600 px-3 py-2 text-[11px] font-semibold text-white transition hover:bg-amber-700">Rollback</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <div id="bastSignatureModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/55 px-4 py-6">
         <div class="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-2xl">
             <div class="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
@@ -684,6 +729,15 @@
             const approvalReassignmentReason = document.getElementById('bastApprovalReassignmentReason');
             const approvalReassignmentClose = document.getElementById('bastApprovalReassignmentClose');
             const approvalReassignmentCancel = document.getElementById('bastApprovalReassignmentCancel');
+            const approvalRollbackModal = document.getElementById('bastApprovalRollbackModal');
+            const approvalRollbackForm = document.getElementById('bastApprovalRollbackForm');
+            const approvalRollbackTitle = document.getElementById('bastApprovalRollbackTitle');
+            const approvalRollbackCurrent = document.getElementById('bastApprovalRollbackCurrent');
+            const approvalRollbackReason = document.getElementById('bastApprovalRollbackReason');
+            const approvalRollbackSendEmail = document.getElementById('bastApprovalRollbackSendEmail');
+            const approvalRollbackSubmit = document.getElementById('bastApprovalRollbackSubmit');
+            const approvalRollbackClose = document.getElementById('bastApprovalRollbackClose');
+            const approvalRollbackCancel = document.getElementById('bastApprovalRollbackCancel');
             const reassignmentUsers = @json($approvalReassignmentUserOptions);
             const escapeHtml = (value) => String(value ?? '')
                 .replaceAll('&', '&amp;')
@@ -735,6 +789,7 @@
                     const config = approvalStatusConfig[item.status] || approvalStatusConfig.locked;
                     const isActive = item.status === 'pending' && approvalLink;
                     const canReassign = Boolean(item.can_reassign && item.reassign_url);
+                    const canRollback = Boolean(item.can_rollback && item.rollback_url);
                     const actionButtons = isActive
                         ? `
                             <div class="mt-2 flex flex-wrap items-center gap-1.5">
@@ -773,6 +828,13 @@
                             </button>
                         `
                         : '';
+                    const rollbackButton = canRollback
+                        ? `
+                            <button type="button" class="bast-modal-rollback inline-flex h-7 w-7 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-700 transition hover:bg-amber-100" title="Rollback tanda tangan dari step ini" data-item='${escapeHtml(JSON.stringify(item))}'>
+                                <i data-lucide="rotate-ccw" class="h-3.5 w-3.5"></i>
+                            </button>
+                        `
+                        : '';
 
                     return `
                         <div class="rounded-xl border px-3 py-2.5 ${config.rowClass}">
@@ -783,9 +845,12 @@
                                     ${item.delegated_from_name ? `<div class="mt-0.5 text-[9px] text-slate-500">Dialihkan dari ${escapeHtml(item.delegated_from_name)}</div>` : ''}
                                     ${item.delegation_reason ? `<div class="mt-0.5 text-[9px] text-slate-500">Alasan: ${escapeHtml(item.delegation_reason)}</div>` : ''}
                                 </div>
-                                <span class="inline-flex shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${config.badgeClass}">
-                                    ${config.label}
-                                </span>
+                                <div class="flex shrink-0 items-center gap-1.5">
+                                    <span class="inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold ${config.badgeClass}">
+                                        ${config.label}
+                                    </span>
+                                    ${rollbackButton}
+                                </div>
                             </div>
                             ${actionButtons}
                             ${reassignButton ? `<div class="mt-2 flex flex-wrap items-center gap-1.5">${reassignButton}</div>` : ''}
@@ -802,7 +867,10 @@
             const closeApprovalFlowModal = () => {
                 approvalFlowModal?.classList.add('hidden');
                 approvalFlowModal?.setAttribute('aria-hidden', 'true');
-                if (!approvalReassignmentModal || approvalReassignmentModal.classList.contains('hidden')) {
+                if (
+                    (!approvalReassignmentModal || approvalReassignmentModal.classList.contains('hidden'))
+                    && (!approvalRollbackModal || approvalRollbackModal.classList.contains('hidden'))
+                ) {
                     document.body.classList.remove('overflow-hidden');
                 }
             };
@@ -829,7 +897,49 @@
             const closeApprovalReassignmentModal = () => {
                 approvalReassignmentModal?.classList.add('hidden');
                 approvalReassignmentModal?.setAttribute('aria-hidden', 'true');
-                if (!approvalFlowModal || approvalFlowModal.classList.contains('hidden')) {
+                if (
+                    (!approvalFlowModal || approvalFlowModal.classList.contains('hidden'))
+                    && (!approvalRollbackModal || approvalRollbackModal.classList.contains('hidden'))
+                ) {
+                    document.body.classList.remove('overflow-hidden');
+                }
+            };
+
+            const syncApprovalRollbackSubmit = () => {
+                if (!approvalRollbackSubmit || !approvalRollbackSendEmail) {
+                    return;
+                }
+
+                approvalRollbackSubmit.textContent = approvalRollbackSendEmail.checked
+                    ? 'Rollback & Kirim Link'
+                    : 'Rollback';
+            };
+
+            const openApprovalRollbackModal = (item) => {
+                if (!approvalRollbackModal || !approvalRollbackForm || !approvalRollbackReason) {
+                    return;
+                }
+
+                approvalRollbackForm.action = item.rollback_url || '#';
+                approvalRollbackTitle.textContent = item.label || '-';
+                approvalRollbackCurrent.textContent = `Signer: ${item.name || '-'}`;
+                approvalRollbackReason.value = '';
+                if (approvalRollbackSendEmail) {
+                    approvalRollbackSendEmail.checked = false;
+                }
+                syncApprovalRollbackSubmit();
+                approvalRollbackModal.classList.remove('hidden');
+                approvalRollbackModal.setAttribute('aria-hidden', 'false');
+                document.body.classList.add('overflow-hidden');
+            };
+
+            const closeApprovalRollbackModal = () => {
+                approvalRollbackModal?.classList.add('hidden');
+                approvalRollbackModal?.setAttribute('aria-hidden', 'true');
+                if (
+                    (!approvalFlowModal || approvalFlowModal.classList.contains('hidden'))
+                    && (!approvalReassignmentModal || approvalReassignmentModal.classList.contains('hidden'))
+                ) {
                     document.body.classList.remove('overflow-hidden');
                 }
             };
@@ -840,6 +950,9 @@
             approvalFlowModalClose?.addEventListener('click', closeApprovalFlowModal);
             approvalReassignmentClose?.addEventListener('click', closeApprovalReassignmentModal);
             approvalReassignmentCancel?.addEventListener('click', closeApprovalReassignmentModal);
+            approvalRollbackClose?.addEventListener('click', closeApprovalRollbackModal);
+            approvalRollbackCancel?.addEventListener('click', closeApprovalRollbackModal);
+            approvalRollbackSendEmail?.addEventListener('change', syncApprovalRollbackSubmit);
             approvalFlowModal?.addEventListener('click', (event) => {
                 if (!event.target.closest('[data-bast-approval-panel]')) {
                     closeApprovalFlowModal();
@@ -850,9 +963,24 @@
                     closeApprovalReassignmentModal();
                 }
             });
+            approvalRollbackModal?.addEventListener('click', (event) => {
+                if (!event.target.closest('[data-bast-rollback-panel]')) {
+                    closeApprovalRollbackModal();
+                }
+            });
             approvalFlowModalChecklist?.addEventListener('click', async (event) => {
                 const copyButton = event.target.closest('.bast-modal-copy-link');
                 const reassignButton = event.target.closest('.bast-modal-reassign');
+                const rollbackButton = event.target.closest('.bast-modal-rollback');
+
+                if (rollbackButton) {
+                    try {
+                        openApprovalRollbackModal(JSON.parse(rollbackButton.dataset.item || '{}'));
+                    } catch (error) {
+                        openApprovalRollbackModal({});
+                    }
+                    return;
+                }
 
                 if (reassignButton) {
                     try {

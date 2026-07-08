@@ -109,7 +109,7 @@ class HppApprovalSignatureBuilder
         ]);
     }
 
-    public function issueToken(HppSignature $signature): string
+    public function issueToken(HppSignature $signature, bool $sendEmail = true): string
     {
         $token = Str::random(64);
 
@@ -119,9 +119,11 @@ class HppApprovalSignatureBuilder
             'token_expires_at' => now()->addDays(self::TOKEN_TTL_DAYS),
         ]);
 
-        DB::afterCommit(function () use ($signature): void {
-            $this->approvalNotificationService->sendHpp($signature->fresh());
-        });
+        if ($sendEmail) {
+            DB::afterCommit(function () use ($signature): void {
+                $this->approvalNotificationService->sendHpp($signature->fresh());
+            });
+        }
 
         return $token;
     }

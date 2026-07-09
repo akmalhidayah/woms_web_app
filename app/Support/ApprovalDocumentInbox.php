@@ -37,6 +37,35 @@ class ApprovalDocumentInbox
             || self::pendingQualityControlQuery($user)->exists();
     }
 
+    public static function pendingCountFor(?User $user): int
+    {
+        if ($user?->role !== User::ROLE_APPROVER) {
+            return 0;
+        }
+
+        return self::pendingDocumentsFor($user, null)->count();
+    }
+
+    /**
+     * @return Collection<int, array<string, mixed>>
+     */
+    public static function pendingPreviewFor(?User $user, int $limit = 5): Collection
+    {
+        if ($user?->role !== User::ROLE_APPROVER) {
+            return collect();
+        }
+
+        return self::pendingDocumentsFor($user, null)
+            ->take($limit)
+            ->map(fn (array $item): array => $item + [
+                'open_url' => route('approval-documents.open', [
+                    'type' => $item['type'],
+                    'id' => $item['id'],
+                ]),
+            ])
+            ->values();
+    }
+
     /**
      * @return Collection<int, array<string, mixed>>
      */

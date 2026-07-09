@@ -39,7 +39,6 @@
                     </span>
                     <div>
                         <h1 class="text-[1.05rem] font-bold leading-none tracking-tight text-slate-900">Verifikasi Anggaran</h1>
-                        <p class="mt-1 text-[10px] text-slate-500">Monitoring kesiapan dokumen, HPP, dana, kategori biaya, dan catatan verifikasi.</p>
                     </div>
                 </div>
             </div>

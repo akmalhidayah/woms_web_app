@@ -50,7 +50,6 @@
                     </span>
                     <div>
                         <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Daftar Struktur Organisasi</h1>
-                        <p class="mt-1.5 text-sm text-slate-500">Hierarki Departemen, Unit Kerja, dan Seksi</p>
                     </div>
                 </div>
 

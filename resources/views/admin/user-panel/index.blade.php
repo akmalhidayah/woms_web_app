@@ -28,8 +28,6 @@
                     </span>
                     <div>
                         <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">User Panel</h1>
-                        <p class="mt-2 text-sm text-slate-500">Kelola akun pembuat order, approval, vendor, dan admin dari satu halaman.</p>
-                    </div>
                 </div>
 
                 <button

@@ -22,7 +22,10 @@
             'waiting' => 'bg-stone-200',
         ];
         $documentPreviewItems = collect($order['document_preview_items'] ?? []);
-        $activeDocumentPreview = $documentPreviewItems->first(fn (array $item) => filled($item['url']));
+        $availableDocumentPreviewItems = $documentPreviewItems
+            ->filter(fn (array $item) => filled($item['url'] ?? null))
+            ->values();
+        $activeDocumentPreview = $availableDocumentPreviewItems->first();
         $targetDateLabel = $order['progress']['target'] ?: $order['target_selesai_order'] ?: '-';
         $targetRangeLabel = null;
 
@@ -211,22 +214,21 @@
                                 <select
                                     id="user-document-selector"
                                     class="mt-1.5 w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-red-300 focus:ring-4 focus:ring-red-100 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-slate-400"
-                                    @disabled($documentPreviewItems->isEmpty())
+                                    @disabled($availableDocumentPreviewItems->isEmpty())
                                 >
-                                    @forelse ($documentPreviewItems as $item)
+                                    @forelse ($availableDocumentPreviewItems as $item)
                                         <option
                                             value="{{ $item['url'] }}"
                                             data-document-title="{{ $item['title'] }}"
                                             data-document-label="{{ $item['label'] }}"
                                             data-document-url="{{ $item['url'] }}"
-                                            data-document-available="{{ filled($item['url']) ? '1' : '0' }}"
+                                            data-document-available="1"
                                             @selected(($activeDocumentPreview['url'] ?? null) === ($item['url'] ?? null))
-                                            @disabled(blank($item['url']))
                                         >
-                                            {{ $item['title'] }}{{ blank($item['url']) ? ' - Belum tersedia' : '' }}
+                                            {{ $item['title'] }}
                                         </option>
                                     @empty
-                                        <option value="">Belum ada dokumen</option>
+                                        <option value="">Belum ada dokumen tersedia</option>
                                     @endforelse
                                 </select>
                             </div>
@@ -326,8 +328,7 @@
                                         <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-stone-200 bg-white text-slate-400">
                                             <i data-lucide="files" class="h-5 w-5"></i>
                                         </div>
-                                        <div class="mt-4 text-base font-semibold text-slate-700">Belum ada dokumen yang dapat ditampilkan</div>
-                                        <p class="mt-2 text-sm leading-6 text-slate-500">Dokumen akan muncul di panel ini setelah file order mulai diunggah.</p>
+                                        <div class="mt-4 text-base font-semibold text-slate-700">Belum ada dokumen yang tersedia untuk ditampilkan.</div>
                                     </div>
                                 </div>
 
@@ -633,12 +634,12 @@
 
                 if (! option || option.dataset.documentAvailable !== '1') {
                     activeDocumentUrl = '';
-                [previewOpenLink, previewDownloadLink].forEach((link) => {
-                    if (link) {
-                        link.href = '#';
-                        link.setAttribute('aria-disabled', 'true');
-                    }
-                });
+                    [previewOpenLink, previewDownloadLink].forEach((link) => {
+                        if (link) {
+                            link.href = '#';
+                            link.setAttribute('aria-disabled', 'true');
+                        }
+                    });
                     hideElement(actionButtons);
                     showEmptyState();
                     return;

@@ -23,7 +23,6 @@
                 </span>
                 <div>
                     <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">BAST</h1>
-                    <p class="mt-1.5 text-[11px] text-slate-500">Cari dokumen berdasarkan nomor order, PO, unit kerja, dan progres dokumen BAST.</p>
                 </div>
             </div>
         </section>

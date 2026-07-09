@@ -49,7 +49,7 @@
                     </span>
                     <div class="min-w-0">
                         <h1 class="text-[1.05rem] font-bold leading-tight text-slate-900 sm:text-[1.18rem]">Display Pekerjaan Bengkel</h1>
-                        <p class="mt-1 max-w-2xl text-[11px] leading-4 text-slate-500">Kelola pekerjaan yang tampil di layar display bengkel dan pembagian regunya.</p>
+                        <p class="mt-1 max-w-2xl text-[11px] leading-4 text-slate-500">Order yang di Tampilkan di Layar Monitor</p>
                     </div>
                 </div>
 

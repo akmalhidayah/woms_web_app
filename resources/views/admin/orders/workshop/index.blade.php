@@ -20,7 +20,6 @@
                     </span>
                     <div>
                         <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Order Pekerjaan Bengkel</h1>
-                        <p class="mt-1.5 text-[13px] text-slate-500">Order yang diarahkan ke bengkel dari status workshop dan workshop + jasa.</p>
                     </div>
                 </div>
 

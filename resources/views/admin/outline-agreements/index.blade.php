@@ -16,9 +16,6 @@
                     </span>
                     <div>
                         <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Kuota Anggaran &amp; OA</h1>
-                        <p class="mt-2 max-w-2xl text-sm text-slate-500">
-                            Kelola master Outline Agreement, histori adendum, dan target biaya pemeliharaan per tahun secara aman tanpa merusak histori kontrak lama.
-                        </p>
                     </div>
                 </div>
 

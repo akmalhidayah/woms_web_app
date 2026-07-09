@@ -14,9 +14,6 @@
                     </span>
                     <div>
                         <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Kontrak Jasa Fabrikasi Konstruksi</h1>
-                        <p class="mt-2 max-w-3xl text-sm text-slate-500">
-                            Master item harga per jenis dan sub jenis item. Data ini nantinya bisa dipakai langsung di form HPP tanpa input manual.
-                        </p>
                     </div>
                 </div>
 

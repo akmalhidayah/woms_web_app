@@ -7,7 +7,6 @@
                 </span>
                 <div>
                     <h1 class="text-[1.15rem] font-bold leading-none tracking-tight text-slate-900">LPJ / PPL</h1>
-                    <p class="mt-1 text-[10px] text-slate-500">Kelola nomor dokumen, upload file, dan status pembayaran LPJ / PPL.</p>
                 </div>
             </div>
         </section>

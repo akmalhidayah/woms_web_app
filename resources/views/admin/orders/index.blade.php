@@ -120,7 +120,6 @@
                         </span>
                         <div>
                             <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Order</h1>
-                            <p class="mt-1.5 text-[13px] text-slate-500">Pantau order pekerjaan dan kawat las dengan filter cepat.</p>
                         </div>
                     </div>
 

@@ -41,7 +41,6 @@
                     </span>
                     <div>
                         <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Purchase Order</h1>
-                        <p class="mt-1.5 text-[11px] text-slate-500">Pantau PO, target penyelesaian, approval, progress, dan dokumen vendor.</p>
                     </div>
                 </div>
             </div>

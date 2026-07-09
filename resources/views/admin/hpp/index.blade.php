@@ -48,7 +48,6 @@
                     </span>
                     <div>
                         <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Create HPP</h1>
-                        <p class="mt-1.5 text-[11px] text-slate-500">Daftar HPP dan snapshot approval yang sudah dibuat.</p>
                     </div>
                 </div>
 

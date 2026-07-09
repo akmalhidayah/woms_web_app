@@ -25,7 +25,7 @@
             : ($isExpired ? 'bg-amber-100 text-amber-700 ring-amber-200' : 'bg-blue-100 text-blue-700 ring-blue-200');
     @endphp
 
-    <main class="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    <main class="mx-auto w-full max-w-[96rem] px-4 py-6 sm:px-6 2xl:max-w-[104rem]">
         <section class="overflow-hidden rounded-[2rem] border border-stone-200 bg-white shadow-[0_20px_60px_rgba(28,25,23,0.10)]">
             <div class="border-b-4 border-[#8f1d2c] bg-[#5b0f1b] px-5 py-6 text-white sm:px-8 sm:py-7">
                 <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
@@ -76,7 +76,7 @@
 
                 {{-- Info utama --}}
                 <div class="rounded-[1.75rem] border border-stone-200 bg-stone-50 p-4 sm:p-5 lg:p-6">
-                    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <div class="grid gap-4 lg:grid-cols-2 2xl:grid-cols-5">
                         <div class="rounded-2xl border border-stone-200 bg-white px-4 py-4">
                             <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">Penanda Tangan</div>
                             <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $signature->signer_name }}</div>
@@ -109,7 +109,7 @@
                             </div>
                         </div>
 
-                        <div class="rounded-2xl border border-stone-200 bg-white px-4 py-4 md:col-span-2">
+                        <div class="rounded-2xl border border-stone-200 bg-white px-4 py-4 lg:col-span-2">
                             <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">Pekerjaan</div>
                             <div class="mt-2 break-words text-sm font-bold text-slate-900">
                                 {{ $initialWork->nama_pekerjaan ?: '-' }}
@@ -139,9 +139,9 @@
                 </div>
 
                 {{-- Preview + TTD --}}
-                <div class="grid gap-5 xl:grid-cols-[1.55fr_0.95fr]">
+                <div class="grid gap-5 2xl:grid-cols-[minmax(0,1.6fr)_minmax(22rem,0.8fr)]">
                     {{-- Preview Dokumen --}}
-                    <div class="overflow-hidden rounded-[1.75rem] border border-stone-200 bg-white shadow-sm">
+                    <div class="min-w-0 overflow-hidden rounded-[1.75rem] border border-stone-200 bg-white shadow-sm">
                         <div class="border-b border-stone-200 px-4 py-4 sm:px-5">
                             <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                                 <div>
@@ -186,7 +186,7 @@
                             </div>
                         </div>
 
-                        <div class="p-4 sm:p-5">
+                        <div class="p-4">
                             @include('approval.partials.pdfjs-preview', [
                                 'title' => 'Preview PDF Initial Work',
                                 'url' => $initialWorkPdfUrl,
@@ -195,7 +195,7 @@
                     </div>
 
                     {{-- Kolom tanda tangan --}}
-                    <div class="space-y-5">
+                    <div class="min-w-0 space-y-5">
                         @if ($signature->isSigned())
                             <div class="rounded-[1.75rem] border border-stone-200 bg-[#fbfaf7] p-5 shadow-sm">
                                 <div class="flex min-h-[18rem] flex-col items-center justify-center text-center">

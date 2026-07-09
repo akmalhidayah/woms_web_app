@@ -30,7 +30,7 @@
         };
     @endphp
 
-    <main class="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    <main class="mx-auto w-full max-w-[96rem] px-4 py-6 sm:px-6 2xl:max-w-[104rem]">
         <section class="overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.10)]">
             <div class="border-b-4 border-[#8f1d2c] bg-[#5b0f1b] px-5 py-6 text-white sm:px-8 sm:py-7">
                 <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
@@ -89,7 +89,7 @@
                     </div>
                 @else
                     <div class="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4 sm:p-5 lg:p-6">
-                        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                        <div class="grid gap-4 lg:grid-cols-2 2xl:grid-cols-5">
                             <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
                                 <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Penanda Tangan</div>
                                 <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $signature->signer_name_snapshot }}</div>
@@ -122,7 +122,7 @@
                                 </div>
                             </div>
 
-                            <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4 md:col-span-2">
+                            <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4 lg:col-span-2">
                                 <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Pekerjaan</div>
                                 <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $hpp?->nama_pekerjaan ?: '-' }}</div>
                                 <div class="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
@@ -149,8 +149,8 @@
                         </div>
                     </div>
 
-                    <div class="grid gap-5 xl:grid-cols-[1.55fr_0.95fr]">
-                        <div class="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm">
+                    <div class="grid gap-5 2xl:grid-cols-[minmax(0,1.6fr)_minmax(22rem,0.8fr)]">
+                        <div class="min-w-0 overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm">
                             <div class="flex flex-col gap-4 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                                 <div>
                                     <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Preview Dokumen</div>
@@ -184,7 +184,7 @@
                                 </div>
                             </div>
 
-                            <div class="p-4 sm:p-5">
+                            <div class="p-4">
                                 @include('approval.partials.pdfjs-preview', [
                                     'title' => 'Preview PDF HPP',
                                     'url' => $hppPdfUrl,
@@ -192,7 +192,7 @@
                             </div>
                         </div>
 
-                        <div class="space-y-5">
+                        <div class="min-w-0 space-y-5">
                             @if ($signature->isSigned())
                                 <div class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
                                     <div class="flex min-h-[18rem] flex-col items-center justify-center text-center">

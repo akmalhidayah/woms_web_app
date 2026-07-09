@@ -25,7 +25,7 @@
             : ($isExpired ? 'bg-amber-100 text-amber-700 ring-amber-200' : 'bg-blue-100 text-blue-700 ring-blue-200');
     @endphp
 
-    <main class="mx-auto w-full max-w-[90rem] px-4 py-5 sm:px-5 2xl:max-w-[96rem]">
+    <main class="mx-auto w-full px-1.5 py-4 sm:px-3 lg:px-4">
         <section class="overflow-hidden rounded-[2rem] border border-stone-200 bg-white shadow-[0_20px_60px_rgba(28,25,23,0.10)]">
             <div class="border-b-4 border-[#8f1d2c] bg-[#5b0f1b] px-5 py-6 text-white sm:px-8 sm:py-7">
                 <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
@@ -62,7 +62,7 @@
                 </div>
             </div>
 
-            <div class="space-y-5 px-5 py-5 sm:px-8 sm:py-6">
+            <div class="space-y-5 px-3 py-4 sm:px-5 sm:py-5">
                 @if (session('status'))
                     <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
                         {{ session('status') }}

@@ -15,6 +15,7 @@ use App\Models\Order;
 use App\Services\Approvals\ApprovalNotificationService;
 use App\Support\BastApprovalFlow;
 use App\Support\BastApprovalSignatureBuilder;
+use App\Support\BastDocumentNumberGenerator;
 use App\Support\PdfMergeService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
@@ -36,6 +37,7 @@ class LhppController extends Controller
     public function __construct(
         private readonly BastApprovalSignatureBuilder $signatureBuilder,
         private readonly ApprovalNotificationService $approvalNotificationService,
+        private readonly BastDocumentNumberGenerator $documentNumberGenerator,
     ) {}
 
     public function index(Request $request): View
@@ -350,6 +352,7 @@ class LhppController extends Controller
 
                 $this->syncParentTipePekerjaanIfMissing($terminType, $parentLhpp, $tipePekerjaan);
                 $this->syncGaransiToTerminOne($terminType, $order, $lhpp);
+                $this->assignBastDocumentNumber($lhpp, $parentLhpp, $request->date('tanggal_bast'));
 
                 if (! $lhpp->hasApprovalStarted()) {
                     $this->syncBastSignaturesBeforeApprovalStarts($lhpp);
@@ -511,6 +514,7 @@ class LhppController extends Controller
                 $lhpp->save();
                 $this->syncParentTipePekerjaanIfMissing($terminType, $parentLhpp, $tipePekerjaan);
                 $this->syncGaransiToTerminOne($terminType, $order, $lhpp);
+                $this->assignBastDocumentNumber($lhpp, $parentLhpp, $request->date('tanggal_bast'));
 
                 if (! $lhpp->hasApprovalStarted()) {
                     $this->syncBastSignaturesBeforeApprovalStarts($lhpp);
@@ -1300,6 +1304,7 @@ class LhppController extends Controller
             'submitLabel' => $meta['submitLabel'],
             'terminType' => $terminType,
             'terminLabel' => $this->terminLabel($terminType),
+            'documentNo' => $lhpp?->document_no ?: ($terminType === 'termin_2' ? $parentLhpp?->document_no : null),
             'isWithoutWarranty' => $terminType === 'termin_1'
                 && (int) ($currentOrder?->garansi?->garansi_months ?? $lhpp?->garansi?->garansi_months ?? -1) === 0,
         ]);
@@ -1331,6 +1336,30 @@ class LhppController extends Controller
     {
         return $lhpp->termin_type === 'termin_2'
             || $lhpp->quality_control_status === 'approved';
+    }
+
+    private function assignBastDocumentNumber(LhppBast $lhpp, ?LhppBast $parentLhpp, mixed $date): void
+    {
+        if (filled($lhpp->document_no)) {
+            return;
+        }
+
+        if ($lhpp->termin_type === 'termin_2') {
+            abort_if(! $parentLhpp, Response::HTTP_BAD_REQUEST, 'BAST Termin 1 tidak ditemukan.');
+
+            $parentLhpp = LhppBast::query()
+                ->whereKey($parentLhpp->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $this->documentNumberGenerator->copyFromTerminOne($lhpp, $parentLhpp);
+            $lhpp->save();
+
+            return;
+        }
+
+        $this->documentNumberGenerator->assignToTerminOne($lhpp, $date);
+        $lhpp->save();
     }
 
     private function syncBastSignaturesBeforeApprovalStarts(LhppBast $lhpp): void

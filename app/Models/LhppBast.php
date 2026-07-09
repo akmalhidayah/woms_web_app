@@ -29,6 +29,9 @@ class LhppBast extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'document_no',
+        'document_sequence',
+        'document_year',
         'order_id',
         'termin_type',
         'parent_lhpp_bast_id',
@@ -72,6 +75,8 @@ class LhppBast extends Model
             'tanggal_bast' => 'date',
             'tanggal_mulai_pekerjaan' => 'date',
             'tanggal_selesai_pekerjaan' => 'date',
+            'document_sequence' => 'integer',
+            'document_year' => 'integer',
             'nilai_hpp' => 'decimal:2',
             'material_items' => 'array',
             'service_items' => 'array',

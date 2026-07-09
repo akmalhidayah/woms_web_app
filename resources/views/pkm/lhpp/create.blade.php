@@ -5,6 +5,7 @@
             $submitLabel = $submitLabel ?? 'Simpan';
             $terminType = $terminType ?? 'termin_1';
             $terminLabel = $terminLabel ?? ($terminType === 'termin_2' ? 'Termin 2' : 'Termin 1');
+            $documentNo = $documentNo ?? null;
             $isWithoutWarranty = (bool) ($isWithoutWarranty ?? false);
             $isTerminTwoLocked = $terminType === 'termin_2';
             $bastDate = old('tanggal_bast', $bastDate ?? now()->format('Y-m-d'));
@@ -97,6 +98,19 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     <div class="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
                         <div class="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
                             <div class="grid items-center gap-x-3 gap-y-2 sm:grid-cols-[150px_minmax(0,1fr)]">
+                                <label class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-700">Nomor Dokumen</label>
+                                <div class="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2">
+                                    @if (filled($documentNo))
+                                        <div class="text-[12px] font-bold text-slate-900">{{ $documentNo }}</div>
+                                    @else
+                                        <div class="text-[11px] font-medium text-slate-600">
+                                            {{ $terminType === 'termin_2'
+                                                ? 'Nomor dokumen mengikuti BAST Termin 1.'
+                                                : 'Nomor dokumen akan dibuat otomatis saat BAST Termin 1 disubmit.' }}
+                                        </div>
+                                    @endif
+                                </div>
+
                                 <label class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-700">Tanggal BAST</label>
                                 <input type="date" name="tanggal_bast" value="{{ $bastDate }}" class="h-9 min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none">
 

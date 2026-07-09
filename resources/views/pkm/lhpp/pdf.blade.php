@@ -324,6 +324,8 @@
 @php
     $isOver250 = $lhpp->approval_threshold === 'over_250';
     $isTerminTwo = $lhpp->termin_type === 'termin_2';
+    $documentNo = $lhpp->document_no ?: '-';
+    $terminLabel = $isTerminTwo ? 'Termin 2' : 'Termin 1';
     $title = $isOver250
         ? 'BERITA ACARA SERAH TERIMA (BAST) PEKERJAAN'
         : 'BERITA ACARA SERAH TERIMA (BAST) REALISASI PEKERJAAN';
@@ -483,9 +485,19 @@
                 <td class="meta-value">{{ $formatDate($lhpp->tanggal_bast) }}</td>
             </tr>
             <tr>
+                <td class="meta-label">DOCUMENT NO</td>
+                <td class="meta-separator">:</td>
+                <td class="meta-value">{{ $documentNo }}</td>
+            </tr>
+            <tr>
                 <td class="meta-label">NOMOR ORDER</td>
                 <td class="meta-separator">:</td>
                 <td class="meta-value">{{ $lhpp->nomor_order }}</td>
+            </tr>
+            <tr>
+                <td class="meta-label">TERMIN</td>
+                <td class="meta-separator">:</td>
+                <td class="meta-value">{{ $terminLabel }}</td>
             </tr>
             <tr>
                 <td class="meta-label">DESKRIPSI PEKERJAAN</td>

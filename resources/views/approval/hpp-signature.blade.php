@@ -30,7 +30,7 @@
         };
     @endphp
 
-    <main class="mx-auto w-full max-w-[96rem] px-4 py-6 sm:px-6 2xl:max-w-[104rem]">
+    <main class="mx-auto w-full max-w-[90rem] px-4 py-5 sm:px-5 2xl:max-w-[96rem]">
         <section class="overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.10)]">
             <div class="border-b-4 border-[#8f1d2c] bg-[#5b0f1b] px-5 py-6 text-white sm:px-8 sm:py-7">
                 <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
@@ -46,19 +46,20 @@
                         </p>
                     </div>
 
-                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-end xl:min-w-[22rem]">
-                        <div class="w-fit rounded-2xl bg-white/95 p-2 shadow-sm">
-                            <img src="{{ asset('assets/branding/logos/logo-st.png') }}" alt="Logo ST" class="h-12 w-auto object-contain sm:h-14">
-                        </div>
-
-                        <div class="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm shadow-sm backdrop-blur">
-                            <div class="text-white/70">Login sebagai</div>
-                            <div class="mt-1 font-semibold text-white">{{ auth()->user()->name }}</div>
-                            <div class="text-xs text-white/70">{{ auth()->user()->email }}</div>
-                            <a href="{{ route(auth()->user()->dashboardRouteName()) }}" class="mt-3 inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-[#5b0f1b] transition hover:bg-white/90">
-                                <i data-lucide="layout-dashboard" class="h-3.5 w-3.5"></i>
-                                Ke Dashboard
-                            </a>
+                    <div class="xl:min-w-[22rem] xl:max-w-[24rem]">
+                        <div class="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm shadow-sm backdrop-blur">
+                            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/95 p-1.5 shadow-sm">
+                                <img src="{{ asset('assets/branding/logos/logo-st.png') }}" alt="Logo ST" class="h-full w-full object-contain">
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-white/70">Login sebagai</div>
+                                <div class="mt-1 break-words font-semibold text-white">{{ auth()->user()->name }}</div>
+                                <div class="break-all text-xs text-white/70">{{ auth()->user()->email }}</div>
+                                <a href="{{ route(auth()->user()->dashboardRouteName()) }}" class="mt-3 inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-[#5b0f1b] transition hover:bg-white/90">
+                                    <i data-lucide="layout-dashboard" class="h-3.5 w-3.5"></i>
+                                    Ke Dashboard
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -88,8 +89,8 @@
                         </p>
                     </div>
                 @else
-                    <div class="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4 sm:p-5 lg:p-6">
-                        <div class="grid gap-4 lg:grid-cols-2 2xl:grid-cols-5">
+                    <div class="rounded-[1.2rem] border border-slate-200 bg-slate-50 p-3 sm:p-4">
+                        <div class="grid gap-3 lg:grid-cols-2 xl:grid-cols-5">
                             <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
                                 <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Penanda Tangan</div>
                                 <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $signature->signer_name_snapshot }}</div>
@@ -122,7 +123,7 @@
                                 </div>
                             </div>
 
-                            <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4 lg:col-span-2">
+                            <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4 lg:col-span-2 xl:col-span-2">
                                 <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Pekerjaan</div>
                                 <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $hpp?->nama_pekerjaan ?: '-' }}</div>
                                 <div class="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
@@ -149,9 +150,9 @@
                         </div>
                     </div>
 
-                    <div class="grid gap-5 2xl:grid-cols-[minmax(0,1.6fr)_minmax(22rem,0.8fr)]">
-                        <div class="min-w-0 overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm">
-                            <div class="flex flex-col gap-4 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                    <div class="grid gap-4 xl:grid-cols-[minmax(0,1.62fr)_minmax(20rem,0.78fr)]">
+                        <div class="min-w-0 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white shadow-sm">
+                            <div class="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
                                     <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Preview Dokumen</div>
                                     <h2 class="mt-1 text-lg font-bold text-slate-900">Preview PDF HPP</h2>
@@ -192,7 +193,7 @@
                             </div>
                         </div>
 
-                        <div class="min-w-0 space-y-5">
+                        <div class="min-w-0 space-y-4">
                             @if ($signature->isSigned())
                                 <div class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
                                     <div class="flex min-h-[18rem] flex-col items-center justify-center text-center">
@@ -294,7 +295,7 @@
                                                         Clear
                                                     </button>
                                                 </div>
-                                                <canvas id="signatureCanvas" width="620" height="260" class="relative z-10 h-60 w-full rounded-xl bg-transparent sm:h-72"></canvas>
+                                                <canvas id="signatureCanvas" width="620" height="260" class="relative z-10 h-48 w-full rounded-xl bg-transparent sm:h-56 xl:h-60"></canvas>
                                                 <div id="signaturePadPlaceholder" class="pointer-events-none absolute inset-3 z-0 flex items-center justify-center rounded-xl text-center">
                                                     <div class="px-4 text-slate-400">
                                                         <i data-lucide="pen-line" class="mx-auto h-8 w-8 opacity-70"></i>

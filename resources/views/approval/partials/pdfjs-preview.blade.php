@@ -77,10 +77,10 @@
         </a>
     </div>
 
-    <div class="relative min-h-[32rem] overflow-hidden bg-slate-100 sm:min-h-[42rem] xl:min-h-[54rem]">
+    <div class="relative min-h-[28rem] overflow-hidden bg-slate-100 sm:min-h-[36rem] xl:min-h-[42rem]">
         <div
             id="approvalPdfEmptyState"
-            class="hidden h-[32rem] items-center justify-center px-6 text-center sm:h-[42rem] xl:h-[54rem]"
+            class="hidden h-[28rem] items-center justify-center px-6 text-center sm:h-[36rem] xl:h-[42rem]"
         >
             <div>
                 <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400">
@@ -93,7 +93,7 @@
 
         <div
             id="approvalPdfLoadingState"
-            class="hidden h-[32rem] items-center justify-center px-6 text-center text-sm font-semibold text-slate-600 sm:h-[42rem] xl:h-[54rem]"
+            class="hidden h-[28rem] items-center justify-center px-6 text-center text-sm font-semibold text-slate-600 sm:h-[36rem] xl:h-[42rem]"
         >
             Memuat dokumen...
         </div>
@@ -105,14 +105,14 @@
             Preview PDF tidak dapat dimuat. Silakan gunakan tombol Buka Dokumen.
         </div>
 
-        <div id="approvalPdfCanvasWrapper" class="hidden h-[32rem] max-w-full overflow-auto p-3 sm:h-[42rem] xl:h-[54rem] xl:p-5">
+        <div id="approvalPdfCanvasWrapper" class="hidden h-[28rem] max-w-full overflow-auto p-3 sm:h-[36rem] xl:h-[42rem] xl:p-4">
             <canvas id="approvalPdfCanvas" class="mx-auto block max-w-full rounded-sm bg-white"></canvas>
         </div>
 
         <iframe
             id="activePreviewFrame"
             src="{{ $viewerUrl ?: 'about:blank' }}"
-            class="hidden h-[32rem] w-full bg-white sm:h-[42rem] xl:h-[54rem]"
+            class="hidden h-[28rem] w-full bg-white sm:h-[36rem] xl:h-[42rem]"
             title="{{ $viewerTitle }}"
         ></iframe>
     </div>

@@ -11,69 +11,77 @@
 >
     <div
         id="approvalPdfToolbar"
-        class="flex flex-wrap items-center gap-1.5 border-b border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 sm:gap-2 sm:px-4"
+        class="flex items-center justify-end gap-1.5 overflow-x-auto whitespace-nowrap border-b border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 sm:px-4"
     >
-        <div class="min-w-0 flex-1"></div>
         <button
             type="button"
             id="approvalPdfPrevPage"
-            class="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 transition hover:border-red-200 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+            class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white transition hover:border-red-200 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Halaman sebelumnya"
+            title="Halaman sebelumnya"
         >
-            <i data-lucide="chevron-left" class="h-3.5 w-3.5"></i>
-            Prev
+            <i data-lucide="chevron-left" class="h-4 w-4"></i>
         </button>
-        <span id="approvalPdfPageIndicator" class="shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-slate-600">
-            Halaman 0 / 0
+        <span id="approvalPdfPageIndicator" class="inline-flex h-8 min-w-[3.75rem] shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-2 text-slate-600">
+            0 / 0
         </span>
         <button
             type="button"
             id="approvalPdfNextPage"
-            class="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 transition hover:border-red-200 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+            class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white transition hover:border-red-200 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Halaman berikutnya"
+            title="Halaman berikutnya"
         >
-            Next
-            <i data-lucide="chevron-right" class="h-3.5 w-3.5"></i>
+            <i data-lucide="chevron-right" class="h-4 w-4"></i>
         </button>
         <button
             type="button"
             id="approvalPdfZoomOut"
-            class="inline-flex shrink-0 items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 transition hover:border-red-200 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+            class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white transition hover:border-red-200 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Perkecil"
+            title="Perkecil"
         >
-            Zoom -
+            <i data-lucide="minus" class="h-4 w-4"></i>
         </button>
-        <span id="approvalPdfZoomLabel" class="shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-slate-600">100%</span>
+        <span id="approvalPdfZoomLabel" class="inline-flex h-8 min-w-[3.25rem] shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-2 text-slate-600">100%</span>
         <button
             type="button"
             id="approvalPdfZoomIn"
-            class="inline-flex shrink-0 items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 transition hover:border-red-200 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+            class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white transition hover:border-red-200 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Perbesar"
+            title="Perbesar"
         >
-            Zoom +
+            <i data-lucide="plus" class="h-4 w-4"></i>
         </button>
         <button
             type="button"
             id="approvalPdfFitWidth"
-            class="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 transition hover:border-red-200 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+            class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white transition hover:border-red-200 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Fit width"
+            title="Fit width"
         >
-            <i data-lucide="maximize" class="h-3.5 w-3.5"></i>
-            Fit Width
+            <i data-lucide="maximize" class="h-4 w-4"></i>
         </button>
         <a
             id="activePreviewOpen"
             href="{{ $viewerUrl ?: '#' }}"
             target="_blank"
             rel="noopener noreferrer"
-            class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-red-200 hover:bg-white hover:text-red-800"
+            class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-700 transition hover:border-red-200 hover:bg-white hover:text-red-800"
+            aria-label="Buka dokumen"
+            title="Buka dokumen"
         >
-            <i data-lucide="external-link" class="h-3.5 w-3.5"></i>
-            Buka Dokumen
+            <i data-lucide="external-link" class="h-4 w-4"></i>
         </a>
         <a
             id="activePreviewDownload"
             href="{{ $viewerUrl ?: '#' }}"
             download
-            class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-red-200 hover:bg-white hover:text-red-800"
+            class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-700 transition hover:border-red-200 hover:bg-white hover:text-red-800"
+            aria-label="Download"
+            title="Download"
         >
-            <i data-lucide="download" class="h-3.5 w-3.5"></i>
-            Download
+            <i data-lucide="download" class="h-4 w-4"></i>
         </a>
     </div>
 
@@ -195,7 +203,7 @@
                 const totalPages = pdfDocument ? pdfDocument.numPages : 0;
 
                 if (pageIndicator) {
-                    pageIndicator.textContent = `Halaman ${totalPages ? currentPage : 0} / ${totalPages}`;
+                    pageIndicator.textContent = `${totalPages ? currentPage : 0} / ${totalPages}`;
                 }
 
                 if (zoomLabel) {

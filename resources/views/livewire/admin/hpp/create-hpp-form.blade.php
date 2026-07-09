@@ -112,6 +112,15 @@
 
             <div class="xl:flex xl:items-start xl:gap-4">
                 <div class="min-w-0 flex-1 space-y-3">
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                        <div class="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-500">Nomor Dokumen HPP</div>
+                        @if (filled($initialState['documentNo'] ?? null))
+                            <div class="mt-1 text-[12px] font-bold text-slate-900">{{ $initialState['documentNo'] }}</div>
+                        @else
+                            <div class="mt-1 text-[11px] font-medium text-slate-600">Nomor dokumen akan dibuat otomatis saat HPP disubmit.</div>
+                        @endif
+                    </div>
+
                     <div class="space-y-1">
                         <label for="order_id" class="text-[10px] font-semibold text-slate-700">Order Pekerjaan</label>
                         @if ($isEdit)

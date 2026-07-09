@@ -103,6 +103,7 @@ class CreateHppForm extends Component
                         : ($this->hpp?->approval_flow ?? [])
                 )),
                 'status' => $this->hpp?->status,
+                'documentNo' => $this->hpp?->document_no,
                 'canReorderApprovalFlow' => $canReorderApprovalFlow,
             ],
             'isEdit' => $this->hpp?->exists ?? false,

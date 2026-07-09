@@ -18,6 +18,7 @@ use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\Approvals\ApprovalSignatureRollbackService;
 use App\Support\HppApprovalFlow;
 use App\Support\HppApprovalSignatureBuilder;
+use App\Support\HppDocumentNumberGenerator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -34,6 +35,7 @@ class HppController extends Controller
         private readonly HppApprovalSignatureBuilder $signatureBuilder,
         private readonly ApprovalNotificationService $approvalNotificationService,
         private readonly ApprovalSignatureRollbackService $rollbackService,
+        private readonly HppDocumentNumberGenerator $documentNumberGenerator,
     ) {
     }
 
@@ -312,6 +314,11 @@ class HppController extends Controller
 
             $this->fillHppFromRequest($hpp, $validated, $request->all(), true);
             $hpp->created_by = $request->user()?->id;
+
+            if ($hpp->status === Hpp::STATUS_IN_REVIEW) {
+                $this->documentNumberGenerator->assignTo($hpp, $hpp->submitted_at);
+            }
+
             $hpp->save();
 
             if ($hpp->status === Hpp::STATUS_IN_REVIEW) {
@@ -340,6 +347,11 @@ class HppController extends Controller
 
         DB::transaction(function () use ($request, $hpp, $validated, $canReorderApprovalFlow): void {
             $this->fillHppFromRequest($hpp, $validated, $request->all(), $canReorderApprovalFlow);
+
+            if ($hpp->status === Hpp::STATUS_IN_REVIEW) {
+                $this->documentNumberGenerator->assignTo($hpp, $hpp->submitted_at);
+            }
+
             $hpp->save();
 
             if ($hpp->status === Hpp::STATUS_IN_REVIEW) {
@@ -360,6 +372,9 @@ class HppController extends Controller
     {
         $duplicate = DB::transaction(function () use ($request, $hpp): Hpp {
             $copy = $hpp->replicate([
+                'document_no',
+                'document_sequence',
+                'document_year',
                 'status',
                 'submitted_at',
                 'created_at',

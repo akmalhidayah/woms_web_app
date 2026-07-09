@@ -22,6 +22,9 @@ class Hpp extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'document_no',
+        'document_sequence',
+        'document_year',
         'order_id',
         'outline_agreement_id',
         'nomor_order',
@@ -57,6 +60,8 @@ class Hpp extends Model
             'item_groups' => 'array',
             'total_keseluruhan' => 'decimal:2',
             'submitted_at' => 'datetime',
+            'document_sequence' => 'integer',
+            'document_year' => 'integer',
         ];
     }
 

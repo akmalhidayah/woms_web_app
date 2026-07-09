@@ -15,6 +15,7 @@ use App\Models\UnitWork;
 use App\Models\UnitWorkSection;
 use App\Models\User;
 use App\Support\HppApprovalFlow;
+use Illuminate\Support\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -274,6 +275,186 @@ class CreateHppTest extends TestCase
         ]);
     }
 
+    public function test_save_draft_does_not_assign_hpp_document_number(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+
+        $outlineAgreement = $this->createApprovalStructureAndOutlineAgreement($admin);
+        $order = $this->makeEligibleOrder($admin, [
+            'nomor_order' => 'ORD-HPP-DRAFT-NO-DOC',
+            'nama_pekerjaan' => 'Draft HPP tanpa nomor dokumen',
+            'unit_kerja' => 'Unit Produksi Raw Mill',
+            'seksi' => 'Maintenance',
+            'deskripsi' => 'Draft HPP belum boleh punya nomor dokumen.',
+            'prioritas' => Order::PRIORITY_MEDIUM,
+            'tanggal_order' => '2026-07-01',
+            'target_selesai' => '2026-07-10',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.hpp.store'), $this->hppPayload($order, $outlineAgreement, [
+                'action' => 'draft',
+            ]))
+            ->assertRedirect(route('admin.hpp.index'));
+
+        $hpp = Hpp::query()->where('order_id', $order->id)->firstOrFail();
+
+        $this->assertSame(Hpp::STATUS_DRAFT, $hpp->status);
+        $this->assertNull($hpp->document_no);
+        $this->assertNull($hpp->document_sequence);
+        $this->assertNull($hpp->document_year);
+    }
+
+    public function test_submitted_hpp_receives_yearly_sequence_document_number(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+
+        $outlineAgreement = $this->createApprovalStructureAndOutlineAgreement($admin);
+
+        try {
+            Carbon::setTestNow('2026-07-09 10:00:00');
+            $firstOrder = $this->makeEligibleOrder($admin, [
+                'nomor_order' => 'ORD-HPP-DOC-2026-001',
+                'nama_pekerjaan' => 'HPP pertama 2026',
+                'unit_kerja' => 'Unit Produksi Raw Mill',
+                'seksi' => 'Maintenance',
+                'deskripsi' => 'Nomor dokumen pertama tahun 2026.',
+                'prioritas' => Order::PRIORITY_MEDIUM,
+                'tanggal_order' => '2026-07-01',
+                'target_selesai' => '2026-07-10',
+            ]);
+
+            $this->actingAs($admin)
+                ->post(route('admin.hpp.store'), $this->hppPayload($firstOrder, $outlineAgreement))
+                ->assertRedirect(route('admin.hpp.index'));
+
+            Carbon::setTestNow('2026-08-02 10:00:00');
+            $secondOrder = $this->makeEligibleOrder($admin, [
+                'nomor_order' => 'ORD-HPP-DOC-2026-002',
+                'nama_pekerjaan' => 'HPP kedua 2026',
+                'unit_kerja' => 'Unit Produksi Raw Mill',
+                'seksi' => 'Maintenance',
+                'deskripsi' => 'Nomor dokumen kedua tahun 2026.',
+                'prioritas' => Order::PRIORITY_MEDIUM,
+                'tanggal_order' => '2026-08-01',
+                'target_selesai' => '2026-08-10',
+            ]);
+
+            $this->actingAs($admin)
+                ->post(route('admin.hpp.store'), $this->hppPayload($secondOrder, $outlineAgreement))
+                ->assertRedirect(route('admin.hpp.index'));
+
+            Carbon::setTestNow('2027-01-02 10:00:00');
+            $thirdOrder = $this->makeEligibleOrder($admin, [
+                'nomor_order' => 'ORD-HPP-DOC-2027-001',
+                'nama_pekerjaan' => 'HPP pertama 2027',
+                'unit_kerja' => 'Unit Produksi Raw Mill',
+                'seksi' => 'Maintenance',
+                'deskripsi' => 'Nomor dokumen reset tahun 2027.',
+                'prioritas' => Order::PRIORITY_MEDIUM,
+                'tanggal_order' => '2027-01-01',
+                'target_selesai' => '2027-01-10',
+            ]);
+
+            $this->actingAs($admin)
+                ->post(route('admin.hpp.store'), $this->hppPayload($thirdOrder, $outlineAgreement))
+                ->assertRedirect(route('admin.hpp.index'));
+        } finally {
+            Carbon::setTestNow();
+        }
+
+        $firstHpp = Hpp::query()->where('order_id', $firstOrder->id)->firstOrFail();
+        $secondHpp = Hpp::query()->where('order_id', $secondOrder->id)->firstOrFail();
+        $thirdHpp = Hpp::query()->where('order_id', $thirdOrder->id)->firstOrFail();
+
+        $this->assertSame('001/HPP/25.10/07-2026', $firstHpp->document_no);
+        $this->assertSame(1, $firstHpp->document_sequence);
+        $this->assertSame(2026, $firstHpp->document_year);
+
+        $this->assertSame('002/HPP/25.10/08-2026', $secondHpp->document_no);
+        $this->assertSame(2, $secondHpp->document_sequence);
+        $this->assertSame(2026, $secondHpp->document_year);
+
+        $this->assertSame('001/HPP/25.10/01-2027', $thirdHpp->document_no);
+        $this->assertSame(1, $thirdHpp->document_sequence);
+        $this->assertSame(2027, $thirdHpp->document_year);
+    }
+
+    public function test_backfill_document_numbers_assigns_submitted_hpps_only(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+
+        $outlineAgreement = $this->createApprovalStructureAndOutlineAgreement($admin);
+        $firstOrder = $this->makeEligibleOrder($admin, [
+            'nomor_order' => 'ORD-HPP-BACKFILL-001',
+            'nama_pekerjaan' => 'Backfill HPP pertama',
+            'unit_kerja' => 'Unit Produksi Raw Mill',
+            'seksi' => 'Maintenance',
+            'deskripsi' => 'Backfill pertama.',
+            'prioritas' => Order::PRIORITY_MEDIUM,
+            'tanggal_order' => '2026-07-01',
+            'target_selesai' => '2026-07-10',
+        ]);
+        $secondOrder = $this->makeEligibleOrder($admin, [
+            'nomor_order' => 'ORD-HPP-BACKFILL-002',
+            'nama_pekerjaan' => 'Backfill HPP kedua',
+            'unit_kerja' => 'Unit Produksi Raw Mill',
+            'seksi' => 'Maintenance',
+            'deskripsi' => 'Backfill kedua.',
+            'prioritas' => Order::PRIORITY_MEDIUM,
+            'tanggal_order' => '2026-08-01',
+            'target_selesai' => '2026-08-10',
+        ]);
+        $draftOrder = $this->makeEligibleOrder($admin, [
+            'nomor_order' => 'ORD-HPP-BACKFILL-DRAFT',
+            'nama_pekerjaan' => 'Backfill HPP draft',
+            'unit_kerja' => 'Unit Produksi Raw Mill',
+            'seksi' => 'Maintenance',
+            'deskripsi' => 'Draft tidak dibackfill.',
+            'prioritas' => Order::PRIORITY_MEDIUM,
+            'tanggal_order' => '2026-09-01',
+            'target_selesai' => '2026-09-10',
+        ]);
+
+        $firstHpp = $this->createHppSnapshot($firstOrder, $outlineAgreement, [
+            'status' => Hpp::STATUS_IN_REVIEW,
+            'submitted_at' => '2026-07-11 08:00:00',
+            'created_at' => '2026-07-10 08:00:00',
+        ]);
+        $secondHpp = $this->createHppSnapshot($secondOrder, $outlineAgreement, [
+            'status' => Hpp::STATUS_APPROVED,
+            'submitted_at' => '2026-08-11 08:00:00',
+            'created_at' => '2026-08-10 08:00:00',
+        ]);
+        $draftHpp = $this->createHppSnapshot($draftOrder, $outlineAgreement, [
+            'status' => Hpp::STATUS_DRAFT,
+            'created_at' => '2026-09-10 08:00:00',
+        ]);
+
+        $this->artisan('hpp:backfill-document-numbers', ['--dry-run' => true])
+            ->assertExitCode(0);
+
+        $this->assertNull($firstHpp->refresh()->document_no);
+        $this->assertNull($secondHpp->refresh()->document_no);
+        $this->assertNull($draftHpp->refresh()->document_no);
+
+        $this->artisan('hpp:backfill-document-numbers')
+            ->assertExitCode(0);
+
+        $this->assertSame('001/HPP/25.10/07-2026', $firstHpp->refresh()->document_no);
+        $this->assertSame('002/HPP/25.10/08-2026', $secondHpp->refresh()->document_no);
+        $this->assertNull($draftHpp->refresh()->document_no);
+    }
+
     /**
      * @param array<string, mixed> $attributes
      */
@@ -306,6 +487,49 @@ class CreateHppTest extends TestCase
         ]);
 
         return $order;
+    }
+
+    /**
+     * @param array<string, mixed> $overrides
+     * @return array<string, mixed>
+     */
+    private function hppPayload(Order $order, OutlineAgreement $outlineAgreement, array $overrides = []): array
+    {
+        return array_replace_recursive([
+            'action' => 'submit',
+            'order_id' => $order->id,
+            'outline_agreement_id' => $outlineAgreement->id,
+            'kategori_pekerjaan' => 'Fabrikasi',
+            'area_pekerjaan' => HppApprovalFlow::displayArea('Dalam'),
+            'jenis_label_visible' => [0 => 'Jasa'],
+            'nama_item' => [0 => ['Pekerjaan test']],
+            'jumlah_item' => [0 => ['1 lot']],
+            'qty' => [0 => [1]],
+            'satuan' => [0 => ['Lot']],
+            'harga_satuan' => [0 => [1000000]],
+            'keterangan' => [0 => ['Item test HPP']],
+        ], $overrides);
+    }
+
+    /**
+     * @param array<string, mixed> $attributes
+     */
+    private function createHppSnapshot(Order $order, OutlineAgreement $outlineAgreement, array $attributes = []): Hpp
+    {
+        return Hpp::query()->create(array_merge([
+            'order_id' => $order->id,
+            'outline_agreement_id' => $outlineAgreement->id,
+            'nomor_order' => $order->nomor_order,
+            'nama_pekerjaan' => $order->nama_pekerjaan,
+            'unit_kerja' => $order->unit_kerja,
+            'kategori_pekerjaan' => 'Fabrikasi',
+            'area_pekerjaan' => HppApprovalFlow::displayArea('Dalam'),
+            'nilai_hpp_bucket' => 'under',
+            'item_groups' => [],
+            'total_keseluruhan' => 1000000,
+            'status' => Hpp::STATUS_DRAFT,
+            'created_by' => $order->created_by,
+        ], $attributes));
     }
 
     private function createApprovalStructureAndOutlineAgreement(User $admin): OutlineAgreement

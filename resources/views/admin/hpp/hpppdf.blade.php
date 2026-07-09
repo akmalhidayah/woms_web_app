@@ -425,6 +425,7 @@
         ];
     };
 
+    $documentNo = $hpp->document_no ?: '-';
     $nomorOrder = $hpp->nomor_order ?: '-';
     $deskripsi = $order?->nama_pekerjaan ?: ($hpp->nama_pekerjaan ?: ($order?->deskripsi ?: '-'));
     $costCentre = $hpp->cost_centre ?: '-';
@@ -717,6 +718,11 @@
         <tr>
             <td style="width: 60%; vertical-align: top; padding: 6px;">
                 <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="width: 38%; font-weight: bold; padding: 2px 0;">DOCUMENT NO</td>
+                        <td style="width: 2%; text-align: center; padding: 2px 0;">:</td>
+                        <td style="width: 60%; padding: 2px 0;">{{ $documentNo }}</td>
+                    </tr>
                     <tr>
                         <td style="width: 38%; font-weight: bold; padding: 2px 0;">ORDER NO</td>
                         <td style="width: 2%; text-align: center; padding: 2px 0;">:</td>

@@ -284,6 +284,16 @@
                                             </div>
 
                                             <div id="signaturePadShell" class="relative mt-4 overflow-hidden rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-3 transition">
+                                                <div class="absolute right-3 top-3 z-20 flex flex-wrap justify-end gap-2">
+                                                    @if ($canSign && !empty($recentSignatureDataUrl ?? null))
+                                                        <button type="button" id="useRecentSignature" data-signature-src="{{ $recentSignatureDataUrl }}" class="rounded-full border border-blue-200 bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50">
+                                                            Pakai TTD Terakhir
+                                                        </button>
+                                                    @endif
+                                                    <button type="button" id="clearSignature" class="rounded-full border border-slate-300 bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+                                                        Clear
+                                                    </button>
+                                                </div>
                                                 <canvas id="signatureCanvas" width="620" height="260" class="relative z-10 h-60 w-full rounded-xl bg-transparent sm:h-72"></canvas>
                                                 <div id="signaturePadPlaceholder" class="pointer-events-none absolute inset-3 z-0 flex items-center justify-center rounded-xl text-center">
                                                     <div class="px-4 text-slate-400">
@@ -308,11 +318,7 @@
                                                 >{{ old('approval_note', $signature->approval_note) }}</textarea>
                                             </div>
 
-                                            <div class="flex flex-col gap-2 pt-4 sm:flex-row sm:justify-between">
-                                                <button type="button" id="clearSignature" class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
-                                                    Hapus
-                                                </button>
-
+                                            <div class="flex flex-col gap-2 pt-4 sm:flex-row sm:justify-end">
                                                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
                                                     <button type="submit" data-action="reject" class="rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700">
                                                         Reject
@@ -410,6 +416,7 @@
                 const signatureFile = document.getElementById('signatureFile');
                 const approvalAction = document.getElementById('approvalAction');
                 const clearButton = document.getElementById('clearSignature');
+                const useRecentButton = document.getElementById('useRecentSignature');
                 const approvalNote = document.getElementById('approvalNote');
                 const loadingOverlay = document.getElementById('submissionLoadingOverlay');
                 const loadingTitle = document.getElementById('submissionLoadingTitle');
@@ -451,6 +458,48 @@
                             image.onload = () => context.drawImage(image, 0, 0, rect.width, rect.height);
                             image.src = imageData;
                         }
+                    };
+
+                    const clearCanvas = () => {
+                        context.clearRect(0, 0, canvas.width, canvas.height);
+                        setupCanvasStyle();
+                    };
+
+                    const drawImageToCanvas = (image) => {
+                        const rect = canvas.getBoundingClientRect();
+                        const maxWidth = rect.width * 0.8;
+                        const maxHeight = rect.height * 0.75;
+                        const scale = Math.min(maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
+                        const width = image.naturalWidth * scale;
+                        const height = image.naturalHeight * scale;
+                        const x = (rect.width - width) / 2;
+                        const y = (rect.height - height) / 2;
+
+                        clearCanvas();
+                        context.drawImage(image, x, y, width, height);
+                    };
+
+                    const loadRecentSignature = () => {
+                        const src = useRecentButton?.dataset.signatureSrc;
+
+                        if (!src) {
+                            return;
+                        }
+
+                        const image = new Image();
+                        image.onload = () => {
+                            drawImageToCanvas(image);
+                            hasStroke = true;
+                            lastPoint = null;
+                            strokePointCount = minimumStrokePoints;
+                            strokeDistance = minimumStrokeDistance;
+                            signatureFile.value = '';
+                            signatureVisuals?.completed();
+                        };
+                        image.onerror = () => {
+                            alert('TTD terakhir tidak dapat dimuat. Silakan tanda tangan ulang.');
+                        };
+                        image.src = src;
                     };
 
                     const getPoint = (event) => {
@@ -507,8 +556,7 @@
                     canvas.addEventListener('touchend', stopDrawing);
 
                     clearButton?.addEventListener('click', () => {
-                        context.clearRect(0, 0, canvas.width, canvas.height);
-                        setupCanvasStyle();
+                        clearCanvas();
                         hasStroke = false;
                         lastPoint = null;
                         strokePointCount = 0;
@@ -516,6 +564,8 @@
                         signatureFile.value = '';
                         signatureVisuals?.idle();
                     });
+
+                    useRecentButton?.addEventListener('click', loadRecentSignature);
 
                     const hasEnoughSignatureStroke = () => {
                         return hasStroke

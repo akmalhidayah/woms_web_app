@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Hpp;
 use App\Models\HppSignature;
 use App\Support\HppApprovalSignatureBuilder;
+use App\Support\RecentApprovalSignatureResolver;
 use App\Support\SignatureImageStorage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -40,6 +41,7 @@ class HppSignatureController extends Controller
                 'progressPercent' => 0,
                 'signedCount' => 0,
                 'totalSteps' => 0,
+                'recentSignatureDataUrl' => null,
             ]);
         }
 
@@ -69,6 +71,7 @@ class HppSignatureController extends Controller
             'progressPercent' => $signature->hpp->approvalProgressPercent(),
             'signedCount' => $signature->hpp->approvalSignedCount(),
             'totalSteps' => $signature->hpp->approvalStepCount(),
+            'recentSignatureDataUrl' => app(RecentApprovalSignatureResolver::class)->latestDataUrlForUser($request->user()),
         ]);
     }
 

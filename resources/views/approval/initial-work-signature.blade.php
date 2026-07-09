@@ -249,6 +249,16 @@
                                             </div>
 
                                             <div id="signaturePadShell" class="relative mt-2 overflow-hidden rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-3 transition">
+                                                <div class="absolute right-3 top-3 z-20 flex flex-wrap justify-end gap-2">
+                                                    @if ($canSign && !empty($recentSignatureDataUrl ?? null))
+                                                        <button type="button" id="useRecentSignature" data-signature-src="{{ $recentSignatureDataUrl }}" class="rounded-full border border-blue-200 bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50">
+                                                            Pakai TTD Terakhir
+                                                        </button>
+                                                    @endif
+                                                    <button type="button" id="clearSignature" class="rounded-full border border-stone-300 bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:bg-stone-50">
+                                                        Clear
+                                                    </button>
+                                                </div>
                                                 <canvas
                                                     id="signatureCanvas"
                                                     width="620"
@@ -266,15 +276,7 @@
                                             <p id="signaturePadReadyState" class="mt-2 hidden text-xs font-semibold text-emerald-700">Tanda tangan siap disimpan</p>
                                             <p id="signaturePadErrorState" class="mt-2 hidden text-xs font-semibold text-rose-700">Silakan tanda tangan terlebih dahulu.</p>
 
-                                            <div class="flex flex-col gap-2 pt-1 sm:flex-row sm:justify-between">
-                                                <button
-                                                    type="button"
-                                                    id="clearSignature"
-                                                    class="rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-stone-50"
-                                                >
-                                                    Hapus
-                                                </button>
-
+                                            <div class="flex flex-col gap-2 pt-1 sm:flex-row sm:justify-end">
                                                 <button
                                                     type="submit"
                                                     class="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
@@ -295,7 +297,7 @@
                             <ul class="mt-3 space-y-2 text-sm leading-6 text-slate-600">
                                 <li>Pastikan dokumen yang dipreview sudah sesuai sebelum tanda tangan.</li>
                                 <li>Tanda tangan yang disimpan akan langsung tercatat pada approval ini.</li>
-                                <li>Gunakan tombol <span class="font-semibold text-slate-800">Hapus</span> jika ingin mengulang tanda tangan.</li>
+                                <li>Gunakan tombol <span class="font-semibold text-slate-800">Clear</span> jika ingin mengulang tanda tangan.</li>
                             </ul>
                         </div>
                     </div>
@@ -378,6 +380,7 @@
                 const form = document.getElementById('signatureForm');
                 const signatureFile = document.getElementById('signatureFile');
                 const clearButton = document.getElementById('clearSignature');
+                const useRecentButton = document.getElementById('useRecentSignature');
                 const signatureVisuals = window.createSignaturePadVisuals?.();
                 signatureVisuals?.idle();
 
@@ -420,6 +423,48 @@
                             };
                             image.src = imageData;
                         }
+                    };
+
+                    const clearCanvas = () => {
+                        context.clearRect(0, 0, canvas.width, canvas.height);
+                        setupCanvasStyle();
+                    };
+
+                    const drawImageToCanvas = (image) => {
+                        const rect = canvas.getBoundingClientRect();
+                        const maxWidth = rect.width * 0.8;
+                        const maxHeight = rect.height * 0.75;
+                        const scale = Math.min(maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
+                        const width = image.naturalWidth * scale;
+                        const height = image.naturalHeight * scale;
+                        const x = (rect.width - width) / 2;
+                        const y = (rect.height - height) / 2;
+
+                        clearCanvas();
+                        context.drawImage(image, x, y, width, height);
+                    };
+
+                    const loadRecentSignature = () => {
+                        const src = useRecentButton?.dataset.signatureSrc;
+
+                        if (!src) {
+                            return;
+                        }
+
+                        const image = new Image();
+                        image.onload = () => {
+                            drawImageToCanvas(image);
+                            hasStroke = true;
+                            lastPoint = null;
+                            strokePointCount = minimumStrokePoints;
+                            strokeDistance = minimumStrokeDistance;
+                            signatureFile.value = '';
+                            signatureVisuals?.completed();
+                        };
+                        image.onerror = () => {
+                            alert('TTD terakhir tidak dapat dimuat. Silakan tanda tangan ulang.');
+                        };
+                        image.src = src;
                     };
 
                     const getPoint = (event) => {
@@ -478,8 +523,7 @@
                     canvas.addEventListener('touchend', stopDrawing);
 
                     clearButton?.addEventListener('click', () => {
-                        context.clearRect(0, 0, canvas.width, canvas.height);
-                        setupCanvasStyle();
+                        clearCanvas();
                         hasStroke = false;
                         lastPoint = null;
                         strokePointCount = 0;
@@ -487,6 +531,8 @@
                         signatureFile.value = '';
                         signatureVisuals?.idle();
                     });
+
+                    useRecentButton?.addEventListener('click', loadRecentSignature);
 
                     const hasEnoughSignatureStroke = () => {
                         return hasStroke

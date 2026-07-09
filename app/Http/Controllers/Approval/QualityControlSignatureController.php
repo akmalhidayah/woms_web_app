@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\QualityControlReport;
 use App\Models\QualityControlSignature;
 use App\Services\QualityControl\QualityControlSignatureService;
+use App\Support\RecentApprovalSignatureResolver;
 use App\Support\SignatureImageStorage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,6 +38,7 @@ class QualityControlSignatureController extends Controller
             'token' => $token,
             'isExpired' => $signature->isPending() && $signature->tokenExpired(),
             'qualityControlPdfUrl' => route('approval.quality-control.pdf', $token),
+            'recentSignatureDataUrl' => app(RecentApprovalSignatureResolver::class)->latestDataUrlForUser($request->user()),
         ]);
     }
 

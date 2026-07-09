@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\LhppBast;
 use App\Models\LhppBastSignature;
 use App\Support\BastApprovalSignatureBuilder;
+use App\Support\RecentApprovalSignatureResolver;
 use App\Support\SignatureImageStorage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,6 +37,7 @@ class BastSignatureController extends Controller
                 'progressPercent' => 0,
                 'signedCount' => 0,
                 'totalSteps' => 0,
+                'recentSignatureDataUrl' => null,
             ]);
         }
 
@@ -59,6 +61,7 @@ class BastSignatureController extends Controller
             'progressPercent' => $signature->lhppBast->approvalProgressPercent(),
             'signedCount' => $signature->lhppBast->approvalSignedCount(),
             'totalSteps' => $signature->lhppBast->approvalStepCount(),
+            'recentSignatureDataUrl' => app(RecentApprovalSignatureResolver::class)->latestDataUrlForUser($request->user()),
         ]);
     }
 

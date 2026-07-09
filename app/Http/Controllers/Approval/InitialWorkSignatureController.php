@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Models\InitialWorkSignature;
 use App\Services\InitialWorks\InitialWorkSignatureService;
+use App\Support\RecentApprovalSignatureResolver;
 use App\Support\SignatureImageStorage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -45,6 +46,7 @@ class InitialWorkSignatureController extends Controller
             'abnormalitasUrl' => $hasAbnormalitas ? route('approval.initial-work.abnormalitas', $token) : null,
             'gambarTeknikUrl' => $hasGambarTeknik ? route('approval.initial-work.gambar-teknik', $token) : null,
             'initialWorkPdfUrl' => route('approval.initial-work.pdf', $token),
+            'recentSignatureDataUrl' => app(RecentApprovalSignatureResolver::class)->latestDataUrlForUser($request->user()),
         ]);
     }
 

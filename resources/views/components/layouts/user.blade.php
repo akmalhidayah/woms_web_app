@@ -292,12 +292,12 @@
                                     @endif
                                 </button>
 
-                                <div
-                                    x-show="approvalInboxOpen"
-                                    x-transition.origin.top.right
-                                    x-cloak
-                                    class="absolute right-0 z-50 mt-2 w-[min(86vw,22rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-xl"
-                                >
+                             <div
+    x-show="approvalInboxOpen"
+    x-transition.origin.top
+    x-cloak
+    class="fixed left-3 right-3 top-[4.75rem] z-[60] max-h-[calc(100dvh-6rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-xl"
+>
                                     <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
                                         <div>
                                             <div class="text-sm font-bold text-slate-900">Approval Inbox</div>
@@ -353,12 +353,12 @@
                                 @endif
                             </button>
 
-                            <div
-                                x-show="notificationsOpen"
-                                x-transition.origin.top.right
-                                x-cloak
-                                class="absolute right-0 z-50 mt-2 w-[min(86vw,22rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-xl"
-                            >
+                          <div
+    x-show="notificationsOpen"
+    x-transition.origin.top
+    x-cloak
+    class="fixed left-3 right-3 top-[4.75rem] z-[60] max-h-[calc(100dvh-6rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-xl"
+>
                                 <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
                                     <div>
                                         <div class="text-sm font-bold text-slate-900">Pemberitahuan</div>

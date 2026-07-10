@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Admin\Hpp;
 
-use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\FabricationConstructionContract;
 use App\Models\Hpp;
@@ -253,7 +252,6 @@ class CreateHppForm extends Component
                 OrderUserNoteStatus::ApprovedJasa->value,
                 OrderUserNoteStatus::ApprovedWorkshopJasa->value,
             ])
-            ->whereHas('documents', fn (Builder $documentQuery) => $documentQuery->where('jenis_dokumen', OrderDocumentType::Abnormalitas->value))
             ->whereHas('scopeOfWork');
     }
 }

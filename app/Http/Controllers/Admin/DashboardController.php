@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Hpp;
@@ -80,7 +79,6 @@ class DashboardController extends Controller
                 OrderUserNoteStatus::ApprovedJasa->value,
                 OrderUserNoteStatus::ApprovedWorkshopJasa->value,
             ])
-            ->whereHas('documents', fn (Builder $query) => $query->where('jenis_dokumen', OrderDocumentType::Abnormalitas->value))
             ->whereHas('scopeOfWork')
             ->doesntHave('hpps')
             ->count();

@@ -1,0 +1,76 @@
+name: woms-local
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: woms_app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - woms_net
+
+  web:
+    image: nginx:1.27-alpine
+    container_name: woms_web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - ./:/var/www/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - woms_net
+
+  db:
+    image: mysql:8.0
+    container_name: woms_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-woms_local}
+      MYSQL_USER: ${DB_USERNAME:-woms_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-woms_password}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_password}
+    ports:
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - woms_db_data:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - woms_net
+
+  node:
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
+      - ./:/app
+    entrypoint: ["npm"]
+    profiles:
+      - tools
+
+networks:
+  woms_net:
+    driver: bridge
+
+volumes:
+  woms_db_data:

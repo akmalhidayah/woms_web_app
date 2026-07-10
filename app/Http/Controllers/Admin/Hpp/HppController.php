@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Admin\Hpp;
 
-use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Controllers\Controller;
@@ -62,7 +61,6 @@ class HppController extends Controller
                 OrderUserNoteStatus::ApprovedJasa->value,
                 OrderUserNoteStatus::ApprovedWorkshopJasa->value,
             ])
-            ->whereHas('documents', fn (Builder $documentQuery) => $documentQuery->where('jenis_dokumen', OrderDocumentType::Abnormalitas->value))
             ->whereHas('scopeOfWork')
             ->doesntHave('hpps')
             ->orderByDesc('tanggal_order')

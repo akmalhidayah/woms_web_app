@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Admin\Hpp;
 
-use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\Hpp;
 use App\Models\Order;
@@ -65,7 +64,7 @@ class StoreHppRequest extends FormRequest
                     }
 
                     $order = Order::query()
-                        ->with(['documents:id,order_id,jenis_dokumen', 'scopeOfWork:id,order_id'])
+                        ->with('scopeOfWork:id,order_id')
                         ->find($value);
 
                     if (! $order) {
@@ -79,15 +78,6 @@ class StoreHppRequest extends FormRequest
                         $fail('Order untuk HPP hanya bisa dipilih dari status Approved (Jasa) atau Approved (Workshop + Jasa).');
 
                         return;
-                    }
-
-                    $documentTypes = $order->documents
-                        ->pluck('jenis_dokumen')
-                        ->map(fn ($type) => $type instanceof OrderDocumentType ? $type->value : (string) $type)
-                        ->all();
-
-                    if (! in_array(OrderDocumentType::Abnormalitas->value, $documentTypes, true)) {
-                        $fail('Order belum memiliki dokumen Abnormalitas.');
                     }
 
                     if (! $order->scopeOfWork) {

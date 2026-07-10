@@ -2,7 +2,6 @@
 
 namespace App\Support;
 
-use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\BudgetVerification;
 use App\Models\Hpp;
@@ -45,12 +44,7 @@ class AdminSidebarBadgeCounter
                 OrderUserNoteStatus::ApprovedJasa->value,
                 OrderUserNoteStatus::ApprovedWorkshopJasa->value,
             ])
-            ->where(function (Builder $query): void {
-                $query
-                    ->whereDoesntHave('documents', fn (Builder $documentQuery): Builder => $documentQuery
-                        ->where('jenis_dokumen', OrderDocumentType::Abnormalitas->value))
-                    ->orWhereDoesntHave('scopeOfWork');
-            })
+            ->whereDoesntHave('scopeOfWork')
             ->count();
     }
 
@@ -61,7 +55,6 @@ class AdminSidebarBadgeCounter
                 OrderUserNoteStatus::ApprovedJasa->value,
                 OrderUserNoteStatus::ApprovedWorkshopJasa->value,
             ])
-            ->whereHas('documents', fn (Builder $query): Builder => $query->where('jenis_dokumen', OrderDocumentType::Abnormalitas->value))
             ->whereHas('scopeOfWork')
             ->doesntHave('hpps')
             ->count();

@@ -264,7 +264,7 @@ $initialWorkFlowSummary = match (true) {
                                         $routesToHpp = in_array($currentNoteStatus, ['approved_jasa', 'approved_workshop_jasa'], true);
                                         $routesToWorkshop = in_array($currentNoteStatus, ['approved_workshop', 'approved_workshop_jasa'], true);
                                         $needsInitialWork = $priorityGroup === 'emergency' && $order->initialWork === null;
-                                        $hppMissingCount = collect([$routesToHpp, $hasAbnormal, $hasGambar, $hasScope])
+                                        $hppMissingCount = collect([$routesToHpp, $hasScope])
                                             ->filter(fn ($ready) => ! $ready)
                                             ->count();
                                         $routeLabel = match (true) {
@@ -295,16 +295,12 @@ $initialWorkFlowSummary = match (true) {
                                             : 'border-slate-200 bg-slate-50 text-slate-500';
                                         $flowChecklist = [
                                             ['label' => 'Arah ke HPP/Jasa', 'ready' => $routesToHpp],
-                                            ['label' => 'Abnormalitas', 'ready' => $hasAbnormal],
-                                            ['label' => 'Gambar Teknik', 'ready' => $hasGambar],
                                             ['label' => 'Scope of Work', 'ready' => $hasScope],
                                             ['label' => 'Initial Work Emergency', 'ready' => $priorityGroup !== 'emergency' || $order->initialWork !== null],
                                         ];
                                         $flowNextStep = match (true) {
                                             $needsInitialWork => 'Buat Initial Work untuk jalur emergency.',
                                             ! $routesToHpp && ! $routesToWorkshop && $currentNoteStatus !== 'reject' => 'Tentukan status catatan order.',
-                                            $routesToHpp && ! $hasAbnormal => 'Upload dokumen Abnormalitas.',
-                                            $routesToHpp && ! $hasGambar => 'Upload Gambar Teknik.',
                                             $routesToHpp && ! $hasScope => 'Buat Scope of Work.',
                                             $routesToHpp && $hppMissingCount === 0 => 'Siap masuk Create HPP.',
                                             $routesToWorkshop => 'Pantau detail di Order Pekerjaan Bengkel.',

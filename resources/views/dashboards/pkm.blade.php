@@ -12,6 +12,9 @@
     @if (session('status'))
         <div id="pkm-jobwaiting-status-alert" data-message="{{ session('status') }}" class="hidden"></div>
     @endif
+    @if (session('error') || $errors->any())
+        <div id="pkm-jobwaiting-error-alert" data-message="{{ session('error') ?: $errors->first() }}" class="hidden"></div>
+    @endif
 
     @if ($isDashboardPage)
         @include('pkm.dashboard')

@@ -283,6 +283,28 @@ class JobWaitingController extends Controller
                     $order->nomor_order,
                 ));
         } catch (Throwable $exception) {
+            if ($exception instanceof ValidationException) {
+                $message = collect($exception->errors())->flatten()->first()
+                    ?: 'Data pekerjaan tidak dapat diperbarui.';
+
+                Log::warning('PKM job waiting update rejected by validation.', [
+                    'status_code' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                    'user_id' => $request->user()?->id,
+                    'order_id' => $order->id,
+                    'nomor_order' => $order->nomor_order,
+                    'error' => $message,
+                ]);
+
+                return redirect()
+                    ->route('pkm.jobwaiting', [
+                        'priority' => $request->input('_filter_priority'),
+                        'search' => $request->input('_filter_search'),
+                        'page' => $request->input('_filter_page'),
+                    ])
+                    ->withErrors($exception->errors())
+                    ->with('error', $message);
+            }
+
             $statusCode = $this->resolveStatusCode($exception);
 
             Log::error('Failed to update PKM job waiting data.', [

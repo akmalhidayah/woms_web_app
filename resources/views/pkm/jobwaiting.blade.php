@@ -369,6 +369,7 @@
                 });
 
                 const statusAlert = document.getElementById('pkm-jobwaiting-status-alert');
+                const errorAlert = document.getElementById('pkm-jobwaiting-error-alert');
 
                 if (statusAlert?.dataset.message && window.Swal) {
                     window.Swal.fire({
@@ -378,6 +379,20 @@
                         timer: 1800,
                         showConfirmButton: false,
                     });
+                }
+
+                if (errorAlert?.dataset.message) {
+                    if (window.Swal) {
+                        window.Swal.fire({
+                            icon: 'warning',
+                            title: 'Progress tidak dapat diperbarui',
+                            text: errorAlert.dataset.message,
+                            confirmButtonText: 'Mengerti',
+                            confirmButtonColor: '#ca642f',
+                        });
+                    } else {
+                        window.alert(errorAlert.dataset.message);
+                    }
                 }
             });
         </script>

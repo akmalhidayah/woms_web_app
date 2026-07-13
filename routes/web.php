@@ -456,6 +456,9 @@ Route::middleware(['auth'])->group(function () {
     Route::put('pkm/vendor-structure/{vendorWorkType}', [PkmVendorStructureController::class, 'update'])
         ->middleware('role:pkm')
         ->name('pkm.vendor-structure.update');
+    Route::post('pkm/vendor-structure/managers', [PkmVendorStructureController::class, 'storeManager'])
+        ->middleware('role:pkm')
+        ->name('pkm.vendor-managers.store');
 
     Route::get('pkm/jobwaiting', [JobWaitingController::class, 'index'])
         ->middleware('role:pkm')

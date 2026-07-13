@@ -36,16 +36,22 @@
             ];
             $pkmMenus = [
                 ['route' => 'pkm.dashboard', 'icon' => 'layout-dashboard', 'label' => 'Dashboard'],
-                ['route' => 'pkm.user-panel.index', 'icon' => 'users', 'label' => 'User Panel'],
                 ['route' => 'pkm.jobwaiting', 'icon' => 'bell', 'label' => 'List Pekerjaan', 'badge_count' => $pkmBadgeCounts['jobwaiting'] ?? 0],
                 ['route' => 'pkm.lhpp.index', 'icon' => 'file-text', 'label' => 'Buat BAST/LHPP', 'badge_count' => $pkmBadgeCounts['lhpp'] ?? 0],
                 ['route' => 'pkm.laporan', 'icon' => 'folder-open', 'label' => 'Dokumen', 'badge_count' => $pkmBadgeCounts['documents'] ?? 0],
             ];
             $pkmVendorWorkType = \App\Models\VendorWorkType::query()
-                ->with(['vendorSections.manager:id,name'])
+                ->with(['vendorSections.manager:id,name,email,nomor_hp,inisial,role'])
                 ->where('name', \App\Models\VendorWorkType::FIXED_VENDOR_NAME)
                 ->first();
-            $pkmVendorUsers = \App\Models\User::query()->orderBy('name')->get(['id', 'name']);
+            $assignedManagerIds = collect($pkmVendorWorkType?->vendorSections ?? [])->pluck('manager_id')->filter();
+            $oldManagerIds = collect($errors->pkmVendorStructure->any() ? old('sections', []) : [])->pluck('manager_id')->filter();
+            $managerIds = $assignedManagerIds->merge($oldManagerIds)->unique()->values();
+            $pkmVendorManagers = \App\Models\User::query()
+                ->where('role', \App\Models\User::ROLE_APPROVER)
+                ->whereIn('id', $managerIds)
+                ->orderBy('name')
+                ->get(['id', 'name', 'email', 'nomor_hp', 'inisial']);
             $pkmVendorSections = collect($errors->pkmVendorStructure->any() ? old('sections', []) : ($pkmVendorWorkType?->vendorSections ?? []))
                 ->map(fn ($section, $index) => [
                     'uid' => $errors->pkmVendorStructure->any() ? 'old-'.$index : 'section-'.(is_array($section) ? $index : $section->id),
@@ -149,6 +155,13 @@
                             </a>
                         @endforeach
                     </nav>
+                </div>
+
+                <div class="border-t border-white/10 px-2 py-2">
+                    <a href="{{ route('pkm.user-panel.index') }}" class="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition {{ request()->routeIs('pkm.user-panel.*') ? 'bg-white text-[#c7612c] ring-1 ring-white/45' : 'text-white/95 hover:bg-white/12' }}">
+                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg transition {{ request()->routeIs('pkm.user-panel.*') ? 'bg-[#fde9db] text-[#c7612c]' : 'bg-white/12 text-white/90 group-hover:bg-white/16' }}"><i data-lucide="users" class="h-4 w-4"></i></span>
+                        <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 font-medium">User Panel</span>
+                    </a>
                 </div>
 
                 <div class="border-t border-white/12 p-2">
@@ -336,7 +349,7 @@
                 >
                     <div
                         class="mx-auto my-8 w-full max-w-3xl rounded-[1.35rem] border border-slate-200 bg-white p-5 shadow-2xl"
-                        x-data="pkmVendorStructureForm(@js($pkmVendorSections))"
+                        x-data="pkmVendorStructureForm(@js($pkmVendorSections), @js($pkmVendorManagers->values()), @js(route('pkm.vendor-managers.store')))"
                         @click.stop
                     >
                         <div class="mb-4 flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
@@ -384,12 +397,13 @@
                                                 <input type="text" :name="`sections[${index}][name]`" x-model="section.name" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:border-[#ca642f] focus:outline-none" required>
                                             </div>
                                             <div>
-                                                <label class="mb-1 block text-[10px] font-semibold text-slate-600">Manager Seksi</label>
+                                                <div class="mb-1 flex items-center justify-between gap-2">
+                                                    <label class="block text-[10px] font-semibold text-slate-600">Manager Seksi</label>
+                                                    <button type="button" @click="openManagerModal(index)" class="inline-flex items-center gap-1 text-[10px] font-semibold text-[#ca642f] hover:text-[#a94f24]"><i data-lucide="user-plus" class="h-3 w-3"></i>Tambah Manager</button>
+                                                </div>
                                                 <select :name="`sections[${index}][manager_id]`" x-model="section.manager_id" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:border-[#ca642f] focus:outline-none" required>
                                                     <option value="">Pilih Manager</option>
-                                                    @foreach ($pkmVendorUsers as $vendorUser)
-                                                        <option value="{{ $vendorUser->id }}">{{ $vendorUser->name }}</option>
-                                                    @endforeach
+                                                    <template x-for="manager in managerOptions" :key="manager.id"><option :value="String(manager.id)" x-text="manager.name"></option></template>
                                                 </select>
                                             </div>
                                             <button type="button" @click="removeSection(index)" class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-rose-50 text-rose-600 transition hover:bg-rose-100" title="Hapus Seksi">
@@ -410,17 +424,34 @@
                                 </button>
                             </div>
                         </form>
+
+                        <div x-show="managerModalOpen" x-cloak class="fixed inset-0 z-[60] overflow-y-auto bg-slate-950/55 p-4" @click.self="closeManagerModal()">
+                            <div class="mx-auto my-12 w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl" @click.stop>
+                                <div class="flex justify-between border-b border-slate-200 pb-4"><div><h3 class="text-lg font-bold text-slate-900">Tambah Manager Seksi</h3><p class="mt-1 text-xs text-slate-500">Buat akun manager baru untuk approval BAST/LHPP.</p></div><button type="button" @click="closeManagerModal()"><i data-lucide="x" class="h-4 w-4"></i></button></div>
+                                <form class="mt-4 space-y-3" @submit.prevent="storeManager()">
+                                    <template x-for="field in ['name', 'email', 'nomor_hp', 'inisial']" :key="field"><div><label class="mb-1 block text-[11px] font-semibold" x-text="({name:'Nama',email:'Email',nomor_hp:'Nomor HP',inisial:'Inisial'})[field]"></label><input :type="field === 'email' ? 'email' : 'text'" x-model="managerForm[field]" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" :class="managerErrors[field] ? 'border-rose-400 bg-rose-50' : ''"><p x-show="managerErrors[field]" class="mt-1 text-[10px] text-rose-600" x-text="managerErrors[field]?.[0]"></p></div></template>
+                                    <div class="rounded-xl border border-orange-100 bg-orange-50 p-3 text-xs text-orange-800">Akun otomatis dibuat sebagai Approval dengan password awal <span class="font-mono font-bold">bengkelmesin123</span>.</div>
+                                    <div class="flex justify-end gap-2 border-t pt-4"><button type="button" @click="closeManagerModal()" class="rounded-lg bg-slate-100 px-4 py-2 text-xs font-semibold">Batal</button><button type="submit" :disabled="managerSaving" class="rounded-lg bg-[#ca642f] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50" x-text="managerSaving ? 'Menyimpan...' : 'Simpan Manager'"></button></div>
+                                </form>
+                            </div>
+                        </div>
                     </div>
                 </div>
             @endif
         </div>
 
         <script>
-            function pkmVendorStructureForm(initialSections) {
+            function pkmVendorStructureForm(initialSections, initialManagers, managerStoreUrl) {
                 return {
                     sections: Array.isArray(initialSections) && initialSections.length
                         ? initialSections
                         : [{ uid: `${Date.now()}-${Math.random()}`, name: '', manager_id: '' }],
+                    managerOptions: Array.isArray(initialManagers) ? initialManagers : [],
+                    managerModalOpen: false,
+                    managerTargetIndex: null,
+                    managerSaving: false,
+                    managerErrors: {},
+                    managerForm: { name: '', email: '', nomor_hp: '', inisial: '' },
                     addSection() {
                         this.sections.push({
                             uid: `${Date.now()}-${Math.random()}`,
@@ -435,6 +466,28 @@
                         }
 
                         this.sections.splice(index, 1);
+                    },
+                    openManagerModal(index) { this.managerTargetIndex = index; this.managerForm = { name: '', email: '', nomor_hp: '', inisial: '' }; this.managerErrors = {}; this.managerModalOpen = true; },
+                    closeManagerModal() { if (this.managerSaving) return; this.managerModalOpen = false; this.managerTargetIndex = null; this.managerErrors = {}; },
+                    async storeManager() {
+                        this.managerErrors = {};
+                        if (!this.managerForm.name.trim()) this.managerErrors.name = ['Nama wajib diisi.'];
+                        if (!this.managerForm.email.trim()) this.managerErrors.email = ['Email wajib diisi.'];
+                        if (Object.keys(this.managerErrors).length) return;
+                        this.managerSaving = true;
+                        try {
+                            const response = await fetch(managerStoreUrl, { method: 'POST', credentials: 'same-origin', headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '' }, body: JSON.stringify(this.managerForm) });
+                            const data = await response.json().catch(() => ({}));
+                            if (response.status === 422) { this.managerErrors = data.errors ?? {}; return; }
+                            if (!response.ok) throw new Error(response.status === 403 ? 'Anda tidak memiliki akses untuk menambah manager.' : (response.status === 419 ? 'Sesi Anda telah berakhir. Silakan muat ulang halaman.' : 'Manager belum berhasil dibuat. Silakan coba kembali.'));
+                            const manager = data.manager;
+                            if (!this.managerOptions.some(item => String(item.id) === String(manager.id))) this.managerOptions.push(manager);
+                            this.managerOptions.sort((a, b) => a.name.localeCompare(b.name));
+                            if (this.sections[this.managerTargetIndex]) this.sections[this.managerTargetIndex].manager_id = String(manager.id);
+                            this.managerModalOpen = false; this.managerTargetIndex = null; this.managerForm = { name: '', email: '', nomor_hp: '', inisial: '' };
+                            window.Swal?.fire({ icon: 'success', title: 'Manager berhasil dibuat dan dipilih.', text: 'Klik Simpan Seksi untuk menerapkan perubahan.', timer: 2200, showConfirmButton: false });
+                        } catch (error) { const message = error?.message || 'Manager belum berhasil dibuat. Silakan coba kembali.'; if (window.Swal) window.Swal.fire({ icon: 'error', title: 'Gagal', text: message }); else window.alert(message); }
+                        finally { this.managerSaving = false; }
                     },
                 };
             }

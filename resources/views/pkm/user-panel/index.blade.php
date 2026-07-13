@@ -4,7 +4,6 @@
             create: @js($initialCreateModal),
             edit: @js($initialEditModal),
             storeRoute: @js(route('pkm.user-panel.store')),
-            activeRole: @js($role),
         })"
         class="space-y-4"
     >
@@ -23,35 +22,28 @@
                     </span>
                     <div>
                         <h1 class="text-lg font-black text-slate-900">User Panel</h1>
-                        <p class="text-xs text-slate-500">Kelola akun PKM dan Approval.</p>
+                        <p class="text-xs text-slate-500">Kelola akun PKM.</p>
                     </div>
                 </div>
                 <button type="button" @click="openCreate()" class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#ca642f] px-4 py-2.5 text-xs font-bold text-white transition hover:bg-[#b85b2b]">
                     <i data-lucide="user-plus" class="h-4 w-4"></i>
-                    Tambah User
+                    Tambah User PKM
                 </button>
             </div>
         </section>
 
-        <section class="grid gap-3 sm:grid-cols-2">
-            @foreach ($roleLabels as $roleKey => $label)
-                <a href="{{ route('pkm.user-panel.index', ['role' => $roleKey]) }}" class="rounded-2xl border p-4 shadow-sm transition {{ $role === $roleKey ? 'border-orange-300 bg-orange-50 ring-1 ring-orange-200' : 'border-slate-200 bg-white hover:border-orange-200' }}">
-                    <div class="text-xs font-bold uppercase tracking-wider text-slate-500">{{ $label }}</div>
-                    <div class="mt-1 text-2xl font-black text-slate-900">{{ $summaryCounts[$roleKey] ?? 0 }}</div>
-                </a>
-            @endforeach
+        <section class="grid gap-3 sm:max-w-sm">
+            <div class="rounded-2xl border border-orange-300 bg-orange-50 p-4 shadow-sm ring-1 ring-orange-200">
+                <div class="text-xs font-bold uppercase tracking-wider text-slate-500">PKM</div>
+                <div class="mt-1 text-2xl font-black text-slate-900">{{ $summaryCount }}</div>
+            </div>
         </section>
 
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 p-4">
                 <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div class="flex gap-2">
-                        @foreach ($roleLabels as $roleKey => $label)
-                            <a href="{{ route('pkm.user-panel.index', ['role' => $roleKey, 'search' => $search ?: null]) }}" class="rounded-lg px-3 py-2 text-xs font-bold {{ $role === $roleKey ? 'bg-[#ca642f] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">{{ $label }}</a>
-                        @endforeach
-                    </div>
+                    <div class="rounded-lg bg-[#ca642f] px-3 py-2 text-xs font-bold text-white">PKM</div>
                     <form id="pkm-user-search-form" method="GET" action="{{ route('pkm.user-panel.index') }}" class="flex w-full gap-2 lg:max-w-md">
-                        <input type="hidden" name="role" value="{{ $role }}">
                         <div class="relative flex-1">
                             <i data-lucide="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
                             <input id="pkmSearchUsers" type="search" name="search" value="{{ $search }}" placeholder="Nama, email, nomor HP, inisial..." class="w-full rounded-xl border border-slate-300 py-2.5 pl-9 pr-3 text-xs focus:border-orange-400 focus:outline-none">
@@ -68,7 +60,6 @@
                             <th class="px-4 py-3">Inisial</th>
                             <th class="px-4 py-3">Nomor HP</th>
                             <th class="px-4 py-3">Email</th>
-                            <th class="px-4 py-3">User Type</th>
                             <th class="px-4 py-3">Dibuat</th>
                             <th class="px-4 py-3 text-right">Aksi</th>
                         </tr>
@@ -82,7 +73,6 @@
                                     'email' => $listedUser->email,
                                     'nomor_hp' => $listedUser->nomor_hp,
                                     'inisial' => $listedUser->inisial,
-                                    'role' => $listedUser->role,
                                 ]));
                                 $isCurrentUser = auth()->id() === $listedUser->id;
                             @endphp
@@ -91,7 +81,6 @@
                                 <td class="px-4 py-3 text-slate-600">{{ $listedUser->inisial ?: '-' }}</td>
                                 <td class="px-4 py-3 text-slate-600">{{ $listedUser->nomor_hp ?: '-' }}</td>
                                 <td class="px-4 py-3 text-slate-600">{{ $listedUser->email }}</td>
-                                <td class="px-4 py-3"><span class="rounded-full bg-orange-50 px-2.5 py-1 text-[10px] font-bold text-[#b85b2b] ring-1 ring-orange-100">{{ $roleLabels[$listedUser->role] ?? '-' }}</span></td>
                                 <td class="px-4 py-3 text-slate-500">{{ $listedUser->created_at?->format('d M Y') ?: '-' }}</td>
                                 <td class="px-4 py-3">
                                     <div class="flex justify-end gap-2">
@@ -101,7 +90,6 @@
                                         <form method="POST" action="{{ route('pkm.user-panel.destroy', $listedUser) }}" class="pkm-delete-user-form">
                                             @csrf
                                             @method('DELETE')
-                                            <input type="hidden" name="_return_role" value="{{ $role }}">
                                             <input type="hidden" name="_return_search" value="{{ $search }}">
                                             <input type="hidden" name="_return_page" value="{{ $users->currentPage() }}">
                                             <button type="submit" data-name="{{ $listedUser->name }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40" title="Hapus User" @disabled($isCurrentUser)>
@@ -112,7 +100,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="7" class="px-4 py-12 text-center text-sm text-slate-500">Belum ada user pada kategori ini.</td></tr>
+                            <tr><td colspan="6" class="px-4 py-12 text-center text-sm text-slate-500">Belum ada akun PKM.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -152,7 +140,7 @@
                 <form method="POST" :action="editAction" class="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl" @click.stop>
                     @csrf
                     @method('PUT')
-                    <input type="hidden" name="_return_role" value="{{ $role }}"><input type="hidden" name="_return_search" value="{{ $search }}"><input type="hidden" name="_return_page" value="{{ $users->currentPage() }}">
+                    <input type="hidden" name="_return_search" value="{{ $search }}"><input type="hidden" name="_return_page" value="{{ $users->currentPage() }}">
                     <div class="flex items-center justify-between border-b border-slate-200 pb-4"><h2 class="text-xl font-black text-slate-900">Edit Pengguna</h2><button type="button" @click="closeEdit()" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><i data-lucide="x" class="h-5 w-5"></i></button></div>
                     @if ($errors->any() && session('pkm_user_panel_modal') === 'edit')
                         <div class="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700"><ul class="list-disc pl-4">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
@@ -168,11 +156,11 @@
         function pkmUserPanelPage(config) {
             return {
                 showCreateModal: Boolean(config.create?.open), showEditModal: Boolean(config.edit?.open), storeRoute: config.storeRoute, editAction: config.edit?.action || '',
-                createForm: { name: config.create?.form?.name || '', email: config.create?.form?.email || '', nomor_hp: config.create?.form?.nomor_hp || '', inisial: config.create?.form?.inisial || '', role: config.create?.form?.role || 'pkm' },
-                editForm: { name: config.edit?.form?.name || '', email: config.edit?.form?.email || '', nomor_hp: config.edit?.form?.nomor_hp || '', inisial: config.edit?.form?.inisial || '', role: config.edit?.form?.role || 'pkm' },
-                openCreate() { this.createForm = { name: '', email: '', nomor_hp: '', inisial: '', role: config.activeRole || 'pkm' }; this.showCreateModal = true; },
+                createForm: { name: config.create?.form?.name || '', email: config.create?.form?.email || '', nomor_hp: config.create?.form?.nomor_hp || '', inisial: config.create?.form?.inisial || '' },
+                editForm: { name: config.edit?.form?.name || '', email: config.edit?.form?.email || '', nomor_hp: config.edit?.form?.nomor_hp || '', inisial: config.edit?.form?.inisial || '' },
+                openCreate() { this.createForm = { name: '', email: '', nomor_hp: '', inisial: '' }; this.showCreateModal = true; },
                 closeCreate() { this.showCreateModal = false; },
-                openEdit(payload) { const data = JSON.parse(atob(payload)); this.editAction = data.action; this.editForm = { name: data.name || '', email: data.email || '', nomor_hp: data.nomor_hp || '', inisial: data.inisial || '', role: data.role || 'pkm' }; this.showEditModal = true; },
+                openEdit(payload) { const data = JSON.parse(atob(payload)); this.editAction = data.action; this.editForm = { name: data.name || '', email: data.email || '', nomor_hp: data.nomor_hp || '', inisial: data.inisial || '' }; this.showEditModal = true; },
                 closeEdit() { this.showEditModal = false; },
             };
         }

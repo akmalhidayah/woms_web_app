@@ -87,6 +87,38 @@ class BastFormRegressionTest extends TestCase
         $this->assertSame('Jasa Bubut', $rows[0]['name']);
     }
 
+    public function test_calculation_endpoint_preserves_incomplete_manual_dropdown_state(): void
+    {
+        $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+
+        $response = $this->actingAs($pkm)->postJson(route('pkm.lhpp.calculate'), [
+            'material_rows' => [[
+                'contract_item_id' => null,
+                'jenis_item' => 'MATERIAL',
+                'kategori_item' => 'Material Utama',
+                'name' => '',
+                'volume' => '',
+                'unit' => '',
+                'unit_price' => '',
+            ]],
+            'service_rows' => [[
+                'contract_item_id' => null,
+                'jenis_item' => 'JASA',
+                'kategori_item' => 'Jasa Fabrikasi',
+                'name' => '',
+                'volume' => '',
+                'unit' => '',
+                'unit_price' => '',
+            ]],
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('material_rows.0.jenis_item', 'MATERIAL')
+            ->assertJsonPath('material_rows.0.kategori_item', 'Material Utama')
+            ->assertJsonPath('service_rows.0.jenis_item', 'JASA')
+            ->assertJsonPath('service_rows.0.kategori_item', 'Jasa Fabrikasi');
+    }
+
     public function test_threshold_uses_total_actual_for_termin_one_without_warranty(): void
     {
         $totals = [

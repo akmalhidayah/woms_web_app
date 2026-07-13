@@ -261,10 +261,20 @@ class LhppController extends Controller
         $validated = $request->validate([
             'material_rows' => ['nullable', 'array', 'max:100'],
             'material_rows.*.contract_item_id' => ['nullable', 'integer', 'exists:fabrication_construction_contracts,id'],
+            'material_rows.*.jenis_item' => ['nullable', 'string', 'max:255'],
+            'material_rows.*.kategori_item' => ['nullable', 'string', 'max:255'],
+            'material_rows.*.name' => ['nullable', 'string', 'max:500'],
             'material_rows.*.volume' => ['nullable', 'regex:/^\d{1,12}(?:\.\d{1,3})?$/'],
+            'material_rows.*.unit' => ['nullable', 'string', 'max:50'],
+            'material_rows.*.unit_price' => ['nullable', 'string', 'max:50'],
             'service_rows' => ['nullable', 'array', 'max:100'],
             'service_rows.*.contract_item_id' => ['nullable', 'integer', 'exists:fabrication_construction_contracts,id'],
+            'service_rows.*.jenis_item' => ['nullable', 'string', 'max:255'],
+            'service_rows.*.kategori_item' => ['nullable', 'string', 'max:255'],
+            'service_rows.*.name' => ['nullable', 'string', 'max:500'],
             'service_rows.*.volume' => ['nullable', 'regex:/^\d{1,12}(?:\.\d{1,3})?$/'],
+            'service_rows.*.unit' => ['nullable', 'string', 'max:50'],
+            'service_rows.*.unit_price' => ['nullable', 'string', 'max:50'],
         ]);
 
         $calculation = $this->calculateRows(
@@ -1209,6 +1219,11 @@ class LhppController extends Controller
                     ?? $item['nama']
                     ?? $item['item_name']
                     ?? $item['description']
+                    ?? $item['deskripsi_item']
+                    ?? $item['uraian']
+                    ?? $item['nama_material']
+                    ?? $item['nama_jasa']
+                    ?? $item['item']
                     ?? ''
                 ));
 

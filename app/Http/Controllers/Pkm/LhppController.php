@@ -1322,6 +1322,9 @@ class LhppController extends Controller
 
         $isWithoutWarranty = $terminType === 'termin_1'
             && (int) ($currentOrder?->garansi?->garansi_months ?? $lhpp?->garansi?->garansi_months ?? -1) === 0;
+        $hppValueMatchesBast = $lhpp !== null
+            && (float) $lhpp->total_aktual_biaya > 0
+            && abs((float) $lhpp->total_aktual_biaya - (float) ($currentOrder?->latestHpp?->total_keseluruhan ?? 0)) < 0.01;
 
         return view('dashboards.pkm', [
             'pageTitle' => $meta['pageTitle'],
@@ -1351,6 +1354,7 @@ class LhppController extends Controller
             'terminLabel' => $this->terminLabel($terminType),
             'documentNo' => $lhpp?->document_no ?: ($terminType === 'termin_2' ? $parentLhpp?->document_no : null),
             'isWithoutWarranty' => $isWithoutWarranty,
+            'hppValueMatchesBast' => $hppValueMatchesBast,
         ]);
     }
 

@@ -78,7 +78,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     workStartDate: @js($tanggalMulaiPekerjaan),
                     workFinishDate: @js($tanggalSelesaiPekerjaan),
                     useFixedWorkDates: @js($useFixedWorkDates),
-                    hppValueMatchesBast: false,
+                    hppValueMatchesBast: @js($hppValueMatchesBast ?? false),
                 })"
                 x-init="syncApprovalFlow(approvalFlow); refreshItemSelects(); recalculate()"
                 class="mt-4 rounded-[1.2rem] border border-slate-200 bg-white p-4 shadow-sm"
@@ -306,6 +306,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                                     <div class="relative">
                                                         <select x-model="row.jenis_item" :disabled="rowsLocked()" @change="handleJenisChange(row); recalculate()" class="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
                                                             <option value="">Pilih Jenis Item</option>
+                                                            <option x-show="row.jenis_item && !getJenisOptions().includes(row.jenis_item)" :value="row.jenis_item" x-text="row.jenis_item"></option>
                                                             <template x-for="jenisOption in getJenisOptions()" :key="`material-jenis-${jenisOption}`">
                                                                 <option :value="jenisOption" x-text="jenisOption"></option>
                                                             </template>
@@ -318,6 +319,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                                         <div class="relative">
                                                             <select x-model="row.kategori_item" :disabled="rowsLocked()" @change="handleKategoriChange(row); recalculate()" class="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
                                                                 <option value="">Pilih Kategori Item</option>
+                                                                <option x-show="row.kategori_item && !getKategoriOptions(row.jenis_item).some((option) => option.value === row.kategori_item)" :value="row.kategori_item" x-text="row.kategori_item"></option>
                                                                 <template x-for="kategoriOption in getKategoriOptions(row.jenis_item)" :key="`material-kategori-${row.jenis_item}-${kategoriOption.value}`">
                                                                     <option :value="kategoriOption.value" x-text="kategoriOption.label"></option>
                                                                 </template>
@@ -330,6 +332,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                                     <div class="relative" :class="hasKategoriOptions(row.jenis_item) ? '' : 'md:col-span-2'">
                                                         <select x-model="row.name" :disabled="rowsLocked()" @change="handleNameChange(row); recalculate()" class="js-bast-item-select w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
                                                             <option value="">Pilih Nama Item</option>
+                                                            <option x-show="row.name && !getNameOptions(row.jenis_item, row.kategori_item).some((option) => option.nama_item === row.name)" :value="row.name" x-text="row.name"></option>
                                                             <template x-for="itemOption in getNameOptions(row.jenis_item, row.kategori_item)" :key="`material-name-${row.jenis_item}-${row.kategori_item || 'none'}-${itemOption.nama_item}`">
                                                                 <option :value="itemOption.nama_item" x-text="itemOption.nama_item"></option>
                                                             </template>
@@ -401,6 +404,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                                     <div class="relative">
                                                         <select x-model="row.jenis_item" :disabled="rowsLocked()" @change="handleJenisChange(row); recalculate()" class="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
                                                             <option value="">Pilih Jenis Item</option>
+                                                            <option x-show="row.jenis_item && !getJenisOptions().includes(row.jenis_item)" :value="row.jenis_item" x-text="row.jenis_item"></option>
                                                             <template x-for="jenisOption in getJenisOptions()" :key="`service-jenis-${jenisOption}`">
                                                                 <option :value="jenisOption" x-text="jenisOption"></option>
                                                             </template>
@@ -413,6 +417,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                                         <div class="relative">
                                                             <select x-model="row.kategori_item" :disabled="rowsLocked()" @change="handleKategoriChange(row); recalculate()" class="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
                                                                 <option value="">Pilih Kategori Item</option>
+                                                                <option x-show="row.kategori_item && !getKategoriOptions(row.jenis_item).some((option) => option.value === row.kategori_item)" :value="row.kategori_item" x-text="row.kategori_item"></option>
                                                                 <template x-for="kategoriOption in getKategoriOptions(row.jenis_item)" :key="`service-kategori-${row.jenis_item}-${kategoriOption.value}`">
                                                                     <option :value="kategoriOption.value" x-text="kategoriOption.label"></option>
                                                                 </template>
@@ -425,6 +430,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                                     <div class="relative" :class="hasKategoriOptions(row.jenis_item) ? '' : 'md:col-span-2'">
                                                         <select x-model="row.name" :disabled="rowsLocked()" @change="handleNameChange(row); recalculate()" class="js-bast-item-select w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
                                                             <option value="">Pilih Nama Item</option>
+                                                            <option x-show="row.name && !getNameOptions(row.jenis_item, row.kategori_item).some((option) => option.nama_item === row.name)" :value="row.name" x-text="row.name"></option>
                                                             <template x-for="itemOption in getNameOptions(row.jenis_item, row.kategori_item)" :key="`service-name-${row.jenis_item}-${row.kategori_item || 'none'}-${itemOption.nama_item}`">
                                                                 <option :value="itemOption.nama_item" x-text="itemOption.nama_item"></option>
                                                             </template>

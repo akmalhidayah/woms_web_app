@@ -401,8 +401,11 @@
     $lhppSignatures = ($lhpp->relationLoaded('signatures') ? $lhpp->signatures : $lhpp->signatures()->get())
         ->keyBy('role_key');
     $signatureFor = fn (string $roleKey) => $lhppSignatures->get($roleKey);
+    // Keep the stored relative path intact. $renderSignature resolves and embeds
+    // it once; resolving it here first produces an absolute path that the PDF
+    // resolver would incorrectly prefix a second time.
     $signatureImage = fn ($signature): ?string => $signature?->isSigned()
-        ? \App\Support\SignatureImageStorage::imageSource($signature->signature_data)
+        ? $signature->signature_data
         : null;
     $signatureName = fn ($signature): string => $signature?->signer_name_snapshot ?: '';
     $signatureTitle = fn ($signature, string $fallback): string => trim((string) ($signature?->acting_as_label ?: ($signature?->signer_position_snapshot ?: $fallback)));

@@ -29,7 +29,10 @@ class PkmLayoutComposer
             'pkmUnreadNotificationKeys' => $snapshot['unread_keys'],
             'pkmBadgeCounts' => app(PkmSidebarBadgeCounter::class)->counts(),
             'pkmVendorWorkType' => $vendor,
-            'pkmVendorManagers' => User::query()->where('role', User::ROLE_APPROVER)->whereIn('id', $managerIds)
+            // Always expose managers referenced by saved sections so an existing
+            // assignment remains visible. Backend validation still requires the
+            // approver role whenever the structure is submitted.
+            'pkmVendorManagers' => User::query()->whereIn('id', $managerIds)
                 ->orderBy('name')->get(['id', 'name', 'email', 'nomor_hp', 'inisial']),
             'pkmVendorSections' => collect($sectionsSource)->map(fn ($section, $index): array => [
                 'id' => (string) (is_array($section) ? ($section['id'] ?? '') : $section->id),

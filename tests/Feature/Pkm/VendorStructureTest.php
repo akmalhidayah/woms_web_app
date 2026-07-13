@@ -50,6 +50,29 @@ class VendorStructureTest extends TestCase
             ->assertSee('assigned-vendor@example.com')->assertDontSee('global-hidden@example.com');
     }
 
+    public function test_saved_manager_assignment_remains_visible_and_selected_in_modal_payload(): void
+    {
+        [$pkm, $vendor] = $this->context();
+        $manager = User::factory()->create([
+            'name' => 'Manager Tersimpan',
+            'email' => 'saved-manager@example.com',
+            'role' => User::ROLE_APPROVER,
+        ]);
+        VendorWorkTypeSection::query()->create([
+            'vendor_work_type_id' => $vendor->id,
+            'name' => 'Pengerjaan Mesin',
+            'normalized_name' => 'pengerjaan mesin',
+            'manager_id' => $manager->id,
+        ]);
+
+        $response = $this->actingAs($pkm)->get(route('pkm.dashboard'));
+
+        $response->assertOk()
+            ->assertSee('Manager Tersimpan')
+            ->assertSee('saved-manager@example.com')
+            ->assertSee("\$el.value = String(section.manager_id || '')", false);
+    }
+
     private function context(): array
     {
         return [

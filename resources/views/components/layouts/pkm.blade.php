@@ -379,7 +379,7 @@
                                                     <label class="block text-[10px] font-semibold text-slate-600">Manager Seksi</label>
                                                     <button type="button" @click="openManagerModal(index)" class="inline-flex items-center gap-1 text-[10px] font-semibold text-[#ca642f] hover:text-[#a94f24]"><i data-lucide="user-plus" class="h-3 w-3"></i>Tambah Manager</button>
                                                 </div>
-                                                <select :name="`sections[${index}][manager_id]`" x-model="section.manager_id" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:border-[#ca642f] focus:outline-none" required>
+                                                <select :name="`sections[${index}][manager_id]`" x-model="section.manager_id" x-init="$nextTick(() => { $el.value = String(section.manager_id || '') })" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:border-[#ca642f] focus:outline-none" required>
                                                     <option value="">Pilih Manager</option>
                                                     <template x-for="manager in managerOptions" :key="manager.id"><option :value="String(manager.id)" x-text="manager.name"></option></template>
                                                 </select>

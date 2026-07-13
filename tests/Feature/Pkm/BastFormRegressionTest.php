@@ -30,6 +30,9 @@ class BastFormRegressionTest extends TestCase
         $this->assertGreaterThan(0, $xpath->query('//*[@id="pkm-lhpp-create-form"]//*[contains(@x-for, "serviceRows")]')->length);
         $this->assertSame(1, $xpath->query('//*[@id="pkm-lhpp-create-form"]//button[@type="submit"]')->length);
         $this->assertStringContainsString('window.pkmLhppCreateForm = function', $html);
+        $this->assertStringContainsString('hppValueMatchesBast:', $html);
+        $this->assertSame(2, substr_count($html, '!getJenisOptions().includes(row.jenis_item)'));
+        $this->assertSame(2, substr_count($html, 'option.nama_item === row.name'));
     }
 
     public function test_threshold_uses_total_actual_for_termin_one_without_warranty(): void

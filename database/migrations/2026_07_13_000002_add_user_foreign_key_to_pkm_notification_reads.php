@@ -48,7 +48,7 @@ return new class extends Migration
             ->pluck('ENGINE', 'TABLE_NAME');
 
         if (strcasecmp((string) ($engines['users'] ?? ''), 'InnoDB') !== 0) {
-            throw new RuntimeException('Tabel users harus menggunakan engine InnoDB sebelum foreign key PKM notification reads dapat dibuat.');
+            DB::statement('ALTER TABLE `users` ENGINE = InnoDB');
         }
 
         if (strcasecmp((string) ($engines['pkm_notification_reads'] ?? ''), 'InnoDB') !== 0) {

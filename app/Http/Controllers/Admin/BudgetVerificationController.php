@@ -40,7 +40,6 @@ class BudgetVerificationController extends Controller
             $notifications = Hpp::query()
                 ->with([
                     'budgetVerification:id,order_id,hpp_id,status_anggaran,kategori_item,kategori_biaya,cost_element,catatan',
-                    'purchaseOrder:id,order_id,hpp_id,purchase_order_number',
                     'order:id,nomor_order,notifikasi,nama_pekerjaan,unit_kerja,seksi',
                     'order.documents:id,order_id,jenis_dokumen,nama_file_asli,path_file',
                     'order.scopeOfWork:id,order_id',
@@ -239,10 +238,9 @@ class BudgetVerificationController extends Controller
     {
         $order = $hpp->order;
         $verification = $hpp->budgetVerification;
-        $purchaseOrder = $hpp->purchaseOrder;
         $abnormalitas = $this->findDocument($order, OrderDocumentType::Abnormalitas->value);
         $gambarTeknik = $this->findDocument($order, OrderDocumentType::GambarTeknik->value);
-        $isExecuted = filled($purchaseOrder?->purchase_order_number);
+        $isHppApproved = $hpp->status === Hpp::STATUS_APPROVED;
 
         return [
             'nomor_order' => $hpp->nomor_order,
@@ -256,8 +254,8 @@ class BudgetVerificationController extends Controller
             'kategori_biaya' => $verification?->kategori_biaya,
             'cost_element' => $verification?->cost_element,
             'catatan' => $verification?->catatan,
-            'is_executed' => $isExecuted,
-            'execution_label' => $isExecuted ? 'Sudah Dieksekusi' : 'Belum Dieksekusi',
+            'is_hpp_approved' => $isHppApproved,
+            'hpp_approval_label' => $isHppApproved ? 'Approve HPP' : 'Belum Approve HPP',
             'update_url' => route('admin.budget-verification.update', ['hpp' => $hpp->nomor_order]),
             'dokumen' => [
                 'abnormalitas' => [

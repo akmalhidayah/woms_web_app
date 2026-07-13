@@ -326,7 +326,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                                     <input type="hidden" :name="`material_rows[${index}][kategori_item]`" x-model="row.kategori_item">
 
                                                     <div class="relative">
-                                                        <select x-model="row.name" x-effect="$nextTick(() => { if ($el.tomselect) $el.tomselect.setValue(row.name || '', true); else $el.value = row.name || '' })" :disabled="rowsLocked()" @change="handleNameChange(row); recalculate()" class="js-bast-item-select w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
+                                                        <select x-model="row.name" x-effect="$nextTick(() => syncItemSelect($el, row.name))" :disabled="rowsLocked()" @change="handleNameChange(row); recalculate()" class="js-bast-item-select w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
                                                             <option value="">Pilih Nama Item</option>
                                                             <template x-for="itemOption in getNameOptions(row.jenis_item, row.kategori_item, row.name)" :key="`material-name-${row.jenis_item}-${row.kategori_item || 'none'}-${itemOption.nama_item}`">
                                                                 <option :value="itemOption.nama_item" x-text="itemOption.nama_item"></option>
@@ -419,7 +419,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                                     <input type="hidden" :name="`service_rows[${index}][kategori_item]`" x-model="row.kategori_item">
 
                                                     <div class="relative">
-                                                        <select x-model="row.name" x-effect="$nextTick(() => { if ($el.tomselect) $el.tomselect.setValue(row.name || '', true); else $el.value = row.name || '' })" :disabled="rowsLocked()" @change="handleNameChange(row); recalculate()" class="js-bast-item-select w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
+                                                        <select x-model="row.name" x-effect="$nextTick(() => syncItemSelect($el, row.name))" :disabled="rowsLocked()" @change="handleNameChange(row); recalculate()" class="js-bast-item-select w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
                                                             <option value="">Pilih Nama Item</option>
                                                             <template x-for="itemOption in getNameOptions(row.jenis_item, row.kategori_item, row.name)" :key="`service-name-${row.jenis_item}-${row.kategori_item || 'none'}-${itemOption.nama_item}`">
                                                                 <option :value="itemOption.nama_item" x-text="itemOption.nama_item"></option>
@@ -897,6 +897,21 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                 });
                             });
                         });
+                    },
+                    syncItemSelect(element, value) {
+                        const normalizedValue = this.normalizeCatalogValue(value);
+
+                        if (!element.tomselect) {
+                            element.value = normalizedValue;
+                            return;
+                        }
+
+                        if (normalizedValue && !element.tomselect.options[normalizedValue]) {
+                            element.tomselect.addOption({ value: normalizedValue, text: normalizedValue });
+                            element.tomselect.refreshOptions(false);
+                        }
+
+                        element.tomselect.setValue(normalizedValue, true);
                     },
                     rebuildItemSelects() {
                         this.$nextTick(() => {

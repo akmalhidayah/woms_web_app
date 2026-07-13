@@ -1186,15 +1186,31 @@ class LhppController extends Controller
         $rows = [];
 
         foreach ($hpp->item_groups as $group) {
-            $jenisItem = trim((string) ($group['jenis_item'] ?? $group['jenis'] ?? $group['name'] ?? ''));
-            $isServiceGroup = str_contains(strtoupper($jenisItem), 'JASA');
-
-            if (($type === 'service') !== $isServiceGroup) {
-                continue;
-            }
+            $groupJenisItem = trim((string) (
+                $group['jenis_item']
+                ?? $group['jenis']
+                ?? $group['name']
+                ?? $group['label']
+                ?? $group['title']
+                ?? ''
+            ));
 
             foreach (($group['items'] ?? []) as $item) {
-                $namaItem = trim((string) ($item['nama_item'] ?? $item['name'] ?? $item['nama'] ?? ''));
+                $jenisItem = trim((string) ($item['jenis_item'] ?? $groupJenisItem));
+                $isServiceItem = str_contains(strtoupper($jenisItem), 'JASA');
+
+                if (($type === 'service') !== $isServiceItem) {
+                    continue;
+                }
+
+                $namaItem = trim((string) (
+                    $item['nama_item']
+                    ?? $item['name']
+                    ?? $item['nama']
+                    ?? $item['item_name']
+                    ?? $item['description']
+                    ?? ''
+                ));
 
                 if ($namaItem === '') {
                     continue;
@@ -1202,7 +1218,7 @@ class LhppController extends Controller
 
                 $rows[] = [
                     'jenis_item' => $jenisItem,
-                    'kategori_item' => trim((string) ($item['kategori_item'] ?? '')),
+                    'kategori_item' => trim((string) ($item['kategori_item'] ?? $item['kategori'] ?? $item['category'] ?? '')),
                     'name' => $namaItem,
                     'volume' => (string) ($item['qty'] ?? $item['volume'] ?? ''),
                     'unit' => trim((string) ($item['satuan'] ?? $item['unit'] ?? '')),

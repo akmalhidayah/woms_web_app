@@ -62,6 +62,29 @@ class BastFormRegressionTest extends TestCase
         $this->assertSame('150.000', $rows[0]['unit_price']);
     }
 
+    public function test_hpp_preview_reads_item_level_type_when_group_label_is_missing(): void
+    {
+        $hpp = new Hpp;
+        $hpp->item_groups = [[
+            'items' => [[
+                'jenis_item' => 'Biaya Jasa',
+                'kategori' => 'Mekanik',
+                'item_name' => 'Jasa Bubut',
+                'qty' => '8',
+                'satuan' => 'Jam',
+                'harga_satuan' => '100000',
+                'harga_total' => '800000',
+            ]],
+        ]];
+
+        $method = new ReflectionMethod(LhppController::class, 'buildRowsFromHpp');
+        $rows = $method->invoke(app(LhppController::class), $hpp, 'service');
+
+        $this->assertSame('Biaya Jasa', $rows[0]['jenis_item']);
+        $this->assertSame('Mekanik', $rows[0]['kategori_item']);
+        $this->assertSame('Jasa Bubut', $rows[0]['name']);
+    }
+
     public function test_threshold_uses_total_actual_for_termin_one_without_warranty(): void
     {
         $totals = [

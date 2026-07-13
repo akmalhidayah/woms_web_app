@@ -91,9 +91,14 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     <template x-for="(step, index) in approvalFlow" :key="`bast-approval-flow-input-${index}-${step}`">
                         <input type="hidden" name="approval_flow[]" :value="step">
                     </template>
-                    @if ($errors->has('form'))
+                    @if ($errors->getBag('default')->any())
                         <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                            {{ $errors->first('form') }}
+                            <div class="font-semibold">BAST belum dapat disimpan.</div>
+                            <ul class="mt-2 list-disc space-y-1 pl-5">
+                                @foreach ($errors->getBag('default')->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
                         </div>
                     @endif
                     <div class="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
@@ -253,7 +258,6 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                 @enderror
                             </div>
                         </div>
-                    </div>
                     </div>
 
                     @unless ($isTerminTwoLocked)
@@ -510,7 +514,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
         </div>
 
         <script>
-            function pkmLhppCreateForm(config) {
+            window.pkmLhppCreateForm = function (config) {
                 return {
                     approvalThreshold: config.approvalThreshold,
                     orderOptions: config.orderOptions,
@@ -519,22 +523,22 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     terminType: config.terminType,
                     unitOptions: config.unitOptions,
                     contractCatalog: config.contractCatalog,
-                    materialRows: config.materialRows,
-                    serviceRows: config.serviceRows,
-                    calculation: config.calculation,
-                    isWithoutWarranty: config.isWithoutWarranty,
-                    isTerminTwoLocked: config.isTerminTwoLocked,
+                    materialRows: Array.isArray(config.materialRows) ? config.materialRows : [],
+                    serviceRows: Array.isArray(config.serviceRows) ? config.serviceRows : [],
+                    calculation: config.calculation && typeof config.calculation === 'object' ? config.calculation : {},
+                    isWithoutWarranty: Boolean(config.isWithoutWarranty),
+                    isTerminTwoLocked: Boolean(config.isTerminTwoLocked),
                     selectedTipePekerjaan: config.selectedTipePekerjaan,
                     isTipePekerjaanLocked: config.isTipePekerjaanLocked,
                     tipePekerjaanOptions: config.tipePekerjaanOptions,
                     approvalFlowMatrix: config.approvalFlowMatrix,
                     approvalFlow: Array.isArray(config.approvalFlow) ? config.approvalFlow : [],
-                    approvalSignerPreview: config.approvalSignerPreview ?? {},
+                    approvalSignerPreview: config.approvalSignerPreview && typeof config.approvalSignerPreview === 'object' ? config.approvalSignerPreview : {},
                     draggedApprovalIndex: null,
                     workStartDate: config.workStartDate,
                     workFinishDate: config.workFinishDate,
                     useFixedWorkDates: config.useFixedWorkDates,
-                    hppValueMatchesBast: config.hppValueMatchesBast,
+                    hppValueMatchesBast: Boolean(config.hppValueMatchesBast),
                     currentOrder() {
                         return this.orderOptions.find((item) => item.nomor_order === this.selectedOrder) ?? {
                             nomor_order: '',
@@ -574,9 +578,15 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         }));
                     },
                     handleHppSyncToggle() {
-                        if (this.hppValueMatchesBast) {
-                            this.applyHppRows();
+                        if (!this.hppValueMatchesBast) return;
+
+                        if (!this.selectedOrder) {
+                            this.hppValueMatchesBast = false;
+                            this.showSyncMessage('Pilih nomor order terlebih dahulu.');
+                            return;
                         }
+
+                        this.applyHppRows();
                     },
                     applyHppSyncIfChecked() {
                         if (this.hppValueMatchesBast) {
@@ -585,9 +595,21 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     },
                     applyHppRows() {
                         const order = this.currentOrder();
+
+                        if ((!Array.isArray(order.hpp_material_rows) || order.hpp_material_rows.length === 0)
+                            && (!Array.isArray(order.hpp_service_rows) || order.hpp_service_rows.length === 0)) {
+                            this.hppValueMatchesBast = false;
+                            this.showSyncMessage('Detail material dan jasa HPP tidak tersedia sehingga nilai belum dapat disalin otomatis.');
+                            return;
+                        }
+
                         this.materialRows = this.normalizeHppRows(order.hpp_material_rows);
                         this.serviceRows = this.normalizeHppRows(order.hpp_service_rows);
                         this.recalculate();
+                    },
+                    showSyncMessage(message) {
+                        if (window.Swal) window.Swal.fire({ icon: 'warning', title: 'Data belum dapat disalin', text: message });
+                        else window.alert(message);
                     },
                     resolvedTipePekerjaan() {
                         return this.selectedTipePekerjaan || '';
@@ -788,6 +810,9 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         row.unit_price = this.normalizeCatalogValue(selectedItem.harga_satuan);
                     },
                     async recalculate() {
+                        const materialRows = Array.isArray(this.materialRows) ? this.materialRows : [];
+                        const serviceRows = Array.isArray(this.serviceRows) ? this.serviceRows : [];
+
                         try {
                             const response = await fetch(this.calculateUrl, {
                                 method: 'POST',
@@ -797,8 +822,8 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                     'X-CSRF-TOKEN': document.querySelector('meta[name=\"csrf-token\"]')?.getAttribute('content') ?? '',
                                 },
                                 body: JSON.stringify({
-                                    material_rows: this.materialRows,
-                                    service_rows: this.serviceRows,
+                                    material_rows: materialRows,
+                                    service_rows: serviceRows,
                                 }),
                             });
 
@@ -807,9 +832,9 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                             }
 
                             const result = await response.json();
-                            this.materialRows = result.material_rows;
-                            this.serviceRows = result.service_rows;
-                            this.calculation = result.totals;
+                            this.materialRows = Array.isArray(result.material_rows) ? result.material_rows : materialRows;
+                            this.serviceRows = Array.isArray(result.service_rows) ? result.service_rows : serviceRows;
+                            this.calculation = result.totals && typeof result.totals === 'object' ? result.totals : this.calculation;
                             const nextThreshold = this.resolveThreshold();
 
                             if (nextThreshold !== this.approvalThreshold) {
@@ -835,10 +860,12 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     resolveThreshold() {
                         const thresholdBase = this.terminType === 'termin_2'
                             ? Number(this.calculation.termin_2_nilai || 0)
-                            : Number(this.calculation.termin_1_nilai || 0);
+                            : (this.isWithoutWarranty
+                                ? Number(this.calculation.total_aktual_biaya || 0)
+                                : Number(this.calculation.termin_1_nilai || 0));
 
                         return thresholdBase > 250000000 ? 'over_250' : 'under_250';
                     },
                 };
-            }
+            };
         </script>

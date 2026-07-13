@@ -294,10 +294,13 @@ class LhppController extends Controller
                 $serviceRowsPayload,
             );
             $qualityControlStatus = $terminType === 'termin_2' ? 'approved' : 'pending';
+            $isWithoutWarranty = $terminType === 'termin_1'
+                && (int) ($order->garansi?->garansi_months ?? -1) === 0;
             $approvalPayload = $this->resolveApprovalPayload(
                 $terminType,
                 $calculation['totals'],
                 $request->input('approval_flow', []),
+                $isWithoutWarranty,
             );
 
             $lhpp = DB::transaction(function () use (
@@ -456,10 +459,13 @@ class LhppController extends Controller
                 $materialRowsPayload,
                 $serviceRowsPayload,
             );
+            $isWithoutWarranty = $terminType === 'termin_1'
+                && (int) ($order->garansi?->garansi_months ?? -1) === 0;
             $approvalPayload = $this->resolveApprovalPayload(
                 $terminType,
                 $calculation['totals'],
                 $request->input('approval_flow', []),
+                $isWithoutWarranty,
             );
             $approvalStarted = $lhpp->hasApprovalStarted();
 
@@ -1288,12 +1294,15 @@ class LhppController extends Controller
         $approvalSignerPreview = app(ApprovalFlowSignerPreview::class)
             ->bastPreviewPayload($orders, $tipePekerjaanOptions, $lhpp);
 
+        $isWithoutWarranty = $terminType === 'termin_1'
+            && (int) ($currentOrder?->garansi?->garansi_months ?? $lhpp?->garansi?->garansi_months ?? -1) === 0;
+
         return view('dashboards.pkm', [
             'pageTitle' => $meta['pageTitle'],
             'pageDescription' => $meta['pageDescription'],
             'bastOrderOptions' => $orderOptions,
             'selectedBastOrder' => $selectedOrder,
-            'selectedThreshold' => old('approval_threshold', $lhpp?->approval_threshold ?? $this->resolveThresholdFromTotals($terminType, $calculation['totals'])),
+            'selectedThreshold' => old('approval_threshold', $lhpp?->approval_threshold ?? $this->resolveThresholdFromTotals($terminType, $calculation['totals'], $isWithoutWarranty)),
             'selectedApprovalFlow' => array_values((array) old('approval_flow', $lhpp?->approval_flow ?? [])),
             'approvalFlowMatrix' => BastApprovalFlow::flowMatrix(),
             'selectedTipePekerjaan' => $selectedTipePekerjaan,
@@ -1315,8 +1324,7 @@ class LhppController extends Controller
             'terminType' => $terminType,
             'terminLabel' => $this->terminLabel($terminType),
             'documentNo' => $lhpp?->document_no ?: ($terminType === 'termin_2' ? $parentLhpp?->document_no : null),
-            'isWithoutWarranty' => $terminType === 'termin_1'
-                && (int) ($currentOrder?->garansi?->garansi_months ?? $lhpp?->garansi?->garansi_months ?? -1) === 0,
+            'isWithoutWarranty' => $isWithoutWarranty,
         ]);
     }
 
@@ -1414,11 +1422,13 @@ class LhppController extends Controller
     /**
      * @param  array<string, string>  $totals
      */
-    private function resolveThresholdFromTotals(string $terminType, array $totals): string
+    private function resolveThresholdFromTotals(string $terminType, array $totals, bool $isWithoutWarranty = false): string
     {
-        $amount = $terminType === 'termin_2'
-            ? (float) ($totals['termin_2_nilai'] ?? 0)
-            : (float) ($totals['termin_1_nilai'] ?? 0);
+        $amount = match (true) {
+            $terminType === 'termin_2' => (float) ($totals['termin_2_nilai'] ?? 0),
+            $isWithoutWarranty => (float) ($totals['total_aktual_biaya'] ?? 0),
+            default => (float) ($totals['termin_1_nilai'] ?? 0),
+        };
 
         return $amount > 250000000 ? 'over_250' : 'under_250';
     }
@@ -1427,9 +1437,9 @@ class LhppController extends Controller
      * @param  array<string, mixed>  $totals
      * @return array{approval_threshold: string, approval_case: ?string, approval_flow: list<string>}
      */
-    private function resolveApprovalPayload(string $terminType, array $totals, mixed $submittedFlow = []): array
+    private function resolveApprovalPayload(string $terminType, array $totals, mixed $submittedFlow = [], bool $isWithoutWarranty = false): array
     {
-        $threshold = $this->resolveThresholdFromTotals($terminType, $totals);
+        $threshold = $this->resolveThresholdFromTotals($terminType, $totals, $isWithoutWarranty);
         $defaultFlow = BastApprovalFlow::resolveApprovalFlow($threshold);
         $flow = $this->resolveApprovalFlowSnapshot($defaultFlow, $submittedFlow);
 

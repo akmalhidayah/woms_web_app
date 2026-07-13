@@ -24,7 +24,7 @@ function ensureLucideScript() {
     lucideScriptRequested = true;
 
     const script = document.createElement('script');
-    script.src = 'https://unpkg.com/lucide@latest';
+    script.src = 'https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js';
     script.defer = true;
     script.addEventListener('load', () => refreshLucideIcons());
 

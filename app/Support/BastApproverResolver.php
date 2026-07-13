@@ -7,6 +7,7 @@ use App\Models\LhppBast;
 use App\Models\User;
 use App\Models\VendorWorkType;
 use App\Models\VendorWorkTypeSection;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class BastApproverResolver
@@ -81,9 +82,16 @@ class BastApproverResolver
             ]);
         }
 
+        $fixedVendor = VendorWorkType::query()->where('name', VendorWorkType::FIXED_VENDOR_NAME)->first();
         $vendorSection = VendorWorkTypeSection::query()
             ->with(['manager', 'vendorWorkType'])
-            ->where('name', $tipePekerjaan)
+            ->where('vendor_work_type_id', $fixedVendor?->id)
+            ->when($lhpp->vendor_work_type_section_id,
+                fn ($query) => $query->whereKey($lhpp->vendor_work_type_section_id),
+                fn ($query) => $query->where(function ($sectionQuery) use ($tipePekerjaan): void {
+                    $sectionQuery->where('normalized_name', Str::lower($tipePekerjaan))
+                        ->orWhereRaw('LOWER(TRIM(name)) = ?', [Str::lower($tipePekerjaan)]);
+                }))
             ->first();
 
         if ($vendorSection?->manager) {
@@ -98,26 +106,9 @@ class BastApproverResolver
             ];
         }
 
-        $vendorWorkType = VendorWorkType::query()
-            ->with('manager')
-            ->where('name', $tipePekerjaan)
-            ->first();
-
-        if (! $vendorWorkType?->manager) {
-            throw ValidationException::withMessages([
-                'approval' => "Manager PKM untuk tipe pekerjaan {$tipePekerjaan} belum dikonfigurasi.",
-            ]);
-        }
-
-        return [
-            'role_key' => $roleKey,
-            'role_label' => $flowRoleLabel,
-            'user' => $vendorWorkType->manager,
-            'position' => $this->managerPosition($vendorWorkType->name),
-            'department' => VendorWorkType::FIXED_VENDOR_NAME,
-            'unit' => $vendorWorkType->name,
-            'section' => null,
-        ];
+        throw ValidationException::withMessages([
+            'approval' => "Manager PKM untuk seksi {$tipePekerjaan} pada vendor ".VendorWorkType::FIXED_VENDOR_NAME.' belum dikonfigurasi.',
+        ]);
     }
 
     private function managerPosition(?string $sectionName): string

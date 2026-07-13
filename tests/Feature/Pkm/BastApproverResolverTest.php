@@ -29,7 +29,7 @@ class BastApproverResolverTest extends TestCase
         $this->assertSame('Manager Pengerjaan Mesin', $resolved['position']);
     }
 
-    public function test_changing_section_manager_does_not_change_existing_signature_snapshot(): void
+    public function test_changing_section_manager_keeps_snapshot_until_locked_signatures_are_resynced(): void
     {
         [$section, $firstManager] = $this->sectionAndManager();
         $order = Order::query()->create([
@@ -41,6 +41,7 @@ class BastApproverResolverTest extends TestCase
             'order_id' => $order->id,
             'termin_type' => 'termin_1', 'nomor_order' => 'BAST-MANAGER-SNAPSHOT', 'deskripsi_pekerjaan' => 'Test',
             'unit_kerja' => 'Unit', 'seksi' => 'Seksi', 'tanggal_bast' => '2026-07-13', 'tipe_pekerjaan' => $section->name,
+            'vendor_work_type_section_id' => $section->id,
             'approval_threshold' => 'under_250', 'approval_flow' => ['Manager PKM'], 'approval_status' => LhppBast::APPROVAL_IN_REVIEW,
             'quality_control_status' => 'approved', 'created_by' => $firstManager->id,
         ]);
@@ -58,7 +59,7 @@ class BastApproverResolverTest extends TestCase
     {
         $manager = User::factory()->create(['role' => User::ROLE_APPROVER]);
         $vendor = VendorWorkType::query()->firstOrCreate(['name' => VendorWorkType::FIXED_VENDOR_NAME]);
-        $section = VendorWorkTypeSection::query()->create(['vendor_work_type_id' => $vendor->id, 'name' => 'Pengerjaan Mesin', 'manager_id' => $manager->id]);
+        $section = VendorWorkTypeSection::query()->create(['vendor_work_type_id' => $vendor->id, 'name' => 'Pengerjaan Mesin', 'normalized_name' => 'pengerjaan mesin', 'manager_id' => $manager->id]);
 
         return [$section, $manager];
     }

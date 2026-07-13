@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Pkm;
 
 use App\Models\LhppBast;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -34,7 +35,7 @@ class StoreLhppBastRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -48,18 +49,28 @@ class StoreLhppBastRequest extends FormRequest
             'tipe_pekerjaan' => ['required', Rule::in(array_keys(LhppBast::tipePekerjaanOptions() + LhppBast::legacyTipePekerjaanOptions()))],
             'tanggal_mulai_pekerjaan' => ['nullable', 'date'],
             'tanggal_selesai_pekerjaan' => ['nullable', 'date', 'after_or_equal:tanggal_mulai_pekerjaan'],
-            'material_rows' => ['nullable', 'array'],
+            'material_rows' => ['nullable', 'array', 'max:100'],
+            'material_rows.*.contract_item_id' => ['nullable', 'integer', 'exists:fabrication_construction_contracts,id'],
             'material_rows.*.name' => ['nullable', 'string', 'max:255'],
-            'material_rows.*.volume' => ['nullable', 'string', 'max:50'],
+            'material_rows.*.volume' => ['nullable', 'regex:/^\d{1,12}(?:\.\d{1,3})?$/'],
             'material_rows.*.unit' => ['nullable', 'string', 'max:20'],
             'material_rows.*.unit_price' => ['nullable', 'string', 'max:50'],
-            'service_rows' => ['nullable', 'array'],
+            'service_rows' => ['nullable', 'array', 'max:100'],
+            'service_rows.*.contract_item_id' => ['nullable', 'integer', 'exists:fabrication_construction_contracts,id'],
             'service_rows.*.name' => ['nullable', 'string', 'max:255'],
-            'service_rows.*.volume' => ['nullable', 'string', 'max:50'],
+            'service_rows.*.volume' => ['nullable', 'regex:/^\d{1,12}(?:\.\d{1,3})?$/'],
             'service_rows.*.unit' => ['nullable', 'string', 'max:20'],
             'service_rows.*.unit_price' => ['nullable', 'string', 'max:50'],
             'gambar' => ['nullable', 'array'],
             'gambar.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'material_rows.*.volume.regex' => 'Volume material harus berupa angka positif dengan maksimal 3 angka desimal (gunakan titik).',
+            'service_rows.*.volume.regex' => 'Volume jasa harus berupa angka positif dengan maksimal 3 angka desimal (gunakan titik).',
         ];
     }
 }

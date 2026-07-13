@@ -4,6 +4,7 @@ namespace Tests\Feature\Pkm;
 
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\Department;
+use App\Models\FabricationConstructionContract;
 use App\Models\Garansi;
 use App\Models\Hpp;
 use App\Models\HppApprovalSetting;
@@ -15,6 +16,7 @@ use App\Models\UnitWork;
 use App\Models\UnitWorkSection;
 use App\Models\User;
 use App\Models\VendorWorkType;
+use App\Models\VendorWorkTypeSection;
 use App\Support\HppApprovalFlow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -203,11 +205,21 @@ class BastDocumentNumberTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $overrides
+     * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
      */
     private function bastPayload(Order $order, array $overrides = []): array
     {
+        $contractItem = FabricationConstructionContract::query()->firstOrCreate([
+            'tahun' => 2026,
+            'jenis_item' => 'JASA FABRIKASI',
+            'nama_item' => 'Pekerjaan test',
+        ], [
+            'kategori_item' => null,
+            'satuan' => 'Lot',
+            'harga_satuan' => 1000000,
+        ]);
+
         return array_replace_recursive([
             'termin_type' => 'termin_1',
             'tanggal_bast' => '2026-07-05',
@@ -216,15 +228,16 @@ class BastDocumentNumberTest extends TestCase
             'tipe_pekerjaan' => 'pekerjaan_fabrikasi',
             'tanggal_mulai_pekerjaan' => '2026-07-03',
             'tanggal_selesai_pekerjaan' => '2026-07-04',
-            'material_rows' => [[
-                'jenis_item' => 'Jasa',
+            'material_rows' => [],
+            'service_rows' => [[
+                'contract_item_id' => $contractItem->id,
+                'jenis_item' => 'JASA FABRIKASI',
                 'kategori_item' => '',
                 'name' => 'Pekerjaan test',
                 'volume' => '1',
                 'unit' => 'Lot',
                 'unit_price' => '1000000',
             ]],
-            'service_rows' => [],
         ], $overrides);
     }
 
@@ -232,8 +245,11 @@ class BastDocumentNumberTest extends TestCase
     {
         $manager = User::factory()->create(['role' => User::ROLE_APPROVER]);
 
-        VendorWorkType::query()->create([
+        $vendor = VendorWorkType::query()->firstOrCreate(['name' => VendorWorkType::FIXED_VENDOR_NAME]);
+        VendorWorkTypeSection::query()->create([
+            'vendor_work_type_id' => $vendor->id,
             'name' => 'pekerjaan_fabrikasi',
+            'normalized_name' => 'pekerjaan_fabrikasi',
             'manager_id' => $manager->id,
         ]);
     }

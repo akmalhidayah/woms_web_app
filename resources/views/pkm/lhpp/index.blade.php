@@ -150,6 +150,9 @@
                                     $activeApprovalWhatsappUrl = $activeApprovalLink ? \App\Support\ApprovalWhatsappLink::forBast($activeSignature) : null;
                                     $isExpired = $activeSignature?->tokenExpired() ?? false;
                                     $approvalStatus = $row->approval_status ?? \App\Models\LhppBast::APPROVAL_IN_REVIEW;
+                                    $rejectionNote = $approvalStatus === \App\Models\LhppBast::APPROVAL_REJECTED
+                                        ? $row->signatures->first(fn (\App\Models\LhppBastSignature $signature): bool => $signature->isSkipped() && filled($signature->approval_note))?->approval_note
+                                        : null;
                                     $isDiropsPending = $activeSignature?->role_key === 'dirops' && ! $isExpired;
                                     $qualityControlStatus = $row->quality_control_status ?: 'pending';
                                     $diropsSignedDocumentSignature = $row->signatures->first(
@@ -165,6 +168,9 @@
                                     $terminTwoIsExpired = $terminTwoActiveSignature?->tokenExpired() ?? false;
                                     $terminTwoIsDiropsPending = $terminTwoActiveSignature?->role_key === 'dirops' && ! $terminTwoIsExpired;
                                     $terminTwoApprovalStatus = $terminTwo?->approval_status ?? \App\Models\LhppBast::APPROVAL_IN_REVIEW;
+                                    $terminTwoRejectionNote = $terminTwoApprovalStatus === \App\Models\LhppBast::APPROVAL_REJECTED
+                                        ? $terminTwo?->signatures?->first(fn (\App\Models\LhppBastSignature $signature): bool => $signature->isSkipped() && filled($signature->approval_note))?->approval_note
+                                        : null;
                                     $terminTwoDiropsSignedDocumentSignature = $terminTwo?->signatures?->first(
                                         fn (\App\Models\LhppBastSignature $signature): bool => $signature->role_key === 'dirops' && $signature->hasUploadedSignedDocument()
                                     );
@@ -210,7 +216,9 @@
                                     $isApprovalComplete = $row->approvalCompleted();
                                     $approvalSummaryLabel = $isApprovalComplete
                                         ? 'Semua approver selesai'
-                                        : ($activeSignature?->role_label ? 'Menunggu '.$activeSignature->role_label : ($qualityControlStatus === 'approved' ? 'Menunggu approval' : 'Menunggu QC Admin'));
+                                        : ($approvalStatus === \App\Models\LhppBast::APPROVAL_REJECTED
+                                            ? 'Ditolak'
+                                            : ($activeSignature?->role_label ? 'Menunggu '.$activeSignature->role_label : ($qualityControlStatus === 'approved' ? 'Menunggu approval' : 'Menunggu QC Admin')));
                                     $approvalChecklist = $row->signatures->map(function (\App\Models\LhppBastSignature $signature): array {
                                         return [
                                             'label' => $signature->role_label,
@@ -227,9 +235,11 @@
                                     $terminTwoSignedCount = $terminTwo?->approvalSignedCount() ?? 0;
                                     $terminTwoTotalSteps = $terminTwo?->approvalStepCount() ?? 0;
                                     $terminTwoSummaryLabel = $terminTwo
-                                        ? ($terminTwo->approvalCompleted()
+                                        ? ($terminTwoApprovalStatus === \App\Models\LhppBast::APPROVAL_REJECTED
+                                            ? 'Ditolak'
+                                            : ($terminTwo->approvalCompleted()
                                             ? 'Semua approver T2 selesai'
-                                            : ($terminTwoActiveSignature?->role_label ? 'Menunggu '.$terminTwoActiveSignature->role_label : 'Menunggu approval T2'))
+                                            : ($terminTwoActiveSignature?->role_label ? 'Menunggu '.$terminTwoActiveSignature->role_label : 'Menunggu approval T2')))
                                         : '';
                                     $terminTwoChecklist = $terminTwo
                                         ? $terminTwo->signatures->map(function (\App\Models\LhppBastSignature $signature): array {
@@ -322,6 +332,13 @@
                                             @endif
                                         </div>
 
+                                        @if ($approvalStatus === \App\Models\LhppBast::APPROVAL_REJECTED)
+                                            <div class="mt-2 max-w-[240px] rounded-lg border border-rose-200 bg-rose-50 px-2 py-1.5 text-[9px] text-rose-800">
+                                                <div class="font-bold">Ditolak</div>
+                                                <div class="mt-0.5 break-words"><span class="font-semibold">Alasan penolakan:</span> {{ $rejectionNote ?: '-' }}</div>
+                                            </div>
+                                        @endif
+
                                         @if ($terminTwoExists)
                                             <div class="mt-2 rounded-xl border border-sky-100 bg-sky-50 px-2 py-1.5 shadow-sm">
                                                 <div class="flex items-center justify-between gap-2">
@@ -348,12 +365,17 @@
                                                     </button>
                                                 </div>
                                             </div>
+                                            @if ($terminTwoApprovalStatus === \App\Models\LhppBast::APPROVAL_REJECTED)
+                                                <div class="mt-1 break-words text-[9px] text-rose-800"><span class="font-semibold">Alasan penolakan:</span> {{ $terminTwoRejectionNote ?: '-' }}</div>
+                                            @endif
                                         @endif
 
                                         @if ($isDiropsPending)
                                             <form action="{{ route('pkm.lhpp.dirops-document.upload', ['lhppId' => $row->id]) }}" method="POST" enctype="multipart/form-data" class="mt-2 w-[190px] space-y-1 rounded-lg border border-orange-200 bg-orange-50 p-2">
                                                 @csrf
-                                                <input type="file" name="signed_document" accept=".pdf,.png,.jpg,.jpeg" class="w-full text-[9px] text-orange-700">
+                                                <input type="file" name="signed_document" accept=".pdf,application/pdf" class="w-full text-[9px] text-orange-700">
+                                                <p class="mt-1 text-[8px] text-slate-500">Format PDF, maksimal 10 MB.</p>
+                                                @error('signed_document') <p class="mt-1 text-[8px] font-semibold text-rose-600">{{ $message }}</p> @enderror
                                                 <button type="submit" class="inline-flex w-full items-center justify-center gap-1 rounded-md bg-orange-600 px-2 py-1 text-[9px] font-semibold text-white transition hover:bg-orange-700">
                                                     <i data-lucide="upload" class="h-3 w-3"></i>
                                                     Upload Final DIROPS
@@ -404,38 +426,42 @@
                                             </div>
 
                                             <div x-show="selectedTerm === 'termin_1'" class="flex items-center justify-center gap-1">
-                                                <a href="{{ route('pkm.lhpp.edit', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" class="pkm-lhpp-action-btn bg-emerald-500 hover:bg-emerald-600" title="Edit LHPP">
+                                                <a @if ($approvalStatus === \App\Models\LhppBast::APPROVAL_REJECTED) style="display:none" @endif href="{{ route('pkm.lhpp.edit', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" class="pkm-lhpp-action-btn bg-emerald-500 hover:bg-emerald-600" title="Edit LHPP">
                                                     <i data-lucide="square-pen" class="h-3.5 w-3.5"></i>
                                                 </a>
                                                 <a href="{{ route('pkm.lhpp.pdf', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" target="_blank" rel="noopener noreferrer" class="pkm-lhpp-action-btn bg-blue-500 hover:bg-blue-600" title="Download PDF LHPP">
                                                     <i data-lucide="file-text" class="h-3.5 w-3.5"></i>
                                                 </a>
-                                                <form action="{{ route('pkm.lhpp.destroy', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" method="POST" class="inline-block pkm-lhpp-delete-form">
+                                                @if ($approvalStatus === \App\Models\LhppBast::APPROVAL_REJECTED || ! $row->isApprovalLocked())
+                                                <form action="{{ route('pkm.lhpp.destroy', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" method="POST" class="inline-block pkm-lhpp-delete-form" data-rejected="{{ $approvalStatus === \App\Models\LhppBast::APPROVAL_REJECTED ? '1' : '0' }}">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="button" class="pkm-lhpp-action-btn bg-red-500 hover:bg-red-600 pkm-lhpp-delete-button" title="Hapus LHPP">
+                                                    <button type="button" class="pkm-lhpp-action-btn bg-red-500 hover:bg-red-600 pkm-lhpp-delete-button" title="Hapus BAST">
                                                         <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
                                                     </button>
                                                 </form>
+                                                @endif
                                             </div>
 
                                             @unless ($isWithoutWarranty)
                                             <div x-show="selectedTerm === 'termin_2'" class="w-full">
                                                 @if ($terminTwoExists)
                                                     <div class="flex items-center justify-center gap-1">
-                                                        <a href="{{ route('pkm.lhpp.edit', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-2']) }}" class="pkm-lhpp-action-btn bg-emerald-500 hover:bg-emerald-600" title="Edit BAST Termin 2">
+                                                        <a @if ($terminTwoApprovalStatus === \App\Models\LhppBast::APPROVAL_REJECTED) style="display:none" @endif href="{{ route('pkm.lhpp.edit', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-2']) }}" class="pkm-lhpp-action-btn bg-emerald-500 hover:bg-emerald-600" title="Edit BAST Termin 2">
                                                             <i data-lucide="square-pen" class="h-3.5 w-3.5"></i>
                                                         </a>
                                                         <a href="{{ route('pkm.lhpp.pdf', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-2']) }}" target="_blank" rel="noopener noreferrer" class="pkm-lhpp-action-btn bg-blue-500 hover:bg-blue-600" title="Download PDF BAST Termin 2">
                                                             <i data-lucide="file-text" class="h-3.5 w-3.5"></i>
                                                         </a>
-                                                        <form action="{{ route('pkm.lhpp.destroy', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-2']) }}" method="POST" class="inline-block pkm-lhpp-delete-form">
+                                                        @if ($terminTwoApprovalStatus === \App\Models\LhppBast::APPROVAL_REJECTED || ! $terminTwo->isApprovalLocked())
+                                                        <form action="{{ route('pkm.lhpp.destroy', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-2']) }}" method="POST" class="inline-block pkm-lhpp-delete-form" data-rejected="{{ $terminTwoApprovalStatus === \App\Models\LhppBast::APPROVAL_REJECTED ? '1' : '0' }}">
                                                             @csrf
                                                             @method('DELETE')
                                                             <button type="button" class="pkm-lhpp-action-btn bg-red-500 hover:bg-red-600 pkm-lhpp-delete-button" title="Hapus BAST Termin 2">
                                                                 <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
                                                             </button>
                                                         </form>
+                                                        @endif
                                                     </div>
                                                     @if ($terminTwoIsExpired && $terminTwoActiveSignature)
                                                         <form action="{{ route('pkm.lhpp.approval-token.regenerate', ['lhppId' => $terminTwo->id]) }}" method="POST" class="mt-1">
@@ -449,7 +475,9 @@
                                                     @if ($terminTwoIsDiropsPending)
                                                         <form action="{{ route('pkm.lhpp.dirops-document.upload', ['lhppId' => $terminTwo->id]) }}" method="POST" enctype="multipart/form-data" class="mt-2 space-y-1 rounded-lg border border-orange-200 bg-orange-50 p-2">
                                                             @csrf
-                                                            <input type="file" name="signed_document" accept=".pdf,.png,.jpg,.jpeg" class="w-full text-[9px] text-orange-700">
+                                                            <input type="file" name="signed_document" accept=".pdf,application/pdf" class="w-full text-[9px] text-orange-700">
+                                                            <p class="mt-1 text-[8px] text-slate-500">Format PDF, maksimal 10 MB.</p>
+                                                            @error('signed_document') <p class="mt-1 text-[8px] font-semibold text-rose-600">{{ $message }}</p> @enderror
                                                             <button type="submit" class="inline-flex w-full items-center justify-center gap-1 rounded-md bg-orange-600 px-2 py-1 text-[9px] font-semibold text-white transition hover:bg-orange-700">
                                                                 <i data-lucide="upload" class="h-3 w-3"></i>
                                                                 Upload DIROPS T2
@@ -732,9 +760,12 @@
                     button.addEventListener('click', (event) => {
                         event.preventDefault();
                         const form = button.closest('.pkm-lhpp-delete-form');
+                        const isRejected = form?.dataset.rejected === '1';
                         Swal.fire({
-                            title: 'Hapus LHPP ini?',
-                            text: 'Data BAST / LHPP ini akan dihapus permanen.',
+                            title: 'Hapus BAST ini?',
+                            text: isRejected
+                                ? 'BAST ini telah ditolak. Menghapus BAST akan menghapus item, gambar, signature, token, dokumen terkait, dan Termin 2 jika ada. Data garansi order tetap dipertahankan. Lanjutkan?'
+                                : 'Data BAST / LHPP ini akan dihapus permanen.',
                             icon: 'warning',
                             showCancelButton: true,
                             confirmButtonColor: '#dc2626',

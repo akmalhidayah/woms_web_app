@@ -12,13 +12,18 @@ use App\Models\LhppBast;
 use App\Models\LhppBastImage;
 use App\Models\LhppBastSignature;
 use App\Models\Order;
+use App\Models\VendorWorkType;
+use App\Models\VendorWorkTypeSection;
 use App\Services\Approvals\ApprovalNotificationService;
+use App\Services\Pkm\BastDeletionService;
 use App\Support\ApprovalFlowSignerPreview;
 use App\Support\BastApprovalFlow;
 use App\Support\BastApprovalSignatureBuilder;
+use App\Support\BastApproverResolver;
 use App\Support\BastDocumentNumberGenerator;
 use App\Support\PdfMergeService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -39,6 +44,8 @@ class LhppController extends Controller
         private readonly BastApprovalSignatureBuilder $signatureBuilder,
         private readonly ApprovalNotificationService $approvalNotificationService,
         private readonly BastDocumentNumberGenerator $documentNumberGenerator,
+        private readonly BastDeletionService $bastDeletionService,
+        private readonly BastApproverResolver $bastApproverResolver,
     ) {}
 
     public function index(Request $request): View
@@ -133,6 +140,7 @@ class LhppController extends Controller
                 'activeTokens' => collect(),
             ]);
         } catch (Throwable $exception) {
+            $this->rethrowExpectedException($exception);
             Log::error('Failed to load PKM LHPP index page.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'user_id' => $request->user()?->id,
@@ -157,6 +165,7 @@ class LhppController extends Controller
                 'submitLabel' => 'Simpan',
             ], 'termin_1');
         } catch (Throwable $exception) {
+            $this->rethrowExpectedException($exception);
             Log::error('Failed to load PKM LHPP create form.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'user_id' => $request->user()?->id,
@@ -232,6 +241,7 @@ class LhppController extends Controller
                 'submitLabel' => 'Update',
             ], $terminType, $lhpp->parentLhppBast);
         } catch (Throwable $exception) {
+            $this->rethrowExpectedException($exception);
             Log::error('Failed to load PKM LHPP edit form.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'user_id' => $request->user()?->id,
@@ -248,9 +258,18 @@ class LhppController extends Controller
 
     public function calculate(Request $request): JsonResponse
     {
+        $validated = $request->validate([
+            'material_rows' => ['nullable', 'array', 'max:100'],
+            'material_rows.*.contract_item_id' => ['nullable', 'integer', 'exists:fabrication_construction_contracts,id'],
+            'material_rows.*.volume' => ['nullable', 'regex:/^\d{1,12}(?:\.\d{1,3})?$/'],
+            'service_rows' => ['nullable', 'array', 'max:100'],
+            'service_rows.*.contract_item_id' => ['nullable', 'integer', 'exists:fabrication_construction_contracts,id'],
+            'service_rows.*.volume' => ['nullable', 'regex:/^\d{1,12}(?:\.\d{1,3})?$/'],
+        ]);
+
         $calculation = $this->calculateRows(
-            $request->input('material_rows', []),
-            $request->input('service_rows', []),
+            $validated['material_rows'] ?? [],
+            $validated['service_rows'] ?? [],
             true,
         );
 
@@ -260,6 +279,7 @@ class LhppController extends Controller
     public function store(StoreLhppBastRequest $request): RedirectResponse
     {
         $terminType = $this->normalizeTerminType($request->string('termin_type')->toString());
+        $stagedImages = [];
 
         try {
             [$order, $parentLhpp] = $this->resolveStoreContext(
@@ -302,6 +322,7 @@ class LhppController extends Controller
                 $request->input('approval_flow', []),
                 $isWithoutWarranty,
             );
+            $stagedImages = $this->stageUploadedImages($request, (string) $order->nomor_order, $terminType);
 
             $lhpp = DB::transaction(function () use (
                 $order,
@@ -316,6 +337,7 @@ class LhppController extends Controller
                 $approvalPayload,
                 $calculation,
                 $qualityControlStatus,
+                $stagedImages,
             ): LhppBast {
                 $lhpp = LhppBast::query()->updateOrCreate(
                     [
@@ -331,6 +353,7 @@ class LhppController extends Controller
                         'purchase_order_number' => $purchaseOrder?->purchase_order_number,
                         'deskripsi_pekerjaan' => $order->nama_pekerjaan,
                         'tipe_pekerjaan' => $tipePekerjaan,
+                        'vendor_work_type_section_id' => $this->resolveVendorSectionId($tipePekerjaan),
                         'unit_kerja' => $order->unit_kerja,
                         'seksi' => $order->seksi,
                         'tanggal_bast' => $request->date('tanggal_bast'),
@@ -367,10 +390,12 @@ class LhppController extends Controller
                     $this->signatureBuilder->activateFirstSignature($lhpp);
                 }
 
+                foreach ($stagedImages as $image) {
+                    $lhpp->images()->create($image + ['created_by' => $request->user()?->id]);
+                }
+
                 return $lhpp->refresh();
             });
-
-            $this->storeUploadedImages($request, $lhpp);
 
             return redirect()
                 ->route('pkm.lhpp.index')
@@ -381,10 +406,14 @@ class LhppController extends Controller
                     number_format((float) $lhpp->total_aktual_biaya, 0, ',', '.'),
                 ));
         } catch (ValidationException $exception) {
+            Storage::disk('public')->delete(collect($stagedImages)->pluck('file_path')->all());
+
             return back()
                 ->withInput()
                 ->withErrors($exception->errors());
         } catch (Throwable $exception) {
+            Storage::disk('public')->delete(collect($stagedImages)->pluck('file_path')->all());
+            $this->rethrowExpectedException($exception);
             Log::error('Failed to store PKM LHPP form.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'user_id' => $request->user()?->id,
@@ -495,6 +524,7 @@ class LhppController extends Controller
                     'purchase_order_number' => $purchaseOrder?->purchase_order_number,
                     'deskripsi_pekerjaan' => $order->nama_pekerjaan,
                     'tipe_pekerjaan' => $tipePekerjaan,
+                    'vendor_work_type_section_id' => $this->resolveVendorSectionId($tipePekerjaan),
                     'unit_kerja' => $order->unit_kerja,
                     'seksi' => $order->seksi,
                     'tanggal_bast' => $request->date('tanggal_bast'),
@@ -591,7 +621,9 @@ class LhppController extends Controller
                     })
                     ->exists();
 
-            if ($lhpp->isApprovalLocked() || $hasLockedChild) {
+            $isRejected = $lhpp->approval_status === LhppBast::APPROVAL_REJECTED;
+
+            if (! $isRejected && ($lhpp->isApprovalLocked() || $hasLockedChild)) {
                 Log::warning('Blocked deletion of signed BAST/LHPP document.', [
                     'status_code' => Response::HTTP_FORBIDDEN,
                     'user_id' => $request->user()?->id,
@@ -604,24 +636,17 @@ class LhppController extends Controller
                 abort(Response::HTTP_FORBIDDEN, 'BAST/LHPP tidak dapat dihapus setelah proses approval menghasilkan keputusan.');
             }
 
-            if ($terminType === 'termin_1') {
-                $lhpp->childLhppBasts()->delete();
-            }
-
-            $lhpp->loadMissing('images');
-            foreach ($lhpp->images as $image) {
-                if ($image->file_path) {
-                    Storage::disk('public')->delete($image->file_path);
-                }
-            }
-
             $nomorOrder = $lhpp->nomor_order;
             $termLabel = $this->terminLabel($terminType);
-            $lhpp->delete();
+            $this->bastDeletionService->delete($lhpp);
 
             return redirect()
                 ->route('pkm.lhpp.index')
-                ->with('status', sprintf('BAST %s untuk order %s berhasil dihapus.', $termLabel, $nomorOrder));
+                ->with('status', sprintf(
+                    'BAST %s untuk order %s berhasil dihapus. Anda dapat membuat BAST baru untuk order tersebut.',
+                    $termLabel,
+                    $nomorOrder,
+                ));
         } catch (Throwable $exception) {
             if ($exception instanceof HttpExceptionInterface) {
                 throw $exception;
@@ -729,6 +754,7 @@ class LhppController extends Controller
                 sprintf('bast-%s-%s.pdf', $this->terminSlug($terminType), $lhpp->nomor_order)
             ));
         } catch (Throwable $exception) {
+            $this->rethrowExpectedException($exception);
             Log::error('Failed to generate PKM LHPP PDF.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'user_id' => $request->user()?->id,
@@ -1399,16 +1425,29 @@ class LhppController extends Controller
             return;
         }
 
-        $lockedFlow = $lhpp->signatures()
+        $lockedSignatures = $lhpp->signatures()
             ->where('status', LhppBastSignature::STATUS_LOCKED)
             ->orderBy('step_order')
-            ->pluck('role_label')
-            ->map(static fn (mixed $role): string => trim((string) $role))
-            ->filter()
-            ->values()
-            ->all();
+            ->get();
+        $lockedFlow = $lockedSignatures->pluck('role_label')->map(static fn (mixed $role): string => trim((string) $role))->filter()->values()->all();
+        if ($lockedFlow === []) {
+            return;
+        }
+        $expected = collect($flow)->map(function (string $role, int $index) use ($lhpp): array {
+            $approver = $this->bastApproverResolver->resolveApprover($lhpp, $role);
 
-        if ($lockedFlow === [] || $lockedFlow === $flow) {
+            return ['step_order' => $index + 1, 'role_key' => $approver['role_key'], 'signer_user_id' => $approver['user']->id];
+        });
+        $signerMatches = $lockedSignatures->count() === $expected->count()
+            && $lockedSignatures->values()->every(function (LhppBastSignature $signature, int $index) use ($expected): bool {
+                $item = $expected[$index];
+
+                return $signature->step_order === $item['step_order']
+                    && $signature->role_key === $item['role_key']
+                    && (int) $signature->signer_user_id === (int) $item['signer_user_id'];
+            });
+
+        if ($lockedFlow === $flow && $signerMatches) {
             return;
         }
 
@@ -1417,6 +1456,7 @@ class LhppController extends Controller
             ->delete();
 
         $lhpp->unsetRelation('signatures');
+        $this->signatureBuilder->ensureSignatures($lhpp->fresh());
     }
 
     /**
@@ -1424,11 +1464,9 @@ class LhppController extends Controller
      */
     private function resolveThresholdFromTotals(string $terminType, array $totals, bool $isWithoutWarranty = false): string
     {
-        $amount = match (true) {
-            $terminType === 'termin_2' => (float) ($totals['termin_2_nilai'] ?? 0),
-            $isWithoutWarranty => (float) ($totals['total_aktual_biaya'] ?? 0),
-            default => (float) ($totals['termin_1_nilai'] ?? 0),
-        };
+        $amount = $terminType === 'termin_2'
+            ? (float) ($totals['termin_2_nilai'] ?? 0)
+            : (float) ($totals['termin_1_nilai'] ?? 0);
 
         return $amount > 250000000 ? 'over_250' : 'under_250';
     }
@@ -1549,6 +1587,14 @@ class LhppController extends Controller
         return $terminType === 'termin_2' ? 'Termin 2' : 'Termin 1';
     }
 
+    private function resolveVendorSectionId(string $sectionName): ?int
+    {
+        return VendorWorkTypeSection::query()
+            ->whereHas('vendorWorkType', fn ($query) => $query->where('name', VendorWorkType::FIXED_VENDOR_NAME))
+            ->where('normalized_name', Str::lower(trim($sectionName)))
+            ->value('id');
+    }
+
     private function storeUploadedImages(StoreLhppBastRequest $request, LhppBast $lhpp): void
     {
         $files = $request->file('gambar', []);
@@ -1577,6 +1623,30 @@ class LhppController extends Controller
         }
     }
 
+    private function stageUploadedImages(StoreLhppBastRequest $request, string $nomorOrder, string $terminType): array
+    {
+        $staged = [];
+        try {
+            foreach ((array) $request->file('gambar', []) as $file) {
+                if (! $file?->isValid()) {
+                    continue;
+                }
+                $path = $file->store("lhpp-basts/{$nomorOrder}/{$terminType}", 'public');
+                $staged[] = [
+                    'file_path' => $path,
+                    'file_name' => $file->getClientOriginalName(),
+                    'mime_type' => $file->getClientMimeType(),
+                    'file_size' => $file->getSize(),
+                ];
+            }
+
+            return $staged;
+        } catch (Throwable $exception) {
+            Storage::disk('public')->delete(collect($staged)->pluck('file_path')->all());
+            throw $exception;
+        }
+    }
+
     /**
      * @param  array<int, array<string, mixed>>  $materialRows
      * @param  array<int, array<string, mixed>>  $serviceRows
@@ -1584,8 +1654,8 @@ class LhppController extends Controller
      */
     private function calculateRows(array $materialRows, array $serviceRows, bool $preserveEmptyRows = false): array
     {
-        $normalizedMaterialRows = $this->normalizeItemRows($materialRows, $preserveEmptyRows);
-        $normalizedServiceRows = $this->normalizeItemRows($serviceRows, $preserveEmptyRows);
+        $normalizedMaterialRows = $this->normalizeItemRows($materialRows, $preserveEmptyRows, 'material');
+        $normalizedServiceRows = $this->normalizeItemRows($serviceRows, $preserveEmptyRows, 'service');
 
         $subtotalMaterial = $this->sumAmounts($normalizedMaterialRows);
         $subtotalJasa = $this->sumAmounts($normalizedServiceRows);
@@ -1633,17 +1703,42 @@ class LhppController extends Controller
      * @param  array<int, array<string, mixed>>  $rows
      * @return array<int, array<string, string>>
      */
-    private function normalizeItemRows(array $rows, bool $preserveEmptyRows = false): array
+    private function normalizeItemRows(array $rows, bool $preserveEmptyRows = false, string $group = 'service'): array
     {
         $normalizedRows = [];
 
         foreach ($rows as $row) {
-            $jenisItem = trim((string) ($row['jenis_item'] ?? ''));
-            $kategoriItem = trim((string) ($row['kategori_item'] ?? ''));
-            $name = trim((string) ($row['name'] ?? ''));
+            $contractItem = null;
+            if (filled($row['contract_item_id'] ?? null)) {
+                $contractItem = FabricationConstructionContract::query()->find($row['contract_item_id']);
+            } elseif (filled($row['name'] ?? null)) {
+                $matches = FabricationConstructionContract::query()
+                    ->where('nama_item', trim((string) $row['name']))
+                    ->when(filled($row['jenis_item'] ?? null), fn ($query) => $query->where('jenis_item', trim((string) $row['jenis_item'])))
+                    ->when(filled($row['kategori_item'] ?? null), fn ($query) => $query->where('kategori_item', trim((string) $row['kategori_item'])))
+                    ->get();
+                $contractItem = $matches->count() === 1 ? $matches->first() : null;
+            }
+
+            $jenisItem = trim((string) ($contractItem?->jenis_item ?? $row['jenis_item'] ?? ''));
+            $kategoriItem = trim((string) ($contractItem?->kategori_item ?? $row['kategori_item'] ?? ''));
+            $name = trim((string) ($contractItem?->nama_item ?? $row['name'] ?? ''));
             $volume = $this->normalizeNumericString($row['volume'] ?? '');
-            $unit = trim((string) ($row['unit'] ?? 'Jam'));
-            $unitPrice = $this->normalizeCurrencyDecimal($row['unit_price'] ?? '');
+            $unit = trim((string) ($contractItem?->satuan ?? $row['unit'] ?? 'Jam'));
+            $unitPrice = $this->normalizeCurrencyDecimal($contractItem?->harga_satuan ?? '');
+
+            if ($name !== '' && ! $contractItem) {
+                throw ValidationException::withMessages(['items' => "Item {$name} tidak ditemukan pada katalog kontrak. Pilih ulang item."]);
+            }
+            if ($contractItem) {
+                $isMaterial = str_contains(Str::upper($jenisItem), 'MATERIAL');
+                if (($group === 'material') !== $isMaterial) {
+                    throw ValidationException::withMessages(['items' => "Item {$name} tidak sesuai kelompok {$group}."]);
+                }
+                if ((float) $volume <= 0) {
+                    throw ValidationException::withMessages(['items' => "Volume item {$name} wajib lebih besar dari nol."]);
+                }
+            }
             $amount = $this->multiplyCurrencyDecimal($volume, $unitPrice);
 
             if ($name === '' && $this->isZeroNumericString($volume) && $this->isZeroCurrency($unitPrice)) {
@@ -1668,6 +1763,7 @@ class LhppController extends Controller
             $normalizedRows[] = [
                 'jenis_item' => $jenisItem,
                 'kategori_item' => $kategoriItem,
+                'contract_item_id' => $contractItem?->id,
                 'name' => $name,
                 'volume' => $volume === '0' ? '' : $volume,
                 'unit' => $unit !== '' ? $unit : 'Jam',
@@ -1686,11 +1782,14 @@ class LhppController extends Controller
     private function resolveContractCatalog(): array
     {
         return FabricationConstructionContract::query()
+            ->whereNotNull('nama_item')
+            ->whereRaw("TRIM(nama_item) <> ''")
             ->orderBy('jenis_item')
             ->orderBy('kategori_item')
             ->orderBy('nama_item')
             ->get()
             ->map(fn (FabricationConstructionContract $item): array => [
+                'id' => (string) $item->id,
                 'jenis_item' => trim((string) $item->jenis_item),
                 'kategori_item' => trim((string) ($item->kategori_item ?? '')),
                 'nama_item' => trim((string) $item->nama_item),
@@ -1709,6 +1808,7 @@ class LhppController extends Controller
     private function enrichLhppItemRow(array $row, array $contractCatalog): array
     {
         $enriched = [
+            'contract_item_id' => $row['contract_item_id'] ?? null,
             'jenis_item' => trim((string) ($row['jenis_item'] ?? '')),
             'kategori_item' => trim((string) ($row['kategori_item'] ?? '')),
             'name' => trim((string) ($row['name'] ?? '')),
@@ -1743,6 +1843,10 @@ class LhppController extends Controller
         if (! $matchedItem) {
             $matchedItem = collect($contractCatalog)
                 ->first(fn (array $item): bool => ($item['nama_item'] ?? '') === $enriched['name']);
+        }
+
+        if ($matchedItem) {
+            $enriched['contract_item_id'] = $matchedItem['id'] ?? null;
         }
 
         if (! $matchedItem) {
@@ -1813,12 +1917,6 @@ class LhppController extends Controller
             $unsigned = str_replace(',', '.', $unsigned);
         } elseif (substr_count($unsigned, '.') > 1) {
             $unsigned = str_replace('.', '', $unsigned);
-        } elseif (str_contains($unsigned, '.')) {
-            [, $decimal] = array_pad(explode('.', $unsigned, 2), 2, '');
-
-            if (strlen($decimal) === 3) {
-                $unsigned = str_replace('.', '', $unsigned);
-            }
         }
 
         if (str_contains($unsigned, '.')) {
@@ -1889,5 +1987,14 @@ class LhppController extends Controller
     private function displayEditableCurrency(string $value): string
     {
         return number_format((float) $this->normalizeCurrencyDecimal($value), 0, ',', '.');
+    }
+
+    private function rethrowExpectedException(Throwable $exception): void
+    {
+        if ($exception instanceof ValidationException
+            || $exception instanceof HttpExceptionInterface
+            || $exception instanceof AuthorizationException) {
+            throw $exception;
+        }
     }
 }

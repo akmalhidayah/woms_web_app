@@ -16,25 +16,35 @@ class PkmNotificationCenter
 {
     private const RECENT_DAYS = 14;
 
+    public static function snapshot(int $limit = 5, ?User $user = null): array
+    {
+        static $snapshots = [];
+        $key = ($user?->id ?? 0).':'.$limit;
+
+        return $snapshots[$key] ??= (function () use ($limit, $user): array {
+            $all = self::allNotifications();
+            $unread = $all->reject(fn (array $notification): bool => self::isRead($notification, $user))
+                ->sortByDesc('occurred_at')->values();
+
+            return [
+                'notifications' => $unread->take($limit),
+                'count' => $unread->count(),
+                'unread_keys' => $unread->pluck('key')->filter()->unique()->values(),
+            ];
+        })();
+    }
+
     /**
      * @return Collection<int, array<string, mixed>>
      */
     public static function notifications(int $limit = 5, ?User $user = null): Collection
     {
-        $sourceLimit = $user ? max($limit * 4, 20) : $limit;
-
-        return self::allNotifications($sourceLimit)
-            ->reject(fn (array $notification): bool => self::isRead($notification, $user))
-            ->sortByDesc('occurred_at')
-            ->values()
-            ->take($limit);
+        return self::snapshot($limit, $user)['notifications'];
     }
 
     public static function notificationCount(?User $user = null): int
     {
-        return self::allNotifications()
-            ->reject(fn (array $notification): bool => self::isRead($notification, $user))
-            ->count();
+        return self::snapshot(5, $user)['count'];
     }
 
     /**

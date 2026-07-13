@@ -12,8 +12,8 @@
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
 
-        <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-        <script defer src="https://unpkg.com/lucide@latest"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
+        <script defer src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
 
         <style>[x-cloak]{ display:none !important; }</style>
     </head>
@@ -24,10 +24,7 @@
             $logoSt = asset('assets/branding/logos/logo-st2.png');
             $user = auth()->user();
             $userInitials = $user?->initials() ?: 'PK';
-            $pkmNotifications = \App\Support\PkmNotificationCenter::notifications(5, $user);
-            $pkmNotificationCount = \App\Support\PkmNotificationCenter::notificationCount($user);
             $pkmNotificationBadge = $pkmNotificationCount > 9 ? '9+' : (string) $pkmNotificationCount;
-            $pkmBadgeCounts = app(\App\Support\PkmSidebarBadgeCounter::class)->counts();
             $notificationToneClasses = [
                 'blue' => 'bg-blue-50 text-blue-700 ring-blue-100',
                 'amber' => 'bg-amber-50 text-amber-700 ring-amber-100',
@@ -40,26 +37,6 @@
                 ['route' => 'pkm.lhpp.index', 'icon' => 'file-text', 'label' => 'Buat BAST/LHPP', 'badge_count' => $pkmBadgeCounts['lhpp'] ?? 0],
                 ['route' => 'pkm.laporan', 'icon' => 'folder-open', 'label' => 'Dokumen', 'badge_count' => $pkmBadgeCounts['documents'] ?? 0],
             ];
-            $pkmVendorWorkType = \App\Models\VendorWorkType::query()
-                ->with(['vendorSections.manager:id,name,email,nomor_hp,inisial,role'])
-                ->where('name', \App\Models\VendorWorkType::FIXED_VENDOR_NAME)
-                ->first();
-            $assignedManagerIds = collect($pkmVendorWorkType?->vendorSections ?? [])->pluck('manager_id')->filter();
-            $oldManagerIds = collect($errors->pkmVendorStructure->any() ? old('sections', []) : [])->pluck('manager_id')->filter();
-            $managerIds = $assignedManagerIds->merge($oldManagerIds)->unique()->values();
-            $pkmVendorManagers = \App\Models\User::query()
-                ->where('role', \App\Models\User::ROLE_APPROVER)
-                ->whereIn('id', $managerIds)
-                ->orderBy('name')
-                ->get(['id', 'name', 'email', 'nomor_hp', 'inisial']);
-            $pkmVendorSections = collect($errors->pkmVendorStructure->any() ? old('sections', []) : ($pkmVendorWorkType?->vendorSections ?? []))
-                ->map(fn ($section, $index) => [
-                    'uid' => $errors->pkmVendorStructure->any() ? 'old-'.$index : 'section-'.(is_array($section) ? $index : $section->id),
-                    'name' => (string) (is_array($section) ? ($section['name'] ?? '') : $section->name),
-                    'manager_id' => (string) (is_array($section) ? ($section['manager_id'] ?? '') : $section->manager_id),
-                ])
-                ->values()
-                ->all();
         @endphp
 
         <div
@@ -392,6 +369,7 @@
                                 <div class="space-y-2">
                                     <template x-for="(section, index) in sections" :key="section.uid">
                                         <div class="grid gap-2 rounded-lg border border-slate-200 bg-white p-2 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
+                                            <input type="hidden" :name="`sections[${index}][id]`" :value="section.id || ''">
                                             <div>
                                                 <label class="mb-1 block text-[10px] font-semibold text-slate-600">Nama Seksi</label>
                                                 <input type="text" :name="`sections[${index}][name]`" x-model="section.name" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:border-[#ca642f] focus:outline-none" required>
@@ -445,7 +423,7 @@
                 return {
                     sections: Array.isArray(initialSections) && initialSections.length
                         ? initialSections
-                        : [{ uid: `${Date.now()}-${Math.random()}`, name: '', manager_id: '' }],
+                        : [{ id: '', uid: `${Date.now()}-${Math.random()}`, name: '', manager_id: '' }],
                     managerOptions: Array.isArray(initialManagers) ? initialManagers : [],
                     managerModalOpen: false,
                     managerTargetIndex: null,
@@ -454,6 +432,7 @@
                     managerForm: { name: '', email: '', nomor_hp: '', inisial: '' },
                     addSection() {
                         this.sections.push({
+                            id: '',
                             uid: `${Date.now()}-${Math.random()}`,
                             name: '',
                             manager_id: '',
@@ -461,7 +440,7 @@
                     },
                     removeSection(index) {
                         if (this.sections.length === 1) {
-                            this.sections = [{ uid: `${Date.now()}-${Math.random()}`, name: '', manager_id: '' }];
+                            this.sections = [{ id: '', uid: `${Date.now()}-${Math.random()}`, name: '', manager_id: '' }];
                             return;
                         }
 

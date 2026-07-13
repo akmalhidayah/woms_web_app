@@ -10,7 +10,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class VendorStructureController extends Controller
 {
@@ -22,6 +24,7 @@ class VendorStructureController extends Controller
 
         $validator = Validator::make($request->all(), [
             'sections' => ['required', 'array', 'min:1'],
+            'sections.*.id' => ['nullable', 'integer'],
             'sections.*.name' => ['required', 'string', 'max:255', 'distinct:ignore_case'],
             'sections.*.manager_id' => [
                 'required',
@@ -37,15 +40,46 @@ class VendorStructureController extends Controller
                 ->with('pkm_vendor_structure_modal', true);
         }
 
-        DB::transaction(function () use ($vendorWorkType, $validator): void {
-            $vendorWorkType->vendorSections()->delete();
-            foreach ($validator->validated()['sections'] as $section) {
-                $vendorWorkType->vendorSections()->create([
-                    'name' => trim((string) $section['name']),
-                    'manager_id' => $section['manager_id'],
-                ]);
-            }
-        });
+        try {
+            DB::transaction(function () use ($vendorWorkType, $validator): void {
+                $vendor = VendorWorkType::query()->whereKey($vendorWorkType->id)->lockForUpdate()->firstOrFail();
+                $existing = $vendor->vendorSections()->lockForUpdate()->get()->keyBy('id');
+                $submittedIds = [];
+                $seenNames = [];
+
+                foreach ($validator->validated()['sections'] as $index => $section) {
+                    $name = trim((string) $section['name']);
+                    $normalizedName = Str::lower($name);
+                    if (isset($seenNames[$normalizedName])) {
+                        throw ValidationException::withMessages([
+                            "sections.{$index}.name" => 'Nama seksi tidak boleh duplikat, termasuk perbedaan huruf besar/kecil.',
+                        ]);
+                    }
+                    $seenNames[$normalizedName] = true;
+                    $sectionId = isset($section['id']) ? (int) $section['id'] : null;
+
+                    if ($sectionId) {
+                        $model = $existing->get($sectionId);
+                        if (! $model) {
+                            throw ValidationException::withMessages(["sections.{$index}.id" => 'Seksi vendor yang dipilih tidak valid.']);
+                        }
+                        $model->update(['name' => $name, 'normalized_name' => $normalizedName, 'manager_id' => $section['manager_id']]);
+                        $submittedIds[] = $sectionId;
+                    } else {
+                        $submittedIds[] = $vendor->vendorSections()->create([
+                            'name' => $name,
+                            'normalized_name' => $normalizedName,
+                            'manager_id' => $section['manager_id'],
+                        ])->id;
+                    }
+                }
+
+                $vendor->vendorSections()->whereNotIn('id', $submittedIds)->delete();
+            });
+        } catch (ValidationException $exception) {
+            return back()->withErrors($exception->errors(), 'pkmVendorStructure')->withInput()
+                ->with('pkm_vendor_structure_modal', true);
+        }
 
         return back()->with('status', 'Seksi vendor berhasil diperbarui.');
     }

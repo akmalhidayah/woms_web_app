@@ -94,7 +94,7 @@ class DashboardController extends Controller
                 && in_array($order->prioritas, [Order::PRIORITY_URGENT, Order::PRIORITY_HIGH], true)
                 && (bool) $initialWork;
             $jobSource = $canUpdateByPurchaseOrder ? $purchaseOrder : ($isEmergencyInitialWorkFlow ? $initialWork : null);
-            $targetDate = $purchaseOrder?->target_penyelesaian ?: $jobSource?->target_penyelesaian;
+            $targetDate = $jobSource?->target_penyelesaian;
             $progress = (int) ($jobSource?->progress_pekerjaan ?? 0);
 
             $hasHpp = (bool) $order->latestHpp;
@@ -111,7 +111,7 @@ class DashboardController extends Controller
 
             $isOverdue = ! $isDone && $targetDate && $targetDate->isPast() && ! $targetDate->isToday();
             $isToday = ! $isDone && $targetDate && $targetDate->isToday();
-            $isSoon = ! $isDone && $targetDate && $targetDate->gte($today) && $today->diffInDays($targetDate) <= 7;
+            $isSoon = ! $isDone && $targetDate && $targetDate->gt($today) && $targetDate->lte($today->copy()->addDays(7));
 
             $sourceMenu = $isDone ? 'Dokumen' : ($hasBast ? 'BAST / LHPP' : 'List Pekerjaan');
 

@@ -64,9 +64,15 @@ class PkmNotificationController extends Controller
             return route('pkm.dashboard');
         }
 
-        $host = parse_url($url, PHP_URL_HOST);
+        if (str_starts_with($url, '/') && ! str_starts_with($url, '//')) {
+            return $url;
+        }
 
-        if ($host !== null && $host !== $request->getHost()) {
+        $parts = parse_url($url);
+        if (! is_array($parts)
+            || ! in_array(strtolower((string) ($parts['scheme'] ?? '')), ['http', 'https'], true)
+            || strcasecmp((string) ($parts['host'] ?? ''), $request->getHost()) !== 0
+            || (isset($parts['port']) && (int) $parts['port'] !== (int) $request->getPort())) {
             return route('pkm.dashboard');
         }
 

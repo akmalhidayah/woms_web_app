@@ -42,6 +42,7 @@ class LhppBast extends Model
         'purchase_order_number',
         'deskripsi_pekerjaan',
         'tipe_pekerjaan',
+        'vendor_work_type_section_id',
         'unit_kerja',
         'seksi',
         'tanggal_bast',
@@ -144,6 +145,11 @@ class LhppBast extends Model
     public function purchaseOrder(): BelongsTo
     {
         return $this->belongsTo(PurchaseOrder::class);
+    }
+
+    public function vendorSection(): BelongsTo
+    {
+        return $this->belongsTo(VendorWorkTypeSection::class, 'vendor_work_type_section_id');
     }
 
     public function parentLhppBast(): BelongsTo

@@ -10,8 +10,8 @@ class BastApprovalFlow
     public static function thresholdOptions(): array
     {
         return [
-            'under_250' => 'Dibawah 250 JT',
-            'over_250' => 'Diatas 250 JT',
+            'under_250' => '≤ Rp250 juta',
+            'over_250' => '> Rp250 juta',
         ];
     }
 

@@ -21,8 +21,7 @@ class BastSignatureController extends Controller
 {
     public function __construct(
         private readonly BastApprovalSignatureBuilder $signatureBuilder,
-    ) {
-    }
+    ) {}
 
     public function show(Request $request, string $token): View
     {
@@ -104,7 +103,7 @@ class BastSignatureController extends Controller
                 'approval_note.required' => 'Catatan reject wajib diisi.',
             ]);
 
-            $result = DB::transaction(function () use ($request, $signature, $validated): string {
+            DB::transaction(function () use ($request, $signature, $validated): void {
                 $lockedSignature = LhppBastSignature::query()
                     ->whereKey($signature->getKey())
                     ->lockForUpdate()
@@ -112,32 +111,30 @@ class BastSignatureController extends Controller
 
                 $this->authorizeSigner($request, $lockedSignature);
 
-                if ($lockedSignature->isSigned()) {
-                    return 'signed';
-                }
-
                 $lhpp = LhppBast::query()
                     ->whereKey($lockedSignature->lhpp_bast_id)
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                if ($lhpp->approval_status === LhppBast::APPROVAL_REJECTED || $lockedSignature->isSkipped()) {
-                    return 'rejected';
-                }
-
                 abort_unless($lockedSignature->isPending(), 403, 'Tahap tanda tangan BAST ini belum aktif.');
                 abort_unless(! $lockedSignature->tokenExpired(), 403, 'Token approval BAST sudah kedaluwarsa.');
+
+                $approvalNote = $this->normalizeNullableString($validated['approval_note'] ?? null);
 
                 $lockedSignature->update([
                     'status' => LhppBastSignature::STATUS_SKIPPED,
                     'opened_at' => $lockedSignature->opened_at ?: now(),
-                    'approval_note' => $this->normalizeNullableString($validated['approval_note'] ?? null),
+                    'signed_at' => null,
+                    'approval_note' => $approvalNote,
+                    'token' => null,
+                    'token_hash' => null,
+                    'token_expires_at' => null,
                     'signed_ip' => $request->ip(),
                     'signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
                 ]);
 
                 LhppBastSignature::query()
-                    ->where('lhpp_bast_id', $lockedSignature->lhpp_bast_id)
+                    ->where('lhpp_bast_id', $lhpp->id)
                     ->where('step_order', '>', $lockedSignature->step_order)
                     ->whereIn('status', [LhppBastSignature::STATUS_LOCKED, LhppBastSignature::STATUS_PENDING])
                     ->update([
@@ -147,22 +144,21 @@ class BastSignatureController extends Controller
                         'token_expires_at' => null,
                     ]);
 
-                $lhpp->update([
-                    'approval_status' => LhppBast::APPROVAL_REJECTED,
-                ]);
+                $lhpp->update(['approval_status' => LhppBast::APPROVAL_REJECTED]);
 
-                return 'rejected_now';
+                Log::warning('BAST rejected by approver', [
+                    'bast_id' => $lhpp->id,
+                    'order_id' => $lhpp->order_id,
+                    'termin_type' => $lhpp->termin_type,
+                    'signature_id' => $lockedSignature->id,
+                    'signer_user_id' => $request->user()?->id,
+                    'approval_note' => $approvalNote,
+                ]);
             });
 
-            $message = match ($result) {
-                'signed' => 'Dokumen BAST ini sudah ditandatangani.',
-                'rejected' => 'Dokumen BAST ini sudah ditolak.',
-                default => 'Dokumen BAST berhasil ditolak.',
-            };
-
             return redirect()
-                ->route('approval.bast.show', $token)
-                ->with('status', $message);
+                ->route('approver.dashboard')
+                ->with('status', 'BAST berhasil ditolak. Dokumen tetap tersimpan dan harus dihapus oleh PKM sebelum dibuat ulang.');
         }
 
         if ($signature->role_key === 'dirops') {

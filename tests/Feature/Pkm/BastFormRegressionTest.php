@@ -40,7 +40,7 @@ class BastFormRegressionTest extends TestCase
             'termin_2_nilai' => '13000000.00',
         ];
 
-        $this->assertSame('over_250', $this->resolveThreshold('termin_1', $totals, true));
+        $this->assertSame('under_250', $this->resolveThreshold('termin_1', $totals, true));
         $this->assertSame('under_250', $this->resolveThreshold('termin_1', $totals, false));
         $this->assertSame('under_250', $this->resolveThreshold('termin_2', $totals, false));
     }

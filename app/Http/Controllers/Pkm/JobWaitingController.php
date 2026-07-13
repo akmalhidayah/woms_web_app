@@ -16,6 +16,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
@@ -233,7 +234,13 @@ class JobWaitingController extends Controller
             if ($request->boolean('start_progress')) {
                 $nextProgress = max($currentProgress, 11);
             } elseif ($request->filled('progress_pekerjaan') && $currentProgress >= 11) {
-                $nextProgress = max(11, min(100, $request->integer('progress_pekerjaan')));
+                $requestedProgress = $request->integer('progress_pekerjaan');
+                if ($requestedProgress < $currentProgress) {
+                    throw ValidationException::withMessages([
+                        'progress_pekerjaan' => "Progres pekerjaan tidak dapat diturunkan dari {$currentProgress}% menjadi {$requestedProgress}%.",
+                    ]);
+                }
+                $nextProgress = max(11, min(100, $requestedProgress));
             }
 
             $isTargetPenyelesaianLocked = ! $usesInitialWorkFlow

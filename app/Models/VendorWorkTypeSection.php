@@ -16,6 +16,7 @@ class VendorWorkTypeSection extends Model
     protected $fillable = [
         'vendor_work_type_id',
         'name',
+        'normalized_name',
         'manager_id',
     ];
 

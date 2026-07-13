@@ -8,6 +8,7 @@ use App\Models\Hpp;
 use App\Models\LhppBast;
 use App\Models\Order;
 use App\Services\Orders\OrderDocumentService;
+use App\Services\Pkm\PkmDocumentQueryService;
 use App\Support\PdfMergeService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,6 +25,7 @@ class DocumentsController extends Controller
 {
     public function __construct(
         private readonly OrderDocumentService $documentService,
+        private readonly PkmDocumentQueryService $documentQueryService,
     ) {}
 
     public function index(Request $request): View
@@ -31,7 +33,7 @@ class DocumentsController extends Controller
         $search = trim((string) $request->string('notification_number'));
         $status = trim((string) $request->string('status'));
 
-        $rows = Order::query()
+        $query = Order::query()
             ->with([
                 'documents',
                 'latestHpp' => fn ($query) => $query->select([
@@ -51,6 +53,7 @@ class DocumentsController extends Controller
                         'id',
                         'order_id',
                         'termin_type',
+                        'approval_status',
                         'nomor_order',
                         'deskripsi_pekerjaan',
                         'purchase_order_number',
@@ -67,12 +70,6 @@ class DocumentsController extends Controller
                         'garansi:id,lhpp_bast_id,start_date,end_date,garansi_months',
                     ]),
             ])
-            ->whereHas('purchaseOrder', function (Builder $query): void {
-                $query
-                    ->where('approve_manager', true)
-                    ->whereNotNull('purchase_order_number')
-                    ->whereRaw("TRIM(purchase_order_number) <> ''");
-            })
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $query->where(function (Builder $builder) use ($search): void {
                     $builder
@@ -81,7 +78,12 @@ class DocumentsController extends Controller
                         ->orWhere('nama_pekerjaan', 'like', "%{$search}%");
                 });
             })
-            ->latest('id')
+            ->latest('id');
+
+        $this->documentQueryService->applyBaseScope($query);
+        $this->documentQueryService->applyStatusFilter($query, $status);
+
+        $rows = $query
             ->paginate(10)
             ->through(function (Order $order): array {
                 /** @var LhppBast|null $terminOne */
@@ -91,7 +93,7 @@ class DocumentsController extends Controller
 
                 $hasHpp = (bool) $order->latestHpp;
                 $hasPo = (bool) $order->latestPurchaseOrder?->po_document_path;
-                $hasBast = (bool) $terminOne;
+                $hasBast = $terminOne?->approval_status === LhppBast::APPROVAL_APPROVED;
                 $hasAbnormalitas = $order->documents->contains(
                     fn ($document): bool => $document->jenis_dokumen === OrderDocumentType::Abnormalitas
                 );
@@ -150,18 +152,6 @@ class DocumentsController extends Controller
             })
             ->withQueryString();
 
-        if ($status !== '') {
-            $filtered = collect($rows->items())->filter(function (array $row) use ($status): bool {
-                return match ($status) {
-                    'complete' => (bool) $row['is_complete'],
-                    'incomplete' => ! $row['is_complete'],
-                    default => true,
-                };
-            })->values();
-
-            $rows->setCollection($filtered);
-        }
-
         return view('dashboards.pkm', [
             'pageTitle' => 'Dokumen',
             'pageDescription' => 'Ringkasan compact dokumen pekerjaan, LPJ/PPL, pembayaran, dan garansi.',
@@ -181,6 +171,7 @@ class DocumentsController extends Controller
             ->where('termin_type', 'termin_1')
             ->where('nomor_order', $nomorOrder)
             ->firstOrFail();
+        abort_unless($lhppBast->order && $this->documentQueryService->isEligibleOrder($lhppBast->order), Response::HTTP_NOT_FOUND);
 
         $lpjPpl = $lhppBast->lpjPpl;
 
@@ -204,6 +195,7 @@ class DocumentsController extends Controller
 
     public function mergedDocuments(Order $order): Response
     {
+        abort_unless($this->documentQueryService->isEligibleOrder($order), Response::HTTP_NOT_FOUND);
         try {
             $order->loadMissing([
                 'documents',
@@ -241,11 +233,11 @@ class DocumentsController extends Controller
                 $pdfOutputs[] = $this->hppPdfOutput($hpp);
             }
 
-            if ($terminOne) {
+            if ($terminOne?->approval_status === LhppBast::APPROVAL_APPROVED) {
                 $pdfOutputs[] = $this->bastPdfOutput($terminOne);
             }
 
-            if ($terminTwo) {
+            if ($terminTwo?->approval_status === LhppBast::APPROVAL_APPROVED) {
                 $pdfOutputs[] = $this->bastPdfOutput($terminTwo);
             }
 

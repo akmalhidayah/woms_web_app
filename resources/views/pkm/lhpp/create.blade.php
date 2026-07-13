@@ -1,3 +1,5 @@
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.css">
+        <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
         @php
             $formTitle = $formTitle ?? 'Buat BAST Termin 1';
             $formAction = $formAction ?? route('pkm.lhpp.store');
@@ -78,7 +80,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     useFixedWorkDates: @js($useFixedWorkDates),
                     hppValueMatchesBast: false,
                 })"
-                x-init="syncApprovalFlow(approvalFlow); recalculate()"
+                x-init="syncApprovalFlow(approvalFlow); refreshItemSelects(); recalculate()"
                 class="mt-4 rounded-[1.2rem] border border-slate-200 bg-white p-4 shadow-sm"
             >
                 <form id="pkm-lhpp-create-form" method="POST" action="{{ $formAction }}" enctype="multipart/form-data" class="space-y-4">
@@ -185,7 +187,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                         <div class="mt-0.5 text-[11px] font-black text-slate-900">BAST {{ $terminLabel }}</div>
                                     </div>
                                     <div class="flex shrink-0 items-center gap-1.5">
-                                        <span class="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-[8px] font-bold text-[#ca642f] ring-1 ring-orange-200" x-text="approvalThreshold === 'over_250' ? '> 250 JT' : '< 250 JT'"></span>
+                                        <span class="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-[8px] font-bold text-[#ca642f] ring-1 ring-orange-200" x-text="approvalThreshold === 'over_250' ? '> Rp250 juta' : '≤ Rp250 juta'"></span>
                                         <span class="inline-flex items-center rounded-full bg-white px-2 py-0.5 text-[8px] font-bold text-slate-600 ring-1 ring-slate-200" x-text="`${approvalFlow.length} step`"></span>
                                     </div>
                                 </div>
@@ -326,7 +328,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                                     <input type="hidden" :name="`material_rows[${index}][kategori_item]`" x-model="row.kategori_item">
 
                                                     <div class="relative" :class="hasKategoriOptions(row.jenis_item) ? '' : 'md:col-span-2'">
-                                                        <select x-model="row.name" :disabled="rowsLocked()" @change="handleNameChange(row); recalculate()" class="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
+                                                        <select x-model="row.name" :disabled="rowsLocked()" @change="handleNameChange(row); recalculate()" class="js-bast-item-select w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
                                                             <option value="">Pilih Nama Item</option>
                                                             <template x-for="itemOption in getNameOptions(row.jenis_item, row.kategori_item)" :key="`material-name-${row.jenis_item}-${row.kategori_item || 'none'}-${itemOption.nama_item}`">
                                                                 <option :value="itemOption.nama_item" x-text="itemOption.nama_item"></option>
@@ -336,10 +338,11 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                                     </div>
                                                 </div>
                                                 <input type="hidden" :name="`material_rows[${index}][name]`" x-model="row.name">
+                                                <input type="hidden" :name="`material_rows[${index}][contract_item_id]`" x-model="row.contract_item_id">
                                             </td>
                                             <td class="border border-slate-300 px-2 py-2">
                                                 <div class="flex flex-nowrap items-center gap-1.5">
-                                                    <input type="text" x-model="row.volume" :readonly="rowsLocked()" @change="recalculate()" @blur="recalculate()" class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-right text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none read-only:cursor-not-allowed read-only:bg-slate-50 read-only:text-slate-500">
+                                                    <input type="number" min="0" step="0.001" x-model="row.volume" :readonly="rowsLocked()" @input.debounce.350ms="recalculate()" class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-right text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none read-only:cursor-not-allowed read-only:bg-slate-50 read-only:text-slate-500">
                                                     <input type="hidden" :name="`material_rows[${index}][volume]`" x-model="row.volume">
                                                     <input type="text" x-model="row.unit" readonly class="w-[68px] shrink-0 rounded-lg border border-slate-300 bg-slate-50 px-2 py-2 text-center text-[11px] text-slate-700 focus:outline-none">
                                                     <input type="hidden" :name="`material_rows[${index}][unit]`" x-model="row.unit">
@@ -420,7 +423,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                                     <input type="hidden" :name="`service_rows[${index}][kategori_item]`" x-model="row.kategori_item">
 
                                                     <div class="relative" :class="hasKategoriOptions(row.jenis_item) ? '' : 'md:col-span-2'">
-                                                        <select x-model="row.name" :disabled="rowsLocked()" @change="handleNameChange(row); recalculate()" class="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
+                                                        <select x-model="row.name" :disabled="rowsLocked()" @change="handleNameChange(row); recalculate()" class="js-bast-item-select w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
                                                             <option value="">Pilih Nama Item</option>
                                                             <template x-for="itemOption in getNameOptions(row.jenis_item, row.kategori_item)" :key="`service-name-${row.jenis_item}-${row.kategori_item || 'none'}-${itemOption.nama_item}`">
                                                                 <option :value="itemOption.nama_item" x-text="itemOption.nama_item"></option>
@@ -430,10 +433,11 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                                     </div>
                                                 </div>
                                                 <input type="hidden" :name="`service_rows[${index}][name]`" x-model="row.name">
+                                                <input type="hidden" :name="`service_rows[${index}][contract_item_id]`" x-model="row.contract_item_id">
                                             </td>
                                             <td class="border border-slate-300 px-2 py-2">
                                                 <div class="flex flex-nowrap items-center gap-1.5">
-                                                    <input type="text" x-model="row.volume" :readonly="rowsLocked()" @change="recalculate()" @blur="recalculate()" class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-right text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none read-only:cursor-not-allowed read-only:bg-slate-50 read-only:text-slate-500">
+                                                    <input type="number" min="0" step="0.001" x-model="row.volume" :readonly="rowsLocked()" @input.debounce.350ms="recalculate()" class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-right text-sm text-slate-700 focus:border-[#ca642f] focus:outline-none read-only:cursor-not-allowed read-only:bg-slate-50 read-only:text-slate-500">
                                                     <input type="hidden" :name="`service_rows[${index}][volume]`" x-model="row.volume">
                                                     <input type="text" x-model="row.unit" readonly class="w-[68px] shrink-0 rounded-lg border border-slate-300 bg-slate-50 px-2 py-2 text-center text-[11px] text-slate-700 focus:outline-none">
                                                     <input type="hidden" :name="`service_rows[${index}][unit]`" x-model="row.unit">
@@ -503,8 +507,10 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         </div>
                     </div>
 
-                    <div class="flex justify-end border-t border-slate-200 pt-4">
-                        <button type="submit" class="inline-flex h-9 items-center gap-2 rounded-lg bg-[#ca642f] px-4 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#b85b2b]">
+                    <div class="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
+                        <span x-show="isCalculating" class="text-[10px] font-semibold text-amber-600">Menghitung...</span>
+                        <span x-show="calculationError" x-text="calculationError" class="text-[10px] font-semibold text-rose-600"></span>
+                        <button type="submit" :disabled="isCalculating || Boolean(calculationError)" class="inline-flex h-9 items-center gap-2 rounded-lg bg-[#ca642f] px-4 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#b85b2b] disabled:cursor-not-allowed disabled:opacity-50">
                             <i data-lucide="save" class="h-3.5 w-3.5"></i>
                             {{ $submitLabel }}
                         </button>
@@ -539,6 +545,10 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     workFinishDate: config.workFinishDate,
                     useFixedWorkDates: config.useFixedWorkDates,
                     hppValueMatchesBast: Boolean(config.hppValueMatchesBast),
+                    isCalculating: false,
+                    calculationError: '',
+                    calculationController: null,
+                    calculationSequence: 0,
                     currentOrder() {
                         return this.orderOptions.find((item) => item.nomor_order === this.selectedOrder) ?? {
                             nomor_order: '',
@@ -559,7 +569,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         return this.isTerminTwoLocked || this.hppValueMatchesBast;
                     },
                     emptyRow() {
-                        return { jenis_item: '', kategori_item: '', name: '', volume: '', unit: '', unit_price: '', amount: '0.00', amount_display: '0' };
+                        return { contract_item_id: '', jenis_item: '', kategori_item: '', name: '', volume: '', unit: '', unit_price: '', amount: '0.00', amount_display: '0' };
                     },
                     normalizeHppRows(rows) {
                         if (!Array.isArray(rows) || rows.length === 0) {
@@ -567,6 +577,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         }
 
                         return rows.map((row) => ({
+                            contract_item_id: String(row.contract_item_id ?? ''),
                             jenis_item: this.normalizeCatalogValue(row.jenis_item),
                             kategori_item: this.normalizeCatalogValue(row.kategori_item),
                             name: this.normalizeCatalogValue(row.name),
@@ -625,7 +636,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         return this.useFixedWorkDates ? (this.workFinishDate || current) : (current || this.workFinishDate || '');
                     },
                     approvalThresholdLabel() {
-                        return this.approvalThreshold === 'over_250' ? 'Diatas 250 JT' : 'Dibawah 250 JT';
+                        return this.approvalThreshold === 'over_250' ? '> Rp250 juta' : '≤ Rp250 juta';
                     },
                     defaultApprovalFlow() {
                         return [...(this.approvalFlowMatrix?.[this.approvalThreshold] ?? [])];
@@ -789,11 +800,13 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         }
 
                         row.name = '';
+                        row.contract_item_id = '';
                         row.unit = '';
                         row.unit_price = '';
                     },
                     handleKategoriChange(row) {
                         row.name = '';
+                        row.contract_item_id = '';
                         row.unit = '';
                         row.unit_price = '';
                     },
@@ -801,17 +814,24 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         const selectedItem = this.findCatalogItem(row.jenis_item, row.kategori_item, row.name);
 
                         if (!selectedItem) {
+                            row.contract_item_id = '';
                             row.unit = '';
                             row.unit_price = '';
                             return;
                         }
 
+                        row.contract_item_id = String(selectedItem.id ?? '');
                         row.unit = this.normalizeCatalogValue(selectedItem.satuan);
                         row.unit_price = this.normalizeCatalogValue(selectedItem.harga_satuan);
                     },
                     async recalculate() {
                         const materialRows = Array.isArray(this.materialRows) ? this.materialRows : [];
                         const serviceRows = Array.isArray(this.serviceRows) ? this.serviceRows : [];
+                        this.calculationController?.abort();
+                        this.calculationController = new AbortController();
+                        const sequence = ++this.calculationSequence;
+                        this.isCalculating = true;
+                        this.calculationError = '';
 
                         try {
                             const response = await fetch(this.calculateUrl, {
@@ -825,13 +845,16 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                     material_rows: materialRows,
                                     service_rows: serviceRows,
                                 }),
+                                signal: this.calculationController.signal,
                             });
 
                             if (!response.ok) {
-                                return;
+                                const errorData = await response.json().catch(() => ({}));
+                                throw new Error(errorData.message || 'Perhitungan tidak dapat diproses.');
                             }
 
                             const result = await response.json();
+                            if (sequence !== this.calculationSequence) return;
                             this.materialRows = Array.isArray(result.material_rows) ? result.material_rows : materialRows;
                             this.serviceRows = Array.isArray(result.service_rows) ? result.service_rows : serviceRows;
                             this.calculation = result.totals && typeof result.totals === 'object' ? result.totals : this.calculation;
@@ -848,21 +871,38 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                 }
                             });
                         } catch (error) {
-                            console.error('Failed to calculate LHPP totals.', error);
+                            if (error?.name !== 'AbortError') {
+                                this.calculationError = error?.message || 'Gagal menghitung total. Periksa kembali item dan volume.';
+                            }
+                        } finally {
+                            if (sequence === this.calculationSequence) this.isCalculating = false;
                         }
                     },
                     addMaterialRow() {
                         this.materialRows.push(this.emptyRow());
+                        this.refreshItemSelects();
                     },
                     addServiceRow() {
                         this.serviceRows.push(this.emptyRow());
+                        this.refreshItemSelects();
+                    },
+                    refreshItemSelects() {
+                        this.$nextTick(() => {
+                            this.$root.querySelectorAll('.js-bast-item-select').forEach((element) => {
+                                if (element.disabled || element.tomselect || !window.TomSelect) return;
+                                new window.TomSelect(element, {
+                                    create: false,
+                                    allowEmptyOption: true,
+                                    maxItems: 1,
+                                    placeholder: 'Cari nama item...',
+                                });
+                            });
+                        });
                     },
                     resolveThreshold() {
                         const thresholdBase = this.terminType === 'termin_2'
                             ? Number(this.calculation.termin_2_nilai || 0)
-                            : (this.isWithoutWarranty
-                                ? Number(this.calculation.total_aktual_biaya || 0)
-                                : Number(this.calculation.termin_1_nilai || 0));
+                            : Number(this.calculation.termin_1_nilai || 0);
 
                         return thresholdBase > 250000000 ? 'over_250' : 'under_250';
                     },

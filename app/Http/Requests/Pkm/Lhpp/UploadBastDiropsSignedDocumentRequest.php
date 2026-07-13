@@ -17,7 +17,7 @@ class UploadBastDiropsSignedDocumentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'signed_document' => ['required', 'file', 'mimes:pdf,png,jpg,jpeg', 'max:10240'],
+            'signed_document' => ['required', 'file', 'mimes:pdf', 'mimetypes:application/pdf', 'max:10240'],
         ];
     }
 

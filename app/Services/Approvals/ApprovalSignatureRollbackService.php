@@ -13,6 +13,8 @@ use App\Support\HppApprovalSignatureBuilder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class ApprovalSignatureRollbackService
@@ -60,6 +62,7 @@ class ApprovalSignatureRollbackService
                 affectedSignatures: $affectedSignatures,
             );
 
+            $this->deleteSignatureFilesAfterCommit($affectedSignatures);
             $this->resetSignatures($affectedSignatures, HppSignature::STATUS_LOCKED);
 
             $lockedSignature = $lockedSignature->fresh();
@@ -115,6 +118,7 @@ class ApprovalSignatureRollbackService
                 affectedSignatures: $affectedSignatures,
             );
 
+            $this->deleteSignatureFilesAfterCommit($affectedSignatures);
             $this->resetSignatures($affectedSignatures, LhppBastSignature::STATUS_LOCKED);
 
             $lockedSignature = $lockedSignature->fresh();
@@ -214,7 +218,7 @@ class ApprovalSignatureRollbackService
     }
 
     /**
-     * @param Collection<int, HppSignature|LhppBastSignature> $signatures
+     * @param  Collection<int, HppSignature|LhppBastSignature>  $signatures
      */
     private function resetSignatures(Collection $signatures, string $lockedStatus): void
     {
@@ -238,8 +242,32 @@ class ApprovalSignatureRollbackService
         }
     }
 
+    private function deleteSignatureFilesAfterCommit(Collection $signatures): void
+    {
+        $paths = $signatures->flatMap(fn (Model $signature): array => [
+            $signature->getAttribute('signature_data'),
+            $signature->getAttribute('signed_document_path'),
+        ])->filter(fn (mixed $path): bool => is_string($path)
+            && trim($path) !== ''
+            && ! str_starts_with($path, 'data:')
+            && ! str_starts_with($path, '/')
+            && ! str_contains($path, '://')
+            && ! str_contains($path, '..'))
+            ->unique()->values()->all();
+
+        DB::afterCommit(function () use ($paths): void {
+            foreach ($paths as $path) {
+                try {
+                    Storage::disk('public')->delete($path);
+                } catch (\Throwable $exception) {
+                    Log::warning('Approval rollback file cleanup failed.', ['path' => $path, 'error' => $exception->getMessage()]);
+                }
+            }
+        });
+    }
+
     /**
-     * @param Collection<int, HppSignature|LhppBastSignature> $affectedSignatures
+     * @param  Collection<int, HppSignature|LhppBastSignature>  $affectedSignatures
      */
     private function createAudit(
         string $documentType,

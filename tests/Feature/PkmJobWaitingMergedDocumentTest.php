@@ -66,15 +66,14 @@ class PkmJobWaitingMergedDocumentTest extends TestCase
             ->assertSee(route('pkm.jobwaiting.hpp.merged-document', ['hpp' => $hpp->nomor_order]), false);
     }
 
-    public function test_pkm_document_report_can_open_available_hpp_without_other_documents(): void
+    public function test_pkm_document_report_rejects_order_outside_document_scope(): void
     {
         $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
         $hpp = $this->createHpp($pkm, 'ORD-PKM-MERGE-004');
 
         $this->actingAs($pkm)
             ->get(route('pkm.laporan.merged-documents', ['order' => $hpp->nomor_order]))
-            ->assertOk()
-            ->assertHeader('content-type', 'application/pdf');
+            ->assertNotFound();
     }
 
     private function createHpp(User $creator, string $orderNumber): Hpp

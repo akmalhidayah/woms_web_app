@@ -36,6 +36,8 @@ class BastFormRegressionTest extends TestCase
         $this->assertSame(2, substr_count($html, 'getKategoriOptions(row.jenis_item, row.kategori_item)'));
         $this->assertSame(2, substr_count($html, 'getNameOptions(row.jenis_item, row.kategori_item, row.name)'));
         $this->assertSame(6, substr_count($html, 'x-effect="$nextTick'));
+        $this->assertStringContainsString('if (this.hppValueMatchesBast)', $html);
+        $this->assertStringContainsString('this.applyHppCalculation(order)', $html);
     }
 
     public function test_hpp_preview_supports_legacy_item_snapshot_keys(): void

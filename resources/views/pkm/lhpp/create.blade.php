@@ -612,8 +612,58 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
 
                         this.materialRows = this.normalizeHppRows(order.hpp_material_rows);
                         this.serviceRows = this.normalizeHppRows(order.hpp_service_rows);
+                        this.calculationController?.abort();
+                        this.calculationSequence++;
+                        this.isCalculating = false;
+                        this.calculationError = '';
+                        this.applyHppCalculation(order);
                         this.rebuildItemSelects();
-                        this.recalculate();
+                    },
+                    parseCurrency(value) {
+                        if (typeof value === 'number') return value;
+
+                        const normalized = String(value ?? '')
+                            .replace(/\s/g, '')
+                            .replace(/\.(?=\d{3}(?:\D|$))/g, '')
+                            .replace(',', '.')
+                            .replace(/[^\d.-]/g, '');
+
+                        return Number(normalized || 0);
+                    },
+                    applyHppCalculation(order) {
+                        const sumRows = (rows) => rows.reduce((total, row) => {
+                            const storedAmount = this.parseCurrency(row.amount);
+
+                            return total + (storedAmount || (
+                                this.parseCurrency(row.volume) * this.parseCurrency(row.unit_price)
+                            ));
+                        }, 0);
+                        const subtotalMaterial = sumRows(this.materialRows);
+                        const subtotalJasa = sumRows(this.serviceRows);
+                        const calculatedTotal = subtotalMaterial + subtotalJasa;
+                        const hppTotal = this.parseCurrency(order?.nilai_ece);
+                        const totalAktual = hppTotal > 0 ? hppTotal : calculatedTotal;
+                        const terminOne = totalAktual * 0.95;
+                        const terminTwo = totalAktual * 0.05;
+
+                        this.calculation = {
+                            subtotal_material: subtotalMaterial.toFixed(2),
+                            subtotal_jasa: subtotalJasa.toFixed(2),
+                            total_aktual_biaya: totalAktual.toFixed(2),
+                            termin_1_nilai: terminOne.toFixed(2),
+                            termin_2_nilai: terminTwo.toFixed(2),
+                            subtotal_material_display: this.formatCurrency(subtotalMaterial),
+                            subtotal_jasa_display: this.formatCurrency(subtotalJasa),
+                            total_aktual_biaya_display: this.formatCurrency(totalAktual),
+                            termin_1_nilai_display: this.formatCurrency(terminOne),
+                            termin_2_nilai_display: this.formatCurrency(terminTwo),
+                        };
+
+                        const nextThreshold = this.resolveThreshold();
+                        if (nextThreshold !== this.approvalThreshold) {
+                            this.approvalThreshold = nextThreshold;
+                            this.resetApprovalFlow();
+                        }
                     },
                     showSyncMessage(message) {
                         if (window.Swal) window.Swal.fire({ icon: 'warning', title: 'Data belum dapat disalin', text: message });
@@ -824,6 +874,11 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         row.unit_price = this.normalizeCatalogValue(selectedItem.harga_satuan);
                     },
                     async recalculate() {
+                        if (this.hppValueMatchesBast) {
+                            this.applyHppCalculation(this.currentOrder());
+                            return;
+                        }
+
                         const materialRows = Array.isArray(this.materialRows) ? this.materialRows : [];
                         const serviceRows = Array.isArray(this.serviceRows) ? this.serviceRows : [];
                         this.calculationController?.abort();

@@ -38,7 +38,6 @@ class UserPanelController extends Controller
         return view('pkm.user-panel.index', [
             'users' => $users,
             'search' => $search,
-            'summaryCount' => User::query()->where('role', User::ROLE_PKM)->count(),
             'defaultPassword' => self::DEFAULT_NEW_USER_PASSWORD,
             'initialCreateModal' => [
                 'open' => session('pkm_user_panel_modal') === 'create',

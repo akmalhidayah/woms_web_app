@@ -32,17 +32,9 @@
             </div>
         </section>
 
-        <section class="grid gap-3 sm:max-w-sm">
-            <div class="rounded-2xl border border-orange-300 bg-orange-50 p-4 shadow-sm ring-1 ring-orange-200">
-                <div class="text-xs font-bold uppercase tracking-wider text-slate-500">PKM</div>
-                <div class="mt-1 text-2xl font-black text-slate-900">{{ $summaryCount }}</div>
-            </div>
-        </section>
-
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 p-4">
-                <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div class="rounded-lg bg-[#ca642f] px-3 py-2 text-xs font-bold text-white">PKM</div>
+                <div class="flex justify-end">
                     <form id="pkm-user-search-form" method="GET" action="{{ route('pkm.user-panel.index') }}" class="flex w-full gap-2 lg:max-w-md">
                         <div class="relative flex-1">
                             <i data-lucide="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>

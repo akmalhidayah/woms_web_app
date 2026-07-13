@@ -5,6 +5,26 @@
             gap: 0.5rem;
         }
 
+        .budget-auto-save-container {
+            position: relative;
+        }
+
+        .js-budget-auto-save[data-save-state="saving"] {
+            border-color: #f59e0b;
+            background-color: #fffbeb;
+            opacity: 0.8;
+        }
+
+        .js-budget-auto-save[data-save-state="saved"] {
+            border-color: #10b981;
+            background-color: #ecfdf5;
+        }
+
+        .js-budget-auto-save[data-save-state="error"] {
+            border-color: #f43f5e;
+            background-color: #fff1f2;
+        }
+
         @media (min-width: 760px) {
             .budget-index-filter {
                 grid-template-columns: minmax(180px, 1.6fr) minmax(130px, 0.7fr) minmax(125px, 0.65fr) auto;
@@ -136,30 +156,61 @@
                                             {{ $notification['execution_label'] }}
                                         </span>
                                     </div>
-                                    <div class="mt-2.5">
-                                        <select name="status_anggaran" form="budget-verification-form-{{ $notification['nomor_order'] }}" class="{{ $selectBaseClasses }}">
+                                    <div class="budget-auto-save-container mt-2.5">
+                                        <select
+                                            name="status_anggaran"
+                                            form="budget-verification-form-{{ $notification['nomor_order'] }}"
+                                            class="{{ $selectBaseClasses }} js-budget-auto-save"
+                                            data-field="status_anggaran"
+                                            data-url="{{ $notification['update_url'] }}"
+                                            data-order-number="{{ $notification['nomor_order'] }}"
+                                            data-saved-value="{{ $notification['status_anggaran'] ?? '' }}"
+                                        >
                                             <option value="">Pilih status Anggaran</option>
                                             @foreach ($statusOptions as $value => $label)
                                                 <option value="{{ $value }}" @selected($notification['status_anggaran'] === $value)>{{ $label }}</option>
                                             @endforeach
                                         </select>
+                                        <div class="js-budget-auto-save-status hidden pt-0.5 text-[8px] font-medium" aria-live="polite"></div>
                                     </div>
                                 </td>
 
                                 <td class="px-4 py-3">
                                     <div class="flex flex-col gap-1.5">
-                                        <select name="kategori_item" form="budget-verification-form-{{ $notification['nomor_order'] }}" class="{{ $selectBaseClasses }}">
-                                            <option value="">Pilih kategori item</option>
-                                            @foreach ($kategoriItemOptions as $value => $label)
-                                                <option value="{{ $value }}" @selected($notification['kategori_item'] === $value)>{{ $label }}</option>
-                                            @endforeach
-                                        </select>
-                                        <select name="kategori_biaya" form="budget-verification-form-{{ $notification['nomor_order'] }}" class="{{ $selectBaseClasses }}">
-                                            <option value="">Pilih kategori biaya</option>
-                                            @foreach ($kategoriBiayaOptions as $value => $label)
-                                                <option value="{{ $value }}" @selected($notification['kategori_biaya'] === $value)>{{ $label }}</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="budget-auto-save-container">
+                                            <select
+                                                name="kategori_item"
+                                                form="budget-verification-form-{{ $notification['nomor_order'] }}"
+                                                class="{{ $selectBaseClasses }} js-budget-auto-save"
+                                                data-field="kategori_item"
+                                                data-url="{{ $notification['update_url'] }}"
+                                                data-order-number="{{ $notification['nomor_order'] }}"
+                                                data-saved-value="{{ $notification['kategori_item'] ?? '' }}"
+                                            >
+                                                <option value="">Pilih kategori item</option>
+                                                @foreach ($kategoriItemOptions as $value => $label)
+                                                    <option value="{{ $value }}" @selected($notification['kategori_item'] === $value)>{{ $label }}</option>
+                                                @endforeach
+                                            </select>
+                                            <div class="js-budget-auto-save-status hidden pt-0.5 text-[8px] font-medium" aria-live="polite"></div>
+                                        </div>
+                                        <div class="budget-auto-save-container">
+                                            <select
+                                                name="kategori_biaya"
+                                                form="budget-verification-form-{{ $notification['nomor_order'] }}"
+                                                class="{{ $selectBaseClasses }} js-budget-auto-save"
+                                                data-field="kategori_biaya"
+                                                data-url="{{ $notification['update_url'] }}"
+                                                data-order-number="{{ $notification['nomor_order'] }}"
+                                                data-saved-value="{{ $notification['kategori_biaya'] ?? '' }}"
+                                            >
+                                                <option value="">Pilih kategori biaya</option>
+                                                @foreach ($kategoriBiayaOptions as $value => $label)
+                                                    <option value="{{ $value }}" @selected($notification['kategori_biaya'] === $value)>{{ $label }}</option>
+                                                @endforeach
+                                            </select>
+                                            <div class="js-budget-auto-save-status hidden pt-0.5 text-[8px] font-medium" aria-live="polite"></div>
+                                        </div>
                                     </div>
                                 </td>
 
@@ -239,6 +290,8 @@
         document.addEventListener('DOMContentLoaded', () => {
             const successAlert = document.getElementById('budget-verification-status-alert');
             const errorAlert = document.getElementById('budget-verification-error-alert');
+            const requestControllers = new WeakMap();
+            const statusTimers = new WeakMap();
 
             if (successAlert?.dataset.message && window.Swal) {
                 window.Swal.fire({
@@ -257,6 +310,132 @@
                     text: errorAlert.dataset.message,
                 });
             }
+
+            const showAutoSaveError = (message) => {
+                if (window.Swal) {
+                    window.Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal menyimpan',
+                        text: message,
+                    });
+
+                    return;
+                }
+
+                window.alert(message);
+            };
+
+            const setAutoSaveStatus = (select, state, message) => {
+                const status = select.closest('.budget-auto-save-container')
+                    ?.querySelector('.js-budget-auto-save-status');
+                const previousTimer = statusTimers.get(select);
+
+                if (previousTimer) {
+                    window.clearTimeout(previousTimer);
+                    statusTimers.delete(select);
+                }
+
+                select.dataset.saveState = state;
+
+                if (!status) {
+                    return;
+                }
+
+                status.textContent = message;
+                status.classList.remove('hidden', 'text-amber-600', 'text-emerald-600', 'text-rose-600');
+                status.classList.add(state === 'saving'
+                    ? 'text-amber-600'
+                    : (state === 'saved' ? 'text-emerald-600' : 'text-rose-600'));
+
+                if (state === 'saved') {
+                    const timer = window.setTimeout(() => {
+                        status.classList.add('hidden');
+                        delete select.dataset.saveState;
+                        statusTimers.delete(select);
+                    }, 1200);
+                    statusTimers.set(select, timer);
+                }
+            };
+
+            document.querySelectorAll('.js-budget-auto-save').forEach((select) => {
+                select.addEventListener('change', async () => {
+                    const field = select.dataset.field ?? '';
+                    const url = select.dataset.url ?? '';
+                    const savedValue = select.dataset.savedValue ?? '';
+                    const currentValue = select.value;
+
+                    if (!field || !url || currentValue === savedValue) {
+                        return;
+                    }
+
+                    const previousController = requestControllers.get(select);
+
+                    if (previousController) {
+                        previousController.abort();
+                    }
+
+                    const controller = new AbortController();
+                    requestControllers.set(select, controller);
+                    select.disabled = true;
+                    setAutoSaveStatus(select, 'saving', 'Menyimpan...');
+
+                    try {
+                        const response = await fetch(url, {
+                            method: 'PATCH',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': document
+                                    .querySelector('meta[name="csrf-token"]')
+                                    ?.getAttribute('content') ?? '',
+                            },
+                            body: JSON.stringify({
+                                [field]: currentValue,
+                            }),
+                            signal: controller.signal,
+                        });
+                        const responseData = await response.json().catch(() => ({}));
+
+                        if (!response.ok) {
+                            let errorMessage = 'Gagal menyimpan perubahan. Silakan coba kembali.';
+
+                            if (response.status === 422) {
+                                errorMessage = responseData?.errors?.[field]?.[0]
+                                    || responseData?.message
+                                    || errorMessage;
+                            } else if (response.status === 419) {
+                                errorMessage = 'Sesi Anda telah berakhir. Silakan muat ulang halaman.';
+                            } else if (response.status === 403) {
+                                errorMessage = 'Anda tidak memiliki akses untuk memperbarui data ini.';
+                            }
+
+                            throw Object.assign(new Error(errorMessage), { responseHandled: true });
+                        }
+
+                        const returnedValue = responseData?.data?.[field];
+                        select.dataset.savedValue = returnedValue ?? '';
+                        select.value = returnedValue ?? '';
+                        setAutoSaveStatus(select, 'saved', 'Tersimpan');
+                    } catch (error) {
+                        if (error?.name === 'AbortError') {
+                            return;
+                        }
+
+                        select.value = select.dataset.savedValue ?? '';
+                        setAutoSaveStatus(select, 'error', 'Gagal disimpan');
+                        showAutoSaveError(error?.responseHandled
+                            ? error.message
+                            : 'Gagal menyimpan perubahan. Silakan coba kembali.');
+                    } finally {
+                        if (requestControllers.get(select) === controller) {
+                            requestControllers.delete(select);
+                            select.disabled = false;
+                        }
+                    }
+                });
+            });
         });
     </script>
 </x-layouts.admin>

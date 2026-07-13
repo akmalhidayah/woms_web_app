@@ -13,6 +13,7 @@ use App\Services\Orders\OrderDocumentService;
 use App\Support\PdfMergeService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -97,7 +98,7 @@ class BudgetVerificationController extends Controller
         }
     }
 
-    public function update(UpdateBudgetVerificationRequest $request, Hpp $hpp): RedirectResponse
+    public function update(UpdateBudgetVerificationRequest $request, Hpp $hpp): RedirectResponse|JsonResponse
     {
         try {
             $hpp->loadMissing(['order', 'budgetVerification']);
@@ -110,15 +111,43 @@ class BudgetVerificationController extends Controller
                 $verification->created_by = $request->user()?->id;
             }
 
-            $verification->fill([
-                'status_anggaran' => $this->normalizeNullableString($request->input('status_anggaran')),
-                'kategori_item' => $this->normalizeNullableString($request->input('kategori_item')),
-                'kategori_biaya' => $this->normalizeNullableString($request->input('kategori_biaya')),
-                'cost_element' => $this->normalizeNullableString($request->input('cost_element')),
-                'catatan' => $this->normalizeNullableString($request->input('catatan')),
-            ]);
+            $validated = $request->validated();
+            $allowedFields = [
+                'status_anggaran',
+                'kategori_item',
+                'kategori_biaya',
+                'cost_element',
+                'catatan',
+            ];
+            $updates = [];
+
+            foreach ($allowedFields as $field) {
+                if (array_key_exists($field, $validated)) {
+                    $updates[$field] = $this->normalizeNullableString($validated[$field]);
+                }
+            }
+
+            $verification->fill($updates);
             $verification->updated_by = $request->user()?->id;
             $verification->save();
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => sprintf(
+                        'Verifikasi anggaran untuk order %s berhasil diperbarui.',
+                        $hpp->nomor_order,
+                    ),
+                    'updated_fields' => $updates,
+                    'data' => [
+                        'status_anggaran' => $verification->status_anggaran,
+                        'kategori_item' => $verification->kategori_item,
+                        'kategori_biaya' => $verification->kategori_biaya,
+                        'cost_element' => $verification->cost_element,
+                        'catatan' => $verification->catatan,
+                    ],
+                ]);
+            }
 
             return redirect()
                 ->route('admin.budget-verification.index', [
@@ -141,6 +170,13 @@ class BudgetVerificationController extends Controller
                 'file' => $exception->getFile(),
                 'line' => $exception->getLine(),
             ]);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Terjadi kesalahan saat menyimpan verifikasi anggaran.',
+                ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            }
 
             abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Terjadi kesalahan saat menyimpan verifikasi anggaran.');
         }

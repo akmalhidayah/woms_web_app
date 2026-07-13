@@ -57,6 +57,17 @@ class ApprovalSubmissionIdempotencyTest extends TestCase
                 Storage::disk('public')->allFiles($case['directory']),
                 $case['label'],
             );
+
+            if ($case['label'] === 'BAST') {
+                $bast = $case['document']->fresh()->load('signatures');
+                $html = view('pkm.lhpp.pdf', [
+                    'lhpp' => $bast,
+                    'materialItems' => collect(),
+                    'serviceItems' => collect(),
+                ])->render();
+
+                $this->assertStringContainsString('data:image/png;base64,', $html);
+            }
         }
     }
 
@@ -223,6 +234,7 @@ class ApprovalSubmissionIdempotencyTest extends TestCase
 
         return [
             'label' => 'BAST',
+            'document' => $lhpp,
             'signature' => $signature,
             'url' => route('approval.bast.sign', $token),
             'show_url' => route('approval.bast.show', $token),

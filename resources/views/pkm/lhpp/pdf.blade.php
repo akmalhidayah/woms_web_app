@@ -347,12 +347,14 @@
             return null;
         }
 
+        $originalPath = (string) $relativePath;
         $normalized = ltrim((string) $relativePath, '/');
-        $candidates = [
+        $candidates = array_filter([
+            is_file($originalPath) ? $originalPath : null,
             storage_path('app/public/'.$normalized),
             public_path('storage/'.$normalized),
             public_path($normalized),
-        ];
+        ]);
 
         foreach ($candidates as $candidate) {
             if (is_file($candidate)) {
@@ -401,11 +403,8 @@
     $lhppSignatures = ($lhpp->relationLoaded('signatures') ? $lhpp->signatures : $lhpp->signatures()->get())
         ->keyBy('role_key');
     $signatureFor = fn (string $roleKey) => $lhppSignatures->get($roleKey);
-    // Keep the stored relative path intact. $renderSignature resolves and embeds
-    // it once; resolving it here first produces an absolute path that the PDF
-    // resolver would incorrectly prefix a second time.
     $signatureImage = fn ($signature): ?string => $signature?->isSigned()
-        ? $signature->signature_data
+        ? \App\Support\SignatureImageStorage::imageSource($signature->signature_data)
         : null;
     $signatureName = fn ($signature): string => $signature?->signer_name_snapshot ?: '';
     $signatureTitle = fn ($signature, string $fallback): string => trim((string) ($signature?->acting_as_label ?: ($signature?->signer_position_snapshot ?: $fallback)));

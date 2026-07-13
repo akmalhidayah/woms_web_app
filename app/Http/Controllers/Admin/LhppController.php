@@ -8,6 +8,7 @@ use App\Models\LhppBastSignature;
 use App\Models\User;
 use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\Approvals\ApprovalSignatureRollbackService;
+use App\Services\Pkm\BastDeletionService;
 use App\Support\BastApprovalSignatureBuilder;
 use App\Support\PdfMergeService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -25,7 +26,43 @@ class LhppController extends Controller
         private readonly BastApprovalSignatureBuilder $signatureBuilder,
         private readonly ApprovalNotificationService $approvalNotificationService,
         private readonly ApprovalSignatureRollbackService $rollbackService,
+        private readonly BastDeletionService $bastDeletionService,
     ) {}
+
+    public function destroy(Request $request, LhppBast $lhppBast): RedirectResponse
+    {
+        $auditContext = [
+            'user_id' => $request->user()?->id,
+            'bast_id' => $lhppBast->id,
+            'order_id' => $lhppBast->order_id,
+            'nomor_order' => $lhppBast->nomor_order,
+            'termin_type' => $lhppBast->termin_type,
+            'approval_status' => $lhppBast->approval_status,
+        ];
+
+        try {
+            $this->bastDeletionService->delete($lhppBast);
+
+            Log::warning('BAST deleted by admin for recreation.', $auditContext);
+
+            return redirect()
+                ->route('admin.lhpp.index', $request->only('search', 'page'))
+                ->with('status', sprintf(
+                    'BAST order %s berhasil dihapus seluruhnya. PKM dapat membuat BAST ulang.',
+                    $auditContext['nomor_order'],
+                ));
+        } catch (Throwable $exception) {
+            Log::error('Failed to delete BAST by admin.', array_merge($auditContext, [
+                'error' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+            ]));
+
+            return back()->withErrors([
+                'delete_bast' => 'BAST gagal dihapus. Silakan coba kembali.',
+            ]);
+        }
+    }
 
     public function updateQualityControl(Request $request, int $lhppId)
     {

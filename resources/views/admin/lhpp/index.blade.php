@@ -346,6 +346,26 @@
                                                 <i data-lucide="file-check-2" class="h-3 w-3"></i>
                                             </a>
                                         @endif
+
+                                        <form
+                                            method="POST"
+                                            action="{{ route('admin.lhpp.destroy', $lhpp) }}"
+                                            class="js-admin-delete-bast"
+                                            data-order-number="{{ $nomorOrder }}"
+                                        >
+                                            @csrf
+                                            @method('DELETE')
+                                            <input type="hidden" name="search" value="{{ $search }}">
+                                            <input type="hidden" name="page" value="{{ $lhpps->currentPage() }}">
+                                            <button
+                                                type="submit"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-300 bg-white text-rose-600 shadow-sm transition hover:bg-rose-50"
+                                                title="Hapus seluruh data BAST dan buat ulang"
+                                                aria-label="Hapus BAST order {{ $nomorOrder }}"
+                                            >
+                                                <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                                            </button>
+                                        </form>
                                     </div>
                                 </td>
                             </tr>
@@ -570,6 +590,32 @@
                     showConfirmButton: false,
                 });
             }
+
+            document.querySelectorAll('.js-admin-delete-bast').forEach((form) => {
+                form.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+                    const orderNumber = form.dataset.orderNumber || '-';
+                    const message = `BAST order ${orderNumber} akan dihapus seluruhnya, termasuk Termin 2, item, gambar, signature, token approval, file final, dan LPJ/PPL terkait. Data garansi order tetap dipertahankan. PKM harus membuat BAST ulang.`;
+
+                    if (!window.Swal) {
+                        if (window.confirm(`${message}\n\nLanjutkan?`)) form.submit();
+                        return;
+                    }
+
+                    const result = await window.Swal.fire({
+                        icon: 'warning',
+                        title: 'Hapus BAST?',
+                        text: message,
+                        showCancelButton: true,
+                        confirmButtonText: 'Ya, hapus seluruhnya',
+                        cancelButtonText: 'Batal',
+                        confirmButtonColor: '#e11d48',
+                        reverseButtons: true,
+                    });
+
+                    if (result.isConfirmed) form.submit();
+                });
+            });
 
             const signatureModal = document.getElementById('bastSignatureModal');
             const signatureTitle = document.getElementById('bastSignatureModalTitle');

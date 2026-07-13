@@ -172,6 +172,10 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
         ->whereNumber('lhppId')
         ->name('admin.lhpp.quality-control');
+    Route::delete('admin/lhpp/{lhppBast}', [AdminLhppController::class, 'destroy'])
+        ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
+        ->whereNumber('lhppBast')
+        ->name('admin.lhpp.destroy');
     Route::patch('admin/approval-signatures/bast/{signature}/reassign', [ApprovalSignatureReassignmentController::class, 'bast'])
         ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
         ->whereNumber('signature')

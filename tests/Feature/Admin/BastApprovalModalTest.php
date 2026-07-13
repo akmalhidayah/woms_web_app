@@ -49,6 +49,40 @@ class BastApprovalModalTest extends TestCase
             ->assertSee('admin\/lhpp\/'.$signature->lhpp_bast_id.'\/signatures\/'.$signature->id.'\/rollback', false);
     }
 
+    public function test_admin_can_delete_bast_and_its_approval_data_for_recreation(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+        $signature = $this->createPendingBastSignature($admin, 'bast-admin-delete-token');
+        $bastId = $signature->lhpp_bast_id;
+
+        $this->actingAs($admin)
+            ->delete(route('admin.lhpp.destroy', $bastId))
+            ->assertRedirect(route('admin.lhpp.index'))
+            ->assertSessionHas('status');
+
+        $this->assertDatabaseMissing('lhpp_basts', ['id' => $bastId]);
+        $this->assertDatabaseMissing('lhpp_bast_signatures', ['id' => $signature->id]);
+    }
+
+    public function test_non_admin_cannot_use_admin_bast_delete_endpoint(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+        $signature = $this->createPendingBastSignature($admin, 'bast-admin-delete-forbidden-token');
+        $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+
+        $this->actingAs($pkm)
+            ->delete(route('admin.lhpp.destroy', $signature->lhpp_bast_id))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('lhpp_basts', ['id' => $signature->lhpp_bast_id]);
+    }
+
     public function test_pkm_bast_approval_flow_includes_whatsapp_action(): void
     {
         $pkm = User::factory()->create(['role' => User::ROLE_PKM]);

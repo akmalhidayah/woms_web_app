@@ -31,6 +31,7 @@ use App\Http\Controllers\Pkm\DocumentsController as PkmDocumentsController;
 use App\Http\Controllers\Pkm\JobWaitingController;
 use App\Http\Controllers\Pkm\LhppController;
 use App\Http\Controllers\Pkm\PkmNotificationController;
+use App\Http\Controllers\Pkm\UserPanelController as PkmUserPanelController;
 use App\Http\Controllers\Pkm\VendorStructureController as PkmVendorStructureController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\User\OrderTrackingController;
@@ -423,6 +424,20 @@ Route::middleware(['auth'])->group(function () {
     Route::get('pkm/dashboard', [PkmDashboardController::class, 'index'])
         ->middleware('role:pkm')
         ->name('pkm.dashboard');
+    Route::get('pkm/user-panel', [PkmUserPanelController::class, 'index'])
+        ->middleware('role:pkm')
+        ->name('pkm.user-panel.index');
+    Route::post('pkm/user-panel', [PkmUserPanelController::class, 'store'])
+        ->middleware('role:pkm')
+        ->name('pkm.user-panel.store');
+    Route::put('pkm/user-panel/{user}', [PkmUserPanelController::class, 'update'])
+        ->middleware('role:pkm')
+        ->whereNumber('user')
+        ->name('pkm.user-panel.update');
+    Route::delete('pkm/user-panel/{user}', [PkmUserPanelController::class, 'destroy'])
+        ->middleware('role:pkm')
+        ->whereNumber('user')
+        ->name('pkm.user-panel.destroy');
     Route::get('pkm/profile', [ProfileController::class, 'editPkm'])
         ->middleware('role:pkm')
         ->name('pkm.profile.edit');

@@ -7,6 +7,7 @@ use App\Models\FabricationConstructionContract;
 use App\Models\Hpp;
 use App\Models\Order;
 use App\Models\OutlineAgreement;
+use App\Support\ApprovalFlowSignerPreview;
 use App\Support\HppApprovalFlow;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Component;
@@ -54,12 +55,14 @@ class CreateHppForm extends Component
             ->values()
             ->all();
 
-        $outlineAgreementOptions = OutlineAgreement::query()
+        $outlineAgreements = OutlineAgreement::query()
             ->with(['unitWork:id,name'])
             ->where('status', OutlineAgreement::STATUS_ACTIVE)
             ->orderByDesc('current_period_end')
             ->orderByDesc('id')
-            ->get()
+            ->get();
+
+        $outlineAgreementOptions = $outlineAgreements
             ->map(fn (OutlineAgreement $agreement) => [
                 'value' => (string) $agreement->id,
                 'label' => "{$agreement->nomor_oa} - {$agreement->nama_kontrak}",
@@ -76,6 +79,9 @@ class CreateHppForm extends Component
             ])
             ->values()
             ->all();
+
+        $approvalSignerPreview = app(ApprovalFlowSignerPreview::class)
+            ->hppPreviewPayload($orders, $outlineAgreements, $this->hpp);
 
         return view('livewire.admin.hpp.create-hpp-form', [
             'orderOptions' => $orderOptions,
@@ -104,6 +110,7 @@ class CreateHppForm extends Component
                 'status' => $this->hpp?->status,
                 'documentNo' => $this->hpp?->document_no,
                 'canReorderApprovalFlow' => $canReorderApprovalFlow,
+                'approvalSignerPreview' => $approvalSignerPreview,
             ],
             'isEdit' => $this->hpp?->exists ?? false,
             'submitRoute' => $this->hpp?->exists ? route('admin.hpp.update', $this->hpp) : route('admin.hpp.store'),

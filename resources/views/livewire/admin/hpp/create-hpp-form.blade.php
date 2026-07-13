@@ -331,8 +331,8 @@
                                         x-text="index + 1"
                                     ></span>
                                     <div class="min-w-0 flex-1">
-                                        <div class="text-[9px] font-semibold leading-4 text-slate-800" x-text="step"></div>
-                                        <div class="text-[8px]" :class="index === 0 ? 'text-emerald-700' : 'text-slate-500'" x-text="index === 0 ? 'Aktif pertama' : 'Waiting'"></div>
+                                        <div class="truncate text-[9px] font-semibold leading-4 text-slate-800" x-text="step"></div>
+                                        <div class="mt-0.5 truncate text-[8px] font-medium text-slate-500" x-text="approvalSignerName(step, index)"></div>
                                     </div>
                                     <div class="flex shrink-0 flex-col gap-1">
                                         <button
@@ -433,6 +433,7 @@
             seksiPeminta: '',
             seksiPengendali: '',
             approvalFlow: [],
+            approvalSignerPreview: config.initialState.approvalSignerPreview ?? {},
             canReorderApprovalFlow: Boolean(config.initialState.canReorderApprovalFlow ?? true),
             draggedApprovalIndex: null,
             init() {
@@ -498,6 +499,24 @@
                 const areaKey = this.areaKeysByLabel?.[this.areaPekerjaan] ?? this.areaPekerjaan;
 
                 return [...(this.flowMatrix?.[this.kategoriPekerjaan]?.[areaKey]?.[this.nilaiBucket] ?? [])];
+            },
+            approvalSignerName(step, index) {
+                const byIndex = this.approvalSignerPreview?.by_index ?? {};
+                const indexValue = byIndex?.[index] ?? byIndex?.[String(index)];
+
+                if (indexValue) {
+                    return indexValue;
+                }
+
+                const role = String(step ?? '').trim();
+                const orderMap = this.approvalSignerPreview?.orders?.[String(this.selectedOrder)] ?? {};
+                const oaMap = this.approvalSignerPreview?.outline_agreements?.[String(this.selectedOutlineAgreement)] ?? {};
+                const staticMap = this.approvalSignerPreview?.static ?? {};
+
+                return orderMap?.[role]
+                    || oaMap?.[role]
+                    || staticMap?.[role]
+                    || '-';
             },
             syncApprovalFlow(candidate = []) {
                 const defaultFlow = this.defaultApprovalFlow();

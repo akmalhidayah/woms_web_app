@@ -98,6 +98,10 @@ class AdminSidebarBadgeCounterTest extends TestCase
         $order = $this->makeOrder($admin, 'BADGE-BV-001');
         $hpp = $this->makeHpp($admin, $order);
 
+        $this->assertSame(0, $this->counts()['verifikasi_anggaran']);
+
+        $hpp->update(['status' => Hpp::STATUS_APPROVED]);
+
         $this->assertSame(1, $this->counts()['verifikasi_anggaran']);
 
         $verification = BudgetVerification::query()->create([

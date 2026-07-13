@@ -13,6 +13,7 @@ use App\Models\LhppBastImage;
 use App\Models\LhppBastSignature;
 use App\Models\Order;
 use App\Services\Approvals\ApprovalNotificationService;
+use App\Support\ApprovalFlowSignerPreview;
 use App\Support\BastApprovalFlow;
 use App\Support\BastApprovalSignatureBuilder;
 use App\Support\BastDocumentNumberGenerator;
@@ -951,6 +952,8 @@ class LhppController extends Controller
                 'latestHpp' => fn ($query) => $query->select([
                     'hpps.id',
                     'hpps.order_id',
+                    'hpps.outline_agreement_id',
+                    'hpps.approval_case',
                     'hpps.total_keseluruhan',
                     'hpps.item_groups',
                 ]),
@@ -1037,6 +1040,8 @@ class LhppController extends Controller
             'latestHpp' => fn ($query) => $query->select([
                 'hpps.id',
                 'hpps.order_id',
+                'hpps.outline_agreement_id',
+                'hpps.approval_case',
                 'hpps.total_keseluruhan',
                 'hpps.item_groups',
             ]),
@@ -1279,6 +1284,10 @@ class LhppController extends Controller
             }
         }
 
+        $tipePekerjaanOptions = LhppBast::tipePekerjaanOptions();
+        $approvalSignerPreview = app(ApprovalFlowSignerPreview::class)
+            ->bastPreviewPayload($orders, $tipePekerjaanOptions, $lhpp);
+
         return view('dashboards.pkm', [
             'pageTitle' => $meta['pageTitle'],
             'pageDescription' => $meta['pageDescription'],
@@ -1288,7 +1297,8 @@ class LhppController extends Controller
             'selectedApprovalFlow' => array_values((array) old('approval_flow', $lhpp?->approval_flow ?? [])),
             'approvalFlowMatrix' => BastApprovalFlow::flowMatrix(),
             'selectedTipePekerjaan' => $selectedTipePekerjaan,
-            'tipePekerjaanOptions' => LhppBast::tipePekerjaanOptions(),
+            'tipePekerjaanOptions' => $tipePekerjaanOptions,
+            'approvalSignerPreview' => $approvalSignerPreview,
             'bastDate' => old('tanggal_bast', optional($lhpp?->tanggal_bast)->format('Y-m-d') ?? now()->format('Y-m-d')),
             'tanggalMulaiPekerjaan' => old('tanggal_mulai_pekerjaan', optional($lhpp?->tanggal_mulai_pekerjaan)->format('Y-m-d') ?? optional($parentLhpp?->tanggal_mulai_pekerjaan)->format('Y-m-d')),
             'tanggalSelesaiPekerjaan' => old('tanggal_selesai_pekerjaan', optional($lhpp?->tanggal_selesai_pekerjaan)->format('Y-m-d') ?? optional($parentLhpp?->tanggal_selesai_pekerjaan)->format('Y-m-d')),

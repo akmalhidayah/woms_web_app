@@ -65,6 +65,7 @@ class AdminSidebarBadgeCounter
         $waiting = BudgetVerification::statusAnggaranOptions()['Menunggu'] ?? 'Menunggu';
 
         return Hpp::query()
+            ->where('status', Hpp::STATUS_APPROVED)
             ->where(function (Builder $query) use ($waiting): void {
                 $query
                     ->whereDoesntHave('budgetVerification')

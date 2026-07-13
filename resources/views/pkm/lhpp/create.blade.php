@@ -72,6 +72,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     tipePekerjaanOptions: @js($tipePekerjaanOptions->all()),
                     approvalFlowMatrix: @js($approvalFlowMatrix),
                     approvalFlow: @js($selectedApprovalFlow),
+                    approvalSignerPreview: @js($approvalSignerPreview ?? []),
                     workStartDate: @js($tanggalMulaiPekerjaan),
                     workFinishDate: @js($tanggalSelesaiPekerjaan),
                     useFixedWorkDates: @js($useFixedWorkDates),
@@ -234,7 +235,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                             ></div>
                                             <div class="min-w-0 flex-1">
                                                 <div class="truncate text-[9px] font-bold" :class="step === 'DIROPS' ? 'text-[#9a4f28]' : 'text-slate-900'" x-text="step"></div>
-                                                <div class="text-[8px]" :class="index === 0 ? 'text-emerald-700' : 'text-slate-500'" x-text="index === 0 ? 'Aktif pertama' : 'Waiting'"></div>
+                                                <div class="mt-0.5 truncate text-[8px] font-medium text-slate-500" x-text="approvalSignerName(step, index)"></div>
                                             </div>
                                             <div class="flex shrink-0 flex-col gap-1">
                                                 <button
@@ -541,6 +542,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     tipePekerjaanOptions: config.tipePekerjaanOptions,
                     approvalFlowMatrix: config.approvalFlowMatrix,
                     approvalFlow: Array.isArray(config.approvalFlow) ? config.approvalFlow : [],
+                    approvalSignerPreview: config.approvalSignerPreview ?? {},
                     draggedApprovalIndex: null,
                     workStartDate: config.workStartDate,
                     workFinishDate: config.workFinishDate,
@@ -618,6 +620,28 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     },
                     defaultApprovalFlow() {
                         return [...(this.approvalFlowMatrix?.[this.approvalThreshold] ?? [])];
+                    },
+                    approvalSignerName(step, index) {
+                        const byIndex = this.approvalSignerPreview?.by_index ?? {};
+                        const indexValue = byIndex?.[index] ?? byIndex?.[String(index)];
+
+                        if (indexValue) {
+                            return indexValue;
+                        }
+
+                        const role = String(step ?? '').trim();
+                        const orderKey = String(this.selectedOrder ?? '');
+                        const orderMap = this.approvalSignerPreview?.orders?.[orderKey] ?? {};
+                        const managerPkmMap = this.approvalSignerPreview?.manager_pkm ?? {};
+                        const staticMap = this.approvalSignerPreview?.static ?? {};
+
+                        if (role === 'Manager PKM') {
+                            return managerPkmMap?.[this.resolvedTipePekerjaan()] || '-';
+                        }
+
+                        return orderMap?.[role]
+                            || staticMap?.[role]
+                            || '-';
                     },
                     syncApprovalFlow(candidate = []) {
                         const defaultFlow = this.defaultApprovalFlow();

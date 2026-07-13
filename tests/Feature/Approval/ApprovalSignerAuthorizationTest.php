@@ -53,6 +53,22 @@ class ApprovalSignerAuthorizationTest extends TestCase
         }
     }
 
+    public function test_bast_token_pdf_returns_a_direct_pdf_preview(): void
+    {
+        $creator = User::factory()->create();
+        $signer = User::factory()->create(['role' => User::ROLE_APPROVER]);
+        $order = $this->createOrder($creator);
+
+        $this->createBastApprovalLink($order, $creator, $signer);
+
+        $response = $this->actingAs($signer)->get(route('approval.bast.pdf', 'bast-auth-token'));
+
+        $response->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('Cache-Control', 'max-age=0, no-store, private');
+        $this->assertStringStartsWith('%PDF-', $response->getContent());
+    }
+
     public function test_qc_signer_change_rotates_token_and_notifies_new_signer(): void
     {
         Notification::fake();

@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Approval;
 
-use App\Http\Controllers\Admin\LhppController as AdminLhppController;
 use App\Http\Controllers\Controller;
 use App\Models\LhppBast;
 use App\Models\LhppBastSignature;
 use App\Support\BastApprovalSignatureBuilder;
 use App\Support\RecentApprovalSignatureResolver;
 use App\Support\SignatureImageStorage;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -70,7 +70,31 @@ class BastSignatureController extends Controller
         abort_unless($signature, 404, 'Token approval BAST tidak valid.');
         $this->authorizeSigner($request, $signature);
 
-        return app(AdminLhppController::class)->pdf($request, $signature->lhpp_bast_id);
+        $lhpp = LhppBast::query()
+            ->with([
+                'images',
+                'garansi',
+                'signatures',
+                'purchaseOrder:id,order_id,purchase_order_number',
+                'order.purchaseOrder:id,order_id,purchase_order_number',
+            ])
+            ->findOrFail($signature->lhpp_bast_id);
+
+        $pdf = Pdf::loadView('pkm.lhpp.pdf', [
+            'lhpp' => $lhpp,
+            'materialItems' => collect($lhpp->material_items ?? []),
+            'serviceItems' => collect($lhpp->service_items ?? []),
+        ])->setPaper('a4', 'portrait')->output();
+
+        return response($pdf, Response::HTTP_OK, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => sprintf(
+                'inline; filename="bast-%s-%s.pdf"',
+                $lhpp->termin_type === 'termin_2' ? 'termin-2' : 'termin-1',
+                $lhpp->nomor_order,
+            ),
+            'Cache-Control' => 'private, no-store, max-age=0',
+        ]);
     }
 
     public function sign(Request $request, string $token): RedirectResponse

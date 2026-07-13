@@ -3,6 +3,7 @@
 namespace Tests\Feature\Pkm;
 
 use App\Http\Controllers\Pkm\LhppController;
+use App\Models\Hpp;
 use App\Models\User;
 use DOMDocument;
 use DOMXPath;
@@ -34,6 +35,31 @@ class BastFormRegressionTest extends TestCase
         $this->assertSame(2, substr_count($html, 'getJenisOptions(row.jenis_item)'));
         $this->assertSame(2, substr_count($html, 'getKategoriOptions(row.jenis_item, row.kategori_item)'));
         $this->assertSame(2, substr_count($html, 'getNameOptions(row.jenis_item, row.kategori_item, row.name)'));
+        $this->assertSame(6, substr_count($html, 'x-effect="$nextTick'));
+    }
+
+    public function test_hpp_preview_supports_legacy_item_snapshot_keys(): void
+    {
+        $hpp = new Hpp;
+        $hpp->item_groups = [[
+            'jenis' => 'Material Utama',
+            'items' => [[
+                'name' => 'Plat Lama',
+                'volume' => '2',
+                'unit' => 'Lembar',
+                'unit_price' => '150000',
+                'amount' => '300000',
+            ]],
+        ]];
+
+        $method = new ReflectionMethod(LhppController::class, 'buildRowsFromHpp');
+        $rows = $method->invoke(app(LhppController::class), $hpp, 'material');
+
+        $this->assertSame('Material Utama', $rows[0]['jenis_item']);
+        $this->assertSame('Plat Lama', $rows[0]['name']);
+        $this->assertSame('2', $rows[0]['volume']);
+        $this->assertSame('Lembar', $rows[0]['unit']);
+        $this->assertSame('150.000', $rows[0]['unit_price']);
     }
 
     public function test_threshold_uses_total_actual_for_termin_one_without_warranty(): void

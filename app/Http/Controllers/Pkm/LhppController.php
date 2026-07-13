@@ -1186,7 +1186,7 @@ class LhppController extends Controller
         $rows = [];
 
         foreach ($hpp->item_groups as $group) {
-            $jenisItem = trim((string) ($group['jenis_item'] ?? ''));
+            $jenisItem = trim((string) ($group['jenis_item'] ?? $group['jenis'] ?? $group['name'] ?? ''));
             $isServiceGroup = str_contains(strtoupper($jenisItem), 'JASA');
 
             if (($type === 'service') !== $isServiceGroup) {
@@ -1194,7 +1194,7 @@ class LhppController extends Controller
             }
 
             foreach (($group['items'] ?? []) as $item) {
-                $namaItem = trim((string) ($item['nama_item'] ?? ''));
+                $namaItem = trim((string) ($item['nama_item'] ?? $item['name'] ?? $item['nama'] ?? ''));
 
                 if ($namaItem === '') {
                     continue;
@@ -1204,11 +1204,11 @@ class LhppController extends Controller
                     'jenis_item' => $jenisItem,
                     'kategori_item' => trim((string) ($item['kategori_item'] ?? '')),
                     'name' => $namaItem,
-                    'volume' => (string) ($item['qty'] ?? ''),
-                    'unit' => trim((string) ($item['satuan'] ?? '')),
-                    'unit_price' => $this->displayEditableCurrency((string) ($item['harga_satuan'] ?? '')),
-                    'amount' => (string) ($item['harga_total'] ?? '0.00'),
-                    'amount_display' => $this->displayCurrency((string) ($item['harga_total'] ?? '0.00')),
+                    'volume' => (string) ($item['qty'] ?? $item['volume'] ?? ''),
+                    'unit' => trim((string) ($item['satuan'] ?? $item['unit'] ?? '')),
+                    'unit_price' => $this->displayEditableCurrency((string) ($item['harga_satuan'] ?? $item['unit_price'] ?? '')),
+                    'amount' => (string) ($item['harga_total'] ?? $item['amount'] ?? '0.00'),
+                    'amount_display' => $this->displayCurrency((string) ($item['harga_total'] ?? $item['amount'] ?? '0.00')),
                 ];
             }
         }

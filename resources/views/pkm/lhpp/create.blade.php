@@ -304,7 +304,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                             <td class="border border-slate-300 px-2 py-2">
                                                 <div class="grid gap-2 md:grid-cols-3">
                                                     <div class="relative">
-                                                        <select x-model="row.jenis_item" :disabled="rowsLocked()" @change="handleJenisChange(row); recalculate()" class="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
+                                                        <select x-model="row.jenis_item" x-effect="$nextTick(() => { $el.value = row.jenis_item || '' })" :disabled="rowsLocked()" @change="handleJenisChange(row); recalculate()" class="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
                                                             <option value="">Pilih Jenis Item</option>
                                                             <template x-for="jenisOption in getJenisOptions(row.jenis_item)" :key="`material-jenis-${jenisOption}`">
                                                                 <option :value="jenisOption" x-text="jenisOption"></option>
@@ -315,7 +315,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                                     <input type="hidden" :name="`material_rows[${index}][jenis_item]`" x-model="row.jenis_item">
 
                                                     <div class="relative">
-                                                            <select x-model="row.kategori_item" :disabled="rowsLocked()" @change="handleKategoriChange(row); recalculate()" class="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
+                                                            <select x-model="row.kategori_item" x-effect="$nextTick(() => { $el.value = row.kategori_item || '' })" :disabled="rowsLocked()" @change="handleKategoriChange(row); recalculate()" class="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
                                                                 <option value="">Pilih Kategori Item</option>
                                                                 <template x-for="kategoriOption in getKategoriOptions(row.jenis_item, row.kategori_item)" :key="`material-kategori-${row.jenis_item}-${kategoriOption.value}`">
                                                                     <option :value="kategoriOption.value" x-text="kategoriOption.label"></option>
@@ -326,7 +326,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                                     <input type="hidden" :name="`material_rows[${index}][kategori_item]`" x-model="row.kategori_item">
 
                                                     <div class="relative">
-                                                        <select x-model="row.name" :disabled="rowsLocked()" @change="handleNameChange(row); recalculate()" class="js-bast-item-select w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
+                                                        <select x-model="row.name" x-effect="$nextTick(() => { if ($el.tomselect) $el.tomselect.setValue(row.name || '', true); else $el.value = row.name || '' })" :disabled="rowsLocked()" @change="handleNameChange(row); recalculate()" class="js-bast-item-select w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
                                                             <option value="">Pilih Nama Item</option>
                                                             <template x-for="itemOption in getNameOptions(row.jenis_item, row.kategori_item, row.name)" :key="`material-name-${row.jenis_item}-${row.kategori_item || 'none'}-${itemOption.nama_item}`">
                                                                 <option :value="itemOption.nama_item" x-text="itemOption.nama_item"></option>
@@ -397,7 +397,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                             <td class="border border-slate-300 px-2 py-2">
                                                 <div class="grid gap-2 md:grid-cols-3">
                                                     <div class="relative">
-                                                        <select x-model="row.jenis_item" :disabled="rowsLocked()" @change="handleJenisChange(row); recalculate()" class="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
+                                                        <select x-model="row.jenis_item" x-effect="$nextTick(() => { $el.value = row.jenis_item || '' })" :disabled="rowsLocked()" @change="handleJenisChange(row); recalculate()" class="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
                                                             <option value="">Pilih Jenis Item</option>
                                                             <template x-for="jenisOption in getJenisOptions(row.jenis_item)" :key="`service-jenis-${jenisOption}`">
                                                                 <option :value="jenisOption" x-text="jenisOption"></option>
@@ -408,7 +408,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                                     <input type="hidden" :name="`service_rows[${index}][jenis_item]`" x-model="row.jenis_item">
 
                                                     <div class="relative">
-                                                            <select x-model="row.kategori_item" :disabled="rowsLocked()" @change="handleKategoriChange(row); recalculate()" class="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
+                                                            <select x-model="row.kategori_item" x-effect="$nextTick(() => { $el.value = row.kategori_item || '' })" :disabled="rowsLocked()" @change="handleKategoriChange(row); recalculate()" class="w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
                                                                 <option value="">Pilih Kategori Item</option>
                                                                 <template x-for="kategoriOption in getKategoriOptions(row.jenis_item, row.kategori_item)" :key="`service-kategori-${row.jenis_item}-${kategoriOption.value}`">
                                                                     <option :value="kategoriOption.value" x-text="kategoriOption.label"></option>
@@ -419,7 +419,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                                     <input type="hidden" :name="`service_rows[${index}][kategori_item]`" x-model="row.kategori_item">
 
                                                     <div class="relative">
-                                                        <select x-model="row.name" :disabled="rowsLocked()" @change="handleNameChange(row); recalculate()" class="js-bast-item-select w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
+                                                        <select x-model="row.name" x-effect="$nextTick(() => { if ($el.tomselect) $el.tomselect.setValue(row.name || '', true); else $el.value = row.name || '' })" :disabled="rowsLocked()" @change="handleNameChange(row); recalculate()" class="js-bast-item-select w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500">
                                                             <option value="">Pilih Nama Item</option>
                                                             <template x-for="itemOption in getNameOptions(row.jenis_item, row.kategori_item, row.name)" :key="`service-name-${row.jenis_item}-${row.kategori_item || 'none'}-${itemOption.nama_item}`">
                                                                 <option :value="itemOption.nama_item" x-text="itemOption.nama_item"></option>
@@ -612,6 +612,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
 
                         this.materialRows = this.normalizeHppRows(order.hpp_material_rows);
                         this.serviceRows = this.normalizeHppRows(order.hpp_service_rows);
+                        this.rebuildItemSelects();
                         this.recalculate();
                     },
                     showSyncMessage(message) {
@@ -895,6 +896,14 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                     placeholder: 'Cari nama item...',
                                 });
                             });
+                        });
+                    },
+                    rebuildItemSelects() {
+                        this.$nextTick(() => {
+                            this.$root.querySelectorAll('.js-bast-item-select').forEach((element) => {
+                                element.tomselect?.destroy();
+                            });
+                            this.refreshItemSelects();
                         });
                     },
                     resolveThreshold() {

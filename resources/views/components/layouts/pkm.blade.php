@@ -23,6 +23,10 @@
             $logoSig = asset('assets/branding/logos/logo-sig.png');
             $logoSt = asset('assets/branding/logos/logo-st2.png');
             $user = auth()->user();
+            $isSuperAdminViewingPkm = $user?->isSuperAdmin() ?? false;
+            $pkmRoleBadge = $isSuperAdminViewingPkm
+                ? 'SUPER ADMIN'
+                : strtoupper($user?->role ?? 'pkm');
             $userInitials = $user?->initials() ?: 'PK';
             $pkmNotificationBadge = $pkmNotificationCount > 9 ? '9+' : (string) $pkmNotificationCount;
             $notificationToneClasses = [
@@ -273,7 +277,7 @@
                                     </span>
                                     <span class="hidden min-w-0 text-left sm:block">
                                         <span class="block truncate text-[12px] font-semibold">{{ $user?->name ?? 'Vendor' }}</span>
-                                        <span class="block text-[10px] text-[#d88858]">{{ strtoupper($user?->role ?? 'pkm') }}</span>
+                                        <span class="block text-[10px] text-[#d88858]">{{ $pkmRoleBadge }}</span>
                                     </span>
                                     <i data-lucide="chevron-down" class="h-3.5 w-3.5 text-[#dd9b72]"></i>
                                 </button>
@@ -289,13 +293,35 @@
                                         <div class="text-xs text-slate-500">{{ $user?->email }}</div>
                                     </div>
 
-                                    <a href="{{ route('pkm.profile.edit') }}" class="block px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50">
-                                        Profile
-                                    </a>
+                                    @if ($isSuperAdminViewingPkm)
+                                        <a
+                                            href="{{ route('admin.profile.edit') }}"
+                                            class="block px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50"
+                                        >
+                                            Edit Profile
+                                        </a>
 
-                                    <a href="{{ route('user.dashboard') }}" class="block px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50">
-                                        Lihat Halaman User
-                                    </a>
+                                        <a
+                                            href="{{ route('admin.dashboard') }}"
+                                            class="block px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50"
+                                        >
+                                            Kembali ke Dashboard Admin
+                                        </a>
+                                    @else
+                                        <a
+                                            href="{{ route('pkm.profile.edit') }}"
+                                            class="block px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50"
+                                        >
+                                            Profile
+                                        </a>
+
+                                        <a
+                                            href="{{ route('user.dashboard') }}"
+                                            class="block px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50"
+                                        >
+                                            Lihat Halaman User
+                                        </a>
+                                    @endif
 
                                     <form method="POST" action="{{ route('logout') }}">
                                         @csrf

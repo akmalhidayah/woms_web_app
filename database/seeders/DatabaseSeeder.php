@@ -13,18 +13,6 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        User::query()->updateOrCreate(
-            ['id' => 5],
-            [
-                'name' => 'Akmal Hidayah',
-                'email' => 'akmalhidayat826@gmail.com',
-                'password' => 'bengkelmesin123',
-                'role' => User::ROLE_ADMIN,
-                'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
-                'email_verified_at' => now(),
-            ]
-        );
-
         User::query()->firstOrCreate(
             ['email' => 'test@example.com'],
             [
@@ -35,6 +23,7 @@ class DatabaseSeeder extends Seeder
         );
 
         $this->call([
+            SuperAdminSeeder::class,
             StructureOrganizationUserSeeder::class,
             StructureOrganizationUserInitialSeeder::class,
             StructureOrganizationSeeder::class,

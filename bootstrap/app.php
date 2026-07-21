@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureAdminHasSubrole;
 use App\Http\Middleware\EnsureAdminMenuAccess;
+use App\Http\Middleware\EnsurePkmPanelAccess;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Console\Commands\ReprocessHppSignatureImages;
 use Illuminate\Foundation\Application;
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => EnsureUserHasRole::class,
             'admin_role' => EnsureAdminHasSubrole::class,
             'admin_menu' => EnsureAdminMenuAccess::class,
+            'pkm_panel' => EnsurePkmPanelAccess::class,
         ]);
 
         $middleware->redirectGuestsTo(fn () => route('login'));

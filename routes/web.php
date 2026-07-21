@@ -426,130 +426,130 @@ Route::middleware(['auth'])->group(function () {
         ->name('approval-documents.open');
 
     Route::get('pkm/dashboard', [PkmDashboardController::class, 'index'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.dashboard');
     Route::get('pkm/user-panel', [PkmUserPanelController::class, 'index'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.user-panel.index');
     Route::post('pkm/user-panel', [PkmUserPanelController::class, 'store'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.user-panel.store');
     Route::put('pkm/user-panel/{user}', [PkmUserPanelController::class, 'update'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->whereNumber('user')
         ->name('pkm.user-panel.update');
     Route::delete('pkm/user-panel/{user}', [PkmUserPanelController::class, 'destroy'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->whereNumber('user')
         ->name('pkm.user-panel.destroy');
     Route::get('pkm/profile', [ProfileController::class, 'editPkm'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.profile.edit');
     Route::patch('pkm/profile', [ProfileController::class, 'updatePkm'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.profile.update');
     Route::patch('pkm/profile/password', [ProfileController::class, 'updatePkmPassword'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.profile.password.update');
     Route::post('pkm/notifications/read', [PkmNotificationController::class, 'read'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.notifications.read');
     Route::post('pkm/notifications/read-all', [PkmNotificationController::class, 'readAll'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.notifications.read-all');
     Route::put('pkm/vendor-structure/{vendorWorkType}', [PkmVendorStructureController::class, 'update'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.vendor-structure.update');
     Route::post('pkm/vendor-structure/managers', [PkmVendorStructureController::class, 'storeManager'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.vendor-managers.store');
 
     Route::get('pkm/jobwaiting', [JobWaitingController::class, 'index'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.jobwaiting');
     Route::patch('pkm/jobwaiting/{order}', [JobWaitingController::class, 'update'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.jobwaiting.update');
     Route::get('pkm/jobwaiting/{order}/documents/{document}/preview', [OrderDocumentController::class, 'preview'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.jobwaiting.documents.preview');
     Route::get('pkm/jobwaiting/{order}/scope-of-work/{scopeOfWork}/pdf', [OrderScopeOfWorkController::class, 'pdf'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.jobwaiting.scope-of-work.pdf');
     Route::get('pkm/jobwaiting/{hpp:nomor_order}/hpp-merged-document', [JobWaitingController::class, 'mergedHppDocument'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.jobwaiting.hpp.merged-document');
     Route::get('pkm/jobwaiting/{hpp:nomor_order}/hpp', [HppController::class, 'pdf'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.jobwaiting.hpp.pdf');
     Route::get('pkm/jobwaiting/{hpp:nomor_order}/purchase-order', [PurchaseOrderController::class, 'document'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.jobwaiting.purchase-order.document');
     Route::get('pkm/jobwaiting/{order}/initial-work/{initialWork}/pdf', [AdminInitialWorkController::class, 'pdf'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.jobwaiting.initial-work.pdf');
 
     Route::view('pkm/items', 'dashboards.pkm', [
         'pageTitle' => 'Item Kebutuhan',
         'pageDescription' => 'Placeholder frontend untuk item kebutuhan, material, dan komponen pekerjaan.',
-    ])->middleware('role:pkm')->name('pkm.items.index');
+    ])->middleware('pkm_panel')->name('pkm.items.index');
 
     Route::get('pkm/lhpp', [LhppController::class, 'index'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.lhpp.index');
     Route::get('pkm/lhpp/create', [LhppController::class, 'create'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.lhpp.create');
     Route::get('pkm/lhpp/{nomorOrder}/termin-2/create', [LhppController::class, 'createTerminTwo'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.lhpp.termin2.create');
     Route::get('pkm/lhpp/{nomorOrder}/{termin}/edit', [LhppController::class, 'edit'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->where('termin', 'termin-[12]')
         ->name('pkm.lhpp.edit');
     Route::post('pkm/lhpp/calculate', [LhppController::class, 'calculate'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.lhpp.calculate');
     Route::post('pkm/lhpp', [LhppController::class, 'store'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.lhpp.store');
     Route::patch('pkm/lhpp/{nomorOrder}/{termin}', [LhppController::class, 'update'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->where('termin', 'termin-[12]')
         ->name('pkm.lhpp.update');
     Route::delete('pkm/lhpp/{nomorOrder}/{termin}', [LhppController::class, 'destroy'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->where('termin', 'termin-[12]')
         ->name('pkm.lhpp.destroy');
     Route::get('pkm/lhpp/{lhppId}/dirops-signed-document', [LhppController::class, 'diropsSignedDocument'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->whereNumber('lhppId')
         ->name('pkm.lhpp.dirops-document.show');
     Route::post('pkm/lhpp/{lhppId}/dirops-signed-document', [LhppController::class, 'uploadDiropsSignedDocument'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->whereNumber('lhppId')
         ->name('pkm.lhpp.dirops-document.upload');
     Route::post('pkm/lhpp/{lhppId}/regenerate-active-approval-token', [LhppController::class, 'regenerateActiveApprovalToken'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->whereNumber('lhppId')
         ->name('pkm.lhpp.approval-token.regenerate');
     Route::post('pkm/lhpp/{lhppId}/resend-active-approval', [LhppController::class, 'resendActiveApproval'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->whereNumber('lhppId')
         ->name('pkm.lhpp.approval.resend');
     Route::get('pkm/lhpp/{nomorOrder}/{termin}/pdf', [LhppController::class, 'pdf'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->where('termin', 'termin-[12]')
         ->name('pkm.lhpp.pdf');
 
     Route::get('pkm/laporan', [PkmDocumentsController::class, 'index'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.laporan');
     Route::get('pkm/laporan/{order:nomor_order}/dokumen-gabungan', [PkmDocumentsController::class, 'mergedDocuments'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->name('pkm.laporan.merged-documents');
     Route::get('pkm/laporan/{nomorOrder}/files/{kind}/{termin}', [PkmDocumentsController::class, 'previewLpjPpl'])
-        ->middleware('role:pkm')
+        ->middleware('pkm_panel')
         ->where('nomorOrder', '[0-9A-Za-z\-]+')
         ->where('kind', 'lpj|ppl')
         ->where('termin', '[12]')

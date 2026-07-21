@@ -258,6 +258,74 @@ class RoleDashboardAccessTest extends TestCase
         $response->assertSee('PKM Dashboard');
     }
 
+    public function test_super_admin_can_access_pkm_dashboard(): void
+    {
+        $user = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('pkm.dashboard'))
+            ->assertOk()
+            ->assertSee('PKM Dashboard')
+            ->assertSee('Kembali ke Dashboard Admin')
+            ->assertDontSee('Lihat Halaman User');
+    }
+
+    public function test_regular_admin_cannot_access_pkm_dashboard(): void
+    {
+        $user = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_ADMIN,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('pkm.dashboard'))
+            ->assertForbidden();
+    }
+
+    public function test_super_admin_sees_pkm_panel_switch_link(): void
+    {
+        $user = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Lihat Halaman PKM')
+            ->assertSee(route('pkm.dashboard'), false);
+    }
+
+    public function test_regular_admin_does_not_see_pkm_panel_switch_link(): void
+    {
+        $user = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_ADMIN,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertDontSee('Lihat Halaman PKM');
+    }
+
+    public function test_non_pkm_non_super_admin_users_cannot_access_pkm_dashboard(): void
+    {
+        foreach ([User::ROLE_USER, User::ROLE_APPROVER] as $role) {
+            $user = User::factory()->create([
+                'role' => $role,
+                'email' => $role.'-'.uniqid().'@example.test',
+            ]);
+
+            $this->actingAs($user)
+                ->get(route('pkm.dashboard'))
+                ->assertForbidden();
+        }
+    }
+
     public function test_approver_dashboard_redirects_to_user_dashboard(): void
     {
         $user = User::factory()->create(['role' => User::ROLE_APPROVER]);

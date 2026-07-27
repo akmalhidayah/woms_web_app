@@ -19,12 +19,25 @@ class PkmSidebarBadgeCounter
         $lhppTerminTwo = $this->lhppTerminTwoCount();
 
         return [
+            'create_hpp' => $this->createHppCount(),
             'jobwaiting' => $this->jobWaitingCount(),
             'lhpp' => $lhppTerminOne + $lhppTerminTwo,
             'lhpp_termin_1' => $lhppTerminOne,
             'lhpp_termin_2' => $lhppTerminTwo,
             'documents' => $this->documentsCount(),
         ];
+    }
+
+    private function createHppCount(): int
+    {
+        return Order::query()
+            ->whereIn('catatan_status', [
+                OrderUserNoteStatus::ApprovedJasa->value,
+                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+            ])
+            ->whereHas('scopeOfWork')
+            ->doesntHave('hpps')
+            ->count();
     }
 
     private function jobWaitingCount(): int

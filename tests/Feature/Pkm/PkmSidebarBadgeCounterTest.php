@@ -10,6 +10,7 @@ use App\Models\LhppBast;
 use App\Models\LpjPpl;
 use App\Models\Order;
 use App\Models\OrderDocument;
+use App\Models\OrderScopeOfWork;
 use App\Models\PurchaseOrder;
 use App\Models\User;
 use App\Support\PkmSidebarBadgeCounter;
@@ -19,6 +20,33 @@ use Tests\TestCase;
 class PkmSidebarBadgeCounterTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_create_hpp_count_matches_eligible_orders_without_hpp(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $eligible = $this->makeOrder($admin, 'PKM-HPP-BADGE-001', [
+            'catatan_status' => OrderUserNoteStatus::ApprovedJasa->value,
+        ]);
+        OrderScopeOfWork::query()->create([
+            'order_id' => $eligible->id,
+            'tanggal_dokumen' => '2026-07-01',
+            'scope_items' => [['pekerjaan' => 'Scope test']],
+            'created_by' => $admin->id,
+        ]);
+
+        $this->makeOrder($admin, 'PKM-HPP-NO-SCOPE', [
+            'catatan_status' => OrderUserNoteStatus::ApprovedJasa->value,
+        ]);
+        $this->makeOrder($admin, 'PKM-HPP-PENDING', [
+            'catatan_status' => OrderUserNoteStatus::Pending->value,
+        ]);
+
+        $this->assertSame(1, $this->counts()['create_hpp']);
+
+        $this->makeHpp($admin, $eligible);
+
+        $this->assertSame(0, $this->counts()['create_hpp']);
+    }
 
     public function test_jobwaiting_count_tracks_orders_until_final_documents_exist(): void
     {

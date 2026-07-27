@@ -6,7 +6,9 @@ use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Pkm\Hpp\SaveHppDraftRequest;
 use App\Models\Hpp;
+use App\Models\HppSignature;
 use App\Models\Order;
+use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\Pkm\HppDraftService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
@@ -21,6 +23,7 @@ class HppDraftController extends Controller
 {
     public function __construct(
         private readonly HppDraftService $draftService,
+        private readonly ApprovalNotificationService $approvalNotificationService,
     ) {}
 
     public function index(Request $request): View
@@ -31,8 +34,8 @@ class HppDraftController extends Controller
             ->with([
                 'order:id,notifikasi,seksi,unit_kerja',
                 'creator:id,name,role',
-                'signatures',
-                'activeSignature',
+                'signatures.signer:id,name,nomor_hp',
+                'activeSignature.signer:id,name,nomor_hp',
             ])
             ->search($search)
             ->when($status !== '', fn ($query) => $query->where('status', $status))
@@ -155,6 +158,29 @@ class HppDraftController extends Controller
         }
 
         return $response;
+    }
+
+    public function resendActiveApproval(Hpp $hpp): RedirectResponse
+    {
+        $hpp->loadMissing('signatures.signer');
+        $signature = $hpp->signatures->first(
+            fn (HppSignature $signature): bool => $signature->isPending()
+        );
+
+        abort_unless(
+            $signature && ! $signature->tokenExpired() && $signature->approvalUrl(),
+            Response::HTTP_CONFLICT,
+            'Tidak ada link approval HPP aktif yang dapat dikirim ulang.'
+        );
+
+        if (! $this->approvalNotificationService->sendHpp($signature, true)) {
+            abort(Response::HTTP_BAD_GATEWAY, 'Email approval HPP gagal dikirim.');
+        }
+
+        return back()->with('status', sprintf(
+            'Link approval HPP berhasil dikirim ulang ke %s.',
+            $signature->signer?->email ?: 'email approver',
+        ));
     }
 
     private function eligibleOrders()

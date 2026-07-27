@@ -124,6 +124,29 @@
                                 $approvalSummaryLabel = $isApprovalComplete
                                     ? 'Semua approver selesai'
                                     : ($currentSignerLabel ?: 'Menunggu approver aktif');
+                                $activeSignature = $row->activeSignature
+                                    ?: $row->signatures->first(fn (\App\Models\HppSignature $signature): bool => $signature->isPending());
+                                $activeApprovalLink = $activeSignature?->isPending()
+                                    && ! $activeSignature->tokenExpired()
+                                    ? $activeSignature->approvalUrl()
+                                    : null;
+                                $approvalChecklist = $row->signatures
+                                    ->map(fn (\App\Models\HppSignature $signature): array => [
+                                        'label' => $signature->displayRoleLabel(),
+                                        'name' => $signature->signer_name_snapshot ?: '-',
+                                        'status' => $signature->status,
+                                        'delegated_from_name' => $signature->delegated_from_name ?: '',
+                                        'delegation_reason' => $signature->delegation_reason ?: '',
+                                    ])
+                                    ->values();
+                                $activeApprovalActions = [
+                                    'whatsapp_url' => $activeApprovalLink
+                                        ? (\App\Support\ApprovalWhatsappLink::forHpp($activeSignature) ?: '')
+                                        : '',
+                                    'resend_url' => $activeApprovalLink
+                                        ? route('pkm.hpp.approval.resend', $row)
+                                        : '',
+                                ];
                             @endphp
                             <tr class="align-top hover:bg-slate-50">
                                 <td class="px-5 py-3 text-[10px] text-slate-800">
@@ -172,9 +195,19 @@
                                                         <span class="inline-flex shrink-0 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[8px] font-bold text-emerald-700">Complete</span>
                                                     @endif
                                                 </div>
-                                                <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400" title="Status approval">
+                                                <button
+                                                    type="button"
+                                                    class="hpp-pkm-approval-trigger inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition hover:border-blue-200 hover:text-blue-700"
+                                                    data-title="{{ $row->nomor_order }}"
+                                                    data-progress="{{ $row->approvalProgressPercent() }}"
+                                                    data-signed-count="{{ $signedCount }}"
+                                                    data-total-steps="{{ $totalSteps }}"
+                                                    data-checklist='@json($approvalChecklist)'
+                                                    data-actions='@json($activeApprovalActions)'
+                                                    title="Detail approval"
+                                                >
                                                     <i data-lucide="info" class="h-3 w-3"></i>
-                                                </span>
+                                                </button>
                                             </div>
                                         </div>
                                     @endif
@@ -206,4 +239,144 @@
             @endif
         </section>
     </div>
+
+    <div id="hppPkmApprovalModal" class="fixed inset-0 z-[120] hidden overflow-y-auto" aria-hidden="true">
+        <div class="absolute inset-0 bg-slate-900/45"></div>
+        <div class="relative flex min-h-full items-start justify-center px-4 pb-6 pt-28 sm:pb-8 sm:pt-32">
+            <div data-hpp-pkm-approval-panel class="my-2 w-full max-w-md overflow-hidden rounded-[1.2rem] border border-slate-200 bg-white shadow-2xl">
+                <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3.5">
+                    <div>
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">Status Alur</div>
+                        <h2 id="hppPkmApprovalTitle" class="mt-1.5 text-[1.2rem] font-bold leading-none tracking-tight text-slate-900">-</h2>
+                        <p class="mt-2 text-[11px] text-slate-500">Progress tanda tangan HPP yang sedang berjalan.</p>
+                    </div>
+                    <button type="button" id="hppPkmApprovalClose" class="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="Tutup detail approval HPP">
+                        <i data-lucide="x" class="h-3.5 w-3.5"></i>
+                    </button>
+                </div>
+
+                <div class="max-h-[58vh] space-y-3 overflow-y-auto px-4 py-3.5">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span id="hppPkmApprovalCount" class="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-700 ring-1 ring-blue-100">0/0 TTD</span>
+                        <span id="hppPkmApprovalPercent" class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600">0%</span>
+                    </div>
+                    <div id="hppPkmApprovalChecklist" class="space-y-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const modal = document.getElementById('hppPkmApprovalModal');
+            const title = document.getElementById('hppPkmApprovalTitle');
+            const count = document.getElementById('hppPkmApprovalCount');
+            const percent = document.getElementById('hppPkmApprovalPercent');
+            const checklistContainer = document.getElementById('hppPkmApprovalChecklist');
+            const closeButton = document.getElementById('hppPkmApprovalClose');
+
+            const escapeHtml = (value) => String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+
+            const parseData = (value, fallback) => {
+                try {
+                    return JSON.parse(value || '') ?? fallback;
+                } catch (error) {
+                    return fallback;
+                }
+            };
+
+            const statusConfig = {
+                signed: ['OK', 'border-emerald-200 bg-emerald-50 text-emerald-700', 'border-emerald-200 bg-emerald-50'],
+                pending: ['Aktif', 'border-blue-200 bg-blue-50 text-blue-700', 'border-blue-200 bg-blue-50'],
+                locked: ['Menunggu', 'border-slate-200 bg-slate-100 text-slate-500', 'border-slate-200 bg-slate-50'],
+                skipped: ['Skip', 'border-amber-200 bg-amber-50 text-amber-700', 'border-amber-200 bg-amber-50'],
+            };
+
+            const openModal = (button) => {
+                const checklist = parseData(button.dataset.checklist, []);
+                const actions = parseData(button.dataset.actions, {});
+                const whatsappUrl = actions.whatsapp_url || '';
+                const resendUrl = actions.resend_url || '';
+
+                title.textContent = button.dataset.title || '-';
+                count.textContent = `${button.dataset.signedCount || 0}/${button.dataset.totalSteps || 0} TTD`;
+                percent.textContent = `${button.dataset.progress || 0}%`;
+                checklistContainer.innerHTML = checklist.map((item) => {
+                    const config = statusConfig[item.status] || statusConfig.locked;
+                    const activeActions = item.status === 'pending'
+                        ? `
+                            <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                ${whatsappUrl ? `
+                                    <a href="${escapeHtml(whatsappUrl)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-100">
+                                        <i data-lucide="message-circle" class="h-3 w-3"></i>
+                                        WhatsApp
+                                    </a>
+                                ` : `
+                                    <span class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-400" title="Nomor WhatsApp approver belum tersedia">
+                                        <i data-lucide="message-circle-off" class="h-3 w-3"></i>
+                                        No WA
+                                    </span>
+                                `}
+                                ${resendUrl ? `
+                                    <form method="POST" action="${escapeHtml(resendUrl)}" class="inline-block">
+                                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-sky-700 transition hover:bg-sky-100">
+                                            <i data-lucide="send" class="h-3 w-3"></i>
+                                            Resend
+                                        </button>
+                                    </form>
+                                ` : ''}
+                            </div>
+                        `
+                        : '';
+
+                    return `
+                        <div class="rounded-xl border px-3 py-2.5 ${config[2]}">
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="min-w-0">
+                                    <div class="truncate text-[13px] font-medium text-slate-800">${escapeHtml(item.label || '-')}</div>
+                                    <div class="mt-1 truncate text-[11px] text-slate-500">${escapeHtml(item.name || '-')}</div>
+                                    ${item.delegated_from_name ? `<div class="mt-0.5 text-[9px] text-slate-500">Dialihkan dari ${escapeHtml(item.delegated_from_name)}</div>` : ''}
+                                    ${item.delegation_reason ? `<div class="mt-0.5 text-[9px] text-slate-500">Alasan: ${escapeHtml(item.delegation_reason)}</div>` : ''}
+                                </div>
+                                <span class="inline-flex shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${config[1]}">${config[0]}</span>
+                            </div>
+                            ${activeActions}
+                        </div>
+                    `;
+                }).join('');
+
+                modal.classList.remove('hidden');
+                modal.setAttribute('aria-hidden', 'false');
+                document.body.classList.add('overflow-hidden');
+                window.lucide?.createIcons();
+            };
+
+            const closeModal = () => {
+                modal.classList.add('hidden');
+                modal.setAttribute('aria-hidden', 'true');
+                document.body.classList.remove('overflow-hidden');
+            };
+
+            document.querySelectorAll('.hpp-pkm-approval-trigger').forEach((button) => {
+                button.addEventListener('click', () => openModal(button));
+            });
+            closeButton?.addEventListener('click', closeModal);
+            modal?.addEventListener('click', (event) => {
+                if (! event.target.closest('[data-hpp-pkm-approval-panel]')) {
+                    closeModal();
+                }
+            });
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && ! modal?.classList.contains('hidden')) {
+                    closeModal();
+                }
+            });
+        });
+    </script>
 </x-layouts.pkm>

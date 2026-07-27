@@ -505,6 +505,9 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/{hpp}/edit', [HppDraftController::class, 'edit'])->whereNumber('hpp')->name('edit');
             Route::put('/{hpp}', [HppDraftController::class, 'update'])->whereNumber('hpp')->name('update');
             Route::get('/{hpp}/pdf', [HppDraftController::class, 'pdf'])->whereNumber('hpp')->name('pdf');
+            Route::post('/{hpp}/resend-active-approval', [HppDraftController::class, 'resendActiveApproval'])
+                ->whereNumber('hpp')
+                ->name('approval.resend');
         });
 
     Route::get('pkm/lhpp', [LhppController::class, 'index'])

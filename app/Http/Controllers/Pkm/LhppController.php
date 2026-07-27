@@ -19,8 +19,8 @@ use App\Services\Pkm\BastDeletionService;
 use App\Support\ApprovalFlowSignerPreview;
 use App\Support\BastApprovalFlow;
 use App\Support\BastApprovalSignatureBuilder;
-use App\Support\BastApproverResolver;
 use App\Support\BastDocumentNumberGenerator;
+use App\Support\BastEffectiveApprovalFlowResolver;
 use App\Support\PdfMergeService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -45,7 +45,7 @@ class LhppController extends Controller
         private readonly ApprovalNotificationService $approvalNotificationService,
         private readonly BastDocumentNumberGenerator $documentNumberGenerator,
         private readonly BastDeletionService $bastDeletionService,
-        private readonly BastApproverResolver $bastApproverResolver,
+        private readonly BastEffectiveApprovalFlowResolver $effectiveFlowResolver,
     ) {}
 
     public function index(Request $request): View
@@ -342,6 +342,7 @@ class LhppController extends Controller
                 $calculation['totals'],
                 $request->input('approval_flow', []),
                 $isWithoutWarranty,
+                $this->makeApprovalContext($order, $approvedHpp, $terminType, $tipePekerjaan),
             );
             $stagedImages = $this->stageUploadedImages($request, (string) $order->nomor_order, $terminType);
 
@@ -525,6 +526,7 @@ class LhppController extends Controller
                 $calculation['totals'],
                 $request->input('approval_flow', []),
                 $isWithoutWarranty,
+                $this->makeApprovalContext($order, $approvedHpp, $terminType, $tipePekerjaan),
             );
             $approvalStarted = $lhpp->hasApprovalStarted();
 
@@ -1490,11 +1492,19 @@ class LhppController extends Controller
         if ($lockedFlow === []) {
             return;
         }
-        $expected = collect($flow)->map(function (string $role, int $index) use ($lhpp): array {
-            $approver = $this->bastApproverResolver->resolveApprover($lhpp, $role);
+        $effectiveSteps = $this->effectiveFlowResolver->resolveSteps($lhpp, $flow);
+        $effectiveFlow = collect($effectiveSteps)->pluck('flow_role_label')->values()->all();
 
-            return ['step_order' => $index + 1, 'role_key' => $approver['role_key'], 'signer_user_id' => $approver['user']->id];
-        });
+        if ($effectiveFlow !== $flow) {
+            return;
+        }
+
+        $expected = collect($effectiveSteps)
+            ->map(fn (array $step, int $index): array => [
+                'step_order' => $index + 1,
+                'role_key' => $step['role_key'],
+                'signer_user_id' => $step['user']->id,
+            ]);
         $signerMatches = $lockedSignatures->count() === $expected->count()
             && $lockedSignatures->values()->every(function (LhppBastSignature $signature, int $index) use ($expected): bool {
                 $item = $expected[$index];
@@ -1532,17 +1542,52 @@ class LhppController extends Controller
      * @param  array<string, mixed>  $totals
      * @return array{approval_threshold: string, approval_case: ?string, approval_flow: list<string>}
      */
-    private function resolveApprovalPayload(string $terminType, array $totals, mixed $submittedFlow = [], bool $isWithoutWarranty = false): array
+    private function resolveApprovalPayload(
+        string $terminType,
+        array $totals,
+        mixed $submittedFlow,
+        bool $isWithoutWarranty,
+        LhppBast $approvalContext
+    ): array
     {
         $threshold = $this->resolveThresholdFromTotals($terminType, $totals, $isWithoutWarranty);
-        $defaultFlow = BastApprovalFlow::resolveApprovalFlow($threshold);
-        $flow = $this->resolveApprovalFlowSnapshot($defaultFlow, $submittedFlow);
+        $baseFlow = BastApprovalFlow::resolveApprovalFlow($threshold);
+
+        try {
+            $defaultFlow = $this->effectiveFlowResolver->effectiveFlowLabels($approvalContext, $baseFlow);
+            $effectiveSubmittedFlow = is_array($submittedFlow) && $submittedFlow !== []
+                ? $this->effectiveFlowResolver->effectiveFlowLabels($approvalContext, array_values($submittedFlow))
+                : $submittedFlow;
+        } catch (ValidationException) {
+            // Preserve the existing draft/QC workflow when approver structure is not complete yet.
+            // The signature builder still performs strict resolution before approval is activated.
+            $defaultFlow = $baseFlow;
+            $effectiveSubmittedFlow = $submittedFlow;
+        }
+        $flow = $this->resolveApprovalFlowSnapshot($defaultFlow, $effectiveSubmittedFlow);
 
         return [
             'approval_threshold' => $threshold,
             'approval_case' => BastApprovalFlow::resolveApprovalCase($terminType, $threshold),
             'approval_flow' => $flow,
         ];
+    }
+
+    private function makeApprovalContext(
+        Order $order,
+        Hpp $hpp,
+        string $terminType,
+        string $tipePekerjaan
+    ): LhppBast {
+        $context = new LhppBast([
+            'termin_type' => $terminType,
+            'tipe_pekerjaan' => $tipePekerjaan,
+            'vendor_work_type_section_id' => $this->resolveVendorSectionId($tipePekerjaan),
+        ]);
+        $context->setRelation('order', $order);
+        $context->setRelation('hpp', $hpp);
+
+        return $context;
     }
 
     /**

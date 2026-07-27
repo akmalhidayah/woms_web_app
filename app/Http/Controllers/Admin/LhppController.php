@@ -10,6 +10,7 @@ use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\Approvals\ApprovalSignatureRollbackService;
 use App\Services\Pkm\BastDeletionService;
 use App\Support\BastApprovalSignatureBuilder;
+use App\Support\BastEffectiveApprovalFlowResolver;
 use App\Support\PdfMergeService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
@@ -27,6 +28,7 @@ class LhppController extends Controller
         private readonly ApprovalNotificationService $approvalNotificationService,
         private readonly ApprovalSignatureRollbackService $rollbackService,
         private readonly BastDeletionService $bastDeletionService,
+        private readonly BastEffectiveApprovalFlowResolver $effectiveFlowResolver,
     ) {}
 
     public function destroy(Request $request, LhppBast $lhppBast): RedirectResponse
@@ -161,16 +163,41 @@ class LhppController extends Controller
             return;
         }
 
-        $lockedFlow = $lhpp->signatures()
+        $lockedSignatures = $lhpp->signatures()
             ->where('status', LhppBastSignature::STATUS_LOCKED)
             ->orderBy('step_order')
-            ->pluck('role_label')
+            ->get();
+        $lockedFlow = $lockedSignatures->pluck('role_label')
             ->map(static fn (mixed $role): string => trim((string) $role))
-            ->filter()
-            ->values()
-            ->all();
+            ->filter()->values()->all();
 
-        if ($lockedFlow === [] || $lockedFlow === $flow) {
+        if ($lockedFlow === []) {
+            return;
+        }
+
+        $effectiveSteps = $this->effectiveFlowResolver->resolveSteps($lhpp, $flow);
+        $effectiveFlow = collect($effectiveSteps)->pluck('flow_role_label')->values()->all();
+
+        if ($effectiveFlow !== $flow) {
+            return;
+        }
+
+        $expected = collect($effectiveSteps)
+            ->map(fn (array $step, int $index): array => [
+                'step_order' => $index + 1,
+                'role_key' => $step['role_key'],
+                'signer_user_id' => $step['user']->id,
+            ]);
+        $matches = $lockedSignatures->count() === $expected->count()
+            && $lockedSignatures->values()->every(function (LhppBastSignature $signature, int $index) use ($expected): bool {
+                $step = $expected[$index];
+
+                return $signature->step_order === $step['step_order']
+                    && $signature->role_key === $step['role_key']
+                    && (int) $signature->signer_user_id === (int) $step['signer_user_id'];
+            });
+
+        if ($lockedFlow === $flow && $matches) {
             return;
         }
 
@@ -179,6 +206,7 @@ class LhppController extends Controller
             ->delete();
 
         $lhpp->unsetRelation('signatures');
+        $this->signatureBuilder->ensureSignatures($lhpp->fresh());
     }
 
     public function index(Request $request): View

@@ -111,7 +111,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
 
                                 <label class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-700">Nomor Order</label>
                                 <div class="relative">
-                                    <select name="nomor_order" x-model="selectedOrder" x-init="$nextTick(() => { $el.value = selectedOrder; })" @change="applyHppSyncIfChecked()" class="h-9 w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 pr-9 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none">
+                                    <select name="nomor_order" x-model="selectedOrder" x-init="$nextTick(() => { $el.value = selectedOrder; })" @change="resetApprovalFlow(); applyHppSyncIfChecked()" class="h-9 w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 pr-9 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none">
                                         <option value="">Pilih Nomor Order</option>
                                         <template x-for="order in orderOptions" :key="order.nomor_order">
                                             <option :value="order.nomor_order" :selected="order.nomor_order === selectedOrder" x-text="order.nomor_order"></option>
@@ -690,7 +690,15 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         return this.approvalThreshold === 'over_250' ? '> Rp250 juta' : '≤ Rp250 juta';
                     },
                     defaultApprovalFlow() {
-                        return [...(this.approvalFlowMatrix?.[this.approvalThreshold] ?? [])];
+                        const baseFlow = [...(this.approvalFlowMatrix?.[this.approvalThreshold] ?? [])];
+                        const orderKey = String(this.selectedOrder ?? '');
+                        const orderMap = this.approvalSignerPreview?.orders?.[orderKey] ?? {};
+
+                        if (orderMap?.manager_signers_same === true) {
+                            return baseFlow.filter((step) => step !== 'Manager Peminta');
+                        }
+
+                        return baseFlow;
                     },
                     approvalSignerName(step, index) {
                         const byIndex = this.approvalSignerPreview?.by_index ?? {};

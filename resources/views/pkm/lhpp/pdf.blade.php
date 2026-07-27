@@ -400,9 +400,6 @@
         ->unique(fn (array $image): string => (string) ($image['name'].'|'.$image['src']))
         ->values();
 
-    $lhppSignatures = ($lhpp->relationLoaded('signatures') ? $lhpp->signatures : $lhpp->signatures()->get())
-        ->keyBy('role_key');
-    $signatureFor = fn (string $roleKey) => $lhppSignatures->get($roleKey);
     $signatureImage = fn ($signature): ?string => $signature?->isSigned()
         ? \App\Support\SignatureImageStorage::imageSource($signature->signature_data)
         : null;
@@ -415,15 +412,12 @@
 
         return 'Tanggal : '.\Illuminate\Support\Carbon::parse($signature->signed_at)->format('d/m/Y');
     };
-    $approvalCellFromRole = function (string $roleKey, string $fallbackTitle) use (
-        $signatureFor,
+    $approvalCellFromSignature = function ($signature, string $fallbackTitle) use (
         $signatureImage,
         $signatureName,
         $signatureDate,
         $signatureTitle,
     ): array {
-        $signature = $signatureFor($roleKey);
-
         return [
             'role' => $signatureTitle($signature, $fallbackTitle),
             'signature' => $signatureImage($signature),
@@ -432,21 +426,17 @@
         ];
     };
 
-    $approvalCells = $isOver250
-        ? [
-            $approvalCellFromRole('dirops', 'Director of Operation'),
-            $approvalCellFromRole('gm_pengendali', 'GM Pengendali'),
-            $approvalCellFromRole('sm_pengendali', 'SM Pengendali'),
-            $approvalCellFromRole('manager_pengendali', 'Manager Pengendali'),
-            $approvalCellFromRole('manager_peminta', 'Manager Peminta'),
-        ]
-        : [
-            $approvalCellFromRole('gm_pengendali', 'GM Pengendali'),
-            $approvalCellFromRole('sm_pengendali', 'SM Pengendali'),
-            $approvalCellFromRole('manager_pengendali', 'Manager Pengendali'),
-            $approvalCellFromRole('manager_peminta', 'Manager Peminta'),
-        ];
-    $managerPkmSignature = $signatureFor('manager_pkm');
+    $signatureLayout = app(\App\Support\BastPdfSignatureLayoutResolver::class)->resolve($lhpp);
+    $approvalCells = collect($signatureLayout['approval_cells'])
+        ->map(fn (array $cell): array => $approvalCellFromSignature(
+            $cell['signature'],
+            $cell['fallback_title']
+        ))
+        ->values()
+        ->all();
+    $approvalColumnCount = max(count($approvalCells), 1);
+    $approvalColumnWidth = 100 / $approvalColumnCount;
+    $managerPkmSignature = $signatureLayout['manager_pkm_signature'];
     $managerPkmTitle = preg_replace(
         '/^manager\s+of\s+/i',
         'Manager ',
@@ -658,18 +648,9 @@
             <div class="signature-main">
                 <table class="signature-table">
                     <colgroup>
-                        @if ($isOver250)
-                            <col style="width: 20%;">
-                            <col style="width: 20%;">
-                            <col style="width: 20%;">
-                            <col style="width: 20%;">
-                            <col style="width: 20%;">
-                        @else
-                            <col style="width: 25%;">
-                            <col style="width: 25%;">
-                            <col style="width: 25%;">
-                            <col style="width: 25%;">
-                        @endif
+                        @foreach ($approvalCells as $cell)
+                            <col style="width: {{ number_format($approvalColumnWidth, 4, '.', '') }}%;">
+                        @endforeach
                     </colgroup>
                     <tr>
                         <td colspan="{{ count($approvalCells) }}" class="signed-header">Menyetujui,</td>

@@ -118,13 +118,17 @@ class ApprovalFlowSignerPreview
         $lhpp = new LhppBast();
         $lhpp->setRelation('order', $order);
 
-        $managerPengendali = $this->bastSignerName($lhpp, 'Manager Pengendali');
+        $managerPengendaliApprover = $this->bastApprover($lhpp, 'Manager Pengendali');
+        $managerPemintaApprover = $this->bastApprover($lhpp, 'Manager Peminta');
+        $managerPengendali = $managerPengendaliApprover['user']->name ?? null;
         $smPengendali = $this->bastSignerName($lhpp, 'SM Pengendali');
-        $managerPeminta = $this->bastSignerName($lhpp, 'Manager Peminta');
+        $managerPeminta = $managerPemintaApprover['user']->name ?? null;
         $gmPengendali = $this->bastSignerName($lhpp, 'GM Pengendali');
         $dirops = $this->bastSignerName($lhpp, 'DIROPS');
 
         return [
+            'manager_signers_same' => isset($managerPemintaApprover['user'], $managerPengendaliApprover['user'])
+                && (int) $managerPemintaApprover['user']->id === (int) $managerPengendaliApprover['user']->id,
             'Manager Pengendali' => $managerPengendali,
             'Manager Workshop' => $managerPengendali,
             'SM Pengendali' => $smPengendali,
@@ -140,8 +144,13 @@ class ApprovalFlowSignerPreview
 
     private function bastSignerName(LhppBast $lhpp, string $role): ?string
     {
+        return $this->bastApprover($lhpp, $role)['user']->name ?? null;
+    }
+
+    private function bastApprover(LhppBast $lhpp, string $role): ?array
+    {
         try {
-            return $this->bastApproverResolver->resolveApprover($lhpp, $role)['user']->name ?: null;
+            return $this->bastApproverResolver->resolveApprover($lhpp, $role);
         } catch (Throwable) {
             return null;
         }

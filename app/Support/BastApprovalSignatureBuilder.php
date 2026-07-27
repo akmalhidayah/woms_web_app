@@ -14,7 +14,7 @@ class BastApprovalSignatureBuilder
     private const TOKEN_TTL_DAYS = 14;
 
     public function __construct(
-        private readonly BastApproverResolver $approverResolver,
+        private readonly BastEffectiveApprovalFlowResolver $effectiveFlowResolver,
         private readonly ApprovalNotificationService $approvalNotificationService,
     ) {
     }
@@ -39,11 +39,12 @@ class BastApprovalSignatureBuilder
                 ]);
             }
 
-            foreach (array_values($flow) as $index => $roleLabel) {
-                $stepOrder = $index + 1;
-                $approver = $this->approverResolver->resolveApprover($lhpp, (string) $roleLabel);
+            $steps = $this->effectiveFlowResolver->resolveSteps($lhpp, array_values($flow));
 
-                $signature = $lhpp->signatures()->create([
+            foreach ($steps as $index => $approver) {
+                $stepOrder = $index + 1;
+
+                $lhpp->signatures()->create([
                     'step_order' => $stepOrder,
                     'role_key' => $approver['role_key'],
                     'role_label' => $approver['role_label'],

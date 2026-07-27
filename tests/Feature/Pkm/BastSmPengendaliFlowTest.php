@@ -127,18 +127,18 @@ class BastSmPengendaliFlowTest extends TestCase
 
     public function test_bast_pdf_layout_contains_sm_cell_for_both_thresholds(): void
     {
-        $source = file_get_contents(resource_path('views/pkm/lhpp/pdf.blade.php'));
+        $resolverSource = file_get_contents(app_path('Support/BastPdfSignatureLayoutResolver.php'));
+        $templateSource = file_get_contents(resource_path('views/pkm/lhpp/pdf.blade.php'));
 
+        $this->assertStringContainsString("['sm_pengendali', 'SM Pengendali']", $resolverSource);
         $this->assertStringContainsString(
-            "\$approvalCellFromRole('sm_pengendali', 'SM Pengendali')",
-            $source,
+            "\$approvalColumnWidth = 100 / \$approvalColumnCount",
+            $templateSource,
         );
-        $this->assertSame(2, substr_count(
-            $source,
-            "\$approvalCellFromRole('sm_pengendali', 'SM Pengendali')",
-        ));
-        $this->assertStringContainsString('<col style="width: 20%;">', $source);
-        $this->assertStringContainsString('<col style="width: 25%;">', $source);
+        $this->assertStringContainsString(
+            '<col style="width: {{ number_format($approvalColumnWidth',
+            $templateSource,
+        );
     }
 
     /**

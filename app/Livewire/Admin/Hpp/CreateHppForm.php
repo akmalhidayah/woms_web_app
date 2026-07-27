@@ -16,13 +16,17 @@ class CreateHppForm extends Component
 {
     public ?Hpp $hpp = null;
 
-    public function mount(?Hpp $hpp = null): void
+    public string $panel = 'admin';
+
+    public function mount(?Hpp $hpp = null, string $panel = 'admin'): void
     {
         $this->hpp = $hpp;
+        $this->panel = $panel === 'pkm' ? 'pkm' : 'admin';
     }
 
     public function render()
     {
+        $isPkmDraft = $this->panel === 'pkm';
         $itemGroupPresets = $this->resolveItemGroupPresets();
         $canReorderApprovalFlow = ! ($this->hpp?->exists) || $this->hpp->isDraft();
 
@@ -113,7 +117,11 @@ class CreateHppForm extends Component
                 'approvalSignerPreview' => $approvalSignerPreview,
             ],
             'isEdit' => $this->hpp?->exists ?? false,
-            'submitRoute' => $this->hpp?->exists ? route('admin.hpp.update', $this->hpp) : route('admin.hpp.store'),
+            'isPkmDraft' => $isPkmDraft,
+            'indexRoute' => $isPkmDraft ? route('pkm.hpp.index') : route('admin.hpp.index'),
+            'submitRoute' => $isPkmDraft
+                ? ($this->hpp?->exists ? route('pkm.hpp.update', $this->hpp) : route('pkm.hpp.store'))
+                : ($this->hpp?->exists ? route('admin.hpp.update', $this->hpp) : route('admin.hpp.store')),
         ]);
     }
 

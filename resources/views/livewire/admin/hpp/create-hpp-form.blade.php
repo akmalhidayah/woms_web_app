@@ -86,6 +86,9 @@
         @if ($isEdit)
             @method('PUT')
         @endif
+        @if ($isPkmDraft && $isEdit)
+            <input type="hidden" name="hpp_updated_at" value="{{ $hpp->getRawOriginal('updated_at') }}">
+        @endif
         <template x-for="(step, index) in approvalFlow" :key="`approval-flow-input-${index}-${step}`">
             <input type="hidden" name="approval_flow[]" :value="step">
         </template>
@@ -397,15 +400,17 @@
         </section>
 
         <div class="flex justify-end gap-2">
-            <a href="{{ route('admin.hpp.index') }}" class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-50">
+            <a href="{{ $indexRoute }}" class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-50">
                 Kembali
             </a>
             <button type="submit" name="action" value="draft" class="inline-flex items-center rounded-lg bg-slate-600 px-3 py-1.5 text-[10px] font-semibold text-white transition hover:bg-slate-700" @disabled($orderOptions === [] || $outlineAgreementOptions === [])>
                 {{ $isEdit ? 'Update Draft' : 'Simpan Draft' }}
             </button>
-            <button type="submit" name="action" value="submit" class="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-[10px] font-semibold text-white transition hover:bg-blue-700" @disabled($orderOptions === [] || $outlineAgreementOptions === [])>
-                {{ $isEdit ? 'Update & Submit' : 'Submit' }}
-            </button>
+            @unless ($isPkmDraft)
+                <button type="submit" name="action" value="submit" class="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-[10px] font-semibold text-white transition hover:bg-blue-700" @disabled($orderOptions === [] || $outlineAgreementOptions === [])>
+                    {{ $isEdit ? 'Update & Submit' : 'Submit' }}
+                </button>
+            @endunless
         </div>
     </form>
 </div>

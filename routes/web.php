@@ -29,6 +29,7 @@ use App\Http\Controllers\ApprovalDocumentController;
 use App\Http\Controllers\Pkm\DashboardController as PkmDashboardController;
 use App\Http\Controllers\Pkm\DocumentsController as PkmDocumentsController;
 use App\Http\Controllers\Pkm\JobWaitingController;
+use App\Http\Controllers\Pkm\HppDraftController;
 use App\Http\Controllers\Pkm\LhppController;
 use App\Http\Controllers\Pkm\PkmNotificationController;
 use App\Http\Controllers\Pkm\UserPanelController as PkmUserPanelController;
@@ -493,6 +494,18 @@ Route::middleware(['auth'])->group(function () {
         'pageTitle' => 'Item Kebutuhan',
         'pageDescription' => 'Placeholder frontend untuk item kebutuhan, material, dan komponen pekerjaan.',
     ])->middleware('pkm_panel')->name('pkm.items.index');
+
+    Route::prefix('pkm/hpp')
+        ->name('pkm.hpp.')
+        ->middleware('pkm_panel')
+        ->group(function (): void {
+            Route::get('/', [HppDraftController::class, 'index'])->name('index');
+            Route::get('/create', [HppDraftController::class, 'create'])->name('create');
+            Route::post('/', [HppDraftController::class, 'store'])->name('store');
+            Route::get('/{hpp}/edit', [HppDraftController::class, 'edit'])->whereNumber('hpp')->name('edit');
+            Route::put('/{hpp}', [HppDraftController::class, 'update'])->whereNumber('hpp')->name('update');
+            Route::get('/{hpp}/pdf', [HppDraftController::class, 'pdf'])->whereNumber('hpp')->name('pdf');
+        });
 
     Route::get('pkm/lhpp', [LhppController::class, 'index'])
         ->middleware('pkm_panel')

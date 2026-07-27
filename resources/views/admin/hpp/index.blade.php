@@ -187,6 +187,11 @@
                                     <div class="mt-0.5 text-[9px] font-medium text-blue-600">
                                         Notif: {{ $row->order?->notifikasi ?: '-' }}
                                     </div>
+                                    @if ($row->creator?->role === \App\Models\User::ROLE_PKM)
+                                        <span class="mt-1 inline-flex rounded-full bg-blue-50 px-1.5 py-0.5 text-[8px] font-semibold text-blue-700 ring-1 ring-blue-100">
+                                            Dibuat oleh PKM
+                                        </span>
+                                    @endif
                                 </td>
                                 <td class="px-5 py-3">
                                     <div class="font-semibold leading-4 text-slate-800">{{ $row->nama_pekerjaan }}</div>

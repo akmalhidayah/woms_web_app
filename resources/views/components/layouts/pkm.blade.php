@@ -38,6 +38,7 @@
             $pkmMenus = [
                 ['route' => 'pkm.dashboard', 'icon' => 'layout-dashboard', 'label' => 'Dashboard'],
                 ['route' => 'pkm.jobwaiting', 'icon' => 'bell', 'label' => 'List Pekerjaan', 'badge_count' => $pkmBadgeCounts['jobwaiting'] ?? 0],
+                ['route' => 'pkm.hpp.index', 'active' => 'pkm.hpp.*', 'icon' => 'file-pen-line', 'label' => 'Create HPP'],
                 ['route' => 'pkm.lhpp.index', 'icon' => 'file-text', 'label' => 'Buat BAST/LHPP', 'badge_count' => $pkmBadgeCounts['lhpp'] ?? 0],
                 ['route' => 'pkm.laporan', 'icon' => 'folder-open', 'label' => 'Dokumen', 'badge_count' => $pkmBadgeCounts['documents'] ?? 0],
             ];
@@ -118,9 +119,9 @@
                         @foreach ($pkmMenus as $menu)
                             <a
                                 href="{{ route($menu['route']) }}"
-                                class="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ request()->routeIs($menu['route']) ? 'bg-white text-[#c7612c] ring-1 ring-white/45' : 'text-white/95 hover:bg-white/12' }}"
+                                class="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ request()->routeIs($menu['active'] ?? $menu['route']) ? 'bg-white text-[#c7612c] ring-1 ring-white/45' : 'text-white/95 hover:bg-white/12' }}"
                             >
-                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg transition {{ request()->routeIs($menu['route']) ? 'bg-[#fde9db] text-[#c7612c]' : 'bg-white/12 text-white/90 group-hover:bg-white/16' }}">
+                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg transition {{ request()->routeIs($menu['active'] ?? $menu['route']) ? 'bg-[#fde9db] text-[#c7612c]' : 'bg-white/12 text-white/90 group-hover:bg-white/16' }}">
                                     <i data-lucide="{{ $menu['icon'] }}" class="h-4 w-4"></i>
                                 </span>
                                 <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 font-medium">{{ $menu['label'] }}</span>

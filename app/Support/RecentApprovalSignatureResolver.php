@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\HppSignature;
 use App\Models\InitialWorkSignature;
 use App\Models\LhppBastSignature;
+use App\Models\OrderScopeOfWork;
 use App\Models\QualityControlSignature;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -66,7 +67,8 @@ class RecentApprovalSignatureResolver
             ))
             ->merge($this->signedSignatureValues(LhppBastSignature::class, LhppBastSignature::STATUS_SIGNED, 'signature_data', $user->id))
             ->merge($this->signedSignatureValues(InitialWorkSignature::class, InitialWorkSignature::STATUS_SIGNED, 'signature_path', $user->id))
-            ->merge($this->signedSignatureValues(QualityControlSignature::class, QualityControlSignature::STATUS_SIGNED, 'signature_data', $user->id));
+            ->merge($this->signedSignatureValues(QualityControlSignature::class, QualityControlSignature::STATUS_SIGNED, 'signature_data', $user->id))
+            ->merge($this->scopeOfWorkSignatureValues($user->id));
 
         return $this->firstReadableDataUrl($candidates);
     }
@@ -126,6 +128,24 @@ class RecentApprovalSignatureResolver
         }
 
         return null;
+    }
+
+    /**
+     * @return Collection<int, array{value: string, signed_at: mixed}>
+     */
+    private function scopeOfWorkSignatureValues(int $userId): Collection
+    {
+        return OrderScopeOfWork::query()
+            ->where('created_by', $userId)
+            ->whereNotNull('tanda_tangan')
+            ->where('tanda_tangan', '!=', '')
+            ->latest('updated_at')
+            ->limit(25)
+            ->get(['tanda_tangan', 'updated_at'])
+            ->map(fn (OrderScopeOfWork $scopeOfWork): array => [
+                'value' => (string) $scopeOfWork->tanda_tangan,
+                'signed_at' => $scopeOfWork->updated_at,
+            ]);
     }
 
     private function toDataUrl(?string $value): ?string

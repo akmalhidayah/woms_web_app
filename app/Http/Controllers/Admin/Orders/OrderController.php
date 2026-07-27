@@ -12,11 +12,10 @@ use App\Models\Order;
 use App\Models\OutlineAgreement;
 use App\Models\UnitWork;
 use App\Models\User;
-use App\Http\Controllers\Admin\Orders\InitialWorkController;
 use App\Services\Orders\OrderDocumentService;
 use App\Support\RecentApprovalSignatureResolver;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -24,8 +23,7 @@ class OrderController extends Controller
 {
     public function __construct(
         private readonly OrderDocumentService $documentService,
-    ) {
-    }
+    ) {}
 
     /**
      * Display a listing of the resource.
@@ -137,7 +135,7 @@ class OrderController extends Controller
             'documentMap' => $documentMap,
             'scopeOfWork' => $order->scopeOfWork,
             'recentSignatureDataUrl' => app(RecentApprovalSignatureResolver::class)
-                ->latestDataUrlForUser(request()->user()),
+                ->latestFullSignatureForUser(request()->user()),
         ]);
     }
 

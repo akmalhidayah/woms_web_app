@@ -103,7 +103,7 @@ class ScopeOfWorkTest extends TestCase
         ]);
         $signatureDataUrl = 'data:image/png;base64,'.base64_encode('signature-image');
         $resolver = \Mockery::mock(RecentApprovalSignatureResolver::class);
-        $resolver->shouldReceive('latestDataUrlForUser')
+        $resolver->shouldReceive('latestFullSignatureForUser')
             ->once()
             ->withArgs(fn (?User $user): bool => $user?->id === $admin->id)
             ->andReturn($signatureDataUrl);

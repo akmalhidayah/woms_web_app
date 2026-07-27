@@ -16,8 +16,7 @@ class OrderDocumentController extends Controller
 {
     public function __construct(
         private readonly OrderDocumentService $documentService,
-    ) {
-    }
+    ) {}
 
     /**
      * Display the document list for an order.
@@ -35,7 +34,7 @@ class OrderDocumentController extends Controller
             'documentMap' => $documentMap,
             'scopeOfWork' => $order->scopeOfWork,
             'recentSignatureDataUrl' => app(RecentApprovalSignatureResolver::class)
-                ->latestDataUrlForUser(request()->user()),
+                ->latestFullSignatureForUser(request()->user()),
         ]);
     }
 

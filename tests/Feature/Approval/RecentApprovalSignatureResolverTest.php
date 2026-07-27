@@ -9,6 +9,7 @@ use App\Models\InitialWorkSignature;
 use App\Models\LhppBast;
 use App\Models\LhppBastSignature;
 use App\Models\Order;
+use App\Models\OrderScopeOfWork;
 use App\Models\QualityControlReport;
 use App\Models\QualityControlSignature;
 use App\Models\User;
@@ -81,6 +82,25 @@ class RecentApprovalSignatureResolverTest extends TestCase
 
         $this->assertSame(
             self::QC_SIGNATURE_DATA,
+            app(RecentApprovalSignatureResolver::class)->latestFullSignatureForUser($user)
+        );
+    }
+
+    public function test_scope_of_work_signature_is_available_as_full_signature_history(): void
+    {
+        [$user, $order] = $this->context();
+        $this->hppSignature($order, $user, 'manager_pengendali', self::PARAF_DATA, '2026-07-27 10:00:00');
+        OrderScopeOfWork::query()->create([
+            'order_id' => $order->id,
+            'nama_penginput' => $user->name,
+            'tanggal_dokumen' => '2026-07-27',
+            'scope_items' => [['scope_pekerjaan' => 'Scope test', 'qty' => '1', 'satuan' => 'Lot']],
+            'tanda_tangan' => self::FULL_SIGNATURE_DATA,
+            'created_by' => $user->id,
+        ]);
+
+        $this->assertSame(
+            self::FULL_SIGNATURE_DATA,
             app(RecentApprovalSignatureResolver::class)->latestFullSignatureForUser($user)
         );
     }

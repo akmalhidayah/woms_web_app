@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\Orders\StoreOrderDocumentRequest;
 use App\Models\Order;
 use App\Models\OrderDocument;
 use App\Services\Orders\OrderDocumentService;
+use App\Support\RecentApprovalSignatureResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -33,6 +34,8 @@ class OrderDocumentController extends Controller
             'order' => $order,
             'documentMap' => $documentMap,
             'scopeOfWork' => $order->scopeOfWork,
+            'recentSignatureDataUrl' => app(RecentApprovalSignatureResolver::class)
+                ->latestDataUrlForUser(request()->user()),
         ]);
     }
 

@@ -14,6 +14,7 @@ use App\Models\UnitWork;
 use App\Models\User;
 use App\Http\Controllers\Admin\Orders\InitialWorkController;
 use App\Services\Orders\OrderDocumentService;
+use App\Support\RecentApprovalSignatureResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -135,6 +136,8 @@ class OrderController extends Controller
             'order' => $order,
             'documentMap' => $documentMap,
             'scopeOfWork' => $order->scopeOfWork,
+            'recentSignatureDataUrl' => app(RecentApprovalSignatureResolver::class)
+                ->latestDataUrlForUser(request()->user()),
         ]);
     }
 

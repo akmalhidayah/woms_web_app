@@ -6,6 +6,7 @@ use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Models\Order;
 use App\Models\OrderDocument;
 use App\Models\User;
+use App\Support\RecentApprovalSignatureResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -84,6 +85,36 @@ class ScopeOfWorkTest extends TestCase
             ->get(route('admin.orders.scope-of-work.pdf', [$order, $scopeOfWork]))
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf');
+    }
+
+    public function test_scope_of_work_canvas_can_use_latest_signature_for_authenticated_user(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $order = Order::query()->create([
+            'nomor_order' => 'ORD-SOW-RECENT-001',
+            'nama_pekerjaan' => 'Pekerjaan TTD Terakhir',
+            'unit_kerja' => 'Unit Test',
+            'seksi' => 'Seksi Test',
+            'deskripsi' => 'Detail pekerjaan test',
+            'prioritas' => Order::PRIORITY_MEDIUM,
+            'tanggal_order' => '2026-05-01',
+            'target_selesai' => '2026-05-10',
+            'created_by' => $admin->id,
+        ]);
+        $signatureDataUrl = 'data:image/png;base64,'.base64_encode('signature-image');
+        $resolver = \Mockery::mock(RecentApprovalSignatureResolver::class);
+        $resolver->shouldReceive('latestDataUrlForUser')
+            ->once()
+            ->withArgs(fn (?User $user): bool => $user?->id === $admin->id)
+            ->andReturn($signatureDataUrl);
+        $this->app->instance(RecentApprovalSignatureResolver::class, $resolver);
+
+        $this->actingAs($admin)
+            ->get(route('admin.orders.show', $order))
+            ->assertOk()
+            ->assertSee('Gunakan TTD Terakhir')
+            ->assertSee($signatureDataUrl, false)
+            ->assertDontSee('Upload PNG');
     }
 
     public function test_admin_can_preview_order_documents_from_legacy_public_storage(): void

@@ -51,7 +51,6 @@
                 accept="image/png"
                 x-ref="signatureFile"
                 class="hidden"
-                @change="uploadSignatureFile($event)"
             >
 
             <div class="flex items-center justify-between gap-4">
@@ -170,22 +169,21 @@
                 <div class="flex items-center justify-between gap-3">
                     <div>
                         <h3 class="text-lg font-semibold text-slate-900">Tanda Tangan Pembuat</h3>
-                        <p class="mt-1 text-sm text-slate-500">Tanda tangan langsung di area ini atau upload file PNG tanda tangan.</p>
-                        <p class="mt-1 text-xs font-medium text-slate-400">
-                            PNG transparan lebih disarankan. Maksimal 1 MB.
-                            <span x-show="signatureUploadLabel" x-text="`File: ${signatureUploadLabel}`" class="ml-1 font-semibold text-blue-600"></span>
-                        </p>
+                        <p class="mt-1 text-sm text-slate-500">Tanda tangan langsung di area ini atau gunakan tanda tangan terakhir milik akun Anda.</p>
                     </div>
 
                     <div class="flex flex-wrap items-center justify-end gap-2">
-                        <button
-                            type="button"
-                            @click="$refs.signatureFile?.click()"
-                            class="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
-                        >
-                            <i data-lucide="upload" class="h-4 w-4"></i>
-                            Upload PNG
-                        </button>
+                        @if ($recentSignatureDataUrl ?? null)
+                            <button
+                                type="button"
+                                data-signature-src="{{ $recentSignatureDataUrl }}"
+                                @click="useRecentSignature($event.currentTarget.dataset.signatureSrc)"
+                                class="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                            >
+                                <i data-lucide="pen-line" class="h-4 w-4"></i>
+                                Gunakan TTD Terakhir
+                            </button>
+                        @endif
                         <button
                             type="button"
                             @click="clearSignature()"
@@ -227,7 +225,6 @@
             canvas: null,
             ctx: null,
             isDrawing: false,
-            signatureUploadLabel: '',
 
             openSowModal() {
                 this.showSowModal = true;
@@ -275,7 +272,6 @@
                     event.preventDefault();
                     const current = point(event);
                     this.isDrawing = true;
-                    this.signatureUploadLabel = '';
                     if (this.$refs.signatureFile) {
                         this.$refs.signatureFile.value = '';
                     }
@@ -335,49 +331,28 @@
                 this.ctx.drawImage(image, x, y, width, height);
             },
 
-            uploadSignatureFile(event) {
-                const file = event.target.files?.[0];
-
-                if (!file) {
-                    return;
-                }
-
-                if (file.type !== 'image/png') {
-                    alert('Upload tanda tangan harus file PNG.');
-                    event.target.value = '';
-                    this.signatureUploadLabel = '';
-                    return;
-                }
-
-                if (file.size > 1024 * 1024) {
-                    alert('Ukuran tanda tangan maksimal 1 MB.');
-                    event.target.value = '';
-                    this.signatureUploadLabel = '';
-                    return;
-                }
-
+            useRecentSignature(source) {
+                if (!source) return;
                 if (!this.canvas || !this.ctx) {
                     this.setupSignatureCanvas();
                 }
 
-                const reader = new FileReader();
-                reader.onload = () => {
-                    const image = new Image();
-                    image.onload = () => {
-                        this.drawSignatureImage(image);
-                        this.signatureData = this.canvas.toDataURL('image/png');
-                        this.signatureUploadLabel = file.name;
-                    };
-                    image.src = reader.result;
+                const image = new Image();
+                image.onload = () => {
+                    this.drawSignatureImage(image);
+                    this.signatureData = this.canvas.toDataURL('image/png');
+                    if (this.$refs.signatureFile) {
+                        this.$refs.signatureFile.value = '';
+                    }
                 };
-                reader.readAsDataURL(file);
+                image.onerror = () => alert('TTD terakhir tidak dapat dimuat. Silakan tanda tangan ulang.');
+                image.src = source;
             },
 
             clearSignature() {
                 if (!this.ctx || !this.canvas) return;
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 this.signatureData = '';
-                this.signatureUploadLabel = '';
                 if (this.$refs.signatureFile) {
                     this.$refs.signatureFile.value = '';
                 }

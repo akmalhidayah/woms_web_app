@@ -175,10 +175,12 @@
                                                 <input type="checkbox" name="approve_general_manager" form="purchase-order-form-{{ $notification['nomor_order'] }}" value="1" class="h-2.5 w-2.5 rounded border-slate-300 text-emerald-600" @checked($notification['approvals']['general_manager'])>
                                                 General Manager
                                             </label>
-                                            <label class="flex items-center gap-1.5 text-[8px] text-slate-700">
-                                                <input type="checkbox" name="approve_direktur_operasional" form="purchase-order-form-{{ $notification['nomor_order'] }}" value="1" class="h-2.5 w-2.5 rounded border-slate-300 text-emerald-600" @checked($notification['approvals']['direktur_operasional'])>
-                                                Direktur Operasional
-                                            </label>
+                                            @if ($notification['requires_dirops'])
+                                                <label class="flex items-center gap-1.5 text-[8px] text-slate-700">
+                                                    <input type="checkbox" name="approve_direktur_operasional" form="purchase-order-form-{{ $notification['nomor_order'] }}" value="1" class="h-2.5 w-2.5 rounded border-slate-300 text-emerald-600" @checked($notification['approvals']['direktur_operasional'])>
+                                                    Direktur Operasional
+                                                </label>
+                                            @endif
                                         </div>
                                     </div>
                                 </td>

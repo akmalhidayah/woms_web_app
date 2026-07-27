@@ -70,6 +70,43 @@ class PurchaseOrderEmergencyTransitionTest extends TestCase
             });
     }
 
+    public function test_dirops_checkbox_is_hidden_and_cannot_be_saved_for_hpp_up_to_250_million(): void
+    {
+        [$admin, , $hpp] = $this->createEmergencyOrderFlow();
+
+        $this->actingAs($admin)
+            ->get(route('admin.purchase-order.index'))
+            ->assertOk()
+            ->assertDontSee('Direktur Operasional');
+
+        $this->actingAs($admin)
+            ->patch(route('admin.purchase-order.update', ['hpp' => $hpp->nomor_order]), [
+                'approve_direktur_operasional' => '1',
+            ])
+            ->assertRedirect();
+
+        $this->assertFalse($hpp->fresh()->purchaseOrder->approve_direktur_operasional);
+    }
+
+    public function test_dirops_checkbox_remains_available_above_250_million(): void
+    {
+        [$admin, , $hpp] = $this->createEmergencyOrderFlow();
+        $hpp->update(['total_keseluruhan' => 250000001]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.purchase-order.index'))
+            ->assertOk()
+            ->assertSee('Direktur Operasional');
+
+        $this->actingAs($admin)
+            ->patch(route('admin.purchase-order.update', ['hpp' => $hpp->nomor_order]), [
+                'approve_direktur_operasional' => '1',
+            ])
+            ->assertRedirect();
+
+        $this->assertTrue($hpp->fresh()->purchaseOrder->approve_direktur_operasional);
+    }
+
     /**
      * @return array{User, User, Hpp, InitialWork}
      */

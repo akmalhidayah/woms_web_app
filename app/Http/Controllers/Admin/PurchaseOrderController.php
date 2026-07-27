@@ -115,7 +115,8 @@ class PurchaseOrderController extends Controller
                 'approve_manager' => $request->boolean('approve_manager'),
                 'approve_senior_manager' => $request->boolean('approve_senior_manager'),
                 'approve_general_manager' => $request->boolean('approve_general_manager'),
-                'approve_direktur_operasional' => $request->boolean('approve_direktur_operasional'),
+                'approve_direktur_operasional' => (float) $hpp->total_keseluruhan > 250000000
+                    && $request->boolean('approve_direktur_operasional'),
                 'admin_note' => $this->normalizeNullableString($request->input('admin_note')),
             ]);
 
@@ -250,6 +251,7 @@ class PurchaseOrderController extends Controller
             'target_penyelesaian' => $purchaseOrder?->target_penyelesaian?->format('Y-m-d'),
             'approval_target' => $purchaseOrder?->approval_target,
             'approval_note' => $purchaseOrder?->approval_note,
+            'requires_dirops' => (float) $hpp->total_keseluruhan > 250000000,
             'approvals' => [
                 'manager' => (bool) $purchaseOrder?->approve_manager,
                 'senior_manager' => (bool) $purchaseOrder?->approve_senior_manager,

@@ -107,6 +107,8 @@ class PkmSidebarBadgeCounter
                     ->whereNotNull('purchase_order_number')
                     ->whereRaw("TRIM(purchase_order_number) <> ''");
             })
+            ->whereHas('lhppBasts', fn (Builder $bastQuery): Builder => $bastQuery
+                ->where('termin_type', 'termin_1'))
             ->where(function (Builder $query): void {
                 $query
                     ->whereDoesntHave('documents', fn (Builder $documentQuery): Builder => $documentQuery->where('jenis_dokumen', OrderDocumentType::Abnormalitas->value))

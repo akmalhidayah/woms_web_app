@@ -124,6 +124,13 @@ class PkmSidebarBadgeCounterTest extends TestCase
             'purchase_order_number' => 'PO-PKM-DOC-001',
         ]);
 
+        $this->assertSame(0, $this->counts()['documents']);
+
+        $lhpp = $this->makeLhppBast($admin, $order, [
+            'purchase_order_id' => $purchaseOrder->id,
+            'purchase_order_number' => $purchaseOrder->purchase_order_number,
+        ]);
+
         $this->assertSame(1, $this->counts()['documents']);
 
         OrderDocument::query()->create([
@@ -135,10 +142,6 @@ class PkmSidebarBadgeCounterTest extends TestCase
             'uploaded_at' => now(),
         ]);
         $purchaseOrder->update(['po_document_path' => 'po/document.pdf']);
-        $lhpp = $this->makeLhppBast($admin, $order, [
-            'purchase_order_id' => $purchaseOrder->id,
-            'purchase_order_number' => $purchaseOrder->purchase_order_number,
-        ]);
         LpjPpl::query()->create([
             'lhpp_bast_id' => $lhpp->id,
             'lpj_document_path_termin1' => 'lpj/t1.pdf',

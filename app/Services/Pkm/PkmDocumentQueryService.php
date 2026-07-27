@@ -14,7 +14,9 @@ class PkmDocumentQueryService
         return $query->whereHas('purchaseOrder', fn (Builder $po): Builder => $po
             ->where('approve_manager', true)
             ->whereNotNull('purchase_order_number')
-            ->whereRaw("TRIM(purchase_order_number) <> ''"));
+            ->whereRaw("TRIM(purchase_order_number) <> ''"))
+            ->whereHas('lhppBasts', fn (Builder $bast): Builder => $bast
+                ->where('termin_type', 'termin_1'));
     }
 
     public function applyStatusFilter(Builder $query, string $status): Builder

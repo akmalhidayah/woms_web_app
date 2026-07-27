@@ -37,7 +37,7 @@ class BudgetVerificationController extends Controller
             $kategoriItem = trim((string) $request->string('kategori_item'));
             $perPage = 10;
 
-            $notifications = $this->pendingBudgetVerificationQuery()
+            $notifications = $this->approvedBudgetVerificationQuery()
                 ->with([
                     'budgetVerification:id,order_id,hpp_id,status_anggaran,kategori_item,kategori_biaya,cost_element,catatan',
                     'order:id,nomor_order,notifikasi,nama_pekerjaan,unit_kerja,seksi',
@@ -58,6 +58,25 @@ class BudgetVerificationController extends Controller
                     $kategoriItem !== '',
                     fn (Builder $query) => $query->whereHas('budgetVerification', fn (Builder $verificationQuery) => $verificationQuery->where('kategori_item', $kategoriItem))
                 )
+                ->orderByRaw(
+                    "CASE
+                        WHEN NOT EXISTS (
+                            SELECT 1 FROM budget_verifications
+                            WHERE budget_verifications.hpp_id = hpps.id
+                        ) THEN 0
+                        WHEN EXISTS (
+                            SELECT 1 FROM budget_verifications
+                            WHERE budget_verifications.hpp_id = hpps.id
+                            AND (
+                                budget_verifications.status_anggaran IS NULL
+                                OR TRIM(budget_verifications.status_anggaran) = ''
+                                OR budget_verifications.status_anggaran = ?
+                            )
+                        ) THEN 0
+                        ELSE 1
+                    END",
+                    [BudgetVerification::statusAnggaranOptions()['Menunggu'] ?? 'Menunggu'],
+                )
                 ->latest('id')
                 ->paginate($perPage)
                 ->withQueryString();
@@ -66,7 +85,7 @@ class BudgetVerificationController extends Controller
                 $notifications->getCollection()->map(fn (Hpp $hpp) => $this->mapRow($hpp))
             );
 
-            $units = $this->pendingBudgetVerificationQuery()
+            $units = $this->approvedBudgetVerificationQuery()
                 ->select('unit_kerja')
                 ->distinct()
                 ->orderBy('unit_kerja')
@@ -97,22 +116,10 @@ class BudgetVerificationController extends Controller
         }
     }
 
-    private function pendingBudgetVerificationQuery(): Builder
+    private function approvedBudgetVerificationQuery(): Builder
     {
-        $waiting = BudgetVerification::statusAnggaranOptions()['Menunggu'] ?? 'Menunggu';
-
         return Hpp::query()
-            ->where('status', Hpp::STATUS_APPROVED)
-            ->where(function (Builder $query) use ($waiting): void {
-                $query
-                    ->whereDoesntHave('budgetVerification')
-                    ->orWhereHas('budgetVerification', function (Builder $verificationQuery) use ($waiting): void {
-                        $verificationQuery
-                            ->whereNull('status_anggaran')
-                            ->orWhereRaw("TRIM(status_anggaran) = ''")
-                            ->orWhere('status_anggaran', $waiting);
-                    });
-            });
+            ->where('status', Hpp::STATUS_APPROVED);
     }
 
     public function update(UpdateBudgetVerificationRequest $request, Hpp $hpp): RedirectResponse|JsonResponse

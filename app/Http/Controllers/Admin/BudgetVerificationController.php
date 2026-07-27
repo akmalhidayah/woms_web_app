@@ -37,7 +37,7 @@ class BudgetVerificationController extends Controller
             $kategoriItem = trim((string) $request->string('kategori_item'));
             $perPage = 10;
 
-            $notifications = Hpp::query()
+            $notifications = $this->pendingBudgetVerificationQuery()
                 ->with([
                     'budgetVerification:id,order_id,hpp_id,status_anggaran,kategori_item,kategori_biaya,cost_element,catatan',
                     'order:id,nomor_order,notifikasi,nama_pekerjaan,unit_kerja,seksi',
@@ -66,7 +66,7 @@ class BudgetVerificationController extends Controller
                 $notifications->getCollection()->map(fn (Hpp $hpp) => $this->mapRow($hpp))
             );
 
-            $units = Hpp::query()
+            $units = $this->pendingBudgetVerificationQuery()
                 ->select('unit_kerja')
                 ->distinct()
                 ->orderBy('unit_kerja')
@@ -95,6 +95,24 @@ class BudgetVerificationController extends Controller
 
             abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Terjadi kesalahan saat memuat data verifikasi anggaran.');
         }
+    }
+
+    private function pendingBudgetVerificationQuery(): Builder
+    {
+        $waiting = BudgetVerification::statusAnggaranOptions()['Menunggu'] ?? 'Menunggu';
+
+        return Hpp::query()
+            ->where('status', Hpp::STATUS_APPROVED)
+            ->where(function (Builder $query) use ($waiting): void {
+                $query
+                    ->whereDoesntHave('budgetVerification')
+                    ->orWhereHas('budgetVerification', function (Builder $verificationQuery) use ($waiting): void {
+                        $verificationQuery
+                            ->whereNull('status_anggaran')
+                            ->orWhereRaw("TRIM(status_anggaran) = ''")
+                            ->orWhere('status_anggaran', $waiting);
+                    });
+            });
     }
 
     public function update(UpdateBudgetVerificationRequest $request, Hpp $hpp): RedirectResponse|JsonResponse

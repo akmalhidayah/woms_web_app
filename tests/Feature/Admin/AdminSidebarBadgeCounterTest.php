@@ -133,6 +133,37 @@ class AdminSidebarBadgeCounterTest extends TestCase
         $this->assertSame(0, $this->counts()['purchase_order']);
     }
 
+    public function test_budget_verification_page_matches_sidebar_badge_eligibility(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+
+        $eligibleOrder = $this->makeOrder($admin, 'BADGE-BV-PAGE-ELIGIBLE');
+        $eligibleHpp = $this->makeHpp($admin, $eligibleOrder);
+        $eligibleHpp->update(['status' => Hpp::STATUS_APPROVED]);
+
+        $draftOrder = $this->makeOrder($admin, 'BADGE-BV-PAGE-DRAFT');
+        $this->makeHpp($admin, $draftOrder);
+
+        $completedOrder = $this->makeOrder($admin, 'BADGE-BV-PAGE-COMPLETED');
+        $completedHpp = $this->makeHpp($admin, $completedOrder);
+        $completedHpp->update(['status' => Hpp::STATUS_APPROVED]);
+        BudgetVerification::query()->create([
+            'order_id' => $completedOrder->id,
+            'hpp_id' => $completedHpp->id,
+            'status_anggaran' => 'Tersedia',
+            'created_by' => $admin->id,
+        ]);
+
+        $this->assertSame(1, $this->counts()['verifikasi_anggaran']);
+
+        $this->actingAs($admin)
+            ->get(route('admin.budget-verification.index'))
+            ->assertOk()
+            ->assertSee($eligibleOrder->nomor_order)
+            ->assertDontSee($draftOrder->nomor_order)
+            ->assertDontSee($completedOrder->nomor_order);
+    }
+
     public function test_set_garansi_cek_bast_and_parent_bast_counts(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);

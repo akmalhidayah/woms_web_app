@@ -60,6 +60,10 @@ class LpjPplDocumentUiTest extends TestCase
             ->assertSee('id="lpj-document-'.$lhpp->id.'" class=" h-8', false)
             ->assertSee('id="lpj-upload-'.$lhpp->id.'" title="Upload PDF LPJ" aria-label="Upload PDF LPJ" style="display: none; height: 2rem; width: 7.5rem;', false)
             ->assertSee('id="ppl-document-'.$lhpp->id.'" class="hidden h-8', false)
-            ->assertSee('id="ppl-upload-'.$lhpp->id.'" title="Upload PDF PPL" aria-label="Upload PDF PPL" style="display: flex; height: 2rem; width: 7.5rem;', false);
+            ->assertSee('id="ppl-upload-'.$lhpp->id.'" title="Upload PDF PPL" aria-label="Upload PDF PPL" style="display: flex; height: 2rem; width: 7.5rem;', false)
+            ->assertSee('data-mobile-lpj-card="'.$lhpp->id.'"', false)
+            ->assertSee('adminLpjMobileCard')
+            ->assertSee('Masukkan nomor LPJ')
+            ->assertSee('Masukkan nomor PPL');
     }
 }

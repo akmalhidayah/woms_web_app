@@ -12,9 +12,9 @@
         </section>
 
         <section class="order-list-panel overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white shadow-sm">
-            <div class="border-b border-slate-200 px-4 py-3 overflow-x-auto">
-                <form method="GET" action="{{ route('admin.lpj.index') }}" class="flex min-w-[760px] items-end gap-2">
-                    <div class="w-[280px]">
+            <div class="border-b border-slate-200 px-4 py-3">
+                <form method="GET" action="{{ route('admin.lpj.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:flex lg:items-end lg:gap-2">
+                    <div class="min-w-0 lg:w-[280px]">
                         <label class="mb-1 block text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-500">Pencarian</label>
                         <div class="relative">
                             <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 h-[12px] w-[12px] -translate-y-1/2 text-slate-400"></i>
@@ -22,7 +22,7 @@
                         </div>
                     </div>
 
-                    <div class="w-[210px]">
+                    <div class="min-w-0 lg:w-[210px]">
                         <label class="mb-1 block text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-500">PO</label>
                         <select name="po" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-700 focus:border-sky-500 focus:outline-none">
                             <option value="">-- Semua PO --</option>
@@ -32,12 +32,12 @@
                         </select>
                     </div>
 
-                    <div class="ml-auto flex items-center gap-2">
-                        <button type="submit" class="inline-flex h-8 items-center gap-1.5 rounded-lg bg-sky-600 px-3 text-[10px] font-semibold text-white transition hover:bg-sky-700">
+                    <div class="flex items-center gap-2 sm:col-span-2 lg:ml-auto">
+                        <button type="submit" class="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-sky-600 px-3 text-[10px] font-semibold text-white transition hover:bg-sky-700 lg:h-8 lg:flex-none">
                             <i data-lucide="filter" class="h-[12px] w-[12px]"></i>
                             Filter
                         </button>
-                        <a href="{{ route('admin.lpj.index') }}" class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-[10px] font-semibold text-slate-700 transition hover:bg-slate-50">
+                        <a href="{{ route('admin.lpj.index') }}" class="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-[10px] font-semibold text-slate-700 transition hover:bg-slate-50 lg:h-8 lg:flex-none">
                             <i data-lucide="rotate-ccw" class="h-[12px] w-[12px]"></i>
                             Reset
                         </a>
@@ -45,7 +45,7 @@
                 </form>
             </div>
 
-            <div class="overflow-hidden">
+            <div class="hidden overflow-hidden lg:block">
                 <table class="w-full table-fixed border-collapse text-[10px] text-slate-700">
                     <colgroup>
                         <col class="w-[14%]">
@@ -252,6 +252,21 @@
                 </table>
             </div>
 
+            <div class="space-y-3 bg-slate-50/70 p-3 lg:hidden">
+                @forelse ($lpjRows as $row)
+                    @include('admin.lpj.partials.mobile-card', [
+                        'row' => $row,
+                        'search' => $search,
+                        'selectedPo' => $selectedPo,
+                        'currentPage' => $lpjRows->currentPage(),
+                    ])
+                @empty
+                    <div class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-500">
+                        Tidak ada data LPJ / PPL.
+                    </div>
+                @endforelse
+            </div>
+
             @if ($lpjRows->hasPages())
                 <div class="mt-4 border-t border-slate-200 px-4 py-4">
                     {{ $lpjRows->links() }}
@@ -262,6 +277,86 @@
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+        window.adminLpjMobileCard = function (config) {
+            return {
+                termin: config.initialTermin,
+                withoutWarranty: config.withoutWarranty,
+                numbers: config.numbers,
+                documents: config.documents,
+                lpjNumber: '',
+                pplNumber: '',
+                lpjFileName: '',
+                pplFileName: '',
+                removeLpj: '0',
+                removePpl: '0',
+
+                init() {
+                    this.applyTermin();
+                },
+
+                applyTermin() {
+                    const values = this.numbers[this.termin] || {};
+                    this.lpjNumber = values.lpj || '';
+                    this.pplNumber = values.ppl || '';
+                    this.lpjFileName = '';
+                    this.pplFileName = '';
+                    this.removeLpj = '0';
+                    this.removePpl = '0';
+
+                    if (this.$refs.lpjInput) this.$refs.lpjInput.value = '';
+                    if (this.$refs.pplInput) this.$refs.pplInput.value = '';
+                },
+
+                currentDocument(type) {
+                    return this.documents[this.termin]?.[type] || { url: '', name: '' };
+                },
+
+                selectedFileName(type) {
+                    return type === 'lpj' ? this.lpjFileName : this.pplFileName;
+                },
+
+                isRemoved(type) {
+                    return (type === 'lpj' ? this.removeLpj : this.removePpl) === '1';
+                },
+
+                hasDocument(type) {
+                    return !this.isRemoved(type) && Boolean(
+                        this.selectedFileName(type) || this.currentDocument(type).url
+                    );
+                },
+
+                documentName(type) {
+                    return this.selectedFileName(type) || this.currentDocument(type).name;
+                },
+
+                selectFile(type, event) {
+                    const fileName = event.target.files?.[0]?.name || '';
+
+                    if (type === 'lpj') {
+                        this.lpjFileName = fileName;
+                        this.removeLpj = '0';
+                    } else {
+                        this.pplFileName = fileName;
+                        this.removePpl = '0';
+                    }
+                },
+
+                removeDocument(type) {
+                    const hasExisting = Boolean(this.currentDocument(type).url);
+
+                    if (type === 'lpj') {
+                        this.removeLpj = hasExisting ? '1' : '0';
+                        this.lpjFileName = '';
+                        if (this.$refs.lpjInput) this.$refs.lpjInput.value = '';
+                    } else {
+                        this.removePpl = hasExisting ? '1' : '0';
+                        this.pplFileName = '';
+                        if (this.$refs.pplInput) this.$refs.pplInput.value = '';
+                    }
+                },
+            };
+        };
+
         window.adminLpjApplyPaymentState = function (selectElement) {
             selectElement.classList.remove(
                 'border-emerald-300',

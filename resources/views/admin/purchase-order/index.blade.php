@@ -82,7 +82,7 @@
                 </form>
             </div>
 
-            <div class="overflow-x-auto">
+            <div class="hidden overflow-x-auto lg:block">
                 <table class="min-w-full table-fixed divide-y divide-slate-200 text-[10px] text-slate-700">
                     <colgroup>
                         <col class="w-[10%]">
@@ -247,6 +247,26 @@
                         @endforelse
                     </tbody>
                 </table>
+            </div>
+
+            <div class="space-y-3 bg-slate-50/70 p-3 lg:hidden">
+                @forelse ($notifications as $notification)
+                    @include('admin.purchase-order.partials.mobile-card', [
+                        'notification' => $notification,
+                        'search' => $search,
+                        'selectedStatus' => $selectedStatus,
+                        'selectedUnit' => $selectedUnit,
+                        'selectedFrom' => $selectedFrom,
+                        'selectedTo' => $selectedTo,
+                        'currentPage' => $notifications->currentPage(),
+                        'approvalBadgeClasses' => $approvalBadgeClasses,
+                        'purchaseOrderUploadHint' => $purchaseOrderUploadHint,
+                    ])
+                @empty
+                    <div class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-500">
+                        Tidak ada data ditemukan.
+                    </div>
+                @endforelse
             </div>
 
             @if ($notifications->hasPages())

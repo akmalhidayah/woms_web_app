@@ -40,16 +40,20 @@ class HppDraftController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        $eligibleOrders = $this->eligibleOrders()
+        $pendingHppOrders = $this->eligibleOrders()
+            ->latest('id')
             ->get(['id', 'nomor_order', 'nama_pekerjaan'])
-            ->count();
+            ->map(fn (Order $order): array => [
+                'nomor_order' => (string) $order->nomor_order,
+                'nama_pekerjaan' => trim((string) $order->nama_pekerjaan),
+            ]);
 
         return view('pkm.hpp.index', [
             'rows' => $rows,
             'search' => $search,
             'status' => $status,
             'statusOptions' => Hpp::statusOptions(),
-            'eligibleOrderCount' => $eligibleOrders,
+            'pendingHppOrders' => $pendingHppOrders,
         ]);
     }
 

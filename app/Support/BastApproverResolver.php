@@ -125,13 +125,13 @@ class BastApproverResolver
             'hpp.outlineAgreement.unitWork.department.generalManager',
             'hpp.outlineAgreement.unitWork.seniorManager',
             'hpp.outlineAgreement.unitWork.sections.manager',
-            'order.latestHpp.order',
-            'order.latestHpp.outlineAgreement.unitWork.department.generalManager',
-            'order.latestHpp.outlineAgreement.unitWork.seniorManager',
-            'order.latestHpp.outlineAgreement.unitWork.sections.manager',
+            'order.latestApprovedHpp.order',
+            'order.latestApprovedHpp.outlineAgreement.unitWork.department.generalManager',
+            'order.latestApprovedHpp.outlineAgreement.unitWork.seniorManager',
+            'order.latestApprovedHpp.outlineAgreement.unitWork.sections.manager',
         ]);
 
-        $hpp = $lhpp->hpp ?: $lhpp->order?->latestHpp;
+        $hpp = $lhpp->hpp ?: $lhpp->order?->latestApprovedHpp;
 
         if (! $hpp) {
             throw ValidationException::withMessages([

@@ -643,8 +643,12 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         const calculatedTotal = subtotalMaterial + subtotalJasa;
                         const hppTotal = this.parseCurrency(order?.nilai_ece);
                         const totalAktual = hppTotal > 0 ? hppTotal : calculatedTotal;
-                        const terminOne = totalAktual * 0.95;
-                        const terminTwo = totalAktual * 0.05;
+                        const terminOne = this.isWithoutWarranty
+                            ? totalAktual
+                            : totalAktual * 0.95;
+                        const terminTwo = this.isWithoutWarranty
+                            ? 0
+                            : totalAktual * 0.05;
 
                         this.calculation = {
                             subtotal_material: subtotalMaterial.toFixed(2),
@@ -898,6 +902,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                 body: JSON.stringify({
                                     material_rows: materialRows,
                                     service_rows: serviceRows,
+                                    is_without_warranty: this.isWithoutWarranty,
                                 }),
                                 signal: this.calculationController.signal,
                             });

@@ -188,7 +188,7 @@ class PkmSidebarBadgeCounterTest extends TestCase
             'nilai_hpp_bucket' => 'under',
             'item_groups' => [],
             'total_keseluruhan' => 1000000,
-            'status' => Hpp::STATUS_DRAFT,
+            'status' => Hpp::STATUS_APPROVED,
             'created_by' => $admin->id,
         ]);
     }

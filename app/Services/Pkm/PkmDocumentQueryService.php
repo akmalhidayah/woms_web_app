@@ -26,7 +26,7 @@ class PkmDocumentQueryService
         $complete = function (Builder $builder): void {
             $builder
                 ->whereHas('documents', fn (Builder $documents): Builder => $documents->where('jenis_dokumen', OrderDocumentType::Abnormalitas))
-                ->whereHas('latestHpp')
+                ->whereHas('latestApprovedHpp')
                 ->whereHas('purchaseOrder', fn (Builder $po): Builder => $po->whereNotNull('po_document_path'))
                 ->whereHas('lhppBasts', fn (Builder $bast): Builder => $bast
                     ->where('termin_type', 'termin_1')

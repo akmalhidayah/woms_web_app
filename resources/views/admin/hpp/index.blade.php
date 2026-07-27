@@ -341,13 +341,6 @@
                                             <i data-lucide="file-text" class="h-3 w-3"></i>
                                         </a>
 
-                                        <!-- <form method="POST" action="{{ route('admin.hpp.duplicate', $row) }}" class="duplicate-hpp-form" data-order="{{ $row->nomor_order }}">
-                                            @csrf
-                                            <button type="submit" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100" title="Duplicate HPP">
-                                                <i data-lucide="copy-plus" class="h-3 w-3"></i>
-                                            </button>
-                                        </form> -->
-
                                         @if ($row->isEditable())
                                             <a href="{{ route('admin.hpp.edit.by-id', $row) }}" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100" title="Edit HPP">
                                                 <i data-lucide="pencil" class="h-3 w-3"></i>
@@ -1030,32 +1023,6 @@
                         confirmButtonText: 'Ya, hapus',
                         cancelButtonText: 'Batal',
                         confirmButtonColor: '#dc2626',
-                    });
-
-                    if (result.isConfirmed) {
-                        form.submit();
-                    }
-                });
-            });
-
-            document.querySelectorAll('.duplicate-hpp-form').forEach((form) => {
-                form.addEventListener('submit', async (event) => {
-                    event.preventDefault();
-
-                    if (!window.Swal) {
-                        form.submit();
-                        return;
-                    }
-
-                    const orderNumber = form.dataset.order || 'HPP ini';
-                    const result = await window.Swal.fire({
-                        icon: 'question',
-                        title: 'Duplicate HPP?',
-                        html: `Buat draft baru dari HPP order <b>${orderNumber}</b>?<br><span class="text-xs text-slate-500">Data item disalin, approval lama tidak ikut disalin.</span>`,
-                        showCancelButton: true,
-                        confirmButtonText: 'Ya, duplicate',
-                        cancelButtonText: 'Batal',
-                        confirmButtonColor: '#059669',
                     });
 
                     if (result.isConfirmed) {

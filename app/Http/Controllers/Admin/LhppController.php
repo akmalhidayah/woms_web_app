@@ -294,9 +294,9 @@ class LhppController extends Controller
                 'hpp.creator',
                 'purchaseOrder:id,order_id,purchase_order_number',
                 'order.purchaseOrder:id,order_id,purchase_order_number',
-                'order.latestHpp.order',
-                'order.latestHpp.outlineAgreement.unitWork.department',
-                'order.latestHpp.creator',
+                'order.latestApprovedHpp.order',
+                'order.latestApprovedHpp.outlineAgreement.unitWork.department',
+                'order.latestApprovedHpp.creator',
             ]);
 
             $finalDocumentSignature = $lhpp->finalSignedDocumentSignature();
@@ -328,7 +328,7 @@ class LhppController extends Controller
 
             $terminSlug = $lhpp->termin_type === 'termin_2' ? 'termin-2' : 'termin-1';
 
-            $attachedHpp = $lhpp->hpp ?: $lhpp->order?->latestHpp;
+            $attachedHpp = $lhpp->hpp ?: $lhpp->order?->latestApprovedHpp;
             $terminOnePdf = null;
 
             if ($lhpp->termin_type === 'termin_2' && $lhpp->parentLhppBast) {

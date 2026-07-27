@@ -82,7 +82,7 @@ class PkmSidebarBadgeCounter
                     })
                     ->orWhereHas('initialWork', fn (Builder $initialWorkQuery): Builder => $initialWorkQuery->where('progress_pekerjaan', 100));
             })
-            ->whereHas('latestHpp')
+            ->whereHas('latestApprovedHpp')
             ->whereHas('garansi')
             ->whereDoesntHave('lhppBasts', fn (Builder $bastQuery): Builder => $bastQuery->where('termin_type', 'termin_1'))
             ->count();
@@ -110,7 +110,7 @@ class PkmSidebarBadgeCounter
             ->where(function (Builder $query): void {
                 $query
                     ->whereDoesntHave('documents', fn (Builder $documentQuery): Builder => $documentQuery->where('jenis_dokumen', OrderDocumentType::Abnormalitas->value))
-                    ->orWhereDoesntHave('latestHpp')
+                    ->orWhereDoesntHave('latestApprovedHpp')
                     ->orWhereDoesntHave('latestPurchaseOrder', function (Builder $purchaseOrderQuery): void {
                         $purchaseOrderQuery
                             ->whereNotNull('po_document_path')

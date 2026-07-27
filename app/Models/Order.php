@@ -251,6 +251,18 @@ class Order extends Model
     }
 
     /**
+     * Get the latest approved HPP for the order.
+     */
+    public function latestApprovedHpp(): HasOne
+    {
+        return $this->hasOne(Hpp::class)
+            ->ofMany(
+                ['id' => 'max'],
+                fn (Builder $query) => $query->where('status', Hpp::STATUS_APPROVED),
+            );
+    }
+
+    /**
      * Get the scope of work for the order.
      */
     public function scopeOfWork(): HasOne

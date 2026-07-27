@@ -3,17 +3,70 @@
 namespace Tests\Feature\Pkm;
 
 use App\Http\Controllers\Pkm\LhppController;
+use App\Models\FabricationConstructionContract;
+use App\Models\Garansi;
 use App\Models\Hpp;
+use App\Models\LhppBast;
+use App\Models\Order;
+use App\Models\PurchaseOrder;
 use App\Models\User;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route;
 use ReflectionMethod;
 use Tests\TestCase;
 
 class BastFormRegressionTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_duplicate_hpp_feature_is_not_available(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $routeName = 'admin.hpp.'.'duplicate';
+        $formSelector = 'duplicate'.'-hpp-form';
+        $featureLabel = 'Duplicate '.'HPP';
+        $confirmationLabel = 'Ya, '.'duplicate';
+
+        $this->assertFalse(Route::has($routeName));
+
+        $this->actingAs($admin)
+            ->get(route('admin.hpp.index'))
+            ->assertOk()
+            ->assertDontSee($formSelector)
+            ->assertDontSee($featureLabel)
+            ->assertDontSee($confirmationLabel);
+    }
+
+    public function test_latest_approved_hpp_ignores_newer_draft_hpp(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $order = $this->makeOrder($admin, 'BAST-LATEST-APPROVED');
+        $approvedHpp = $this->makeHpp($admin, $order, Hpp::STATUS_APPROVED, '100000000.00');
+        $this->makeHpp($admin, $order, Hpp::STATUS_DRAFT, '120000000.00');
+
+        $this->assertSame($approvedHpp->id, $order->fresh()->latestApprovedHpp?->id);
+    }
+
+    public function test_only_orders_with_approved_hpp_are_available_for_bast(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $orders = collect([
+            Hpp::STATUS_DRAFT => $this->makeBastEligibleOrder($admin, 'BAST-HPP-DRAFT', Hpp::STATUS_DRAFT),
+            Hpp::STATUS_IN_REVIEW => $this->makeBastEligibleOrder($admin, 'BAST-HPP-REVIEW', Hpp::STATUS_IN_REVIEW),
+            Hpp::STATUS_REJECTED => $this->makeBastEligibleOrder($admin, 'BAST-HPP-REJECTED', Hpp::STATUS_REJECTED),
+            Hpp::STATUS_APPROVED => $this->makeBastEligibleOrder($admin, 'BAST-HPP-APPROVED', Hpp::STATUS_APPROVED),
+        ]);
+
+        $method = new ReflectionMethod(LhppController::class, 'eligibleOrders');
+        $eligibleOrderIds = $method->invoke(app(LhppController::class))->pluck('id');
+
+        $this->assertFalse($eligibleOrderIds->contains($orders[Hpp::STATUS_DRAFT]->id));
+        $this->assertFalse($eligibleOrderIds->contains($orders[Hpp::STATUS_IN_REVIEW]->id));
+        $this->assertFalse($eligibleOrderIds->contains($orders[Hpp::STATUS_REJECTED]->id));
+        $this->assertTrue($eligibleOrderIds->contains($orders[Hpp::STATUS_APPROVED]->id));
+    }
 
     public function test_create_form_keeps_dynamic_sections_and_submit_inside_single_form(): void
     {
@@ -119,6 +172,106 @@ class BastFormRegressionTest extends TestCase
             ->assertJsonPath('service_rows.0.kategori_item', 'Jasa Fabrikasi');
     }
 
+    public function test_calculation_without_warranty_uses_full_value_for_termin_one(): void
+    {
+        $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+        $contractItem = $this->makeContractItem('100000000.00');
+
+        $this->actingAs($pkm)
+            ->postJson(route('pkm.lhpp.calculate'), [
+                'service_rows' => [[
+                    'contract_item_id' => $contractItem->id,
+                    'volume' => '1',
+                ]],
+                'is_without_warranty' => true,
+            ])
+            ->assertOk()
+            ->assertJsonPath('totals.total_aktual_biaya', '100000000.00')
+            ->assertJsonPath('totals.termin_1_nilai', '100000000.00')
+            ->assertJsonPath('totals.termin_2_nilai', '0.00');
+    }
+
+    public function test_calculation_with_warranty_keeps_ninety_five_and_five_percent_split(): void
+    {
+        $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+        $contractItem = $this->makeContractItem('100000000.00');
+
+        $this->actingAs($pkm)
+            ->postJson(route('pkm.lhpp.calculate'), [
+                'service_rows' => [[
+                    'contract_item_id' => $contractItem->id,
+                    'volume' => '1',
+                ]],
+                'is_without_warranty' => false,
+            ])
+            ->assertOk()
+            ->assertJsonPath('totals.total_aktual_biaya', '100000000.00')
+            ->assertJsonPath('totals.termin_1_nilai', '95000000.00')
+            ->assertJsonPath('totals.termin_2_nilai', '5000000.00');
+    }
+
+    public function test_bast_termin_one_stores_approved_hpp_and_full_payment_without_warranty(): void
+    {
+        $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $order = $this->makeBastEligibleOrder($admin, 'BAST-STORE-APPROVED', Hpp::STATUS_APPROVED);
+        $approvedHpp = $order->latestApprovedHpp()->firstOrFail();
+        $contractItem = $this->makeContractItem('100000000.00');
+
+        $this->actingAs($pkm)
+            ->post(route('pkm.lhpp.store'), $this->bastPayload($order, $contractItem))
+            ->assertRedirect(route('pkm.lhpp.index'));
+
+        $lhpp = LhppBast::query()
+            ->where('order_id', $order->id)
+            ->where('termin_type', 'termin_1')
+            ->firstOrFail();
+
+        $this->assertSame($approvedHpp->id, $lhpp->hpp_id);
+        $this->assertSame('100000000.00', $lhpp->nilai_hpp);
+        $this->assertSame('100000000.00', $lhpp->total_aktual_biaya);
+        $this->assertSame('100000000.00', $lhpp->termin_1_nilai);
+        $this->assertSame('0.00', $lhpp->termin_2_nilai);
+    }
+
+    public function test_termin_two_without_warranty_remains_unavailable(): void
+    {
+        $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $order = $this->makeBastEligibleOrder($admin, 'BAST-NO-WARRANTY-T2', Hpp::STATUS_APPROVED);
+        $contractItem = $this->makeContractItem('100000000.00');
+
+        $this->actingAs($pkm)
+            ->post(route('pkm.lhpp.store'), $this->bastPayload($order, $contractItem))
+            ->assertRedirect(route('pkm.lhpp.index'));
+
+        $terminOne = LhppBast::query()
+            ->where('order_id', $order->id)
+            ->where('termin_type', 'termin_1')
+            ->firstOrFail();
+        $terminOne->forceFill(['termin1_status' => 'sudah'])->save();
+        Garansi::query()->where('order_id', $order->id)->update(['lhpp_bast_id' => $terminOne->id]);
+
+        $this->actingAs($pkm)
+            ->get(route('pkm.lhpp.termin2.create', ['nomorOrder' => $order->nomor_order]))
+            ->assertBadRequest();
+
+        $this->actingAs($pkm)
+            ->post(route('pkm.lhpp.store'), $this->bastPayload($order, $contractItem, [
+                'termin_type' => 'termin_2',
+            ]))
+            ->assertNotFound();
+    }
+
+    public function test_frontend_sends_warranty_flag_and_calculates_full_payment(): void
+    {
+        $source = file_get_contents(resource_path('views/pkm/lhpp/create.blade.php'));
+
+        $this->assertStringContainsString('is_without_warranty: this.isWithoutWarranty', $source);
+        $this->assertStringContainsString('const terminOne = this.isWithoutWarranty', $source);
+        $this->assertStringContainsString('const terminTwo = this.isWithoutWarranty', $source);
+    }
+
     public function test_threshold_uses_total_actual_for_termin_one_without_warranty(): void
     {
         $totals = [
@@ -137,5 +290,109 @@ class BastFormRegressionTest extends TestCase
         $method = new ReflectionMethod(LhppController::class, 'resolveThresholdFromTotals');
 
         return $method->invoke(app(LhppController::class), $terminType, $totals, $withoutWarranty);
+    }
+
+    private function makeOrder(User $admin, string $nomorOrder): Order
+    {
+        return Order::query()->create([
+            'nomor_order' => $nomorOrder,
+            'notifikasi' => 'NOTIF-'.$nomorOrder,
+            'nama_pekerjaan' => 'Pekerjaan '.$nomorOrder,
+            'unit_kerja' => 'Unit Test',
+            'seksi' => 'Seksi Test',
+            'deskripsi' => 'Deskripsi test',
+            'prioritas' => Order::PRIORITY_MEDIUM,
+            'tanggal_order' => '2026-07-01',
+            'target_selesai' => '2026-07-10',
+            'created_by' => $admin->id,
+        ]);
+    }
+
+    private function makeHpp(User $admin, Order $order, string $status, string $total = '100000000.00'): Hpp
+    {
+        return Hpp::query()->create([
+            'order_id' => $order->id,
+            'nomor_order' => $order->nomor_order,
+            'nama_pekerjaan' => $order->nama_pekerjaan,
+            'unit_kerja' => $order->unit_kerja,
+            'kategori_pekerjaan' => 'Fabrikasi',
+            'area_pekerjaan' => 'Dalam',
+            'nilai_hpp_bucket' => 'under',
+            'item_groups' => [],
+            'total_keseluruhan' => $total,
+            'status' => $status,
+            'created_by' => $admin->id,
+        ]);
+    }
+
+    private function makeBastEligibleOrder(User $admin, string $nomorOrder, string $hppStatus): Order
+    {
+        $order = $this->makeOrder($admin, $nomorOrder);
+        $hpp = $this->makeHpp($admin, $order, $hppStatus);
+
+        PurchaseOrder::query()->create([
+            'order_id' => $order->id,
+            'hpp_id' => $hpp->id,
+            'purchase_order_number' => 'PO-'.$nomorOrder,
+            'progress_pekerjaan' => 100,
+            'tanggal_mulai_pekerjaan' => '2026-07-02',
+            'tanggal_selesai_pekerjaan' => '2026-07-03',
+            'created_by' => $admin->id,
+        ]);
+
+        $garansiSeed = LhppBast::query()->create([
+            'order_id' => $order->id,
+            'termin_type' => 'garansi_seed',
+            'hpp_id' => $hpp->id,
+            'nomor_order' => $order->nomor_order,
+            'deskripsi_pekerjaan' => $order->nama_pekerjaan,
+            'unit_kerja' => $order->unit_kerja,
+            'seksi' => $order->seksi,
+            'tanggal_bast' => '2026-07-03',
+            'created_by' => $admin->id,
+        ]);
+
+        Garansi::query()->create([
+            'order_id' => $order->id,
+            'lhpp_bast_id' => $garansiSeed->id,
+            'garansi_months' => 0,
+            'start_date' => '2026-07-03',
+            'created_by' => $admin->id,
+        ]);
+
+        return $order;
+    }
+
+    private function makeContractItem(string $unitPrice): FabricationConstructionContract
+    {
+        return FabricationConstructionContract::query()->create([
+            'tahun' => 2026,
+            'jenis_item' => 'JASA FABRIKASI',
+            'nama_item' => 'Pekerjaan BAST test '.uniqid(),
+            'satuan' => 'Lot',
+            'harga_satuan' => $unitPrice,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    private function bastPayload(Order $order, FabricationConstructionContract $contractItem, array $overrides = []): array
+    {
+        return array_replace_recursive([
+            'termin_type' => 'termin_1',
+            'tanggal_bast' => '2026-07-04',
+            'nomor_order' => $order->nomor_order,
+            'approval_threshold' => 'under_250',
+            'tipe_pekerjaan' => 'pekerjaan_fabrikasi',
+            'tanggal_mulai_pekerjaan' => '2026-07-02',
+            'tanggal_selesai_pekerjaan' => '2026-07-03',
+            'material_rows' => [],
+            'service_rows' => [[
+                'contract_item_id' => $contractItem->id,
+                'volume' => '1',
+            ]],
+        ], $overrides);
     }
 }

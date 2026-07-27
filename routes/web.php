@@ -587,7 +587,6 @@ Route::prefix('admin/hpp')
                     ->whereNumber('signature')
                     ->name('approval-signatures.rollback.by-id');
                 Route::get('/edit', [HppController::class, 'edit'])->name('edit.by-id');
-                Route::post('/duplicate', [HppController::class, 'duplicate'])->name('duplicate');
             });
         Route::get('/{hpp:nomor_order}/pdf', [HppController::class, 'pdf'])->name('pdf');
         Route::get('/{hpp:nomor_order}/dirops-signed-document', [HppController::class, 'diropsSignedDocument'])->name('dirops-document.show');

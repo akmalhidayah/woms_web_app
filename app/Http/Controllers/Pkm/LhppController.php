@@ -275,12 +275,14 @@ class LhppController extends Controller
             'service_rows.*.volume' => ['nullable', 'regex:/^\d{1,12}(?:\.\d{1,3})?$/'],
             'service_rows.*.unit' => ['nullable', 'string', 'max:50'],
             'service_rows.*.unit_price' => ['nullable', 'string', 'max:50'],
+            'is_without_warranty' => ['nullable', 'boolean'],
         ]);
 
         $calculation = $this->calculateRows(
             $validated['material_rows'] ?? [],
             $validated['service_rows'] ?? [],
             true,
+            (bool) ($validated['is_without_warranty'] ?? false),
         );
 
         return response()->json($calculation);
@@ -297,10 +299,17 @@ class LhppController extends Controller
                 $terminType,
             );
 
-            abort_if(! $order, Response::HTTP_NOT_FOUND, 'Order tidak ditemukan atau belum memenuhi syarat BAST.');
+            abort_if(! $order, Response::HTTP_NOT_FOUND, 'Order tidak ditemukan atau HPP belum berstatus approved.');
 
             $purchaseOrder = $order->purchaseOrder;
-            $latestHpp = $order->latestHpp;
+            $approvedHpp = $terminType === 'termin_2'
+                ? ($parentLhpp?->hpp ?: $order->latestApprovedHpp)
+                : $order->latestApprovedHpp;
+            abort_if(
+                ! $approvedHpp,
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+                'BAST hanya dapat dibuat setelah HPP berstatus approved.'
+            );
             [$tanggalMulaiPekerjaan, $tanggalSelesaiPekerjaan] = $this->resolveWorkDatesForBast(
                 $order,
                 $terminType,
@@ -319,13 +328,15 @@ class LhppController extends Controller
                 $request->input('material_rows', []),
                 $request->input('service_rows', []),
             );
+            $isWithoutWarranty = $terminType === 'termin_1'
+                && (int) ($order->garansi?->garansi_months ?? -1) === 0;
             $calculation = $this->calculateRows(
                 $materialRowsPayload,
                 $serviceRowsPayload,
+                false,
+                $isWithoutWarranty,
             );
             $qualityControlStatus = $terminType === 'termin_2' ? 'approved' : 'pending';
-            $isWithoutWarranty = $terminType === 'termin_1'
-                && (int) ($order->garansi?->garansi_months ?? -1) === 0;
             $approvalPayload = $this->resolveApprovalPayload(
                 $terminType,
                 $calculation['totals'],
@@ -338,7 +349,7 @@ class LhppController extends Controller
                 $order,
                 $terminType,
                 $parentLhpp,
-                $latestHpp,
+                $approvedHpp,
                 $purchaseOrder,
                 $tipePekerjaan,
                 $request,
@@ -356,7 +367,7 @@ class LhppController extends Controller
                     ],
                     [
                         'parent_lhpp_bast_id' => $terminType === 'termin_2' ? $parentLhpp?->id : null,
-                        'hpp_id' => $latestHpp?->id,
+                        'hpp_id' => $approvedHpp->id,
                         'purchase_order_id' => $purchaseOrder?->id,
                         'nomor_order' => $order->nomor_order,
                         'notifikasi' => $order->notifikasi,
@@ -373,7 +384,7 @@ class LhppController extends Controller
                         'approval_case' => $approvalPayload['approval_case'],
                         'approval_flow' => $approvalPayload['approval_flow'],
                         'approval_status' => LhppBast::APPROVAL_IN_REVIEW,
-                        'nilai_hpp' => $latestHpp?->total_keseluruhan ?? 0,
+                        'nilai_hpp' => $approvedHpp->total_keseluruhan,
                         'material_items' => $calculation['material_rows'],
                         'service_items' => $calculation['service_rows'],
                         'subtotal_material' => $calculation['totals']['subtotal_material'],
@@ -465,7 +476,14 @@ class LhppController extends Controller
             [$order, $parentLhpp] = $this->resolveUpdateContext($lhpp, $terminType);
 
             $purchaseOrder = $order->purchaseOrder;
-            $latestHpp = $order->latestHpp;
+            $approvedHpp = $terminType === 'termin_2'
+                ? ($parentLhpp?->hpp ?: $order->latestApprovedHpp)
+                : $order->latestApprovedHpp;
+            abort_if(
+                ! $approvedHpp,
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+                'BAST hanya dapat dibuat setelah HPP berstatus approved.'
+            );
             [$tanggalMulaiPekerjaan, $tanggalSelesaiPekerjaan] = $this->resolveWorkDatesForBast(
                 $order,
                 $terminType,
@@ -494,12 +512,14 @@ class LhppController extends Controller
                 $request->input('material_rows', []),
                 $request->input('service_rows', []),
             );
+            $isWithoutWarranty = $terminType === 'termin_1'
+                && (int) ($order->garansi?->garansi_months ?? -1) === 0;
             $calculation = $this->calculateRows(
                 $materialRowsPayload,
                 $serviceRowsPayload,
+                false,
+                $isWithoutWarranty,
             );
-            $isWithoutWarranty = $terminType === 'termin_1'
-                && (int) ($order->garansi?->garansi_months ?? -1) === 0;
             $approvalPayload = $this->resolveApprovalPayload(
                 $terminType,
                 $calculation['totals'],
@@ -513,7 +533,7 @@ class LhppController extends Controller
                 $order,
                 $terminType,
                 $parentLhpp,
-                $latestHpp,
+                $approvedHpp,
                 $purchaseOrder,
                 $tipePekerjaan,
                 $request,
@@ -527,7 +547,7 @@ class LhppController extends Controller
                     'order_id' => $order->id,
                     'termin_type' => $terminType,
                     'parent_lhpp_bast_id' => $terminType === 'termin_2' ? $parentLhpp?->id : null,
-                    'hpp_id' => $latestHpp?->id,
+                    'hpp_id' => $approvedHpp->id,
                     'purchase_order_id' => $purchaseOrder?->id,
                     'nomor_order' => $order->nomor_order,
                     'notifikasi' => $order->notifikasi,
@@ -544,7 +564,7 @@ class LhppController extends Controller
                     'approval_case' => $approvalStarted ? $lhpp->approval_case : $approvalPayload['approval_case'],
                     'approval_flow' => $approvalStarted ? $lhpp->approval_flow : $approvalPayload['approval_flow'],
                     'approval_status' => $approvalStarted ? $lhpp->approval_status : LhppBast::APPROVAL_IN_REVIEW,
-                    'nilai_hpp' => $latestHpp?->total_keseluruhan ?? 0,
+                    'nilai_hpp' => $approvedHpp->total_keseluruhan,
                     'material_items' => $calculation['material_rows'],
                     'service_items' => $calculation['service_rows'],
                     'subtotal_material' => $calculation['totals']['subtotal_material'],
@@ -700,9 +720,9 @@ class LhppController extends Controller
                 'hpp.creator',
                 'purchaseOrder:id,order_id,purchase_order_number',
                 'order.purchaseOrder:id,order_id,purchase_order_number',
-                'order.latestHpp.order',
-                'order.latestHpp.outlineAgreement.unitWork.department',
-                'order.latestHpp.creator',
+                'order.latestApprovedHpp.order',
+                'order.latestApprovedHpp.outlineAgreement.unitWork.department',
+                'order.latestApprovedHpp.creator',
             ]);
 
             $finalDocumentSignature = $lhpp->finalSignedDocumentSignature();
@@ -733,7 +753,7 @@ class LhppController extends Controller
                 'serviceItems' => collect($lhpp->service_items ?? []),
             ])->setPaper('a4', 'portrait')->output();
 
-            $attachedHpp = $lhpp->hpp ?: $lhpp->order?->latestHpp;
+            $attachedHpp = $lhpp->hpp ?: $lhpp->order?->latestApprovedHpp;
             $terminOnePdf = null;
 
             if ($terminType === 'termin_2' && $lhpp->parentLhppBast) {
@@ -991,7 +1011,7 @@ class LhppController extends Controller
 
         return Order::query()
             ->with([
-                'latestHpp' => fn ($query) => $query->select([
+                'latestApprovedHpp' => fn ($query) => $query->select([
                     'hpps.id',
                     'hpps.order_id',
                     'hpps.outline_agreement_id',
@@ -1014,7 +1034,7 @@ class LhppController extends Controller
                         $initialWorkQuery->where('progress_pekerjaan', 100);
                     });
             })
-            ->whereHas('latestHpp')
+            ->whereHas('latestApprovedHpp')
             ->whereHas('garansi')
             ->when($existingOrderIds->isNotEmpty(), fn ($query) => $query->whereNotIn('id', $existingOrderIds))
             ->latest('id')
@@ -1079,7 +1099,7 @@ class LhppController extends Controller
         }
 
         return $order->loadMissing([
-            'latestHpp' => fn ($query) => $query->select([
+            'latestApprovedHpp' => fn ($query) => $query->select([
                 'hpps.id',
                 'hpps.order_id',
                 'hpps.outline_agreement_id',
@@ -1176,9 +1196,9 @@ class LhppController extends Controller
             'unit_kerja' => (string) ($order->unit_kerja ?? ''),
             'seksi' => (string) ($order->seksi ?? ''),
             'purchase_order_number' => (string) ($order->purchaseOrder?->purchase_order_number ?? ''),
-            'nilai_ece' => (float) ($order->latestHpp?->total_keseluruhan ?? 0),
-            'hpp_material_rows' => $this->buildRowsFromHpp($order->latestHpp, 'material'),
-            'hpp_service_rows' => $this->buildRowsFromHpp($order->latestHpp, 'service'),
+            'nilai_ece' => (float) ($order->latestApprovedHpp?->total_keseluruhan ?? 0),
+            'hpp_material_rows' => $this->buildRowsFromHpp($order->latestApprovedHpp, 'material'),
+            'hpp_service_rows' => $this->buildRowsFromHpp($order->latestApprovedHpp, 'service'),
             'tanggal_mulai_pekerjaan' => $this->formatOptionalDate($this->resolveJobStartDate($jobSource)),
             'tanggal_selesai_pekerjaan' => $this->formatOptionalDate($this->resolveJobFinishDate($jobSource)),
         ];
@@ -1331,10 +1351,6 @@ class LhppController extends Controller
             ->map(fn (array $row): array => $this->enrichLhppItemRow($row, $contractCatalog))
             ->values();
 
-        $calculation = $this->calculateRows(
-            $materialRows->all(),
-            $serviceRows->all(),
-        );
         $selectedTipePekerjaan = old('tipe_pekerjaan');
 
         if ($selectedTipePekerjaan === null) {
@@ -1353,9 +1369,15 @@ class LhppController extends Controller
 
         $isWithoutWarranty = $terminType === 'termin_1'
             && (int) ($currentOrder?->garansi?->garansi_months ?? $lhpp?->garansi?->garansi_months ?? -1) === 0;
+        $calculation = $this->calculateRows(
+            $materialRows->all(),
+            $serviceRows->all(),
+            false,
+            $isWithoutWarranty,
+        );
         $hppValueMatchesBast = $lhpp !== null
             && (float) $lhpp->total_aktual_biaya > 0
-            && abs((float) $lhpp->total_aktual_biaya - (float) ($currentOrder?->latestHpp?->total_keseluruhan ?? 0)) < 0.01;
+            && abs((float) $lhpp->total_aktual_biaya - (float) ($currentOrder?->latestApprovedHpp?->total_keseluruhan ?? 0)) < 0.01;
 
         return view('dashboards.pkm', [
             'pageTitle' => $meta['pageTitle'],
@@ -1687,7 +1709,12 @@ class LhppController extends Controller
      * @param  array<int, array<string, mixed>>  $serviceRows
      * @return array<string, mixed>
      */
-    private function calculateRows(array $materialRows, array $serviceRows, bool $preserveEmptyRows = false): array
+    private function calculateRows(
+        array $materialRows,
+        array $serviceRows,
+        bool $preserveEmptyRows = false,
+        bool $isWithoutWarranty = false
+    ): array
     {
         $normalizedMaterialRows = $this->normalizeItemRows($materialRows, $preserveEmptyRows, 'material');
         $normalizedServiceRows = $this->normalizeItemRows($serviceRows, $preserveEmptyRows, 'service');
@@ -1695,8 +1722,14 @@ class LhppController extends Controller
         $subtotalMaterial = $this->sumAmounts($normalizedMaterialRows);
         $subtotalJasa = $this->sumAmounts($normalizedServiceRows);
         $totalAktualBiaya = $this->addCurrencyDecimals($subtotalMaterial, $subtotalJasa);
-        $termin1Nilai = $this->multiplyCurrencyDecimal($totalAktualBiaya, '0.95');
-        $termin2Nilai = $this->multiplyCurrencyDecimal($totalAktualBiaya, '0.05');
+
+        if ($isWithoutWarranty) {
+            $termin1Nilai = $totalAktualBiaya;
+            $termin2Nilai = '0.00';
+        } else {
+            $termin1Nilai = $this->multiplyCurrencyDecimal($totalAktualBiaya, '0.95');
+            $termin2Nilai = $this->multiplyCurrencyDecimal($totalAktualBiaya, '0.05');
+        }
 
         return [
             'material_rows' => $normalizedMaterialRows !== [] ? $normalizedMaterialRows : [[

@@ -7,23 +7,117 @@ use App\Models\InitialWorkSignature;
 use App\Models\LhppBastSignature;
 use App\Models\QualityControlSignature;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Throwable;
 
 class RecentApprovalSignatureResolver
 {
-    public function latestDataUrlForUser(?User $user): ?string
+    public function __construct(
+        private readonly HppApprovalMarkResolver $hppApprovalMarkResolver,
+    ) {}
+
+    public function latestForHppSignature(?User $user, HppSignature $signature): ?string
+    {
+        if ($this->hppApprovalMarkResolver->requiresInitial($signature)) {
+            return $this->latestInitialForHppManager($user);
+        }
+
+        return $this->latestFullSignatureForUser($user);
+    }
+
+    public function latestInitialForHppManager(?User $user): ?string
     {
         if (! $user) {
             return null;
         }
 
-        $candidates = $this->candidatesForUser($user)
-            ->sortByDesc(fn (array $candidate): int => (int) ($candidate['signed_at']?->timestamp ?? 0))
-            ->values();
+        return $this->firstReadableDataUrl(
+            $this->signedSignatureValues(
+                HppSignature::class,
+                HppSignature::STATUS_SIGNED,
+                'signature_data',
+                $user->id,
+                fn ($query) => $query->whereIn(
+                    'role_key',
+                    HppApprovalMarkResolver::INITIAL_ROLE_KEYS
+                ),
+            )
+        );
+    }
 
-        foreach ($candidates as $candidate) {
+    public function latestFullSignatureForUser(?User $user): ?string
+    {
+        if (! $user) {
+            return null;
+        }
+
+        $candidates = collect()
+            ->merge($this->signedSignatureValues(
+                HppSignature::class,
+                HppSignature::STATUS_SIGNED,
+                'signature_data',
+                $user->id,
+                fn ($query) => $query->whereNotIn(
+                    'role_key',
+                    HppApprovalMarkResolver::INITIAL_ROLE_KEYS
+                ),
+            ))
+            ->merge($this->signedSignatureValues(LhppBastSignature::class, LhppBastSignature::STATUS_SIGNED, 'signature_data', $user->id))
+            ->merge($this->signedSignatureValues(InitialWorkSignature::class, InitialWorkSignature::STATUS_SIGNED, 'signature_path', $user->id))
+            ->merge($this->signedSignatureValues(QualityControlSignature::class, QualityControlSignature::STATUS_SIGNED, 'signature_data', $user->id));
+
+        return $this->firstReadableDataUrl($candidates);
+    }
+
+    /**
+     * @deprecated Gunakan latestForHppSignature() atau latestFullSignatureForUser().
+     */
+    public function latestDataUrlForUser(?User $user): ?string
+    {
+        return $this->latestFullSignatureForUser($user);
+    }
+
+    /**
+     * @param  class-string<Model>  $model
+     * @return Collection<int, array{value: string, signed_at: mixed}>
+     */
+    private function signedSignatureValues(
+        string $model,
+        string $status,
+        string $column,
+        int $userId,
+        ?callable $scope = null
+    ): Collection {
+        $query = $model::query()
+            ->where('signer_user_id', $userId)
+            ->where('status', $status)
+            ->whereNotNull($column)
+            ->where($column, '!=', '')
+            ->orderByDesc('signed_at');
+
+        if ($scope) {
+            $scope($query);
+        }
+
+        return $query
+            ->limit(25)
+            ->get([$column, 'signed_at'])
+            ->map(fn ($signature): array => [
+                'value' => (string) $signature->{$column},
+                'signed_at' => $signature->signed_at,
+            ]);
+    }
+
+    /**
+     * @param  Collection<int, array{value: string, signed_at: mixed}>  $candidates
+     */
+    private function firstReadableDataUrl(Collection $candidates): ?string
+    {
+        foreach ($candidates
+            ->sortByDesc(fn (array $candidate): int => (int) ($candidate['signed_at']?->timestamp ?? 0))
+            ->values() as $candidate) {
             $dataUrl = $this->toDataUrl($candidate['value']);
 
             if ($dataUrl !== null) {
@@ -32,37 +126,6 @@ class RecentApprovalSignatureResolver
         }
 
         return null;
-    }
-
-    /**
-     * @return \Illuminate\Support\Collection<int, array{value: string, signed_at: mixed}>
-     */
-    private function candidatesForUser(User $user): Collection
-    {
-        return collect()
-            ->merge($this->signedSignatureValues(HppSignature::class, HppSignature::STATUS_SIGNED, 'signature_data', $user->id))
-            ->merge($this->signedSignatureValues(LhppBastSignature::class, LhppBastSignature::STATUS_SIGNED, 'signature_data', $user->id))
-            ->merge($this->signedSignatureValues(InitialWorkSignature::class, InitialWorkSignature::STATUS_SIGNED, 'signature_path', $user->id))
-            ->merge($this->signedSignatureValues(QualityControlSignature::class, QualityControlSignature::STATUS_SIGNED, 'signature_data', $user->id));
-    }
-
-    /**
-     * @param class-string<\Illuminate\Database\Eloquent\Model> $model
-     * @return \Illuminate\Support\Collection<int, array{value: string, signed_at: mixed}>
-     */
-    private function signedSignatureValues(string $model, string $status, string $column, int $userId): Collection
-    {
-        return $model::query()
-            ->where('signer_user_id', $userId)
-            ->where('status', $status)
-            ->whereNotNull($column)
-            ->where($column, '!=', '')
-            ->orderByDesc('signed_at')
-            ->get([$column, 'signed_at'])
-            ->map(fn ($signature): array => [
-                'value' => (string) $signature->{$column},
-                'signed_at' => $signature->signed_at,
-            ]);
     }
 
     private function toDataUrl(?string $value): ?string

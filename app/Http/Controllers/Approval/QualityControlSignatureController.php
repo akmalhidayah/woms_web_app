@@ -21,6 +21,7 @@ class QualityControlSignatureController extends Controller
 {
     public function __construct(
         private readonly QualityControlSignatureService $signatureService,
+        private readonly RecentApprovalSignatureResolver $recentSignatureResolver,
     ) {}
 
     public function show(Request $request, string $token): View
@@ -38,7 +39,7 @@ class QualityControlSignatureController extends Controller
             'token' => $token,
             'isExpired' => $signature->isPending() && $signature->tokenExpired(),
             'qualityControlPdfUrl' => route('approval.quality-control.pdf', $token),
-            'recentSignatureDataUrl' => app(RecentApprovalSignatureResolver::class)->latestDataUrlForUser($request->user()),
+            'recentSignatureDataUrl' => $this->recentSignatureResolver->latestFullSignatureForUser($request->user()),
         ]);
     }
 

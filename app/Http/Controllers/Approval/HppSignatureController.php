@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers\Approval;
 
+use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Http\Controllers\Admin\Hpp\HppController as AdminHppController;
 use App\Http\Controllers\Admin\Orders\OrderDocumentController;
-use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Http\Controllers\Controller;
 use App\Models\Hpp;
 use App\Models\HppSignature;
+use App\Support\HppApprovalMarkResolver;
 use App\Support\HppApprovalSignatureBuilder;
 use App\Support\RecentApprovalSignatureResolver;
 use App\Support\SignatureImageStorage;
@@ -23,8 +24,9 @@ class HppSignatureController extends Controller
 {
     public function __construct(
         private readonly HppApprovalSignatureBuilder $signatureBuilder,
-    ) {
-    }
+        private readonly RecentApprovalSignatureResolver $recentSignatureResolver,
+        private readonly HppApprovalMarkResolver $approvalMarkResolver,
+    ) {}
 
     public function show(Request $request, string $token): View
     {
@@ -41,6 +43,7 @@ class HppSignatureController extends Controller
                 'progressPercent' => 0,
                 'signedCount' => 0,
                 'totalSteps' => 0,
+                'isInitialApproval' => false,
                 'recentSignatureDataUrl' => null,
             ]);
         }
@@ -60,6 +63,7 @@ class HppSignatureController extends Controller
         $orderDocuments = $signature->hpp->order?->documents ?? collect();
         $hasAbnormalitas = $this->hasOrderDocument($orderDocuments, OrderDocumentType::Abnormalitas);
         $hasGambarTeknik = $this->hasOrderDocument($orderDocuments, OrderDocumentType::GambarTeknik);
+        $isInitialApproval = $this->approvalMarkResolver->requiresInitial($signature);
 
         return view('approval.hpp-signature', [
             'signature' => $signature,
@@ -71,7 +75,11 @@ class HppSignatureController extends Controller
             'progressPercent' => $signature->hpp->approvalProgressPercent(),
             'signedCount' => $signature->hpp->approvalSignedCount(),
             'totalSteps' => $signature->hpp->approvalStepCount(),
-            'recentSignatureDataUrl' => app(RecentApprovalSignatureResolver::class)->latestDataUrlForUser($request->user()),
+            'isInitialApproval' => $isInitialApproval,
+            'recentSignatureDataUrl' => $this->recentSignatureResolver->latestForHppSignature(
+                $request->user(),
+                $signature
+            ),
         ]);
     }
 
@@ -101,11 +109,14 @@ class HppSignatureController extends Controller
         $signature = $this->resolveSignatureByToken($token);
         abort_unless($signature, 404, 'Token approval HPP tidak valid.');
         $this->authorizeSigner($request, $signature);
+        $isInitialApproval = $this->approvalMarkResolver->requiresInitial($signature);
 
         if ($signature->isSigned()) {
             return redirect()
                 ->route('approval.hpp.show', $token)
-                ->with('status', 'Dokumen HPP ini sudah ditandatangani.');
+                ->with('status', $isInitialApproval
+                    ? 'Tahap HPP ini sudah diparaf.'
+                    : 'Dokumen HPP ini sudah ditandatangani.');
         }
 
         if ($signature->hpp?->status === Hpp::STATUS_REJECTED) {
@@ -183,7 +194,9 @@ class HppSignatureController extends Controller
             });
 
             $message = match ($result) {
-                'signed' => 'Dokumen HPP ini sudah ditandatangani.',
+                'signed' => $isInitialApproval
+                    ? 'Tahap HPP ini sudah diparaf.'
+                    : 'Dokumen HPP ini sudah ditandatangani.',
                 'rejected' => 'Dokumen HPP ini sudah ditolak.',
                 default => 'Dokumen HPP berhasil ditolak.',
             };
@@ -260,13 +273,17 @@ class HppSignatureController extends Controller
                 ->route('approval.hpp.show', $token)
                 ->with('status', $result['state'] === 'rejected'
                     ? 'Dokumen HPP ini sudah ditolak.'
-                    : 'Dokumen HPP ini sudah ditandatangani.');
+                    : ($isInitialApproval
+                        ? 'Tahap HPP ini sudah diparaf.'
+                        : 'Dokumen HPP ini sudah ditandatangani.'));
         }
 
         $redirect = redirect()
             ->route('approval.hpp.show', $token)
             ->with('approval_signed', true)
-            ->with('status', 'Tanda tangan HPP berhasil disimpan.');
+            ->with('status', $isInitialApproval
+                ? 'Paraf HPP berhasil disimpan.'
+                : 'Tanda tangan HPP berhasil disimpan.');
 
         return $redirect;
     }

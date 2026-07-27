@@ -8,16 +8,24 @@
         $hpp = $signature?->hpp;
         $isRejected = $hpp?->status === \App\Models\Hpp::STATUS_REJECTED;
         $isDirops = $signature?->role_key === 'dirops';
+        $isInitialApproval = (bool) ($isInitialApproval ?? false);
+        $markTitle = $isInitialApproval ? 'Paraf Digital' : 'Tanda Tangan Digital';
+        $markAreaTitle = $isInitialApproval ? 'Area Paraf' : 'Area Penandatanganan';
+        $useRecentLabel = $isInitialApproval ? 'Pakai Paraf Terakhir' : 'Pakai TTD Terakhir';
+        $placeholderTitle = $isInitialApproval ? 'Paraf di sini' : 'Tanda tangan di sini';
+        $readyLabel = $isInitialApproval ? 'Paraf siap disimpan' : 'Tanda tangan siap disimpan';
+        $errorLabel = $isInitialApproval ? 'Silakan paraf terlebih dahulu.' : 'Silakan tanda tangan terlebih dahulu.';
+        $saveLabel = $isInitialApproval ? 'Simpan Paraf' : 'Simpan Tanda Tangan';
         $canSign = $signature?->isPending() && ! $isExpired && ! $isRejected && ! $isDirops;
         $noteGroupLabel = $signature?->noteGroupLabel() ?? 'Catatan Approval';
         $statusLabel = match (true) {
             ! $signature => 'Token Tidak Valid',
             $isRejected => 'Dokumen Ditolak',
-            $signature->isSigned() => 'Sudah Ditandatangani',
+            $signature->isSigned() => $isInitialApproval ? 'Sudah Diparaf' : 'Sudah Ditandatangani',
             $signature->isLocked() => 'Step Belum Aktif',
             $isExpired => 'Token Kedaluwarsa',
             $isDirops && $signature->isPending() => 'Menunggu Upload DIROPS',
-            default => 'Menunggu Tanda Tangan',
+            default => $isInitialApproval ? 'Menunggu Paraf' : 'Menunggu Tanda Tangan',
         };
         $statusClasses = match (true) {
             ! $signature => 'bg-rose-100 text-rose-700 ring-rose-200',
@@ -278,8 +286,8 @@
                                         <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                                             <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                                 <div>
-                                                    <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Tanda Tangan Digital</div>
-                                                    <h2 class="mt-1 text-lg font-bold text-slate-900">Area Penandatanganan</h2>
+                                                    <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">{{ $markTitle }}</div>
+                                                    <h2 class="mt-1 text-lg font-bold text-slate-900">{{ $markAreaTitle }}</h2>
                                                 </div>
                                                 <div class="text-xs text-slate-400">Mouse / touch screen didukung</div>
                                             </div>
@@ -288,7 +296,7 @@
                                                 <div class="absolute right-3 top-3 z-20 flex flex-wrap justify-end gap-2">
                                                     @if ($canSign && !empty($recentSignatureDataUrl ?? null))
                                                         <button type="button" id="useRecentSignature" data-signature-src="{{ $recentSignatureDataUrl }}" class="rounded-full border border-blue-200 bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50">
-                                                            Pakai TTD Terakhir
+                                                            {{ $useRecentLabel }}
                                                         </button>
                                                     @endif
                                                     <button type="button" id="clearSignature" class="rounded-full border border-slate-300 bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
@@ -299,13 +307,13 @@
                                                 <div id="signaturePadPlaceholder" class="pointer-events-none absolute inset-3 z-0 flex items-center justify-center rounded-xl text-center">
                                                     <div class="px-4 text-slate-400">
                                                         <i data-lucide="pen-line" class="mx-auto h-8 w-8 opacity-70"></i>
-                                                        <div class="mt-2 text-sm font-bold text-slate-500">Tanda tangan di sini</div>
+                                                        <div class="mt-2 text-sm font-bold text-slate-500">{{ $placeholderTitle }}</div>
                                                         <div class="mt-1 text-xs font-medium text-slate-400">Gunakan mouse atau layar sentuh</div>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <p id="signaturePadReadyState" class="mt-2 hidden text-xs font-semibold text-emerald-700">Tanda tangan siap disimpan</p>
-                                            <p id="signaturePadErrorState" class="mt-2 hidden text-xs font-semibold text-rose-700">Silakan tanda tangan terlebih dahulu.</p>
+                                            <p id="signaturePadReadyState" class="mt-2 hidden text-xs font-semibold text-emerald-700">{{ $readyLabel }}</p>
+                                            <p id="signaturePadErrorState" class="mt-2 hidden text-xs font-semibold text-rose-700">{{ $errorLabel }}</p>
 
                                             <div class="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-4">
                                                 <label for="approvalNote" class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">{{ $noteGroupLabel }}</label>
@@ -325,7 +333,7 @@
                                                         Reject
                                                     </button>
                                                     <button type="submit" data-action="sign" class="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800">
-                                                        Simpan Tanda Tangan
+                                                        {{ $saveLabel }}
                                                     </button>
                                                 </div>
                                             </div>
@@ -422,6 +430,8 @@
                 const loadingOverlay = document.getElementById('submissionLoadingOverlay');
                 const loadingTitle = document.getElementById('submissionLoadingTitle');
                 const signatureVisuals = window.createSignaturePadVisuals?.();
+                const markErrorLabel = @json($errorLabel);
+                const markName = @json($isInitialApproval ? 'paraf' : 'tanda tangan');
                 signatureVisuals?.idle();
 
                 if (canvas && form && signatureFile && approvalAction) {
@@ -498,7 +508,7 @@
                             signatureVisuals?.completed();
                         };
                         image.onerror = () => {
-                            alert('TTD terakhir tidak dapat dimuat. Silakan tanda tangan ulang.');
+                            alert(`${markName === 'paraf' ? 'Paraf' : 'TTD'} terakhir tidak dapat dimuat. Silakan ${markName} ulang.`);
                         };
                         image.src = src;
                     };
@@ -586,7 +596,7 @@
                         if (loadingTitle) {
                             loadingTitle.textContent = action === 'reject'
                                 ? 'Memproses penolakan...'
-                                : 'Menyimpan tanda tangan...';
+                                : `Menyimpan ${markName}...`;
                         }
 
                         loadingOverlay?.classList.remove('hidden');
@@ -631,8 +641,8 @@
                         if (!hasEnoughSignatureStroke()) {
                             event.preventDefault();
                             const message = hasStroke
-                                ? 'Tanda tangan terlalu sedikit. Silakan tanda tangani dengan coretan yang jelas.'
-                                : 'Silakan tanda tangan terlebih dahulu.';
+                                ? `${markName === 'paraf' ? 'Paraf' : 'Tanda tangan'} terlalu sedikit. Silakan buat coretan yang jelas.`
+                                : markErrorLabel;
                             signatureVisuals?.error(message);
                             alert(message);
                             return;
@@ -644,7 +654,7 @@
 
                         if (!blob) {
                             cancelSubmission();
-                            alert('Tanda tangan belum terbaca. Silakan tanda tangani ulang.');
+                            alert(`${markName === 'paraf' ? 'Paraf' : 'Tanda tangan'} belum terbaca. Silakan ulangi.`);
                             return;
                         }
 

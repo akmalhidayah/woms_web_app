@@ -21,6 +21,7 @@ class BastSignatureController extends Controller
 {
     public function __construct(
         private readonly BastApprovalSignatureBuilder $signatureBuilder,
+        private readonly RecentApprovalSignatureResolver $recentSignatureResolver,
     ) {}
 
     public function show(Request $request, string $token): View
@@ -60,7 +61,7 @@ class BastSignatureController extends Controller
             'progressPercent' => $signature->lhppBast->approvalProgressPercent(),
             'signedCount' => $signature->lhppBast->approvalSignedCount(),
             'totalSteps' => $signature->lhppBast->approvalStepCount(),
-            'recentSignatureDataUrl' => app(RecentApprovalSignatureResolver::class)->latestDataUrlForUser($request->user()),
+            'recentSignatureDataUrl' => $this->recentSignatureResolver->latestFullSignatureForUser($request->user()),
         ]);
     }
 

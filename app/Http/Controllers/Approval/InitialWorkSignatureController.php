@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Approval;
 
+use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Http\Controllers\Admin\Orders\InitialWorkController as AdminInitialWorkController;
 use App\Http\Controllers\Admin\Orders\OrderDocumentController;
 use App\Http\Controllers\Controller;
-use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Models\InitialWorkSignature;
 use App\Services\InitialWorks\InitialWorkSignatureService;
 use App\Support\RecentApprovalSignatureResolver;
@@ -22,6 +22,7 @@ class InitialWorkSignatureController extends Controller
 {
     public function __construct(
         private readonly InitialWorkSignatureService $signatureService,
+        private readonly RecentApprovalSignatureResolver $recentSignatureResolver,
     ) {}
 
     public function show(Request $request, string $token): View
@@ -46,7 +47,7 @@ class InitialWorkSignatureController extends Controller
             'abnormalitasUrl' => $hasAbnormalitas ? route('approval.initial-work.abnormalitas', $token) : null,
             'gambarTeknikUrl' => $hasGambarTeknik ? route('approval.initial-work.gambar-teknik', $token) : null,
             'initialWorkPdfUrl' => route('approval.initial-work.pdf', $token),
-            'recentSignatureDataUrl' => app(RecentApprovalSignatureResolver::class)->latestDataUrlForUser($request->user()),
+            'recentSignatureDataUrl' => $this->recentSignatureResolver->latestFullSignatureForUser($request->user()),
         ]);
     }
 

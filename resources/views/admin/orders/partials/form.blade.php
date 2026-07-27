@@ -1,5 +1,19 @@
 @csrf
 
+@php
+    $initialUnitKerja = trim((string) old('unit_kerja', $order->unit_kerja));
+    $initialSeksi = trim((string) old('seksi', $order->seksi));
+    $initialSeksi = $initialSeksi === 'General' ? 'Tidak ada seksi' : $initialSeksi;
+    $initialStructureUnit = $structureUnitOptions->firstWhere('name', $initialUnitKerja);
+    $initialSectionOptions = $initialStructureUnit?->sections?->pluck('name')->values() ?? collect();
+    $isLegacyStructurePair = $order->exists && (
+        ! $initialStructureUnit
+        || ($initialSeksi !== ''
+            && $initialSeksi !== 'Tidak ada seksi'
+            && ! $initialSectionOptions->contains($initialSeksi))
+    );
+@endphp
+
 @if ($errors->any())
     <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-700">
         <div class="font-semibold">Periksa kembali data order pekerjaan.</div>
@@ -68,30 +82,56 @@
                 >
             </div>
 
-            <div class="space-y-2">
+            <div class="order-structure-searchable space-y-2">
                 <label for="unit_kerja" class="text-sm font-semibold text-slate-700">Unit Kerja</label>
-                <input
+                <select
                     id="unit_kerja"
                     name="unit_kerja"
-                    type="text"
-                    value="{{ old('unit_kerja', $order->unit_kerja) }}"
+                    data-order-unit-select
                     class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-4 focus:ring-blue-100"
-                    placeholder="Unit kerja pengusul"
                     required
                 >
+                    <option value="">Cari atau pilih Unit Kerja...</option>
+                    @foreach ($structureUnitOptions as $unitWork)
+                        <option
+                            value="{{ $unitWork->name }}"
+                            data-seksi='@json($unitWork->sections->pluck('name')->values())'
+                            @selected($initialUnitKerja === $unitWork->name)
+                        >
+                            {{ $unitWork->name }}
+                        </option>
+                    @endforeach
+                    @if ($isLegacyStructurePair && ! $initialStructureUnit && $initialUnitKerja !== '')
+                        <option value="{{ $initialUnitKerja }}" data-seksi="[]" selected>{{ $initialUnitKerja }}</option>
+                    @endif
+                </select>
+                @error('unit_kerja')
+                    <p class="text-sm font-medium text-rose-600">{{ $message }}</p>
+                @enderror
             </div>
 
-            <div class="space-y-2">
+            <div class="order-structure-searchable space-y-2">
                 <label for="seksi" class="text-sm font-semibold text-slate-700">Seksi</label>
-                <input
+                <select
                     id="seksi"
                     name="seksi"
-                    type="text"
-                    value="{{ old('seksi', $order->seksi) }}"
+                    data-order-section-select
                     class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-4 focus:ring-blue-100"
-                    placeholder="Seksi terkait"
                     required
                 >
+                    <option value="">Pilih Unit Kerja terlebih dahulu</option>
+                    @foreach ($initialSectionOptions as $sectionName)
+                        <option value="{{ $sectionName }}" @selected($initialSeksi === $sectionName)>{{ $sectionName }}</option>
+                    @endforeach
+                    @if ($initialStructureUnit && $initialSectionOptions->isEmpty())
+                        <option value="Tidak ada seksi" @selected($initialSeksi === 'Tidak ada seksi')>Tidak ada seksi</option>
+                    @elseif ($isLegacyStructurePair && $initialSeksi !== '' && ! $initialSectionOptions->contains($initialSeksi))
+                        <option value="{{ $initialSeksi }}" selected>{{ $initialSeksi }}</option>
+                    @endif
+                </select>
+                @error('seksi')
+                    <p class="text-sm font-medium text-rose-600">{{ $message }}</p>
+                @enderror
             </div>
         </div>
     </section>
@@ -214,8 +254,23 @@
     </div>
 </div>
 
+@include('admin.orders.partials.searchable-structure-support')
+
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+        const structurePair = window.OrderStructureSelectPair?.create({
+            unitSelect: document.querySelector('[data-order-unit-select]'),
+            sectionSelect: document.querySelector('[data-order-section-select]'),
+            unitPlaceholder: 'Cari atau pilih Unit Kerja...',
+            sectionPlaceholder: 'Cari atau pilih Seksi...',
+        });
+
+        structurePair?.setValues(
+            @json($initialUnitKerja),
+            @json($initialSeksi),
+            { allowLegacy: @json($isLegacyStructurePair) }
+        );
+
         const hiddenInput = document.getElementById('prioritas');
         const primarySelect = document.getElementById('prioritas_primary');
         const emergencySelect = document.getElementById('prioritas_emergency');

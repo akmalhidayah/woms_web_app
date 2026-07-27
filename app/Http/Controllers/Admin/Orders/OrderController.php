@@ -17,6 +17,7 @@ use App\Support\RecentApprovalSignatureResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class OrderController extends Controller
@@ -33,11 +34,6 @@ class OrderController extends Controller
         $search = trim((string) $request->string('search'));
         $documentStatus = trim((string) $request->string('document_status'));
         $perPage = 10;
-        $structureUnits = UnitWork::query()
-            ->with(['sections:id,unit_work_id,name'])
-            ->orderBy('name')
-            ->get(['id', 'name']);
-
         $orders = Order::query()
             ->with([
                 'creator:id,name',
@@ -78,7 +74,7 @@ class OrderController extends Controller
                 ->distinct()
                 ->orderBy('unit_kerja')
                 ->pluck('unit_kerja'),
-            'structureUnitOptions' => $structureUnits,
+            'structureUnitOptions' => $this->structureUnitOptions(),
             'userNoteStatusOptions' => OrderUserNoteStatus::options(),
             'userNoteDetailOptions' => Order::userNoteDetailOptions(),
             'initialWorkPreviewNumber' => InitialWorkController::previewDocumentNumber(),
@@ -229,6 +225,18 @@ class OrderController extends Controller
         return [
             'order' => $order,
             'priorityOptions' => Order::priorityOptions(),
+            'structureUnitOptions' => $this->structureUnitOptions(),
         ];
+    }
+
+    /**
+     * @return Collection<int, UnitWork>
+     */
+    private function structureUnitOptions(): Collection
+    {
+        return UnitWork::query()
+            ->with(['sections:id,unit_work_id,name'])
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 }

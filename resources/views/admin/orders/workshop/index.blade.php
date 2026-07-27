@@ -560,10 +560,10 @@
                             </select>
                         </div>
                     </div>
-                    <div>
-                        <label class="mb-2 block text-sm text-slate-700">Unit Kerja</label>
-                        <select id="createUnitKerja" name="unit_kerja" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
-                            <option value="">Pilih Unit Kerja</option>
+                    <div class="order-structure-searchable">
+                        <label for="createUnitKerja" class="mb-2 block text-sm text-slate-700">Unit Kerja</label>
+                        <select id="createUnitKerja" name="unit_kerja" data-order-unit-select class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                            <option value="">Cari atau pilih Unit Kerja...</option>
                             @foreach ($structureUnitOptions as $unitWork)
                                 <option
                                     value="{{ $unitWork->name }}"
@@ -574,12 +574,22 @@
                                 </option>
                             @endforeach
                         </select>
+                        @if (old('form_context') === 'create')
+                            @error('unit_kerja')
+                                <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                            @enderror
+                        @endif
                     </div>
-                    <div>
-                        <label class="mb-2 block text-sm text-slate-700">Seksi</label>
-                        <select id="createSeksi" name="seksi" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
-                            <option value="">Pilih seksi</option>
+                    <div class="order-structure-searchable">
+                        <label for="createSeksi" class="mb-2 block text-sm text-slate-700">Seksi</label>
+                        <select id="createSeksi" name="seksi" data-order-section-select class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                            <option value="">Pilih Unit Kerja terlebih dahulu</option>
                         </select>
+                        @if (old('form_context') === 'create')
+                            @error('seksi')
+                                <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                            @enderror
+                        @endif
                     </div>
                     <div>
                         <label class="mb-2 block text-sm text-slate-700">Status Catatan</label>
@@ -675,10 +685,10 @@
                             </select>
                         </div>
                     </div>
-                    <div>
-                        <label class="mb-2 block text-sm text-slate-700">Unit Kerja</label>
-                        <select id="editUnitKerja" name="unit_kerja" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
-                            <option value="">Pilih Unit Kerja</option>
+                    <div class="order-structure-searchable">
+                        <label for="editUnitKerja" class="mb-2 block text-sm text-slate-700">Unit Kerja</label>
+                        <select id="editUnitKerja" name="unit_kerja" data-order-unit-select class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                            <option value="">Cari atau pilih Unit Kerja...</option>
                             @foreach ($structureUnitOptions as $unitWork)
                                 <option
                                     value="{{ $unitWork->name }}"
@@ -689,12 +699,22 @@
                                 </option>
                             @endforeach
                         </select>
+                        @if (old('form_context') === 'edit')
+                            @error('unit_kerja')
+                                <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                            @enderror
+                        @endif
                     </div>
-                    <div>
-                        <label class="mb-2 block text-sm text-slate-700">Seksi</label>
-                        <select id="editSeksi" name="seksi" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
-                            <option value="">Pilih seksi</option>
+                    <div class="order-structure-searchable">
+                        <label for="editSeksi" class="mb-2 block text-sm text-slate-700">Seksi</label>
+                        <select id="editSeksi" name="seksi" data-order-section-select class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                            <option value="">Pilih Unit Kerja terlebih dahulu</option>
                         </select>
+                        @if (old('form_context') === 'edit')
+                            @error('seksi')
+                                <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                            @enderror
+                        @endif
                     </div>
                     <div>
                         <label class="mb-2 block text-sm text-slate-700">Status Catatan</label>
@@ -799,6 +819,7 @@
     </div>
 
     @include('admin.orders.partials.approval-signature-modal')
+    @include('admin.orders.partials.searchable-structure-support')
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -831,6 +852,18 @@
             const priorityLow = @json(\App\Models\Order::PRIORITY_LOW);
             const defaultWorkshopStatus = @json(\App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value);
             const reguToggleInput = document.getElementById('reguToggleInput');
+            const createStructurePair = window.OrderStructureSelectPair?.create({
+                unitSelect: createUnitKerja,
+                sectionSelect: createSeksi,
+                unitPlaceholder: 'Cari atau pilih Unit Kerja...',
+                sectionPlaceholder: 'Cari atau pilih Seksi...',
+            });
+            const editStructurePair = window.OrderStructureSelectPair?.create({
+                unitSelect: editUnitKerja,
+                sectionSelect: editSeksi,
+                unitPlaceholder: 'Cari atau pilih Unit Kerja...',
+                sectionPlaceholder: 'Cari atau pilih Seksi...',
+            });
 
             const escapeHtml = (value) => String(value ?? '')
                 .replaceAll('&', '&amp;')
@@ -838,47 +871,6 @@
                 .replaceAll('>', '&gt;')
                 .replaceAll('"', '&quot;')
                 .replaceAll("'", '&#039;');
-
-            const parseSeksiOptions = (select) => {
-                const selectedOption = select?.options?.[select.selectedIndex];
-                const raw = selectedOption?.dataset?.seksi;
-
-                if (!raw) {
-                    return [];
-                }
-
-                try {
-                    const parsed = JSON.parse(raw);
-                    return Array.isArray(parsed) ? parsed : [];
-                } catch (error) {
-                    return [];
-                }
-            };
-
-            const syncSeksiSelect = (unitSelect, seksiSelect, selectedValue = '') => {
-                if (!unitSelect || !seksiSelect) {
-                    return;
-                }
-
-                const seksiOptions = parseSeksiOptions(unitSelect);
-                const normalizedValue = selectedValue === 'General' ? 'Tidak ada seksi' : selectedValue;
-                const normalizedOptions = seksiOptions.length > 0 ? seksiOptions : ['Tidak ada seksi'];
-                const fallbackValue = seksiOptions.length > 0
-                    ? (normalizedOptions.includes(normalizedValue) ? normalizedValue : normalizedOptions[0])
-                    : (normalizedValue || 'Tidak ada seksi');
-
-                seksiSelect.innerHTML = '';
-
-                normalizedOptions.forEach((optionValue) => {
-                    const option = document.createElement('option');
-                    option.value = optionValue;
-                    option.textContent = optionValue;
-                    if (optionValue === fallbackValue) {
-                        option.selected = true;
-                    }
-                    seksiSelect.appendChild(option);
-                });
-            };
 
             const syncModalNoteField = (context, selectedStatus = defaultWorkshopStatus, currentNote = '') => {
                 const detailSelect = document.getElementById(`${context}CatatanSelect`);
@@ -1173,8 +1165,7 @@
                 document.getElementById('createNomorOrder').value = '';
                 document.getElementById('createNotifikasi').value = '';
                 document.getElementById('createNamaPekerjaan').value = '';
-                createUnitKerja.value = '';
-                createSeksi.innerHTML = '<option value="">Pilih seksi</option>';
+                createStructurePair?.reset();
                 syncPriorityField('create', priorityLow);
                 createCatatanStatus.value = defaultWorkshopStatus;
                 document.getElementById('createTargetSelesai').value = '{{ $today }}';
@@ -1183,14 +1174,6 @@
                 document.getElementById('createCatatan').value = '';
                 syncModalNoteField('create', defaultWorkshopStatus, '');
                 openCreateOrderModal();
-            });
-
-            createUnitKerja?.addEventListener('change', () => {
-                syncSeksiSelect(createUnitKerja, createSeksi);
-            });
-
-            editUnitKerja?.addEventListener('change', () => {
-                syncSeksiSelect(editUnitKerja, editSeksi);
             });
 
             document.querySelectorAll('.row-action-menu-trigger').forEach((button) => {
@@ -1225,14 +1208,17 @@
                     document.getElementById('editNomorOrder').value = button.dataset.nomorOrder || '';
                     document.getElementById('editNotifikasi').value = button.dataset.notifikasi || '';
                     document.getElementById('editNamaPekerjaan').value = button.dataset.namaPekerjaan || '';
-                    editUnitKerja.value = button.dataset.unitKerja || '';
                     syncPriorityField('edit', button.dataset.prioritas || priorityLow);
                     editCatatanStatus.value = button.dataset.catatanStatus || defaultWorkshopStatus;
                     document.getElementById('editTargetSelesai').value = button.dataset.targetSelesai || '{{ $today }}';
                     document.getElementById('editTanggalOrder').value = button.dataset.tanggalOrder || button.dataset.targetSelesai || '{{ $today }}';
                     document.getElementById('editCatatan').value = button.dataset.catatan || '';
                     document.getElementById('editDeskripsi').value = 'Order pekerjaan bengkel';
-                    syncSeksiSelect(editUnitKerja, editSeksi, button.dataset.seksi || 'Tidak ada seksi');
+                    editStructurePair?.setValues(
+                        button.dataset.unitKerja || '',
+                        button.dataset.seksi || 'Tidak ada seksi',
+                        { allowLegacy: true }
+                    );
                     syncModalNoteField('edit', button.dataset.catatanStatus || defaultWorkshopStatus, button.dataset.catatan || '');
 
                     closeRowActionMenus();
@@ -1241,7 +1227,11 @@
             });
 
             if (oldFormContext === 'create') {
-                syncSeksiSelect(createUnitKerja, createSeksi, @json(old('seksi')));
+                createStructurePair?.setValues(
+                    @json(old('unit_kerja')),
+                    @json(old('seksi')),
+                    { allowLegacy: false }
+                );
                 syncPriorityField('create', @json(old('prioritas', \App\Models\Order::PRIORITY_LOW)));
                 syncModalNoteField('create', @json(old('catatan_status', \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value)), @json(old('catatan', '')));
                 openCreateOrderModal();
@@ -1262,7 +1252,11 @@
                     document.getElementById('editDeskripsi').value = @json(old('deskripsi', 'Order pekerjaan bengkel'));
                     editCatatanStatus.value = @json(old('catatan_status', \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value));
                     syncPriorityField('edit', @json(old('prioritas', \App\Models\Order::PRIORITY_LOW)));
-                    syncSeksiSelect(editUnitKerja, editSeksi, @json(old('seksi')));
+                    editStructurePair?.setValues(
+                        @json(old('unit_kerja')),
+                        @json(old('seksi')),
+                        { allowLegacy: true }
+                    );
                     syncModalNoteField('edit', @json(old('catatan_status', \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value)), @json(old('catatan', '')));
                     openEditOrderModal();
                 }

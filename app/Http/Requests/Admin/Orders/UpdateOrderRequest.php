@@ -4,11 +4,15 @@ namespace App\Http\Requests\Admin\Orders;
 
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\Order;
+use App\Models\UnitWork;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateOrderRequest extends FormRequest
 {
+    private const NO_SECTION = 'Tidak ada seksi';
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -24,7 +28,7 @@ class UpdateOrderRequest extends FormRequest
      */
     public function rules(): array
     {
-        /** @var \App\Models\Order $order */
+        /** @var Order $order */
         $order = $this->route('order');
 
         return [
@@ -42,6 +46,32 @@ class UpdateOrderRequest extends FormRequest
         ];
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'unit_kerja' => trim((string) $this->input('unit_kerja')),
+            'seksi' => $this->normalizeSection($this->input('seksi')),
+        ]);
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            if ($validator->errors()->hasAny(['unit_kerja', 'seksi'])) {
+                return;
+            }
+
+            /** @var Order|null $order */
+            $order = $this->route('order');
+
+            if ($order && $this->structurePairIsUnchanged($order)) {
+                return;
+            }
+
+            $this->validateStructurePair($validator);
+        });
+    }
+
     public function messages(): array
     {
         return [
@@ -49,6 +79,8 @@ class UpdateOrderRequest extends FormRequest
             'nomor_order.unique' => 'Nomor order ini sudah digunakan.',
             'notifikasi.unique' => 'Nomor notifikasi ini sudah digunakan.',
             'target_selesai.after_or_equal' => 'Target selesai tidak boleh lebih awal dari tanggal order.',
+            'unit_kerja.required' => 'Unit Kerja wajib dipilih.',
+            'seksi.required' => 'Seksi wajib dipilih.',
         ];
     }
 
@@ -62,5 +94,55 @@ class UpdateOrderRequest extends FormRequest
             'target_selesai' => 'target selesai',
             'catatan_status' => 'status catatan',
         ];
+    }
+
+    private function structurePairIsUnchanged(Order $order): bool
+    {
+        return trim((string) $order->unit_kerja) === $this->string('unit_kerja')->toString()
+            && $this->normalizeSection($order->seksi) === $this->string('seksi')->toString();
+    }
+
+    private function validateStructurePair(Validator $validator): void
+    {
+        $unit = UnitWork::query()
+            ->with('sections:id,unit_work_id,name')
+            ->where('name', $this->string('unit_kerja')->toString())
+            ->first();
+
+        if (! $unit) {
+            $validator->errors()->add(
+                'unit_kerja',
+                'Unit Kerja yang dipilih tidak terdaftar pada Struktur Organisasi.'
+            );
+
+            return;
+        }
+
+        $section = $this->string('seksi')->toString();
+
+        if ($unit->sections->isEmpty()) {
+            if ($section !== self::NO_SECTION) {
+                $validator->errors()->add(
+                    'seksi',
+                    'Unit Kerja ini tidak memiliki seksi. Gunakan pilihan "Tidak ada seksi".'
+                );
+            }
+
+            return;
+        }
+
+        if (! $unit->sections->contains('name', $section)) {
+            $validator->errors()->add(
+                'seksi',
+                'Seksi yang dipilih tidak terdaftar pada Unit Kerja tersebut.'
+            );
+        }
+    }
+
+    private function normalizeSection(mixed $section): string
+    {
+        $normalized = trim((string) $section);
+
+        return $normalized === 'General' ? self::NO_SECTION : $normalized;
     }
 }

@@ -45,8 +45,11 @@
                 </form>
             </div>
 
-            <div class="hidden overflow-hidden lg:block">
-                <table class="w-full table-fixed border-collapse text-[10px] text-slate-700">
+            <div class="overflow-x-auto overscroll-x-contain">
+                <div class="border-b border-slate-100 bg-slate-50 px-3 py-2 text-[9px] font-semibold text-slate-500 lg:hidden">
+                    Geser tabel ke samping untuk melihat seluruh kolom.
+                </div>
+                <table class="min-w-[920px] table-fixed border-collapse text-[10px] text-slate-700 lg:min-w-full">
                     <colgroup>
                         <col class="w-[14%]">
                         <col class="w-[19%]">
@@ -252,21 +255,6 @@
                 </table>
             </div>
 
-            <div class="space-y-3 bg-slate-50/70 p-3 lg:hidden">
-                @forelse ($lpjRows as $row)
-                    @include('admin.lpj.partials.mobile-card', [
-                        'row' => $row,
-                        'search' => $search,
-                        'selectedPo' => $selectedPo,
-                        'currentPage' => $lpjRows->currentPage(),
-                    ])
-                @empty
-                    <div class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-500">
-                        Tidak ada data LPJ / PPL.
-                    </div>
-                @endforelse
-            </div>
-
             @if ($lpjRows->hasPages())
                 <div class="mt-4 border-t border-slate-200 px-4 py-4">
                     {{ $lpjRows->links() }}
@@ -277,86 +265,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-        window.adminLpjMobileCard = function (config) {
-            return {
-                termin: config.initialTermin,
-                withoutWarranty: config.withoutWarranty,
-                numbers: config.numbers,
-                documents: config.documents,
-                lpjNumber: '',
-                pplNumber: '',
-                lpjFileName: '',
-                pplFileName: '',
-                removeLpj: '0',
-                removePpl: '0',
-
-                init() {
-                    this.applyTermin();
-                },
-
-                applyTermin() {
-                    const values = this.numbers[this.termin] || {};
-                    this.lpjNumber = values.lpj || '';
-                    this.pplNumber = values.ppl || '';
-                    this.lpjFileName = '';
-                    this.pplFileName = '';
-                    this.removeLpj = '0';
-                    this.removePpl = '0';
-
-                    if (this.$refs.lpjInput) this.$refs.lpjInput.value = '';
-                    if (this.$refs.pplInput) this.$refs.pplInput.value = '';
-                },
-
-                currentDocument(type) {
-                    return this.documents[this.termin]?.[type] || { url: '', name: '' };
-                },
-
-                selectedFileName(type) {
-                    return type === 'lpj' ? this.lpjFileName : this.pplFileName;
-                },
-
-                isRemoved(type) {
-                    return (type === 'lpj' ? this.removeLpj : this.removePpl) === '1';
-                },
-
-                hasDocument(type) {
-                    return !this.isRemoved(type) && Boolean(
-                        this.selectedFileName(type) || this.currentDocument(type).url
-                    );
-                },
-
-                documentName(type) {
-                    return this.selectedFileName(type) || this.currentDocument(type).name;
-                },
-
-                selectFile(type, event) {
-                    const fileName = event.target.files?.[0]?.name || '';
-
-                    if (type === 'lpj') {
-                        this.lpjFileName = fileName;
-                        this.removeLpj = '0';
-                    } else {
-                        this.pplFileName = fileName;
-                        this.removePpl = '0';
-                    }
-                },
-
-                removeDocument(type) {
-                    const hasExisting = Boolean(this.currentDocument(type).url);
-
-                    if (type === 'lpj') {
-                        this.removeLpj = hasExisting ? '1' : '0';
-                        this.lpjFileName = '';
-                        if (this.$refs.lpjInput) this.$refs.lpjInput.value = '';
-                    } else {
-                        this.removePpl = hasExisting ? '1' : '0';
-                        this.pplFileName = '';
-                        if (this.$refs.pplInput) this.$refs.pplInput.value = '';
-                    }
-                },
-            };
-        };
-
         window.adminLpjApplyPaymentState = function (selectElement) {
             selectElement.classList.remove(
                 'border-emerald-300',

@@ -107,17 +107,17 @@ class PurchaseOrderEmergencyTransitionTest extends TestCase
         $this->assertTrue($hpp->fresh()->purchaseOrder->approve_direktur_operasional);
     }
 
-    public function test_purchase_order_index_renders_responsive_mobile_card(): void
+    public function test_purchase_order_index_keeps_responsive_scrollable_table(): void
     {
         [$admin, , $hpp] = $this->createEmergencyOrderFlow();
 
         $this->actingAs($admin)
             ->get(route('admin.purchase-order.index'))
             ->assertOk()
-            ->assertSee('data-mobile-purchase-order-card="'.$hpp->nomor_order.'"', false)
-            ->assertSee('Masukkan nomor PO')
-            ->assertSee('Simpan Purchase Order')
-            ->assertSee('Catatan untuk Vendor');
+            ->assertSee($hpp->nomor_order)
+            ->assertSee('min-w-[1120px]', false)
+            ->assertSee('Geser tabel ke samping untuk melihat seluruh kolom.')
+            ->assertDontSee('data-mobile-purchase-order-card', false);
     }
 
     /**

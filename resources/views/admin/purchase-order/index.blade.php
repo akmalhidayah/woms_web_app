@@ -82,8 +82,11 @@
                 </form>
             </div>
 
-            <div class="hidden overflow-x-auto lg:block">
-                <table class="min-w-full table-fixed divide-y divide-slate-200 text-[10px] text-slate-700">
+            <div class="overflow-x-auto overscroll-x-contain">
+                <div class="border-b border-slate-100 bg-slate-50 px-3 py-2 text-[9px] font-semibold text-slate-500 lg:hidden">
+                    Geser tabel ke samping untuk melihat seluruh kolom.
+                </div>
+                <table class="min-w-[1120px] table-fixed divide-y divide-slate-200 text-[10px] text-slate-700 lg:min-w-full">
                     <colgroup>
                         <col class="w-[10%]">
                         <col class="w-[17%]">
@@ -247,26 +250,6 @@
                         @endforelse
                     </tbody>
                 </table>
-            </div>
-
-            <div class="space-y-3 bg-slate-50/70 p-3 lg:hidden">
-                @forelse ($notifications as $notification)
-                    @include('admin.purchase-order.partials.mobile-card', [
-                        'notification' => $notification,
-                        'search' => $search,
-                        'selectedStatus' => $selectedStatus,
-                        'selectedUnit' => $selectedUnit,
-                        'selectedFrom' => $selectedFrom,
-                        'selectedTo' => $selectedTo,
-                        'currentPage' => $notifications->currentPage(),
-                        'approvalBadgeClasses' => $approvalBadgeClasses,
-                        'purchaseOrderUploadHint' => $purchaseOrderUploadHint,
-                    ])
-                @empty
-                    <div class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-500">
-                        Tidak ada data ditemukan.
-                    </div>
-                @endforelse
             </div>
 
             @if ($notifications->hasPages())

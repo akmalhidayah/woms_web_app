@@ -1566,6 +1566,8 @@ class LhppController extends Controller
             : [];
 
         if ($submittedFlow === []) {
+            $this->ensureControllerApprovalOrderForBast($defaultFlow);
+
             return array_values($defaultFlow);
         }
 
@@ -1576,6 +1578,7 @@ class LhppController extends Controller
         }
 
         $this->ensureDiropsIsLastForBast($submittedFlow);
+        $this->ensureControllerApprovalOrderForBast($submittedFlow);
 
         return array_values($submittedFlow);
     }
@@ -1622,6 +1625,27 @@ class LhppController extends Controller
         if ($diropsIndex !== false && $diropsIndex !== array_key_last($flow)) {
             throw ValidationException::withMessages([
                 'approval_flow' => 'DIROPS harus tetap menjadi step terakhir karena tahap ini memakai upload dokumen final.',
+            ]);
+        }
+    }
+
+    /**
+     * @param  list<string>  $flow
+     */
+    private function ensureControllerApprovalOrderForBast(array $flow): void
+    {
+        $managerIndex = array_search('Manager Pengendali', $flow, true);
+        $smIndex = array_search('SM Pengendali', $flow, true);
+        $gmIndex = array_search('GM Pengendali', $flow, true);
+
+        if (
+            $managerIndex === false
+            || $smIndex === false
+            || $gmIndex === false
+            || ! ($managerIndex < $smIndex && $smIndex < $gmIndex)
+        ) {
+            throw ValidationException::withMessages([
+                'approval_flow' => 'Urutan Pengendali wajib Manager Pengendali, SM Pengendali, lalu GM Pengendali.',
             ]);
         }
     }

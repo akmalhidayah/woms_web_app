@@ -758,7 +758,17 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         const [step] = flow.splice(from, 1);
                         flow.splice(to, 0, step);
 
-                        return !flow.includes('DIROPS') || flow[flow.length - 1] === 'DIROPS';
+                        const managerIndex = flow.indexOf('Manager Pengendali');
+                        const smIndex = flow.indexOf('SM Pengendali');
+                        const gmIndex = flow.indexOf('GM Pengendali');
+                        const controllerOrderValid = managerIndex !== -1
+                            && smIndex !== -1
+                            && gmIndex !== -1
+                            && managerIndex < smIndex
+                            && smIndex < gmIndex;
+
+                        return controllerOrderValid
+                            && (!flow.includes('DIROPS') || flow[flow.length - 1] === 'DIROPS');
                     },
                     moveApprovalStep(from, to) {
                         if (!this.canMoveApprovalStep(from, to)) {

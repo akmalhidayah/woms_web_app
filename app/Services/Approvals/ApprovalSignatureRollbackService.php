@@ -22,6 +22,7 @@ class ApprovalSignatureRollbackService
     public function __construct(
         private readonly HppApprovalSignatureBuilder $hppSignatureBuilder,
         private readonly BastApprovalSignatureBuilder $bastSignatureBuilder,
+        private readonly BastSmPengendaliSynchronizer $bastSmSynchronizer,
     ) {}
 
     public function rollbackHpp(
@@ -93,18 +94,30 @@ class ApprovalSignatureRollbackService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $lockedSignature = LhppBastSignature::query()
+            $this->bastSmSynchronizer->sync($lockedBast);
+
+            $clickedSignature = LhppBastSignature::query()
                 ->where('lhpp_bast_id', $lockedBast->id)
                 ->whereKey($signature->getKey())
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $this->assertRollbackableSignature($lockedSignature, 'BAST/LHPP');
+            $this->assertRollbackableSignature($clickedSignature, 'BAST/LHPP');
             $this->assertBastRollbackAllowed($lockedBast);
+
+            $allSignatures = LhppBastSignature::query()
+                ->where('lhpp_bast_id', $lockedBast->id)
+                ->orderBy('step_order')
+                ->lockForUpdate()
+                ->get();
+            $effectiveStartSignature = $allSignatures
+                ->where('step_order', '<=', $clickedSignature->step_order)
+                ->first(fn (LhppBastSignature $item): bool => ! $item->isSigned() && ! $item->isSkipped())
+                ?: $clickedSignature;
 
             $affectedSignatures = LhppBastSignature::query()
                 ->where('lhpp_bast_id', $lockedBast->id)
-                ->where('step_order', '>=', $lockedSignature->step_order)
+                ->where('step_order', '>=', $effectiveStartSignature->step_order)
                 ->orderBy('step_order')
                 ->lockForUpdate()
                 ->get();
@@ -112,7 +125,7 @@ class ApprovalSignatureRollbackService
             $this->createAudit(
                 documentType: 'bast_lhpp',
                 documentId: $lockedBast->id,
-                signature: $lockedSignature,
+                signature: $clickedSignature,
                 rollbackBy: $rollbackBy,
                 reason: $reason,
                 affectedSignatures: $affectedSignatures,
@@ -121,8 +134,8 @@ class ApprovalSignatureRollbackService
             $this->deleteSignatureFilesAfterCommit($affectedSignatures);
             $this->resetSignatures($affectedSignatures, LhppBastSignature::STATUS_LOCKED);
 
-            $lockedSignature = $lockedSignature->fresh();
-            $lockedSignature->update([
+            $effectiveStartSignature = $effectiveStartSignature->fresh();
+            $effectiveStartSignature->update([
                 'status' => LhppBastSignature::STATUS_PENDING,
             ]);
 
@@ -130,9 +143,9 @@ class ApprovalSignatureRollbackService
                 'approval_status' => LhppBast::APPROVAL_IN_REVIEW,
             ]);
 
-            $this->bastSignatureBuilder->issueToken($lockedSignature->fresh(), $sendEmail);
+            $this->bastSignatureBuilder->issueToken($effectiveStartSignature->fresh(), $sendEmail);
 
-            return $lockedSignature->fresh('signer');
+            return $effectiveStartSignature->fresh('signer');
         });
     }
 

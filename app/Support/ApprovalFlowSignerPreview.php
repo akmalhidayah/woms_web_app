@@ -119,6 +119,7 @@ class ApprovalFlowSignerPreview
         $lhpp->setRelation('order', $order);
 
         $managerPengendali = $this->bastSignerName($lhpp, 'Manager Pengendali');
+        $smPengendali = $this->bastSignerName($lhpp, 'SM Pengendali');
         $managerPeminta = $this->bastSignerName($lhpp, 'Manager Peminta');
         $gmPengendali = $this->bastSignerName($lhpp, 'GM Pengendali');
         $dirops = $this->bastSignerName($lhpp, 'DIROPS');
@@ -126,6 +127,8 @@ class ApprovalFlowSignerPreview
         return [
             'Manager Pengendali' => $managerPengendali,
             'Manager Workshop' => $managerPengendali,
+            'SM Pengendali' => $smPengendali,
+            'SM PMMS' => $smPengendali,
             'Manager Peminta' => $managerPeminta,
             'Manager User' => $managerPeminta,
             'GM Pengendali' => $gmPengendali,

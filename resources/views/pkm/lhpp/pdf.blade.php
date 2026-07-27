@@ -196,7 +196,7 @@
         }
 
         .signature-main {
-            width: 72%;
+            width: 79%;
             float: left;
         }
 
@@ -436,11 +436,13 @@
         ? [
             $approvalCellFromRole('dirops', 'Director of Operation'),
             $approvalCellFromRole('gm_pengendali', 'GM Pengendali'),
+            $approvalCellFromRole('sm_pengendali', 'SM Pengendali'),
             $approvalCellFromRole('manager_pengendali', 'Manager Pengendali'),
             $approvalCellFromRole('manager_peminta', 'Manager Peminta'),
         ]
         : [
             $approvalCellFromRole('gm_pengendali', 'GM Pengendali'),
+            $approvalCellFromRole('sm_pengendali', 'SM Pengendali'),
             $approvalCellFromRole('manager_pengendali', 'Manager Pengendali'),
             $approvalCellFromRole('manager_peminta', 'Manager Peminta'),
         ];
@@ -657,14 +659,16 @@
                 <table class="signature-table">
                     <colgroup>
                         @if ($isOver250)
-                            <col style="width: 26%;">
-                            <col style="width: 24.6667%;">
-                            <col style="width: 24.6667%;">
-                            <col style="width: 24.6666%;">
+                            <col style="width: 20%;">
+                            <col style="width: 20%;">
+                            <col style="width: 20%;">
+                            <col style="width: 20%;">
+                            <col style="width: 20%;">
                         @else
-                            <col style="width: 33.3333%;">
-                            <col style="width: 33.3333%;">
-                            <col style="width: 33.3334%;">
+                            <col style="width: 25%;">
+                            <col style="width: 25%;">
+                            <col style="width: 25%;">
+                            <col style="width: 25%;">
                         @endif
                     </colgroup>
                     <tr>

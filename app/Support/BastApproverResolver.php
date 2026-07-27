@@ -38,13 +38,24 @@ class BastApproverResolver
         $hpp = $this->resolveHpp($lhpp);
         $hppRoleLabel = match ($roleKey) {
             'manager_pengendali' => 'Manager Pengendali',
+            'sm_pengendali' => 'SM Pengendali',
             'manager_peminta' => 'Manager Peminta',
             'gm_pengendali' => 'GM Pengendali',
             'dirops' => 'DIROPS',
             default => $flowRoleLabel,
         };
 
-        return $this->hppApproverResolver->resolveApprover($hpp, $hppRoleLabel);
+        try {
+            return $this->hppApproverResolver->resolveApprover($hpp, $hppRoleLabel);
+        } catch (ValidationException $exception) {
+            if ($roleKey === 'sm_pengendali') {
+                throw ValidationException::withMessages([
+                    'approval' => 'SM Pengendali tidak ditemukan pada struktur unit pengendali HPP.',
+                ]);
+            }
+
+            throw $exception;
+        }
     }
 
     private function roleKeyFor(string $flowRoleLabel): string
@@ -52,6 +63,7 @@ class BastApproverResolver
         return match ($flowRoleLabel) {
             'Manager PKM' => 'manager_pkm',
             'Manager Pengendali', 'Manager Workshop' => 'manager_pengendali',
+            'SM Pengendali', 'SM PMMS' => 'sm_pengendali',
             'Manager Peminta', 'Manager User' => 'manager_peminta',
             'GM Pengendali', 'GM PMMS' => 'gm_pengendali',
             'DIROPS', 'Dirops' => 'dirops',

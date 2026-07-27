@@ -104,7 +104,8 @@ class DashboardController extends Controller
             $hasLpjPpl = (bool) ($lpjPpl?->lpj_document_path_termin1 && $lpjPpl?->ppl_document_path_termin1);
             $isCompleteDocument = $hasHpp && $hasPo && $hasBast && $hasLpjPpl;
             $hasGaransi = (bool) $garansi;
-            $isDone = $isCompleteDocument && $hasGaransi;
+            $isDocumentFinal = $isCompleteDocument && $hasGaransi;
+            $isDone = $progress >= 100;
             $garansiAktif = $garansi
                 && (int) ($garansi->garansi_months ?? 0) > 0
                 && $garansi->end_date?->gte($today);
@@ -113,7 +114,7 @@ class DashboardController extends Controller
             $isToday = ! $isDone && $targetDate && $targetDate->isToday();
             $isSoon = ! $isDone && $targetDate && $targetDate->gt($today) && $targetDate->lte($today->copy()->addDays(7));
 
-            $sourceMenu = $isDone ? 'Dokumen' : ($hasBast ? 'BAST / LHPP' : 'List Pekerjaan');
+            $sourceMenu = $isDocumentFinal ? 'Dokumen' : ($hasBast ? 'BAST / LHPP' : 'List Pekerjaan');
 
             $statusKey = match (true) {
                 $isDone => 'selesai',
@@ -146,12 +147,12 @@ class DashboardController extends Controller
             };
 
             $actionUrl = match (true) {
-                $isDone => route('pkm.laporan', ['notification_number' => $order->nomor_order, 'status' => 'complete']),
+                $isDocumentFinal => route('pkm.laporan', ['notification_number' => $order->nomor_order, 'status' => 'complete']),
                 $hasBast => route('pkm.lhpp.index', ['search' => $order->nomor_order]),
                 default => route('pkm.jobwaiting', ['search' => $order->nomor_order]),
             };
 
-            $actionLabel = $isDone ? 'Detail' : 'Update';
+            $actionLabel = $isDocumentFinal ? 'Detail' : 'Update';
 
             return [
                 'order' => $order,
@@ -161,10 +162,11 @@ class DashboardController extends Controller
                 'has_bast' => $hasBast,
                 'has_termin_two' => $hasTerminTwo,
                 'is_complete_document' => $isCompleteDocument,
+                'is_document_final' => $isDocumentFinal,
                 'has_garansi' => $hasGaransi,
                 'garansi_aktif' => (bool) $garansiAktif,
                 'is_initial_work_flow' => $isEmergencyInitialWorkFlow,
-                'show_in_jobwaiting' => ! $isDone,
+                'show_in_jobwaiting' => ! $isDocumentFinal,
                 'is_done' => $isDone,
                 'is_overdue' => $isOverdue,
                 'is_today' => $isToday,
@@ -191,7 +193,8 @@ class DashboardController extends Controller
         $bastTerminOneCount = $dashboardItems->where('has_bast', true)->count();
         $bastTerminTwoCount = $dashboardItems->where('has_termin_two', true)->count();
         $dokumenLengkapCount = $dashboardItems->where('is_complete_document', true)->count();
-        $dokumenFinalCount = $dashboardItems->where('is_done', true)->count();
+        $dokumenFinalCount = $dashboardItems->where('is_document_final', true)->count();
+        $pekerjaanSelesaiCount = $dashboardItems->where('is_done', true)->count();
         $garansiAktifCount = $dashboardItems->where('garansi_aktif', true)->count();
         $overdueCount = $dashboardItems->where('is_overdue', true)->count();
         $todayCount = $dashboardItems->where('is_today', true)->count();
@@ -233,7 +236,7 @@ class DashboardController extends Controller
         $statusBreakdown = collect([
             [
                 'label' => 'Selesai',
-                'count' => $dokumenFinalCount,
+                'count' => $pekerjaanSelesaiCount,
                 'color' => '#3fb37c',
                 'class' => 'bg-emerald-100',
             ],
@@ -342,7 +345,7 @@ class DashboardController extends Controller
             'targetDates' => $targets,
             'jobProgress' => $progressItems->all(),
             'totalPekerjaan' => $totalPekerjaan,
-            'pekerjaanSelesai' => $dokumenFinalCount,
+            'pekerjaanSelesai' => $pekerjaanSelesaiCount,
             'pekerjaanMenunggu' => $listPekerjaanCount,
             'emergencyInitialWorkCount' => $emergencyInitialWorkCount,
             'totalProgress' => $totalProgress,

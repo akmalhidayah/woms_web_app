@@ -115,7 +115,8 @@ class PurchaseOrderEmergencyTransitionTest extends TestCase
             ->get(route('admin.purchase-order.index'))
             ->assertOk()
             ->assertSee($hpp->nomor_order)
-            ->assertSee('min-w-[1120px]', false)
+            ->assertSee('class="purchase-order-responsive-table', false)
+            ->assertSee('min-width: 1480px;', false)
             ->assertSee('Geser tabel ke samping untuk melihat seluruh kolom.')
             ->assertDontSee('data-mobile-purchase-order-card', false);
     }

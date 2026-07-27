@@ -49,7 +49,7 @@
                 <div class="border-b border-slate-100 bg-slate-50 px-3 py-2 text-[9px] font-semibold text-slate-500 lg:hidden">
                     Geser tabel ke samping untuk melihat seluruh kolom.
                 </div>
-                <table class="min-w-[920px] table-fixed border-collapse text-[10px] text-slate-700 lg:min-w-full">
+                <table class="lpj-responsive-table table-fixed border-collapse text-[10px] text-slate-700 lg:min-w-full">
                     <colgroup>
                         <col class="w-[14%]">
                         <col class="w-[19%]">
@@ -262,6 +262,15 @@
             @endif
         </section>
     </div>
+
+    <style>
+        @media (max-width: 1023px) {
+            .lpj-responsive-table {
+                width: 1180px;
+                min-width: 1180px;
+            }
+        }
+    </style>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>

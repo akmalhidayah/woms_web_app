@@ -61,7 +61,8 @@ class LpjPplDocumentUiTest extends TestCase
             ->assertSee('id="lpj-upload-'.$lhpp->id.'" title="Upload PDF LPJ" aria-label="Upload PDF LPJ" style="display: none; height: 2rem; width: 7.5rem;', false)
             ->assertSee('id="ppl-document-'.$lhpp->id.'" class="hidden h-8', false)
             ->assertSee('id="ppl-upload-'.$lhpp->id.'" title="Upload PDF PPL" aria-label="Upload PDF PPL" style="display: flex; height: 2rem; width: 7.5rem;', false)
-            ->assertSee('min-w-[920px]', false)
+            ->assertSee('class="lpj-responsive-table', false)
+            ->assertSee('min-width: 1180px;', false)
             ->assertDontSee('data-mobile-lpj-card', false);
     }
 }

@@ -16,6 +16,10 @@ class MaintenanceSnapshotRepository
 
     public const SCHEDULER_HEARTBEAT_KEY = 'woms:maintenance:scheduler:heartbeat';
 
+    public const DEEP_CONTEXT_KEY_PREFIX = 'woms:maintenance:deep:context:';
+
+    public const DEEP_FINDINGS_KEY_PREFIX = 'woms:maintenance:deep:findings:';
+
     public function snapshot(string $mode): ?array
     {
         $value = Cache::get($this->snapshotKey($mode));
@@ -44,6 +48,44 @@ class MaintenanceSnapshotRepository
             'updated_at' => now()->toIso8601String(),
             ...$extra,
         ], now()->addMinutes(60));
+    }
+
+    public function deepContext(string $scanId): ?array
+    {
+        $value = Cache::get(self::DEEP_CONTEXT_KEY_PREFIX.$scanId);
+
+        return is_array($value) ? $value : null;
+    }
+
+    public function putDeepContext(string $scanId, array $context): void
+    {
+        Cache::put(
+            self::DEEP_CONTEXT_KEY_PREFIX.$scanId,
+            $context,
+            now()->addMinutes((int) config('maintenance.deep_scan_context_ttl_minutes'))
+        );
+    }
+
+    public function deepFindings(string $scanId): array
+    {
+        $value = Cache::get(self::DEEP_FINDINGS_KEY_PREFIX.$scanId);
+
+        return is_array($value) ? $value : [];
+    }
+
+    public function putDeepFindings(string $scanId, array $findings): void
+    {
+        Cache::put(
+            self::DEEP_FINDINGS_KEY_PREFIX.$scanId,
+            $findings,
+            now()->addMinutes((int) config('maintenance.deep_scan_context_ttl_minutes'))
+        );
+    }
+
+    public function forgetDeepScan(string $scanId): void
+    {
+        Cache::forget(self::DEEP_CONTEXT_KEY_PREFIX.$scanId);
+        Cache::forget(self::DEEP_FINDINGS_KEY_PREFIX.$scanId);
     }
 
     public function heartbeat(): ?string

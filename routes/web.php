@@ -138,11 +138,20 @@ Route::middleware(['auth'])->group(function () {
         ->group(function () {
             Route::get('/', [MaintenanceController::class, 'index'])->name('index');
             Route::post('scan/quick', [MaintenanceController::class, 'quickScan'])
-                ->middleware('throttle:3,1')
+                ->middleware('throttle:180,1')
                 ->name('scan.quick');
-            Route::post('scan/deep', [MaintenanceController::class, 'deepScan'])
-                ->middleware('throttle:2,1')
-                ->name('scan.deep');
+            Route::post('scan/deep/start', [MaintenanceController::class, 'startDeepScan'])
+                ->middleware('throttle:180,1')
+                ->name('scan.deep.start');
+            Route::post('scan/deep/step', [MaintenanceController::class, 'stepDeepScan'])
+                ->middleware('throttle:180,1')
+                ->name('scan.deep.step');
+            Route::post('scan/deep/finalize', [MaintenanceController::class, 'finalizeDeepScan'])
+                ->middleware('throttle:180,1')
+                ->name('scan.deep.finalize');
+            Route::post('scan/deep/cancel', [MaintenanceController::class, 'cancelDeepScan'])
+                ->middleware('throttle:180,1')
+                ->name('scan.deep.cancel');
         });
     Route::put('admin/access-control', [AccessControlController::class, 'update'])
         ->middleware(['role:admin', 'admin_role:super_admin'])

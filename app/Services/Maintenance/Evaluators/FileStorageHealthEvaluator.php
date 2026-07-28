@@ -26,17 +26,7 @@ class FileStorageHealthEvaluator implements MaintenanceEvaluator
         }
 
         $findings = [];
-        $models = [
-            [OrderDocument::class, 'path_file', 'Order'],
-            [QualityControlReportFile::class, 'file_path', 'Quality Control'],
-            [PurchaseOrder::class, 'po_document_path', 'Purchase Order'],
-            [AdminInformationFile::class, 'file_path', 'Informasi'],
-            [HppSignature::class, 'signed_document_path', 'HPP'],
-            [LhppBastSignature::class, 'signed_document_path', 'BAST'],
-            [InitialWorkSignature::class, 'signature_path', 'Initial Work'],
-        ];
-
-        foreach ($models as [$model, $column, $module]) {
+        foreach ($this->sources() as [$model, $column, $module]) {
             $model::query()
                 ->select(['id', $column])
                 ->whereNotNull($column)
@@ -58,6 +48,74 @@ class FileStorageHealthEvaluator implements MaintenanceEvaluator
         }
 
         return $findings;
+    }
+
+    /**
+     * @return array{findings: list<array<string, mixed>>, next_source: int, next_id: int, finished: bool}
+     */
+    public function evaluateChunk(int $sourceIndex, int $lastId = 0): array
+    {
+        $sources = $this->sources();
+        if (! isset($sources[$sourceIndex])) {
+            return [
+                'findings' => [],
+                'next_source' => $sourceIndex,
+                'next_id' => $lastId,
+                'finished' => true,
+            ];
+        }
+
+        [$model, $column, $module] = $sources[$sourceIndex];
+        $rows = $model::query()
+            ->select(['id', $column])
+            ->where('id', '>', $lastId)
+            ->whereNotNull($column)
+            ->where($column, '!=', '')
+            ->orderBy('id')
+            ->limit((int) config('maintenance.deep_scan_chunk_size'))
+            ->get();
+
+        $findings = [];
+        foreach ($rows as $row) {
+            $path = trim((string) $row->{$column});
+            if ($this->isInlineData($path) || $this->exists($path)) {
+                continue;
+            }
+
+            $findings[] = $this->finding($module, $row, $path);
+        }
+
+        $chunkSize = (int) config('maintenance.deep_scan_chunk_size');
+        $sourceFinished = $rows->count() < $chunkSize;
+        $nextSource = $sourceFinished ? $sourceIndex + 1 : $sourceIndex;
+
+        return [
+            'findings' => $findings,
+            'next_source' => $nextSource,
+            'next_id' => $sourceFinished ? 0 : (int) $rows->last()->getKey(),
+            'finished' => $nextSource >= count($sources),
+        ];
+    }
+
+    public function sourceCount(): int
+    {
+        return count($this->sources());
+    }
+
+    /**
+     * @return list<array{class-string<Model>, string, string}>
+     */
+    private function sources(): array
+    {
+        return [
+            [OrderDocument::class, 'path_file', 'Order'],
+            [QualityControlReportFile::class, 'file_path', 'Quality Control'],
+            [PurchaseOrder::class, 'po_document_path', 'Purchase Order'],
+            [AdminInformationFile::class, 'file_path', 'Informasi'],
+            [HppSignature::class, 'signed_document_path', 'HPP'],
+            [LhppBastSignature::class, 'signed_document_path', 'BAST'],
+            [InitialWorkSignature::class, 'signature_path', 'Initial Work'],
+        ];
     }
 
     private function isInlineData(string $path): bool

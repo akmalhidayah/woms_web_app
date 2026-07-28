@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>BAST {{ $lhpp->termin_type === 'termin_2' ? 'Termin 2' : 'Termin 1' }} - {{ $lhpp->nomor_order }}</title>
+    <title>BAST - {{ $lhpp->nomor_order }}</title>
     <style>
         @page {
             margin: 6mm;
@@ -325,7 +325,6 @@
     $isOver250 = $lhpp->approval_threshold === 'over_250';
     $isTerminTwo = $lhpp->termin_type === 'termin_2';
     $documentNo = $lhpp->document_no ?: '-';
-    $terminLabel = $isTerminTwo ? 'Termin 2' : 'Termin 1';
     $title = $isOver250
         ? 'BERITA ACARA SERAH TERIMA (BAST) PEKERJAAN'
         : 'BERITA ACARA SERAH TERIMA (BAST) REALISASI PEKERJAAN';
@@ -371,12 +370,6 @@
     };
 
     $isWithoutWarranty = ! $isTerminTwo && (int) ($lhpp->garansi?->garansi_months ?? -1) === 0;
-
-    $terminDisplayLabel = $isWithoutWarranty
-        ? 'TOTAL DIBAYAR'
-        : ($isTerminTwo
-        ? 'TERMIN 2 (5% x Total Actual Biaya)'
-        : 'TERMIN 1 (95% x Total Actual Biaya)');
 
     $terminDisplayValue = $isWithoutWarranty
         ? (float) $lhpp->total_aktual_biaya
@@ -487,11 +480,6 @@
                 <td class="meta-label">NOMOR ORDER</td>
                 <td class="meta-separator">:</td>
                 <td class="meta-value">{{ $lhpp->nomor_order }}</td>
-            </tr>
-            <tr>
-                <td class="meta-label">TERMIN</td>
-                <td class="meta-separator">:</td>
-                <td class="meta-value">{{ $terminLabel }}</td>
             </tr>
             <tr>
                 <td class="meta-label">DESKRIPSI PEKERJAAN</td>
@@ -624,7 +612,7 @@
                     <td class="summary-value">{{ $formatMoney($lhpp->total_aktual_biaya) }}</td>
                 </tr>
                 <tr class="summary-row summary-row-gray">
-                    <td colspan="4" class="summary-label">{{ $terminDisplayLabel }}</td>
+                    <td colspan="4" class="summary-label">TOTAL DIBAYAR</td>
                     <td class="summary-value">{{ $formatMoney($terminDisplayValue) }}</td>
                 </tr>
             </tbody>

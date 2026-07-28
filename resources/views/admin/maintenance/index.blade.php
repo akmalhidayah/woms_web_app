@@ -31,7 +31,124 @@
         ];
     @endphp
 
-    <div data-maintenance-page class="space-y-4">
+    <script>
+        window.maintenanceScanner = (config) => ({
+            quickSubmitting: false,
+            deepModalOpen: false,
+            deepRunning: false,
+            requestActive: false,
+            cancelRequested: false,
+            scanId: null,
+            currentStep: '',
+            progress: 0,
+            findingCount: 0,
+            progressMessage: '',
+            errorMessage: '',
+
+            async request(url, payload = {}) {
+                this.requestActive = true;
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': config.csrf,
+                        },
+                        body: JSON.stringify(payload),
+                    });
+                    const data = await response.json();
+
+                    if (!response.ok || data.success === false) {
+                        throw new Error(data.message || 'Pemeriksaan tidak dapat dilanjutkan.');
+                    }
+
+                    return data;
+                } finally {
+                    this.requestActive = false;
+                }
+            },
+
+            async startDeepScan() {
+                this.deepRunning = true;
+                this.cancelRequested = false;
+                this.errorMessage = '';
+                this.progress = 0;
+                this.findingCount = 0;
+
+                try {
+                    const started = await this.request(config.startUrl);
+                    this.scanId = started.scan_id;
+                    this.currentStep = started.current_step;
+                    this.progress = started.progress;
+                    this.progressMessage = started.message;
+
+                    while (!this.cancelRequested) {
+                        const result = await this.request(config.stepUrl, {
+                            scan_id: this.scanId,
+                            step: this.currentStep,
+                        });
+                        this.progress = result.progress;
+                        this.findingCount = result.finding_count;
+                        this.progressMessage = result.message;
+
+                        if (result.finished) {
+                            const finalized = await this.request(config.finalizeUrl, {
+                                scan_id: this.scanId,
+                            });
+                            this.progress = 100;
+                            this.progressMessage = 'Pemeriksaan mendalam berhasil diselesaikan.';
+                            window.location.assign(finalized.redirect_url);
+                            return;
+                        }
+
+                        this.currentStep = result.next_step;
+                        await new Promise((resolve) => window.setTimeout(resolve, 50));
+                    }
+                } catch (error) {
+                    this.errorMessage = error.message || 'Pemeriksaan mendalam tidak dapat diselesaikan. Silakan periksa log aplikasi.';
+                    if (this.scanId) {
+                        try {
+                            await this.request(config.cancelUrl, { scan_id: this.scanId });
+                        } catch (_) {
+                            // Lock tetap mempunyai TTL apabila koneksi ke server terputus.
+                        }
+                    }
+                    this.deepRunning = false;
+                }
+            },
+
+            async cancelDeepScan() {
+                if (!this.scanId || this.requestActive) {
+                    return;
+                }
+
+                this.cancelRequested = true;
+                try {
+                    await this.request(config.cancelUrl, { scan_id: this.scanId });
+                    this.deepRunning = false;
+                    this.deepModalOpen = false;
+                    this.scanId = null;
+                } catch (error) {
+                    this.errorMessage = error.message || 'Pemeriksaan tidak dapat dibatalkan.';
+                    this.cancelRequested = false;
+                }
+            },
+        });
+    </script>
+
+    <div
+        data-maintenance-page
+        x-data="maintenanceScanner({
+            csrf: @js(csrf_token()),
+            startUrl: @js(route('admin.maintenance.scan.deep.start')),
+            stepUrl: @js(route('admin.maintenance.scan.deep.step')),
+            finalizeUrl: @js(route('admin.maintenance.scan.deep.finalize')),
+            cancelUrl: @js(route('admin.maintenance.scan.deep.cancel')),
+        })"
+        class="space-y-4"
+    >
         @if (session('success'))
             <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{{ session('success') }}</div>
         @endif
@@ -57,20 +174,17 @@
                 </div>
 
                 <div class="flex flex-col gap-2 sm:flex-row">
-                    <form method="POST" action="{{ route('admin.maintenance.scan.quick') }}">
+                    <form method="POST" action="{{ route('admin.maintenance.scan.quick') }}" @submit="quickSubmitting = true">
                         @csrf
-                        <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
-                            <i data-lucide="refresh-cw" class="h-4 w-4"></i>
-                            Periksa Ulang
+                        <button type="submit" :disabled="quickSubmitting || deepRunning" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                            <i data-lucide="refresh-cw" class="h-4 w-4" :class="{ 'animate-spin': quickSubmitting }"></i>
+                            <span x-text="quickSubmitting ? 'Memeriksa...' : 'Periksa Ulang'">Periksa Ulang</span>
                         </button>
                     </form>
-                    <form method="POST" action="{{ route('admin.maintenance.scan.deep') }}" onsubmit="return confirm('Jalankan pemeriksaan mendalam? Proses berjalan melalui antrean.');">
-                        @csrf
-                        <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                    <button type="button" @click="deepModalOpen = true" :disabled="quickSubmitting || deepRunning" class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">
                             <i data-lucide="scan-search" class="h-4 w-4"></i>
                             Pemeriksaan Mendalam
-                        </button>
-                    </form>
+                    </button>
                 </div>
             </div>
         </section>
@@ -195,6 +309,61 @@
         <div class="text-xs text-slate-500">
             Status scan: <strong>{{ strtoupper($scanStatus['status'] ?? 'idle') }}</strong>.
             Halaman ini tidak memperbarui data secara otomatis; muat ulang untuk melihat hasil terbaru.
+        </div>
+
+        <div
+            x-cloak
+            x-show="deepModalOpen"
+            x-transition.opacity
+            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6"
+            @keydown.escape.window="if (!deepRunning) deepModalOpen = false"
+        >
+            <div x-show="deepModalOpen" x-transition class="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+                <div class="border-b border-slate-200 px-5 py-4">
+                    <h2 class="text-lg font-bold text-slate-900">Pemeriksaan Mendalam</h2>
+                    <p class="mt-1 text-sm leading-6 text-slate-500">
+                        Pemeriksaan ini mengecek konsistensi dokumen dan keberadaan file secara bertahap. Proses dapat memerlukan beberapa waktu.
+                    </p>
+                </div>
+
+                <div class="space-y-4 px-5 py-5">
+                    <template x-if="deepRunning || progress > 0">
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between gap-3 text-sm">
+                                <span class="font-semibold text-slate-700" x-text="progressMessage"></span>
+                                <span class="font-bold text-blue-600" x-text="`${progress}%`"></span>
+                            </div>
+                            <div class="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                                <div class="h-full rounded-full bg-blue-600 transition-all duration-300" :style="`width: ${progress}%`"></div>
+                            </div>
+                            <p class="text-xs text-slate-500">
+                                Temuan sementara: <strong x-text="findingCount"></strong>
+                            </p>
+                        </div>
+                    </template>
+
+                    <div x-show="errorMessage" class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" x-text="errorMessage"></div>
+                </div>
+
+                <div class="flex flex-col-reverse gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:justify-end">
+                    <button
+                        type="button"
+                        @click="deepRunning ? cancelDeepScan() : deepModalOpen = false"
+                        :disabled="requestActive"
+                        class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        x-text="deepRunning ? 'Batalkan Pemeriksaan' : 'Batal'"
+                    >Batal</button>
+                    <button
+                        type="button"
+                        @click="startDeepScan()"
+                        :disabled="deepRunning || requestActive"
+                        class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        <i data-lucide="scan-search" class="h-4 w-4" :class="{ 'animate-pulse': deepRunning }"></i>
+                        <span x-text="deepRunning ? 'Pemeriksaan sedang berjalan...' : 'Mulai Pemeriksaan'">Mulai Pemeriksaan</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </x-layouts.admin>

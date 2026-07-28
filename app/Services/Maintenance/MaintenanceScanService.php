@@ -9,6 +9,7 @@ use App\Services\Maintenance\Evaluators\MaintenanceEvaluator;
 use App\Services\Maintenance\Evaluators\QueueSchedulerHealthEvaluator;
 use App\Services\Maintenance\Evaluators\SystemHealthEvaluator;
 use App\Services\Maintenance\Evaluators\UserStructureHealthEvaluator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -38,27 +39,37 @@ class MaintenanceScanService
         ], []);
 
         foreach ($this->evaluators() as $evaluator) {
-            $timer = hrtime(true);
-            try {
-                $categories[$evaluator->category()] = $evaluator->evaluate($mode);
-            } catch (Throwable $exception) {
-                Log::error('maintenance.scan.evaluator_failed', [
-                    'mode' => $mode,
-                    'evaluator' => $evaluator::class,
-                    'exception' => $exception::class,
-                    'message' => mb_substr($exception->getMessage(), 0, 240),
-                ]);
-                $categories[$evaluator->category()] = [$this->failedEvaluatorFinding($evaluator)];
-            } finally {
-                Log::info('maintenance.scan.evaluator_completed', [
-                    'mode' => $mode,
-                    'evaluator' => $evaluator::class,
-                    'duration_ms' => (int) ((hrtime(true) - $timer) / 1_000_000),
-                    'finding_count' => count($categories[$evaluator->category()] ?? []),
-                ]);
-            }
+            $categories[$evaluator->category()] = $this->scanCategory($mode, $evaluator->category());
         }
 
+        return $this->buildSnapshot($mode, $categories, $started);
+    }
+
+    public function scanCategory(string $mode, string $category): array
+    {
+        $evaluator = $this->evaluators()[$category] ?? null;
+        if (! $evaluator) {
+            throw new \InvalidArgumentException('Kategori maintenance tidak valid.');
+        }
+
+        $timer = hrtime(true);
+        try {
+            return $evaluator->evaluate($mode);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return [$this->failedEvaluatorFinding($evaluator)];
+        } finally {
+            Log::info('maintenance.scan.evaluator_completed', [
+                'mode' => $mode,
+                'evaluator' => $evaluator::class,
+                'duration_ms' => (int) ((hrtime(true) - $timer) / 1_000_000),
+            ]);
+        }
+    }
+
+    public function buildSnapshot(string $mode, array $categories, Carbon $started): array
+    {
         $all = collect($categories)->flatten(1);
         $completed = now();
 
@@ -79,11 +90,18 @@ class MaintenanceScanService
     }
 
     /**
-     * @return list<MaintenanceEvaluator>
+     * @return array<string, MaintenanceEvaluator>
      */
     private function evaluators(): array
     {
-        return [$this->system, $this->approval, $this->documents, $this->files, $this->usersStructure, $this->queueScheduler];
+        return [
+            'system' => $this->system,
+            'approval' => $this->approval,
+            'documents' => $this->documents,
+            'files' => $this->files,
+            'users_structure' => $this->usersStructure,
+            'queue_scheduler' => $this->queueScheduler,
+        ];
     }
 
     private function failedEvaluatorFinding(MaintenanceEvaluator $evaluator): array

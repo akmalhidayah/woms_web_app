@@ -2,12 +2,11 @@
 
 namespace Tests\Feature\Admin\Maintenance;
 
-use App\Jobs\Maintenance\RunMaintenanceScan;
 use App\Models\Hpp;
 use App\Models\User;
 use App\Services\Maintenance\MaintenanceSnapshotRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class MaintenancePageReadOnlyTest extends TestCase
@@ -16,7 +15,7 @@ class MaintenancePageReadOnlyTest extends TestCase
 
     public function test_index_only_reads_cached_snapshot_and_does_not_dispatch_scan(): void
     {
-        Bus::fake();
+        Queue::fake();
         $admin = User::factory()->create([
             'role' => User::ROLE_ADMIN,
             'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
@@ -32,12 +31,18 @@ class MaintenancePageReadOnlyTest extends TestCase
             ->assertSee('Perlu Diperiksa')
             ->assertSee('File &amp; Storage', false)
             ->assertSee('Log Laravel')
+            ->assertSee('Pemeriksaan ini mengecek konsistensi dokumen')
+            ->assertSee('Mulai Pemeriksaan')
+            ->assertSee('startUrl:', false)
+            ->assertSee('stepUrl:', false)
+            ->assertSee('finalizeUrl:', false)
+            ->assertSee('cancelUrl:', false)
             ->assertDontSee('data-maintenance-log-panel', false)
             ->assertDontSee('setInterval', false)
             ->assertDontSee('wire:poll', false);
 
         $this->assertSame($before, Hpp::query()->count());
-        Bus::assertNotDispatched(RunMaintenanceScan::class);
+        Queue::assertNothingPushed();
         $this->assertSame(1, substr_count($response->getContent(), 'data-maintenance-page'));
     }
 
@@ -55,9 +60,10 @@ class MaintenancePageReadOnlyTest extends TestCase
             ->assertSee('data-maintenance-log-panel', false);
     }
 
-    public function test_scan_buttons_only_queue_jobs(): void
+    public function test_quick_scan_runs_without_queue_worker(): void
     {
-        Bus::fake();
+        config(['cache.default' => 'array']);
+        Queue::fake();
         $admin = User::factory()->create([
             'role' => User::ROLE_ADMIN,
             'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
@@ -67,10 +73,9 @@ class MaintenancePageReadOnlyTest extends TestCase
             ->post(route('admin.maintenance.scan.quick'))
             ->assertRedirect();
 
-        Bus::assertDispatched(
-            RunMaintenanceScan::class,
-            fn (RunMaintenanceScan $job): bool => $job->mode === 'quick' && $job->triggeredBy === $admin->id
-        );
+        Queue::assertNothingPushed();
+        $this->assertSame('completed', app(MaintenanceSnapshotRepository::class)->status()['status']);
+        $this->assertNotNull(app(MaintenanceSnapshotRepository::class)->snapshot('quick'));
     }
 
     private function snapshot(): array

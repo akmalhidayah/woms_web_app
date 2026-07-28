@@ -8,6 +8,7 @@ use App\Models\LhppBastSignature;
 use App\Models\QualityControlSignature;
 use App\Models\User;
 use App\Notifications\ApprovalRequestedNotification;
+use App\Support\ApprovalRecipientRoleLabel;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
@@ -24,7 +25,7 @@ class ApprovalNotificationService
             'Initial Work',
             (string) ($signature->initialWork?->nomor_initial_work ?: $signature->initialWork?->nomor_order),
             (string) ($signature->initialWork?->nama_pekerjaan ?: $signature->initialWork?->order?->nama_pekerjaan),
-            $signature->displayRoleLabel(),
+            ApprovalRecipientRoleLabel::for($signature),
             $signature->approvalUrl(),
             $signature->token_expires_at,
             $resend,
@@ -44,7 +45,7 @@ class ApprovalNotificationService
             'HPP',
             (string) $signature->hpp?->nomor_order,
             (string) $signature->hpp?->nama_pekerjaan,
-            $signature->displayRoleLabel(),
+            ApprovalRecipientRoleLabel::for($signature),
             $signature->approvalUrl(),
             $signature->token_expires_at,
             $resend,
@@ -65,7 +66,7 @@ class ApprovalNotificationService
             'BAST/LHPP',
             trim((string) $signature->lhppBast?->nomor_order.' '.$termin),
             (string) $signature->lhppBast?->deskripsi_pekerjaan,
-            $signature->displayRoleLabel(),
+            ApprovalRecipientRoleLabel::for($signature),
             $signature->approvalUrl(),
             $signature->token_expires_at,
             $resend,
@@ -86,7 +87,7 @@ class ApprovalNotificationService
             'Quality Control',
             (string) ($report?->report_no ?: $report?->order?->nomor_order),
             (string) $report?->order?->nama_pekerjaan,
-            $signature->displayRoleLabel(),
+            ApprovalRecipientRoleLabel::for($signature),
             $signature->approvalUrl(),
             $signature->token_expires_at,
             $resend,
@@ -98,7 +99,7 @@ class ApprovalNotificationService
     }
 
     /**
-     * @param array<string, mixed> $context
+     * @param  array<string, mixed>  $context
      */
     private function send(
         ?User $recipient,

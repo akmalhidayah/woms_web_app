@@ -617,3 +617,14 @@ Laporan “Sudah selesai” atau “Sudah diperbaiki” tanpa bukti tidak memada
 - Jangan mengubah PDF atau data signature untuk mencatat impersonation.
 - Start dan stop dicatat melalui Laravel log.
 - Jangan membuat migration untuk fitur ini tanpa kebutuhan bisnis baru.
+
+## Pusat Maintenance Sistem
+
+- Hanya Super Admin dan diakses melalui ikon header, bukan sidebar.
+- Ikon header tidak menjalankan query status; halaman hanya membaca hasil cache.
+- Jangan menggunakan browser polling.
+- Quick dan Deep Scan berjalan melalui background job dan cache lock.
+- Evaluator wajib read-only dan tidak boleh menyediakan auto-fix.
+- Data legacy tidak boleh otomatis dianggap rusak.
+- Jangan menampilkan token, credential, signature data, atau absolute path.
+- Jangan menduplikasi rule bisnis; gunakan constant dan support class existing.

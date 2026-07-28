@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\HppApprovalSettingController;
 use App\Http\Controllers\Admin\InformationUploadController;
 use App\Http\Controllers\Admin\LhppController as AdminLhppController;
 use App\Http\Controllers\Admin\LpjPplController;
+use App\Http\Controllers\Admin\MaintenanceController;
 use App\Http\Controllers\Admin\Orders\InitialWorkController as AdminInitialWorkController;
 use App\Http\Controllers\Admin\Orders\OrderDocumentController;
 use App\Http\Controllers\Admin\Orders\OrderScopeOfWorkController;
@@ -130,6 +131,19 @@ Route::middleware(['auth'])->group(function () {
     Route::get('admin/access-control', [AccessControlController::class, 'index'])
         ->middleware(['role:admin', 'admin_role:super_admin'])
         ->name('admin.access-control.index');
+
+    Route::prefix('admin/maintenance')
+        ->name('admin.maintenance.')
+        ->middleware(['role:admin', 'admin_role:super_admin'])
+        ->group(function () {
+            Route::get('/', [MaintenanceController::class, 'index'])->name('index');
+            Route::post('scan/quick', [MaintenanceController::class, 'quickScan'])
+                ->middleware('throttle:3,1')
+                ->name('scan.quick');
+            Route::post('scan/deep', [MaintenanceController::class, 'deepScan'])
+                ->middleware('throttle:2,1')
+                ->name('scan.deep');
+        });
     Route::put('admin/access-control', [AccessControlController::class, 'update'])
         ->middleware(['role:admin', 'admin_role:super_admin'])
         ->name('admin.access-control.update');

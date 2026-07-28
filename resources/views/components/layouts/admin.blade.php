@@ -1020,6 +1020,17 @@
                                 </a>
                             @endforeach
 
+                            @if ($user?->isSuperAdmin())
+                                <a
+                                    href="{{ route('admin.maintenance.index') }}"
+                                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg transition {{ request()->routeIs('admin.maintenance.*') ? 'bg-white text-blue-900' : 'text-white hover:bg-white/10' }}"
+                                    aria-label="Maintenance Sistem"
+                                    title="Maintenance Sistem"
+                                >
+                                    <i data-lucide="wrench" class="h-5 w-5"></i>
+                                </a>
+                            @endif
+
                             <div class="relative" @click.outside="notificationsOpen = false">
                                 <button
                                     type="button"

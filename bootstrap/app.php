@@ -1,11 +1,12 @@
 <?php
 
+use App\Console\Commands\ReprocessHppSignatureImages;
+use App\Console\Commands\RunMaintenanceScanCommand;
+use App\Console\Commands\SyncBastSmPengendali;
 use App\Http\Middleware\EnsureAdminHasSubrole;
 use App\Http\Middleware\EnsureAdminMenuAccess;
 use App\Http\Middleware\EnsurePkmPanelAccess;
 use App\Http\Middleware\EnsureUserHasRole;
-use App\Console\Commands\ReprocessHppSignatureImages;
-use App\Console\Commands\SyncBastSmPengendali;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -19,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([
         ReprocessHppSignatureImages::class,
+        RunMaintenanceScanCommand::class,
         SyncBastSmPengendali::class,
     ])
     ->withMiddleware(function (Middleware $middleware) {

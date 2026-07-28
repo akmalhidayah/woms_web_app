@@ -336,6 +336,8 @@
                     </div>
                 </header>
 
+                <x-impersonation-banner />
+
                 <main class="p-3 lg:p-4">
                     <div class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:p-4">
                         {{ $slot }}

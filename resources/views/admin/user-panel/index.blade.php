@@ -121,6 +121,15 @@
                                             'admin_role' => $user->resolvedAdminRole() ?? \App\Models\User::ADMIN_ROLE_ADMIN,
                                         ];
                                         $canManage = auth()->user()->isSuperAdmin() || $user->role !== \App\Models\User::ROLE_ADMIN;
+                                        $canImpersonate = auth()->user()->isSuperAdmin()
+                                            && auth()->id() !== $user->id
+                                            && ! $user->isSuperAdmin();
+                                        $impersonationPayload = [
+                                            'action' => route('admin.user-panel.impersonate', $user),
+                                            'name' => $user->name,
+                                            'email' => $user->email,
+                                            'role' => $roleLabels[$user->role] ?? strtoupper($user->role),
+                                        ];
                                     @endphp
                                     <tr class="align-top hover:bg-slate-50/80">
                                         <td class="px-4 py-3.5">
@@ -153,6 +162,19 @@
                                         <td class="px-4 py-3.5 text-sm text-slate-500">{{ $user->created_at?->format('d M Y') ?? '-' }}</td>
                                         <td class="px-4 py-3.5">
                                             <div class="flex items-center justify-center gap-2">
+                                                @if ($canImpersonate)
+                                                    <button
+                                                        type="button"
+                                                        data-impersonation-user="{{ rawurlencode(base64_encode(json_encode($impersonationPayload))) }}"
+                                                        @click="openImpersonation($el.dataset.impersonationUser)"
+                                                        class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 text-amber-700 transition hover:bg-amber-100"
+                                                        title="Masuk sebagai User"
+                                                    >
+                                                        <i data-lucide="log-in" class="h-4 w-4"></i>
+                                                        <span class="sr-only">Masuk sebagai User</span>
+                                                    </button>
+                                                @endif
+
                                                 <button
                                                     type="button"
                                                     data-user="{{ rawurlencode(base64_encode(json_encode($editPayload))) }}"
@@ -362,6 +384,55 @@
                 </div>
             </div>
         </div>
+
+        <div x-show="showImpersonationModal" x-transition.opacity x-cloak class="fixed inset-0 z-40 bg-slate-950/55" @click="closeImpersonation()"></div>
+        <div x-show="showImpersonationModal" x-transition.opacity x-cloak class="fixed inset-0 z-50 overflow-y-auto p-4">
+            <div class="flex min-h-full items-center justify-center">
+                <div data-impersonation-modal class="w-full max-w-lg overflow-hidden rounded-[1.5rem] bg-white shadow-2xl" @click.stop>
+                    <form method="POST" :action="impersonationForm.action">
+                        @csrf
+                        <div class="px-6 py-6">
+                            <div class="flex items-start justify-between gap-4">
+                                <div>
+                                    <h2 class="text-xl font-bold text-slate-900">Masuk sebagai User</h2>
+                                    <p class="mt-2 text-sm text-slate-500">Anda akan masuk sementara sebagai akun berikut:</p>
+                                </div>
+                                <button type="button" @click="closeImpersonation()" class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100">
+                                    <i data-lucide="x" class="h-5 w-5"></i>
+                                </button>
+                            </div>
+
+                            <dl class="mt-5 space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm">
+                                <div>
+                                    <dt class="text-xs font-semibold uppercase tracking-wider text-amber-700">Nama</dt>
+                                    <dd class="mt-1 font-semibold text-slate-900" x-text="impersonationForm.name"></dd>
+                                </div>
+                                <div>
+                                    <dt class="text-xs font-semibold uppercase tracking-wider text-amber-700">Email</dt>
+                                    <dd class="mt-1 break-all text-slate-700" x-text="impersonationForm.email"></dd>
+                                </div>
+                                <div>
+                                    <dt class="text-xs font-semibold uppercase tracking-wider text-amber-700">Role</dt>
+                                    <dd class="mt-1 text-slate-700" x-text="impersonationForm.role"></dd>
+                                </div>
+                            </dl>
+
+                            <p class="mt-4 text-sm leading-6 text-slate-600">
+                                Seluruh menu dan hak akses akan mengikuti akun ini sampai Anda kembali ke Super Admin.
+                            </p>
+                        </div>
+
+                        <div class="flex items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
+                            <button type="button" @click="closeImpersonation()" class="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 ring-1 ring-slate-300 transition hover:bg-slate-100">Batal</button>
+                            <button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-amber-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-800">
+                                <i data-lucide="log-in" class="h-4 w-4"></i>
+                                Masuk sebagai User
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -369,6 +440,7 @@
             return {
                 showCreateModal: config.create.open ?? false,
                 showEditModal: config.edit.open ?? false,
+                showImpersonationModal: false,
                 createAction: config.routes.store,
                 editAction: config.edit.action || '',
                 createForm: {
@@ -386,6 +458,12 @@
                     inisial: config.edit.form?.inisial || '',
                     role: config.edit.form?.role || 'user',
                     admin_role: config.edit.form?.admin_role || 'admin',
+                },
+                impersonationForm: {
+                    action: '',
+                    name: '',
+                    email: '',
+                    role: '',
                 },
                 openCreate() {
                     this.showCreateModal = true;
@@ -409,6 +487,20 @@
                 },
                 closeEdit() {
                     this.showEditModal = false;
+                },
+                openImpersonation(encodedPayload) {
+                    const payload = JSON.parse(atob(decodeURIComponent(encodedPayload)));
+                    this.impersonationForm = {
+                        action: payload.action,
+                        name: payload.name || '',
+                        email: payload.email || '',
+                        role: payload.role || '',
+                    };
+                    this.showImpersonationModal = true;
+                },
+                closeImpersonation() {
+                    this.showImpersonationModal = false;
+                    this.impersonationForm = { action: '', name: '', email: '', role: '' };
                 },
             };
         }

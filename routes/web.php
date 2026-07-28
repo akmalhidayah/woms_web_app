@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\Orders\OrderScopeOfWorkController;
 use App\Http\Controllers\Admin\OutlineAgreementController;
 use App\Http\Controllers\Admin\PurchaseOrderController;
 use App\Http\Controllers\Admin\StructureOrganizationController;
+use App\Http\Controllers\Admin\UserImpersonationController;
 use App\Http\Controllers\Admin\UserPanelController;
 use App\Http\Controllers\Approval\BastSignatureController;
 use App\Http\Controllers\Approval\HppSignatureController;
@@ -28,8 +29,8 @@ use App\Http\Controllers\Approval\QualityControlSignatureController;
 use App\Http\Controllers\ApprovalDocumentController;
 use App\Http\Controllers\Pkm\DashboardController as PkmDashboardController;
 use App\Http\Controllers\Pkm\DocumentsController as PkmDocumentsController;
-use App\Http\Controllers\Pkm\JobWaitingController;
 use App\Http\Controllers\Pkm\HppDraftController;
+use App\Http\Controllers\Pkm\JobWaitingController;
 use App\Http\Controllers\Pkm\LhppController;
 use App\Http\Controllers\Pkm\PkmNotificationController;
 use App\Http\Controllers\Pkm\UserPanelController as PkmUserPanelController;
@@ -65,6 +66,9 @@ Route::view('display-pekerjaan-bengkel', 'display.bengkel')
     ->name('display.bengkel');
 
 Route::middleware(['auth'])->group(function () {
+    Route::post('impersonation/stop', [UserImpersonationController::class, 'stop'])
+        ->name('impersonation.stop');
+
     Route::get('approval/initial-work/{token}', [InitialWorkSignatureController::class, 'show'])
         ->name('approval.initial-work.show');
     Route::post('approval/initial-work/{token}', [InitialWorkSignatureController::class, 'sign'])
@@ -320,6 +324,9 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('admin/user-panel/{user}', [UserPanelController::class, 'destroy'])
         ->middleware(['role:admin', 'admin_menu:user_panel'])
         ->name('admin.user-panel.destroy');
+    Route::post('admin/user-panel/{user}/impersonate', [UserImpersonationController::class, 'start'])
+        ->middleware(['role:admin', 'admin_role:super_admin'])
+        ->name('admin.user-panel.impersonate');
 
     Route::get('admin/struktur-organisasi', [StructureOrganizationController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])

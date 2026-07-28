@@ -440,6 +440,8 @@
                 </div>
             </header>
 
+            <x-impersonation-banner />
+
             <main class="relative mx-auto max-w-none px-3 py-4 sm:px-4 lg:px-6 lg:py-5">
                 {{ $slot }}
             </main>

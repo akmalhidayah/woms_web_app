@@ -606,3 +606,14 @@ Setiap coding agent wajib melaporkan:
 14. Hal yang sengaja tidak diubah.
 
 Laporan “Sudah selesai” atau “Sudah diperbaiki” tanpa bukti tidak memadai.
+
+## Mode Maintenance / Impersonation
+
+- Hanya Super Admin yang boleh memulai impersonation.
+- Hak selama impersonation mengikuti user target dengan akses penuh; approval dan tanda tangan tidak diblokir.
+- Jangan menambahkan bypass authorization untuk akun asal.
+- Route stop hanya memakai autentikasi dan tidak boleh mensyaratkan role atau menu Super Admin.
+- Password dan remember token target tidak pernah diubah.
+- Jangan mengubah PDF atau data signature untuk mencatat impersonation.
+- Start dan stop dicatat melalui Laravel log.
+- Jangan membuat migration untuk fitur ini tanpa kebutuhan bisnis baru.

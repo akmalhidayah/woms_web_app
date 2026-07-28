@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\Maintenance\RunMaintenanceScan;
+use App\Services\Maintenance\LaravelLogReader;
 use App\Services\Maintenance\MaintenanceSnapshotRepository;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -11,8 +12,11 @@ use Illuminate\View\View;
 
 class MaintenanceController extends Controller
 {
-    public function index(Request $request, MaintenanceSnapshotRepository $snapshots): View
-    {
+    public function index(
+        Request $request,
+        MaintenanceSnapshotRepository $snapshots,
+        LaravelLogReader $logs
+    ): View {
         $tab = $request->string('tab')->toString();
         $allowedTabs = ['summary', 'approval', 'documents', 'files', 'users_structure', 'queue_scheduler'];
 
@@ -20,6 +24,7 @@ class MaintenanceController extends Controller
             'quickSnapshot' => $snapshots->snapshot('quick'),
             'deepSnapshot' => $snapshots->snapshot('deep'),
             'scanStatus' => $snapshots->status(),
+            'latestLogs' => $logs->latest(10),
             'activeTab' => in_array($tab, $allowedTabs, true) ? $tab : 'summary',
         ]);
     }

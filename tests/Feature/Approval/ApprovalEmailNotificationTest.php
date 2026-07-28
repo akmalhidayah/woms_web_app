@@ -3,6 +3,7 @@
 namespace Tests\Feature\Approval;
 
 use App\Models\Department;
+use App\Models\Garansi;
 use App\Models\Hpp;
 use App\Models\HppSignature;
 use App\Models\InitialWork;
@@ -19,6 +20,7 @@ use App\Models\User;
 use App\Notifications\ApprovalRequestedNotification;
 use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\InitialWorks\InitialWorkSignatureService;
+use App\Support\ApprovalDocumentInbox;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
@@ -265,6 +267,35 @@ class ApprovalEmailNotificationTest extends TestCase
         $this->assertTrue($service->sendBast($bastSignature));
 
         Notification::assertSentToTimes($approver, ApprovalRequestedNotification::class, 4);
+        Notification::assertSentTo(
+            $approver,
+            ApprovalRequestedNotification::class,
+            fn (ApprovalRequestedNotification $notification): bool => $notification->documentType === 'BAST/LHPP'
+                && $notification->documentNumber === $order->nomor_order.' Termin 1'
+        );
+
+        Garansi::create([
+            'order_id' => $order->id,
+            'lhpp_bast_id' => $lhpp->id,
+            'garansi_months' => 0,
+            'start_date' => now()->toDateString(),
+            'end_date' => null,
+            'created_by' => $admin->id,
+            'updated_by' => $admin->id,
+        ]);
+        $bastSignature->unsetRelation('lhppBast');
+
+        $this->assertTrue($service->sendBast($bastSignature));
+        Notification::assertSentToTimes($approver, ApprovalRequestedNotification::class, 5);
+        Notification::assertSentTo(
+            $approver,
+            ApprovalRequestedNotification::class,
+            fn (ApprovalRequestedNotification $notification): bool => $notification->documentType === 'BAST/LHPP'
+                && $notification->documentNumber === $order->nomor_order
+        );
+
+        $inboxBast = ApprovalDocumentInbox::pendingDocumentsFor($approver, 'bast')->first();
+        $this->assertSame($order->nomor_order, $inboxBast['number']);
     }
 
     private function createAdmin(): User

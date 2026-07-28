@@ -58,14 +58,20 @@ class ApprovalNotificationService
 
     public function sendBast(LhppBastSignature $signature, bool $resend = false): bool
     {
-        $signature->loadMissing(['signer', 'lhppBast']);
-        $termin = $signature->lhppBast?->termin_type === 'termin_2' ? 'Termin 2' : 'Termin 1';
+        $signature->loadMissing(['signer', 'lhppBast.garansi']);
+        $lhpp = $signature->lhppBast;
+        $isSinglePayment = $lhpp?->termin_type === 'termin_1'
+            && (int) ($lhpp->garansi?->garansi_months ?? -1) === 0;
+        $termin = $lhpp?->termin_type === 'termin_2' ? 'Termin 2' : 'Termin 1';
+        $documentNumber = $isSinglePayment
+            ? (string) $lhpp?->nomor_order
+            : trim((string) $lhpp?->nomor_order.' '.$termin);
 
         return $this->send(
             $signature->signer,
             'BAST/LHPP',
-            trim((string) $signature->lhppBast?->nomor_order.' '.$termin),
-            (string) $signature->lhppBast?->deskripsi_pekerjaan,
+            $documentNumber,
+            (string) $lhpp?->deskripsi_pekerjaan,
             ApprovalRecipientRoleLabel::for($signature),
             $signature->approvalUrl(),
             $signature->token_expires_at,

@@ -371,6 +371,12 @@
 
     $isWithoutWarranty = ! $isTerminTwo && (int) ($lhpp->garansi?->garansi_months ?? -1) === 0;
 
+    $terminDisplayLabel = $isWithoutWarranty
+        ? 'TOTAL DIBAYAR'
+        : ($isTerminTwo
+        ? 'TERMIN 2 (5% x Total Actual Biaya)'
+        : 'TERMIN 1 (95% x Total Actual Biaya)');
+
     $terminDisplayValue = $isWithoutWarranty
         ? (float) $lhpp->total_aktual_biaya
         : ($isTerminTwo
@@ -612,7 +618,7 @@
                     <td class="summary-value">{{ $formatMoney($lhpp->total_aktual_biaya) }}</td>
                 </tr>
                 <tr class="summary-row summary-row-gray">
-                    <td colspan="4" class="summary-label">TOTAL DIBAYAR</td>
+                    <td colspan="4" class="summary-label">{{ $terminDisplayLabel }}</td>
                     <td class="summary-value">{{ $formatMoney($terminDisplayValue) }}</td>
                 </tr>
             </tbody>

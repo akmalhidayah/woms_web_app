@@ -95,7 +95,7 @@ class ApprovalDocumentInbox
     }
 
     /**
-     * @param Collection<int, array<string, mixed>> $documents
+     * @param  Collection<int, array<string, mixed>>  $documents
      * @return array<string, string>
      */
     public static function availableTypeLabels(Collection $documents): array
@@ -169,14 +169,14 @@ class ApprovalDocumentInbox
     private static function pendingBast(User $user): Collection
     {
         return self::pendingBastQuery($user)
-            ->with(['lhppBast'])
+            ->with(['lhppBast.garansi'])
             ->orderByDesc('id')
             ->get()
             ->map(fn (LhppBastSignature $signature): array => [
                 'type' => 'bast',
                 'type_label' => self::TYPE_LABELS['bast'],
                 'id' => $signature->id,
-                'number' => trim((string) ($signature->lhppBast?->nomor_order ?: '-').' '.self::terminLabel($signature->lhppBast?->termin_type)),
+                'number' => self::bastNumber($signature->lhppBast),
                 'title' => $signature->lhppBast?->deskripsi_pekerjaan ?: '-',
                 'step' => $signature->displayRoleLabel(),
                 'submitted_at' => $signature->lhppBast?->updated_at ?: $signature->created_at,
@@ -272,12 +272,22 @@ class ApprovalDocumentInbox
             });
     }
 
-    private static function terminLabel(?string $termin): string
+    private static function bastNumber(?LhppBast $lhpp): string
     {
-        return match ($termin) {
+        $number = (string) ($lhpp?->nomor_order ?: '-');
+        if (
+            $lhpp?->termin_type === 'termin_1'
+            && (int) ($lhpp->garansi?->garansi_months ?? -1) === 0
+        ) {
+            return $number;
+        }
+
+        $termin = match ($lhpp?->termin_type) {
             'termin_2' => 'Termin 2',
             'termin_1' => 'Termin 1',
             default => '',
         };
+
+        return trim($number.' '.$termin);
     }
 }

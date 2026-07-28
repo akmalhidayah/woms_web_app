@@ -18,14 +18,15 @@ class MaintenanceController extends Controller
         LaravelLogReader $logs
     ): View {
         $tab = $request->string('tab')->toString();
-        $allowedTabs = ['summary', 'approval', 'documents', 'files', 'users_structure', 'queue_scheduler'];
+        $allowedTabs = ['summary', 'approval', 'documents', 'files', 'users_structure', 'queue_scheduler', 'logs'];
+        $activeTab = in_array($tab, $allowedTabs, true) ? $tab : 'summary';
 
         return view('admin.maintenance.index', [
             'quickSnapshot' => $snapshots->snapshot('quick'),
             'deepSnapshot' => $snapshots->snapshot('deep'),
             'scanStatus' => $snapshots->status(),
-            'latestLogs' => $logs->latest(10),
-            'activeTab' => in_array($tab, $allowedTabs, true) ? $tab : 'summary',
+            'latestLogs' => $activeTab === 'logs' ? $logs->latest(10) : [],
+            'activeTab' => $activeTab,
         ]);
     }
 

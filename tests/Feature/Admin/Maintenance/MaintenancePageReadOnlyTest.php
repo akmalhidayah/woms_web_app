@@ -31,12 +31,28 @@ class MaintenancePageReadOnlyTest extends TestCase
             ->assertSee('Masalah Kritis')
             ->assertSee('Perlu Diperiksa')
             ->assertSee('File &amp; Storage', false)
+            ->assertSee('Log Laravel')
+            ->assertDontSee('data-maintenance-log-panel', false)
             ->assertDontSee('setInterval', false)
             ->assertDontSee('wire:poll', false);
 
         $this->assertSame($before, Hpp::query()->count());
         Bus::assertNotDispatched(RunMaintenanceScan::class);
         $this->assertSame(1, substr_count($response->getContent(), 'data-maintenance-page'));
+    }
+
+    public function test_laravel_logs_are_displayed_inside_the_logs_tab(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.maintenance.index', ['tab' => 'logs']))
+            ->assertOk()
+            ->assertSee('10 Log Laravel Terbaru')
+            ->assertSee('data-maintenance-log-panel', false);
     }
 
     public function test_scan_buttons_only_queue_jobs(): void

@@ -11,6 +11,7 @@
             'files' => 'File & Storage',
             'users_structure' => 'User & Struktur',
             'queue_scheduler' => 'Queue & Scheduler',
+            'logs' => 'Log Laravel',
         ];
         $findings = match ($activeTab) {
             'approval' => $quickCategories['approval'] ?? [],
@@ -91,45 +92,6 @@
             @endforeach
         </section>
 
-        <section class="overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-sm">
-            <div class="flex flex-col gap-3 border-b border-slate-800 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <div class="flex items-center gap-2 text-sm font-bold text-white">
-                        <i data-lucide="square-terminal" class="h-4 w-4 text-emerald-400"></i>
-                        10 Log Laravel Terbaru
-                    </div>
-                    <p class="mt-1 text-xs text-slate-400">Diambil dari ekor log saat halaman dimuat. Data sensitif dan path server disensor.</p>
-                </div>
-                <a
-                    href="{{ route('admin.maintenance.index', ['tab' => $activeTab, 'logs' => now()->timestamp]) }}"
-                    class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-800"
-                >
-                    <i data-lucide="refresh-cw" class="h-4 w-4"></i>
-                    Muat Log Terbaru
-                </a>
-            </div>
-
-            <div data-maintenance-log-panel class="max-h-80 overflow-auto">
-                @forelse ($latestLogs as $log)
-                    @php
-                        $logTone = match ($log['level']) {
-                            'emergency', 'alert', 'critical', 'error' => 'text-rose-300',
-                            'warning' => 'text-amber-300',
-                            'notice', 'info' => 'text-blue-300',
-                            default => 'text-slate-300',
-                        };
-                    @endphp
-                    <div class="grid gap-1 border-b border-slate-800/80 px-4 py-2.5 font-mono text-[11px] leading-5 last:border-b-0 md:grid-cols-[150px_85px_minmax(0,1fr)]">
-                        <span class="whitespace-nowrap text-slate-500">{{ $log['timestamp'] }}</span>
-                        <span class="font-bold uppercase {{ $logTone }}">{{ $log['level'] }}</span>
-                        <span class="break-words text-slate-300">{{ $log['message'] }}</span>
-                    </div>
-                @empty
-                    <div class="px-4 py-10 text-center text-sm text-slate-400">Belum ada file log Laravel yang dapat dibaca.</div>
-                @endforelse
-            </div>
-        </section>
-
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <nav class="flex gap-1 overflow-x-auto border-b border-slate-200 bg-slate-50 p-2" aria-label="Tab Maintenance">
                 @foreach ($tabs as $key => $label)
@@ -139,7 +101,46 @@
                 @endforeach
             </nav>
 
-            @if (! $snapshot)
+            @if ($activeTab === 'logs')
+                <div class="bg-slate-950">
+                    <div class="flex flex-col gap-3 border-b border-slate-800 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 text-sm font-bold text-white">
+                                <i data-lucide="square-terminal" class="h-4 w-4 text-emerald-400"></i>
+                                10 Log Laravel Terbaru
+                            </div>
+                            <p class="mt-1 text-xs text-slate-400">Diambil dari ekor log saat halaman dimuat. Data sensitif dan path server disensor.</p>
+                        </div>
+                        <a
+                            href="{{ route('admin.maintenance.index', ['tab' => 'logs', 'logs' => now()->timestamp]) }}"
+                            class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-800"
+                        >
+                            <i data-lucide="refresh-cw" class="h-4 w-4"></i>
+                            Muat Log Terbaru
+                        </a>
+                    </div>
+
+                    <div data-maintenance-log-panel class="max-h-[32rem] overflow-auto">
+                        @forelse ($latestLogs as $log)
+                            @php
+                                $logTone = match ($log['level']) {
+                                    'emergency', 'alert', 'critical', 'error' => 'text-rose-300',
+                                    'warning' => 'text-amber-300',
+                                    'notice', 'info' => 'text-blue-300',
+                                    default => 'text-slate-300',
+                                };
+                            @endphp
+                            <div class="grid gap-1 border-b border-slate-800/80 px-4 py-2.5 font-mono text-[11px] leading-5 last:border-b-0 md:grid-cols-[150px_85px_minmax(0,1fr)]">
+                                <span class="whitespace-nowrap text-slate-500">{{ $log['timestamp'] }}</span>
+                                <span class="font-bold uppercase {{ $logTone }}">{{ $log['level'] }}</span>
+                                <span class="break-words text-slate-300">{{ $log['message'] }}</span>
+                            </div>
+                        @empty
+                            <div class="px-4 py-10 text-center text-sm text-slate-400">Belum ada file log Laravel yang dapat dibaca.</div>
+                        @endforelse
+                    </div>
+                </div>
+            @elseif (! $snapshot)
                 <div class="px-5 py-14 text-center">
                     <i data-lucide="clipboard-search" class="mx-auto h-10 w-10 text-slate-300"></i>
                     <h2 class="mt-4 font-semibold text-slate-900">Belum pernah diperiksa.</h2>

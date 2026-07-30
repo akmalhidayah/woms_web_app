@@ -7,6 +7,7 @@ use App\Http\Middleware\EnsureAdminHasSubrole;
 use App\Http\Middleware\EnsureAdminMenuAccess;
 use App\Http\Middleware\EnsurePkmPanelAccess;
 use App\Http\Middleware\EnsureUserHasRole;
+use App\Http\Middleware\Inventory\HandleInventoryApiExceptions;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -15,6 +16,7 @@ use Illuminate\Http\Request;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
@@ -41,5 +43,11 @@ return Application::configure(basePath: dirname(__DIR__))
         });
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        $exceptions->render(function (Throwable $exception, Request $request) {
+            if (! $request->is('api/v1/inventory*')) {
+                return null;
+            }
+
+            return app(HandleInventoryApiExceptions::class)->renderException($request, $exception);
+        });
     })->create();

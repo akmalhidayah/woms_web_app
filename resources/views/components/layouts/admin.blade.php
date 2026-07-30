@@ -692,12 +692,15 @@
             $userInitials = $user?->initials() ?: 'AD';
             $sidebarMenus = \App\Support\AdminMenuRegistry::sidebarForUser($user);
             $dashboardMenu = $sidebarMenus['dashboard'];
+            $inventoryMenu = $sidebarMenus['inventory'] ?? null;
             $orderMenu = $sidebarMenus['orders'];
             $mainMenus = $sidebarMenus['main'];
             $supportMenus = $sidebarMenus['support'];
             $otherMenus = $sidebarMenus['other'];
             $orderMenus = $orderMenu['children'] ?? [];
+            $inventoryMenus = $inventoryMenu['children'] ?? [];
             $isOrdersSection = $orderMenu && ($orderMenu['active'] ?? false);
+            $isInventorySection = $inventoryMenu && ($inventoryMenu['active'] ?? false);
             $isOtherSection = collect($otherMenus)->contains(fn (array $menu) => $menu['active'] ?? false);
             $roleBadge = $user?->isSuperAdmin() ? 'SUPER ADMIN' : strtoupper($user?->role ?? 'admin');
             $adminNotifications = \App\Support\AdminNotificationCenter::signatureNotifications(5, $user);
@@ -731,6 +734,7 @@
                 profileOpen: false,
                 notificationsOpen: false,
                 orderOpen: {{ $isOrdersSection ? 'true' : 'false' }},
+                inventoryOpen: {{ $isInventorySection ? 'true' : 'false' }},
                 otherOpen: {{ $isOtherSection ? 'true' : 'false' }},
                 toggleSidebar() {
                     if (window.innerWidth >= 1024) this.sidebarOpen = !this.sidebarOpen;
@@ -804,6 +808,35 @@
                                 </span>
                                 <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="font-medium">{{ $dashboardMenu['label'] }}</span>
                             </a>
+                        @endif
+
+                        @if ($inventoryMenu)
+                            <div class="rounded-xl">
+                                <button
+                                    @click="inventoryOpen = !inventoryOpen"
+                                    class="group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ $isInventorySection ? 'bg-white text-blue-900 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
+                                >
+                                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition {{ $isInventorySection ? 'bg-blue-100 text-blue-900' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
+                                        <i data-lucide="{{ $inventoryMenu['icon'] }}" class="h-4 w-4"></i>
+                                    </span>
+                                    <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 text-left font-medium">{{ $inventoryMenu['label'] }}</span>
+                                    <i
+                                        data-lucide="chevron-down"
+                                        class="h-4 w-4 transition"
+                                        :class="inventoryOpen ? 'rotate-180 {{ $isInventorySection ? 'text-blue-900' : 'text-white/70' }}' : '{{ $isInventorySection ? 'text-blue-900' : 'text-white/70' }}'"
+                                        x-show="sidebarOpen"
+                                        x-transition.opacity.duration.200ms
+                                    ></i>
+                                </button>
+
+                                <div x-show="inventoryOpen && sidebarOpen" x-transition.opacity.duration.200ms x-cloak class="mt-0.5 space-y-0.5 pl-9">
+                                    @foreach ($inventoryMenus as $menu)
+                                        <a href="{{ $menu['href'] }}" class="flex items-center justify-between rounded-md px-2.5 py-1.5 transition {{ $menu['active'] ? 'bg-white text-blue-900' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
+                                            <span>{{ $menu['label'] }}</span>
+                                        </a>
+                                    @endforeach
+                                </div>
+                            </div>
                         @endif
 
                         @if ($orderMenu || $mainMenus !== [])

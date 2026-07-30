@@ -613,6 +613,7 @@ Route::middleware(['auth'])->group(function () {
 });
 
 require __DIR__.'/admin/orders.php';
+require __DIR__.'/inventory_web.php';
 require __DIR__.'/auth.php';
 
 Route::prefix('admin/hpp')

@@ -8,19 +8,35 @@ use Illuminate\Support\Facades\Route;
 class AdminMenuRegistry
 {
     public const MENU_DASHBOARD = 'dashboard';
+
+    public const MENU_INVENTORY = 'inventory';
+
     public const MENU_ORDERS = 'orders';
+
     public const MENU_CREATE_HPP = 'create_hpp';
+
     public const MENU_VERIFIKASI_ANGGARAN = 'verifikasi_anggaran';
+
     public const MENU_PURCHASE_ORDER = 'purchase_order';
+
     public const MENU_LHPP_BAST = 'lhpp_bast';
+
     public const MENU_LPJ_PPL = 'lpj_ppl';
+
     public const MENU_GARANSI = 'garansi';
+
     public const MENU_DISPLAY_PEKERJAAN_BENGKEL = 'display_pekerjaan_bengkel';
+
     public const MENU_ACCESS_CONTROL = 'access_control';
+
     public const MENU_KUOTA_ANGGARAN_OA = 'kuota_anggaran_oa';
+
     public const MENU_USER_PANEL = 'user_panel';
+
     public const MENU_UPLOAD_INFORMASI = 'upload_informasi';
+
     public const MENU_STRUKTUR_ORGANISASI = 'struktur_organisasi';
+
     public const MENU_KONTRAK_JASA_FABRIKASI_KONSTRUKSI = 'kontrak_jasa_fabrikasi_konstruksi';
 
     /**
@@ -40,6 +56,24 @@ class AdminMenuRegistry
                 'active_patterns' => ['admin.dashboard'],
                 'always_visible' => true,
                 'configurable' => false,
+            ],
+            self::MENU_INVENTORY => [
+                'key' => self::MENU_INVENTORY,
+                'label' => 'Inventory',
+                'icon' => 'warehouse',
+                'group' => 'inventory',
+                'route_name' => 'admin.inventory.dashboard',
+                'active_patterns' => ['admin.inventory.*'],
+                'badge_count' => 0,
+                'children' => [
+                    ['key' => self::MENU_INVENTORY, 'label' => 'Dashboard Gudang', 'route_name' => 'admin.inventory.dashboard', 'active_patterns' => ['admin.inventory.dashboard'], 'badge_count' => 0],
+                    ['key' => self::MENU_INVENTORY, 'label' => 'Master Barang', 'route_name' => 'admin.inventory.items.index', 'active_patterns' => ['admin.inventory.items.*'], 'badge_count' => 0],
+                    ['key' => self::MENU_INVENTORY, 'label' => 'Stok Masuk', 'route_name' => 'admin.inventory.stock-in.index', 'active_patterns' => ['admin.inventory.stock-in.*'], 'badge_count' => 0],
+                    ['key' => self::MENU_INVENTORY, 'label' => 'Koreksi Stok', 'route_name' => 'admin.inventory.adjustments.index', 'active_patterns' => ['admin.inventory.adjustments.*'], 'badge_count' => 0],
+                    ['key' => self::MENU_INVENTORY, 'label' => 'Riwayat Transaksi', 'route_name' => 'admin.inventory.transactions.index', 'active_patterns' => ['admin.inventory.transactions.*'], 'badge_count' => 0],
+                    ['key' => self::MENU_INVENTORY, 'label' => 'User Aplikasi', 'route_name' => 'admin.inventory.users.index', 'active_patterns' => ['admin.inventory.users.*'], 'badge_count' => 0],
+                    ['key' => self::MENU_INVENTORY, 'label' => 'Master Data', 'route_name' => 'admin.inventory.master-data.index', 'active_patterns' => ['admin.inventory.master-data.*'], 'badge_count' => 0],
+                ],
             ],
             self::MENU_ORDERS => [
                 'key' => self::MENU_ORDERS,
@@ -274,6 +308,7 @@ class AdminMenuRegistry
 
         return [
             'dashboard' => $items[self::MENU_DASHBOARD] ?? null,
+            'inventory' => $items[self::MENU_INVENTORY] ?? null,
             'orders' => $items[self::MENU_ORDERS] ?? null,
             'main' => array_values(array_filter(
                 $items,

@@ -6,6 +6,12 @@
             'description' => 'Kelola consumable, peralatan, stok masuk, dan riwayat transaksi.',
         ])
 
+        <div class="flex justify-end">
+            <a href="{{ route('admin.inventory.stock-in.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">
+                <i data-lucide="package-plus" class="h-4 w-4"></i> Tambah Stok
+            </a>
+        </div>
+
         <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             @foreach ([
                 ['Master Barang', $summary['items'], 'package'],

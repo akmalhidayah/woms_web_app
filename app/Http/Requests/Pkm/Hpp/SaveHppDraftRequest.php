@@ -23,6 +23,7 @@ class SaveHppDraftRequest extends FormRequest
     {
         $this->merge([
             'area_pekerjaan' => HppApprovalFlow::displayArea((string) $this->input('area_pekerjaan', '')),
+            'creator_note' => $this->normalizedCreatorNote(),
         ]);
     }
 
@@ -66,6 +67,7 @@ class SaveHppDraftRequest extends FormRequest
             'kategori_pekerjaan' => ['required', Rule::in(HppApprovalFlow::kategoriOptions())],
             'area_pekerjaan' => ['required', Rule::in(array_keys(HppApprovalFlow::areaOptions()))],
             'cost_centre' => ['nullable', 'string', 'max:255'],
+            'creator_note' => ['nullable', 'string', 'max:750'],
             'hpp_updated_at' => [$hpp?->exists ? 'required' : 'nullable', 'string'],
             'jenis_label_visible' => ['nullable', 'array'],
             'jenis_label_visible.*' => ['nullable', 'string', 'max:255'],
@@ -87,5 +89,18 @@ class SaveHppDraftRequest extends FormRequest
         return [
             'order_id.unique' => 'Order ini sudah memiliki HPP. Silakan buka dan edit draft HPP yang sudah tersedia.',
         ];
+    }
+
+    private function normalizedCreatorNote(): mixed
+    {
+        $creatorNote = $this->input('creator_note');
+
+        if ($creatorNote === null || ! is_string($creatorNote)) {
+            return $creatorNote;
+        }
+
+        $creatorNote = trim($creatorNote);
+
+        return $creatorNote !== '' ? $creatorNote : null;
     }
 }

@@ -15,8 +15,8 @@ use App\Models\UnitWork;
 use App\Models\UnitWorkSection;
 use App\Models\User;
 use App\Support\HppApprovalFlow;
-use Illuminate\Support\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class CreateHppTest extends TestCase
@@ -127,6 +127,7 @@ class CreateHppTest extends TestCase
                 'area_pekerjaan' => HppApprovalFlow::displayArea('Dalam'),
                 'nilai_hpp_bucket' => 'under',
                 'cost_centre' => 'CC-RM-001',
+                'creator_note' => '  Pastikan material sesuai spesifikasi.  ',
                 'unit_kerja_pengendali' => 'Unit Workshop',
                 'outline_agreement' => 'OA/2026/001',
                 'periode_outline_agreement' => '01/01/2026 - 31/12/2026',
@@ -171,12 +172,42 @@ class CreateHppTest extends TestCase
         $this->assertSame('Controller Department', $hpp->departemen_pengendali);
         $this->assertSame('OA/2026/001', $hpp->outline_agreement);
         $this->assertSame('01/01/2026 - 31/12/2026', $hpp->periode_outline_agreement);
+        $this->assertSame('Pastikan material sesuai spesifikasi.', $hpp->creator_note);
         $this->assertSame('Dalam (T.23,4,5, Pelabuhan BKS & Packing Plant)', $hpp->area_pekerjaan);
         $this->assertSame(Hpp::STATUS_IN_REVIEW, $hpp->status);
         $this->assertSame(3000000.0, (float) $hpp->total_keseluruhan);
         $this->assertSame('FAB-DALAM-UNDER250', $hpp->approval_case);
         $this->assertSame('Material Utama', $hpp->item_groups[0]['jenis_item']);
         $this->assertSame('Plat baja', $hpp->item_groups[0]['items'][0]['nama_item']);
+    }
+
+    public function test_admin_can_update_creator_note_on_editable_hpp(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+        $outlineAgreement = $this->createApprovalStructureAndOutlineAgreement($admin);
+        $order = $this->makeEligibleOrder($admin, [
+            'nomor_order' => 'ORD-HPP-CREATOR-NOTE',
+            'nama_pekerjaan' => 'Pekerjaan catatan HPP',
+            'unit_kerja' => 'Unit Produksi Raw Mill',
+            'seksi' => 'Maintenance',
+            'deskripsi' => 'Pengujian catatan HPP.',
+            'prioritas' => Order::PRIORITY_MEDIUM,
+            'tanggal_order' => '2026-04-04',
+            'target_selesai' => '2026-04-10',
+        ]);
+        $hpp = $this->createHppSnapshot($order, $outlineAgreement);
+
+        $this->actingAs($admin)
+            ->put(route('admin.hpp.update', $hpp), $this->hppPayload($order, $outlineAgreement, [
+                'action' => 'draft',
+                'creator_note' => '  Catatan Admin diperbarui.  ',
+            ]))
+            ->assertRedirect(route('admin.hpp.index'));
+
+        $this->assertSame('Catatan Admin diperbarui.', $hpp->fresh()->creator_note);
     }
 
     public function test_it_stores_hpp_with_scope_of_work_without_order_documents(): void
@@ -454,7 +485,7 @@ class CreateHppTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $attributes
+     * @param  array<string, mixed>  $attributes
      */
     private function makeEligibleOrder(User $admin, array $attributes): Order
     {
@@ -488,7 +519,7 @@ class CreateHppTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $overrides
+     * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
      */
     private function hppPayload(Order $order, OutlineAgreement $outlineAgreement, array $overrides = []): array
@@ -510,7 +541,7 @@ class CreateHppTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $attributes
+     * @param  array<string, mixed>  $attributes
      */
     private function createHppSnapshot(Order $order, OutlineAgreement $outlineAgreement, array $attributes = []): Hpp
     {

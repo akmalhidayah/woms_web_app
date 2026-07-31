@@ -321,7 +321,7 @@ class HppController extends Controller
         $hpp = DB::transaction(function () use ($request, $validated): Hpp {
             $hpp = new Hpp;
 
-            $this->fillHppFromRequest($hpp, $validated, $request->all(), true);
+            $this->fillHppFromRequest($hpp, $validated, $validated, true);
             $hpp->created_by = $request->user()?->id;
 
             if ($hpp->status === Hpp::STATUS_IN_REVIEW) {
@@ -354,8 +354,8 @@ class HppController extends Controller
 
         $canReorderApprovalFlow = $hpp->isDraft();
 
-        DB::transaction(function () use ($request, $hpp, $validated, $canReorderApprovalFlow): void {
-            $this->fillHppFromRequest($hpp, $validated, $request->all(), $canReorderApprovalFlow);
+        DB::transaction(function () use ($hpp, $validated, $canReorderApprovalFlow): void {
+            $this->fillHppFromRequest($hpp, $validated, $validated, $canReorderApprovalFlow);
 
             if ($hpp->status === Hpp::STATUS_IN_REVIEW) {
                 $this->documentNumberGenerator->assignTo($hpp, $hpp->submitted_at);
@@ -519,6 +519,7 @@ class HppController extends Controller
             'departemen_peminta' => $this->resolveDepartmentForUnitName($order->unit_kerja),
             'unit_work_id' => $outlineAgreement->unit_work_id,
             'cost_centre' => ($validated['cost_centre'] ?? null) ?: null,
+            'creator_note' => $validated['creator_note'] ?? null,
             'kategori_pekerjaan' => $validated['kategori_pekerjaan'],
             'area_pekerjaan' => HppApprovalFlow::displayArea($areaPekerjaanKey),
             'nilai_hpp_bucket' => $nilaiHppBucket,

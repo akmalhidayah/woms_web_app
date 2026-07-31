@@ -11,8 +11,8 @@ use App\Support\HppApprovalFlow;
 class HppDraftService
 {
     /**
-     * @param array<string,mixed> $validated
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $validated
+     * @param  array<string,mixed>  $payload
      */
     public function fillDraft(Hpp $hpp, array $validated, array $payload): void
     {
@@ -39,6 +39,7 @@ class HppDraftService
             'departemen_peminta' => $this->resolveDepartmentForUnitName($order->unit_kerja),
             'unit_work_id' => $oa->unit_work_id,
             'cost_centre' => ($validated['cost_centre'] ?? null) ?: null,
+            'creator_note' => $validated['creator_note'] ?? null,
             'kategori_pekerjaan' => $validated['kategori_pekerjaan'],
             'area_pekerjaan' => HppApprovalFlow::displayArea($areaKey),
             'nilai_hpp_bucket' => $bucket,

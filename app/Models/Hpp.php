@@ -37,6 +37,7 @@ class Hpp extends Model
         'departemen_peminta',
         'unit_work_id',
         'cost_centre',
+        'creator_note',
         'kategori_pekerjaan',
         'area_pekerjaan',
         'nilai_hpp_bucket',

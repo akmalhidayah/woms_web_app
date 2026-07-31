@@ -90,7 +90,7 @@ class HppDraftController extends Controller
             }
 
             $hpp = new Hpp;
-            $this->draftService->fillDraft($hpp, $validated, $request->all());
+            $this->draftService->fillDraft($hpp, $validated, $validated);
             $hpp->created_by = $request->user()->id;
             $hpp->status = Hpp::STATUS_DRAFT;
             $hpp->submitted_at = null;
@@ -114,7 +114,7 @@ class HppDraftController extends Controller
     {
         $validated = $request->validated();
 
-        DB::transaction(function () use ($request, $validated, $hpp): void {
+        DB::transaction(function () use ($validated, $hpp): void {
             $lockedHpp = Hpp::query()->whereKey($hpp->id)->lockForUpdate()->firstOrFail();
 
             if ($lockedHpp->status !== Hpp::STATUS_DRAFT) {
@@ -129,7 +129,7 @@ class HppDraftController extends Controller
                 ]);
             }
 
-            $this->draftService->fillDraft($lockedHpp, $validated, $request->all());
+            $this->draftService->fillDraft($lockedHpp, $validated, $validated);
             $lockedHpp->status = Hpp::STATUS_DRAFT;
             $lockedHpp->submitted_at = null;
             $lockedHpp->save();

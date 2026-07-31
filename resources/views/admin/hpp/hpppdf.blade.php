@@ -540,8 +540,14 @@
         ->all();
     $controllingNotes = $noteEntries
         ->reject(fn (array $note): bool => in_array($note['role_key'], $requesterNoteRoles, true))
-        ->values()
-        ->all();
+        ->values();
+    if (filled(trim((string) $hpp->creator_note))) {
+        $controllingNotes->prepend([
+            'text' => trim((string) $hpp->creator_note),
+            'show_author' => false,
+        ]);
+    }
+    $controllingNotes = $controllingNotes->values()->all();
 
     $cellFromRole = function (string $roleKey, string $fallbackTitle) use (
         $buildApprovalCell,
@@ -883,8 +889,10 @@
                 @if(!empty($controllingNotes))
                     @foreach($controllingNotes as $i => $note)
                         <div style="margin: 4px 0 8px; line-height: 1.35;">
-                            <span>{{ $i + 1 }}. {{ $note['text'] ?? '-' }}</span>
-                            <span style="font-size: 9px; color: #444;"> - {{ $note['author'] ?? 'N/A' }}{{ !empty($note['context']) ? ' ('.$note['context'].')' : '' }}</span>
+                            <span>{{ $i + 1 }}. {!! nl2br(e($note['text'] ?? '-')) !!}</span>
+                            @if($note['show_author'] ?? true)
+                                <span style="font-size: 9px; color: #444;"> - {{ $note['author'] ?? 'N/A' }}{{ !empty($note['context']) ? ' ('.$note['context'].')' : '' }}</span>
+                            @endif
                         </div>
                     @endforeach
                 @else

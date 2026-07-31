@@ -3,12 +3,11 @@
 namespace App\Http\Controllers\Admin\Hpp;
 
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
-use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\Hpp\StoreHppRequest;
 use App\Http\Requests\Admin\Hpp\UploadDiropsSignedDocumentRequest;
 use App\Models\Hpp;
 use App\Models\HppSignature;
-use App\Http\Requests\Admin\Hpp\StoreHppRequest;
 use App\Models\Order;
 use App\Models\OutlineAgreement;
 use App\Models\UnitWork;
@@ -18,12 +17,13 @@ use App\Services\Approvals\ApprovalSignatureRollbackService;
 use App\Support\HppApprovalFlow;
 use App\Support\HppApprovalSignatureBuilder;
 use App\Support\HppDocumentNumberGenerator;
-use Illuminate\Database\Eloquent\Builder;
+use App\Support\HppIndexTabs;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
@@ -35,15 +35,17 @@ class HppController extends Controller
         private readonly ApprovalNotificationService $approvalNotificationService,
         private readonly ApprovalSignatureRollbackService $rollbackService,
         private readonly HppDocumentNumberGenerator $documentNumberGenerator,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): View
     {
         $search = trim((string) $request->string('search'));
-        $status = trim((string) $request->string('status'));
+        $activeTab = HppIndexTabs::fromRequest(
+            $request->query('tab'),
+            $request->query('status'),
+        );
 
-        $rows = Hpp::query()
+        $rowsQuery = Hpp::query()
             ->with([
                 'order:id,seksi,unit_kerja,notifikasi',
                 'creator:id,name,role',
@@ -51,11 +53,17 @@ class HppController extends Controller
                 'unitWork:id,name',
                 'signatures.signer:id,name,nomor_hp',
                 'activeSignature.signer:id,name,nomor_hp',
+                'budgetVerification',
+                'purchaseOrder',
+                'lhppBasts',
             ])
-            ->search($search)
-            ->when($status !== '', fn ($query) => $query->where('status', $status))
-            ->latest('id')
-            ->get();
+            ->search($search);
+
+        $rows = HppIndexTabs::apply($rowsQuery, $activeTab)
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->paginate(10)
+            ->withQueryString();
 
         $pendingHppOrders = Order::query()
             ->whereIn('catatan_status', [
@@ -78,8 +86,10 @@ class HppController extends Controller
         return view('admin.hpp.index', [
             'rows' => $rows,
             'search' => $search,
-            'status' => $status,
             'statusOptions' => Hpp::statusOptions(),
+            'activeTab' => $activeTab,
+            'tabOptions' => HppIndexTabs::options(),
+            'tabCounts' => HppIndexTabs::counts(),
             'pendingHppOrders' => $pendingHppOrders,
             'approvalReassignmentUsers' => User::query()
                 ->orderBy('name')
@@ -309,7 +319,7 @@ class HppController extends Controller
         $validated = $request->validated();
 
         $hpp = DB::transaction(function () use ($request, $validated): Hpp {
-            $hpp = new Hpp();
+            $hpp = new Hpp;
 
             $this->fillHppFromRequest($hpp, $validated, $request->all(), true);
             $hpp->created_by = $request->user()?->id;
@@ -383,7 +393,7 @@ class HppController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      * @return list<array<string, mixed>>
      */
     private function buildItemGroups(array $payload): array
@@ -457,16 +467,15 @@ class HppController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $validated
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $validated
+     * @param  array<string, mixed>  $payload
      */
     private function fillHppFromRequest(
         Hpp $hpp,
         array $validated,
         array $payload,
         bool $canReorderApprovalFlow = true,
-    ): void
-    {
+    ): void {
         $order = Order::query()->findOrFail($validated['order_id']);
         $outlineAgreement = OutlineAgreement::query()
             ->with(['unitWork:id,department_id,name', 'unitWork.department:id,name'])
@@ -530,7 +539,7 @@ class HppController extends Controller
     }
 
     /**
-     * @param list<string> $defaultFlow
+     * @param  list<string>  $defaultFlow
      * @return list<string>
      */
     private function existingApprovalFlowOrDefault(Hpp $hpp, array $defaultFlow): array
@@ -547,7 +556,7 @@ class HppController extends Controller
     }
 
     /**
-     * @param list<string> $defaultFlow
+     * @param  list<string>  $defaultFlow
      * @return list<string>
      */
     private function resolveApprovalFlowSnapshot(array $defaultFlow, mixed $submittedFlow): array
@@ -586,8 +595,8 @@ class HppController extends Controller
     }
 
     /**
-     * @param list<string> $left
-     * @param list<string> $right
+     * @param  list<string>  $left
+     * @param  list<string>  $right
      */
     private function hasSameApprovalRoles(array $left, array $right): bool
     {
@@ -652,7 +661,7 @@ class HppController extends Controller
     }
 
     /**
-     * @param array<string, string> $headers
+     * @param  array<string, string>  $headers
      * @return array<string, string>
      */
     private function pdfNoCacheHeaders(array $headers = []): array
@@ -665,7 +674,7 @@ class HppController extends Controller
     }
 
     /**
-     * @param list<array<string, mixed>> $itemGroups
+     * @param  list<array<string, mixed>>  $itemGroups
      */
     private function sumItemGroupSubtotals(array $itemGroups): string
     {

@@ -1,18 +1,4 @@
 <x-layouts.pkm title="Create HPP">
-    <style>
-        .hpp-index-filter {
-            display: grid;
-            gap: 0.5rem;
-        }
-
-        @media (min-width: 640px) {
-            .hpp-index-filter {
-                grid-template-columns: minmax(0, 1.25fr) minmax(180px, 0.65fr) auto;
-                align-items: end;
-            }
-        }
-    </style>
-
     @php
         $formatRupiah = function ($value): string {
             $normalized = number_format((float) $value, 2, ',', '.');
@@ -71,29 +57,13 @@
                     </div>
                 @endif
 
-                <form method="GET" action="{{ route('pkm.hpp.index') }}" class="hpp-index-filter">
-                    <div class="flex min-w-0 flex-col">
-                        <label for="search" class="mb-1.5 text-[10px] font-semibold text-slate-700">Pencarian</label>
-                        <input id="search" name="search" type="text" value="{{ $search }}" placeholder="Cari nomor order / pekerjaan / area..." class="w-full rounded-lg border border-slate-300 px-3 py-2 text-[11px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none">
-                    </div>
-                    <div class="flex min-w-0 flex-col">
-                        <label for="status" class="mb-1.5 text-[10px] font-semibold text-slate-700">Status</label>
-                        <select id="status" name="status" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none">
-                            <option value="">Semua Status</option>
-                            @foreach ($statusOptions as $value => $label)
-                                <option value="{{ $value }}" @selected($status === $value)>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <button type="submit" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-700" title="Filter">
-                            <i data-lucide="filter" class="h-[13px] w-[13px]"></i>
-                        </button>
-                        <a href="{{ route('pkm.hpp.index') }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50" title="Reset">
-                            <i data-lucide="rotate-ccw" class="h-[13px] w-[13px]"></i>
-                        </a>
-                    </div>
-                </form>
+                <x-hpp.index-tabs
+                    route-name="pkm.hpp.index"
+                    :active-tab="$activeTab"
+                    :tab-options="$tabOptions"
+                    :tab-counts="$tabCounts"
+                    :search="$search"
+                />
             </div>
 
             <div class="overflow-x-auto">
@@ -211,6 +181,12 @@
                                             </div>
                                         </div>
                                     @endif
+                                    <div class="mt-1.5 flex min-w-0 items-center gap-1 text-[8px] text-slate-400">
+                                        <i data-lucide="clock-3" class="h-2.5 w-2.5 shrink-0"></i>
+                                        <span class="truncate">
+                                            {{ $row->activityLabel() }} · {{ $row->updated_at?->locale('id')->diffForHumans() ?? '-' }}
+                                        </span>
+                                    </div>
                                 </td>
                                 <td class="px-5 py-3">
                                     <div class="flex items-center gap-1.5">
@@ -227,7 +203,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-5 py-10 text-center text-slate-500">Belum ada data HPP.</td>
+                                <td colspan="5" class="px-5 py-10 text-center text-slate-500">{{ \App\Support\HppIndexTabs::emptyMessage($activeTab) }}</td>
                             </tr>
                         @endforelse
                     </tbody>

@@ -10,6 +10,7 @@ use App\Models\HppSignature;
 use App\Models\Order;
 use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\Pkm\HppDraftService;
+use App\Support\HppIndexTabs;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,17 +30,25 @@ class HppDraftController extends Controller
     public function index(Request $request): View
     {
         $search = trim((string) $request->string('search'));
-        $status = trim((string) $request->string('status'));
-        $rows = Hpp::query()
+        $activeTab = HppIndexTabs::fromRequest(
+            $request->query('tab'),
+            $request->query('status'),
+        );
+        $rowsQuery = Hpp::query()
             ->with([
                 'order:id,notifikasi,seksi,unit_kerja',
                 'creator:id,name,role',
                 'signatures.signer:id,name,nomor_hp',
                 'activeSignature.signer:id,name,nomor_hp',
+                'budgetVerification',
+                'purchaseOrder',
+                'lhppBasts',
             ])
-            ->search($search)
-            ->when($status !== '', fn ($query) => $query->where('status', $status))
-            ->latest('id')
+            ->search($search);
+
+        $rows = HppIndexTabs::apply($rowsQuery, $activeTab)
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
             ->paginate(10)
             ->withQueryString();
 
@@ -54,8 +63,10 @@ class HppDraftController extends Controller
         return view('pkm.hpp.index', [
             'rows' => $rows,
             'search' => $search,
-            'status' => $status,
             'statusOptions' => Hpp::statusOptions(),
+            'activeTab' => $activeTab,
+            'tabOptions' => HppIndexTabs::options(),
+            'tabCounts' => HppIndexTabs::counts(),
             'pendingHppOrders' => $pendingHppOrders,
         ]);
     }
@@ -78,7 +89,7 @@ class HppDraftController extends Controller
                 ]);
             }
 
-            $hpp = new Hpp();
+            $hpp = new Hpp;
             $this->draftService->fillDraft($hpp, $validated, $request->all());
             $hpp->created_by = $request->user()->id;
             $hpp->status = Hpp::STATUS_DRAFT;

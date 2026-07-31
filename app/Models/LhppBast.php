@@ -14,6 +14,11 @@ class LhppBast extends Model
 {
     use HasFactory;
 
+    /**
+     * @var list<string>
+     */
+    protected $touches = ['hpp'];
+
     public const APPROVAL_IN_REVIEW = 'in_review';
 
     public const APPROVAL_APPROVED = 'approved';

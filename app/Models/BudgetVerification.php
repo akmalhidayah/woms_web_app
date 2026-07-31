@@ -14,6 +14,11 @@ class BudgetVerification extends Model
     /**
      * @var list<string>
      */
+    protected $touches = ['hpp'];
+
+    /**
+     * @var list<string>
+     */
     protected $fillable = [
         'order_id',
         'hpp_id',

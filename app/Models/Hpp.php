@@ -8,14 +8,18 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Collection;
 
 class Hpp extends Model
 {
     use HasFactory;
 
     public const STATUS_DRAFT = 'draft';
+
     public const STATUS_IN_REVIEW = 'in_review';
+
     public const STATUS_APPROVED = 'approved';
+
     public const STATUS_REJECTED = 'rejected';
 
     /**
@@ -118,6 +122,51 @@ class Hpp extends Model
         };
     }
 
+    public function activityLabel(): string
+    {
+        if ($this->status === self::STATUS_DRAFT) {
+            return 'Draft diperbarui';
+        }
+
+        if ($this->status === self::STATUS_REJECTED) {
+            return 'HPP ditolak';
+        }
+
+        if ($this->status === self::STATUS_IN_REVIEW) {
+            $activeSignature = $this->relationLoaded('activeSignature')
+                ? $this->activeSignature
+                : null;
+
+            if (! $activeSignature) {
+                return 'Signature belum dibuat';
+            }
+
+            $roleLabel = $activeSignature->displayRoleLabel();
+
+            return $activeSignature->tokenExpired()
+                ? "Link {$roleLabel} kedaluwarsa"
+                : "Menunggu {$roleLabel}";
+        }
+
+        if ($this->status === self::STATUS_APPROVED) {
+            if ($this->relationLoaded('lhppBasts') && $this->lhppBasts->isNotEmpty()) {
+                return 'BAST/LHPP diperbarui';
+            }
+
+            if ($this->relationLoaded('purchaseOrder') && $this->purchaseOrder) {
+                return 'Purchase Order diperbarui';
+            }
+
+            if ($this->relationLoaded('budgetVerification') && $this->budgetVerification) {
+                return 'Verifikasi anggaran diperbarui';
+            }
+
+            return 'Approval selesai';
+        }
+
+        return 'HPP diperbarui';
+    }
+
     public function isEditable(): bool
     {
         if ($this->status === self::STATUS_DRAFT) {
@@ -177,6 +226,11 @@ class Hpp extends Model
     public function purchaseOrder(): HasOne
     {
         return $this->hasOne(PurchaseOrder::class);
+    }
+
+    public function lhppBasts(): HasMany
+    {
+        return $this->hasMany(LhppBast::class);
     }
 
     public function signatures(): HasMany
@@ -300,7 +354,7 @@ class Hpp extends Model
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, HppSignature>
+     * @return Collection<int, HppSignature>
      */
     private function approvalSignatureCollection()
     {

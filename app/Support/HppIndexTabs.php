@@ -29,7 +29,7 @@ class HppIndexTabs
     {
         return [
             self::ACTION => 'Perlu Tindakan',
-            self::IN_APPROVAL => 'Dalam Approval',
+            self::IN_APPROVAL => 'Proses Approval',
             self::APPROVED => 'Approved',
             self::HISTORY => 'Riwayat',
         ];

@@ -51,6 +51,12 @@ class InventoryAdminUserManagementTest extends TestCase
         ])->assertRedirect(route('admin.inventory.users.index'))->assertSessionHas('success')->assertSessionHas('temporary_password');
         $temporaryPassword = $response->getSession()->get('temporary_password');
 
+        $this->actingAs($admin)
+            ->get(route('admin.inventory.users.index'))
+            ->assertOk()
+            ->assertSee($temporaryPassword)
+            ->assertSee('Salin Password');
+
         $inventoryUser = InventoryUser::query()->sole();
         $this->assertSame('user.flutter@example.test', $inventoryUser->email);
         $this->assertSame('user', $inventoryUser->role);
@@ -193,6 +199,12 @@ class InventoryAdminUserManagementTest extends TestCase
             ->assertRedirect(route('admin.inventory.users.index'))
             ->assertSessionHas('temporary_password');
         $temporaryPassword = $response->getSession()->get('temporary_password');
+
+        $this->actingAs($admin)
+            ->get(route('admin.inventory.users.index'))
+            ->assertOk()
+            ->assertSee($temporaryPassword)
+            ->assertSee('Salin Password');
 
         $inventoryUser->refresh();
         $this->assertTrue(Hash::check($temporaryPassword, $inventoryUser->password));

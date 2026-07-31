@@ -14,7 +14,25 @@
             >
                 <p class="font-semibold">{{ session('success') }}</p>
                 @if (session('temporary_password'))
-                    <p class="mt-1">Password sementara hanya ditampilkan pada notifikasi ini.</p>
+                    <div class="mt-3 grid gap-2 rounded-lg border border-emerald-200 bg-white/70 p-3 sm:grid-cols-[auto_1fr_auto] sm:items-center">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-emerald-600">User</p>
+                            <p class="font-semibold text-slate-800">{{ session('inventory_user_name') }}</p>
+                            <p class="text-xs text-slate-600">{{ session('inventory_user_email') }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-emerald-600">Password sementara</p>
+                            <code id="inventory-temporary-password" class="break-all text-base font-bold text-slate-900">{{ session('temporary_password') }}</code>
+                        </div>
+                        <button
+                            type="button"
+                            id="copy-inventory-password"
+                            class="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                        >
+                            Salin Password
+                        </button>
+                    </div>
+                    <p class="mt-2 text-xs font-medium">Catat sekarang. Password ini hanya ditampilkan satu kali. {{ session('password_notice') }}</p>
                 @endif
             </div>
         @endif
@@ -75,9 +93,15 @@
         </section>
     </div>
 
-    @push('scripts')
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+                const copyButton = document.getElementById('copy-inventory-password');
+                const passwordText = document.getElementById('inventory-temporary-password');
+                copyButton?.addEventListener('click', async () => {
+                    await navigator.clipboard?.writeText(passwordText?.textContent?.trim() ?? '');
+                    copyButton.textContent = 'Tersalin';
+                });
+
                 const flash = document.getElementById('inventory-user-flash');
                 if (flash?.dataset.password && window.Swal) {
                     window.Swal.fire({
@@ -123,9 +147,8 @@
                         }
                         window.Swal.fire({ icon: 'warning', title, text, showCancelButton: true, confirmButtonText: 'Ya, reset', cancelButtonText: 'Batal' })
                             .then(result => { if (result.isConfirmed) form.submit(); });
-                    });
+                        });
                 });
             });
-        </script>
-    @endpush
+    </script>
 </x-layouts.admin>

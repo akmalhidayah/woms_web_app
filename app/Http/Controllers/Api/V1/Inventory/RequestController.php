@@ -42,7 +42,7 @@ class RequestController extends Controller
                 : 'Permintaan berhasil dicatat.',
             'data' => [
                 'transaction' => new InventoryTransactionResource($result['transaction']),
-                'remaining_stock' => $result['transaction']->stock_after,
+                'remaining_stock' => (int) $result['transaction']->stock_after,
                 'idempotent_replay' => $replay,
             ],
         ], $replay ? 200 : 201);

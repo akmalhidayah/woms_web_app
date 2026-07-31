@@ -2,9 +2,8 @@
     <div class="admin-compact space-y-4">
         @include('admin.inventory.partials.header', ['icon' => 'user-plus', 'title' => 'Tambah User Aplikasi', 'description' => 'Buat akun baru untuk pengguna aplikasi Flutter Inventory.'])
 
-        @if ($errors->any() || $configurationError)
+        @if ($errors->any())
             <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                @if ($configurationError)<p>{{ $configurationError }}</p>@endif
                 @foreach ($errors->all() as $error)<p>{{ $error }}</p>@endforeach
             </div>
         @endif
@@ -23,16 +22,13 @@
                 </div>
                 <aside class="rounded-xl border border-blue-200 bg-blue-50 p-4">
                     <div class="flex items-center gap-2"><i data-lucide="key-round" class="h-5 w-5 text-blue-600"></i><h2 class="font-bold">Password Awal</h2></div>
-                    <p class="mt-3 text-sm text-slate-600">Password awal akun diatur otomatis oleh sistem.</p>
-                    @if ($defaultPassword)
-                        <p class="mt-3 break-all rounded-lg bg-white px-3 py-2 font-mono font-bold text-blue-700 ring-1 ring-blue-100">{{ $defaultPassword }}</p>
-                    @endif
+                    <p class="mt-3 text-sm text-slate-600">Password sementara dibuat acak dan hanya ditampilkan satu kali setelah akun berhasil dibuat.</p>
                     <p class="mt-3 text-sm font-semibold text-amber-700">User wajib mengganti password pada login pertama.</p>
                 </aside>
             </div>
             <div class="mt-5 flex justify-end gap-2 border-t border-slate-200 pt-4">
                 <a href="{{ route('admin.inventory.users.index') }}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Batal</a>
-                <button type="submit" :disabled="submitting || {{ $configurationError ? 'true' : 'false' }}" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"><span x-text="submitting ? 'Menyimpan...' : 'Simpan User'"></span></button>
+                <button type="submit" :disabled="submitting" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"><span x-text="submitting ? 'Menyimpan...' : 'Simpan User'"></span></button>
             </div>
         </form>
     </div>

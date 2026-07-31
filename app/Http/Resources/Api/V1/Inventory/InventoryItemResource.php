@@ -18,8 +18,8 @@ class InventoryItemResource extends JsonResource
             'description' => $this->description,
             'size' => $this->size,
             'unit' => $this->unit,
-            'current_stock' => $this->current_stock,
-            'minimum_stock' => $this->minimum_stock,
+            'current_stock' => (int) $this->current_stock,
+            'minimum_stock' => (int) $this->minimum_stock,
             'stock_status' => $this->stockStatus(),
             'category' => new InventoryCategoryResource($this->whenLoaded('category')),
             'subcategory' => new InventorySubcategoryResource($this->whenLoaded('subcategory')),
@@ -27,17 +27,17 @@ class InventoryItemResource extends JsonResource
             'image_url' => filled($this->image_path)
                 ? route('api.v1.inventory.items.image', $this->id)
                 : null,
-            'can_request' => $this->is_active && ! $this->trashed() && (float) $this->current_stock > 0,
+            'can_request' => $this->is_active && ! $this->trashed() && (int) $this->current_stock > 0,
         ];
     }
 
     private function stockStatus(): string
     {
-        if ((float) $this->current_stock <= 0) {
+        if ((int) $this->current_stock <= 0) {
             return 'out';
         }
 
-        if ((float) $this->minimum_stock > 0 && (float) $this->current_stock <= (float) $this->minimum_stock) {
+        if ((int) $this->minimum_stock > 0 && (int) $this->current_stock <= (int) $this->minimum_stock) {
             return 'low';
         }
 

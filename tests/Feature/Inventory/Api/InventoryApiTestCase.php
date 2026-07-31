@@ -34,15 +34,19 @@ abstract class InventoryApiTestCase extends TestCase
 
     protected function item(array $attributes = []): InventoryItem
     {
-        return InventoryItem::query()->create(array_merge([
+        $stock = (int) ($attributes['current_stock'] ?? 5);
+        unset($attributes['current_stock']);
+        $item = InventoryItem::query()->create(array_merge([
             'uid' => 'ITEM-'.str()->ulid(),
             'item_type' => 'consumable',
             'name' => 'Barang Inventory',
             'unit' => 'EA',
-            'current_stock' => '5.000',
-            'minimum_stock' => '1.000',
+            'minimum_stock' => 1,
             'is_active' => true,
         ], $attributes));
+        $item->forceFill(['current_stock' => $stock])->save();
+
+        return $item->refresh();
     }
 
     protected function requestType(array $attributes = []): InventoryRequestType

@@ -29,7 +29,9 @@ class TransactionController extends Controller
                     $query->where(function ($query) use ($search): void {
                         $query->where('transaction_number', 'like', "%{$search}%")
                             ->orWhere('item_uid_snapshot', 'like', "%{$search}%")
-                            ->orWhere('item_name_snapshot', 'like', "%{$search}%");
+                            ->orWhere('item_name_snapshot', 'like', "%{$search}%")
+                            ->orWhere('purpose', 'like', "%{$search}%")
+                            ->orWhereHas('inventoryUser', fn ($query) => $query->where('name', 'like', "%{$search}%")->orWhere('employee_number', 'like', "%{$search}%"));
                     });
                 })
                 ->latest('transaction_at')
@@ -38,5 +40,13 @@ class TransactionController extends Controller
         }
 
         return view('admin.inventory.transactions.index', compact('inventoryReady', 'transactions'));
+    }
+
+    public function show(InventoryTransaction $inventoryTransaction): View
+    {
+        return view('admin.inventory.transactions.show', [
+            'inventoryReady' => true,
+            'transaction' => $inventoryTransaction->load(['item', 'inventoryUser', 'womsUser', 'requestType', 'attachments']),
+        ]);
     }
 }

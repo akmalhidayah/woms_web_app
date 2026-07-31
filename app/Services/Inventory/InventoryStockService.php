@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Inventory;
 
 use App\Exceptions\Inventory\InactiveInventoryItemException;
@@ -33,7 +35,7 @@ class InventoryStockService
 
     public const TYPE_ADJUSTMENT_OUT = 'adjustment_out';
 
-    private const MAX_MINOR_UNIT = 999_999_999_999_999;
+    public const MAX_STOCK = 9_223_372_036_854_775_807;
 
     private const ALLOWED_CONTEXT_KEYS = [
         'inventory_request_type_id',
@@ -51,7 +53,7 @@ class InventoryStockService
      */
     public function createOpeningBalance(
         InventoryItem $item,
-        int|float|string $quantity,
+        int|string $quantity,
         User|InventoryUser|null $actor = null,
         array $context = []
     ): InventoryTransaction {
@@ -73,7 +75,7 @@ class InventoryStockService
      */
     public function stockIn(
         InventoryItem $item,
-        int|float|string $quantity,
+        int|string $quantity,
         User $actor,
         array $context = []
     ): InventoryTransaction {
@@ -88,7 +90,7 @@ class InventoryStockService
      */
     public function stockOut(
         InventoryItem $item,
-        int|float|string $quantity,
+        int|string $quantity,
         User|InventoryUser $actor,
         array $context = []
     ): InventoryTransaction {
@@ -107,7 +109,7 @@ class InventoryStockService
      */
     public function adjustmentIn(
         InventoryItem $item,
-        int|float|string $quantity,
+        int|string $quantity,
         User $actor,
         string $reason,
         array $context = []
@@ -124,7 +126,7 @@ class InventoryStockService
      */
     public function adjustmentOut(
         InventoryItem $item,
-        int|float|string $quantity,
+        int|string $quantity,
         User $actor,
         string $reason,
         array $context = []
@@ -138,21 +140,17 @@ class InventoryStockService
 
     private function execute(
         InventoryItem $item,
-        int|float|string $quantity,
+        int|string $quantity,
         string $transactionType,
         User|InventoryUser|null $actor,
         array $context,
         string $operation,
     ): InventoryTransaction {
-        $quantityMinor = $this->decimalToMinorUnit($quantity);
-
-        if ($quantityMinor <= 0) {
-            throw new InvalidStockQuantityException;
-        }
+        $normalizedQuantity = $this->normalizeQuantity($quantity);
 
         return DB::transaction(function () use (
             $item,
-            $quantityMinor,
+            $normalizedQuantity,
             $transactionType,
             $actor,
             $context,
@@ -166,28 +164,24 @@ class InventoryStockService
                 throw new InactiveInventoryItemException;
             }
 
-            $stockBeforeMinor = $this->decimalToMinorUnit($lockedItem->current_stock, allowZero: true);
+            $stockBefore = (int) $lockedItem->current_stock;
 
             if ($operation === 'opening') {
                 if (
-                    $stockBeforeMinor !== 0
+                    $stockBefore !== 0
                     || InventoryTransaction::query()->where('inventory_item_id', $lockedItem->getKey())->exists()
                 ) {
                     throw new OpeningBalanceAlreadyExistsException;
                 }
 
-                $stockAfterMinor = $quantityMinor;
+                $stockAfter = $normalizedQuantity;
             } elseif ($operation === 'add') {
-                $stockAfterMinor = $this->addStock($stockBeforeMinor, $quantityMinor);
+                $stockAfter = $this->addStock($stockBefore, $normalizedQuantity);
             } else {
-                $stockAfterMinor = $this->subtractStock($lockedItem, $stockBeforeMinor, $quantityMinor);
+                $stockAfter = $this->subtractStock($lockedItem, $stockBefore, $normalizedQuantity);
             }
 
-            $stockBefore = $this->minorUnitToDecimal($stockBeforeMinor);
-            $stockAfter = $this->minorUnitToDecimal($stockAfterMinor);
-            $normalizedQuantity = $this->minorUnitToDecimal($quantityMinor);
-
-            $lockedItem->update(['current_stock' => $stockAfter]);
+            $lockedItem->forceFill(['current_stock' => $stockAfter])->save();
 
             [$inventoryUserId, $womsUserId, $source] = $this->resolveActor($actor, $context, $transactionType);
 
@@ -217,86 +211,40 @@ class InventoryStockService
         });
     }
 
-    private function normalizeQuantity(int|float|string $quantity, bool $allowZero = false): string
+    public function normalizeQuantity(int|string $quantity): int
     {
-        return $this->minorUnitToDecimal($this->decimalToMinorUnit($quantity, $allowZero));
-    }
-
-    private function decimalToMinorUnit(int|float|string $quantity, bool $allowZero = false): int
-    {
-        if (is_float($quantity)) {
-            if (! is_finite($quantity)) {
-                throw new InvalidStockQuantityException('Jumlah transaksi harus berupa angka yang valid.');
-            }
-
-            if ($quantity > self::MAX_MINOR_UNIT / 1000) {
-                throw new InventoryStockOverflowException;
-            }
-
-            $scaled = $quantity * 1000;
-            if (abs($scaled - round($scaled)) > 0.0000001) {
-                throw new InvalidStockQuantityException('Jumlah transaksi maksimal memiliki tiga angka desimal.');
-            }
-
-            $minorUnit = (int) round($scaled);
-        } else {
-            $value = trim((string) $quantity);
-
-            if (! preg_match('/^\+?(\d+)(?:\.(\d{1,3}))?$/', $value, $matches)) {
-                throw new InvalidStockQuantityException('Jumlah transaksi harus berupa angka dengan maksimal tiga angka desimal.');
-            }
-
-            $whole = ltrim($matches[1], '0');
-            $whole = $whole === '' ? '0' : $whole;
-            $fraction = str_pad($matches[2] ?? '', 3, '0');
-
-            if (strlen($whole) > 12) {
-                throw new InventoryStockOverflowException;
-            }
-
-            $minorUnit = ((int) $whole * 1000) + (int) $fraction;
+        $value = is_int($quantity) ? (string) $quantity : trim($quantity);
+        if (! preg_match('/^[1-9]\d*$/', $value)) {
+            throw new InvalidStockQuantityException('Jumlah stok harus berupa bilangan bulat positif.');
         }
-
-        if ($minorUnit > self::MAX_MINOR_UNIT) {
+        $normalized = ltrim($value, '0');
+        $max = (string) self::MAX_STOCK;
+        if (strlen($normalized) > strlen($max) || (strlen($normalized) === strlen($max) && strcmp($normalized, $max) > 0)) {
             throw new InventoryStockOverflowException;
         }
 
-        if ($minorUnit < 0 || (! $allowZero && $minorUnit === 0)) {
-            throw new InvalidStockQuantityException;
-        }
-
-        return $minorUnit;
+        return (int) $normalized;
     }
 
-    private function minorUnitToDecimal(int $minorUnit): string
+    private function addStock(int $stock, int $quantity): int
     {
-        return sprintf('%d.%03d', intdiv($minorUnit, 1000), $minorUnit % 1000);
-    }
-
-    private function addStock(int $stockMinor, int $quantityMinor): int
-    {
-        if ($quantityMinor > self::MAX_MINOR_UNIT - $stockMinor) {
+        if ($quantity > self::MAX_STOCK - $stock) {
             throw new InventoryStockOverflowException;
         }
 
-        return $stockMinor + $quantityMinor;
+        return $stock + $quantity;
     }
 
-    private function subtractStock(InventoryItem $item, int $stockMinor, int $quantityMinor): int
+    private function subtractStock(InventoryItem $item, int $stock, int $quantity): int
     {
-        if ($this->compareStock($stockMinor, $quantityMinor) < 0) {
+        if ($stock < $quantity) {
             throw new InsufficientInventoryStockException(
-                $this->minorUnitToDecimal($stockMinor),
+                (string) $stock,
                 $item->unit,
             );
         }
 
-        return $stockMinor - $quantityMinor;
-    }
-
-    private function compareStock(int $leftMinor, int $rightMinor): int
-    {
-        return $leftMinor <=> $rightMinor;
+        return $stock - $quantity;
     }
 
     private function assertOpeningBalanceActor(User|InventoryUser|null $actor): void

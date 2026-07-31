@@ -2,7 +2,6 @@
 
 namespace App\Services\Inventory;
 
-use App\Exceptions\Inventory\InventoryDefaultPasswordNotConfiguredException;
 use App\Models\Inventory\InventoryUser;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -13,9 +12,9 @@ class InventoryUserManagementService
     public function createUser(User $admin, array $data): InventoryUser
     {
         $this->assertAdmin($admin);
-        $password = $this->defaultPassword();
+        $password = $this->temporaryPassword();
 
-        return DB::transaction(fn (): InventoryUser => InventoryUser::query()->create([
+        $user = DB::transaction(fn (): InventoryUser => InventoryUser::query()->create([
             'name' => trim($data['name']),
             'email' => Str::lower(trim($data['email'])),
             'password' => $password,
@@ -28,6 +27,9 @@ class InventoryUserManagementService
             'must_change_password' => true,
             'last_login_at' => null,
         ]));
+        $user->setAttribute('temporary_password', $password);
+
+        return $user;
     }
 
     public function updateStatus(User $admin, InventoryUser $inventoryUser, bool $isActive): InventoryUser
@@ -49,9 +51,9 @@ class InventoryUserManagementService
     public function resetPassword(User $admin, InventoryUser $inventoryUser): InventoryUser
     {
         $this->assertAdmin($admin);
-        $password = $this->defaultPassword();
+        $password = $this->temporaryPassword();
 
-        return DB::transaction(function () use ($inventoryUser, $password): InventoryUser {
+        $user = DB::transaction(function () use ($inventoryUser, $password): InventoryUser {
             $lockedUser = InventoryUser::query()->lockForUpdate()->findOrFail($inventoryUser->getKey());
             $lockedUser->forceFill([
                 'password' => $password,
@@ -61,22 +63,10 @@ class InventoryUserManagementService
 
             return $lockedUser->refresh();
         });
-    }
 
-    public function configuredDefaultPassword(): string
-    {
-        return $this->defaultPassword();
-    }
+        $user->setAttribute('temporary_password', $password);
 
-    private function defaultPassword(): string
-    {
-        $password = config('inventory.default_user_password');
-
-        if (! is_string($password) || trim($password) === '') {
-            throw new InventoryDefaultPasswordNotConfiguredException;
-        }
-
-        return $password;
+        return $user;
     }
 
     private function assertAdmin(User $admin): void
@@ -89,5 +79,10 @@ class InventoryUserManagementService
         $value = trim((string) $value);
 
         return $value === '' ? null : $value;
+    }
+
+    private function temporaryPassword(): string
+    {
+        return Str::password(16, symbols: true);
     }
 }

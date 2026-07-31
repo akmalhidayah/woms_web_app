@@ -1,9 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Inventory;
 
 use App\Exceptions\Inventory\InvalidInventoryRequestTypeException;
-use App\Exceptions\Inventory\InvalidStockQuantityException;
 use App\Exceptions\Inventory\InventoryIdempotencyConflictException;
 use App\Models\Inventory\InventoryItem;
 use App\Models\Inventory\InventoryRequestType;
@@ -29,7 +30,7 @@ class InventoryRequestSubmissionService
         InventoryUser $user,
         InventoryItem $item,
         InventoryRequestType $requestType,
-        int|float|string $quantity,
+        int|string $quantity,
         string $purpose,
         ?string $notes,
         string $clientRequestId,
@@ -119,13 +120,13 @@ class InventoryRequestSubmissionService
         InventoryTransaction $existing,
         InventoryItem $item,
         InventoryRequestType $requestType,
-        string $quantity,
+        int $quantity,
         string $purpose,
     ): array {
         if (
             (int) $existing->inventory_item_id !== (int) $item->getKey()
             || (int) $existing->inventory_request_type_id !== (int) $requestType->getKey()
-            || $existing->quantity !== $quantity
+            || (int) $existing->quantity !== $quantity
             || trim((string) $existing->purpose) !== $purpose
         ) {
             throw new InventoryIdempotencyConflictException;
@@ -210,30 +211,8 @@ class InventoryRequestSubmissionService
         }
     }
 
-    private function normalizeQuantity(int|float|string $quantity): string
+    private function normalizeQuantity(int|string $quantity): int
     {
-        if (is_float($quantity)) {
-            if (! is_finite($quantity) || abs(($quantity * 1000) - round($quantity * 1000)) > 0.0000001) {
-                throw new InvalidStockQuantityException('Jumlah transaksi maksimal memiliki tiga angka desimal.');
-            }
-
-            $quantity = number_format($quantity, 3, '.', '');
-        }
-
-        $value = trim((string) $quantity);
-        if (! preg_match('/^\+?(\d{1,12})(?:\.(\d{1,3}))?$/', $value, $matches)) {
-            throw new InvalidStockQuantityException('Jumlah transaksi harus berupa angka dengan maksimal tiga angka desimal.');
-        }
-
-        $whole = ltrim($matches[1], '0');
-        $whole = $whole === '' ? '0' : $whole;
-        $fraction = str_pad($matches[2] ?? '', 3, '0');
-        $normalized = $whole.'.'.$fraction;
-
-        if ($normalized === '0.000') {
-            throw new InvalidStockQuantityException;
-        }
-
-        return $normalized;
+        return $this->stockService->normalizeQuantity($quantity);
     }
 }

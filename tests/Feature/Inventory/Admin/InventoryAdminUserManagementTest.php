@@ -15,13 +15,6 @@ class InventoryAdminUserManagementTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        config(['inventory.default_user_password' => 'siapsupportsegalalini']);
-    }
-
     public function test_authorized_admin_can_open_list_and_create_form_without_password_input(): void
     {
         $admin = $this->admin();
@@ -44,7 +37,7 @@ class InventoryAdminUserManagementTest extends TestCase
         $admin = $this->admin();
         $usersBefore = User::query()->count();
 
-        $this->actingAs($admin)->post(route('admin.inventory.users.store'), [
+        $response = $this->actingAs($admin)->post(route('admin.inventory.users.store'), [
             'name' => 'User Flutter',
             'email' => 'USER.FLUTTER@EXAMPLE.TEST',
             'employee_number' => 'EMP-001',
@@ -55,9 +48,8 @@ class InventoryAdminUserManagementTest extends TestCase
             'password' => 'forged-password',
             'role' => 'admin',
             'must_change_password' => false,
-        ])->assertRedirect(route('admin.inventory.users.index'))
-            ->assertSessionHas('success')
-            ->assertSessionHas('temporary_password', 'siapsupportsegalalini');
+        ])->assertRedirect(route('admin.inventory.users.index'))->assertSessionHas('success')->assertSessionHas('temporary_password');
+        $temporaryPassword = $response->getSession()->get('temporary_password');
 
         $inventoryUser = InventoryUser::query()->sole();
         $this->assertSame('user.flutter@example.test', $inventoryUser->email);
@@ -65,12 +57,13 @@ class InventoryAdminUserManagementTest extends TestCase
         $this->assertTrue($inventoryUser->is_active);
         $this->assertTrue($inventoryUser->must_change_password);
         $this->assertNull($inventoryUser->last_login_at);
-        $this->assertTrue(Hash::check('siapsupportsegalalini', $inventoryUser->password));
-        $this->assertNotSame('siapsupportsegalalini', $inventoryUser->password);
+        $this->assertIsString($temporaryPassword);
+        $this->assertTrue(Hash::check($temporaryPassword, $inventoryUser->password));
+        $this->assertNotSame($temporaryPassword, $inventoryUser->password);
         $this->assertSame($usersBefore, User::query()->count());
     }
 
-    public function test_validation_and_missing_password_configuration_reject_creation(): void
+    public function test_validation_and_temporary_passwords_are_unique(): void
     {
         $admin = $this->admin();
         InventoryUser::query()->create([
@@ -95,14 +88,19 @@ class InventoryAdminUserManagementTest extends TestCase
             'is_active' => '1',
         ])->assertSessionHasErrors('email');
 
-        config(['inventory.default_user_password' => null]);
-        $this->actingAs($admin)->post(route('admin.inventory.users.store'), [
-            'name' => 'No Config',
-            'email' => 'no-config@example.test',
+        $first = $this->actingAs($admin)->post(route('admin.inventory.users.store'), [
+            'name' => 'Random One',
+            'email' => 'random-one@example.test',
             'department' => 'Workshop',
             'is_active' => '1',
-        ])->assertSessionHasErrors('configuration');
-        $this->assertDatabaseMissing('inventory_users', ['email' => 'no-config@example.test']);
+        ])->getSession()->get('temporary_password');
+        $second = $this->actingAs($admin)->post(route('admin.inventory.users.store'), [
+            'name' => 'Random Two',
+            'email' => 'random-two@example.test',
+            'department' => 'Workshop',
+            'is_active' => '1',
+        ])->getSession()->get('temporary_password');
+        $this->assertNotSame($first, $second);
     }
 
     public function test_list_searches_filters_and_never_exposes_credentials(): void
@@ -191,12 +189,13 @@ class InventoryAdminUserManagementTest extends TestCase
             'transaction_at' => now(),
         ]);
 
-        $this->actingAs($admin)->post(route('admin.inventory.users.reset-password', $inventoryUser))
+        $response = $this->actingAs($admin)->post(route('admin.inventory.users.reset-password', $inventoryUser))
             ->assertRedirect(route('admin.inventory.users.index'))
-            ->assertSessionHas('temporary_password', 'siapsupportsegalalini');
+            ->assertSessionHas('temporary_password');
+        $temporaryPassword = $response->getSession()->get('temporary_password');
 
         $inventoryUser->refresh();
-        $this->assertTrue(Hash::check('siapsupportsegalalini', $inventoryUser->password));
+        $this->assertTrue(Hash::check($temporaryPassword, $inventoryUser->password));
         $this->assertTrue($inventoryUser->must_change_password);
         $this->assertSame('preserved@example.test', $inventoryUser->email);
         $this->assertDatabaseCount('personal_access_tokens', 0);

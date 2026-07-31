@@ -12,7 +12,7 @@ class InventoryHistoryAttachmentApiTest extends InventoryApiTestCase
     {
         $user = $this->actingAsInventoryUser();
         $other = $this->inventoryUser();
-        $item = $this->item(['item_type' => 'equipment', 'current_stock' => '5.000']);
+        $item = $this->item(['item_type' => 'equipment', 'current_stock' => 5]);
         $requestType = $this->requestType();
         $service = app(InventoryStockService::class);
         $own = $service->stockOut($item, 1, $user, [
@@ -43,7 +43,7 @@ class InventoryHistoryAttachmentApiTest extends InventoryApiTestCase
         Storage::fake('local');
         $user = $this->actingAsInventoryUser();
         $other = $this->inventoryUser();
-        $item = $this->item(['current_stock' => '5.000']);
+        $item = $this->item(['current_stock' => 5]);
         $requestType = $this->requestType();
         $service = app(InventoryStockService::class);
         $ownTransaction = $service->stockOut($item, 1, $user, [
@@ -87,9 +87,9 @@ class InventoryHistoryAttachmentApiTest extends InventoryApiTestCase
             'inventory_item_id' => $this->item()->id,
             'inventory_user_id' => $user->id,
             'transaction_type' => 'stock_out',
-            'quantity' => '1.000',
-            'stock_before' => '1.000',
-            'stock_after' => '0.000',
+            'quantity' => 1,
+            'stock_before' => 1,
+            'stock_after' => 0,
             'source' => 'flutter',
             'item_uid_snapshot' => 'ITEM',
             'item_name_snapshot' => 'Item',

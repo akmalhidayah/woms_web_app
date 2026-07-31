@@ -51,10 +51,10 @@ class InventoryAdminPagesTest extends TestCase
             'item_type' => 'consumable',
             'name' => 'Barang Read Only',
             'unit' => 'EA',
-            'current_stock' => '12.500',
-            'minimum_stock' => '2.000',
+            'minimum_stock' => 2,
             'is_active' => true,
         ]);
+        $item->forceFill(['current_stock' => 12])->save();
 
         $transactionCount = InventoryTransaction::query()->count();
 
@@ -69,7 +69,7 @@ class InventoryAdminPagesTest extends TestCase
         }
 
         $this->assertSame($transactionCount, InventoryTransaction::query()->count());
-        $this->assertSame('12.500', $item->fresh()->current_stock);
+        $this->assertSame(12, $item->fresh()->current_stock);
     }
 
     public function test_inventory_user_page_never_displays_password_or_access_tokens(): void

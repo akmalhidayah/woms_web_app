@@ -15,19 +15,19 @@ class InventoryDashboardApiTest extends InventoryApiTestCase
         $requestType = $this->requestType();
         $consumable = $this->item([
             'item_type' => 'consumable',
-            'current_stock' => '3.000',
-            'minimum_stock' => '3.000',
+            'current_stock' => 3,
+            'minimum_stock' => 3,
         ]);
         $equipment = $this->item([
             'item_type' => 'equipment',
-            'current_stock' => '5.000',
+            'current_stock' => 5,
         ]);
         $service = app(InventoryStockService::class);
-        $service->stockOut($consumable, '1.250', $user, [
+        $service->stockOut($consumable, 1, $user, [
             'inventory_request_type_id' => $requestType->id,
             'purpose' => 'Own',
         ]);
-        $service->stockOut($equipment, '1.000', $other, [
+        $service->stockOut($equipment, 1, $other, [
             'inventory_request_type_id' => $requestType->id,
             'purpose' => 'Other',
         ]);
@@ -37,7 +37,7 @@ class InventoryDashboardApiTest extends InventoryApiTestCase
             ->assertJsonPath('data.available_consumable_types', 1)
             ->assertJsonPath('data.available_equipment_types', 1)
             ->assertJsonPath('data.monthly_request_count', 1)
-            ->assertJsonPath('data.monthly_requested_quantity', '1.250')
+            ->assertJsonPath('data.monthly_requested_quantity', 1)
             ->assertJsonCount(1, 'data.latest_transactions')
             ->assertJsonCount(1, 'data.low_stock_items');
     }

@@ -30,6 +30,7 @@ class InventoryStockAppSheetSeeder extends Seeder
         $skippedSoftDeleted = 0;
 
         foreach ($this->items() as $row) {
+            $row = $this->normalizeOperationalRow($row);
             try {
                 DB::transaction(function () use (
                     $row,
@@ -96,7 +97,7 @@ class InventoryStockAppSheetSeeder extends Seeder
                         'unit' => $row['unit'],
                         'image_path' => null,
                         'legacy_image_path' => $row['legacy_image_path'],
-                        'minimum_stock' => '0.000',
+                        'minimum_stock' => 0,
                         'is_active' => true,
                         'legacy_source' => self::LEGACY_SOURCE,
                     ];
@@ -109,7 +110,7 @@ class InventoryStockAppSheetSeeder extends Seeder
                         $existingItems++;
                     }
 
-                    if ($row['opening_stock'] === '0.000') {
+                    if ($row['opening_stock'] === 0) {
                         $zeroStockItems++;
 
                         if ($row['correction_note'] !== null) {
@@ -121,7 +122,7 @@ class InventoryStockAppSheetSeeder extends Seeder
 
                     $item->refresh();
                     $hasHistory = $item->transactions()->exists();
-                    $currentStockIsZero = (string) $item->current_stock === '0.000';
+                    $currentStockIsZero = (int) $item->current_stock === 0;
 
                     if ($hasHistory || ! $currentStockIsZero) {
                         $skippedExistingStock++;
@@ -189,6 +190,41 @@ class InventoryStockAppSheetSeeder extends Seeder
                 ['Item soft deleted dilewati', $skippedSoftDeleted],
             ],
         );
+    }
+
+    /**
+     * Preserve decimal strings in legacy fields while converting operational stock to integer units.
+     *
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function normalizeOperationalRow(array $row): array
+    {
+        $unit = strtoupper(trim((string) $row['unit']));
+        $value = trim((string) $row['opening_stock']);
+        if (! preg_match('/^(\d+)(?:\.(\d+))?$/', $value, $matches)) {
+            throw new RuntimeException("Opening stock legacy tidak valid untuk UID {$row['uid']}: {$value}.");
+        }
+
+        $whole = ltrim($matches[1], '0') ?: '0';
+        $fraction = $matches[2] ?? '';
+        if ($unit === 'KG') {
+            if (strlen($fraction) > 3 && trim(substr($fraction, 3), '0') !== '') {
+                throw new RuntimeException("Opening stock KG melebihi tiga desimal untuk UID {$row['uid']}: {$value}.");
+            }
+            $integer = (int) ($whole.str_pad(substr($fraction, 0, 3), 3, '0'));
+            $row['unit'] = 'GRAM';
+        } else {
+            if (trim($fraction, '0') !== '') {
+                throw new RuntimeException("Opening stock pecahan non-KG ditemukan untuk UID {$row['uid']}, unit {$unit}: {$value}.");
+            }
+            $integer = (int) $whole;
+            $row['unit'] = $unit;
+        }
+
+        $row['opening_stock'] = $integer;
+
+        return $row;
     }
 
     /**

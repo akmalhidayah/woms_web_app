@@ -82,9 +82,9 @@ class InventoryDatabaseFoundationTest extends TestCase
             'inventory_subcategory_id' => $subcategory->id,
             'name' => 'Kunci Pas',
             'unit' => 'EA',
-            'current_stock' => '12.345',
-            'minimum_stock' => '2.500',
+            'minimum_stock' => 2,
         ]);
+        $item->forceFill(['current_stock' => 12])->save();
 
         $flutterTransaction = InventoryTransaction::query()->create([
             'transaction_number' => 'INV-TX-FLUTTER-001',
@@ -93,9 +93,9 @@ class InventoryDatabaseFoundationTest extends TestCase
             'woms_user_id' => null,
             'inventory_request_type_id' => $requestType->id,
             'transaction_type' => 'stock_out',
-            'quantity' => '1.125',
-            'stock_before' => '12.345',
-            'stock_after' => '11.220',
+            'quantity' => 1,
+            'stock_before' => 12,
+            'stock_after' => 11,
             'purpose' => 'Keperluan pekerjaan',
             'source' => 'flutter',
             'item_uid_snapshot' => $item->uid,
@@ -114,9 +114,9 @@ class InventoryDatabaseFoundationTest extends TestCase
             'inventory_user_id' => null,
             'woms_user_id' => $womsAdmin->id,
             'transaction_type' => 'stock_in',
-            'quantity' => '3.500',
-            'stock_before' => '11.220',
-            'stock_after' => '14.720',
+            'quantity' => 3,
+            'stock_before' => 11,
+            'stock_after' => 14,
             'source' => 'woms_admin',
             'item_uid_snapshot' => $item->uid,
             'item_name_snapshot' => $item->name,
@@ -147,9 +147,9 @@ class InventoryDatabaseFoundationTest extends TestCase
         $this->assertTrue($adminTransaction->womsUser->is($womsAdmin));
         $this->assertNull($adminTransaction->inventoryUser);
         $this->assertTrue($attachment->transaction->is($flutterTransaction));
-        $this->assertSame('12.345', $item->current_stock);
-        $this->assertSame('1.125', $flutterTransaction->quantity);
-        $this->assertSame('11.220', $flutterTransaction->stock_after);
+        $this->assertSame(12, $item->current_stock);
+        $this->assertSame(1, $flutterTransaction->quantity);
+        $this->assertSame(11, $flutterTransaction->stock_after);
         $this->assertSame('Data Lama', $flutterTransaction->legacy_payload['nama_peminjam']);
     }
 
@@ -164,9 +164,9 @@ class InventoryDatabaseFoundationTest extends TestCase
             'transaction_number' => 'INV-TX-HISTORY-001',
             'inventory_item_id' => $item->id,
             'transaction_type' => 'opening_balance',
-            'quantity' => '5.000',
-            'stock_before' => '0.000',
-            'stock_after' => '5.000',
+            'quantity' => 5,
+            'stock_before' => 0,
+            'stock_after' => 5,
             'source' => 'seeder',
             'item_uid_snapshot' => $item->uid,
             'item_name_snapshot' => $item->name,

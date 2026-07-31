@@ -39,11 +39,11 @@ class InventoryCatalogItemApiTest extends InventoryApiTestCase
             'item_type' => 'equipment',
             'inventory_category_id' => $category->id,
             'inventory_location_id' => $location->id,
-            'current_stock' => '5.000',
-            'minimum_stock' => '1.000',
+            'current_stock' => 5,
+            'minimum_stock' => 1,
         ]);
-        $this->item(['uid' => 'LOW', 'current_stock' => '1.000', 'minimum_stock' => '2.000']);
-        $this->item(['uid' => 'OUT', 'current_stock' => '0.000']);
+        $this->item(['uid' => 'LOW', 'current_stock' => 1, 'minimum_stock' => 2]);
+        $this->item(['uid' => 'OUT', 'current_stock' => 0]);
         $inactive = $this->item(['uid' => 'INACTIVE', 'is_active' => false]);
         $deleted = $this->item(['uid' => 'DELETED']);
         $deleted->delete();

@@ -37,9 +37,9 @@ class InventoryTransaction extends Model
     protected function casts(): array
     {
         return [
-            'quantity' => 'decimal:3',
-            'stock_before' => 'decimal:3',
-            'stock_after' => 'decimal:3',
+            'quantity' => 'integer',
+            'stock_before' => 'integer',
+            'stock_after' => 'integer',
             'transaction_at' => 'datetime',
             'legacy_payload' => 'array',
         ];

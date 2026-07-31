@@ -13,7 +13,9 @@
                 get selected() { return this.items[this.itemId] || null },
                 get estimate() {
                     if (!this.selected || !this.quantity || Number.isNaN(Number(this.quantity))) return '-';
-                    return (Number(this.selected.current_stock) + Number(this.quantity)).toFixed(3) + ' ' + this.selected.unit;
+                    const value = Number.parseInt(this.quantity, 10);
+                    if (!Number.isInteger(value) || value < 1) return '-';
+                    return (Number(this.selected.current_stock) + value).toLocaleString('id-ID') + ' ' + this.selected.unit;
                 }
             }"
             x-on:submit="submitting = true"
@@ -32,20 +34,14 @@
                         </select>
                         @error('inventory_item_id')<p class="mt-1 text-sm text-rose-600">{{ $message }}</p>@enderror
                     </div>
-                    <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
                         <div>
                             <label for="quantity" class="mb-1 block text-sm font-semibold text-slate-700">Jumlah Stok Masuk</label>
                             <div class="flex">
-                                <input id="quantity" name="quantity" x-model="quantity" value="{{ old('quantity') }}" inputmode="decimal" placeholder="0.000" required class="min-w-0 flex-1 rounded-l-lg border-slate-300">
+                                <input id="quantity" type="number" name="quantity" x-model="quantity" value="{{ old('quantity') }}" inputmode="numeric" min="1" step="1" placeholder="0" required class="min-w-0 flex-1 rounded-l-lg border-slate-300">
                                 <span class="inline-flex min-w-16 items-center justify-center rounded-r-lg border border-l-0 border-slate-300 bg-slate-50 px-3 text-sm font-semibold" x-text="selected?.unit || '-'"></span>
                             </div>
                             @error('quantity')<p class="mt-1 text-sm text-rose-600">{{ $message }}</p>@enderror
-                        </div>
-                        <div>
-                            <label for="transaction_at" class="mb-1 block text-sm font-semibold text-slate-700">Tanggal Transaksi</label>
-                            <input id="transaction_at" type="datetime-local" name="transaction_at" value="{{ old('transaction_at', now()->format('Y-m-d\\TH:i')) }}" required readonly class="w-full rounded-lg border-slate-300 bg-slate-50">
-                            <p class="mt-1 text-xs text-slate-500">Waktu transaksi ditetapkan oleh server saat disimpan.</p>
-                            @error('transaction_at')<p class="mt-1 text-sm text-rose-600">{{ $message }}</p>@enderror
                         </div>
                     </div>
                     <div>

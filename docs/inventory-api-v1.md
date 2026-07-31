@@ -137,7 +137,7 @@ Response permintaan baru memakai HTTP 201:
   "message": "Permintaan berhasil dicatat.",
   "data": {
     "transaction": {},
-    "remaining_stock": "2.000",
+    "remaining_stock": 2,
     "idempotent_replay": false
   }
 }
@@ -194,7 +194,7 @@ Stok tidak cukup:
 ```json
 {
   "success": false,
-  "message": "Stok tidak mencukupi. Stok tersedia hanya 2.000 EA.",
+  "message": "Stok tidak mencukupi. Stok tersedia: 2 EA.",
   "errors": {
     "quantity": ["Jumlah yang diminta melebihi stok tersedia."]
   }

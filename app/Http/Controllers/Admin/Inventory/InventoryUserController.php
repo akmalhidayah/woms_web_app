@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Admin\Inventory;
 
-use App\Exceptions\Inventory\InventoryDefaultPasswordNotConfiguredException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Inventory\StoreInventoryUserRequest;
 use App\Http\Requests\Admin\Inventory\UpdateInventoryUserStatusRequest;
@@ -44,23 +43,11 @@ class InventoryUserController extends Controller
         return view('admin.inventory.users.index', compact('inventoryReady', 'users'));
     }
 
-    public function create(InventoryUserManagementService $service): View
+    public function create(): View
     {
         $inventoryReady = Schema::hasTable('inventory_users');
 
-        try {
-            $defaultPassword = $service->configuredDefaultPassword();
-            $configurationError = null;
-        } catch (InventoryDefaultPasswordNotConfiguredException $exception) {
-            $defaultPassword = null;
-            $configurationError = $exception->getMessage();
-        }
-
-        return view('admin.inventory.users.create', compact(
-            'inventoryReady',
-            'defaultPassword',
-            'configurationError',
-        ));
+        return view('admin.inventory.users.create', compact('inventoryReady'));
     }
 
     public function store(
@@ -70,17 +57,13 @@ class InventoryUserController extends Controller
         $admin = $request->user();
         abort_unless($admin instanceof User, 403);
 
-        try {
-            $inventoryUser = $service->createUser($admin, $request->validated());
-            $temporaryPassword = $service->configuredDefaultPassword();
-        } catch (InventoryDefaultPasswordNotConfiguredException $exception) {
-            return back()->withInput()->withErrors(['configuration' => $exception->getMessage()]);
-        }
+        $inventoryUser = $service->createUser($admin, $request->validated());
 
         return redirect()->route('admin.inventory.users.index')->with([
             'success' => 'Akun user aplikasi berhasil dibuat.',
             'inventory_user_name' => $inventoryUser->name,
-            'temporary_password' => $temporaryPassword,
+            'inventory_user_email' => $inventoryUser->email,
+            'temporary_password' => $inventoryUser->temporary_password,
             'password_notice' => 'User wajib mengganti password saat login pertama.',
         ]);
     }
@@ -110,17 +93,13 @@ class InventoryUserController extends Controller
         $admin = $request->user();
         abort_unless($admin instanceof User && $admin->isAdmin(), 403);
 
-        try {
-            $service->resetPassword($admin, $inventoryUser);
-            $temporaryPassword = $service->configuredDefaultPassword();
-        } catch (InventoryDefaultPasswordNotConfiguredException $exception) {
-            return back()->withErrors(['configuration' => $exception->getMessage()]);
-        }
+        $inventoryUser = $service->resetPassword($admin, $inventoryUser);
 
         return redirect()->route('admin.inventory.users.index')->with([
             'success' => 'Password user berhasil direset.',
             'inventory_user_name' => $inventoryUser->name,
-            'temporary_password' => $temporaryPassword,
+            'inventory_user_email' => $inventoryUser->email,
+            'temporary_password' => $inventoryUser->temporary_password,
             'password_notice' => 'Seluruh sesi user telah dikeluarkan dan user wajib mengganti password.',
         ]);
     }

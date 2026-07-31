@@ -14,21 +14,21 @@ class InventoryRequestApiTest extends InventoryApiTestCase
     {
         Storage::fake('local');
         $user = $this->actingAsInventoryUser();
-        $item = $this->item(['current_stock' => '5.000']);
+        $item = $this->item(['current_stock' => 5]);
         $requestType = $this->requestType(['requires_damaged_photo' => true]);
         $clientId = (string) Str::uuid();
         $payload = [
             'client_request_id' => $clientId,
             'inventory_item_id' => $item->id,
             'inventory_request_type_id' => $requestType->id,
-            'quantity' => '2.000',
+            'quantity' => 2,
             'purpose' => 'Perawatan mesin',
             'damaged_item_photo' => UploadedFile::fake()->image('rusak.jpg'),
         ];
 
         $response = $this->post('/api/v1/inventory/requests', $payload, ['Accept' => 'application/json'])
             ->assertCreated()
-            ->assertJsonPath('data.remaining_stock', '3.000')
+            ->assertJsonPath('data.remaining_stock', 3)
             ->assertJsonPath('data.idempotent_replay', false);
 
         $transactionId = $response->json('data.transaction.id');
@@ -37,7 +37,7 @@ class InventoryRequestApiTest extends InventoryApiTestCase
         $this->assertNull($transaction->woms_user_id);
         $this->assertSame('flutter', $transaction->source);
         $this->assertSame('MOBILE:'.strtolower($clientId), $transaction->reference_number);
-        $this->assertSame('3.000', $item->refresh()->current_stock);
+        $this->assertSame(3, $item->refresh()->current_stock);
         $this->assertSame(1, $transaction->attachments()->count());
         Storage::disk('local')->assertExists($transaction->attachments()->firstOrFail()->path);
 
@@ -51,7 +51,7 @@ class InventoryRequestApiTest extends InventoryApiTestCase
             ->assertJsonPath('data.idempotent_replay', true)
             ->assertJsonPath('data.transaction.id', $transactionId);
 
-        $this->assertSame('3.000', $item->refresh()->current_stock);
+        $this->assertSame(3, $item->refresh()->current_stock);
         $this->assertSame(1, InventoryTransaction::query()->count());
     }
 
@@ -65,23 +65,23 @@ class InventoryRequestApiTest extends InventoryApiTestCase
             'client_request_id' => $clientId,
             'inventory_item_id' => $item->id,
             'inventory_request_type_id' => $requestType->id,
-            'quantity' => '1.000',
+            'quantity' => 1,
             'purpose' => 'Operasional',
         ];
 
         $this->postJson('/api/v1/inventory/requests', $base)->assertCreated();
-        $this->postJson('/api/v1/inventory/requests', array_merge($base, ['quantity' => '2.000']))
+        $this->postJson('/api/v1/inventory/requests', array_merge($base, ['quantity' => 2]))
             ->assertConflict()
             ->assertJsonPath('message', 'client_request_id sudah digunakan untuk permintaan yang berbeda.');
 
-        $this->assertSame('4.000', $item->refresh()->current_stock);
+        $this->assertSame(4, $item->refresh()->current_stock);
         $this->assertSame(1, InventoryTransaction::query()->count());
     }
 
     public function test_insufficient_invalid_and_forbidden_client_fields_are_rejected_without_stock_change(): void
     {
         $this->actingAsInventoryUser();
-        $item = $this->item(['current_stock' => '1.000']);
+        $item = $this->item(['current_stock' => 1]);
         $requestType = $this->requestType();
         $base = [
             'client_request_id' => (string) Str::uuid(),
@@ -90,7 +90,7 @@ class InventoryRequestApiTest extends InventoryApiTestCase
             'purpose' => 'Operasional',
         ];
 
-        $this->postJson('/api/v1/inventory/requests', array_merge($base, ['quantity' => '2.000']))
+        $this->postJson('/api/v1/inventory/requests', array_merge($base, ['quantity' => 2]))
             ->assertConflict();
         $this->postJson('/api/v1/inventory/requests', array_merge($base, [
             'client_request_id' => (string) Str::uuid(),
@@ -100,14 +100,20 @@ class InventoryRequestApiTest extends InventoryApiTestCase
             'client_request_id' => (string) Str::uuid(),
             'quantity' => '1.0001',
         ]))->assertUnprocessable();
+        foreach ([-1, 1.5, '1.000', 'abc'] as $invalidQuantity) {
+            $this->postJson('/api/v1/inventory/requests', array_merge($base, [
+                'client_request_id' => (string) Str::uuid(),
+                'quantity' => $invalidQuantity,
+            ]))->assertUnprocessable();
+        }
         $this->postJson('/api/v1/inventory/requests', array_merge($base, [
             'client_request_id' => (string) Str::uuid(),
-            'quantity' => '1.000',
+            'quantity' => 1,
             'inventory_user_id' => 999,
-            'stock_after' => '999.000',
+            'stock_after' => 999,
         ]))->assertUnprocessable();
 
-        $this->assertSame('1.000', $item->refresh()->current_stock);
+        $this->assertSame(1, $item->refresh()->current_stock);
         $this->assertSame(0, InventoryTransaction::query()->count());
     }
 
@@ -124,7 +130,7 @@ class InventoryRequestApiTest extends InventoryApiTestCase
             'client_request_id' => (string) Str::uuid(),
             'inventory_item_id' => $item->id,
             'inventory_request_type_id' => $requestType->id,
-            'quantity' => '1.000',
+            'quantity' => 1,
             'purpose' => 'Penggantian',
         ];
 
@@ -145,7 +151,7 @@ class InventoryRequestApiTest extends InventoryApiTestCase
     {
         Storage::fake('local');
         $this->actingAsInventoryUser();
-        $item = $this->item(['current_stock' => '2.000']);
+        $item = $this->item(['current_stock' => 2]);
         $requestType = $this->requestType();
         DB::statement("
             CREATE TRIGGER reject_inventory_attachment
@@ -160,7 +166,7 @@ class InventoryRequestApiTest extends InventoryApiTestCase
                 'client_request_id' => (string) Str::uuid(),
                 'inventory_item_id' => $item->id,
                 'inventory_request_type_id' => $requestType->id,
-                'quantity' => '1.000',
+                'quantity' => 1,
                 'purpose' => 'Test rollback',
                 'supporting_photos' => [UploadedFile::fake()->image('proof.jpg')],
             ], ['Accept' => 'application/json'])->assertInternalServerError();
@@ -168,7 +174,7 @@ class InventoryRequestApiTest extends InventoryApiTestCase
             DB::statement('DROP TRIGGER IF EXISTS reject_inventory_attachment');
         }
 
-        $this->assertSame('2.000', $item->refresh()->current_stock);
+        $this->assertSame(2, $item->refresh()->current_stock);
         $this->assertSame(0, InventoryTransaction::query()->count());
         $this->assertSame([], Storage::disk('local')->allFiles());
     }

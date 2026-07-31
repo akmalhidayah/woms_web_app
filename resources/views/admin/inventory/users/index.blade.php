@@ -8,6 +8,7 @@
                 class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
                 data-title="{{ session('success') }}"
                 data-user="{{ session('inventory_user_name') }}"
+                data-email="{{ session('inventory_user_email') }}"
                 data-password="{{ session('temporary_password') }}"
                 data-notice="{{ session('password_notice') }}"
             >
@@ -82,8 +83,15 @@
                     window.Swal.fire({
                         icon: 'success',
                         title: flash.dataset.title,
-                        text: `${flash.dataset.user} — Password sementara: ${flash.dataset.password}. ${flash.dataset.notice}`,
+                        text: `${flash.dataset.user} (${flash.dataset.email}) — Password sementara: ${flash.dataset.password}. ${flash.dataset.notice}`,
+                        showDenyButton: true,
                         confirmButtonText: 'Saya sudah mencatat',
+                        denyButtonText: 'Salin password',
+                    }).then(result => {
+                        if (result.isDenied) {
+                            navigator.clipboard?.writeText(flash.dataset.password);
+                            window.Swal.fire({ icon: 'success', title: 'Password disalin', timer: 1200, showConfirmButton: false });
+                        }
                     });
                 }
 
@@ -108,7 +116,7 @@
                     form.addEventListener('submit', event => {
                         event.preventDefault();
                         const title = 'Reset password user?';
-                        const text = 'Password akan kembali menjadi password awal dan seluruh sesi user akan dikeluarkan.';
+                        const text = 'Password sementara baru akan dibuat dan seluruh sesi user akan dikeluarkan.';
                         if (!window.Swal) {
                             if (window.confirm(title)) form.submit();
                             return;

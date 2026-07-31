@@ -21,7 +21,7 @@ class SubmitInventoryRequest extends FormRequest
             'client_request_id' => ['required', 'uuid'],
             'inventory_item_id' => ['required', 'integer', 'exists:inventory_items,id'],
             'inventory_request_type_id' => ['required', 'integer', 'exists:inventory_request_types,id'],
-            'quantity' => ['required'],
+            'quantity' => ['required', 'integer', 'min:1', 'max:9223372036854775807'],
             'purpose' => ['required', 'string', 'max:2000'],
             'notes' => ['nullable', 'string', 'max:3000'],
             'damaged_item_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],

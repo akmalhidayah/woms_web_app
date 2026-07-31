@@ -46,7 +46,7 @@ class DashboardController extends Controller
                 'available_consumable_types' => $this->availableCount('consumable'),
                 'available_equipment_types' => $this->availableCount('equipment'),
                 'monthly_request_count' => (clone $userTransactions)->count(),
-                'monthly_requested_quantity' => number_format((float) (clone $userTransactions)->sum('quantity'), 3, '.', ''),
+                'monthly_requested_quantity' => (int) (clone $userTransactions)->sum('quantity'),
                 'latest_transactions' => InventoryTransactionResource::collection($latest),
                 'low_stock_items' => InventoryItemResource::collection($lowStock),
                 'server_time' => now()->toISOString(),

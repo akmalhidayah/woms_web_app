@@ -26,7 +26,6 @@ class InventoryItem extends Model
         'image_disk',
         'image_path',
         'legacy_image_path',
-        'current_stock',
         'minimum_stock',
         'is_active',
         'legacy_source',
@@ -35,8 +34,8 @@ class InventoryItem extends Model
     protected function casts(): array
     {
         return [
-            'current_stock' => 'decimal:3',
-            'minimum_stock' => 'decimal:3',
+            'current_stock' => 'integer',
+            'minimum_stock' => 'integer',
             'is_active' => 'boolean',
         ];
     }

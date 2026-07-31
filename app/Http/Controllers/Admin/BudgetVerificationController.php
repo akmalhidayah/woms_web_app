@@ -169,6 +169,7 @@ class BudgetVerificationController extends Controller
                         'kategori_biaya' => $verification->kategori_biaya,
                         'cost_element' => $verification->cost_element,
                         'catatan' => $verification->catatan,
+                        'is_purchase_order_eligible' => $verification->isReadyForPurchaseOrder(),
                     ],
                 ]);
             }
@@ -280,6 +281,7 @@ class BudgetVerificationController extends Controller
             'cost_element' => $verification?->cost_element,
             'catatan' => $verification?->catatan,
             'is_hpp_approved' => $isHppApproved,
+            'is_purchase_order_eligible' => $verification?->isReadyForPurchaseOrder() ?? false,
             'hpp_approval_label' => $isHppApproved ? 'Approve HPP' : 'Belum Approve HPP',
             'update_url' => route('admin.budget-verification.update', ['hpp' => $hpp->nomor_order]),
             'dokumen' => [

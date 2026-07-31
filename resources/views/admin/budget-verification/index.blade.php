@@ -114,14 +114,18 @@
                     <tbody class="divide-y divide-slate-200 bg-white">
                         @forelse ($notifications as $notification)
                             @php
-                                $rowClasses = $notification['is_hpp_approved']
+                                $rowClasses = $notification['is_purchase_order_eligible']
                                     ? 'bg-emerald-50/70 hover:bg-emerald-100/60'
                                     : 'bg-white hover:bg-slate-50';
                                 $approvalBadgeClasses = $notification['is_hpp_approved']
                                     ? 'border-emerald-200 bg-emerald-100 text-emerald-700'
                                     : 'border-slate-200 bg-white text-slate-500';
                             @endphp
-                            <tr class="align-top transition {{ $rowClasses }}">
+                            <tr
+                                class="align-top transition {{ $rowClasses }}"
+                                data-budget-verification-row
+                                data-purchase-order-eligible="{{ $notification['is_purchase_order_eligible'] ? 'true' : 'false' }}"
+                            >
                                 <td class="px-4 py-3">
                                     <form id="budget-verification-form-{{ $notification['nomor_order'] }}" method="POST" action="{{ $notification['update_url'] }}" class="hidden">
                                         @csrf
@@ -417,6 +421,17 @@
                         const returnedValue = responseData?.data?.[field];
                         select.dataset.savedValue = returnedValue ?? '';
                         select.value = returnedValue ?? '';
+                        const row = select.closest('[data-budget-verification-row]');
+                        const isPurchaseOrderEligible = responseData?.data?.is_purchase_order_eligible === true;
+
+                        row?.classList.toggle('bg-emerald-50/70', isPurchaseOrderEligible);
+                        row?.classList.toggle('hover:bg-emerald-100/60', isPurchaseOrderEligible);
+                        row?.classList.toggle('bg-white', !isPurchaseOrderEligible);
+                        row?.classList.toggle('hover:bg-slate-50', !isPurchaseOrderEligible);
+                        row?.setAttribute(
+                            'data-purchase-order-eligible',
+                            isPurchaseOrderEligible ? 'true' : 'false',
+                        );
                         setAutoSaveStatus(select, 'saved', 'Tersimpan');
                     } catch (error) {
                         if (error?.name === 'AbortError') {

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -58,6 +59,26 @@ class BudgetVerification extends Model
             'non pemeliharaan' => 'Non Pemeliharaan',
             'capex' => 'Capex',
         ];
+    }
+
+    public function scopeReadyForPurchaseOrder(Builder $query): Builder
+    {
+        return $query
+            ->where('status_anggaran', 'Tersedia')
+            ->whereNotNull('kategori_item')
+            ->whereRaw("TRIM(kategori_item) <> ''")
+            ->whereNotNull('kategori_biaya')
+            ->whereRaw("TRIM(kategori_biaya) <> ''")
+            ->whereNotNull('cost_element')
+            ->whereRaw("TRIM(cost_element) <> ''");
+    }
+
+    public function isReadyForPurchaseOrder(): bool
+    {
+        return $this->status_anggaran === 'Tersedia'
+            && filled(trim((string) $this->kategori_item))
+            && filled(trim((string) $this->kategori_biaya))
+            && filled(trim((string) $this->cost_element));
     }
 
     public function order(): BelongsTo

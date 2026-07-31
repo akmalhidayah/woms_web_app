@@ -51,6 +51,46 @@ class BudgetVerificationAutoSaveTest extends TestCase
         $this->assertSame('Catatan lama', $verification->catatan);
     }
 
+    public function test_approved_hpp_is_not_ready_for_purchase_order_until_required_budget_fields_are_complete(): void
+    {
+        [$admin, $hpp] = $this->context();
+
+        $this->actingAs($admin)
+            ->patchJson(route('admin.budget-verification.update', $hpp), [
+                'status_anggaran' => 'Tersedia',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.is_purchase_order_eligible', false);
+
+        $this->actingAs($admin)
+            ->get(route('admin.budget-verification.index'))
+            ->assertOk()
+            ->assertSee('data-purchase-order-eligible="false"', false);
+
+        $this->actingAs($admin)
+            ->get(route('admin.purchase-order.index'))
+            ->assertOk()
+            ->assertDontSee($hpp->nomor_order);
+    }
+
+    public function test_complete_available_budget_is_green_and_available_for_purchase_order(): void
+    {
+        [$admin, $hpp, $verification] = $this->contextWithVerification();
+        $verification->update(['catatan' => null]);
+
+        $this->assertTrue($verification->fresh()->isReadyForPurchaseOrder());
+
+        $this->actingAs($admin)
+            ->get(route('admin.budget-verification.index'))
+            ->assertOk()
+            ->assertSee('data-purchase-order-eligible="true"', false);
+
+        $this->actingAs($admin)
+            ->get(route('admin.purchase-order.index'))
+            ->assertOk()
+            ->assertSee($hpp->nomor_order);
+    }
+
     public function test_valid_kategori_item_is_saved(): void
     {
         [$admin, $hpp] = $this->context();

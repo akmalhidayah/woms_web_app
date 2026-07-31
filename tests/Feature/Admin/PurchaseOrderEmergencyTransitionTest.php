@@ -182,6 +182,7 @@ class PurchaseOrderEmergencyTransitionTest extends TestCase
             'status_anggaran' => 'Tersedia',
             'kategori_item' => 'jasa',
             'kategori_biaya' => 'pemeliharaan',
+            'cost_element' => '65340001',
             'created_by' => $admin->id,
             'updated_by' => $admin->id,
         ]);

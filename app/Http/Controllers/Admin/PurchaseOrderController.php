@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\PurchaseOrder\UpdatePurchaseOrderRequest;
-use App\Models\BudgetVerification;
 use App\Models\Hpp;
 use App\Models\Order;
 use App\Models\PurchaseOrder;
@@ -36,7 +35,7 @@ class PurchaseOrderController extends Controller
                     'budgetVerification:id,order_id,hpp_id,status_anggaran',
                     'purchaseOrder:id,order_id,hpp_id,purchase_order_number,target_penyelesaian,approval_target,approval_note,approve_manager,approve_senior_manager,approve_general_manager,approve_direktur_operasional,progress_pekerjaan,po_document_path,vendor_note,admin_note',
                 ])
-                ->whereHas('budgetVerification', fn (Builder $query) => $query->where('status_anggaran', BudgetVerification::statusAnggaranOptions()['Tersedia']))
+                ->whereHas('budgetVerification', fn (Builder $query) => $query->readyForPurchaseOrder())
                 ->when($search !== '', function (Builder $query) use ($search): void {
                     $query->where(function (Builder $builder) use ($search): void {
                         $builder
@@ -59,7 +58,7 @@ class PurchaseOrderController extends Controller
             );
 
             $units = Hpp::query()
-                ->whereHas('budgetVerification', fn (Builder $query) => $query->where('status_anggaran', 'Tersedia'))
+                ->whereHas('budgetVerification', fn (Builder $query) => $query->readyForPurchaseOrder())
                 ->select('unit_kerja')
                 ->distinct()
                 ->orderBy('unit_kerja')
@@ -98,7 +97,7 @@ class PurchaseOrderController extends Controller
         try {
             $hpp->loadMissing(['order.initialWork', 'budgetVerification', 'purchaseOrder']);
 
-            abort_unless($hpp->budgetVerification?->status_anggaran === 'Tersedia', Response::HTTP_FORBIDDEN);
+            abort_unless($hpp->budgetVerification?->isReadyForPurchaseOrder(), Response::HTTP_FORBIDDEN);
 
             $purchaseOrder = $hpp->purchaseOrder ?? new PurchaseOrder;
 

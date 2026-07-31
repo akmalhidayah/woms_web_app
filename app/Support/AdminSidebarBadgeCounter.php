@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
-use App\Models\BudgetVerification;
 use App\Models\Hpp;
 use App\Models\LhppBast;
 use App\Models\Order;
@@ -62,29 +61,16 @@ class AdminSidebarBadgeCounter
 
     private function verifikasiAnggaranCount(): int
     {
-        $waiting = BudgetVerification::statusAnggaranOptions()['Menunggu'] ?? 'Menunggu';
-
         return Hpp::query()
             ->where('status', Hpp::STATUS_APPROVED)
-            ->where(function (Builder $query) use ($waiting): void {
-                $query
-                    ->whereDoesntHave('budgetVerification')
-                    ->orWhereHas('budgetVerification', function (Builder $verificationQuery) use ($waiting): void {
-                        $verificationQuery
-                            ->whereNull('status_anggaran')
-                            ->orWhereRaw("TRIM(status_anggaran) = ''")
-                            ->orWhere('status_anggaran', $waiting);
-                    });
-            })
+            ->whereDoesntHave('budgetVerification', fn (Builder $query): Builder => $query->readyForPurchaseOrder())
             ->count();
     }
 
     private function purchaseOrderCount(): int
     {
-        $available = BudgetVerification::statusAnggaranOptions()['Tersedia'] ?? 'Tersedia';
-
         return Hpp::query()
-            ->whereHas('budgetVerification', fn (Builder $query): Builder => $query->where('status_anggaran', $available))
+            ->whereHas('budgetVerification', fn (Builder $query): Builder => $query->readyForPurchaseOrder())
             ->where(function (Builder $query): void {
                 $query
                     ->whereDoesntHave('purchaseOrder')

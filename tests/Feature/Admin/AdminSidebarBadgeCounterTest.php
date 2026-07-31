@@ -116,6 +116,17 @@ class AdminSidebarBadgeCounterTest extends TestCase
         $verification->update(['status_anggaran' => 'Tersedia']);
 
         $counts = $this->counts();
+        $this->assertSame(1, $counts['verifikasi_anggaran']);
+        $this->assertSame(0, $counts['purchase_order']);
+
+        $verification->update([
+            'status_anggaran' => 'Tersedia',
+            'kategori_item' => 'jasa',
+            'kategori_biaya' => 'pemeliharaan',
+            'cost_element' => '65340001',
+        ]);
+
+        $counts = $this->counts();
         $this->assertSame(0, $counts['verifikasi_anggaran']);
         $this->assertSame(1, $counts['purchase_order']);
 
@@ -154,7 +165,7 @@ class AdminSidebarBadgeCounterTest extends TestCase
             'created_by' => $admin->id,
         ]);
 
-        $this->assertSame(1, $this->counts()['verifikasi_anggaran']);
+        $this->assertSame(2, $this->counts()['verifikasi_anggaran']);
 
         $this->actingAs($admin)
             ->get(route('admin.budget-verification.index'))

@@ -12,9 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         $tableName = 'outline_agreement_monthly_realizations';
+        $parentTableEngine = $this->mysqlTableEngine('outline_agreements');
 
         if (! Schema::hasTable($tableName)) {
-            Schema::create($tableName, function (Blueprint $table) {
+            Schema::create($tableName, function (Blueprint $table) use ($parentTableEngine) {
+                if ($parentTableEngine !== null) {
+                    $table->engine = $parentTableEngine;
+                }
+
                 $table->id();
                 $table->foreignId('outline_agreement_id');
                 $table->unsignedSmallInteger('year');
@@ -36,6 +41,8 @@ return new class extends Migration
 
             return;
         }
+
+        $this->alignMysqlTableEngineWithParent($tableName, $parentTableEngine);
 
         $hasOutlineAgreementForeignKey = collect(Schema::getForeignKeys($tableName))
             ->contains(fn (array $foreignKey): bool => $foreignKey['columns'] === ['outline_agreement_id']);
@@ -71,5 +78,43 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('outline_agreement_monthly_realizations');
+    }
+
+    private function alignMysqlTableEngineWithParent(string $tableName, ?string $parentTableEngine): void
+    {
+        if ($parentTableEngine === null) {
+            return;
+        }
+
+        $tableEngine = $this->mysqlTableEngine($tableName);
+
+        if ($tableEngine === null || strcasecmp($tableEngine, $parentTableEngine) === 0) {
+            return;
+        }
+
+        Schema::getConnection()->statement(
+            sprintf('ALTER TABLE `%s` ENGINE = %s', $tableName, $parentTableEngine)
+        );
+    }
+
+    private function mysqlTableEngine(string $tableName): ?string
+    {
+        $connection = Schema::getConnection();
+
+        if (! in_array($connection->getDriverName(), ['mysql', 'mariadb'], true)) {
+            return null;
+        }
+
+        $table = $connection->selectOne(
+            'SELECT ENGINE AS engine FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?',
+            [$connection->getDatabaseName(), $tableName]
+        );
+        $engine = is_string($table?->engine ?? null) ? $table->engine : null;
+
+        if ($engine === null || preg_match('/\A[A-Za-z0-9_]+\z/', $engine) !== 1) {
+            return null;
+        }
+
+        return $engine;
     }
 };

@@ -28,14 +28,14 @@
                     <a href="{{ route('pkm.lhpp.create') }}"
                         class="{{ $btnPrimary }} inline-flex items-center gap-2 rounded-md px-3 py-2 text-[12px] font-semibold shadow-sm transition">
                         <i data-lucide="plus-circle" class="h-3.5 w-3.5"></i>
-                        Buat BAST Termin 1
+                        Buat BAST / LHPP
                     </a>
                 </div>
 
                 @if ($pendingTerminOneOrders->isNotEmpty())
                     <div class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
                         <div class="flex items-center justify-between gap-3">
-                            <div class="text-[10px] font-bold text-amber-900">Belum Dibuatkan BAST T1</div>
+                            <div class="text-[10px] font-bold text-amber-900">Belum Dibuatkan BAST</div>
                             <span class="rounded-full bg-white px-2 py-0.5 text-[9px] font-bold text-amber-800 ring-1 ring-amber-200">
                                 {{ $pendingTerminOneOrders->count() }} order
                             </span>
@@ -265,13 +265,13 @@
                                                 <button
                                                     type="button"
                                                     class="bast-approval-flow-trigger inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-blue-200 hover:bg-blue-100 hover:text-blue-700"
-                                                    data-title="{{ $row->nomor_order }} - T1"
+                                                    data-title="{{ $isWithoutWarranty ? $row->nomor_order.' - BAST' : $row->nomor_order.' - T1' }}"
                                                     data-progress="{{ $approvalProgress }}"
                                                     data-signed-count="{{ $signedCount }}"
                                                     data-total-steps="{{ $totalSteps }}"
                                                     data-checklist='@json($approvalChecklist)'
                                                     data-actions='@json($activeApprovalModalActions)'
-                                                    title="Detail approval Termin 1"
+                                                    title="{{ $isWithoutWarranty ? 'Detail approval BAST' : 'Detail approval Termin 1' }}"
                                                 >
                                                     <i data-lucide="info" class="h-3 w-3"></i>
                                                 </button>
@@ -347,7 +347,7 @@
                                     <td class="px-3 py-2">
                                         <div class="flex flex-col gap-1">
                                             <div>
-                                                <span class="text-[10px] text-slate-600">Termin 1:</span>
+                                                <span class="text-[10px] text-slate-600">{{ $isWithoutWarranty ? 'Pembayaran:' : 'Termin 1:' }}</span>
                                                 @if ($t1 === 'sudah')
                                                     <span class="ml-1 inline-block rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] text-emerald-800">Sudah Dibayar</span>
                                                 @else
@@ -369,6 +369,7 @@
 
                                     <td class="px-3 py-2 text-center">
                                         <div x-data="{ selectedTerm: 'termin_1' }" class="flex flex-col items-center gap-2">
+                                            @unless ($isWithoutWarranty)
                                             <div class="relative w-[118px]">
                                                 <select x-model="selectedTerm" class="w-full appearance-none rounded-md border border-slate-300 bg-white py-1.5 pl-2 pr-7 text-[10px] font-semibold text-slate-700 focus:border-[#ca642f] focus:outline-none">
                                                     <option value="termin_1">Termin 1</option>
@@ -378,19 +379,20 @@
                                                 </select>
                                                 <i data-lucide="chevron-down" class="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500"></i>
                                             </div>
+                                            @endunless
 
                                             <div x-show="selectedTerm === 'termin_1'" class="flex items-center justify-center gap-1">
-                                                <a @if ($approvalStatus === \App\Models\LhppBast::APPROVAL_REJECTED) style="display:none" @endif href="{{ route('pkm.lhpp.edit', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" class="pkm-lhpp-action-btn bg-emerald-500 hover:bg-emerald-600" title="Edit LHPP">
+                                                <a @if ($approvalStatus === \App\Models\LhppBast::APPROVAL_REJECTED) style="display:none" @endif href="{{ route('pkm.lhpp.edit', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" class="pkm-lhpp-action-btn bg-emerald-500 hover:bg-emerald-600" title="{{ $isWithoutWarranty ? 'Edit BAST / LHPP' : 'Edit BAST Termin 1' }}">
                                                     <i data-lucide="square-pen" class="h-3.5 w-3.5"></i>
                                                 </a>
-                                                <a href="{{ route('pkm.lhpp.pdf', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" target="_blank" rel="noopener noreferrer" class="pkm-lhpp-action-btn bg-blue-500 hover:bg-blue-600" title="Download PDF LHPP">
+                                                <a href="{{ route('pkm.lhpp.pdf', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" target="_blank" rel="noopener noreferrer" class="pkm-lhpp-action-btn bg-blue-500 hover:bg-blue-600" title="{{ $isWithoutWarranty ? 'Download PDF BAST / LHPP' : 'Download PDF BAST Termin 1' }}">
                                                     <i data-lucide="file-text" class="h-3.5 w-3.5"></i>
                                                 </a>
                                                 @if ($approvalStatus === \App\Models\LhppBast::APPROVAL_REJECTED || ! $row->isApprovalLocked())
-                                                <form action="{{ route('pkm.lhpp.destroy', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" method="POST" class="inline-block pkm-lhpp-delete-form" data-rejected="{{ $approvalStatus === \App\Models\LhppBast::APPROVAL_REJECTED ? '1' : '0' }}">
+                                                <form action="{{ route('pkm.lhpp.destroy', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" method="POST" class="inline-block pkm-lhpp-delete-form" data-rejected="{{ $approvalStatus === \App\Models\LhppBast::APPROVAL_REJECTED ? '1' : '0' }}" data-without-warranty="{{ $isWithoutWarranty ? '1' : '0' }}">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="button" class="pkm-lhpp-action-btn bg-red-500 hover:bg-red-600 pkm-lhpp-delete-button" title="Hapus BAST">
+                                                    <button type="button" class="pkm-lhpp-action-btn bg-red-500 hover:bg-red-600 pkm-lhpp-delete-button" title="{{ $isWithoutWarranty ? 'Hapus BAST / LHPP' : 'Hapus BAST Termin 1' }}">
                                                         <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
                                                     </button>
                                                 </form>
@@ -719,10 +721,13 @@
                         event.preventDefault();
                         const form = button.closest('.pkm-lhpp-delete-form');
                         const isRejected = form?.dataset.rejected === '1';
+                        const isWithoutWarranty = form?.dataset.withoutWarranty === '1';
                         Swal.fire({
                             title: 'Hapus BAST ini?',
                             text: isRejected
-                                ? 'BAST ini telah ditolak. Menghapus BAST akan menghapus item, gambar, signature, token, dokumen terkait, dan Termin 2 jika ada. Data garansi order tetap dipertahankan. Lanjutkan?'
+                                ? (isWithoutWarranty
+                                    ? 'BAST ini telah ditolak. Menghapus BAST akan menghapus item, gambar, signature, token, dan dokumen terkait. Data garansi order tetap dipertahankan. Lanjutkan?'
+                                    : 'BAST ini telah ditolak. Menghapus BAST akan menghapus item, gambar, signature, token, dokumen terkait, dan Termin 2 jika ada. Data garansi order tetap dipertahankan. Lanjutkan?')
                                 : 'Data BAST / LHPP ini akan dihapus permanen.',
                             icon: 'warning',
                             showCancelButton: true,

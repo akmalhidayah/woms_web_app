@@ -109,31 +109,31 @@
 
                             <td class="px-3 py-3 align-top text-center">
                                 <div x-data="{ t: '1' }" class="flex items-center justify-center gap-1.5">
+                                    @unless ($row['is_without_warranty'] ?? false)
                                     <select x-model="t" aria-label="Pilih termin LPJ/PPL" class="h-8 w-[78px] rounded-lg border border-slate-300 bg-white px-2 text-[9px] font-medium text-slate-700">
                                         <option value="1">Termin 1</option>
-                                        @unless ($row['is_without_warranty'] ?? false)
-                                            <option value="2">Termin 2</option>
-                                        @endunless
+                                        <option value="2">Termin 2</option>
                                     </select>
+                                    @endunless
 
                                     <template x-if="t === '1'">
                                         <div class="flex items-center gap-1.5">
                                                 @if (! empty($row['lpj_url_termin1']))
-                                                    <a href="{{ $row['lpj_url_termin1'] }}" target="_blank" rel="noopener noreferrer" title="LPJ Termin 1" aria-label="LPJ Termin 1" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm">
+                                                    <a href="{{ $row['lpj_url_termin1'] }}" target="_blank" rel="noopener noreferrer" title="{{ ($row['is_without_warranty'] ?? false) ? 'LPJ' : 'LPJ Termin 1' }}" aria-label="{{ ($row['is_without_warranty'] ?? false) ? 'LPJ' : 'LPJ Termin 1' }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm">
                                                         <i data-lucide="file-text" class="h-3.5 w-3.5"></i>
                                                     </a>
                                                 @else
-                                                    <span title="LPJ Termin 1 belum tersedia" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-300 ring-1 ring-slate-200">
+                                                    <span title="{{ ($row['is_without_warranty'] ?? false) ? 'LPJ belum tersedia' : 'LPJ Termin 1 belum tersedia' }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-300 ring-1 ring-slate-200">
                                                         <i data-lucide="file-text" class="h-3.5 w-3.5"></i>
                                                     </span>
                                                 @endif
 
                                                 @if (! empty($row['ppl_url_termin1']))
-                                                    <a href="{{ $row['ppl_url_termin1'] }}" target="_blank" rel="noopener noreferrer" title="PPL Termin 1" aria-label="PPL Termin 1" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-orange-600 text-white shadow-sm">
+                                                    <a href="{{ $row['ppl_url_termin1'] }}" target="_blank" rel="noopener noreferrer" title="{{ ($row['is_without_warranty'] ?? false) ? 'PPL' : 'PPL Termin 1' }}" aria-label="{{ ($row['is_without_warranty'] ?? false) ? 'PPL' : 'PPL Termin 1' }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-orange-600 text-white shadow-sm">
                                                         <i data-lucide="file-spreadsheet" class="h-3.5 w-3.5"></i>
                                                     </a>
                                                 @else
-                                                    <span title="PPL Termin 1 belum tersedia" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-300 ring-1 ring-slate-200">
+                                                    <span title="{{ ($row['is_without_warranty'] ?? false) ? 'PPL belum tersedia' : 'PPL Termin 1 belum tersedia' }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-300 ring-1 ring-slate-200">
                                                         <i data-lucide="file-spreadsheet" class="h-3.5 w-3.5"></i>
                                                     </span>
                                                 @endif

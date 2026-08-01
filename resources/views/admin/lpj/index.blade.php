@@ -64,7 +64,7 @@
                             <th class="px-3 py-2.5 text-left font-semibold">Nomor Order</th>
                             <th class="px-3 py-2.5 text-left font-semibold">Detail Pekerjaan</th>
                             <th class="px-3 py-2.5 text-left font-semibold">Nomor LPJ / PPL</th>
-                            <th class="px-3 py-2.5 text-left font-semibold">Dokumen (Termin)</th>
+                            <th class="px-3 py-2.5 text-left font-semibold">Dokumen</th>
                             <th class="px-3 py-2.5 text-left font-semibold">Pembayaran</th>
                             <th class="px-3 py-2.5 text-left font-semibold">Ringkasan</th>
                             <th class="px-3 py-2.5 text-center font-semibold">Aksi</th>
@@ -85,6 +85,7 @@
                                     : '-';
                                 $totalBiaya = (float) ($row->total_aktual_biaya ?? 0);
                                 $isWithoutWarranty = (int) ($row->garansi?->garansi_months ?? -1) === 0;
+                                $garansiMonths = $row->garansi?->garansi_months;
                                 $termin1Paid = ($row->termin1_status ?? 'belum') === 'sudah';
                                 $termin2Paid = ! $isWithoutWarranty && ($row->termin2_status ?? 'belum') === 'sudah';
                                 $initialTermin = ! $isWithoutWarranty && (filled($lpj?->lpj_number_termin2)
@@ -94,6 +95,9 @@
                                         ? '2'
                                         : '1';
                                 $documentName = fn (?string $path): string => $path ? basename(str_replace('\\', '/', $path)) : '';
+                                $displayDocumentName = fn (string $kind, ?string $path, string $terminType): string => $path
+                                    ? (\App\Support\BastDisplayLabel::documentLabel($kind, $terminType, $garansiMonths).'-'.$nomorOrder.'.pdf')
+                                    : '';
                                 $lpjPathTermin1 = $lpj?->lpj_document_path_termin1;
                                 $pplPathTermin1 = $lpj?->ppl_document_path_termin1;
                                 $lpjPathTermin2 = $lpj?->lpj_document_path_termin2;
@@ -113,8 +117,8 @@
                                 data-ppl-url-t1="{{ e($lpj?->ppl_document_path_termin1 ? Storage::url($lpj->ppl_document_path_termin1) : '') }}"
                                 data-lpj-url-t2="{{ e($lpj?->lpj_document_path_termin2 ? Storage::url($lpj->lpj_document_path_termin2) : '') }}"
                                 data-ppl-url-t2="{{ e($lpj?->ppl_document_path_termin2 ? Storage::url($lpj->ppl_document_path_termin2) : '') }}"
-                                data-lpj-name-t1="{{ e($documentName($lpjPathTermin1)) }}"
-                                data-ppl-name-t1="{{ e($documentName($pplPathTermin1)) }}"
+                                data-lpj-name-t1="{{ e($isWithoutWarranty ? $displayDocumentName('lpj', $lpjPathTermin1, 'termin_1') : $documentName($lpjPathTermin1)) }}"
+                                data-ppl-name-t1="{{ e($isWithoutWarranty ? $displayDocumentName('ppl', $pplPathTermin1, 'termin_1') : $documentName($pplPathTermin1)) }}"
                                 data-lpj-name-t2="{{ e($documentName($lpjPathTermin2)) }}"
                                 data-ppl-name-t2="{{ e($documentName($pplPathTermin2)) }}"
                                 data-without-warranty="{{ $isWithoutWarranty ? '1' : '0' }}">
@@ -149,12 +153,14 @@
                                         <input id="remove-ppl-document-{{ $row->id }}" type="hidden" name="remove_ppl_document" value="0">
 
                                         <div class="space-y-1.5">
-                                            <select id="termin-select-{{ $row->id }}" name="selected_termin" title="Pilih termin" aria-label="Pilih termin" class="h-8 w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-[9px] text-slate-700 focus:border-sky-500 focus:outline-none" onchange="window.adminLpjApplyTermin('{{ $row->id }}', this.value)">
-                                                <option value="1">Termin 1</option>
-                                                @unless ($isWithoutWarranty)
+                                            @if ($isWithoutWarranty)
+                                                <input id="termin-select-{{ $row->id }}" type="hidden" name="selected_termin" value="1">
+                                            @else
+                                                <select id="termin-select-{{ $row->id }}" name="selected_termin" title="Pilih termin" aria-label="Pilih termin" class="h-8 w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-[9px] text-slate-700 focus:border-sky-500 focus:outline-none" onchange="window.adminLpjApplyTermin('{{ $row->id }}', this.value)">
+                                                    <option value="1">Termin 1</option>
                                                     <option value="2">Termin 2</option>
-                                                @endunless
-                                            </select>
+                                                </select>
+                                            @endif
                                             <div class="grid grid-cols-2 gap-1.5">
                                                 <input id="lpj-number-{{ $row->id }}" type="text" name="lpj_number" aria-label="Nomor LPJ" placeholder="Nomor LPJ" class="h-8 min-w-0 w-full rounded-lg border border-slate-300 px-2 py-1 text-[9px] text-slate-700 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none">
                                                 <input id="ppl-number-{{ $row->id }}" type="text" name="ppl_number" aria-label="Nomor PPL" placeholder="Nomor PPL" class="h-8 min-w-0 w-full rounded-lg border border-slate-300 px-2 py-1 text-[9px] text-slate-700 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none">
@@ -168,11 +174,11 @@
                                         <div class="min-w-0">
                                             <div id="lpj-document-{{ $row->id }}" class="{{ $initialLpjPath ? '' : 'hidden' }} h-8 rounded-md border border-rose-200 bg-rose-50 px-1.5 text-left">
                                                 <div class="flex h-full min-w-0 items-center gap-1.5">
-                                                    <span id="lpj-document-label-{{ $row->id }}" class="shrink-0 text-[8px] font-black uppercase tracking-[0.08em] text-rose-700">LPJ T{{ $initialTermin }}</span>
-                                                    <a id="lpj-link-{{ $row->id }}" href="{{ $initialLpjPath ? Storage::url($initialLpjPath) : '#' }}" target="_blank" rel="noopener" title="Lihat PDF LPJ" aria-label="Lihat PDF LPJ" class="{{ $initialLpjPath ? '' : 'hidden' }} inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-white text-rose-600 ring-1 ring-rose-200 hover:bg-rose-100">
+                                                    <span id="lpj-document-label-{{ $row->id }}" class="shrink-0 text-[8px] font-black uppercase tracking-[0.08em] text-rose-700">{{ $isWithoutWarranty ? 'LPJ' : 'LPJ T'.$initialTermin }}</span>
+                                                    <a id="lpj-link-{{ $row->id }}" href="{{ $initialLpjPath ? Storage::url($initialLpjPath) : '#' }}" target="_blank" rel="noopener" title="{{ $isWithoutWarranty ? 'Lihat PDF LPJ' : 'Lihat PDF LPJ T'.$initialTermin }}" aria-label="{{ $isWithoutWarranty ? 'Lihat PDF LPJ' : 'Lihat PDF LPJ T'.$initialTermin }}" class="{{ $initialLpjPath ? '' : 'hidden' }} inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-white text-rose-600 ring-1 ring-rose-200 hover:bg-rose-100">
                                                         <i data-lucide="file-text" class="h-3 w-3"></i>
                                                     </a>
-                                                    <span id="lpj-file-name-{{ $row->id }}" class="min-w-0 truncate text-[8px] font-semibold text-slate-700">{{ $documentName($initialLpjPath) }}</span>
+                                                    <span id="lpj-file-name-{{ $row->id }}" class="min-w-0 truncate text-[8px] font-semibold text-slate-700">{{ $isWithoutWarranty ? $displayDocumentName('lpj', $initialLpjPath, 'termin_1') : $documentName($initialLpjPath) }}</span>
                                                     <button type="button" title="Hapus PDF LPJ" aria-label="Hapus PDF LPJ" class="ml-auto inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-rose-600 text-white shadow-sm hover:bg-rose-700" onclick="window.adminLpjRemoveDocument('{{ $row->id }}', 'lpj')">
                                                         <i data-lucide="x" class="h-2.5 w-2.5"></i>
                                                     </button>
@@ -188,11 +194,11 @@
                                         <div class="min-w-0">
                                             <div id="ppl-document-{{ $row->id }}" class="{{ $initialPplPath ? '' : 'hidden' }} h-8 rounded-md border border-indigo-200 bg-indigo-50 px-1.5 text-left">
                                                 <div class="flex h-full min-w-0 items-center gap-1.5">
-                                                    <span id="ppl-document-label-{{ $row->id }}" class="shrink-0 text-[8px] font-black uppercase tracking-[0.08em] text-indigo-700">PPL T{{ $initialTermin }}</span>
-                                                    <a id="ppl-link-{{ $row->id }}" href="{{ $initialPplPath ? Storage::url($initialPplPath) : '#' }}" target="_blank" rel="noopener" title="Lihat PDF PPL" aria-label="Lihat PDF PPL" class="{{ $initialPplPath ? '' : 'hidden' }} inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-white text-indigo-600 ring-1 ring-indigo-200 hover:bg-indigo-100">
+                                                    <span id="ppl-document-label-{{ $row->id }}" class="shrink-0 text-[8px] font-black uppercase tracking-[0.08em] text-indigo-700">{{ $isWithoutWarranty ? 'PPL' : 'PPL T'.$initialTermin }}</span>
+                                                    <a id="ppl-link-{{ $row->id }}" href="{{ $initialPplPath ? Storage::url($initialPplPath) : '#' }}" target="_blank" rel="noopener" title="{{ $isWithoutWarranty ? 'Lihat PDF PPL' : 'Lihat PDF PPL T'.$initialTermin }}" aria-label="{{ $isWithoutWarranty ? 'Lihat PDF PPL' : 'Lihat PDF PPL T'.$initialTermin }}" class="{{ $initialPplPath ? '' : 'hidden' }} inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-white text-indigo-600 ring-1 ring-indigo-200 hover:bg-indigo-100">
                                                         <i data-lucide="file-text" class="h-3 w-3"></i>
                                                     </a>
-                                                    <span id="ppl-file-name-{{ $row->id }}" class="min-w-0 truncate text-[8px] font-semibold text-slate-700">{{ $documentName($initialPplPath) }}</span>
+                                                    <span id="ppl-file-name-{{ $row->id }}" class="min-w-0 truncate text-[8px] font-semibold text-slate-700">{{ $isWithoutWarranty ? $displayDocumentName('ppl', $initialPplPath, 'termin_1') : $documentName($initialPplPath) }}</span>
                                                     <button type="button" title="Hapus PDF PPL" aria-label="Hapus PDF PPL" class="ml-auto inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-rose-600 text-white shadow-sm hover:bg-rose-700" onclick="window.adminLpjRemoveDocument('{{ $row->id }}', 'ppl')">
                                                         <i data-lucide="x" class="h-2.5 w-2.5"></i>
                                                     </button>
@@ -209,9 +215,9 @@
 
                                 <td class="px-3 py-3 align-top">
                                     <div class="space-y-1">
-                                        <div class="grid grid-cols-[22px_1fr] items-center gap-1 text-[9px]">
-                                            <span class="font-bold text-slate-500">T1</span>
-                                            <select id="termin1-status-{{ $row->id }}" name="termin1_status" form="lpj-form-{{ $row->id }}" aria-label="Pembayaran termin 1" class="h-7 w-full rounded-md border px-1.5 py-1 text-[9px] font-semibold {{ $termin1Paid ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-amber-300 bg-amber-50 text-amber-700' }}" onchange="window.adminLpjApplyPaymentState(this)">
+                                        <div class="grid {{ $isWithoutWarranty ? 'grid-cols-[72px_1fr]' : 'grid-cols-[22px_1fr]' }} items-center gap-1 text-[9px]">
+                                            <span class="font-bold text-slate-500">{{ $isWithoutWarranty ? 'Pembayaran' : 'T1' }}</span>
+                                            <select id="termin1-status-{{ $row->id }}" name="termin1_status" form="lpj-form-{{ $row->id }}" aria-label="{{ $isWithoutWarranty ? 'Pembayaran' : 'Pembayaran termin 1' }}" class="h-7 w-full rounded-md border px-1.5 py-1 text-[9px] font-semibold {{ $termin1Paid ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-amber-300 bg-amber-50 text-amber-700' }}" onchange="window.adminLpjApplyPaymentState(this)">
                                                 <option value="belum" @selected(! $termin1Paid)>Belum</option>
                                                 <option value="sudah" @selected($termin1Paid)>Sudah</option>
                                             </select>
@@ -226,7 +232,6 @@
                                         </div>
                                         @else
                                             <input type="hidden" name="termin2_status" form="lpj-form-{{ $row->id }}" value="belum">
-                                            <div class="rounded-md bg-slate-100 px-2 py-1 text-center text-[8px] font-semibold text-slate-500">Tanpa T2</div>
                                         @endunless
                                     </div>
                                 </td>
@@ -365,6 +370,7 @@
             const pplFileName = document.getElementById(`ppl-file-name-${rowId}`);
 
             const suffix = termin === '2' ? 't2' : 't1';
+            const isWithoutWarranty = row.dataset.withoutWarranty === '1';
             const lpjNumberValue = row.dataset[`lpjNumber${suffix.charAt(0).toUpperCase()}${suffix.slice(1)}`] || '';
             const pplNumberValue = row.dataset[`pplNumber${suffix.charAt(0).toUpperCase()}${suffix.slice(1)}`] || '';
             const lpjUrl = row.dataset[`lpjUrl${suffix.charAt(0).toUpperCase()}${suffix.slice(1)}`] || '';
@@ -407,11 +413,11 @@
             if (lpjLink && lpjDocument && lpjUpload) {
                 if (lpjUrl) {
                     lpjLink.href = lpjUrl;
-                    lpjLink.title = `Lihat PDF LPJ T${termin}`;
-                    lpjLink.setAttribute('aria-label', `Lihat PDF LPJ T${termin}`);
+                    lpjLink.title = isWithoutWarranty ? 'Lihat PDF LPJ' : `Lihat PDF LPJ T${termin}`;
+                    lpjLink.setAttribute('aria-label', lpjLink.title);
                     lpjLink.classList.remove('hidden', 'pointer-events-none');
                     if (lpjDocumentLabel) {
-                        lpjDocumentLabel.textContent = `LPJ T${termin}`;
+                        lpjDocumentLabel.textContent = isWithoutWarranty ? 'LPJ' : `LPJ T${termin}`;
                     }
                     lpjDocument.classList.remove('hidden');
                     lpjUpload.style.display = 'none';
@@ -426,11 +432,11 @@
             if (pplLink && pplDocument && pplUpload) {
                 if (pplUrl) {
                     pplLink.href = pplUrl;
-                    pplLink.title = `Lihat PDF PPL T${termin}`;
-                    pplLink.setAttribute('aria-label', `Lihat PDF PPL T${termin}`);
+                    pplLink.title = isWithoutWarranty ? 'Lihat PDF PPL' : `Lihat PDF PPL T${termin}`;
+                    pplLink.setAttribute('aria-label', pplLink.title);
                     pplLink.classList.remove('hidden', 'pointer-events-none');
                     if (pplDocumentLabel) {
-                        pplDocumentLabel.textContent = `PPL T${termin}`;
+                        pplDocumentLabel.textContent = isWithoutWarranty ? 'PPL' : `PPL T${termin}`;
                     }
                     pplDocument.classList.remove('hidden');
                     pplUpload.style.display = 'none';

@@ -217,7 +217,7 @@ class DashboardController extends Controller
                 'title' => 'BAST / LHPP',
                 'value' => $bastTerminOneCount,
                 'description' => 'Order yang sudah masuk proses BAST / LHPP.',
-                'meta' => "Termin 1: {$bastTerminOneCount} | Termin 2: {$bastTerminTwoCount}",
+                'meta' => "BAST Utama: {$bastTerminOneCount} | Termin 2: {$bastTerminTwoCount}",
                 'icon' => 'file-badge',
                 'tone' => 'border-[#d9e6e5] bg-[#f7fbfb] text-[#34736f]',
                 'icon_tone' => 'bg-[#deefed] text-[#34736f]',

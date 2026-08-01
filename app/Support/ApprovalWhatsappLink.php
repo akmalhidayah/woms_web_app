@@ -53,13 +53,16 @@ class ApprovalWhatsappLink
             return null;
         }
 
-        $signature->loadMissing(['signer', 'lhppBast']);
-        $termin = $signature->lhppBast?->termin_type === 'termin_2' ? 'Termin 2' : 'Termin 1';
+        $signature->loadMissing(['signer', 'lhppBast.garansi']);
 
         return self::build(
             $signature->signer,
             'BAST/LHPP',
-            trim((string) $signature->lhppBast?->nomor_order.' '.$termin),
+            BastDisplayLabel::approvalDocumentNumber(
+                (string) $signature->lhppBast?->nomor_order,
+                $signature->lhppBast?->termin_type ?: 'termin_1',
+                $signature->lhppBast?->garansi?->garansi_months,
+            ),
             ApprovalRecipientRoleLabel::for($signature),
             $signature->approvalUrl(),
             $signature->token_expires_at,

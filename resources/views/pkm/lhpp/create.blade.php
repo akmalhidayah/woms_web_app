@@ -1,7 +1,7 @@
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.css">
         <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
         @php
-            $formTitle = $formTitle ?? 'Buat BAST Termin 1';
+            $formTitle = $formTitle ?? 'Buat BAST / LHPP';
             $formAction = $formAction ?? route('pkm.lhpp.store');
             $formMethod = $formMethod ?? 'POST';
             $submitLabel = $submitLabel ?? 'Simpan';
@@ -184,7 +184,10 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                 <div class="flex items-start justify-between gap-3">
                                     <div>
                                         <div class="text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-500">Flow Approval</div>
-                                        <div class="mt-0.5 text-[11px] font-black text-slate-900">BAST {{ $terminLabel }}</div>
+                                        <div
+                                            class="mt-0.5 text-[11px] font-black text-slate-900"
+                                            x-text="isWithoutWarranty ? 'BAST/LHPP' : @js('BAST '.$terminLabel)"
+                                        ></div>
                                     </div>
                                     <div class="flex shrink-0 items-center gap-1.5">
                                         <span class="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-[8px] font-bold text-[#ca642f] ring-1 ring-orange-200" x-text="approvalThreshold === 'over_250' ? '> Rp250 juta' : '≤ Rp250 juta'"></span>

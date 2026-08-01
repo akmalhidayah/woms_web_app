@@ -158,7 +158,10 @@ class AdminNotificationCenter
     private static function bastSignedNotifications(?int $limit): Collection
     {
         return self::limitQuery(LhppBastSignature::query()
-            ->with('lhppBast:id,nomor_order,termin_type,deskripsi_pekerjaan')
+            ->with([
+                'lhppBast:id,nomor_order,termin_type,deskripsi_pekerjaan',
+                'lhppBast.garansi:id,lhpp_bast_id,garansi_months',
+            ])
             ->where('status', LhppBastSignature::STATUS_SIGNED)
             ->whereNotNull('signed_at')
             ->where('signed_at', '>=', now()->subDays(self::RECENT_DAYS))
@@ -171,9 +174,13 @@ class AdminNotificationCenter
                 'tone' => 'emerald',
                 'title' => 'BAST ditandatangani',
                 'message' => sprintf(
-                    'Order %s BAST %s telah ditandatangani oleh %s.',
+                    'Order %s %s telah ditandatangani oleh %s.',
                     $signature->lhppBast?->nomor_order ?: '-',
-                    $signature->lhppBast?->termin_type === 'termin_2' ? 'Termin 2' : 'Termin 1',
+                    BastDisplayLabel::bastLabel(
+                        $signature->lhppBast?->termin_type ?: 'termin_1',
+                        $signature->lhppBast?->garansi?->garansi_months,
+                        false,
+                    ),
                     $signature->signer_name_snapshot ?: 'Approver',
                 ),
                 'meta' => $signature->role_label,
@@ -188,6 +195,7 @@ class AdminNotificationCenter
     private static function bastQualityControlNotifications(?int $limit): Collection
     {
         return self::limitQuery(LhppBast::query()
+            ->with('garansi:id,lhpp_bast_id,garansi_months')
             ->where('quality_control_status', 'pending')
             ->where('termin_type', 'termin_1')
             ->where('created_at', '>=', now()->subDays(self::RECENT_DAYS))
@@ -200,8 +208,8 @@ class AdminNotificationCenter
                 'tone' => 'amber',
                 'title' => 'Cek quality control BAST',
                 'message' => sprintf(
-                    'PKM membuat BAST %s untuk order %s. Cek quality control untuk mulai token TTD.',
-                    $lhpp->termin_type === 'termin_2' ? 'Termin 2' : 'Termin 1',
+                    'PKM membuat %s untuk order %s. Cek quality control untuk mulai token TTD.',
+                    BastDisplayLabel::bastLabel($lhpp->termin_type, $lhpp->garansi?->garansi_months, false),
                     $lhpp->nomor_order ?: '-',
                 ),
                 'meta' => 'Menunggu QC Admin',

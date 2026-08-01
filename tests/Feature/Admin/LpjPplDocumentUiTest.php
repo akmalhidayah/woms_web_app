@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\Garansi;
 use App\Models\LhppBast;
 use App\Models\LpjPpl;
 use App\Models\Order;
@@ -64,5 +65,66 @@ class LpjPplDocumentUiTest extends TestCase
             ->assertSee('class="lpj-responsive-table', false)
             ->assertSee('min-width: 1180px;', false)
             ->assertDontSee('data-mobile-lpj-card', false);
+    }
+
+    public function test_lpj_ppl_uses_single_payment_labels_without_warranty(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+        $order = Order::query()->create([
+            'nomor_order' => 'ORD-LPJ-SINGLE',
+            'nama_pekerjaan' => 'Pekerjaan LPJ Tanpa Garansi',
+            'unit_kerja' => 'Unit Test',
+            'seksi' => 'Seksi Test',
+            'deskripsi' => 'Deskripsi',
+            'prioritas' => Order::PRIORITY_MEDIUM,
+            'tanggal_order' => '2026-06-01',
+            'target_selesai' => '2026-06-10',
+            'created_by' => $admin->id,
+        ]);
+        $lhpp = LhppBast::query()->create([
+            'order_id' => $order->id,
+            'termin_type' => 'termin_1',
+            'nomor_order' => $order->nomor_order,
+            'purchase_order_number' => 'PO-LPJ-SINGLE',
+            'deskripsi_pekerjaan' => $order->nama_pekerjaan,
+            'unit_kerja' => $order->unit_kerja,
+            'seksi' => $order->seksi,
+            'tanggal_bast' => '2026-06-05',
+            'tanggal_mulai_pekerjaan' => '2026-06-01',
+            'tanggal_selesai_pekerjaan' => '2026-06-05',
+            'total_aktual_biaya' => '1000000.00',
+            'created_by' => $admin->id,
+        ]);
+
+        Garansi::query()->create([
+            'order_id' => $order->id,
+            'lhpp_bast_id' => $lhpp->id,
+            'garansi_months' => 0,
+            'created_by' => $admin->id,
+        ]);
+
+        LpjPpl::query()->create([
+            'lhpp_bast_id' => $lhpp->id,
+            'lpj_number_termin1' => 'LPJ-SINGLE',
+            'ppl_number_termin1' => 'PPL-SINGLE',
+            'lpj_document_path_termin1' => 'lpj-ppl/ORD-LPJ-SINGLE/LPJ-Termin-1-ORD-LPJ-SINGLE.pdf',
+            'ppl_document_path_termin1' => 'lpj-ppl/ORD-LPJ-SINGLE/PPL-Termin-1-ORD-LPJ-SINGLE.pdf',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.lpj.index'))
+            ->assertOk()
+            ->assertSee('id="termin-select-'.$lhpp->id.'" type="hidden" name="selected_termin" value="1"', false)
+            ->assertSee('LPJ-ORD-LPJ-SINGLE.pdf')
+            ->assertSee('PPL-ORD-LPJ-SINGLE.pdf')
+            ->assertSee('Pembayaran')
+            ->assertDontSee('LPJ T1')
+            ->assertDontSee('PPL T1')
+            ->assertDontSee('Tanpa T2')
+            ->assertDontSee('>Termin 1<', false)
+            ->assertDontSee('>Termin 2<', false);
     }
 }

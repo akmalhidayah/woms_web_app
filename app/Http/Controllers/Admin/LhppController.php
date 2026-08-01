@@ -10,6 +10,7 @@ use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\Approvals\ApprovalSignatureRollbackService;
 use App\Services\Pkm\BastDeletionService;
 use App\Support\BastApprovalSignatureBuilder;
+use App\Support\BastDisplayLabel;
 use App\Support\BastEffectiveApprovalFlowResolver;
 use App\Support\BastIndexTabs;
 use App\Support\PdfMergeService;
@@ -322,8 +323,10 @@ class LhppController extends Controller
 
             $lhpp->loadMissing([
                 'images',
+                'garansi',
                 'signatures',
                 'parentLhppBast.images',
+                'parentLhppBast.garansi',
                 'parentLhppBast.signatures',
                 'parentLhppBast.purchaseOrder:id,order_id,purchase_order_number',
                 'parentLhppBast.order.purchaseOrder:id,order_id,purchase_order_number',
@@ -364,7 +367,13 @@ class LhppController extends Controller
                 'serviceItems' => collect($lhpp->service_items ?? []),
             ])->setPaper('a4', 'portrait')->output();
 
-            $terminSlug = $lhpp->termin_type === 'termin_2' ? 'termin-2' : 'termin-1';
+            $generatedFilename = BastDisplayLabel::generatedBastPdfFilename(
+                $lhpp->nomor_order,
+                $lhpp->termin_type,
+                $lhpp->termin_type === 'termin_2'
+                    ? $lhpp->parentLhppBast?->garansi?->garansi_months
+                    : $lhpp->garansi?->garansi_months,
+            );
 
             $attachedHpp = $lhpp->hpp ?: $lhpp->order?->latestApprovedHpp;
             $terminOnePdf = null;
@@ -383,7 +392,7 @@ class LhppController extends Controller
                     : $bastPdf;
 
                 return response($pdfOutput, Response::HTTP_OK, $this->pdfInlineHeaders(
-                    'bast-'.$terminSlug.'-'.$lhpp->nomor_order.'.pdf'
+                    $generatedFilename
                 ));
             }
 
@@ -405,7 +414,7 @@ class LhppController extends Controller
             ]);
 
             return response($mergedPdf, Response::HTTP_OK, $this->pdfInlineHeaders(
-                'bast-'.$terminSlug.'-'.$lhpp->nomor_order.'.pdf'
+                $generatedFilename
             ));
         } catch (Throwable $exception) {
             Log::error('Failed to generate admin BAST PDF.', [

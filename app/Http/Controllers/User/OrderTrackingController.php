@@ -20,6 +20,7 @@ use App\Models\QualityControlSignature;
 use App\Services\Orders\OrderDocumentService;
 use App\Services\QualityControl\QualityControlSignatureService;
 use App\Support\ApprovalWhatsappLink;
+use App\Support\BastDisplayLabel;
 use App\Support\PdfMergeService;
 use App\Support\ScopeOfWorkPdfPresenter;
 use App\Support\SignatureImageStorage;
@@ -315,7 +316,11 @@ class OrderTrackingController extends Controller
         ])->setPaper('a4', 'portrait')->output();
 
         $attachedHpp = $lhpp->hpp ?: $order->latestHpp;
-        $terminSlug = $terminType === 'termin_2' ? 'termin-2' : 'termin-1';
+        $generatedFilename = BastDisplayLabel::generatedBastPdfFilename(
+            $order->nomor_order,
+            $terminType,
+            $terminOne?->garansi?->garansi_months,
+        );
         $terminOnePdf = null;
 
         if ($terminType === 'termin_2' && $lhpp->parentLhppBast) {
@@ -333,7 +338,7 @@ class OrderTrackingController extends Controller
 
             return response($pdfOutput, Response::HTTP_OK, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => sprintf('inline; filename="%s"', 'bast-'.$terminSlug.'-'.$order->nomor_order.'.pdf'),
+                'Content-Disposition' => sprintf('inline; filename="%s"', $generatedFilename),
             ]);
         }
 
@@ -345,7 +350,7 @@ class OrderTrackingController extends Controller
 
         return response($mergedPdf, Response::HTTP_OK, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => sprintf('inline; filename="%s"', 'bast-'.$terminSlug.'-'.$order->nomor_order.'.pdf'),
+            'Content-Disposition' => sprintf('inline; filename="%s"', $generatedFilename),
         ]);
     }
 
@@ -542,7 +547,8 @@ class OrderTrackingController extends Controller
         $qualityControlDocument = $this->resolveQualityControlDocumentLink($order);
         $initialWorkApproval = $this->resolveInitialWorkApprovalShareInfo($order->initialWork);
         $hppApproval = $this->resolveHppApprovalShareInfo($order->latestHpp);
-        $bastTerminOneApproval = $this->resolveBastApprovalShareInfo($terminOne, 'BAST Termin 1');
+        $bastTerminOneLabel = BastDisplayLabel::bastLabel('termin_1', $garansi?->garansi_months, false);
+        $bastTerminOneApproval = $this->resolveBastApprovalShareInfo($terminOne, $bastTerminOneLabel);
         $bastTerminTwoApproval = $this->resolveBastApprovalShareInfo($terminTwo, 'BAST Termin 2');
         $qualityControlApproval = $this->resolveQualityControlApprovalShareInfo($order->latestQualityControlReport);
         $workshopInfo = $this->buildWorkshopTimelineInfoPayload($order, $workshopTask);
@@ -619,8 +625,8 @@ class OrderTrackingController extends Controller
             ],
             [
                 'key' => 'bast_termin_1',
-                'title' => 'BAST Termin 1',
-                'label' => 'BAST Termin 1',
+                'title' => $bastTerminOneLabel,
+                'label' => $bastTerminOneLabel,
                 'url' => $terminOne ? route('user.orders.bast.pdf', ['order' => $order, 'termin' => 'termin-1']) : null,
                 'preview_type' => 'pdf',
                 'icon' => 'file-badge',
@@ -637,8 +643,8 @@ class OrderTrackingController extends Controller
             ],
             [
                 'key' => 'lpj_termin_1',
-                'title' => 'LPJ Termin 1',
-                'label' => $lpjPpl?->lpj_number_termin1 ?: 'LPJ Termin 1',
+                'title' => BastDisplayLabel::documentLabel('lpj', 'termin_1', $garansi?->garansi_months),
+                'label' => $lpjPpl?->lpj_number_termin1 ?: BastDisplayLabel::documentLabel('lpj', 'termin_1', $garansi?->garansi_months),
                 'url' => filled($lpjPpl?->lpj_number_termin1) ? route('user.orders.laporan.preview', ['order' => $order, 'kind' => 'lpj', 'termin' => 1]) : null,
                 'preview_type' => $this->detectPreviewTypeFromFilename($lpjPpl?->lpj_document_path_termin1),
                 'icon' => 'file-chart-column',
@@ -646,8 +652,8 @@ class OrderTrackingController extends Controller
             ],
             [
                 'key' => 'ppl_termin_1',
-                'title' => 'PPL Termin 1',
-                'label' => $lpjPpl?->ppl_number_termin1 ?: 'PPL Termin 1',
+                'title' => BastDisplayLabel::documentLabel('ppl', 'termin_1', $garansi?->garansi_months),
+                'label' => $lpjPpl?->ppl_number_termin1 ?: BastDisplayLabel::documentLabel('ppl', 'termin_1', $garansi?->garansi_months),
                 'url' => filled($lpjPpl?->ppl_number_termin1) ? route('user.orders.laporan.preview', ['order' => $order, 'kind' => 'ppl', 'termin' => 1]) : null,
                 'preview_type' => $this->detectPreviewTypeFromFilename($lpjPpl?->ppl_document_path_termin1),
                 'icon' => 'file-bar-chart-2',
@@ -767,17 +773,17 @@ class OrderTrackingController extends Controller
                     'info' => $purchaseOrderInfo,
                 ],
                 [
-                    'label' => 'BAST Termin 1',
+                    'label' => $bastTerminOneLabel,
                     'value' => $terminOne ? 'Siap dilihat' : 'Belum tersedia',
                     'tone' => $terminOne ? 'done' : 'waiting',
                     'approval' => $bastTerminOneApproval,
                 ],
-                [
+                ...(! $isWithoutWarranty ? [[
                     'label' => 'BAST Termin 2',
                     'value' => $terminTwo ? 'Siap dilihat' : 'Belum tersedia',
                     'tone' => $terminTwo ? 'done' : 'waiting',
                     'approval' => $bastTerminTwoApproval,
-                ],
+                ]] : []),
                 [
                     'label' => 'Garansi',
                     'value' => $garansi ? sprintf('%s bulan', (int) $garansi->garansi_months) : 'Belum tersedia',
@@ -1496,11 +1502,12 @@ class OrderTrackingController extends Controller
     {
         $terminOne = $order->lhppBasts->firstWhere('termin_type', 'termin_1');
         $terminTwo = $order->lhppBasts->firstWhere('termin_type', 'termin_2') ?: $terminOne?->terminTwo;
-        $terminTwo = (int) ($terminOne?->garansi?->garansi_months ?? -1) === 0 ? null : $terminTwo;
+        $garansiMonths = $terminOne?->garansi?->garansi_months;
+        $terminTwo = BastDisplayLabel::isWithoutWarranty($garansiMonths) ? null : $terminTwo;
 
         return match (true) {
             $terminTwo !== null => 'Termin 2 berjalan',
-            $terminOne !== null => 'Termin 1 berjalan',
+            $terminOne !== null => BastDisplayLabel::isWithoutWarranty($garansiMonths) ? 'BAST berjalan' : 'Termin 1 berjalan',
             filled($order->purchaseOrder?->purchase_order_number) => 'PO tersedia',
             $order->budgetVerification !== null => 'Verifikasi anggaran',
             $order->latestHpp !== null => 'HPP tersedia',

@@ -177,14 +177,21 @@ class PkmNotificationCenter
     private static function bastSignedNotifications(?int $limit): Collection
     {
         return self::limitQuery(LhppBastSignature::query()
-            ->with('lhppBast:id,nomor_order,termin_type,deskripsi_pekerjaan')
+            ->with([
+                'lhppBast:id,nomor_order,termin_type,deskripsi_pekerjaan',
+                'lhppBast.garansi:id,lhpp_bast_id,garansi_months',
+            ])
             ->where('status', LhppBastSignature::STATUS_SIGNED)
             ->whereNotNull('signed_at')
             ->where('signed_at', '>=', now()->subDays(self::RECENT_DAYS))
             ->latest('signed_at'), $limit)
             ->get()
             ->map(function (LhppBastSignature $signature): array {
-                $termin = $signature->lhppBast?->termin_type === 'termin_2' ? 'Termin 2' : 'Termin 1';
+                $bastLabel = BastDisplayLabel::bastLabel(
+                    $signature->lhppBast?->termin_type ?: 'termin_1',
+                    $signature->lhppBast?->garansi?->garansi_months,
+                    false,
+                );
 
                 return [
                     'key' => 'pkm-bast-signature:'.$signature->id,
@@ -192,8 +199,8 @@ class PkmNotificationCenter
                     'icon' => 'file-signature',
                     'tone' => 'emerald',
                     'message' => sprintf(
-                        'BAST %s order %s sudah ditandatangani oleh %s.',
-                        $termin,
+                        '%s order %s sudah ditandatangani oleh %s.',
+                        $bastLabel,
                         $signature->lhppBast?->nomor_order ?: '-',
                         $signature->signer_name_snapshot ?: 'Approver',
                     ),

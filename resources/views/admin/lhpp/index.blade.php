@@ -295,10 +295,10 @@
                                         <a href="{{ route('admin.lhpp.pdf', ['nomorOrder' => $lhpp->nomor_order, 'termin' => 'termin-1']) }}?refresh={{ $pdfRefreshToken }}"
                                            target="_blank"
                                            rel="noopener"
-                                           title="Lihat BAST Termin 1 (PDF)"
-                                           aria-label="Lihat BAST Termin 1 PDF"
+                                           title="{{ $isWithoutWarranty ? 'Lihat BAST PDF' : 'Lihat BAST Termin 1 (PDF)' }}"
+                                           aria-label="{{ $isWithoutWarranty ? 'Lihat BAST PDF' : 'Lihat BAST Termin 1 PDF' }}"
                                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-[9px] font-black text-rose-700 shadow-sm transition hover:bg-rose-100">
-                                            T1
+                                            {{ \App\Support\BastDisplayLabel::shortStageLabel('termin_1', $garansiMonths) === 'Pembayaran' ? 'BAST' : 'T1' }}
                                         </a>
 
                                         @if ($hasTerminTwo)
@@ -310,9 +310,7 @@
                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-[9px] font-black text-sky-700 shadow-sm transition hover:bg-sky-100">
                                                 T2
                                             </a>
-                                        @elseif ($isWithoutWarranty)
-                                            <span class="text-center text-[10px] font-medium text-slate-400">Tidak ada Termin 2</span>
-                                        @else
+                                        @elseif (! $isWithoutWarranty)
                                             <span class="text-center text-[10px] font-medium text-slate-400">Termin 2 belum dibuat</span>
                                         @endif
 
@@ -323,7 +321,7 @@
                                         @endif
 
                                         @if ($diropsSignedDocumentUrl)
-                                            <a href="{{ $diropsSignedDocumentUrl }}" target="_blank" rel="noopener" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:bg-emerald-100" title="Final DIROPS T1">
+                                            <a href="{{ $diropsSignedDocumentUrl }}" target="_blank" rel="noopener" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:bg-emerald-100" title="{{ $isWithoutWarranty ? 'Final DIROPS' : 'Final DIROPS T1' }}">
                                                 <i data-lucide="file-check-2" class="h-3 w-3"></i>
                                             </a>
                                         @endif
@@ -345,6 +343,7 @@
                                             action="{{ route('admin.lhpp.destroy', $lhpp) }}"
                                             class="js-admin-delete-bast"
                                             data-order-number="{{ $nomorOrder }}"
+                                            data-without-warranty="{{ $isWithoutWarranty ? '1' : '0' }}"
                                         >
                                             @csrf
                                             @method('DELETE')
@@ -596,7 +595,10 @@
                 form.addEventListener('submit', async (event) => {
                     event.preventDefault();
                     const orderNumber = form.dataset.orderNumber || '-';
-                    const message = `BAST order ${orderNumber} akan dihapus seluruhnya, termasuk Termin 2, item, gambar, signature, token approval, file final, dan LPJ/PPL terkait. Data garansi order tetap dipertahankan. PKM harus membuat BAST ulang.`;
+                    const withoutWarranty = form.dataset.withoutWarranty === '1';
+                    const message = withoutWarranty
+                        ? `BAST order ${orderNumber} akan dihapus seluruhnya, termasuk item, gambar, signature, token approval, file final, dan LPJ/PPL terkait. Data garansi order tetap dipertahankan. PKM harus membuat BAST ulang.`
+                        : `BAST order ${orderNumber} akan dihapus seluruhnya, termasuk Termin 2, item, gambar, signature, token approval, file final, dan LPJ/PPL terkait. Data garansi order tetap dipertahankan. PKM harus membuat BAST ulang.`;
 
                     if (!window.Swal) {
                         if (window.confirm(`${message}\n\nLanjutkan?`)) form.submit();

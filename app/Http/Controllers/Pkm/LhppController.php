@@ -19,6 +19,7 @@ use App\Services\Pkm\BastDeletionService;
 use App\Support\ApprovalFlowSignerPreview;
 use App\Support\BastApprovalFlow;
 use App\Support\BastApprovalSignatureBuilder;
+use App\Support\BastDisplayLabel;
 use App\Support\BastDocumentNumberGenerator;
 use App\Support\BastEffectiveApprovalFlowResolver;
 use App\Support\BastIndexTabs;
@@ -130,8 +131,8 @@ class LhppController extends Controller
         try {
             return $this->buildFormView($request, null, [
                 'pageTitle' => 'Form LHPP',
-                'pageDescription' => 'Form pembuatan BAST termin 1 PKM.',
-                'formTitle' => 'Buat BAST Termin 1',
+                'pageDescription' => 'Form pembuatan BAST/LHPP PKM.',
+                'formTitle' => 'Buat BAST / LHPP',
                 'formAction' => route('pkm.lhpp.store'),
                 'formMethod' => 'POST',
                 'submitLabel' => 'Simpan',
@@ -201,10 +202,16 @@ class LhppController extends Controller
 
             abort_if(! $lhpp, Response::HTTP_NOT_FOUND, 'Data BAST tidak ditemukan.');
 
+            $lhpp->loadMissing(['garansi', 'parentLhppBast.garansi']);
+            $garansiMonths = $terminType === 'termin_2'
+                ? $lhpp->parentLhppBast?->garansi?->garansi_months
+                : $lhpp->garansi?->garansi_months;
+            $bastLabel = BastDisplayLabel::bastLabel($terminType, $garansiMonths, false);
+
             return $this->buildFormView($request, $lhpp, [
                 'pageTitle' => 'Edit LHPP',
-                'pageDescription' => sprintf('Pembaruan data BAST %s PKM.', $this->terminLabel($terminType)),
-                'formTitle' => sprintf('Edit BAST %s', $this->terminLabel($terminType)),
+                'pageDescription' => sprintf('Pembaruan data %s PKM.', $bastLabel),
+                'formTitle' => 'Edit '.$bastLabel,
                 'formAction' => route('pkm.lhpp.update', [
                     'nomorOrder' => $lhpp->nomor_order,
                     'termin' => $this->terminSlug($terminType),
@@ -391,11 +398,20 @@ class LhppController extends Controller
                 return $lhpp->refresh();
             });
 
+            $lhpp->loadMissing(['garansi', 'parentLhppBast.garansi']);
+            $garansiMonths = $terminType === 'termin_2'
+                ? $lhpp->parentLhppBast?->garansi?->garansi_months
+                : $lhpp->garansi?->garansi_months;
+
             return redirect()
                 ->route('pkm.lhpp.index')
                 ->with('status', sprintf(
-                    'BAST %s untuk order %s berhasil disimpan. Total aktual biaya Rp %s.',
-                    $this->terminLabel($terminType),
+                    '%s untuk order %s berhasil disimpan. Total aktual biaya Rp %s.',
+                    BastDisplayLabel::bastLabel(
+                        $terminType,
+                        $garansiMonths,
+                        BastDisplayLabel::isWithoutWarranty($garansiMonths),
+                    ),
                     $lhpp->nomor_order,
                     number_format((float) $lhpp->total_aktual_biaya, 0, ',', '.'),
                 ));
@@ -570,12 +586,20 @@ class LhppController extends Controller
             });
 
             $this->storeUploadedImages($request, $lhpp);
+            $lhpp->loadMissing(['garansi', 'parentLhppBast.garansi']);
+            $garansiMonths = $terminType === 'termin_2'
+                ? $lhpp->parentLhppBast?->garansi?->garansi_months
+                : $lhpp->garansi?->garansi_months;
 
             return redirect()
                 ->route('pkm.lhpp.index')
                 ->with('status', sprintf(
-                    'BAST %s untuk order %s berhasil diperbarui.',
-                    $this->terminLabel($terminType),
+                    '%s untuk order %s berhasil diperbarui.',
+                    BastDisplayLabel::bastLabel(
+                        $terminType,
+                        $garansiMonths,
+                        BastDisplayLabel::isWithoutWarranty($garansiMonths),
+                    ),
                     $lhpp->nomor_order,
                 ));
         } catch (ValidationException $exception) {
@@ -641,14 +665,22 @@ class LhppController extends Controller
             }
 
             $nomorOrder = $lhpp->nomor_order;
-            $termLabel = $this->terminLabel($terminType);
+            $lhpp->loadMissing(['garansi', 'parentLhppBast.garansi']);
+            $garansiMonths = $terminType === 'termin_2'
+                ? $lhpp->parentLhppBast?->garansi?->garansi_months
+                : $lhpp->garansi?->garansi_months;
+            $bastLabel = BastDisplayLabel::bastLabel(
+                $terminType,
+                $garansiMonths,
+                BastDisplayLabel::isWithoutWarranty($garansiMonths),
+            );
             $this->bastDeletionService->delete($lhpp);
 
             return redirect()
                 ->route('pkm.lhpp.index')
                 ->with('status', sprintf(
-                    'BAST %s untuk order %s berhasil dihapus. Anda dapat membuat BAST baru untuk order tersebut.',
-                    $termLabel,
+                    '%s untuk order %s berhasil dihapus. Anda dapat membuat BAST baru untuk order tersebut.',
+                    $bastLabel,
                     $nomorOrder,
                 ));
         } catch (Throwable $exception) {
@@ -686,6 +718,7 @@ class LhppController extends Controller
                 'garansi',
                 'signatures',
                 'parentLhppBast.images',
+                'parentLhppBast.garansi',
                 'parentLhppBast.signatures',
                 'parentLhppBast.purchaseOrder:id,order_id,purchase_order_number',
                 'parentLhppBast.order.purchaseOrder:id,order_id,purchase_order_number',
@@ -744,7 +777,13 @@ class LhppController extends Controller
                     : $bastPdf;
 
                 return response($pdfOutput, Response::HTTP_OK, $this->pdfInlineHeaders(
-                    sprintf('bast-%s-%s.pdf', $this->terminSlug($terminType), $lhpp->nomor_order)
+                    BastDisplayLabel::generatedBastPdfFilename(
+                        $lhpp->nomor_order,
+                        $terminType,
+                        $terminType === 'termin_2'
+                            ? $lhpp->parentLhppBast?->garansi?->garansi_months
+                            : $lhpp->garansi?->garansi_months,
+                    )
                 ));
             }
 
@@ -755,7 +794,13 @@ class LhppController extends Controller
             $mergedPdf = $this->mergePdfOutputs(array_filter([$bastPdf, $terminOnePdf, $hppPdf]));
 
             return response($mergedPdf, Response::HTTP_OK, $this->pdfInlineHeaders(
-                sprintf('bast-%s-%s.pdf', $this->terminSlug($terminType), $lhpp->nomor_order)
+                BastDisplayLabel::generatedBastPdfFilename(
+                    $lhpp->nomor_order,
+                    $terminType,
+                    $terminType === 'termin_2'
+                        ? $lhpp->parentLhppBast?->garansi?->garansi_months
+                        : $lhpp->garansi?->garansi_months,
+                )
             ));
         } catch (Throwable $exception) {
             $this->rethrowExpectedException($exception);
@@ -795,7 +840,12 @@ class LhppController extends Controller
     public function uploadDiropsSignedDocument(UploadBastDiropsSignedDocumentRequest $request, int $lhppId): RedirectResponse
     {
         $lhpp = LhppBast::query()->findOrFail($lhppId);
+        $lhpp->loadMissing(['garansi', 'parentLhppBast.garansi']);
         $signature = $this->resolvePendingDiropsSignature($lhpp);
+        $garansiMonths = $lhpp->termin_type === 'termin_2'
+            ? $lhpp->parentLhppBast?->garansi?->garansi_months
+            : $lhpp->garansi?->garansi_months;
+        $bastLabel = BastDisplayLabel::bastLabel($lhpp->termin_type, $garansiMonths, false);
 
         if (! $signature) {
             throw ValidationException::withMessages([
@@ -855,8 +905,8 @@ class LhppController extends Controller
             return redirect()
                 ->route('pkm.lhpp.index')
                 ->with('status', sprintf(
-                    'Dokumen final DIROPS BAST %s untuk order %s sudah pernah diunggah.',
-                    $lhpp->termin_type === 'termin_2' ? 'Termin 2' : 'Termin 1',
+                    'Dokumen final DIROPS %s untuk order %s sudah pernah diunggah.',
+                    $bastLabel,
                     $lhpp->nomor_order,
                 ));
         }
@@ -864,8 +914,8 @@ class LhppController extends Controller
         return redirect()
             ->route('pkm.lhpp.index')
             ->with('status', sprintf(
-                'Dokumen final DIROPS BAST %s untuk order %s berhasil diunggah.',
-                $lhpp->termin_type === 'termin_2' ? 'Termin 2' : 'Termin 1',
+                'Dokumen final DIROPS %s untuk order %s berhasil diunggah.',
+                $bastLabel,
                 $lhpp->nomor_order,
             ));
     }
@@ -1368,7 +1418,7 @@ class LhppController extends Controller
             'tanggalMulaiPekerjaan' => old('tanggal_mulai_pekerjaan', optional($lhpp?->tanggal_mulai_pekerjaan)->format('Y-m-d') ?? optional($parentLhpp?->tanggal_mulai_pekerjaan)->format('Y-m-d')),
             'tanggalSelesaiPekerjaan' => old('tanggal_selesai_pekerjaan', optional($lhpp?->tanggal_selesai_pekerjaan)->format('Y-m-d') ?? optional($parentLhpp?->tanggal_selesai_pekerjaan)->format('Y-m-d')),
             'useFixedWorkDates' => (bool) ($lhpp || $parentLhpp),
-            'existingImages' => $this->buildExistingImageList($lhpp, $parentLhpp)->all(),
+            'existingImages' => $this->buildExistingImageList($lhpp, $parentLhpp, $isWithoutWarranty)->all(),
             'initialMaterialRows' => $calculation['material_rows'],
             'initialServiceRows' => $calculation['service_rows'],
             'initialCalculation' => $calculation['totals'],
@@ -1385,20 +1435,26 @@ class LhppController extends Controller
         ]);
     }
 
-    private function buildExistingImageList(?LhppBast $lhpp, ?LhppBast $parentLhpp = null): Collection
+    private function buildExistingImageList(
+        ?LhppBast $lhpp,
+        ?LhppBast $parentLhpp = null,
+        bool $isWithoutWarranty = false
+    ): Collection
     {
         $parentImages = collect($parentLhpp?->images ?? [])
             ->map(fn (LhppBastImage $image): array => [
                 'name' => $image->file_name ?: basename((string) $image->file_path),
                 'url' => $image->file_path ? Storage::disk('public')->url($image->file_path) : null,
-                'source' => 'Termin 1',
+                'source' => $isWithoutWarranty ? 'BAST/LHPP' : 'Termin 1',
             ]);
 
         $ownImages = collect($lhpp?->images ?? [])
             ->map(fn (LhppBastImage $image): array => [
                 'name' => $image->file_name ?: basename((string) $image->file_path),
                 'url' => $image->file_path ? Storage::disk('public')->url($image->file_path) : null,
-                'source' => ($lhpp?->termin_type === 'termin_2') ? 'Tambahan Termin 2' : 'Termin 1',
+                'source' => ($lhpp?->termin_type === 'termin_2')
+                    ? 'Tambahan Termin 2'
+                    : ($isWithoutWarranty ? 'BAST/LHPP' : 'Termin 1'),
             ]);
 
         return $parentImages

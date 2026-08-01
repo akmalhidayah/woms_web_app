@@ -40,6 +40,7 @@ class DashboardController extends Controller
         $totalAmount2 = $documentPRPOAmount + $urgentAmount;
         $totalSeluruhAmount = $totalAmount1 + $totalAmount2;
         $totalKuotaKontrak = $this->sumActiveOutlineAgreementBudget();
+        $budgetUsagePercentageHundredths = $this->percentageHundredths($totalSeluruhAmount, $totalKuotaKontrak);
         $totalBiayaPemeliharaan = $this->sumActiveOutlineAgreementMaintenanceTargets();
         $totalJasaPemeliharaan = $this->sumVerifiedMaintenanceServiceAmount();
 
@@ -57,6 +58,13 @@ class DashboardController extends Controller
             'totalAmount2' => $totalAmount2,
             'totalRealisasiBiaya' => $totalAmount2,
             'totalSeluruhAmount' => $totalSeluruhAmount,
+            'totalPemakaianKuota' => $totalSeluruhAmount,
+            'budgetUsagePercentageHundredths' => $budgetUsagePercentageHundredths,
+            'budgetUsagePercentageLabel' => $this->formatPercentageHundredths($budgetUsagePercentageHundredths, ','),
+            'budgetUsageProgressWidth' => $this->formatPercentageHundredths(
+                min(10000, max(0, $budgetUsagePercentageHundredths)),
+                '.',
+            ),
             'totalKuotaKontrak' => $totalKuotaKontrak,
             'sisaKuotaKontrak' => $totalKuotaKontrak - $totalSeluruhAmount,
             'targetPemeliharaan' => $totalBiayaPemeliharaan,
@@ -466,6 +474,35 @@ class DashboardController extends Controller
         }
 
         return $month;
+    }
+
+    private function percentageHundredths(int $amount, int $total): int
+    {
+        if ($total <= 0) {
+            return 0;
+        }
+
+        $scaledAmount = $amount * 10000;
+        $percentage = intdiv($scaledAmount, $total);
+        $remainder = $scaledAmount % $total;
+
+        return ($remainder * 2) >= $total
+            ? $percentage + 1
+            : $percentage;
+    }
+
+    private function formatPercentageHundredths(int $value, string $decimalSeparator): string
+    {
+        $sign = $value < 0 ? '-' : '';
+        $absoluteValue = abs($value);
+        $whole = intdiv($absoluteValue, 100);
+        $fraction = $absoluteValue % 100;
+
+        if ($fraction === 0) {
+            return $sign.$whole;
+        }
+
+        return $sign.$whole.$decimalSeparator.rtrim(str_pad((string) $fraction, 2, '0', STR_PAD_LEFT), '0');
     }
 
     private function moneyInt(mixed $value): int

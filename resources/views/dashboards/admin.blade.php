@@ -191,17 +191,27 @@
 
         <section class="dashboard-compact-grid grid gap-2 lg:grid-cols-2">
             <article class="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-                <div class="mb-1.5 space-y-1.5">
+                @php
+                    $remainingBudgetIsNegative = $sisaKuotaKontrak < 0;
+                    $remainingBudgetCardClasses = $remainingBudgetIsNegative
+                        ? 'border-rose-200 bg-rose-50'
+                        : 'border-yellow-200 bg-yellow-50';
+                    $remainingBudgetValueClasses = $remainingBudgetIsNegative
+                        ? 'text-rose-700'
+                        : 'text-yellow-900';
+                    $remainingMaintenanceClasses = $sisaBiayaPemeliharaan < 0
+                        ? 'text-rose-700'
+                        : 'text-slate-900';
+                @endphp
+
+                <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                     <div class="flex items-center gap-2">
                         <i data-lucide="badge-info" class="h-3.5 w-3.5 text-slate-600"></i>
                         <h3 class="text-[13px] font-semibold text-slate-800">Ringkasan Kuota Anggaran</h3>
                     </div>
-                    <div class="flex flex-wrap items-end justify-between gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5">
+                    <div class="text-right text-[8.5px] leading-3 text-slate-500">
+                        <div class="font-semibold uppercase tracking-[0.12em] text-slate-400">Periode OA</div>
                         <div>
-                            <div class="text-[8px] font-semibold uppercase tracking-[0.14em] text-slate-500">Kuota Anggaran</div>
-                            <div class="text-[11px] font-bold leading-4 text-slate-900">Rp. {{ number_format($totalKuotaKontrak, 0, ',', '.') }}</div>
-                        </div>
-                        <div class="text-[8.5px] leading-3 text-slate-500">
                             {{ $periodeKontrak['start'] ? \Carbon\Carbon::parse($periodeKontrak['start'])->format('d M Y') : '-' }}
                             s/d
                             {{ $periodeKontrak['end'] ? \Carbon\Carbon::parse($periodeKontrak['end'])->format('d M Y') : '-' }}
@@ -209,48 +219,62 @@
                     </div>
                 </div>
 
-                <div class="grid gap-1.5 sm:grid-cols-2">
-                    <div class="min-h-[76px] rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5">
-                        <div class="text-[11px] font-bold leading-5 text-blue-900">
-                            Potensi Biaya + Realisasi Biaya:
-                            <span id="potentialAndRealizationAmount" class="text-slate-900">Rp. {{ number_format($totalSeluruhAmount, 0, ',', '.') }}</span>
-                        </div>
+                <div class="grid gap-2 sm:grid-cols-2">
+                    <div class="min-w-0 rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                        <div class="text-[10px] font-semibold text-slate-600">Kuota Anggaran</div>
+                        <div class="mt-1 break-words text-sm font-bold leading-5 text-slate-900">{{ $rp($totalKuotaKontrak) }}</div>
                     </div>
+                    <div class="min-w-0 rounded-lg border border-blue-200 bg-blue-50 p-2.5">
+                        <div class="text-[10px] font-semibold text-blue-700">Potensi Biaya</div>
+                        <div id="budgetPotentialAmount" class="mt-1 break-words text-sm font-bold leading-5 text-slate-900">{{ $rp($totalAmount1) }}</div>
+                    </div>
+                    <div class="min-w-0 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5">
+                        <div class="text-[10px] font-semibold text-emerald-700">Realisasi Biaya</div>
+                        <div id="budgetRealizationAmount" class="mt-1 break-words text-sm font-bold leading-5 text-slate-900">{{ $rp($totalRealisasiBiaya) }}</div>
+                    </div>
+                    <div id="remainingContractBudgetCard" class="min-w-0 rounded-lg border p-2.5 {{ $remainingBudgetCardClasses }}">
+                        <div class="text-[10px] font-semibold text-slate-700">Sisa Kuota Kontrak</div>
+                        <div id="remainingContractBudget" class="mt-1 break-words text-sm font-bold leading-5 {{ $remainingBudgetValueClasses }}">{{ $rp($sisaKuotaKontrak) }}</div>
+                    </div>
+                </div>
 
-                    @php
-                        $kuotaKontrakActual = ($totalKuotaKontrak ?? 0) - ($totalSeluruhAmount ?? 0);
-                        $totalBiayaPemeliharaan = $cleanNumber($targetPemeliharaan);
-                        $sisaBiayaPemeliharaan = $cleanNumber($sisaBiayaPemeliharaan);
-                        $sisaBiayaPemeliharaanClasses = $sisaBiayaPemeliharaan < 0 ? 'text-rose-700' : 'text-slate-900';
-                    @endphp
-                    <div class="min-h-[76px] rounded-lg border border-sky-200 bg-sky-50 px-2 py-1.5">
-                        <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-sky-700">Kuota Anggaran Actual</div>
-                        <div id="actualBudgetAmount" class="mt-0.5 text-sm font-bold text-slate-900">Rp. {{ number_format($kuotaKontrakActual, 0, ',', '.') }}</div>
-                        <div class="mt-1 grid gap-0.5 text-[8.5px] leading-3 text-sky-700">
-                            <div>Kuota: Rp. {{ number_format($totalKuotaKontrak, 0, ',', '.') }}</div>
-                            <div>Potensi + Realisasi: <span id="actualBudgetUsageAmount">Rp. {{ number_format($totalSeluruhAmount, 0, ',', '.') }}</span></div>
-                        </div>
+                <div class="mt-2 rounded-lg border border-slate-200 bg-white p-2.5">
+                    <div class="flex items-center justify-between gap-3 text-[10px]">
+                        <span class="font-semibold text-slate-700">Pemakaian Kuota</span>
+                        <span id="budgetUsagePercentage" class="font-bold text-blue-700">{{ $budgetUsagePercentageLabel }}%</span>
                     </div>
+                    <div
+                        class="mt-2 h-2 overflow-hidden rounded-full bg-slate-200"
+                        role="progressbar"
+                        aria-label="Pemakaian Kuota"
+                        aria-valuenow="{{ $budgetUsageProgressWidth }}"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        aria-valuetext="{{ $budgetUsagePercentageLabel }}%"
+                    >
+                        <div id="budgetUsageProgress" class="h-full rounded-full bg-blue-600 transition-[width]" style="width: {{ $budgetUsageProgressWidth }}%"></div>
+                    </div>
+                    <div id="budgetUsageAmount" class="mt-1.5 break-words text-[9px] text-slate-500">
+                        {{ $rp($totalPemakaianKuota) }} dari {{ $rp($totalKuotaKontrak) }}
+                    </div>
+                </div>
 
-                    <div class="min-h-[76px] rounded-lg border border-slate-200 bg-white px-2 py-1.5">
-                        <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-700">Total Biaya Pemeliharaan</div>
-                        <div class="mt-0.5 text-sm font-bold {{ $sisaBiayaPemeliharaanClasses }}">Rp. {{ number_format($sisaBiayaPemeliharaan, 0, ',', '.') }}</div>
-                        <div class="mt-1 grid gap-0.5 text-[9px] text-slate-500">
-                            <div class="flex items-center justify-between gap-3">
-                                <span>Target Biaya Pemeliharaan</span>
-                                <span class="font-semibold text-slate-800">Rp. {{ number_format($totalBiayaPemeliharaan, 0, ',', '.') }}</span>
-                            </div>
-                            <div class="flex items-center justify-between gap-3">
-                                <span>Total Jasa Pemeliharaan</span>
-                                <span class="font-semibold text-slate-800">Rp. {{ number_format($totalJasaPemeliharaan, 0, ',', '.') }}</span>
-                            </div>
+                <div class="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                    <h4 class="text-[10px] font-semibold text-slate-700">Ringkasan Biaya Pemeliharaan</h4>
+                    <dl class="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        <div class="min-w-0 rounded-md bg-white p-2">
+                            <dt class="text-[9px] leading-3 text-slate-500">Target Biaya Pemeliharaan</dt>
+                            <dd class="mt-1 break-words text-[11px] font-semibold text-slate-900">{{ $rp($targetPemeliharaan) }}</dd>
                         </div>
-                    </div>
-
-                    <div class="min-h-[76px] rounded-lg border border-yellow-200 bg-yellow-50 px-2 py-1.5">
-                        <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-yellow-700">Sisa Kuota Kontrak</div>
-                        <div id="remainingContractBudget" class="mt-0.5 text-sm font-bold text-yellow-900">Rp. {{ number_format($sisaKuotaKontrak, 0, ',', '.') }}</div>
-                    </div>
+                        <div class="min-w-0 rounded-md bg-white p-2">
+                            <dt class="text-[9px] leading-3 text-slate-500">Total Jasa Pemeliharaan</dt>
+                            <dd class="mt-1 break-words text-[11px] font-semibold text-slate-900">{{ $rp($totalJasaPemeliharaan) }}</dd>
+                        </div>
+                        <div class="min-w-0 rounded-md bg-white p-2 sm:col-span-2 lg:col-span-1">
+                            <dt class="text-[9px] leading-3 text-slate-500">Sisa Target Pemeliharaan</dt>
+                            <dd class="mt-1 break-words text-[11px] font-semibold {{ $remainingMaintenanceClasses }}">{{ $rp($sisaBiayaPemeliharaan) }}</dd>
+                        </div>
+                    </dl>
                 </div>
             </article>
 
@@ -386,9 +410,12 @@
             const urgentRealizationAmount = document.getElementById('urgentRealizationAmount');
             const realizationSubtotal = document.getElementById('realizationSubtotal');
             const totalRealizationAmount = document.getElementById('totalRealizationAmount');
-            const potentialAndRealizationAmount = document.getElementById('potentialAndRealizationAmount');
-            const actualBudgetAmount = document.getElementById('actualBudgetAmount');
-            const actualBudgetUsageAmount = document.getElementById('actualBudgetUsageAmount');
+            const budgetRealizationAmount = document.getElementById('budgetRealizationAmount');
+            const budgetUsagePercentage = document.getElementById('budgetUsagePercentage');
+            const budgetUsageProgress = document.getElementById('budgetUsageProgress');
+            const budgetUsageProgressbar = budgetUsageProgress.parentElement;
+            const budgetUsageAmount = document.getElementById('budgetUsageAmount');
+            const remainingContractBudgetCard = document.getElementById('remainingContractBudgetCard');
             const remainingContractBudget = document.getElementById('remainingContractBudget');
             const topTenCostChartContainer = document.getElementById('topTenCostChartContainer');
             const topTenCostCanvas = document.getElementById('topTenCostChart');
@@ -628,10 +655,35 @@
                 urgentRealizationAmount.textContent = formatRupiah(urgentTotal);
                 realizationSubtotal.textContent = formatRupiah(realizationTotal);
                 totalRealizationAmount.textContent = `Total Realisasi Biaya: ${formatRupiah(realizationTotal)}`;
-                potentialAndRealizationAmount.textContent = formatRupiah(potentialAndRealization);
-                actualBudgetAmount.textContent = formatRupiah(remainingBudget);
-                actualBudgetUsageAmount.textContent = formatRupiah(potentialAndRealization);
+                budgetRealizationAmount.textContent = formatRupiah(realizationTotal);
                 remainingContractBudget.textContent = formatRupiah(remainingBudget);
+                updateBudgetUsage(potentialAndRealization);
+                updateRemainingBudgetState(remainingBudget);
+            }
+
+            function updateBudgetUsage(usedAmount) {
+                const usagePercentage = contractBudget > 0 ? (usedAmount / contractBudget) * 100 : 0;
+                const visualPercentage = Math.min(100, Math.max(0, usagePercentage));
+                const percentageLabel = new Intl.NumberFormat('id-ID', {
+                    maximumFractionDigits: 2,
+                }).format(usagePercentage);
+
+                budgetUsagePercentage.textContent = `${percentageLabel}%`;
+                budgetUsageProgress.style.width = `${visualPercentage}%`;
+                budgetUsageProgressbar.setAttribute('aria-valuenow', visualPercentage.toFixed(2));
+                budgetUsageProgressbar.setAttribute('aria-valuetext', `${percentageLabel}%`);
+                budgetUsageAmount.textContent = `${formatRupiah(usedAmount)} dari ${formatRupiah(contractBudget)}`;
+            }
+
+            function updateRemainingBudgetState(remainingBudget) {
+                const isNegative = remainingBudget < 0;
+
+                remainingContractBudgetCard.classList.toggle('border-rose-200', isNegative);
+                remainingContractBudgetCard.classList.toggle('bg-rose-50', isNegative);
+                remainingContractBudgetCard.classList.toggle('border-yellow-200', !isNegative);
+                remainingContractBudgetCard.classList.toggle('bg-yellow-50', !isNegative);
+                remainingContractBudget.classList.toggle('text-rose-700', isNegative);
+                remainingContractBudget.classList.toggle('text-yellow-900', !isNegative);
             }
 
             function updateLegend(rows) {

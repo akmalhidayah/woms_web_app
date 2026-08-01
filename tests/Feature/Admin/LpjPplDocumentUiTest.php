@@ -103,6 +103,7 @@ class LpjPplDocumentUiTest extends TestCase
             'order_id' => $order->id,
             'lhpp_bast_id' => $lhpp->id,
             'garansi_months' => 0,
+            'start_date' => '2026-06-05',
             'created_by' => $admin->id,
         ]);
 

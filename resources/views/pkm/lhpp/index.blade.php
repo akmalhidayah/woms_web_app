@@ -3,19 +3,8 @@
             $baseBtn = 'min-h-[26px] text-[10px] leading-[1.3] px-3 rounded-[6px]';
 
             $selOrange = $baseSel.' bg-orange-100 text-orange-800 border border-orange-300 focus:ring-orange-400 focus:border-orange-400';
-            $selBlue = $baseSel.' bg-sky-100 text-sky-800 border border-sky-300 focus:ring-sky-400 focus:border-sky-400';
-            $selSlate = $baseSel.' bg-slate-100 text-slate-800 border border-slate-300 focus:ring-slate-400 focus:border-slate-400';
             $btnPrimary = $baseBtn.' bg-[#ca642f] text-white hover:bg-[#b85b2b]';
-            $btnGhost = $baseBtn.' border border-slate-300 text-slate-700 hover:bg-slate-50';
-
-            $filters = $filters ?? [
-                'search' => '',
-                'unit_kerja' => '',
-                'purchase_order_number' => '',
-                'termin_status' => 'all',
-            ];
-            $units = collect($units ?? []);
-            $pos = collect($pos ?? []);
+            $search = $search ?? '';
             $lhpps = $lhpps ?? new \Illuminate\Pagination\LengthAwarePaginator([], 0, 8, 1, [
                 'path' => request()->url(),
                 'query' => request()->query(),
@@ -65,52 +54,17 @@
                     </div>
                 @endif
 
-                <form action="{{ route('pkm.lhpp.index') }}" method="GET" class="flex flex-wrap items-center gap-2 overflow-x-auto whitespace-nowrap">
-                    <div class="relative">
+                <div class="mb-3">
+                    <x-bast.index-tabs route-name="pkm.lhpp.index" :active-tab="$activeTab" :tab-options="$tabOptions" :tab-counts="$tabCounts" :search="$search" theme="orange" />
+                </div>
+
+                <form action="{{ route('pkm.lhpp.index') }}" method="GET">
+                    <input type="hidden" name="tab" value="{{ $activeTab }}">
+                    <div class="relative w-full">
                         <i data-lucide="search" class="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-orange-500"></i>
-                        <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Cari Nomor Notif / PO / Unit..." class="{{ $selOrange }} w-64 pl-6" />
+                        <input type="text" name="search" value="{{ $search }}" placeholder="Cari nomor order / pekerjaan / area..." class="{{ $selOrange }} w-full pl-6" />
                         <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-orange-600">⌕</span>
                     </div>
-
-                    <div class="relative">
-                        <select name="unit_kerja" class="{{ $selBlue }} w-48">
-                            <option value="">Semua Unit Kerja</option>
-                            @foreach ($units as $unit)
-                                <option value="{{ $unit }}" @selected($filters['unit_kerja'] === $unit)>{{ \Illuminate\Support\Str::limit($unit, 40) }}</option>
-                            @endforeach
-                        </select>
-                        <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-sky-700">▾</span>
-                    </div>
-
-                    <div class="relative">
-                        <select name="purchase_order_number" class="{{ $selSlate }} w-52">
-                            <option value="">Semua Nomor PO</option>
-                            @foreach ($pos as $po)
-                                <option value="{{ $po }}" @selected($filters['purchase_order_number'] === $po)>{{ $po }}</option>
-                            @endforeach
-                        </select>
-                        <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-700">▾</span>
-                    </div>
-
-                    <div class="relative">
-                        <select name="termin_status" class="{{ $selSlate }} w-52">
-                            <option value="all" @selected($filters['termin_status'] === 'all')>Semua Status Termin</option>
-                            <option value="t1_paid" @selected($filters['termin_status'] === 't1_paid')>Termin 1 - Sudah</option>
-                            <option value="t1_unpaid" @selected($filters['termin_status'] === 't1_unpaid')>Termin 1 - Belum</option>
-                            <option value="t2_paid" @selected($filters['termin_status'] === 't2_paid')>Termin 2 - Sudah</option>
-                            <option value="t2_unpaid" @selected($filters['termin_status'] === 't2_unpaid')>Termin 2 - Belum</option>
-                        </select>
-                        <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-700">▾</span>
-                    </div>
-
-                    <button type="submit" class="{{ $btnPrimary }} ml-auto inline-flex items-center rounded-md">
-                        <i data-lucide="filter" class="mr-1 h-3 w-3"></i>
-                        Terapkan
-                    </button>
-                    <a href="{{ route('pkm.lhpp.index') }}" class="{{ $btnGhost }} inline-flex items-center rounded-md">
-                        <i data-lucide="rotate-ccw" class="mr-1 h-3 w-3"></i>
-                        Reset
-                    </a>
                 </form>
             </div>
 
@@ -507,8 +461,12 @@
                             @empty
                                 <tr>
                                     <td colspan="7" class="px-4 py-8 text-center text-[11px] text-slate-500">
-                                        Belum ada data LHPP.
-                                        <a href="{{ route('pkm.lhpp.create') }}" class="text-[#ca642f] underline">Buat LHPP baru</a>
+                                        {{ match ($activeTab) {
+                                            'in_progress' => 'Belum ada BAST yang sedang menunggu proses.',
+                                            'approved' => 'Belum ada BAST approved yang menunggu proses berikutnya.',
+                                            'history' => 'Belum ada riwayat BAST.',
+                                            default => 'Belum ada BAST yang memerlukan tindakan PKM.',
+                                        } }}
                                     </td>
                                 </tr>
                             @endforelse

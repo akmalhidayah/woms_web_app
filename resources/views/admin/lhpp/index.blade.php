@@ -28,22 +28,14 @@
         </section>
 
         <section class="order-list-panel overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-sm">
-            <div class="border-b border-slate-200 px-5 py-4 overflow-x-auto">
-                <form method="GET" action="{{ route('admin.lhpp.index') }}" class="flex min-w-[640px] items-center gap-2">
+            <div class="space-y-3 border-b border-slate-200 px-5 py-4">
+                <x-bast.index-tabs route-name="admin.lhpp.index" :active-tab="$activeTab" :tab-options="$tabOptions" :tab-counts="$tabCounts" :search="$search" />
+
+                <form method="GET" action="{{ route('admin.lhpp.index') }}">
+                    <input type="hidden" name="tab" value="{{ $activeTab }}">
                     <div class="relative min-w-0 flex-1">
                         <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 h-[12px] w-[12px] -translate-y-1/2 text-slate-400"></i>
-                        <input type="text" name="search" value="{{ $search }}" placeholder="Cari dokumen" class="w-full rounded-lg border border-slate-300 px-8 py-1.5 text-[10px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none">
-                    </div>
-
-                    <div class="ml-auto flex items-center gap-2">
-                        <button type="submit" class="inline-flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3 text-[10px] font-semibold text-white transition hover:bg-blue-700">
-                            <i data-lucide="filter" class="h-[12px] w-[12px]"></i>
-                            Terapkan
-                        </button>
-                        <a href="{{ route('admin.lhpp.index') }}" class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-[10px] font-semibold text-slate-700 transition hover:bg-slate-50">
-                            <i data-lucide="rotate-ccw" class="h-[12px] w-[12px]"></i>
-                            Reset
-                        </a>
+                        <input type="text" name="search" value="{{ $search }}" placeholder="Cari nomor order / pekerjaan / area..." class="w-full rounded-lg border border-slate-300 px-8 py-1.5 text-[10px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none">
                     </div>
                 </form>
             </div>
@@ -253,6 +245,7 @@
                                             <form method="POST" action="{{ route('admin.lhpp.quality-control', ['lhppId' => $lhpp->id]) }}" class="w-[104px] shrink-0 space-y-1">
                                                 @csrf
                                                 @method('PATCH')
+                                                <input type="hidden" name="tab" value="{{ $activeTab }}">
                                                 <input type="hidden" name="search" value="{{ $search }}">
                                                 <input type="hidden" name="page" value="{{ $lhpps->currentPage() }}">
                                                 <select name="quality_control_status" onchange="this.form.submit()" class="h-8 w-full rounded-lg border px-2 text-[10px] font-semibold focus:outline-none {{ $qualityControlSelectClass }}">
@@ -355,6 +348,7 @@
                                         >
                                             @csrf
                                             @method('DELETE')
+                                            <input type="hidden" name="tab" value="{{ $activeTab }}">
                                             <input type="hidden" name="search" value="{{ $search }}">
                                             <input type="hidden" name="page" value="{{ $lhpps->currentPage() }}">
                                             <button
@@ -371,7 +365,14 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-8 text-center text-[11px] text-slate-500">Belum ada data BAST yang tersedia.</td>
+                                <td colspan="6" class="px-4 py-8 text-center text-[11px] text-slate-500">
+                                    {{ match ($activeTab) {
+                                        'in_progress' => 'Belum ada BAST dalam proses approval.',
+                                        'approved' => 'Belum ada BAST approved yang menunggu proses berikutnya.',
+                                        'history' => 'Belum ada riwayat BAST.',
+                                        default => 'Belum ada BAST yang perlu tindakan.',
+                                    } }}
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>

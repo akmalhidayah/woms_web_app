@@ -21,6 +21,7 @@ use App\Support\BastApprovalFlow;
 use App\Support\BastApprovalSignatureBuilder;
 use App\Support\BastDocumentNumberGenerator;
 use App\Support\BastEffectiveApprovalFlowResolver;
+use App\Support\BastIndexTabs;
 use App\Support\PdfMergeService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -46,17 +47,14 @@ class LhppController extends Controller
         private readonly BastDocumentNumberGenerator $documentNumberGenerator,
         private readonly BastDeletionService $bastDeletionService,
         private readonly BastEffectiveApprovalFlowResolver $effectiveFlowResolver,
+        private readonly BastIndexTabs $indexTabs,
     ) {}
 
     public function index(Request $request): View
     {
         try {
-            $filters = [
-                'search' => trim((string) $request->string('search')),
-                'unit_kerja' => trim((string) $request->string('unit_kerja')),
-                'purchase_order_number' => trim((string) $request->string('purchase_order_number')),
-                'termin_status' => trim((string) $request->string('termin_status', 'all')),
-            ];
+            $search = trim((string) $request->string('search'));
+            $activeTab = $this->indexTabs->normalize($request->string('tab')->toString());
 
             $baseQuery = LhppBast::query()
                 ->with([
@@ -68,52 +66,25 @@ class LhppController extends Controller
                     'order:id,nomor_order,notifikasi',
                 ])
                 ->where('termin_type', 'termin_1')
-                ->when($filters['search'] !== '', function ($query) use ($filters): void {
-                    $needle = $filters['search'];
-
-                    $query->where(function ($builder) use ($needle): void {
+                ->when($search !== '', function ($query) use ($search): void {
+                    $query->where(function ($builder) use ($search): void {
                         $builder
-                            ->where('nomor_order', 'like', "%{$needle}%")
-                            ->orWhere('purchase_order_number', 'like', "%{$needle}%")
-                            ->orWhere('unit_kerja', 'like', "%{$needle}%")
-                            ->orWhere('seksi', 'like', "%{$needle}%")
-                            ->orWhereHas('order', function ($orderQuery) use ($needle): void {
-                                $orderQuery->where('notifikasi', 'like', "%{$needle}%");
+                            ->where('nomor_order', 'like', "%{$search}%")
+                            ->orWhere('notifikasi', 'like', "%{$search}%")
+                            ->orWhere('purchase_order_number', 'like', "%{$search}%")
+                            ->orWhere('unit_kerja', 'like', "%{$search}%")
+                            ->orWhere('seksi', 'like', "%{$search}%")
+                            ->orWhere('deskripsi_pekerjaan', 'like', "%{$search}%")
+                            ->orWhereHas('order', function ($orderQuery) use ($search): void {
+                                $orderQuery->where('notifikasi', 'like', "%{$search}%");
                             });
                     });
-                })
-                ->when($filters['unit_kerja'] !== '', fn ($query) => $query->where('unit_kerja', $filters['unit_kerja']))
-                ->when($filters['purchase_order_number'] !== '', fn ($query) => $query->where('purchase_order_number', $filters['purchase_order_number']))
-                ->when($filters['termin_status'] !== 'all', function ($query) use ($filters): void {
-                    match ($filters['termin_status']) {
-                        't1_paid' => $query->where('termin1_status', 'sudah'),
-                        't1_unpaid' => $query->where('termin1_status', '!=', 'sudah'),
-                        't2_paid' => $query->where('termin2_status', 'sudah'),
-                        't2_unpaid' => $query->where('termin2_status', '!=', 'sudah'),
-                        default => null,
-                    };
                 });
 
-            $units = LhppBast::query()
-                ->where('termin_type', 'termin_1')
-                ->whereNotNull('unit_kerja')
-                ->whereRaw("TRIM(unit_kerja) <> ''")
-                ->orderBy('unit_kerja')
-                ->pluck('unit_kerja')
-                ->unique()
-                ->values();
-
-            $pos = LhppBast::query()
-                ->where('termin_type', 'termin_1')
-                ->whereNotNull('purchase_order_number')
-                ->whereRaw("TRIM(purchase_order_number) <> ''")
-                ->orderBy('purchase_order_number')
-                ->pluck('purchase_order_number')
-                ->unique()
-                ->values();
+            $this->indexTabs->apply($baseQuery, $activeTab, BastIndexTabs::CONTEXT_PKM);
+            $this->indexTabs->applyLatestActivityOrder($baseQuery);
 
             $lhpps = $baseQuery
-                ->latest('id')
                 ->paginate(8)
                 ->withQueryString();
 
@@ -133,9 +104,10 @@ class LhppController extends Controller
                 'pageTitle' => 'BAST / LHPP',
                 'pageDescription' => 'Monitoring laporan hasil pekerjaan dan dokumen BAST/LHPP PKM.',
                 'lhpps' => $lhpps,
-                'filters' => $filters,
-                'units' => $units,
-                'pos' => $pos,
+                'search' => $search,
+                'activeTab' => $activeTab,
+                'tabOptions' => $this->indexTabs->options(BastIndexTabs::CONTEXT_PKM),
+                'tabCounts' => $this->indexTabs->counts(BastIndexTabs::CONTEXT_PKM),
                 'pendingTerminOneOrders' => $pendingTerminOneOrders,
                 'activeTokens' => collect(),
             ]);

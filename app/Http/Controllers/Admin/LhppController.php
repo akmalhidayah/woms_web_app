@@ -11,6 +11,7 @@ use App\Services\Approvals\ApprovalSignatureRollbackService;
 use App\Services\Pkm\BastDeletionService;
 use App\Support\BastApprovalSignatureBuilder;
 use App\Support\BastEffectiveApprovalFlowResolver;
+use App\Support\BastIndexTabs;
 use App\Support\PdfMergeService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
@@ -29,6 +30,7 @@ class LhppController extends Controller
         private readonly ApprovalSignatureRollbackService $rollbackService,
         private readonly BastDeletionService $bastDeletionService,
         private readonly BastEffectiveApprovalFlowResolver $effectiveFlowResolver,
+        private readonly BastIndexTabs $indexTabs,
     ) {}
 
     public function destroy(Request $request, LhppBast $lhppBast): RedirectResponse
@@ -48,7 +50,7 @@ class LhppController extends Controller
             Log::warning('BAST deleted by admin for recreation.', $auditContext);
 
             return redirect()
-                ->route('admin.lhpp.index', $request->only('search', 'page'))
+                ->route('admin.lhpp.index', $request->only('tab', 'search', 'page'))
                 ->with('status', sprintf(
                     'BAST order %s berhasil dihapus seluruhnya. PKM dapat membuat BAST ulang.',
                     $auditContext['nomor_order'],
@@ -113,7 +115,7 @@ class LhppController extends Controller
             }
 
             return redirect()
-                ->route('admin.lhpp.index', $request->only('search', 'page'))
+                ->route('admin.lhpp.index', $request->only('tab', 'search', 'page'))
                 ->with('status', sprintf('Quality control untuk order %s berhasil diperbarui.', $lhpp->nomor_order));
         } catch (Throwable $exception) {
             Log::error('Failed to update admin BAST quality control.', [
@@ -213,8 +215,9 @@ class LhppController extends Controller
     {
         try {
             $search = trim((string) $request->string('search'));
+            $activeTab = $this->indexTabs->normalize($request->string('tab')->toString());
 
-            $lhpps = LhppBast::query()
+            $query = LhppBast::query()
                 ->with([
                     'order:id,nomor_order,notifikasi,nama_pekerjaan,unit_kerja,seksi',
                     'purchaseOrder:id,order_id,purchase_order_number',
@@ -234,13 +237,20 @@ class LhppController extends Controller
                             ->orWhere('seksi', 'like', "%{$search}%")
                             ->orWhere('deskripsi_pekerjaan', 'like', "%{$search}%");
                     });
-                })
-                ->latest('id')
+                });
+
+            $this->indexTabs->apply($query, $activeTab, BastIndexTabs::CONTEXT_ADMIN);
+            $this->indexTabs->applyLatestActivityOrder($query);
+
+            $lhpps = $query
                 ->paginate(10)
                 ->withQueryString();
 
             return view('admin.lhpp.index', [
                 'search' => $search,
+                'activeTab' => $activeTab,
+                'tabOptions' => $this->indexTabs->options(BastIndexTabs::CONTEXT_ADMIN),
+                'tabCounts' => $this->indexTabs->counts(BastIndexTabs::CONTEXT_ADMIN),
                 'lhpps' => $lhpps,
                 'approvalReassignmentUsers' => User::query()
                     ->orderBy('name')

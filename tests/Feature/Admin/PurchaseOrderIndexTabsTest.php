@@ -125,6 +125,28 @@ class PurchaseOrderIndexTabsTest extends TestCase
                 && $counts[PurchaseOrderIndexTabs::TAB_READY] === 1);
     }
 
+    public function test_waiting_bast_budget_status_is_eligible_for_purchase_order_tabs(): void
+    {
+        [, $hpp] = $this->makeEligibleHpp('PO-WAITING-BAST');
+        $hpp->budgetVerification()->update([
+            'status_anggaran' => BudgetVerification::STATUS_WAITING_BAST,
+        ]);
+
+        $this->assertTrue(
+            $this->tabRows(PurchaseOrderIndexTabs::TAB_ACTION)->contains('id', $hpp->id)
+        );
+
+        $purchaseOrder = $this->makePurchaseOrder($hpp, [
+            'purchase_order_number' => 'PO-WAITING-BAST-001',
+            'approve_manager' => true,
+        ]);
+
+        $this->assertTrue(
+            $this->tabRows(PurchaseOrderIndexTabs::TAB_READY)->contains('id', $hpp->id)
+        );
+        $this->assertSame(0, $purchaseOrder->progress_pekerjaan);
+    }
+
     public function test_view_has_four_tabs_search_only_existing_table_and_new_hidden_filters(): void
     {
         [$admin, $hpp] = $this->makeEligibleHpp('PO-VIEW-TABS');

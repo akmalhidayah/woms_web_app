@@ -11,6 +11,14 @@ class BudgetVerification extends Model
 {
     use HasFactory;
 
+    public const STATUS_AVAILABLE = 'Tersedia';
+
+    public const STATUS_UNAVAILABLE = 'Tidak Tersedia';
+
+    public const STATUS_WAITING = 'Menunggu';
+
+    public const STATUS_WAITING_BAST = 'Menunggu Proses BAST';
+
     /**
      * @var list<string>
      */
@@ -37,9 +45,10 @@ class BudgetVerification extends Model
     public static function statusAnggaranOptions(): array
     {
         return [
-            'Tersedia' => 'Tersedia',
-            'Tidak Tersedia' => 'Tidak Tersedia',
-            'Menunggu' => 'Menunggu',
+            self::STATUS_AVAILABLE => 'Tersedia',
+            self::STATUS_UNAVAILABLE => 'Tidak Tersedia',
+            self::STATUS_WAITING => 'Menunggu Anggaran',
+            self::STATUS_WAITING_BAST => 'Menunggu Proses BAST',
         ];
     }
 
@@ -69,7 +78,10 @@ class BudgetVerification extends Model
     public function scopeReadyForPurchaseOrder(Builder $query): Builder
     {
         return $query
-            ->where('status_anggaran', 'Tersedia')
+            ->whereIn('status_anggaran', [
+                self::STATUS_AVAILABLE,
+                self::STATUS_WAITING_BAST,
+            ])
             ->whereNotNull('kategori_item')
             ->whereRaw("TRIM(kategori_item) <> ''")
             ->whereNotNull('kategori_biaya')
@@ -80,7 +92,10 @@ class BudgetVerification extends Model
 
     public function isReadyForPurchaseOrder(): bool
     {
-        return $this->status_anggaran === 'Tersedia'
+        return in_array($this->status_anggaran, [
+            self::STATUS_AVAILABLE,
+            self::STATUS_WAITING_BAST,
+        ], true)
             && filled(trim((string) $this->kategori_item))
             && filled(trim((string) $this->kategori_biaya))
             && filled(trim((string) $this->cost_element));

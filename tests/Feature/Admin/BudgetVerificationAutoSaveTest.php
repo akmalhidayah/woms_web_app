@@ -13,6 +13,29 @@ class BudgetVerificationAutoSaveTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_waiting_bast_status_is_valid_and_ready_for_purchase_order_when_fields_are_complete(): void
+    {
+        [$admin, $hpp] = $this->context();
+
+        $this->actingAs($admin)
+            ->patchJson(route('admin.budget-verification.update', $hpp), [
+                'status_anggaran' => BudgetVerification::STATUS_WAITING_BAST,
+                'kategori_item' => 'jasa',
+                'kategori_biaya' => 'pemeliharaan',
+                'cost_element' => '65340001',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status_anggaran', BudgetVerification::STATUS_WAITING_BAST);
+
+        $verification = $hpp->fresh()->budgetVerification;
+
+        $this->assertTrue($verification->isReadyForPurchaseOrder());
+        $this->assertDatabaseHas('budget_verifications', [
+            'hpp_id' => $hpp->id,
+            'status_anggaran' => BudgetVerification::STATUS_WAITING_BAST,
+        ]);
+    }
+
     public function test_partial_json_update_saves_status_anggaran(): void
     {
         [$admin, $hpp] = $this->context();

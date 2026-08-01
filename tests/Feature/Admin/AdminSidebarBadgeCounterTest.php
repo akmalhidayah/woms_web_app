@@ -177,6 +177,45 @@ class AdminSidebarBadgeCounterTest extends TestCase
             ]);
     }
 
+    public function test_verifikasi_anggaran_badge_excludes_unavailable_ready_and_numbered_po(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $order = $this->makeOrder($admin, 'BADGE-BV-TABS-001');
+        $hpp = $this->makeHpp($admin, $order);
+        $hpp->update(['status' => Hpp::STATUS_APPROVED]);
+
+        $verification = BudgetVerification::query()->create([
+            'order_id' => $order->id,
+            'hpp_id' => $hpp->id,
+            'status_anggaran' => 'Menunggu',
+            'created_by' => $admin->id,
+        ]);
+
+        $this->assertSame(1, $this->counts()['verifikasi_anggaran']);
+
+        $verification->update(['status_anggaran' => 'Tidak Tersedia']);
+        $this->assertSame(0, $this->counts()['verifikasi_anggaran']);
+
+        $verification->update([
+            'status_anggaran' => 'Tersedia',
+            'kategori_item' => 'jasa',
+            'kategori_biaya' => 'pemeliharaan',
+            'cost_element' => '65340001',
+        ]);
+        $this->assertSame(0, $this->counts()['verifikasi_anggaran']);
+
+        $verification->update(['cost_element' => null]);
+        $this->assertSame(1, $this->counts()['verifikasi_anggaran']);
+
+        PurchaseOrder::query()->create([
+            'order_id' => $order->id,
+            'hpp_id' => $hpp->id,
+            'purchase_order_number' => 'PO-BV-TABS-001',
+            'created_by' => $admin->id,
+        ]);
+        $this->assertSame(0, $this->counts()['verifikasi_anggaran']);
+    }
+
     public function test_set_garansi_cek_bast_and_parent_bast_counts(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);

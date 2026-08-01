@@ -1,10 +1,5 @@
 <x-layouts.admin title="Verifikasi Anggaran">
     <style>
-        .budget-index-filter {
-            display: grid;
-            gap: 0.5rem;
-        }
-
         .budget-auto-save-container {
             position: relative;
         }
@@ -25,12 +20,6 @@
             background-color: #fff1f2;
         }
 
-        @media (min-width: 760px) {
-            .budget-index-filter {
-                grid-template-columns: minmax(180px, 1.6fr) minmax(130px, 0.7fr) minmax(125px, 0.65fr) auto;
-                align-items: center;
-            }
-        }
     </style>
 
     @if (session('status'))
@@ -65,29 +54,34 @@
         </section>
 
         <section class="order-list-panel overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-sm">
-            <div class="border-b border-slate-200 px-4 py-3">
-                <form method="GET" action="{{ route('admin.budget-verification.index') }}" class="budget-index-filter">
-                    <input id="search" name="search" type="text" value="{{ $search }}" placeholder="Cari nomor order / cost element..." class="min-w-0 w-full rounded-lg border border-slate-300 px-3 py-2 text-[10px] text-slate-700 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none">
-                    <select id="unit" name="unit" class="min-w-0 w-full rounded-lg border border-slate-300 px-3 py-2 text-[10px] text-slate-700 focus:border-emerald-500 focus:outline-none">
-                            <option value="">Semua Unit</option>
-                            @foreach ($units as $unit)
-                                <option value="{{ $unit }}" @selected($selectedUnit === $unit)>{{ $unit }}</option>
-                            @endforeach
-                    </select>
-                    <select id="kategori_item" name="kategori_item" class="min-w-0 w-full rounded-lg border border-slate-300 px-3 py-2 text-[10px] text-slate-700 focus:border-emerald-500 focus:outline-none">
-                        <option value="">Semua Kategori</option>
-                        <option value="spare part" @selected($selectedKategoriItem === 'spare part')>Spare Part</option>
-                        <option value="jasa" @selected($selectedKategoriItem === 'jasa')>Jasa</option>
-                    </select>
+            <div class="space-y-3 border-b border-slate-200 px-4 py-3">
+                <nav class="overflow-x-auto" aria-label="Status verifikasi anggaran">
+                    <div class="flex min-w-max items-center gap-2 pb-1">
+                        @foreach ($tabOptions as $tabKey => $tabLabel)
+                            @php
+                                $tabQuery = ['tab' => $tabKey];
 
-                    <div class="flex items-center justify-end gap-1.5">
-                        <button type="submit" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white transition hover:bg-emerald-700" title="Filter">
-                            <i data-lucide="filter" class="h-[12px] w-[12px]"></i>
-                        </button>
-                        <a href="{{ route('admin.budget-verification.index') }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50" title="Reset">
-                            <i data-lucide="rotate-ccw" class="h-[12px] w-[12px]"></i>
-                        </a>
+                                if ($search !== '') {
+                                    $tabQuery['search'] = $search;
+                                }
+                            @endphp
+                            <a
+                                href="{{ route('admin.budget-verification.index', $tabQuery) }}"
+                                @if ($activeTab === $tabKey) aria-current="page" @endif
+                                class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-[10px] font-semibold transition {{ $activeTab === $tabKey ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50' }}"
+                            >
+                                <span>{{ $tabLabel }}</span>
+                                <span class="inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[9px] {{ $activeTab === $tabKey ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">
+                                    {{ $tabCounts[$tabKey] ?? 0 }}
+                                </span>
+                            </a>
+                        @endforeach
                     </div>
+                </nav>
+
+                <form method="GET" action="{{ route('admin.budget-verification.index') }}">
+                    <input type="hidden" name="tab" value="{{ $activeTab }}">
+                    <input id="search" name="search" type="text" value="{{ $search }}" placeholder="Cari nomor order / pekerjaan / unit / cost element..." class="min-w-0 w-full rounded-lg border border-slate-300 px-3 py-2 text-[10px] text-slate-700 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none">
                 </form>
             </div>
 
@@ -114,15 +108,12 @@
                     <tbody class="divide-y divide-slate-200 bg-white">
                         @forelse ($notifications as $notification)
                             @php
-                                $rowClasses = $notification['is_purchase_order_eligible']
-                                    ? 'bg-emerald-50/70 hover:bg-emerald-100/60'
-                                    : 'bg-white hover:bg-slate-50';
                                 $approvalBadgeClasses = $notification['is_hpp_approved']
                                     ? 'border-emerald-200 bg-emerald-100 text-emerald-700'
                                     : 'border-slate-200 bg-white text-slate-500';
                             @endphp
                             <tr
-                                class="align-top transition {{ $rowClasses }}"
+                                class="bg-white align-top transition hover:bg-slate-50"
                                 data-budget-verification-row
                                 data-purchase-order-eligible="{{ $notification['is_purchase_order_eligible'] ? 'true' : 'false' }}"
                             >
@@ -130,9 +121,8 @@
                                     <form id="budget-verification-form-{{ $notification['nomor_order'] }}" method="POST" action="{{ $notification['update_url'] }}" class="hidden">
                                         @csrf
                                         @method('PATCH')
+                                        <input type="hidden" name="_filter_tab" value="{{ $activeTab }}">
                                         <input type="hidden" name="_filter_search" value="{{ $search }}">
-                                        <input type="hidden" name="_filter_unit" value="{{ $selectedUnit }}">
-                                        <input type="hidden" name="_filter_kategori_item" value="{{ $selectedKategoriItem }}">
                                         <input type="hidden" name="_filter_page" value="{{ $notifications->currentPage() }}">
                                     </form>
 
@@ -272,7 +262,13 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-8 text-center text-[11px] text-slate-500">Tidak ada data verifikasi anggaran untuk ditampilkan.</td>
+                                <td colspan="6" class="px-4 py-8 text-center text-[11px] text-slate-500">
+                                    {{ match ($activeTab) {
+                                        'ready_po' => 'Belum ada verifikasi anggaran yang siap diproses ke Purchase Order.',
+                                        'history' => 'Belum ada riwayat verifikasi anggaran.',
+                                        default => 'Belum ada verifikasi anggaran yang perlu tindakan.',
+                                    } }}
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -424,10 +420,6 @@
                         const row = select.closest('[data-budget-verification-row]');
                         const isPurchaseOrderEligible = responseData?.data?.is_purchase_order_eligible === true;
 
-                        row?.classList.toggle('bg-emerald-50/70', isPurchaseOrderEligible);
-                        row?.classList.toggle('hover:bg-emerald-100/60', isPurchaseOrderEligible);
-                        row?.classList.toggle('bg-white', !isPurchaseOrderEligible);
-                        row?.classList.toggle('hover:bg-slate-50', !isPurchaseOrderEligible);
                         row?.setAttribute(
                             'data-purchase-order-eligible',
                             isPurchaseOrderEligible ? 'true' : 'false',

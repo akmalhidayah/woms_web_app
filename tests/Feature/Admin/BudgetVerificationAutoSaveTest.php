@@ -73,7 +73,7 @@ class BudgetVerificationAutoSaveTest extends TestCase
             ->assertDontSee($hpp->nomor_order);
     }
 
-    public function test_complete_available_budget_is_green_and_available_for_purchase_order(): void
+    public function test_complete_available_budget_is_listed_as_ready_and_available_for_purchase_order(): void
     {
         [$admin, $hpp, $verification] = $this->contextWithVerification();
         $verification->update(['catatan' => null]);
@@ -81,9 +81,10 @@ class BudgetVerificationAutoSaveTest extends TestCase
         $this->assertTrue($verification->fresh()->isReadyForPurchaseOrder());
 
         $this->actingAs($admin)
-            ->get(route('admin.budget-verification.index'))
+            ->get(route('admin.budget-verification.index', ['tab' => 'ready_po']))
             ->assertOk()
-            ->assertSee('data-purchase-order-eligible="true"', false);
+            ->assertSee('data-purchase-order-eligible="true"', false)
+            ->assertDontSee('bg-emerald-50/70', false);
 
         $this->actingAs($admin)
             ->get(route('admin.purchase-order.index'))
@@ -163,15 +164,13 @@ class BudgetVerificationAutoSaveTest extends TestCase
                 'kategori_biaya' => 'pemeliharaan',
                 'cost_element' => '65340002',
                 'catatan' => 'Catatan baru',
+                '_filter_tab' => 'action',
                 '_filter_search' => 'ORDER',
-                '_filter_unit' => 'Unit Test',
-                '_filter_kategori_item' => 'jasa',
                 '_filter_page' => 2,
             ])
             ->assertRedirect(route('admin.budget-verification.index', [
+                'tab' => 'action',
                 'search' => 'ORDER',
-                'unit' => 'Unit Test',
-                'kategori_item' => 'jasa',
                 'page' => 2,
             ]))
             ->assertSessionHas('status');

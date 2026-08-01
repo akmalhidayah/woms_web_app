@@ -10,6 +10,7 @@ use App\Models\Hpp;
 use App\Models\Order;
 use App\Models\OrderDocument;
 use App\Services\Orders\OrderDocumentService;
+use App\Support\BudgetVerificationIndexTabs;
 use App\Support\PdfMergeService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
@@ -27,19 +28,19 @@ class BudgetVerificationController extends Controller
 {
     public function __construct(
         private readonly OrderDocumentService $documentService,
+        private readonly BudgetVerificationIndexTabs $indexTabs,
     ) {}
 
     public function index(Request $request): View
     {
         try {
             $search = trim((string) $request->string('search'));
-            $unit = trim((string) $request->string('unit'));
-            $kategoriItem = trim((string) $request->string('kategori_item'));
-            $perPage = 10;
+            $activeTab = $this->indexTabs->normalize($request->string('tab')->toString());
 
-            $notifications = $this->approvedBudgetVerificationQuery()
+            $query = $this->indexTabs->baseQuery()
                 ->with([
-                    'budgetVerification:id,order_id,hpp_id,status_anggaran,kategori_item,kategori_biaya,cost_element,catatan',
+                    'budgetVerification:id,order_id,hpp_id,status_anggaran,kategori_item,kategori_biaya,cost_element,catatan,updated_at',
+                    'purchaseOrder:id,hpp_id,purchase_order_number,updated_at',
                     'order:id,nomor_order,notifikasi,nama_pekerjaan,unit_kerja,seksi',
                     'order.documents:id,order_id,jenis_dokumen,nama_file_asli,path_file',
                     'order.scopeOfWork:id,order_id',
@@ -50,56 +51,32 @@ class BudgetVerificationController extends Controller
                             ->where('nomor_order', 'like', "%{$search}%")
                             ->orWhere('nama_pekerjaan', 'like', "%{$search}%")
                             ->orWhere('unit_kerja', 'like', "%{$search}%")
-                            ->orWhereHas('budgetVerification', fn (Builder $verificationQuery) => $verificationQuery->where('cost_element', 'like', "%{$search}%"));
+                            ->orWhereHas('budgetVerification', fn (Builder $verificationQuery) => $verificationQuery->where('cost_element', 'like', "%{$search}%"))
+                            ->orWhereHas('order', function (Builder $orderQuery) use ($search): void {
+                                $orderQuery
+                                    ->where('notifikasi', 'like', "%{$search}%")
+                                    ->orWhere('seksi', 'like', "%{$search}%");
+                            });
                     });
-                })
-                ->when($unit !== '', fn (Builder $query) => $query->where('unit_kerja', $unit))
-                ->when(
-                    $kategoriItem !== '',
-                    fn (Builder $query) => $query->whereHas('budgetVerification', fn (Builder $verificationQuery) => $verificationQuery->where('kategori_item', $kategoriItem))
-                )
-                ->orderByRaw(
-                    "CASE
-                        WHEN NOT EXISTS (
-                            SELECT 1 FROM budget_verifications
-                            WHERE budget_verifications.hpp_id = hpps.id
-                        ) THEN 0
-                        WHEN EXISTS (
-                            SELECT 1 FROM budget_verifications
-                            WHERE budget_verifications.hpp_id = hpps.id
-                            AND (
-                                budget_verifications.status_anggaran IS NULL
-                                OR TRIM(budget_verifications.status_anggaran) = ''
-                                OR budget_verifications.status_anggaran = ?
-                            )
-                        ) THEN 0
-                        ELSE 1
-                    END",
-                    [BudgetVerification::statusAnggaranOptions()['Menunggu'] ?? 'Menunggu'],
-                )
-                ->latest('id')
-                ->paginate($perPage)
+                });
+
+            $this->indexTabs->apply($query, $activeTab);
+            $this->indexTabs->applyLatestActivityOrder($query);
+
+            $notifications = $query
+                ->paginate(10)
                 ->withQueryString();
 
             $notifications->setCollection(
                 $notifications->getCollection()->map(fn (Hpp $hpp) => $this->mapRow($hpp))
             );
 
-            $units = $this->approvedBudgetVerificationQuery()
-                ->select('unit_kerja')
-                ->distinct()
-                ->orderBy('unit_kerja')
-                ->pluck('unit_kerja')
-                ->filter()
-                ->values()
-                ->all();
-
             return view('admin.budget-verification.index', [
                 'notifications' => $notifications,
-                'units' => $units,
                 'search' => $search,
-                'selectedUnit' => $unit,
-                'selectedKategoriItem' => $kategoriItem,
+                'activeTab' => $activeTab,
+                'tabOptions' => $this->indexTabs->options(),
+                'tabCounts' => $this->indexTabs->counts(),
                 'statusOptions' => BudgetVerification::statusAnggaranOptions(),
                 'kategoriItemOptions' => BudgetVerification::kategoriItemOptions(),
                 'kategoriBiayaOptions' => BudgetVerification::kategoriBiayaOptions(),
@@ -114,12 +91,6 @@ class BudgetVerificationController extends Controller
 
             abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Terjadi kesalahan saat memuat data verifikasi anggaran.');
         }
-    }
-
-    private function approvedBudgetVerificationQuery(): Builder
-    {
-        return Hpp::query()
-            ->where('status', Hpp::STATUS_APPROVED);
     }
 
     public function update(UpdateBudgetVerificationRequest $request, Hpp $hpp): RedirectResponse|JsonResponse
@@ -176,9 +147,8 @@ class BudgetVerificationController extends Controller
 
             return redirect()
                 ->route('admin.budget-verification.index', [
+                    'tab' => $request->input('_filter_tab'),
                     'search' => $request->input('_filter_search'),
-                    'unit' => $request->input('_filter_unit'),
-                    'kategori_item' => $request->input('_filter_kategori_item'),
                     'page' => $request->input('_filter_page'),
                 ])
                 ->with('status', sprintf(

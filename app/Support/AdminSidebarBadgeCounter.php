@@ -10,6 +10,10 @@ use Illuminate\Database\Eloquent\Builder;
 
 class AdminSidebarBadgeCounter
 {
+    public function __construct(
+        private readonly BudgetVerificationIndexTabs $budgetVerificationTabs,
+    ) {}
+
     /**
      * @return array<string, int>
      */
@@ -61,10 +65,7 @@ class AdminSidebarBadgeCounter
 
     private function verifikasiAnggaranCount(): int
     {
-        return Hpp::query()
-            ->where('status', Hpp::STATUS_APPROVED)
-            ->whereDoesntHave('budgetVerification', fn (Builder $query): Builder => $query->readyForPurchaseOrder())
-            ->count();
+        return $this->budgetVerificationTabs->countFor(BudgetVerificationIndexTabs::TAB_ACTION);
     }
 
     private function purchaseOrderCount(): int

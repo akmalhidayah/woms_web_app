@@ -11,6 +11,8 @@ use App\Models\OutlineAgreement;
 use App\Models\OutlineAgreementMonthlyRealization;
 use App\Models\OutlineAgreementTarget;
 use App\Models\PurchaseOrder;
+use App\Services\Admin\DashboardTopTenHppCostService;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,6 +21,13 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
+    /** @var list<int>|null */
+    private ?array $cachedRealizationYears = null;
+
+    public function __construct(
+        private readonly DashboardTopTenHppCostService $topTenHppCostService,
+    ) {}
+
     public function __invoke(): View
     {
         $documentOnProcessHPPAmount = $this->sumPendingHppApprovalAmount();
@@ -56,6 +65,8 @@ class DashboardController extends Controller
             'periodeKontrak' => $this->resolveActiveOutlineAgreementPeriod(),
             'realizationYears' => $this->realizationYearsList(),
             'realizationChartData' => $this->buildRealizationChartData(),
+            'overhaulPrognosis' => $this->overhaulPrognosis(),
+            'topTenCostSections' => $this->resolveTopTenCostSections(),
         ]);
     }
 
@@ -66,12 +77,21 @@ class DashboardController extends Controller
 
     public function realizationChart(Request $request): JsonResponse
     {
-        return response()->json($this->buildRealizationChartData(
+        $parameters = [
             $request->integer('startYear') ?: null,
             $request->integer('endYear') ?: null,
             $request->integer('startMonth') ?: null,
             $request->integer('endMonth') ?: null,
-        ));
+        ];
+
+        if ($request->boolean('includeTopTen')) {
+            return response()->json([
+                'realization' => $this->buildRealizationChartData(...$parameters),
+                'top_ten' => $this->resolveTopTenCostSections(...$parameters),
+            ]);
+        }
+
+        return response()->json($this->buildRealizationChartData(...$parameters));
     }
 
     private function countOutstandingOrders(): int
@@ -257,6 +277,10 @@ class DashboardController extends Controller
      */
     private function realizationYearsList(): array
     {
+        if ($this->cachedRealizationYears !== null) {
+            return $this->cachedRealizationYears;
+        }
+
         $transactionYears = $this->baseLhppBastRealizationQuery()
             ->whereNotNull('tanggal_bast')
             ->pluck('tanggal_bast')
@@ -265,9 +289,19 @@ class DashboardController extends Controller
             ->distinct()
             ->pluck('year')
             ->map(fn ($year): int => (int) $year);
+        $submittedHppYears = Hpp::query()
+            ->whereNotNull('submitted_at')
+            ->whereIn('status', [
+                Hpp::STATUS_IN_REVIEW,
+                Hpp::STATUS_APPROVED,
+                Hpp::STATUS_REJECTED,
+            ])
+            ->pluck('submitted_at')
+            ->map(fn ($date): int => Carbon::parse($date)->year);
 
-        return $transactionYears
+        return $this->cachedRealizationYears = $transactionYears
             ->merge($outlineAgreementYears)
+            ->merge($submittedHppYears)
             ->unique()
             ->sort()
             ->values()
@@ -283,22 +317,7 @@ class DashboardController extends Controller
         ?int $startMonth = null,
         ?int $endMonth = null,
     ): array {
-        $availableYears = $this->realizationYearsList();
-        $startYear ??= $availableYears[0] ?? (int) Carbon::now()->year;
-        $endYear ??= $availableYears[array_key_last($availableYears)] ?? $startYear;
-        $startMonth = $this->normalizeMonth($startMonth) ?? 1;
-        $endMonth = $this->normalizeMonth($endMonth) ?? 12;
-
-        if ($startYear > $endYear) {
-            [$startYear, $endYear] = [$endYear, $startYear];
-        }
-
-        $startDate = Carbon::create($startYear, $startMonth, 1)->startOfDay();
-        $endDate = Carbon::create($endYear, $endMonth, 1)->endOfMonth();
-
-        if ($startDate->gt($endDate)) {
-            [$startDate, $endDate] = [$endDate->copy()->startOfMonth(), $startDate->copy()->endOfMonth()];
-        }
+        [$startDate, $endDate] = $this->resolveDashboardPeriod($startYear, $endYear, $startMonth, $endMonth);
 
         $filterStartYear = $startDate->year;
         $filterStartMonth = $startDate->month;
@@ -378,6 +397,66 @@ class DashboardController extends Controller
             ->sortBy([['year', 'asc'], ['month', 'asc']])
             ->values()
             ->all();
+    }
+
+    /**
+     * @return list<array{section: string, amount: int}>
+     */
+    private function resolveTopTenCostSections(
+        ?int $startYear = null,
+        ?int $endYear = null,
+        ?int $startMonth = null,
+        ?int $endMonth = null,
+    ): array {
+        [$periodStart, $periodEnd] = $this->resolveDashboardPeriod(
+            $startYear,
+            $endYear,
+            $startMonth,
+            $endMonth,
+        );
+
+        return $this->topTenHppCostService->resolve($periodStart, $periodEnd);
+    }
+
+    /**
+     * @return array{0: CarbonInterface, 1: CarbonInterface}
+     */
+    private function resolveDashboardPeriod(
+        ?int $startYear = null,
+        ?int $endYear = null,
+        ?int $startMonth = null,
+        ?int $endMonth = null,
+    ): array {
+        $availableYears = $this->realizationYearsList();
+        $startYear ??= $availableYears[0] ?? (int) Carbon::now()->year;
+        $endYear ??= $availableYears[array_key_last($availableYears)] ?? $startYear;
+        $startMonth = $this->normalizeMonth($startMonth) ?? 1;
+        $endMonth = $this->normalizeMonth($endMonth) ?? 12;
+
+        if ($startYear > $endYear) {
+            [$startYear, $endYear] = [$endYear, $startYear];
+        }
+
+        $startDate = Carbon::create($startYear, $startMonth, 1)->startOfDay();
+        $endDate = Carbon::create($endYear, $endMonth, 1)->endOfMonth();
+
+        if ($startDate->gt($endDate)) {
+            [$startDate, $endDate] = [$endDate->copy()->startOfMonth(), $startDate->copy()->endOfMonth()];
+        }
+
+        return [$startDate, $endDate];
+    }
+
+    /**
+     * @return array{tonasa_4: array{minor: int, major: int}, tonasa_5: array{minor: int, major: int}}
+     */
+    private function overhaulPrognosis(): array
+    {
+        // Sumber data akan diganti setelah aturan bisnis prognosa ditetapkan.
+        return [
+            'tonasa_4' => ['minor' => 0, 'major' => 0],
+            'tonasa_5' => ['minor' => 0, 'major' => 0],
+        ];
     }
 
     private function normalizeMonth(?int $month): ?int

@@ -320,6 +320,54 @@
                 </div>
             </article>
         </section>
+
+        <section class="grid items-stretch gap-3 xl:grid-cols-2">
+            <article class="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                <div class="mb-2 flex items-center gap-2">
+                    <i data-lucide="trending-up" class="h-4 w-4 text-amber-500"></i>
+                    <h3 class="text-[13px] font-semibold text-slate-800">Prognosa Biaya Overhaul</h3>
+                </div>
+
+                <div class="grid flex-1 gap-2.5 sm:grid-cols-2">
+                    @foreach (['tonasa_4' => 'Tonasa 4', 'tonasa_5' => 'Tonasa 5'] as $plantKey => $plantLabel)
+                        <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                            <div class="text-xs font-semibold text-slate-800">{{ $plantLabel }}</div>
+                            <div class="mt-0.5 text-[9px] text-slate-500">Total Biaya Overhaul Minor &amp; Mayor</div>
+
+                            <dl class="mt-3 space-y-2 text-[11px]">
+                                <div class="flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
+                                    <dt class="text-slate-600">Minor</dt>
+                                    <dd class="font-semibold text-slate-900">{{ $rp($overhaulPrognosis[$plantKey]['minor']) }}</dd>
+                                </div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <dt class="text-slate-600">Mayor</dt>
+                                    <dd class="font-semibold text-slate-900">{{ $rp($overhaulPrognosis[$plantKey]['major']) }}</dd>
+                                </div>
+                            </dl>
+                        </div>
+                    @endforeach
+                </div>
+            </article>
+
+            <article class="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                <div class="mb-2 flex items-center gap-2">
+                    <i data-lucide="bar-chart-3" class="h-4 w-4 text-blue-500"></i>
+                    <h3 class="text-[13px] font-semibold text-slate-800">Top Ten Unit Kerja Pemicu Biaya</h3>
+                </div>
+
+                <div id="topTenCostChartContainer" class="relative min-h-[180px] flex-1">
+                    <canvas
+                        id="topTenCostChart"
+                        class="h-full w-full"
+                        role="img"
+                        aria-label="Grafik Top Ten Unit Kerja Pemicu Biaya"
+                    ></canvas>
+                </div>
+                <div id="topTenCostEmptyState" class="hidden flex-1 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-8 text-center text-xs text-slate-500">
+                    Belum ada data HPP yang telah disubmit.
+                </div>
+            </article>
+        </section>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -342,7 +390,11 @@
             const actualBudgetAmount = document.getElementById('actualBudgetAmount');
             const actualBudgetUsageAmount = document.getElementById('actualBudgetUsageAmount');
             const remainingContractBudget = document.getElementById('remainingContractBudget');
+            const topTenCostChartContainer = document.getElementById('topTenCostChartContainer');
+            const topTenCostCanvas = document.getElementById('topTenCostChart');
+            const topTenCostEmptyState = document.getElementById('topTenCostEmptyState');
             const initialChartData = @json($realizationChartData ?? []);
+            const initialTopTenCostSections = @json($topTenCostSections ?? []);
             const potentialAmount = Number(@json($totalAmount1 ?? 0));
             const contractBudget = Number(@json($totalKuotaKontrak ?? 0));
             const yearsEndpoint = @json(url('/admin/get-years'));
@@ -406,12 +458,14 @@
                 }
 
                 renderChart(initialChartData);
+                renderTopTenCostChart(initialTopTenCostSections);
             }
 
             function fetchData(startYear, endYear, startMonth = null, endMonth = null) {
                 const queryParams = new URLSearchParams({
                     startYear,
                     endYear,
+                    includeTopTen: '1',
                     ...(startMonth && { startMonth }),
                     ...(endMonth && { endMonth })
                 }).toString();
@@ -419,8 +473,12 @@
                 fetch(`${chartEndpoint}?${queryParams}`)
                     .then(response => response.json())
                     .then(data => {
-                        if (!Array.isArray(data)) throw new Error('Format data tidak valid.');
-                        renderChart(data);
+                        if (!Array.isArray(data.realization) || !Array.isArray(data.top_ten)) {
+                            throw new Error('Format data tidak valid.');
+                        }
+
+                        renderChart(data.realization);
+                        renderTopTenCostChart(data.top_ten);
                     })
                     .catch(error => {
                         console.error('Error saat memproses data:', error);
@@ -498,6 +556,67 @@
                 }
 
                 updateLegend(rows);
+            }
+
+            function renderTopTenCostChart(rows) {
+                const hasData = rows.length > 0;
+
+                topTenCostChartContainer.classList.toggle('hidden', !hasData);
+                topTenCostEmptyState.classList.toggle('hidden', hasData);
+                topTenCostEmptyState.classList.toggle('flex', !hasData);
+
+                if (window.topTenCostChartInstance) {
+                    window.topTenCostChartInstance.destroy();
+                    window.topTenCostChartInstance = null;
+                }
+
+                if (!hasData) {
+                    return;
+                }
+
+                topTenCostChartContainer.style.height = `${Math.max(180, Math.min(360, (rows.length * 34) + 44))}px`;
+                window.topTenCostChartInstance = new Chart(topTenCostCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: rows.map(item => item.section),
+                        datasets: [{
+                            label: 'Nilai HPP',
+                            data: rows.map(item => Number(item.amount || 0)),
+                            backgroundColor: '#2563eb',
+                            borderRadius: 6,
+                            maxBarThickness: 24,
+                        }],
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: value => compactRupiah(value),
+                                },
+                            },
+                            y: {
+                                grid: { display: false },
+                                ticks: {
+                                    autoSkip: false,
+                                    color: '#475569',
+                                    font: { size: 10 },
+                                },
+                            },
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: context => `Nilai HPP: ${formatRupiah(context.raw)}`,
+                                },
+                            },
+                        },
+                    },
+                });
             }
 
             function updateRealizationSummary(normalTotal, urgentTotal) {

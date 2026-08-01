@@ -88,7 +88,10 @@
                                 $garansiMonths = $row->garansi?->garansi_months;
                                 $termin1Paid = ($row->termin1_status ?? 'belum') === 'sudah';
                                 $termin2Paid = ! $isWithoutWarranty && ($row->termin2_status ?? 'belum') === 'sudah';
-                                $initialTermin = ! $isWithoutWarranty && (filled($lpj?->lpj_number_termin2)
+                                $terminTwoEligible = (int) $garansiMonths > 0
+                                    && $termin1Paid
+                                    && $row->terminTwo?->approval_status === \App\Models\LhppBast::APPROVAL_APPROVED;
+                                $initialTermin = $terminTwoEligible && (filled($lpj?->lpj_number_termin2)
                                     || filled($lpj?->ppl_number_termin2)
                                     || filled($lpj?->lpj_document_path_termin2)
                                     || filled($lpj?->ppl_document_path_termin2))
@@ -158,7 +161,9 @@
                                             @else
                                                 <select id="termin-select-{{ $row->id }}" name="selected_termin" title="Pilih termin" aria-label="Pilih termin" class="h-8 w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-[9px] text-slate-700 focus:border-sky-500 focus:outline-none" onchange="window.adminLpjApplyTermin('{{ $row->id }}', this.value)">
                                                     <option value="1">Termin 1</option>
-                                                    <option value="2">Termin 2</option>
+                                                    @if ($terminTwoEligible)
+                                                        <option value="2">Termin 2</option>
+                                                    @endif
                                                 </select>
                                             @endif
                                             <div class="grid grid-cols-2 gap-1.5">

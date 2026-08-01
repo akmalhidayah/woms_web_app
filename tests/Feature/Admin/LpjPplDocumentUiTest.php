@@ -43,6 +43,7 @@ class LpjPplDocumentUiTest extends TestCase
             'tanggal_mulai_pekerjaan' => '2026-06-01',
             'tanggal_selesai_pekerjaan' => '2026-06-05',
             'total_aktual_biaya' => '1000000.00',
+            'approval_status' => LhppBast::APPROVAL_APPROVED,
             'created_by' => $admin->id,
         ]);
 
@@ -96,6 +97,7 @@ class LpjPplDocumentUiTest extends TestCase
             'tanggal_mulai_pekerjaan' => '2026-06-01',
             'tanggal_selesai_pekerjaan' => '2026-06-05',
             'total_aktual_biaya' => '1000000.00',
+            'approval_status' => LhppBast::APPROVAL_APPROVED,
             'created_by' => $admin->id,
         ]);
 

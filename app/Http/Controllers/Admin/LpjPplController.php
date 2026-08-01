@@ -5,13 +5,17 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateLpjPplRequest;
 use App\Models\LhppBast;
-use App\Models\LpjPpl;
+use App\Services\Admin\LpjPplUpdateService;
+use App\Support\BastDisplayLabel;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class LpjPplController extends Controller
@@ -24,6 +28,7 @@ class LpjPplController extends Controller
 
             $poOptions = LhppBast::query()
                 ->where('termin_type', 'termin_1')
+                ->where('approval_status', LhppBast::APPROVAL_APPROVED)
                 ->whereNotNull('purchase_order_number')
                 ->whereRaw("TRIM(purchase_order_number) <> ''")
                 ->orderBy('purchase_order_number')
@@ -36,9 +41,11 @@ class LpjPplController extends Controller
                     'order:id,nomor_order,notifikasi,nama_pekerjaan,unit_kerja,seksi',
                     'purchaseOrder:id,order_id,purchase_order_number',
                     'garansi:id,lhpp_bast_id,garansi_months',
+                    'terminTwo:id,parent_lhpp_bast_id,approval_status',
                     'lpjPpl:id,lhpp_bast_id,lpj_number_termin1,ppl_number_termin1,lpj_document_path_termin1,ppl_document_path_termin1,lpj_number_termin2,ppl_number_termin2,lpj_document_path_termin2,ppl_document_path_termin2,updated_at',
                 ])
                 ->where('termin_type', 'termin_1')
+                ->where('approval_status', LhppBast::APPROVAL_APPROVED)
                 ->when($search !== '', function ($query) use ($search): void {
                     $query->where(function ($builder) use ($search): void {
                         $builder
@@ -60,133 +67,34 @@ class LpjPplController extends Controller
                 ->paginate(10)
                 ->withQueryString();
 
-            return view('admin.lpj.index', [
-                'search' => $search,
-                'selectedPo' => $selectedPo,
-                'poOptions' => $poOptions,
-                'lpjRows' => $lpjRows,
-            ]);
+            return view('admin.lpj.index', compact('search', 'selectedPo', 'poOptions', 'lpjRows'));
         } catch (Throwable $exception) {
             Log::error('Failed to load admin LPJ/PPL index page.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'user_id' => $request->user()?->id,
-                'error' => $exception->getMessage(),
-                'file' => $exception->getFile(),
-                'line' => $exception->getLine(),
+                'exception' => $exception,
             ]);
 
             abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Terjadi kesalahan saat memuat halaman LPJ / PPL admin.');
         }
     }
 
-    public function update(UpdateLpjPplRequest $request, int $lhppId): RedirectResponse
+    public function update(
+        UpdateLpjPplRequest $request,
+        int $lhppId,
+        LpjPplUpdateService $updateService,
+    ): RedirectResponse
     {
+        $validated = $request->validated();
+
         try {
-            $lhpp = LhppBast::query()
-                ->where('termin_type', 'termin_1')
-                ->findOrFail($lhppId);
-
-            $validated = $request->validated();
-            $isWithoutWarranty = (int) ($lhpp->garansi?->garansi_months ?? -1) === 0;
+            $lpjPpl = $updateService->update($lhppId, $validated, $request->user()?->id);
+            $lhpp = $lpjPpl->lhppBast()->with('garansi:id,lhpp_bast_id,garansi_months')->firstOrFail();
             $selectedTermin = (int) $validated['selected_termin'];
-            $userId = $request->user()?->id;
-
-            if ($isWithoutWarranty && $selectedTermin === 2) {
-                return back()
-                    ->withErrors(['lpj_ppl' => 'Termin 2 tidak diperlukan untuk order tanpa garansi.'])
-                    ->withInput();
-            }
-
-            $lpjPpl = LpjPpl::firstOrNew([
-                'lhpp_bast_id' => $lhpp->id,
-            ]);
-
-            if (! $lpjPpl->exists) {
-                $lpjPpl->created_by = $userId;
-            }
-
-            $lpjPpl->updated_by = $userId;
-
-            if ($selectedTermin === 1) {
-                $lpjPpl->lpj_number_termin1 = $validated['lpj_number'] ?: null;
-                $lpjPpl->ppl_number_termin1 = $validated['ppl_number'] ?: null;
-            } else {
-                $lpjPpl->lpj_number_termin2 = $validated['lpj_number'] ?: null;
-                $lpjPpl->ppl_number_termin2 = $validated['ppl_number'] ?: null;
-            }
-
-            $storageDirectory = 'lpj-ppl/'.$lhpp->nomor_order;
-
-            foreach (['lpj', 'ppl'] as $documentType) {
-                if (! ($validated["remove_{$documentType}_document"] ?? false)) {
-                    continue;
-                }
-
-                $pathAttribute = "{$documentType}_document_path_termin{$selectedTermin}";
-                $existingPath = $lpjPpl->{$pathAttribute};
-
-                if ($existingPath) {
-                    Storage::disk('public')->delete($existingPath);
-                    $lpjPpl->{$pathAttribute} = null;
-                }
-            }
-
-            if ($request->hasFile('lpj_document')) {
-                $existingPath = $selectedTermin === 1
-                    ? $lpjPpl->lpj_document_path_termin1
-                    : $lpjPpl->lpj_document_path_termin2;
-
-                if ($existingPath) {
-                    Storage::disk('public')->delete($existingPath);
-                }
-
-                $lpjFile = $request->file('lpj_document');
-                $lpjFilename = sprintf(
-                    'LPJ-Termin-%d-%s.%s',
-                    $selectedTermin,
-                    $lhpp->nomor_order,
-                    $lpjFile->getClientOriginalExtension()
-                );
-                $lpjPath = $lpjFile->storeAs($storageDirectory, $lpjFilename, 'public');
-
-                if ($selectedTermin === 1) {
-                    $lpjPpl->lpj_document_path_termin1 = $lpjPath;
-                } else {
-                    $lpjPpl->lpj_document_path_termin2 = $lpjPath;
-                }
-            }
-
-            if ($request->hasFile('ppl_document')) {
-                $existingPath = $selectedTermin === 1
-                    ? $lpjPpl->ppl_document_path_termin1
-                    : $lpjPpl->ppl_document_path_termin2;
-
-                if ($existingPath) {
-                    Storage::disk('public')->delete($existingPath);
-                }
-
-                $pplFile = $request->file('ppl_document');
-                $pplFilename = sprintf(
-                    'PPL-Termin-%d-%s.%s',
-                    $selectedTermin,
-                    $lhpp->nomor_order,
-                    $pplFile->getClientOriginalExtension()
-                );
-                $pplPath = $pplFile->storeAs($storageDirectory, $pplFilename, 'public');
-
-                if ($selectedTermin === 1) {
-                    $lpjPpl->ppl_document_path_termin1 = $pplPath;
-                } else {
-                    $lpjPpl->ppl_document_path_termin2 = $pplPath;
-                }
-            }
-
-            $lpjPpl->save();
-
-            $lhpp->termin1_status = $validated['termin1_status'];
-            $lhpp->termin2_status = $isWithoutWarranty ? 'belum' : $validated['termin2_status'];
-            $lhpp->updated_by = $userId;
-            $lhpp->save();
+            $garansiMonths = $lhpp->garansi?->garansi_months;
+            $label = $selectedTermin === 1 && BastDisplayLabel::isWithoutWarranty($garansiMonths)
+                ? 'LPJ/PPL'
+                : 'LPJ/PPL '.BastDisplayLabel::stageLabel("termin_{$selectedTermin}", $garansiMonths);
 
             return redirect()
                 ->route('admin.lpj.index', array_filter([
@@ -194,21 +102,21 @@ class LpjPplController extends Controller
                     'po' => $validated['po'] ?? null,
                     'page' => $validated['page'] ?? null,
                 ]))
-                ->with('status', sprintf('Data LPJ / PPL untuk order %s berhasil diperbarui.', $lhpp->nomor_order));
+                ->with('status', sprintf('Data %s untuk order %s berhasil diperbarui.', $label, $lhpp->nomor_order));
+        } catch (ValidationException|ModelNotFoundException|AuthorizationException|HttpExceptionInterface $exception) {
+            throw $exception;
         } catch (Throwable $exception) {
+            report($exception);
             Log::error('Failed to update admin LPJ / PPL data.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'user_id' => $request->user()?->id,
-                'lhpp_id' => $lhpp->id,
-                'error' => $exception->getMessage(),
-                'file' => $exception->getFile(),
-                'line' => $exception->getLine(),
+                'requested_lhpp_id' => $lhppId,
+                'selected_termin' => $validated['selected_termin'] ?? null,
+                'exception' => $exception,
             ]);
 
             return back()
-                ->withErrors([
-                    'lpj_ppl' => 'Terjadi kesalahan saat menyimpan data LPJ / PPL.',
-                ])
+                ->withErrors(['lpj_ppl' => 'Terjadi kesalahan saat menyimpan data LPJ / PPL.'])
                 ->withInput();
         }
     }

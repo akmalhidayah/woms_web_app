@@ -117,6 +117,13 @@ class OutlineAgreement extends Model
         return $this->hasMany(OutlineAgreementTarget::class)->orderBy('tahun');
     }
 
+    public function monthlyRealizations(): HasMany
+    {
+        return $this->hasMany(OutlineAgreementMonthlyRealization::class)
+            ->orderByDesc('year')
+            ->orderByDesc('month');
+    }
+
     public function latestHistory(): BelongsTo
     {
         return $this->belongsTo(OutlineAgreementHistory::class, 'latest_history_id');

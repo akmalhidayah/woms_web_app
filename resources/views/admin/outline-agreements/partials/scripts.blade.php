@@ -299,5 +299,170 @@
                 })),
             });
         }
+
+        const monthlyModal = document.getElementById('oaMonthlyRealizationModal');
+        const monthlyForm = document.getElementById('monthlyRealizationForm');
+        const monthlyOaId = document.getElementById('monthlyRealizationOaId');
+        const monthlyAgreementInfo = document.getElementById('monthlyRealizationAgreementInfo');
+        const monthlyYear = document.getElementById('monthlyRealizationYear');
+        const monthlyMonth = document.getElementById('monthlyRealizationMonth');
+        const monthlyPrPo = document.getElementById('monthlyRealizationPrPo');
+        const monthlyUrgent = document.getElementById('monthlyRealizationUrgent');
+        const monthlyRows = document.getElementById('monthlyRealizationRows');
+        const monthlyEmpty = document.getElementById('monthlyRealizationEmpty');
+        const monthlyNames = [
+            '', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+            'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+        ];
+        const monthlyCsrfToken = @json(csrf_token());
+        const oldMonthlyOaId = @json((string) old('_monthly_oa_id', ''));
+
+        const formatMonthlyAmount = (value) => new Intl.NumberFormat('id-ID').format(Number(value || 0));
+
+        const fillMonthlyForm = (realization = null) => {
+            if (!monthlyYear || !monthlyMonth || !monthlyPrPo || !monthlyUrgent) return;
+
+            if (realization) {
+                monthlyYear.value = realization.year ?? '';
+                monthlyMonth.value = realization.month ?? '';
+                monthlyPrPo.value = formatMonthlyAmount(realization.pr_po_amount);
+                monthlyUrgent.value = formatMonthlyAmount(realization.urgent_amount);
+                monthlyYear.focus();
+                return;
+            }
+
+            monthlyYear.value = '';
+            monthlyMonth.value = '';
+            monthlyPrPo.value = '0';
+            monthlyUrgent.value = '0';
+        };
+
+        const bindMonthlyAmountFormatter = (input) => {
+            input?.addEventListener('input', () => {
+                const digits = input.value.replace(/\D/g, '');
+                input.value = digits === '' ? '' : formatMonthlyAmount(digits);
+            });
+        };
+
+        bindMonthlyAmountFormatter(monthlyPrPo);
+        bindMonthlyAmountFormatter(monthlyUrgent);
+
+        const renderMonthlyRows = (realizations) => {
+            if (!monthlyRows || !monthlyEmpty) return;
+
+            monthlyRows.innerHTML = '';
+            monthlyEmpty.classList.toggle('hidden', realizations.length > 0);
+
+            realizations.forEach((realization) => {
+                const row = document.createElement('tr');
+                row.className = 'text-slate-700';
+
+                const periodCell = document.createElement('td');
+                periodCell.className = 'whitespace-nowrap px-4 py-3 font-semibold';
+                periodCell.textContent = `${monthlyNames[Number(realization.month)] || realization.month} ${realization.year}`;
+
+                const prPoCell = document.createElement('td');
+                prPoCell.className = 'whitespace-nowrap px-4 py-3 text-right';
+                prPoCell.textContent = `Rp${formatMonthlyAmount(realization.pr_po_amount)}`;
+
+                const urgentCell = document.createElement('td');
+                urgentCell.className = 'whitespace-nowrap px-4 py-3 text-right';
+                urgentCell.textContent = `Rp${formatMonthlyAmount(realization.urgent_amount)}`;
+
+                const actionCell = document.createElement('td');
+                actionCell.className = 'whitespace-nowrap px-4 py-3 text-right';
+
+                const actionWrap = document.createElement('div');
+                actionWrap.className = 'inline-flex items-center gap-2';
+
+                const editButton = document.createElement('button');
+                editButton.type = 'button';
+                editButton.className = 'font-semibold text-sky-600 hover:text-sky-700';
+                editButton.textContent = 'Edit';
+                editButton.addEventListener('click', () => fillMonthlyForm(realization));
+
+                const deleteForm = document.createElement('form');
+                deleteForm.method = 'POST';
+                deleteForm.action = realization.destroy_url;
+                deleteForm.dataset.deleteMonthlyRealizationForm = '';
+                deleteForm.innerHTML = `<input type="hidden" name="_token" value="${monthlyCsrfToken}"><input type="hidden" name="_method" value="DELETE">`;
+
+                const deleteButton = document.createElement('button');
+                deleteButton.type = 'submit';
+                deleteButton.className = 'font-semibold text-rose-600 hover:text-rose-700';
+                deleteButton.textContent = 'Hapus';
+                deleteForm.appendChild(deleteButton);
+                deleteForm.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+                    let confirmed = false;
+
+                    if (window.Swal) {
+                        const result = await window.Swal.fire({
+                            icon: 'warning',
+                            title: 'Hapus realisasi biaya?',
+                            text: `Realisasi periode ${periodCell.textContent} akan dihapus.`,
+                            showCancelButton: true,
+                            confirmButtonText: 'Ya, hapus',
+                            cancelButtonText: 'Batal',
+                            confirmButtonColor: '#e11d48',
+                        });
+                        confirmed = result.isConfirmed;
+                    } else {
+                        confirmed = window.confirm(`Hapus realisasi periode ${periodCell.textContent}?`);
+                    }
+
+                    if (confirmed) deleteForm.submit();
+                });
+
+                actionWrap.append(editButton, deleteForm);
+                actionCell.appendChild(actionWrap);
+                row.append(periodCell, prPoCell, urgentCell, actionCell);
+                monthlyRows.appendChild(row);
+            });
+        };
+
+        const openMonthlyModal = (button, preserveOldInput = false) => {
+            if (!monthlyModal || !monthlyForm || !monthlyOaId || !monthlyAgreementInfo) return;
+
+            const realizations = JSON.parse(button.dataset.realizations || '[]');
+            monthlyForm.action = button.dataset.storeUrl || '';
+            monthlyOaId.value = button.dataset.id || '';
+            monthlyAgreementInfo.textContent = `${button.dataset.number || '-'} · ${button.dataset.name || '-'}`;
+            renderMonthlyRows(realizations);
+
+            if (!preserveOldInput) {
+                fillMonthlyForm();
+                const start = button.dataset.periodStart ? new Date(`${button.dataset.periodStart}T00:00:00`) : null;
+                const end = button.dataset.periodEnd ? new Date(`${button.dataset.periodEnd}T00:00:00`) : null;
+                const today = new Date();
+                const initialDate = start && today < start ? start : (end && today > end ? end : today);
+                monthlyYear.value = initialDate.getFullYear();
+                monthlyMonth.value = initialDate.getMonth() + 1;
+            }
+
+            monthlyModal.classList.remove('hidden');
+            monthlyModal.classList.add('flex');
+        };
+
+        const closeMonthlyModal = () => {
+            if (!monthlyModal) return;
+            monthlyModal.classList.add('hidden');
+            monthlyModal.classList.remove('flex');
+        };
+
+        const monthlyTriggers = document.querySelectorAll('[data-monthly-realization-trigger]');
+        monthlyTriggers.forEach((button) => {
+            button.addEventListener('click', () => openMonthlyModal(button));
+        });
+
+        document.getElementById('closeMonthlyRealizationModal')?.addEventListener('click', closeMonthlyModal);
+        monthlyModal?.addEventListener('click', (event) => {
+            if (event.target === monthlyModal) closeMonthlyModal();
+        });
+
+        if (oldMonthlyOaId) {
+            const trigger = Array.from(monthlyTriggers).find((button) => button.dataset.id === oldMonthlyOaId);
+            if (trigger) openMonthlyModal(trigger, true);
+        }
     });
 </script>

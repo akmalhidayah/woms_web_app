@@ -31,6 +31,7 @@ class OutlineAgreementController extends Controller
                 'latestHistory',
                 'histories.creator',
                 'yearlyTargets',
+                'monthlyRealizations',
             ])
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($builder) use ($search) {

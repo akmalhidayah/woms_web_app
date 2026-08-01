@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\Orders\InitialWorkController as AdminInitialWorkC
 use App\Http\Controllers\Admin\Orders\OrderDocumentController;
 use App\Http\Controllers\Admin\Orders\OrderScopeOfWorkController;
 use App\Http\Controllers\Admin\OutlineAgreementController;
+use App\Http\Controllers\Admin\OutlineAgreementMonthlyRealizationController;
 use App\Http\Controllers\Admin\PurchaseOrderController;
 use App\Http\Controllers\Admin\StructureOrganizationController;
 use App\Http\Controllers\Admin\UserImpersonationController;
@@ -334,6 +335,12 @@ Route::middleware(['auth'])->group(function () {
     Route::post('admin/outline-agreements/{outlineAgreement}/amendments', [OutlineAgreementController::class, 'addAmendment'])
         ->middleware(['role:admin', 'admin_menu:kuota_anggaran_oa'])
         ->name('admin.outline-agreements.amendments.store');
+    Route::post('admin/outline-agreements/{outlineAgreement}/monthly-realizations', [OutlineAgreementMonthlyRealizationController::class, 'store'])
+        ->middleware(['role:admin', 'admin_menu:kuota_anggaran_oa'])
+        ->name('admin.outline-agreements.monthly-realizations.store');
+    Route::delete('admin/outline-agreements/{outlineAgreement}/monthly-realizations/{monthlyRealization}', [OutlineAgreementMonthlyRealizationController::class, 'destroy'])
+        ->middleware(['role:admin', 'admin_menu:kuota_anggaran_oa'])
+        ->name('admin.outline-agreements.monthly-realizations.destroy');
 
     Route::get('admin/user-panel', [UserPanelController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:user_panel'])

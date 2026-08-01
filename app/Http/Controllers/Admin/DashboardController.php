@@ -8,6 +8,7 @@ use App\Models\Hpp;
 use App\Models\LhppBast;
 use App\Models\Order;
 use App\Models\OutlineAgreement;
+use App\Models\OutlineAgreementMonthlyRealization;
 use App\Models\OutlineAgreementTarget;
 use App\Models\PurchaseOrder;
 use Illuminate\Database\Eloquent\Builder;
@@ -23,8 +24,9 @@ class DashboardController extends Controller
         $documentOnProcessHPPAmount = $this->sumPendingHppApprovalAmount();
         $approvalProcessHPPAmount = $this->sumApprovedHppsWaitingForPoAmount();
         $documentOnProcessPOAmount = $this->sumPurchaseOrdersWithNumberAndDocumentAmount();
-        $documentPRPOAmount = $this->sumNormalLhppBastAmount();
-        $urgentAmount = $this->sumEmergencyLhppBastAmount();
+        $monthlyRealizations = $this->sumActiveOutlineAgreementMonthlyRealizations();
+        $documentPRPOAmount = $this->sumNormalLhppBastAmount() + $monthlyRealizations['pr_po'];
+        $urgentAmount = $this->sumEmergencyLhppBastAmount() + $monthlyRealizations['urgent'];
         $totalAmount1 = $documentOnProcessHPPAmount + $approvalProcessHPPAmount + $documentOnProcessPOAmount;
         $totalAmount2 = $documentPRPOAmount + $urgentAmount;
         $totalSeluruhAmount = $totalAmount1 + $totalAmount2;
@@ -167,6 +169,26 @@ class DashboardController extends Controller
             ->sum('total_aktual_biaya'));
     }
 
+    /**
+     * @return array{pr_po: int, urgent: int}
+     */
+    private function sumActiveOutlineAgreementMonthlyRealizations(): array
+    {
+        $query = $this->activeOutlineAgreementMonthlyRealizationsQuery();
+
+        return [
+            'pr_po' => (int) (clone $query)->sum('pr_po_amount'),
+            'urgent' => (int) (clone $query)->sum('urgent_amount'),
+        ];
+    }
+
+    private function activeOutlineAgreementMonthlyRealizationsQuery(): Builder
+    {
+        return OutlineAgreementMonthlyRealization::query()
+            ->whereHas('outlineAgreement', fn (Builder $query) => $query
+                ->where('status', OutlineAgreement::STATUS_ACTIVE));
+    }
+
     private function baseLhppBastRealizationQuery(): Builder
     {
         return LhppBast::query()
@@ -235,10 +257,17 @@ class DashboardController extends Controller
      */
     private function realizationYearsList(): array
     {
-        return $this->baseLhppBastRealizationQuery()
+        $transactionYears = $this->baseLhppBastRealizationQuery()
             ->whereNotNull('tanggal_bast')
             ->pluck('tanggal_bast')
-            ->map(fn ($date): int => Carbon::parse($date)->year)
+            ->map(fn ($date): int => Carbon::parse($date)->year);
+        $outlineAgreementYears = $this->activeOutlineAgreementMonthlyRealizationsQuery()
+            ->distinct()
+            ->pluck('year')
+            ->map(fn ($year): int => (int) $year);
+
+        return $transactionYears
+            ->merge($outlineAgreementYears)
             ->unique()
             ->sort()
             ->values()
@@ -271,13 +300,18 @@ class DashboardController extends Controller
             [$startDate, $endDate] = [$endDate->copy()->startOfMonth(), $startDate->copy()->endOfMonth()];
         }
 
+        $filterStartYear = $startDate->year;
+        $filterStartMonth = $startDate->month;
+        $filterEndYear = $endDate->year;
+        $filterEndMonth = $endDate->month;
+
         $rows = $this->baseLhppBastRealizationQuery()
             ->with('order:id,prioritas')
             ->whereBetween('tanggal_bast', [$startDate->toDateString(), $endDate->toDateString()])
             ->orderBy('tanggal_bast')
             ->get(['id', 'order_id', 'tanggal_bast', 'total_aktual_biaya']);
 
-        return $rows
+        $transactionTotals = $rows
             ->groupBy(fn (LhppBast $row): string => $row->tanggal_bast?->format('Y-m') ?? 'unknown')
             ->filter(fn ($group, string $key): bool => $key !== 'unknown')
             ->map(function ($group, string $key): array {
@@ -290,6 +324,47 @@ class DashboardController extends Controller
                     ->sum(fn (LhppBast $row): float => (float) $row->total_aktual_biaya);
                 $normalTotal = $this->moneyInt($normalTotal);
                 $urgentTotal = $this->moneyInt($urgentTotal);
+
+                return [
+                    'normal_total' => $normalTotal,
+                    'urgent_total' => $urgentTotal,
+                ];
+            });
+
+        $monthlyTotals = $this->activeOutlineAgreementMonthlyRealizationsQuery()
+            ->where(function (Builder $query) use ($filterStartYear, $filterStartMonth): void {
+                $query
+                    ->where('year', '>', $filterStartYear)
+                    ->orWhere(function (Builder $periodQuery) use ($filterStartYear, $filterStartMonth): void {
+                        $periodQuery
+                            ->where('year', $filterStartYear)
+                            ->where('month', '>=', $filterStartMonth);
+                    });
+            })
+            ->where(function (Builder $query) use ($filterEndYear, $filterEndMonth): void {
+                $query
+                    ->where('year', '<', $filterEndYear)
+                    ->orWhere(function (Builder $periodQuery) use ($filterEndYear, $filterEndMonth): void {
+                        $periodQuery
+                            ->where('year', $filterEndYear)
+                            ->where('month', '<=', $filterEndMonth);
+                    });
+            })
+            ->selectRaw('year, month, SUM(pr_po_amount) as normal_total, SUM(urgent_amount) as urgent_total')
+            ->groupBy('year', 'month')
+            ->get()
+            ->keyBy(fn (OutlineAgreementMonthlyRealization $row): string => sprintf('%04d-%02d', $row->year, $row->month));
+
+        return $transactionTotals
+            ->keys()
+            ->merge($monthlyTotals->keys())
+            ->unique()
+            ->map(function (string $key) use ($transactionTotals, $monthlyTotals): array {
+                [$year, $month] = array_map('intval', explode('-', $key));
+                $transaction = $transactionTotals->get($key, ['normal_total' => 0, 'urgent_total' => 0]);
+                $monthly = $monthlyTotals->get($key);
+                $normalTotal = (int) $transaction['normal_total'] + (int) ($monthly?->normal_total ?? 0);
+                $urgentTotal = (int) $transaction['urgent_total'] + (int) ($monthly?->urgent_total ?? 0);
 
                 return [
                     'year' => $year,

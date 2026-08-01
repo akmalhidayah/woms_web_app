@@ -174,17 +174,17 @@
                 <div class="grid gap-2.5 md:grid-cols-2">
                     <div class="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
                         <div class="text-[11px] leading-4 text-slate-700">Document PR/PO (LHPP)</div>
-                        <div class="mt-2 text-right text-xs font-semibold text-slate-900">{{ $rp($documentPRPOAmount) }}</div>
+                        <div id="documentPrPoAmount" class="mt-2 text-right text-xs font-semibold text-slate-900">{{ $rp($documentPRPOAmount) }}</div>
                     </div>
                     <div class="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
                         <div class="text-[11px] leading-4 text-slate-700">Pekerjaan Urgent</div>
-                        <div class="mt-2 text-right text-xs font-semibold text-slate-900">{{ $rp($urgentAmount) }}</div>
+                        <div id="urgentRealizationAmount" class="mt-2 text-right text-xs font-semibold text-slate-900">{{ $rp($urgentAmount) }}</div>
                     </div>
                 </div>
 
                 <div class="mt-2 flex justify-end gap-2 text-[11px]">
                     <span class="text-slate-500">Subtotal realisasi</span>
-                    <span class="font-bold text-slate-900">{{ $rp($totalAmount2) }}</span>
+                    <span id="realizationSubtotal" class="font-bold text-slate-900">{{ $rp($totalAmount2) }}</span>
                 </div>
             </article>
         </section>
@@ -213,7 +213,7 @@
                     <div class="min-h-[76px] rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5">
                         <div class="text-[11px] font-bold leading-5 text-blue-900">
                             Potensi Biaya + Realisasi Biaya:
-                            <span class="text-slate-900">Rp. {{ number_format($totalSeluruhAmount, 0, ',', '.') }}</span>
+                            <span id="potentialAndRealizationAmount" class="text-slate-900">Rp. {{ number_format($totalSeluruhAmount, 0, ',', '.') }}</span>
                         </div>
                     </div>
 
@@ -225,10 +225,10 @@
                     @endphp
                     <div class="min-h-[76px] rounded-lg border border-sky-200 bg-sky-50 px-2 py-1.5">
                         <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-sky-700">Kuota Anggaran Actual</div>
-                        <div class="mt-0.5 text-sm font-bold text-slate-900">Rp. {{ number_format($kuotaKontrakActual, 0, ',', '.') }}</div>
+                        <div id="actualBudgetAmount" class="mt-0.5 text-sm font-bold text-slate-900">Rp. {{ number_format($kuotaKontrakActual, 0, ',', '.') }}</div>
                         <div class="mt-1 grid gap-0.5 text-[8.5px] leading-3 text-sky-700">
                             <div>Kuota: Rp. {{ number_format($totalKuotaKontrak, 0, ',', '.') }}</div>
-                            <div>Potensi + Realisasi: Rp. {{ number_format($totalSeluruhAmount, 0, ',', '.') }}</div>
+                            <div>Potensi + Realisasi: <span id="actualBudgetUsageAmount">Rp. {{ number_format($totalSeluruhAmount, 0, ',', '.') }}</span></div>
                         </div>
                     </div>
 
@@ -249,13 +249,13 @@
 
                     <div class="min-h-[76px] rounded-lg border border-yellow-200 bg-yellow-50 px-2 py-1.5">
                         <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-yellow-700">Sisa Kuota Kontrak</div>
-                        <div class="mt-0.5 text-sm font-bold text-yellow-900">Rp. {{ number_format($sisaKuotaKontrak, 0, ',', '.') }}</div>
+                        <div id="remainingContractBudget" class="mt-0.5 text-sm font-bold text-yellow-900">Rp. {{ number_format($sisaKuotaKontrak, 0, ',', '.') }}</div>
                     </div>
                 </div>
             </article>
 
             <article class="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-                <div class="rounded-lg bg-emerald-100 px-2.5 py-1 text-center text-[10px] font-bold text-slate-900">
+                <div id="totalRealizationAmount" class="rounded-lg bg-emerald-100 px-2.5 py-1 text-center text-[10px] font-bold text-slate-900">
                     Total Realisasi Biaya: Rp {{ number_format($totalRealisasiBiaya, 0, ',', '.') }}
                 </div>
 
@@ -334,7 +334,17 @@
             const chartTotal = document.getElementById('chartTotal');
             const chartEmptyState = document.getElementById('chartEmptyState');
             const chartCanvas = document.getElementById('realisasiBiayaPieChart');
+            const documentPrPoAmount = document.getElementById('documentPrPoAmount');
+            const urgentRealizationAmount = document.getElementById('urgentRealizationAmount');
+            const realizationSubtotal = document.getElementById('realizationSubtotal');
+            const totalRealizationAmount = document.getElementById('totalRealizationAmount');
+            const potentialAndRealizationAmount = document.getElementById('potentialAndRealizationAmount');
+            const actualBudgetAmount = document.getElementById('actualBudgetAmount');
+            const actualBudgetUsageAmount = document.getElementById('actualBudgetUsageAmount');
+            const remainingContractBudget = document.getElementById('remainingContractBudget');
             const initialChartData = @json($realizationChartData ?? []);
+            const potentialAmount = Number(@json($totalAmount1 ?? 0));
+            const contractBudget = Number(@json($totalKuotaKontrak ?? 0));
             const yearsEndpoint = @json(url('/admin/get-years'));
             const chartEndpoint = @json(url('/admin/realisasi-biaya'));
             const chartColors = {
@@ -422,8 +432,11 @@
                 const labels = rows.map(item => item.label || `${monthNames[item.month] || item.month} ${item.year}`);
                 const normalValues = rows.map(item => Number(item.normal_total || 0));
                 const urgentValues = rows.map(item => Number(item.urgent_total || 0));
+                const normalTotal = normalValues.reduce((sum, value) => sum + value, 0);
+                const urgentTotal = urgentValues.reduce((sum, value) => sum + value, 0);
                 const total = rows.reduce((sum, item) => sum + Number(item.total || 0), 0);
 
+                updateRealizationSummary(normalTotal, urgentTotal);
                 chartTotal.textContent = formatRupiah(total);
                 chartEmptyState.classList.toggle('hidden', rows.length > 0);
                 chartCanvas.classList.toggle('hidden', rows.length === 0);
@@ -487,6 +500,21 @@
                 updateLegend(rows);
             }
 
+            function updateRealizationSummary(normalTotal, urgentTotal) {
+                const realizationTotal = normalTotal + urgentTotal;
+                const potentialAndRealization = potentialAmount + realizationTotal;
+                const remainingBudget = contractBudget - potentialAndRealization;
+
+                documentPrPoAmount.textContent = formatRupiah(normalTotal);
+                urgentRealizationAmount.textContent = formatRupiah(urgentTotal);
+                realizationSubtotal.textContent = formatRupiah(realizationTotal);
+                totalRealizationAmount.textContent = `Total Realisasi Biaya: ${formatRupiah(realizationTotal)}`;
+                potentialAndRealizationAmount.textContent = formatRupiah(potentialAndRealization);
+                actualBudgetAmount.textContent = formatRupiah(remainingBudget);
+                actualBudgetUsageAmount.textContent = formatRupiah(potentialAndRealization);
+                remainingContractBudget.textContent = formatRupiah(remainingBudget);
+            }
+
             function updateLegend(rows) {
                 chartLegend.innerHTML = '';
 
@@ -539,7 +567,7 @@
                     return;
                 }
 
-                if (startMonth && endMonth && parseInt(startMonth) > parseInt(endMonth)) {
+                if (startYear === endYear && startMonth && endMonth && parseInt(startMonth) > parseInt(endMonth)) {
                     alert('Bulan mulai tidak boleh lebih besar dari bulan akhir!');
                     return;
                 }

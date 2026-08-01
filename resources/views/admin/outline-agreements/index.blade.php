@@ -7,7 +7,7 @@
         <div id="outline-agreement-success" data-message="{{ session('success') }}" class="hidden"></div>
     @endif
 
-    <div class="other-menu-compact space-y-4" x-data="{ createOpen: {{ ($errors->any() && old('_method') !== 'PUT') ? 'true' : 'false' }} }">
+    <div class="other-menu-compact space-y-4" x-data="{ createOpen: {{ ($errors->any() && old('_method') !== 'PUT' && ! old('_monthly_oa_id')) ? 'true' : 'false' }} }">
         <section class="rounded-[1.75rem] border border-emerald-100 px-6 py-6 shadow-sm" style="background: linear-gradient(135deg, #effdf4 0%, #f8fffb 45%, #eef8ff 100%);">
             <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex items-start gap-4">
@@ -152,6 +152,36 @@
                                             >
                                                 <i data-lucide="pencil" class="h-4 w-4"></i>
                                                 Edit OA
+                                            </button>
+
+                                            @php
+                                                $monthlyRealizationsJson = $agreement->monthlyRealizations
+                                                    ->map(fn ($realization) => [
+                                                        'id' => $realization->id,
+                                                        'year' => $realization->year,
+                                                        'month' => $realization->month,
+                                                        'pr_po_amount' => $realization->pr_po_amount,
+                                                        'urgent_amount' => $realization->urgent_amount,
+                                                        'destroy_url' => route('admin.outline-agreements.monthly-realizations.destroy', [$agreement, $realization]),
+                                                    ])
+                                                    ->values()
+                                                    ->toJson();
+                                            @endphp
+
+                                            <button
+                                                type="button"
+                                                class="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-sky-700"
+                                                data-monthly-realization-trigger
+                                                data-id="{{ $agreement->id }}"
+                                                data-number="{{ $agreement->nomor_oa }}"
+                                                data-name="{{ $agreement->nama_kontrak }}"
+                                                data-period-start="{{ optional($agreement->current_period_start)->format('Y-m-d') }}"
+                                                data-period-end="{{ optional($agreement->current_period_end)->format('Y-m-d') }}"
+                                                data-store-url="{{ route('admin.outline-agreements.monthly-realizations.store', $agreement) }}"
+                                                data-realizations="{{ $monthlyRealizationsJson }}"
+                                            >
+                                                <i data-lucide="calendar-range" class="h-4 w-4"></i>
+                                                Realisasi Bulanan
                                             </button>
 
                                             <form
@@ -305,6 +335,7 @@
 
         @include('admin.outline-agreements.partials.create-modal')
         @include('admin.outline-agreements.partials.edit-modal')
+        @include('admin.outline-agreements.partials.monthly-realization-modal')
     </div>
 
     @include('admin.outline-agreements.partials.scripts')

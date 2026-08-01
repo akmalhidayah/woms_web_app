@@ -141,6 +141,16 @@ class AdminSidebarBadgeCounterTest extends TestCase
 
         $purchaseOrder->update(['purchase_order_number' => 'PO-BADGE-001']);
 
+        $this->assertSame(1, $this->counts()['purchase_order']);
+
+        $purchaseOrder->update(['approve_manager' => true]);
+
+        $this->assertSame(0, $this->counts()['purchase_order']);
+
+        $purchaseOrder->update(['progress_pekerjaan' => 45]);
+        $this->assertSame(0, $this->counts()['purchase_order']);
+
+        $purchaseOrder->update(['progress_pekerjaan' => 100]);
         $this->assertSame(0, $this->counts()['purchase_order']);
     }
 

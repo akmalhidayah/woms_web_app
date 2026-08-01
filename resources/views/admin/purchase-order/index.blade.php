@@ -1,24 +1,4 @@
 <x-layouts.admin title="Purchase Order">
-    <style>
-        .purchase-order-index-filter {
-            display: grid;
-            gap: 0.5rem;
-        }
-
-        @media (min-width: 900px) {
-            .purchase-order-index-filter {
-                grid-template-columns:
-                    minmax(160px, 1.45fr)
-                    minmax(105px, 0.7fr)
-                    minmax(115px, 0.8fr)
-                    minmax(112px, 0.7fr)
-                    minmax(112px, 0.7fr)
-                    auto;
-                align-items: center;
-            }
-        }
-    </style>
-
     @if (session('status'))
         <div id="purchase-order-status-alert" data-message="{{ session('status') }}" class="hidden"></div>
     @endif
@@ -47,37 +27,36 @@
         </section>
 
         <section class="order-list-panel overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-sm">
-            <div class="border-b border-slate-200 px-5 py-4">
-                <form method="GET" action="{{ route('admin.purchase-order.index') }}" class="purchase-order-index-filter">
+            <div class="space-y-3 border-b border-slate-200 px-5 py-4">
+                <nav class="overflow-x-auto" aria-label="Status Purchase Order">
+                    <div class="flex min-w-max items-center gap-2 pb-1">
+                        @foreach ($tabOptions as $tabKey => $tabLabel)
+                            @php
+                                $tabQuery = ['tab' => $tabKey];
+
+                                if ($search !== '') {
+                                    $tabQuery['search'] = $search;
+                                }
+                            @endphp
+                            <a
+                                href="{{ route('admin.purchase-order.index', $tabQuery) }}"
+                                @if ($activeTab === $tabKey) aria-current="page" @endif
+                                class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-[10px] font-semibold transition {{ $activeTab === $tabKey ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50' }}"
+                            >
+                                <span>{{ $tabLabel }}</span>
+                                <span class="inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[9px] {{ $activeTab === $tabKey ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">
+                                    {{ $tabCounts[$tabKey] ?? 0 }}
+                                </span>
+                            </a>
+                        @endforeach
+                    </div>
+                </nav>
+
+                <form method="GET" action="{{ route('admin.purchase-order.index') }}">
+                    <input type="hidden" name="tab" value="{{ $activeTab }}">
                     <div class="relative min-w-0">
                         <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 h-[12px] w-[12px] -translate-y-1/2 text-slate-400"></i>
-                        <input id="search" type="text" name="search" value="{{ $search }}" placeholder="Nomor order atau nama pekerjaan" class="w-full rounded-lg border border-slate-300 px-8 py-1.5 text-[10px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none">
-                    </div>
-
-                    <select id="status" name="status" class="min-w-0 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-700 focus:border-blue-500 focus:outline-none">
-                        <option value="">Semua Status</option>
-                        @foreach ($statusOptions as $value => $label)
-                            <option value="{{ $value }}" @selected($selectedStatus === $value)>{{ $label }}</option>
-                        @endforeach
-                    </select>
-
-                    <select id="unit" name="unit" class="min-w-0 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-700 focus:border-blue-500 focus:outline-none">
-                        <option value="">Semua Unit</option>
-                        @foreach ($units as $unit)
-                            <option value="{{ $unit }}" @selected($selectedUnit === $unit)>{{ $unit }}</option>
-                        @endforeach
-                    </select>
-
-                    <input id="from" type="date" name="from" value="{{ $selectedFrom }}" class="min-w-0 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-700 focus:border-blue-500 focus:outline-none">
-                    <input id="to" type="date" name="to" value="{{ $selectedTo }}" class="min-w-0 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-700 focus:border-blue-500 focus:outline-none">
-
-                    <div class="flex items-center justify-end gap-1.5">
-                        <button type="submit" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-700" title="Filter">
-                            <i data-lucide="filter" class="h-[12px] w-[12px]"></i>
-                        </button>
-                        <a href="{{ route('admin.purchase-order.index') }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50" title="Reset">
-                            <i data-lucide="rotate-ccw" class="h-[12px] w-[12px]"></i>
-                        </a>
+                        <input id="search" type="text" name="search" value="{{ $search }}" placeholder="Cari nomor order / nomor PO / pekerjaan / unit..." class="w-full rounded-lg border border-slate-300 px-8 py-1.5 text-[10px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none">
                     </div>
                 </form>
             </div>
@@ -119,11 +98,8 @@
                                     <form id="purchase-order-form-{{ $notification['nomor_order'] }}" method="POST" action="{{ $notification['update_url'] }}" enctype="multipart/form-data" class="hidden">
                                         @csrf
                                         @method('PATCH')
+                                        <input type="hidden" name="_filter_tab" value="{{ $activeTab }}">
                                         <input type="hidden" name="_filter_search" value="{{ $search }}">
-                                        <input type="hidden" name="_filter_status" value="{{ $selectedStatus }}">
-                                        <input type="hidden" name="_filter_unit" value="{{ $selectedUnit }}">
-                                        <input type="hidden" name="_filter_from" value="{{ $selectedFrom }}">
-                                        <input type="hidden" name="_filter_to" value="{{ $selectedTo }}">
                                         <input type="hidden" name="_filter_page" value="{{ $notifications->currentPage() }}">
                                     </form>
 
@@ -245,7 +221,14 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="px-4 py-8 text-center text-[11px] text-slate-500">Tidak ada data ditemukan.</td>
+                                <td colspan="8" class="px-4 py-8 text-center text-[11px] text-slate-500">
+                                    {{ match ($activeTab) {
+                                        'ready' => 'Belum ada Purchase Order yang siap dikerjakan.',
+                                        'in_progress' => 'Belum ada pekerjaan Purchase Order yang sedang berjalan.',
+                                        'history' => 'Belum ada riwayat Purchase Order.',
+                                        default => 'Belum ada Purchase Order yang perlu tindakan.',
+                                    } }}
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>

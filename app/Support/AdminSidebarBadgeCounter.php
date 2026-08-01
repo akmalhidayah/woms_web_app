@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
-use App\Models\Hpp;
 use App\Models\LhppBast;
 use App\Models\Order;
 use Illuminate\Database\Eloquent\Builder;
@@ -12,6 +11,7 @@ class AdminSidebarBadgeCounter
 {
     public function __construct(
         private readonly BudgetVerificationIndexTabs $budgetVerificationTabs,
+        private readonly PurchaseOrderIndexTabs $purchaseOrderTabs,
     ) {}
 
     /**
@@ -70,18 +70,7 @@ class AdminSidebarBadgeCounter
 
     private function purchaseOrderCount(): int
     {
-        return Hpp::query()
-            ->whereHas('budgetVerification', fn (Builder $query): Builder => $query->readyForPurchaseOrder())
-            ->where(function (Builder $query): void {
-                $query
-                    ->whereDoesntHave('purchaseOrder')
-                    ->orWhereHas('purchaseOrder', function (Builder $purchaseOrderQuery): void {
-                        $purchaseOrderQuery
-                            ->whereNull('purchase_order_number')
-                            ->orWhereRaw("TRIM(purchase_order_number) = ''");
-                    });
-            })
-            ->count();
+        return $this->purchaseOrderTabs->countFor(PurchaseOrderIndexTabs::TAB_ACTION);
     }
 
     private function setGaransiCount(): int

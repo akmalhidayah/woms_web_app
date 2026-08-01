@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\PurchaseOrder\UpdatePurchaseOrderRequest;
 use App\Models\Hpp;
 use App\Models\Order;
 use App\Models\PurchaseOrder;
+use App\Support\PurchaseOrderIndexTabs;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,37 +20,45 @@ use Throwable;
 
 class PurchaseOrderController extends Controller
 {
+    public function __construct(
+        private readonly PurchaseOrderIndexTabs $indexTabs,
+    ) {}
+
     public function index(Request $request): View
     {
         try {
             $search = trim((string) $request->string('search'));
-            $status = trim((string) $request->string('status'));
-            $unit = trim((string) $request->string('unit'));
-            $from = trim((string) $request->string('from'));
-            $to = trim((string) $request->string('to'));
+            $activeTab = $this->indexTabs->normalize($request->string('tab')->toString());
             $perPage = 10;
 
-            $notifications = Hpp::query()
+            $query = $this->indexTabs->baseQuery()
                 ->with([
                     'order:id,nomor_order,notifikasi,unit_kerja,seksi',
                     'budgetVerification:id,order_id,hpp_id,status_anggaran',
-                    'purchaseOrder:id,order_id,hpp_id,purchase_order_number,target_penyelesaian,approval_target,approval_note,approve_manager,approve_senior_manager,approve_general_manager,approve_direktur_operasional,progress_pekerjaan,po_document_path,vendor_note,admin_note',
-                ])
-                ->whereHas('budgetVerification', fn (Builder $query) => $query->readyForPurchaseOrder())
+                    'purchaseOrder:id,order_id,hpp_id,purchase_order_number,target_penyelesaian,approval_target,approval_note,approve_manager,approve_senior_manager,approve_general_manager,approve_direktur_operasional,progress_pekerjaan,po_document_path,vendor_note,admin_note,updated_at',
+                ]);
+
+            $this->indexTabs->apply($query, $activeTab);
+
+            $query
                 ->when($search !== '', function (Builder $query) use ($search): void {
-                    $query->where(function (Builder $builder) use ($search): void {
-                        $builder
-                            ->where('nomor_order', 'like', "%{$search}%")
-                            ->orWhere('nama_pekerjaan', 'like', "%{$search}%")
-                            ->orWhere('unit_kerja', 'like', "%{$search}%")
-                            ->orWhereHas('purchaseOrder', fn (Builder $purchaseOrderQuery) => $purchaseOrderQuery->where('purchase_order_number', 'like', "%{$search}%"));
+                    $query->where(function (Builder $searchQuery) use ($search): void {
+                        $searchQuery
+                            ->where('hpps.nomor_order', 'like', "%{$search}%")
+                            ->orWhere('hpps.nama_pekerjaan', 'like', "%{$search}%")
+                            ->orWhere('hpps.unit_kerja', 'like', "%{$search}%")
+                            ->orWhereHas('order', function (Builder $orderQuery) use ($search): void {
+                                $orderQuery
+                                    ->where('notifikasi', 'like', "%{$search}%")
+                                    ->orWhere('seksi', 'like', "%{$search}%");
+                            })
+                            ->orWhereHas('purchaseOrder', fn (Builder $purchaseOrderQuery): Builder => $purchaseOrderQuery
+                                ->where('purchase_order_number', 'like', "%{$search}%"));
                     });
-                })
-                ->when($status !== '', fn (Builder $query) => $query->whereHas('purchaseOrder', fn (Builder $purchaseOrderQuery) => $purchaseOrderQuery->where('approval_target', $status)))
-                ->when($unit !== '', fn (Builder $query) => $query->where('unit_kerja', $unit))
-                ->when($from !== '', fn (Builder $query) => $query->whereHas('purchaseOrder', fn (Builder $purchaseOrderQuery) => $purchaseOrderQuery->whereDate('target_penyelesaian', '>=', $from)))
-                ->when($to !== '', fn (Builder $query) => $query->whereHas('purchaseOrder', fn (Builder $purchaseOrderQuery) => $purchaseOrderQuery->whereDate('target_penyelesaian', '<=', $to)))
-                ->latest('id')
+                });
+
+            $notifications = $this->indexTabs
+                ->applyLatestActivityOrder($query)
                 ->paginate($perPage)
                 ->withQueryString();
 
@@ -57,28 +66,12 @@ class PurchaseOrderController extends Controller
                 $notifications->getCollection()->map(fn (Hpp $hpp) => $this->mapRow($hpp))
             );
 
-            $units = Hpp::query()
-                ->whereHas('budgetVerification', fn (Builder $query) => $query->readyForPurchaseOrder())
-                ->select('unit_kerja')
-                ->distinct()
-                ->orderBy('unit_kerja')
-                ->pluck('unit_kerja')
-                ->filter()
-                ->values()
-                ->all();
-
             return view('admin.purchase-order.index', [
                 'notifications' => $notifications,
-                'units' => $units,
                 'search' => $search,
-                'selectedStatus' => $status,
-                'selectedUnit' => $unit,
-                'selectedFrom' => $from,
-                'selectedTo' => $to,
-                'statusOptions' => [
-                    'setuju' => 'Disetujui',
-                    'tidak_setuju' => 'Ditolak',
-                ],
+                'activeTab' => $activeTab,
+                'tabOptions' => $this->indexTabs->options(),
+                'tabCounts' => $this->indexTabs->counts(),
             ]);
         } catch (Throwable $exception) {
             Log::error('Failed to load purchase order index.', [
@@ -160,11 +153,8 @@ class PurchaseOrderController extends Controller
 
             return redirect()
                 ->route('admin.purchase-order.index', [
+                    'tab' => $request->input('_filter_tab'),
                     'search' => $request->input('_filter_search'),
-                    'status' => $request->input('_filter_status'),
-                    'unit' => $request->input('_filter_unit'),
-                    'from' => $request->input('_filter_from'),
-                    'to' => $request->input('_filter_to'),
                     'page' => $request->input('_filter_page'),
                 ])
                 ->with('status', sprintf(

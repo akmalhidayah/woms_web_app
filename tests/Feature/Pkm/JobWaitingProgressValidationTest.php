@@ -57,7 +57,10 @@ class JobWaitingProgressValidationTest extends TestCase
         $this->actingAs($pkm)
             ->get(route('pkm.jobwaiting', ['search' => $order->nomor_order]))
             ->assertOk()
-            ->assertSee('Menunggu Set Garansi');
+            ->assertSee('Menunggu Set Garansi')
+            ->assertSee('Progress Pekerjaan')
+            ->assertSee('data-job-progress="'.$order->nomor_order.'"', false)
+            ->assertSee('aria-valuenow="100"', false);
 
         Garansi::query()->create([
             'order_id' => $order->id,

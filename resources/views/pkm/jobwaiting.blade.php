@@ -91,7 +91,8 @@
                     @foreach ($notifications as $notification)
                         @php
                             $approval = $approvalLabel($notification['approval_target']);
-                            $started = $notification['progress'] >= 11;
+                            $progress = max(0, min(100, (int) $notification['progress']));
+                            $started = $progress >= 11;
                             $isFinished = (bool) ($notification['is_finished'] ?? false);
                             $canUpdate = (bool) ($notification['can_update'] ?? true);
                             $isInitialWorkFlow = (bool) ($notification['is_initial_work_flow'] ?? false);
@@ -166,19 +167,41 @@
                                     </div>
                                 @endif
 
-                                <div class="mb-2.5">
-                                    <form method="POST" action="{{ route('pkm.jobwaiting.update', ['order' => $notification['nomor_order']]) }}">
-                                        @csrf
-                                        @method('PATCH')
-                                        <input type="hidden" name="start_progress" value="1">
-                                        <input type="hidden" name="_filter_priority" value="{{ $selectedPriority }}">
-                                        <input type="hidden" name="_filter_search" value="{{ $search }}">
-                                        <input type="hidden" name="_filter_page" value="{{ $notifications->currentPage() }}">
-                                        <button type="submit" class="inline-flex h-8 w-full items-center justify-center rounded-lg bg-amber-500 px-3 text-[10px] font-bold text-white transition hover:bg-amber-600 {{ ($started || $isFinished || ! $canUpdate) ? 'opacity-50' : '' }}" @disabled($started || $isFinished || ! $canUpdate)>
-                                            {{ $isFinished ? 'Selesai' : ($canUpdate ? ($started ? 'Dimulai' : 'Start') : 'Initial Work') }}
-                                        </button>
-                                    </form>
-                                </div>
+                                @if ($started)
+                                    <div
+                                        class="mb-2.5 rounded-lg border px-2.5 py-2 {{ $progress >= 100 ? 'border-emerald-200 bg-emerald-50' : 'border-orange-200 bg-orange-50' }}"
+                                        data-job-progress="{{ $notification['nomor_order'] }}"
+                                    >
+                                        <div class="flex items-center justify-between gap-2 text-[10px] font-semibold">
+                                            <span class="{{ $progress >= 100 ? 'text-emerald-700' : 'text-orange-700' }}">Progress Pekerjaan</span>
+                                            <span class="font-bold text-slate-800">{{ $progress }}%</span>
+                                        </div>
+                                        <div
+                                            class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/80"
+                                            role="progressbar"
+                                            aria-label="Progress pekerjaan {{ $notification['nomor_order'] }}"
+                                            aria-valuenow="{{ $progress }}"
+                                            aria-valuemin="0"
+                                            aria-valuemax="100"
+                                        >
+                                            <div class="h-full rounded-full {{ $progress >= 100 ? 'bg-emerald-500' : 'bg-orange-500' }}" style="width: {{ $progress }}%"></div>
+                                        </div>
+                                    </div>
+                                @else
+                                    <div class="mb-2.5">
+                                        <form method="POST" action="{{ route('pkm.jobwaiting.update', ['order' => $notification['nomor_order']]) }}">
+                                            @csrf
+                                            @method('PATCH')
+                                            <input type="hidden" name="start_progress" value="1">
+                                            <input type="hidden" name="_filter_priority" value="{{ $selectedPriority }}">
+                                            <input type="hidden" name="_filter_search" value="{{ $search }}">
+                                            <input type="hidden" name="_filter_page" value="{{ $notifications->currentPage() }}">
+                                            <button type="submit" class="inline-flex h-8 w-full items-center justify-center rounded-lg bg-amber-500 px-3 text-[10px] font-bold text-white transition hover:bg-amber-600 {{ ! $canUpdate ? 'opacity-50' : '' }}" @disabled(! $canUpdate)>
+                                                {{ $canUpdate ? 'Start' : 'Initial Work' }}
+                                            </button>
+                                        </form>
+                                    </div>
+                                @endif
 
                                 <button type="button" class="pkm-jobwaiting-toggle inline-flex items-center gap-1.5 text-[10px] font-bold text-[#ca642f]" data-target="details-{{ $notification['nomor_order'] }}">
                                     Show details

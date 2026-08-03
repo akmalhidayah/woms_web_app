@@ -67,6 +67,8 @@ class GaransiController extends Controller
                         'order_id' => $order->id,
                         'order_number' => $order->nomor_order ?: '-',
                         'order_route_key' => $order->nomor_order,
+                        'order_name' => $order->nama_pekerjaan ?: '-',
+                        'notification_number' => $order->notifikasi ?: '-',
                         'unit_kerja' => $order->seksi ?: $order->unit_kerja ?: '-',
                         'ttd_date' => $startDate?->format('d-m-Y') ?? '-',
                         'end_date' => $endDate?->format('d-m-Y') ?? '-',

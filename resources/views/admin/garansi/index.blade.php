@@ -67,6 +67,8 @@
                             <tr class="transition hover:bg-slate-50">
                                 <td class="px-4 py-3">
                                     <div class="font-semibold text-slate-900">{{ $g['order_number'] }}</div>
+                                    <div class="mt-1 max-w-[260px] break-words text-[10px] leading-4 text-slate-600">{{ $g['order_name'] ?? '-' }}</div>
+                                    <div class="mt-0.5 text-[10px] font-medium text-blue-600">Notif: {{ $g['notification_number'] ?? '-' }}</div>
                                 </td>
 
                                 <td class="px-4 py-3 text-slate-700">
@@ -175,6 +177,8 @@
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <div class="text-sm font-semibold text-slate-800">{{ $g['order_number'] }}</div>
+                                <div class="mt-1 break-words text-[11px] leading-4 text-slate-600">{{ $g['order_name'] ?? '-' }}</div>
+                                <div class="mt-0.5 text-[10px] font-medium text-blue-600">Notif: {{ $g['notification_number'] ?? '-' }}</div>
                                 <div class="mt-1 text-[11px] text-slate-500">{{ $g['unit_kerja'] ?? '-' }}</div>
                             </div>
 

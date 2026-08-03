@@ -159,6 +159,13 @@
                                     {{ $approval['label'] }}
                                 </div>
 
+                                @if ($notification['is_waiting_for_warranty'] ?? false)
+                                    <div class="mb-2.5 flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[10px] font-semibold text-amber-700">
+                                        <i data-lucide="shield-alert" class="h-3.5 w-3.5 shrink-0"></i>
+                                        <span>Menunggu Set Garansi</span>
+                                    </div>
+                                @endif
+
                                 <div class="mb-2.5">
                                     <form method="POST" action="{{ route('pkm.jobwaiting.update', ['order' => $notification['nomor_order']]) }}">
                                         @csrf

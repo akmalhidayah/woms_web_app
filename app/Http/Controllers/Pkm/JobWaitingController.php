@@ -44,6 +44,7 @@ class JobWaitingController extends Controller
                 ->with([
                     'documents',
                     'scopeOfWork',
+                    'garansi:id,order_id,garansi_months',
                     'initialWork:id,order_id,nomor_initial_work,tanggal_initial_work,target_penyelesaian,progress_pekerjaan,tanggal_mulai_pekerjaan,tanggal_selesai_pekerjaan,vendor_note,admin_note,created_at',
                     'lhppBasts:id,order_id,termin_type',
                     'lhppBasts.lpjPpl:id,lhpp_bast_id',
@@ -405,7 +406,9 @@ class JobWaitingController extends Controller
             && in_array($order->prioritas, [Order::PRIORITY_URGENT, Order::PRIORITY_HIGH], true)
             && (bool) $initialWork;
         $jobSource = $canUpdateByPurchaseOrder ? $latestPurchaseOrder : ($isEmergencyInitialWorkFlow ? $initialWork : null);
-        $isFinished = (int) ($jobSource?->progress_pekerjaan ?? 0) >= 100 && $hasBastOrLpj;
+        $progress = (int) ($jobSource?->progress_pekerjaan ?? 0);
+        $isFinished = $progress >= 100 && $hasBastOrLpj;
+        $isWaitingForWarranty = $progress >= 100 && ! $order->garansi;
         $jobWaitingSinceDate = $latestPurchaseOrder?->updated_at
             ?: $latestPurchaseOrder?->created_at
             ?: $initialWork?->tanggal_initial_work
@@ -420,7 +423,7 @@ class JobWaitingController extends Controller
             'job_name' => $order->nama_pekerjaan,
             'seksi' => $order->seksi,
             'unit' => $order->unit_kerja,
-            'progress' => (int) ($jobSource?->progress_pekerjaan ?? 0),
+            'progress' => $progress,
             'target_penyelesaian' => $latestPurchaseOrder?->target_penyelesaian?->format('Y-m-d')
                 ?: $jobSource?->target_penyelesaian?->format('Y-m-d')
                 ?: $order->target_selesai?->format('Y-m-d'),
@@ -430,6 +433,7 @@ class JobWaitingController extends Controller
             'catatan' => $jobSource?->vendor_note ?: ($order->catatan ?: ''),
             'catatan_admin' => $jobSource?->admin_note ?: 'Belum ada catatan dari Admin Bengkel.',
             'is_finished' => $isFinished,
+            'is_waiting_for_warranty' => $isWaitingForWarranty,
             'can_update' => $canUpdateByPurchaseOrder || $isEmergencyInitialWorkFlow,
             'is_initial_work_flow' => $isEmergencyInitialWorkFlow,
             'documents' => [

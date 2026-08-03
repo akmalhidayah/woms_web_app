@@ -168,24 +168,16 @@
                                 @endif
 
                                 @if ($started)
-                                    <div
-                                        class="mb-2.5 rounded-lg border px-2.5 py-2 {{ $progress >= 100 ? 'border-emerald-200 bg-emerald-50' : 'border-orange-200 bg-orange-50' }}"
-                                        data-job-progress="{{ $notification['nomor_order'] }}"
-                                    >
-                                        <div class="flex items-center justify-between gap-2 text-[10px] font-semibold">
-                                            <span class="{{ $progress >= 100 ? 'text-emerald-700' : 'text-orange-700' }}">Progress Pekerjaan</span>
-                                            <span class="font-bold text-slate-800">{{ $progress }}%</span>
-                                        </div>
-                                        <div
-                                            class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/80"
-                                            role="progressbar"
-                                            aria-label="Progress pekerjaan {{ $notification['nomor_order'] }}"
-                                            aria-valuenow="{{ $progress }}"
-                                            aria-valuemin="0"
-                                            aria-valuemax="100"
+                                    <div class="mb-2.5">
+                                        <button
+                                            type="button"
+                                            class="inline-flex h-8 w-full cursor-default items-center justify-center rounded-lg px-3 text-[10px] font-bold text-white {{ $progress >= 100 ? 'bg-emerald-500' : 'bg-orange-500' }}"
+                                            data-job-progress="{{ $notification['nomor_order'] }}"
+                                            aria-label="Progress pekerjaan {{ $progress }}%"
+                                            disabled
                                         >
-                                            <div class="h-full rounded-full {{ $progress >= 100 ? 'bg-emerald-500' : 'bg-orange-500' }}" style="width: {{ $progress }}%"></div>
-                                        </div>
+                                            {{ $progress }}%
+                                        </button>
                                     </div>
                                 @else
                                     <div class="mb-2.5">

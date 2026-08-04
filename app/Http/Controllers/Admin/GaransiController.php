@@ -26,7 +26,11 @@ class GaransiController extends Controller
             $garansiList = $this->garansiEligibleOrders()
                 ->with([
                     'garansi:id,order_id,lhpp_bast_id,garansi_months,start_date,end_date',
-                    'latestApprovedHpp:id,order_id,total_keseluruhan',
+                    'latestApprovedHpp' => fn ($query) => $query->select([
+                        'hpps.id',
+                        'hpps.order_id',
+                        'hpps.total_keseluruhan',
+                    ]),
                     'lhppBasts' => fn ($query) => $query
                         ->select(['id', 'order_id', 'parent_lhpp_bast_id', 'termin_type'])
                         ->whereIn('termin_type', ['termin_1', 'termin_2']),

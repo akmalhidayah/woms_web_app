@@ -174,7 +174,7 @@ class JobWaitingController extends Controller
                     ) ASC
                 ')
                 ->orderBy('id')
-                ->paginate(8)
+                ->paginate(20)
                 ->withQueryString();
 
             $notifications->setCollection(

@@ -576,6 +576,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     workFinishDate: config.workFinishDate,
                     useFixedWorkDates: config.useFixedWorkDates,
                     itemSource: config.itemSource === 'manual' ? 'manual' : 'hpp_snapshot',
+                    previousItemSource: config.itemSource === 'manual' ? 'manual' : 'hpp_snapshot',
                     itemSourceLocked: Boolean(config.itemSourceLocked),
                     formLocked: Boolean(config.formLocked),
                     rowSequence: 0,
@@ -638,14 +639,46 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                             keterangan: String(row.keterangan ?? ''),
                         }));
                     },
-                    handleItemSourceChange() {
+                    async handleItemSourceChange() {
                         if (this.itemSourceLocked) return;
-                        if (this.itemSource === 'hpp_snapshot') {
-                            this.applyHppRows();
+
+                        const nextSource = this.itemSource;
+                        const previousSource = this.previousItemSource;
+
+                        if (nextSource === previousSource) return;
+
+                        const confirmationText = nextSource === 'hpp_snapshot'
+                            ? 'Seluruh item manual akan diganti dengan item dari HPP approved.'
+                            : 'Item dari HPP approved akan dilepas dan baris input manual akan dikosongkan.';
+                        const confirmed = window.Swal
+                            ? (await window.Swal.fire({
+                                icon: 'warning',
+                                title: 'Ganti sumber item BAST?',
+                                text: confirmationText,
+                                showCancelButton: true,
+                                confirmButtonText: 'Ya, ganti',
+                                cancelButtonText: 'Batal',
+                            })).isConfirmed
+                            : window.confirm(confirmationText);
+
+                        if (!confirmed) {
+                            this.itemSource = previousSource;
                             return;
                         }
+
+                        if (this.itemSource === 'hpp_snapshot') {
+                            if (!this.applyHppRows()) {
+                                this.itemSource = previousSource;
+                                return;
+                            }
+
+                            this.previousItemSource = nextSource;
+                            return;
+                        }
+
                         this.materialRows = [this.emptyRow()];
                         this.serviceRows = [this.emptyRow()];
+                        this.previousItemSource = nextSource;
                         this.rebuildItemSelects();
                         this.recalculate();
                     },
@@ -667,7 +700,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
 
                         if (!order.has_approved_hpp) {
                             this.showSyncMessage('HPP approved untuk order ini tidak tersedia.');
-                            return;
+                            return false;
                         }
 
                         this.materialRows = this.normalizeHppRows(order.hpp_material_rows);
@@ -678,6 +711,8 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         this.calculationError = '';
                         this.applyHppCalculation(order);
                         this.rebuildItemSelects();
+
+                        return true;
                     },
                     parseCurrency(value) {
                         if (typeof value === 'number') return value;

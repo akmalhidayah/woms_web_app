@@ -88,6 +88,7 @@ class BastDocumentNumberTest extends TestCase
         $terminTwoPayload = $this->bastPayload($firstOrder, [
             'termin_type' => 'termin_2',
             'tanggal_bast' => '2026-07-20',
+            'item_source' => LhppBast::ITEM_SOURCE_HPP_SNAPSHOT,
         ]);
         FabricationConstructionContract::query()->delete();
 

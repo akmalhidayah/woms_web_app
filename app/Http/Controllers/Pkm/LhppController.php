@@ -525,9 +525,22 @@ class LhppController extends Controller
             );
             $isWithoutWarranty = $terminType === 'termin_1'
                 && (int) ($order->garansi?->garansi_months ?? -1) === 0;
+            $requestedItemSource = $this->normalizeItemSource(
+                $request->validated('item_source') ?? $lhpp->item_source ?? LhppBast::ITEM_SOURCE_MANUAL
+            );
             $itemSource = $terminType === 'termin_2'
                 ? ($parentLhpp?->item_source ?? LhppBast::ITEM_SOURCE_MANUAL)
-                : ($lhpp->item_source ?? LhppBast::ITEM_SOURCE_MANUAL);
+                : $requestedItemSource;
+
+            if ($terminType === 'termin_1'
+                && $itemSource !== $lhpp->item_source
+                && ! $lhpp->canChangeItemSource()) {
+                abort(
+                    Response::HTTP_FORBIDDEN,
+                    'Sumber item BAST tidak dapat diubah setelah Quality Control atau proses approval dimulai.'
+                );
+            }
+
             if ($terminType === 'termin_2' && $parentLhpp) {
                 $calculation = $this->bastItemSnapshotService->fromParentBast($parentLhpp);
             } elseif ($itemSource === LhppBast::ITEM_SOURCE_HPP_SNAPSHOT) {
@@ -547,8 +560,6 @@ class LhppController extends Controller
                 $isWithoutWarranty,
                 $this->makeApprovalContext($order, $approvedHpp, $terminType, $tipePekerjaan),
             );
-            $approvalStarted = $lhpp->hasApprovalStarted();
-
             $lhpp = DB::transaction(function () use (
                 $lhpp,
                 $order,
@@ -560,11 +571,32 @@ class LhppController extends Controller
                 $request,
                 $tanggalMulaiPekerjaan,
                 $tanggalSelesaiPekerjaan,
-                $approvalStarted,
                 $approvalPayload,
                 $calculation,
                 $itemSource,
             ): LhppBast {
+                $lhpp = LhppBast::query()
+                    ->with('signatures')
+                    ->lockForUpdate()
+                    ->findOrFail($lhpp->getKey());
+
+                abort_if(
+                    $lhpp->isApprovalLocked(),
+                    Response::HTTP_FORBIDDEN,
+                    'BAST/LHPP tidak dapat diubah setelah proses tanda tangan dimulai.'
+                );
+
+                if ($terminType === 'termin_1'
+                    && $itemSource !== $lhpp->item_source
+                    && ! $lhpp->canChangeItemSource()) {
+                    abort(
+                        Response::HTTP_FORBIDDEN,
+                        'Sumber item BAST tidak dapat diubah setelah Quality Control atau proses approval dimulai.'
+                    );
+                }
+
+                $approvalStarted = $lhpp->hasApprovalStarted();
+
                 $lhpp->fill([
                     'order_id' => $order->id,
                     'termin_type' => $terminType,
@@ -1174,7 +1206,7 @@ class LhppController extends Controller
     private function resolveLhppByOrderAndTermin(string $nomorOrder, string $terminType): ?LhppBast
     {
         return LhppBast::query()
-            ->with(['order', 'hpp', 'parentLhppBast.hpp', 'parentLhppBast.images', 'terminTwo', 'images', 'garansi'])
+            ->with(['order', 'hpp', 'parentLhppBast.hpp', 'parentLhppBast.images', 'terminTwo', 'images', 'garansi', 'signatures'])
             ->where('nomor_order', $nomorOrder)
             ->where('termin_type', $terminType)
             ->first();
@@ -1380,8 +1412,12 @@ class LhppController extends Controller
             && (int) ($selectedOrderModel?->garansi?->garansi_months ?? $lhpp?->garansi?->garansi_months ?? -1) === 0;
         $itemSource = $terminType === 'termin_2'
             ? ($parentLhpp?->item_source ?? LhppBast::ITEM_SOURCE_MANUAL)
-            : ($lhpp?->item_source ?? $this->normalizeItemSource(old('item_source', LhppBast::ITEM_SOURCE_HPP_SNAPSHOT)));
-        $itemSourceLocked = $lhpp !== null || $terminType === 'termin_2';
+            : $this->normalizeItemSource(old(
+                'item_source',
+                $lhpp?->item_source ?? LhppBast::ITEM_SOURCE_HPP_SNAPSHOT
+            ));
+        $itemSourceLocked = $terminType === 'termin_2'
+            || ($lhpp !== null && ! $lhpp->canChangeItemSource());
 
         if ($terminType === 'termin_2' && $parentLhpp) {
             $calculation = $this->bastItemSnapshotService->fromParentBast($parentLhpp);

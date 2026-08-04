@@ -236,6 +236,13 @@ class LhppBast extends Model
             || $this->hasApprovalStarted();
     }
 
+    public function canChangeItemSource(): bool
+    {
+        return $this->termin_type === 'termin_1'
+            && $this->quality_control_status === 'pending'
+            && ! $this->isApprovalLocked();
+    }
+
     public function activeSignature(): HasOne
     {
         return $this->hasOne(LhppBastSignature::class)

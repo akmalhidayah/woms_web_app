@@ -16,6 +16,7 @@ use App\Models\VendorWorkType;
 use App\Models\VendorWorkTypeSection;
 use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\Pkm\BastDeletionService;
+use App\Services\Pkm\BastItemSnapshotService;
 use App\Support\ApprovalFlowSignerPreview;
 use App\Support\BastApprovalFlow;
 use App\Support\BastApprovalSignatureBuilder;
@@ -34,6 +35,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
@@ -49,6 +51,7 @@ class LhppController extends Controller
         private readonly BastDeletionService $bastDeletionService,
         private readonly BastEffectiveApprovalFlowResolver $effectiveFlowResolver,
         private readonly BastIndexTabs $indexTabs,
+        private readonly BastItemSnapshotService $bastItemSnapshotService,
     ) {}
 
     public function index(Request $request): View
@@ -207,17 +210,21 @@ class LhppController extends Controller
                 ? $lhpp->parentLhppBast?->garansi?->garansi_months
                 : $lhpp->garansi?->garansi_months;
             $bastLabel = BastDisplayLabel::bastLabel($terminType, $garansiMonths, false);
+            $isFormLocked = $lhpp->isApprovalLocked();
 
             return $this->buildFormView($request, $lhpp, [
-                'pageTitle' => 'Edit LHPP',
-                'pageDescription' => sprintf('Pembaruan data %s PKM.', $bastLabel),
-                'formTitle' => 'Edit '.$bastLabel,
+                'pageTitle' => $isFormLocked ? 'Lihat LHPP' : 'Edit LHPP',
+                'pageDescription' => $isFormLocked
+                    ? sprintf('Data %s PKM hanya dapat dilihat.', $bastLabel)
+                    : sprintf('Pembaruan data %s PKM.', $bastLabel),
+                'formTitle' => ($isFormLocked ? 'Lihat ' : 'Edit ').$bastLabel,
                 'formAction' => route('pkm.lhpp.update', [
                     'nomorOrder' => $lhpp->nomor_order,
                     'termin' => $this->terminSlug($terminType),
                 ]),
                 'formMethod' => 'PATCH',
                 'submitLabel' => 'Update',
+                'isFormLocked' => $isFormLocked,
             ], $terminType, $lhpp->parentLhppBast);
         } catch (Throwable $exception) {
             $this->rethrowExpectedException($exception);
@@ -238,6 +245,11 @@ class LhppController extends Controller
     public function calculate(Request $request): JsonResponse
     {
         $validated = $request->validate([
+            'nomor_order' => ['required', 'exists:orders,nomor_order'],
+            'item_source' => ['nullable', Rule::in([
+                LhppBast::ITEM_SOURCE_HPP_SNAPSHOT,
+                LhppBast::ITEM_SOURCE_MANUAL,
+            ])],
             'material_rows' => ['nullable', 'array', 'max:100'],
             'material_rows.*.contract_item_id' => ['nullable', 'integer', 'exists:fabrication_construction_contracts,id'],
             'material_rows.*.jenis_item' => ['nullable', 'string', 'max:255'],
@@ -254,14 +266,25 @@ class LhppController extends Controller
             'service_rows.*.volume' => ['nullable', 'regex:/^\d{1,12}(?:\.\d{1,3})?$/'],
             'service_rows.*.unit' => ['nullable', 'string', 'max:50'],
             'service_rows.*.unit_price' => ['nullable', 'string', 'max:50'],
-            'is_without_warranty' => ['nullable', 'boolean'],
         ]);
+
+        if (($validated['item_source'] ?? LhppBast::ITEM_SOURCE_MANUAL) !== LhppBast::ITEM_SOURCE_MANUAL) {
+            throw ValidationException::withMessages([
+                'item_source' => 'Endpoint kalkulasi hanya digunakan untuk sumber item manual.',
+            ]);
+        }
+
+        $order = Order::query()
+            ->with('garansi:id,order_id,garansi_months')
+            ->where('nomor_order', $validated['nomor_order'])
+            ->firstOrFail();
+        $isWithoutWarranty = (int) ($order->garansi?->garansi_months ?? -1) === 0;
 
         $calculation = $this->calculateRows(
             $validated['material_rows'] ?? [],
             $validated['service_rows'] ?? [],
             true,
-            (bool) ($validated['is_without_warranty'] ?? false),
+            $isWithoutWarranty,
         );
 
         return response()->json($calculation);
@@ -301,20 +324,23 @@ class LhppController extends Controller
                 $parentLhpp,
                 $request->input('tipe_pekerjaan'),
             );
-            [$materialRowsPayload, $serviceRowsPayload] = $this->resolveActualRowsPayload(
-                $terminType,
-                $parentLhpp,
-                $request->input('material_rows', []),
-                $request->input('service_rows', []),
-            );
             $isWithoutWarranty = $terminType === 'termin_1'
                 && (int) ($order->garansi?->garansi_months ?? -1) === 0;
-            $calculation = $this->calculateRows(
-                $materialRowsPayload,
-                $serviceRowsPayload,
-                false,
-                $isWithoutWarranty,
-            );
+            $itemSource = $terminType === 'termin_2'
+                ? ($parentLhpp?->item_source ?? LhppBast::ITEM_SOURCE_MANUAL)
+                : $this->normalizeItemSource($request->input('item_source'));
+            if ($terminType === 'termin_2' && $parentLhpp) {
+                $calculation = $this->bastItemSnapshotService->fromParentBast($parentLhpp);
+            } elseif ($itemSource === LhppBast::ITEM_SOURCE_HPP_SNAPSHOT) {
+                $calculation = $this->bastItemSnapshotService->fromApprovedHpp($approvedHpp, $isWithoutWarranty);
+            } else {
+                $calculation = $this->calculateRows(
+                    $request->input('material_rows', []),
+                    $request->input('service_rows', []),
+                    false,
+                    $isWithoutWarranty,
+                );
+            }
             $qualityControlStatus = $terminType === 'termin_2' ? 'approved' : 'pending';
             $approvalPayload = $this->resolveApprovalPayload(
                 $terminType,
@@ -338,6 +364,7 @@ class LhppController extends Controller
                 $approvalPayload,
                 $calculation,
                 $qualityControlStatus,
+                $itemSource,
                 $stagedImages,
             ): LhppBast {
                 $lhpp = LhppBast::query()->updateOrCreate(
@@ -346,6 +373,7 @@ class LhppController extends Controller
                         'termin_type' => $terminType,
                     ],
                     [
+                        'item_source' => $itemSource,
                         'parent_lhpp_bast_id' => $terminType === 'termin_2' ? $parentLhpp?->id : null,
                         'hpp_id' => $approvedHpp->id,
                         'purchase_order_id' => $purchaseOrder?->id,
@@ -467,7 +495,7 @@ class LhppController extends Controller
             $purchaseOrder = $order->purchaseOrder;
             $approvedHpp = $terminType === 'termin_2'
                 ? ($parentLhpp?->hpp ?: $order->latestApprovedHpp)
-                : $order->latestApprovedHpp;
+                : ($lhpp->hpp ?: $order->latestApprovedHpp);
             abort_if(
                 ! $approvedHpp,
                 Response::HTTP_UNPROCESSABLE_ENTITY,
@@ -495,20 +523,23 @@ class LhppController extends Controller
                 $parentLhpp,
                 $requestedTipePekerjaan,
             );
-            [$materialRowsPayload, $serviceRowsPayload] = $this->resolveActualRowsPayload(
-                $terminType,
-                $parentLhpp,
-                $request->input('material_rows', []),
-                $request->input('service_rows', []),
-            );
             $isWithoutWarranty = $terminType === 'termin_1'
                 && (int) ($order->garansi?->garansi_months ?? -1) === 0;
-            $calculation = $this->calculateRows(
-                $materialRowsPayload,
-                $serviceRowsPayload,
-                false,
-                $isWithoutWarranty,
-            );
+            $itemSource = $terminType === 'termin_2'
+                ? ($parentLhpp?->item_source ?? LhppBast::ITEM_SOURCE_MANUAL)
+                : ($lhpp->item_source ?? LhppBast::ITEM_SOURCE_MANUAL);
+            if ($terminType === 'termin_2' && $parentLhpp) {
+                $calculation = $this->bastItemSnapshotService->fromParentBast($parentLhpp);
+            } elseif ($itemSource === LhppBast::ITEM_SOURCE_HPP_SNAPSHOT) {
+                $calculation = $this->bastItemSnapshotService->fromApprovedHpp($approvedHpp, $isWithoutWarranty);
+            } else {
+                $calculation = $this->calculateRows(
+                    $request->input('material_rows', []),
+                    $request->input('service_rows', []),
+                    false,
+                    $isWithoutWarranty,
+                );
+            }
             $approvalPayload = $this->resolveApprovalPayload(
                 $terminType,
                 $calculation['totals'],
@@ -532,10 +563,12 @@ class LhppController extends Controller
                 $approvalStarted,
                 $approvalPayload,
                 $calculation,
+                $itemSource,
             ): LhppBast {
                 $lhpp->fill([
                     'order_id' => $order->id,
                     'termin_type' => $terminType,
+                    'item_source' => $itemSource,
                     'parent_lhpp_bast_id' => $terminType === 'termin_2' ? $parentLhpp?->id : null,
                     'hpp_id' => $approvedHpp->id,
                     'purchase_order_id' => $purchaseOrder?->id,
@@ -1045,6 +1078,7 @@ class LhppController extends Controller
                 ]),
                 'purchaseOrder:id,order_id,hpp_id,purchase_order_number,target_penyelesaian,progress_pekerjaan,tanggal_mulai_pekerjaan,tanggal_selesai_pekerjaan,created_at,updated_at',
                 'initialWork:id,order_id,target_penyelesaian,progress_pekerjaan,tanggal_mulai_pekerjaan,tanggal_selesai_pekerjaan,created_at,updated_at',
+                'garansi:id,order_id,garansi_months',
             ])
             ->where(function ($query): void {
                 $query
@@ -1133,13 +1167,14 @@ class LhppController extends Controller
             ]),
             'purchaseOrder:id,order_id,hpp_id,purchase_order_number,target_penyelesaian,progress_pekerjaan,tanggal_mulai_pekerjaan,tanggal_selesai_pekerjaan,created_at,updated_at',
             'initialWork:id,order_id,target_penyelesaian,progress_pekerjaan,tanggal_mulai_pekerjaan,tanggal_selesai_pekerjaan,created_at,updated_at',
+            'garansi:id,order_id,garansi_months',
         ]);
     }
 
     private function resolveLhppByOrderAndTermin(string $nomorOrder, string $terminType): ?LhppBast
     {
         return LhppBast::query()
-            ->with(['order', 'parentLhppBast.images', 'terminTwo', 'images', 'garansi'])
+            ->with(['order', 'hpp', 'parentLhppBast.hpp', 'parentLhppBast.images', 'terminTwo', 'images', 'garansi'])
             ->where('nomor_order', $nomorOrder)
             ->where('termin_type', $terminType)
             ->first();
@@ -1211,6 +1246,11 @@ class LhppController extends Controller
     private function mapOrderOption(Order $order): array
     {
         $jobSource = $this->resolveJobSource($order);
+        $approvedHpp = $order->latestApprovedHpp;
+        $isWithoutWarranty = (int) ($order->garansi?->garansi_months ?? -1) === 0;
+        $hppSnapshot = $approvedHpp
+            ? $this->bastItemSnapshotService->fromApprovedHpp($approvedHpp, $isWithoutWarranty)
+            : ['material_rows' => [], 'service_rows' => []];
 
         return [
             'nomor_order' => (string) $order->nomor_order,
@@ -1220,9 +1260,13 @@ class LhppController extends Controller
             'unit_kerja' => (string) ($order->unit_kerja ?? ''),
             'seksi' => (string) ($order->seksi ?? ''),
             'purchase_order_number' => (string) ($order->purchaseOrder?->purchase_order_number ?? ''),
-            'nilai_ece' => (float) ($order->latestApprovedHpp?->total_keseluruhan ?? 0),
-            'hpp_material_rows' => $this->buildRowsFromHpp($order->latestApprovedHpp, 'material'),
-            'hpp_service_rows' => $this->buildRowsFromHpp($order->latestApprovedHpp, 'service'),
+            'nilai_ece' => (string) ($approvedHpp?->total_keseluruhan ?? '0.00'),
+            'hpp_id' => $approvedHpp?->id,
+            'has_approved_hpp' => $approvedHpp !== null,
+            'hpp_total' => (string) ($approvedHpp?->total_keseluruhan ?? '0.00'),
+            'garansi_months' => $order->garansi?->garansi_months,
+            'hpp_material_rows' => $hppSnapshot['material_rows'],
+            'hpp_service_rows' => $hppSnapshot['service_rows'],
             'tanggal_mulai_pekerjaan' => $this->formatOptionalDate($this->resolveJobStartDate($jobSource)),
             'tanggal_selesai_pekerjaan' => $this->formatOptionalDate($this->resolveJobFinishDate($jobSource)),
         ];
@@ -1237,58 +1281,9 @@ class LhppController extends Controller
             return [];
         }
 
-        $rows = [];
+        $snapshot = $this->bastItemSnapshotService->fromApprovedHpp($hpp, false);
 
-        foreach ($hpp->item_groups as $group) {
-            $groupJenisItem = trim((string) (
-                $group['jenis_item']
-                ?? $group['jenis']
-                ?? $group['name']
-                ?? $group['label']
-                ?? $group['title']
-                ?? ''
-            ));
-
-            foreach (($group['items'] ?? []) as $item) {
-                $jenisItem = trim((string) ($item['jenis_item'] ?? $groupJenisItem));
-                $isServiceItem = str_contains(strtoupper($jenisItem), 'JASA');
-
-                if (($type === 'service') !== $isServiceItem) {
-                    continue;
-                }
-
-                $namaItem = trim((string) (
-                    $item['nama_item']
-                    ?? $item['name']
-                    ?? $item['nama']
-                    ?? $item['item_name']
-                    ?? $item['description']
-                    ?? $item['deskripsi_item']
-                    ?? $item['uraian']
-                    ?? $item['nama_material']
-                    ?? $item['nama_jasa']
-                    ?? $item['item']
-                    ?? ''
-                ));
-
-                if ($namaItem === '') {
-                    continue;
-                }
-
-                $rows[] = [
-                    'jenis_item' => $jenisItem,
-                    'kategori_item' => trim((string) ($item['kategori_item'] ?? $item['kategori'] ?? $item['category'] ?? '')),
-                    'name' => $namaItem,
-                    'volume' => (string) ($item['qty'] ?? $item['volume'] ?? ''),
-                    'unit' => trim((string) ($item['satuan'] ?? $item['unit'] ?? '')),
-                    'unit_price' => $this->displayEditableCurrency((string) ($item['harga_satuan'] ?? $item['unit_price'] ?? '')),
-                    'amount' => (string) ($item['harga_total'] ?? $item['amount'] ?? '0.00'),
-                    'amount_display' => $this->displayCurrency((string) ($item['harga_total'] ?? $item['amount'] ?? '0.00')),
-                ];
-            }
-        }
-
-        return $rows;
+        return $type === 'service' ? $snapshot['service_rows'] : $snapshot['material_rows'];
     }
 
     private function resolveJobStartDate(mixed $jobSource): mixed
@@ -1339,8 +1334,8 @@ class LhppController extends Controller
      */
     private function buildFormView(Request $request, ?LhppBast $lhpp, array $meta, string $terminType, ?LhppBast $parentLhpp = null): View
     {
-        $lhpp?->loadMissing(['images', 'parentLhppBast.images']);
-        $parentLhpp?->loadMissing('images');
+        $lhpp?->loadMissing(['images', 'hpp', 'parentLhppBast.hpp', 'parentLhppBast.images']);
+        $parentLhpp?->loadMissing(['images', 'hpp']);
 
         $sourceLhpp = $lhpp ?? $parentLhpp;
         $currentOrder = $sourceLhpp?->order ? $this->loadOrderWithRelations($sourceLhpp->order) : null;
@@ -1361,19 +1356,9 @@ class LhppController extends Controller
         if ($selectedOrder === '' || ! $orderOptions->firstWhere('nomor_order', $selectedOrder)) {
             $selectedOrder = (string) ($orderOptions->first()['nomor_order'] ?? '');
         }
+        $selectedOrderModel = $orders->firstWhere('nomor_order', $selectedOrder);
 
         $contractCatalog = $this->resolveContractCatalog();
-
-        $materialRows = collect(old('material_rows', $lhpp?->material_items ?? $parentLhpp?->material_items ?? [
-            ['jenis_item' => '', 'kategori_item' => '', 'name' => '', 'volume' => '', 'unit' => '', 'unit_price' => '', 'amount' => '0', 'amount_display' => '0'],
-        ]))
-            ->map(fn (array $row): array => $this->enrichLhppItemRow($row, $contractCatalog))
-            ->values();
-        $serviceRows = collect(old('service_rows', $lhpp?->service_items ?? $parentLhpp?->service_items ?? [
-            ['jenis_item' => '', 'kategori_item' => '', 'name' => '', 'volume' => '', 'unit' => '', 'unit_price' => '', 'amount' => '0', 'amount_display' => '0'],
-        ]))
-            ->map(fn (array $row): array => $this->enrichLhppItemRow($row, $contractCatalog))
-            ->values();
 
         $selectedTipePekerjaan = old('tipe_pekerjaan');
 
@@ -1392,16 +1377,57 @@ class LhppController extends Controller
             ->bastPreviewPayload($orders, $tipePekerjaanOptions, $lhpp);
 
         $isWithoutWarranty = $terminType === 'termin_1'
-            && (int) ($currentOrder?->garansi?->garansi_months ?? $lhpp?->garansi?->garansi_months ?? -1) === 0;
-        $calculation = $this->calculateRows(
-            $materialRows->all(),
-            $serviceRows->all(),
-            false,
-            $isWithoutWarranty,
-        );
-        $hppValueMatchesBast = $lhpp !== null
-            && (float) $lhpp->total_aktual_biaya > 0
-            && abs((float) $lhpp->total_aktual_biaya - (float) ($currentOrder?->latestApprovedHpp?->total_keseluruhan ?? 0)) < 0.01;
+            && (int) ($selectedOrderModel?->garansi?->garansi_months ?? $lhpp?->garansi?->garansi_months ?? -1) === 0;
+        $itemSource = $terminType === 'termin_2'
+            ? ($parentLhpp?->item_source ?? LhppBast::ITEM_SOURCE_MANUAL)
+            : ($lhpp?->item_source ?? $this->normalizeItemSource(old('item_source', LhppBast::ITEM_SOURCE_HPP_SNAPSHOT)));
+        $itemSourceLocked = $lhpp !== null || $terminType === 'termin_2';
+
+        if ($terminType === 'termin_2' && $parentLhpp) {
+            $calculation = $this->bastItemSnapshotService->fromParentBast($parentLhpp);
+        } elseif ($itemSource === LhppBast::ITEM_SOURCE_HPP_SNAPSHOT) {
+            $sourceHpp = $lhpp?->hpp ?: $selectedOrderModel?->latestApprovedHpp;
+            $calculation = $sourceHpp
+                ? $this->bastItemSnapshotService->fromApprovedHpp($sourceHpp, $isWithoutWarranty)
+                : $this->calculateRows([], [], false, $isWithoutWarranty);
+        } else {
+            $emptyRow = [
+                'contract_item_id' => null,
+                'jenis_item' => '',
+                'kategori_item' => '',
+                'name' => '',
+                'volume' => '',
+                'unit' => '',
+                'unit_price_raw' => '',
+                'unit_price' => '',
+                'amount' => '0.00',
+                'amount_display' => '0',
+            ];
+            $materialRows = collect(old('material_rows', $lhpp?->material_items ?? [$emptyRow]))
+                ->map(fn (array $row): array => $this->enrichLhppItemRow($row, $contractCatalog))
+                ->values();
+            $serviceRows = collect(old('service_rows', $lhpp?->service_items ?? [$emptyRow]))
+                ->map(fn (array $row): array => $this->enrichLhppItemRow($row, $contractCatalog))
+                ->values();
+
+            try {
+                $calculation = $this->calculateRows(
+                    $materialRows->all(),
+                    $serviceRows->all(),
+                    false,
+                    $isWithoutWarranty,
+                );
+            } catch (ValidationException) {
+                $calculation = $this->calculateRows([], [], false, $isWithoutWarranty);
+            }
+
+            if ($calculation['material_rows'] === []) {
+                $calculation['material_rows'] = $materialRows->all();
+            }
+            if ($calculation['service_rows'] === []) {
+                $calculation['service_rows'] = $serviceRows->all();
+            }
+        }
 
         return view('dashboards.pkm', [
             'pageTitle' => $meta['pageTitle'],
@@ -1431,7 +1457,9 @@ class LhppController extends Controller
             'terminLabel' => $this->terminLabel($terminType),
             'documentNo' => $lhpp?->document_no ?: ($terminType === 'termin_2' ? $parentLhpp?->document_no : null),
             'isWithoutWarranty' => $isWithoutWarranty,
-            'hppValueMatchesBast' => $hppValueMatchesBast,
+            'itemSource' => $itemSource,
+            'itemSourceLocked' => $itemSourceLocked,
+            'isFormLocked' => (bool) ($meta['isFormLocked'] ?? false),
         ]);
     }
 
@@ -1439,8 +1467,7 @@ class LhppController extends Controller
         ?LhppBast $lhpp,
         ?LhppBast $parentLhpp = null,
         bool $isWithoutWarranty = false
-    ): Collection
-    {
+    ): Collection {
         $parentImages = collect($parentLhpp?->images ?? [])
             ->map(fn (LhppBastImage $image): array => [
                 'name' => $image->file_name ?: basename((string) $image->file_path),
@@ -1576,8 +1603,7 @@ class LhppController extends Controller
         mixed $submittedFlow,
         bool $isWithoutWarranty,
         LhppBast $approvalContext
-    ): array
-    {
+    ): array {
         $threshold = $this->resolveThresholdFromTotals($terminType, $totals, $isWithoutWarranty);
         $baseFlow = BastApprovalFlow::resolveApprovalFlow($threshold);
 
@@ -1811,8 +1837,7 @@ class LhppController extends Controller
         array $serviceRows,
         bool $preserveEmptyRows = false,
         bool $isWithoutWarranty = false
-    ): array
-    {
+    ): array {
         $normalizedMaterialRows = $this->normalizeItemRows($materialRows, $preserveEmptyRows, 'material');
         $normalizedServiceRows = $this->normalizeItemRows($serviceRows, $preserveEmptyRows, 'service');
 
@@ -1825,30 +1850,12 @@ class LhppController extends Controller
             $termin2Nilai = '0.00';
         } else {
             $termin1Nilai = $this->multiplyCurrencyDecimal($totalAktualBiaya, '0.95');
-            $termin2Nilai = $this->multiplyCurrencyDecimal($totalAktualBiaya, '0.05');
+            $termin2Nilai = $this->subtractCurrencyDecimals($totalAktualBiaya, $termin1Nilai);
         }
 
         return [
-            'material_rows' => $normalizedMaterialRows !== [] ? $normalizedMaterialRows : [[
-                'jenis_item' => '',
-                'kategori_item' => '',
-                'name' => '',
-                'volume' => '',
-                'unit' => '',
-                'unit_price' => '',
-                'amount' => '0.00',
-                'amount_display' => '0',
-            ]],
-            'service_rows' => $normalizedServiceRows !== [] ? $normalizedServiceRows : [[
-                'jenis_item' => '',
-                'kategori_item' => '',
-                'name' => '',
-                'volume' => '',
-                'unit' => '',
-                'unit_price' => '',
-                'amount' => '0.00',
-                'amount_display' => '0',
-            ]],
+            'material_rows' => $normalizedMaterialRows,
+            'service_rows' => $normalizedServiceRows,
             'totals' => [
                 'subtotal_material' => $subtotalMaterial,
                 'subtotal_jasa' => $subtotalJasa,
@@ -1876,13 +1883,6 @@ class LhppController extends Controller
             $contractItem = null;
             if (filled($row['contract_item_id'] ?? null)) {
                 $contractItem = FabricationConstructionContract::query()->find($row['contract_item_id']);
-            } elseif (filled($row['name'] ?? null)) {
-                $matches = FabricationConstructionContract::query()
-                    ->where('nama_item', trim((string) $row['name']))
-                    ->when(filled($row['jenis_item'] ?? null), fn ($query) => $query->where('jenis_item', trim((string) $row['jenis_item'])))
-                    ->when(filled($row['kategori_item'] ?? null), fn ($query) => $query->where('kategori_item', trim((string) $row['kategori_item'])))
-                    ->get();
-                $contractItem = $matches->count() === 1 ? $matches->first() : null;
             }
 
             $jenisItem = trim((string) ($contractItem?->jenis_item ?? $row['jenis_item'] ?? ''));
@@ -1917,6 +1917,7 @@ class LhppController extends Controller
                     'name' => '',
                     'volume' => '',
                     'unit' => $unit !== 'Jam' ? $unit : '',
+                    'unit_price_raw' => '',
                     'unit_price' => '',
                     'amount' => '0.00',
                     'amount_display' => '0',
@@ -1932,7 +1933,8 @@ class LhppController extends Controller
                 'name' => $name,
                 'volume' => $volume === '0' ? '' : $volume,
                 'unit' => $unit !== '' ? $unit : 'Jam',
-                'unit_price' => $unitPrice === '0.00' ? '' : $this->displayEditableCurrency($unitPrice),
+                'unit_price_raw' => $unitPrice,
+                'unit_price' => $this->displayEditableCurrency($unitPrice),
                 'amount' => $amount,
                 'amount_display' => $this->displayCurrency($amount),
             ];
@@ -1960,6 +1962,7 @@ class LhppController extends Controller
                 'nama_item' => trim((string) $item->nama_item),
                 'satuan' => trim((string) $item->satuan),
                 'harga_satuan' => $this->displayEditableCurrency((string) $item->harga_satuan),
+                'harga_satuan_raw' => $this->normalizeCurrencyDecimal($item->harga_satuan),
             ])
             ->values()
             ->all();
@@ -1975,13 +1978,17 @@ class LhppController extends Controller
         $enriched = [
             'contract_item_id' => $row['contract_item_id'] ?? null,
             'jenis_item' => trim((string) ($row['jenis_item'] ?? '')),
+            'sub_jenis_item' => trim((string) ($row['sub_jenis_item'] ?? '')),
             'kategori_item' => trim((string) ($row['kategori_item'] ?? '')),
             'name' => trim((string) ($row['name'] ?? '')),
+            'jumlah_item' => trim((string) ($row['jumlah_item'] ?? '')),
             'volume' => $row['volume'] ?? '',
             'unit' => trim((string) ($row['unit'] ?? '')),
             'unit_price' => $row['unit_price'] ?? '',
+            'unit_price_raw' => $row['unit_price_raw'] ?? $row['unit_price'] ?? '',
             'amount' => $row['amount'] ?? '0.00',
             'amount_display' => $row['amount_display'] ?? '0',
+            'keterangan' => trim((string) ($row['keterangan'] ?? '')),
         ];
 
         if ($enriched['name'] === '') {
@@ -2022,25 +2029,9 @@ class LhppController extends Controller
         $enriched['kategori_item'] = $enriched['kategori_item'] !== '' ? $enriched['kategori_item'] : (string) ($matchedItem['kategori_item'] ?? '');
         $enriched['unit'] = $enriched['unit'] !== '' ? $enriched['unit'] : (string) ($matchedItem['satuan'] ?? '');
         $enriched['unit_price'] = $enriched['unit_price'] !== '' ? $enriched['unit_price'] : (string) ($matchedItem['harga_satuan'] ?? '');
+        $enriched['unit_price_raw'] = $enriched['unit_price_raw'] !== '' ? $enriched['unit_price_raw'] : (string) ($matchedItem['harga_satuan_raw'] ?? '');
 
         return $enriched;
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $materialRows
-     * @param  array<int, array<string, mixed>>  $serviceRows
-     * @return array{0: array<int, array<string, mixed>>, 1: array<int, array<string, mixed>>}
-     */
-    private function resolveActualRowsPayload(string $terminType, ?LhppBast $parentLhpp, array $materialRows, array $serviceRows): array
-    {
-        if ($terminType !== 'termin_2' || ! $parentLhpp) {
-            return [$materialRows, $serviceRows];
-        }
-
-        return [
-            is_array($parentLhpp->material_items) ? $parentLhpp->material_items : [],
-            is_array($parentLhpp->service_items) ? $parentLhpp->service_items : [],
-        ];
     }
 
     /**
@@ -2132,6 +2123,23 @@ class LhppController extends Controller
             '.',
             ''
         );
+    }
+
+    private function subtractCurrencyDecimals(string $left, string $right): string
+    {
+        return number_format(
+            (float) $this->normalizeCurrencyDecimal($left) - (float) $this->normalizeCurrencyDecimal($right),
+            2,
+            '.',
+            ''
+        );
+    }
+
+    private function normalizeItemSource(mixed $value): string
+    {
+        return $value === LhppBast::ITEM_SOURCE_HPP_SNAPSHOT
+            ? LhppBast::ITEM_SOURCE_HPP_SNAPSHOT
+            : LhppBast::ITEM_SOURCE_MANUAL;
     }
 
     private function isZeroNumericString(string $value): bool

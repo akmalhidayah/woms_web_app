@@ -7,9 +7,11 @@ use App\Models\FabricationConstructionContract;
 use App\Models\Garansi;
 use App\Models\Hpp;
 use App\Models\LhppBast;
+use App\Models\LhppBastSignature;
 use App\Models\Order;
 use App\Models\PurchaseOrder;
 use App\Models\User;
+use App\Support\BastIndexTabs;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -79,18 +81,22 @@ class BastFormRegressionTest extends TestCase
         $xpath = new DOMXPath($document);
 
         $this->assertSame(1, $xpath->query('//*[@id="pkm-lhpp-create-form"]')->length);
-        $this->assertSame(1, $xpath->query('//*[@id="pkm-lhpp-create-form"]//*[@x-model="hppValueMatchesBast"]')->length);
+        $this->assertSame(1, $xpath->query('//*[@id="pkm-lhpp-create-form"]//input[@name="item_source"]')->length);
+        $this->assertSame(2, $xpath->query('//*[@id="pkm-lhpp-create-form"]//input[@type="radio" and @x-model="itemSource"]')->length);
         $this->assertGreaterThan(0, $xpath->query('//*[@id="pkm-lhpp-create-form"]//*[contains(@x-for, "materialRows")]')->length);
         $this->assertGreaterThan(0, $xpath->query('//*[@id="pkm-lhpp-create-form"]//*[contains(@x-for, "serviceRows")]')->length);
         $this->assertSame(1, $xpath->query('//*[@id="pkm-lhpp-create-form"]//button[@type="submit"]')->length);
         $this->assertStringContainsString('window.pkmLhppCreateForm = function', $html);
-        $this->assertStringContainsString('hppValueMatchesBast:', $html);
+        $this->assertStringContainsString("itemSource: config.itemSource === 'manual'", $html);
         $this->assertSame(2, substr_count($html, 'getJenisOptions(row.jenis_item)'));
         $this->assertSame(2, substr_count($html, 'getKategoriOptions(row.jenis_item, row.kategori_item)'));
         $this->assertSame(2, substr_count($html, 'getNameOptions(row.jenis_item, row.kategori_item, row.name)'));
         $this->assertSame(6, substr_count($html, 'x-effect="$nextTick'));
-        $this->assertStringContainsString('if (this.hppValueMatchesBast)', $html);
+        $this->assertStringContainsString("if (this.itemSource === 'hpp_snapshot')", $html);
         $this->assertStringContainsString('this.applyHppCalculation(order)', $html);
+        $this->assertStringContainsString(':key="row._key"', $html);
+        $this->assertStringContainsString('removeMaterialRow(index)', $html);
+        $this->assertStringContainsString('removeServiceRow(index)', $html);
     }
 
     public function test_hpp_preview_supports_legacy_item_snapshot_keys(): void
@@ -143,8 +149,12 @@ class BastFormRegressionTest extends TestCase
     public function test_calculation_endpoint_preserves_incomplete_manual_dropdown_state(): void
     {
         $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $order = $this->makeBastEligibleOrder($admin, 'BAST-CALC-INCOMPLETE', Hpp::STATUS_APPROVED);
 
         $response = $this->actingAs($pkm)->postJson(route('pkm.lhpp.calculate'), [
+            'nomor_order' => $order->nomor_order,
+            'item_source' => LhppBast::ITEM_SOURCE_MANUAL,
             'material_rows' => [[
                 'contract_item_id' => null,
                 'jenis_item' => 'MATERIAL',
@@ -175,15 +185,18 @@ class BastFormRegressionTest extends TestCase
     public function test_calculation_without_warranty_uses_full_value_for_termin_one(): void
     {
         $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $order = $this->makeBastEligibleOrder($admin, 'BAST-CALC-NO-WARRANTY', Hpp::STATUS_APPROVED);
         $contractItem = $this->makeContractItem('100000000.00');
 
         $this->actingAs($pkm)
             ->postJson(route('pkm.lhpp.calculate'), [
+                'nomor_order' => $order->nomor_order,
+                'item_source' => LhppBast::ITEM_SOURCE_MANUAL,
                 'service_rows' => [[
                     'contract_item_id' => $contractItem->id,
                     'volume' => '1',
                 ]],
-                'is_without_warranty' => true,
             ])
             ->assertOk()
             ->assertJsonPath('totals.total_aktual_biaya', '100000000.00')
@@ -194,15 +207,19 @@ class BastFormRegressionTest extends TestCase
     public function test_calculation_with_warranty_keeps_ninety_five_and_five_percent_split(): void
     {
         $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $order = $this->makeBastEligibleOrder($admin, 'BAST-CALC-WARRANTY', Hpp::STATUS_APPROVED);
+        Garansi::query()->where('order_id', $order->id)->update(['garansi_months' => 3]);
         $contractItem = $this->makeContractItem('100000000.00');
 
         $this->actingAs($pkm)
             ->postJson(route('pkm.lhpp.calculate'), [
+                'nomor_order' => $order->nomor_order,
+                'item_source' => LhppBast::ITEM_SOURCE_MANUAL,
                 'service_rows' => [[
                     'contract_item_id' => $contractItem->id,
                     'volume' => '1',
                 ]],
-                'is_without_warranty' => false,
             ])
             ->assertOk()
             ->assertJsonPath('totals.total_aktual_biaya', '100000000.00')
@@ -263,13 +280,240 @@ class BastFormRegressionTest extends TestCase
             ->assertNotFound();
     }
 
-    public function test_frontend_sends_warranty_flag_and_calculates_full_payment(): void
+    public function test_frontend_sends_manual_source_and_order_without_trusting_warranty_flag(): void
     {
         $source = file_get_contents(resource_path('views/pkm/lhpp/create.blade.php'));
 
-        $this->assertStringContainsString('is_without_warranty: this.isWithoutWarranty', $source);
+        $this->assertStringContainsString('nomor_order: this.selectedOrder', $source);
+        $this->assertStringContainsString("item_source: 'manual'", $source);
+        $this->assertStringNotContainsString('is_without_warranty: this.isWithoutWarranty', $source);
         $this->assertStringContainsString('const terminOne = this.isWithoutWarranty', $source);
         $this->assertStringContainsString('const terminTwo = this.isWithoutWarranty', $source);
+        $this->assertStringNotContainsString('hppTotal > 0', $source);
+    }
+
+    public function test_hpp_snapshot_keeps_zero_value_item_without_catalog_lookup(): void
+    {
+        $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $order = $this->makeBastEligibleOrder($admin, 'BAST-SNAPSHOT-ZERO', Hpp::STATUS_APPROVED);
+        $hpp = $order->latestApprovedHpp()->firstOrFail();
+        $hpp->forceFill([
+            'item_groups' => [[
+                'jenis_item' => 'MATERIAL KHUSUS',
+                'items' => [[
+                    'sub_jenis_item' => 'Legacy',
+                    'kategori_item' => 'Tidak Ada di Katalog',
+                    'nama_item' => 'Item HPP Bernilai Nol',
+                    'jumlah_item' => '1 EA',
+                    'qty' => '1',
+                    'satuan' => 'EA',
+                    'harga_satuan' => '0.00',
+                    'harga_total' => '0.00',
+                    'keterangan' => 'Snapshot harus dipertahankan',
+                ]],
+            ]],
+            'total_keseluruhan' => '0.00',
+        ])->save();
+        $contractItem = $this->makeContractItem('999999.00');
+
+        $this->actingAs($pkm)
+            ->post(route('pkm.lhpp.store'), $this->bastPayload($order, $contractItem, [
+                'item_source' => LhppBast::ITEM_SOURCE_HPP_SNAPSHOT,
+                'material_rows' => 'payload-browser-diabaikan',
+                'service_rows' => 'payload-browser-diabaikan',
+            ]))
+            ->assertRedirect(route('pkm.lhpp.index'));
+
+        $bast = LhppBast::query()->where('order_id', $order->id)->where('termin_type', 'termin_1')->firstOrFail();
+        $this->assertSame(LhppBast::ITEM_SOURCE_HPP_SNAPSHOT, $bast->item_source);
+        $this->assertSame('0.00', $bast->total_aktual_biaya);
+        $this->assertSame('Item HPP Bernilai Nol', $bast->material_items[0]['name']);
+        $this->assertSame('0.00', $bast->material_items[0]['unit_price_raw']);
+        $this->assertSame('0.00', $bast->material_items[0]['amount']);
+        $this->assertSame('Snapshot harus dipertahankan', $bast->material_items[0]['keterangan']);
+    }
+
+    public function test_manual_zero_price_item_is_valid_and_uses_catalog_price(): void
+    {
+        $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $order = $this->makeBastEligibleOrder($admin, 'BAST-MANUAL-ZERO', Hpp::STATUS_APPROVED);
+        $contractItem = $this->makeContractItem('0.00');
+
+        $payload = $this->bastPayload($order, $contractItem);
+        $payload['service_rows'][0]['unit_price'] = '999999999';
+
+        $this->actingAs($pkm)
+            ->post(route('pkm.lhpp.store'), $payload)
+            ->assertRedirect(route('pkm.lhpp.index'));
+
+        $bast = LhppBast::query()->where('order_id', $order->id)->where('termin_type', 'termin_1')->firstOrFail();
+        $this->assertSame(LhppBast::ITEM_SOURCE_MANUAL, $bast->item_source);
+        $this->assertSame([], $bast->material_items);
+        $this->assertSame('0.00', $bast->service_items[0]['unit_price_raw']);
+        $this->assertSame('0', $bast->service_items[0]['unit_price']);
+        $this->assertSame('0.00', $bast->service_items[0]['amount']);
+    }
+
+    public function test_saved_item_source_cannot_be_changed_by_update_request(): void
+    {
+        $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $manualOrder = $this->makeBastEligibleOrder($admin, 'BAST-MANUAL-IMMUTABLE', Hpp::STATUS_APPROVED);
+        $manualItem = $this->makeContractItem('500000.00');
+
+        $this->actingAs($pkm)->post(route('pkm.lhpp.store'), $this->bastPayload($manualOrder, $manualItem));
+        $this->actingAs($pkm)
+            ->patch(route('pkm.lhpp.update', ['nomorOrder' => $manualOrder->nomor_order, 'termin' => 'termin-1']), $this->bastPayload($manualOrder, $manualItem, [
+                'item_source' => LhppBast::ITEM_SOURCE_HPP_SNAPSHOT,
+            ]))
+            ->assertRedirect(route('pkm.lhpp.index'));
+
+        $this->assertSame(
+            LhppBast::ITEM_SOURCE_MANUAL,
+            LhppBast::query()->where('order_id', $manualOrder->id)->where('termin_type', 'termin_1')->value('item_source'),
+        );
+
+        $snapshotOrder = $this->makeBastEligibleOrder($admin, 'BAST-SNAPSHOT-IMMUTABLE', Hpp::STATUS_APPROVED);
+        $snapshotHpp = $snapshotOrder->latestApprovedHpp()->firstOrFail();
+        $snapshotHpp->forceFill([
+            'item_groups' => [['jenis_item' => 'MATERIAL', 'items' => [[
+                'nama_item' => 'Snapshot Immutable',
+                'qty' => '1',
+                'satuan' => 'EA',
+                'harga_satuan' => '10.00',
+                'harga_total' => '10.00',
+            ]]]],
+            'total_keseluruhan' => '10.00',
+        ])->save();
+
+        $snapshotPayload = $this->bastPayload($snapshotOrder, $manualItem, ['item_source' => LhppBast::ITEM_SOURCE_HPP_SNAPSHOT]);
+        $this->actingAs($pkm)->post(route('pkm.lhpp.store'), $snapshotPayload);
+        $this->actingAs($pkm)
+            ->patch(route('pkm.lhpp.update', ['nomorOrder' => $snapshotOrder->nomor_order, 'termin' => 'termin-1']), $this->bastPayload($snapshotOrder, $manualItem, [
+                'item_source' => LhppBast::ITEM_SOURCE_MANUAL,
+            ]))
+            ->assertRedirect(route('pkm.lhpp.index'));
+
+        $snapshotBast = LhppBast::query()->where('order_id', $snapshotOrder->id)->where('termin_type', 'termin_1')->firstOrFail();
+        $this->assertSame(LhppBast::ITEM_SOURCE_HPP_SNAPSHOT, $snapshotBast->item_source);
+        $this->assertSame('Snapshot Immutable', $snapshotBast->material_items[0]['name']);
+        $this->assertSame('10.00', $snapshotBast->total_aktual_biaya);
+    }
+
+    public function test_legacy_manual_bast_with_active_approval_keeps_its_persisted_snapshot(): void
+    {
+        $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+        $approver = User::factory()->create(['role' => User::ROLE_APPROVER]);
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $order = $this->makeBastEligibleOrder($admin, 'BAST-LEGACY-LOCKED', Hpp::STATUS_APPROVED);
+        $originalItem = $this->makeContractItem('125000.00');
+
+        $this->actingAs($pkm)
+            ->post(route('pkm.lhpp.store'), $this->bastPayload($order, $originalItem))
+            ->assertRedirect(route('pkm.lhpp.index'));
+
+        $bast = LhppBast::query()
+            ->where('order_id', $order->id)
+            ->where('termin_type', 'termin_1')
+            ->firstOrFail();
+        $before = $bast->only([
+            'item_source',
+            'hpp_id',
+            'document_no',
+            'quality_control_status',
+            'approval_status',
+            'material_items',
+            'service_items',
+            'subtotal_material',
+            'subtotal_jasa',
+            'total_aktual_biaya',
+            'termin_1_nilai',
+            'termin_2_nilai',
+        ]);
+        $tabs = app(BastIndexTabs::class);
+        $activeTab = collect(array_keys($tabs->options(BastIndexTabs::CONTEXT_PKM)))
+            ->first(fn (string $tab): bool => $tabs->apply(
+                LhppBast::query()->whereKey($bast->id),
+                $tab,
+                BastIndexTabs::CONTEXT_PKM,
+            )->exists());
+
+        $this->assertNotNull($activeTab);
+
+        $this->actingAs($pkm)
+            ->get(route('pkm.lhpp.index', ['tab' => $activeTab]))
+            ->assertOk()
+            ->assertSee('data-bast-action="edit"', false)
+            ->assertSee('>Edit</span>', false);
+
+        $this->actingAs($pkm)
+            ->get(route('pkm.lhpp.edit', ['nomorOrder' => $order->nomor_order, 'termin' => 'termin-1']))
+            ->assertOk()
+            ->assertSee('Update')
+            ->assertDontSee('BAST terkunci karena proses approval telah dimulai. Data hanya dapat dilihat.');
+
+        LhppBastSignature::query()->create([
+            'lhpp_bast_id' => $bast->id,
+            'step_order' => 1,
+            'role_key' => 'manager_pkm',
+            'role_label' => 'Manager PKM',
+            'signer_user_id' => $approver->id,
+            'signer_name_snapshot' => $approver->name,
+            'status' => LhppBastSignature::STATUS_PENDING,
+        ]);
+        $replacementItem = $this->makeContractItem('999999.00');
+
+        $this->actingAs($pkm)
+            ->get(route('pkm.lhpp.index', ['tab' => $activeTab]))
+            ->assertOk()
+            ->assertSee('data-bast-action="view"', false)
+            ->assertSee('>Lihat</span>', false);
+
+        $lockedForm = $this->actingAs($pkm)
+            ->get(route('pkm.lhpp.edit', ['nomorOrder' => $order->nomor_order, 'termin' => 'termin-1']))
+            ->assertOk()
+            ->assertSee('BAST terkunci karena proses approval telah dimulai. Data hanya dapat dilihat.')
+            ->assertSee('formLocked: true', false)
+            ->assertDontSee('Tambah Baris')
+            ->assertDontSee('Hapus baris material')
+            ->assertDontSee('Hapus baris jasa');
+        $lockedFormDocument = new DOMDocument;
+        @$lockedFormDocument->loadHTML($lockedForm->getContent());
+        $lockedFormXPath = new DOMXPath($lockedFormDocument);
+        $lockedFormElement = $lockedFormXPath->query('//*[@id="pkm-lhpp-create-form"]')->item(0);
+
+        $this->assertNotNull($lockedFormElement);
+        $this->assertSame(1, $lockedFormXPath->query('.//fieldset[@disabled]', $lockedFormElement)->length);
+        $this->assertSame(0, $lockedFormXPath->query('.//button[@type="submit"]', $lockedFormElement)->length);
+
+        $this->actingAs($pkm)
+            ->patch(
+                route('pkm.lhpp.update', ['nomorOrder' => $order->nomor_order, 'termin' => 'termin-1']),
+                $this->bastPayload($order, $replacementItem, [
+                    'item_source' => LhppBast::ITEM_SOURCE_HPP_SNAPSHOT,
+                ]),
+            )
+            ->assertForbidden();
+
+        $bast->refresh();
+        $this->assertSame(LhppBast::ITEM_SOURCE_MANUAL, $bast->item_source);
+        $this->assertSame($before, $bast->only(array_keys($before)));
+        $this->assertDatabaseHas('lhpp_bast_signatures', [
+            'lhpp_bast_id' => $bast->id,
+            'status' => LhppBastSignature::STATUS_PENDING,
+        ]);
+    }
+
+    public function test_pdf_templates_keep_zero_values_and_canonical_item_price(): void
+    {
+        $bastPdf = file_get_contents(resource_path('views/pkm/lhpp/pdf.blade.php'));
+        $hppPdf = file_get_contents(resource_path('views/admin/hpp/hpppdf.blade.php'));
+
+        $this->assertStringContainsString('$item[\'unit_price_raw\'] ?? $item[\'unit_price\'] ?? null', $bastPdf);
+        $this->assertStringContainsString('if ($value === null || $value === \'\')', $hppPdf);
+        $this->assertStringNotContainsString('$amount > 0 ?', $hppPdf);
     }
 
     public function test_threshold_uses_total_actual_for_termin_one_without_warranty(): void
@@ -382,6 +626,7 @@ class BastFormRegressionTest extends TestCase
     {
         return array_replace_recursive([
             'termin_type' => 'termin_1',
+            'item_source' => LhppBast::ITEM_SOURCE_MANUAL,
             'tanggal_bast' => '2026-07-04',
             'nomor_order' => $order->nomor_order,
             'approval_threshold' => 'under_250',

@@ -378,9 +378,11 @@
     };
 
     $formatMoney = function ($value): string {
-        $amount = (float) ($value ?? 0);
+        if ($value === null || $value === '') {
+            return '';
+        }
 
-        return $amount > 0 ? number_format($amount, 0, ',', '.') : '';
+        return number_format((float) $value, 0, ',', '.');
     };
 
     $formatQty = function ($value): string {

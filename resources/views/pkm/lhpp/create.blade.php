@@ -10,6 +10,9 @@
             $documentNo = $documentNo ?? null;
             $isWithoutWarranty = (bool) ($isWithoutWarranty ?? false);
             $isTerminTwoLocked = $terminType === 'termin_2';
+            $itemSource = (string) ($itemSource ?? 'hpp_snapshot');
+            $itemSourceLocked = (bool) ($itemSourceLocked ?? false);
+            $isFormLocked = (bool) ($isFormLocked ?? false);
             $bastDate = old('tanggal_bast', $bastDate ?? now()->format('Y-m-d'));
             $tanggalMulaiPekerjaan = old('tanggal_mulai_pekerjaan', $tanggalMulaiPekerjaan ?? '');
             $tanggalSelesaiPekerjaan = old('tanggal_selesai_pekerjaan', $tanggalSelesaiPekerjaan ?? '');
@@ -78,9 +81,11 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     workStartDate: @js($tanggalMulaiPekerjaan),
                     workFinishDate: @js($tanggalSelesaiPekerjaan),
                     useFixedWorkDates: @js($useFixedWorkDates),
-                    hppValueMatchesBast: @js($hppValueMatchesBast ?? false),
+                    itemSource: @js($itemSource),
+                    itemSourceLocked: @js($itemSourceLocked),
+                    formLocked: @js($isFormLocked),
                 })"
-                x-init="syncApprovalFlow(approvalFlow); refreshItemSelects(); recalculate()"
+                x-init="initializeRows(); syncApprovalFlow(approvalFlow); refreshItemSelects(); recalculate()"
                 class="mt-4 rounded-[1.2rem] border border-slate-200 bg-white p-4 shadow-sm"
             >
                 <form id="pkm-lhpp-create-form" method="POST" action="{{ $formAction }}" enctype="multipart/form-data" class="space-y-4">
@@ -88,7 +93,14 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     @if (strtoupper($formMethod) !== 'POST')
                         @method($formMethod)
                     @endif
+                    @if ($isFormLocked)
+                        <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800" role="status">
+                            BAST terkunci karena proses approval telah dimulai. Data hanya dapat dilihat.
+                        </div>
+                    @endif
+                    <fieldset @disabled($isFormLocked) class="space-y-4">
                     <input type="hidden" name="termin_type" value="{{ $terminType }}">
+                    <input type="hidden" name="item_source" :value="itemSource">
                     <input type="hidden" name="approval_threshold" :value="approvalThreshold">
                     <template x-for="(step, index) in approvalFlow" :key="`bast-approval-flow-input-${index}-${step}`">
                         <input type="hidden" name="approval_flow[]" :value="step">
@@ -111,7 +123,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
 
                                 <label class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-700">Nomor Order</label>
                                 <div class="relative">
-                                    <select name="nomor_order" x-model="selectedOrder" x-init="$nextTick(() => { $el.value = selectedOrder; })" @change="resetApprovalFlow(); applyHppSyncIfChecked()" class="h-9 w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 pr-9 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none">
+                                    <select name="nomor_order" x-model="selectedOrder" x-init="$nextTick(() => { $el.value = selectedOrder; })" @change="handleOrderChange()" class="h-9 w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 pr-9 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none">
                                         <option value="">Pilih Nomor Order</option>
                                         <template x-for="order in orderOptions" :key="order.nomor_order">
                                             <option :value="order.nomor_order" :selected="order.nomor_order === selectedOrder" x-text="order.nomor_order"></option>
@@ -200,7 +212,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                     <button
                                         type="button"
                                         class="rounded-md border border-slate-200 bg-white px-2 py-1 text-[8px] font-bold text-slate-600 transition hover:bg-slate-50"
-                                        x-show="! isDefaultApprovalFlow()"
+                                        x-show="!formLocked && !isDefaultApprovalFlow()"
                                         @click="resetApprovalFlow()"
                                     >
                                         Reset Default
@@ -212,7 +224,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                         <li
                                             class="flex items-center gap-1.5 rounded-md border px-2 py-1.5 transition"
                                             :class="index === 0 ? 'border-emerald-100 bg-emerald-50' : (step === 'DIROPS' ? 'border-orange-200 bg-orange-50' : 'border-slate-200 bg-slate-50')"
-                                            draggable="true"
+                                            :draggable="!formLocked"
                                             @dragstart="startApprovalDrag(index)"
                                             @dragover.prevent
                                             @drop.prevent="dropApprovalStep(index)"
@@ -222,6 +234,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                                 type="button"
                                                 class="inline-flex h-5 w-5 shrink-0 cursor-grab items-center justify-center rounded bg-white text-slate-400 ring-1 ring-slate-200 active:cursor-grabbing"
                                                 title="Geser urutan"
+                                                x-show="!formLocked"
                                             >
                                                 <i data-lucide="grip-vertical" class="h-3 w-3"></i>
                                             </button>
@@ -234,7 +247,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                                 <div class="truncate text-[9px] font-bold" :class="step === 'DIROPS' ? 'text-[#9a4f28]' : 'text-slate-900'" x-text="step"></div>
                                                 <div class="mt-0.5 truncate text-[8px] font-medium text-slate-500" x-text="approvalSignerName(step, index)"></div>
                                             </div>
-                                            <div class="flex shrink-0 flex-col gap-1">
+                                            <div class="flex shrink-0 flex-col gap-1" x-show="!formLocked">
                                                 <button
                                                     type="button"
                                                     class="inline-flex h-4 w-4 items-center justify-center rounded border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
@@ -265,14 +278,20 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         </div>
                     </div>
 
-                    @unless ($isTerminTwoLocked)
-                        <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                            <label class="inline-flex items-center gap-3 text-[12px] font-bold text-slate-800">
-                                <input type="checkbox" x-model="hppValueMatchesBast" @change="handleHppSyncToggle()" class="h-4 w-4 rounded border-slate-300 text-[#ca642f] focus:ring-[#ca642f]">
-                                <span>Nilai BAST sama dengan HPP</span>
+                    <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                        <div class="text-[12px] font-bold text-slate-800">Sumber Item BAST</div>
+                        <div class="mt-3 grid gap-2 md:grid-cols-2">
+                            <label class="flex items-start gap-3 rounded-xl border border-slate-200 p-3" :class="itemSource === 'hpp_snapshot' ? 'bg-orange-50' : 'bg-white'">
+                                <input type="radio" value="hpp_snapshot" x-model="itemSource" @change="handleItemSourceChange()" :disabled="itemSourceLocked" class="mt-0.5 h-4 w-4 border-slate-300 text-[#ca642f] focus:ring-[#ca642f]">
+                                <span><span class="block text-[11px] font-bold text-slate-800">Sama dengan HPP Approved</span><span class="mt-1 block text-[10px] leading-relaxed text-slate-500">Seluruh item, volume, harga, item bernilai nol, dan total disalin dari HPP.</span></span>
+                            </label>
+                            <label class="flex items-start gap-3 rounded-xl border border-slate-200 p-3" :class="itemSource === 'manual' ? 'bg-orange-50' : 'bg-white'">
+                                <input type="radio" value="manual" x-model="itemSource" @change="handleItemSourceChange()" :disabled="itemSourceLocked" class="mt-0.5 h-4 w-4 border-slate-300 text-[#ca642f] focus:ring-[#ca642f]">
+                                <span><span class="block text-[11px] font-bold text-slate-800">Input Aktual Secara Manual</span><span class="mt-1 block text-[10px] leading-relaxed text-slate-500">Susun item aktual berdasarkan katalog kontrak.</span></span>
                             </label>
                         </div>
-                    @endunless
+                        <p x-show="itemSource === 'hpp_snapshot'" class="mt-2 text-[10px] font-medium text-slate-500">Data berasal dari HPP approved dan tidak dapat diubah.</p>
+                    </div>
 
                     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                         <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
@@ -282,7 +301,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                     <p class="mt-1 text-[11px] text-slate-500">Data material mengikuti BAST Termin 1 dan dikunci agar tidak berubah.</p>
                                 @endif
                             </div>
-                            @unless ($isTerminTwoLocked)
+                            @unless ($isTerminTwoLocked || $isFormLocked)
                                 <button type="button" @click="addMaterialRow()" x-show="!rowsLocked()" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50">
                                     <i data-lucide="plus" class="h-3.5 w-3.5"></i>
                                     Tambah Baris
@@ -301,9 +320,14 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <template x-for="(row, index) in materialRows" :key="`material-${index}`">
+                                    <template x-for="(row, index) in materialRows" :key="row._key">
                                         <tr>
-                                            <td class="border border-slate-300 px-2 py-2 text-center align-top font-semibold" x-text="index + 1"></td>
+                                            <td class="border border-slate-300 px-2 py-2 text-center align-top font-semibold">
+                                                <span x-text="index + 1"></span>
+                                                @unless ($isFormLocked)
+                                                    <button type="button" x-show="itemSource === 'manual' && !rowsLocked()" @click="removeMaterialRow(index)" class="mx-auto mt-2 inline-flex h-6 w-6 items-center justify-center rounded-md border border-rose-200 bg-rose-50 text-rose-600" title="Hapus baris material"><i data-lucide="trash-2" class="h-3 w-3"></i></button>
+                                                @endunless
+                                            </td>
                                             <td class="border border-slate-300 px-2 py-2">
                                                 <div class="grid gap-2 md:grid-cols-3">
                                                     <div class="relative">
@@ -375,7 +399,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                     <p class="mt-1 text-[11px] text-slate-500">Data jasa mengikuti BAST Termin 1 dan dikunci agar tidak berubah.</p>
                                 @endif
                             </div>
-                            @unless ($isTerminTwoLocked)
+                            @unless ($isTerminTwoLocked || $isFormLocked)
                                 <button type="button" @click="addServiceRow()" x-show="!rowsLocked()" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50">
                                     <i data-lucide="plus" class="h-3.5 w-3.5"></i>
                                     Tambah Baris
@@ -394,9 +418,14 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <template x-for="(row, index) in serviceRows" :key="`service-${index}`">
+                                    <template x-for="(row, index) in serviceRows" :key="row._key">
                                         <tr>
-                                            <td class="border border-slate-300 px-2 py-2 text-center align-top font-semibold" x-text="index + 1"></td>
+                                            <td class="border border-slate-300 px-2 py-2 text-center align-top font-semibold">
+                                                <span x-text="index + 1"></span>
+                                                @unless ($isFormLocked)
+                                                    <button type="button" x-show="itemSource === 'manual' && !rowsLocked()" @click="removeServiceRow(index)" class="mx-auto mt-2 inline-flex h-6 w-6 items-center justify-center rounded-md border border-rose-200 bg-rose-50 text-rose-600" title="Hapus baris jasa"><i data-lucide="trash-2" class="h-3 w-3"></i></button>
+                                                @endunless
+                                            </td>
                                             <td class="border border-slate-300 px-2 py-2">
                                                 <div class="grid gap-2 md:grid-cols-3">
                                                     <div class="relative">
@@ -506,6 +535,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         </div>
                     </div>
 
+                    @unless ($isFormLocked)
                     <div class="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
                         <span x-show="isCalculating" class="text-[10px] font-semibold text-amber-600">Menghitung...</span>
                         <span x-show="calculationError" x-text="calculationError" class="text-[10px] font-semibold text-rose-600"></span>
@@ -514,6 +544,8 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                             {{ $submitLabel }}
                         </button>
                     </div>
+                    @endunless
+                    </fieldset>
                 </form>
             </section>
         </div>
@@ -543,7 +575,10 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     workStartDate: config.workStartDate,
                     workFinishDate: config.workFinishDate,
                     useFixedWorkDates: config.useFixedWorkDates,
-                    hppValueMatchesBast: Boolean(config.hppValueMatchesBast),
+                    itemSource: config.itemSource === 'manual' ? 'manual' : 'hpp_snapshot',
+                    itemSourceLocked: Boolean(config.itemSourceLocked),
+                    formLocked: Boolean(config.formLocked),
+                    rowSequence: 0,
                     isCalculating: false,
                     calculationError: '',
                     calculationController: null,
@@ -557,7 +592,10 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                             unit_kerja: '',
                             seksi: '',
                             purchase_order_number: '',
-                            nilai_ece: 0,
+                            nilai_ece: '0.00',
+                            hpp_total: '0.00',
+                            has_approved_hpp: false,
+                            garansi_months: null,
                             tanggal_mulai_pekerjaan: '',
                             tanggal_selesai_pekerjaan: '',
                             hpp_material_rows: [],
@@ -565,51 +603,70 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         };
                     },
                     rowsLocked() {
-                        return this.isTerminTwoLocked || this.hppValueMatchesBast;
+                        return this.formLocked || this.isTerminTwoLocked || this.itemSource === 'hpp_snapshot';
+                    },
+                    makeRowKey() {
+                        this.rowSequence += 1;
+                        return `bast-row-${Date.now()}-${this.rowSequence}`;
                     },
                     emptyRow() {
-                        return { contract_item_id: '', jenis_item: '', kategori_item: '', name: '', volume: '', unit: '', unit_price: '', amount: '0.00', amount_display: '0' };
+                        return { _key: this.makeRowKey(), contract_item_id: '', jenis_item: '', sub_jenis_item: '', kategori_item: '', name: '', jumlah_item: '', volume: '', unit: '', unit_price_raw: '', unit_price: '', amount: '0.00', amount_display: '0', keterangan: '' };
+                    },
+                    initializeRows() {
+                        this.materialRows = (Array.isArray(this.materialRows) ? this.materialRows : []).map((row) => ({ ...row, _key: row._key || this.makeRowKey() }));
+                        this.serviceRows = (Array.isArray(this.serviceRows) ? this.serviceRows : []).map((row) => ({ ...row, _key: row._key || this.makeRowKey() }));
+                        if (this.itemSource === 'manual' && this.materialRows.length === 0) this.materialRows = [this.emptyRow()];
+                        if (this.itemSource === 'manual' && this.serviceRows.length === 0) this.serviceRows = [this.emptyRow()];
                     },
                     normalizeHppRows(rows) {
-                        if (!Array.isArray(rows) || rows.length === 0) {
-                            return [this.emptyRow()];
-                        }
+                        if (!Array.isArray(rows)) return [];
 
                         return rows.map((row) => ({
+                            _key: this.makeRowKey(),
                             contract_item_id: String(row.contract_item_id ?? ''),
                             jenis_item: this.normalizeCatalogValue(row.jenis_item),
+                            sub_jenis_item: this.normalizeCatalogValue(row.sub_jenis_item),
                             kategori_item: this.normalizeCatalogValue(row.kategori_item),
                             name: this.normalizeCatalogValue(row.name),
+                            jumlah_item: String(row.jumlah_item ?? ''),
                             volume: String(row.volume ?? ''),
                             unit: this.normalizeCatalogValue(row.unit),
+                            unit_price_raw: String(row.unit_price_raw ?? row.unit_price ?? '0.00'),
                             unit_price: String(row.unit_price ?? ''),
                             amount: String(row.amount ?? '0.00'),
                             amount_display: String(row.amount_display ?? '0'),
+                            keterangan: String(row.keterangan ?? ''),
                         }));
                     },
-                    handleHppSyncToggle() {
-                        if (!this.hppValueMatchesBast) return;
-
-                        if (!this.selectedOrder) {
-                            this.hppValueMatchesBast = false;
-                            this.showSyncMessage('Pilih nomor order terlebih dahulu.');
+                    handleItemSourceChange() {
+                        if (this.itemSourceLocked) return;
+                        if (this.itemSource === 'hpp_snapshot') {
+                            this.applyHppRows();
                             return;
                         }
-
-                        this.applyHppRows();
+                        this.materialRows = [this.emptyRow()];
+                        this.serviceRows = [this.emptyRow()];
+                        this.rebuildItemSelects();
+                        this.recalculate();
                     },
-                    applyHppSyncIfChecked() {
-                        if (this.hppValueMatchesBast) {
+                    handleOrderChange() {
+                        const order = this.currentOrder();
+                        this.isWithoutWarranty = Number(order.garansi_months) === 0;
+                        this.resetApprovalFlow();
+                        if (this.itemSource === 'hpp_snapshot') {
                             this.applyHppRows();
+                        } else {
+                            this.materialRows = [this.emptyRow()];
+                            this.serviceRows = [this.emptyRow()];
+                            this.rebuildItemSelects();
+                            this.recalculate();
                         }
                     },
                     applyHppRows() {
                         const order = this.currentOrder();
 
-                        if ((!Array.isArray(order.hpp_material_rows) || order.hpp_material_rows.length === 0)
-                            && (!Array.isArray(order.hpp_service_rows) || order.hpp_service_rows.length === 0)) {
-                            this.hppValueMatchesBast = false;
-                            this.showSyncMessage('Detail material dan jasa HPP tidak tersedia sehingga nilai belum dapat disalin otomatis.');
+                        if (!order.has_approved_hpp) {
+                            this.showSyncMessage('HPP approved untuk order ini tidak tersedia.');
                             return;
                         }
 
@@ -635,23 +692,18 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     },
                     applyHppCalculation(order) {
                         const sumRows = (rows) => rows.reduce((total, row) => {
-                            const storedAmount = this.parseCurrency(row.amount);
-
-                            return total + (storedAmount || (
-                                this.parseCurrency(row.volume) * this.parseCurrency(row.unit_price)
-                            ));
+                            if (row.amount !== null && row.amount !== undefined && String(row.amount) !== '') {
+                                return total + this.parseCurrency(row.amount);
+                            }
+                            return total + (this.parseCurrency(row.volume) * this.parseCurrency(row.unit_price_raw ?? row.unit_price));
                         }, 0);
                         const subtotalMaterial = sumRows(this.materialRows);
                         const subtotalJasa = sumRows(this.serviceRows);
-                        const calculatedTotal = subtotalMaterial + subtotalJasa;
-                        const hppTotal = this.parseCurrency(order?.nilai_ece);
-                        const totalAktual = hppTotal > 0 ? hppTotal : calculatedTotal;
+                        const totalAktual = this.parseCurrency(order?.hpp_total ?? '0.00');
                         const terminOne = this.isWithoutWarranty
                             ? totalAktual
                             : totalAktual * 0.95;
-                        const terminTwo = this.isWithoutWarranty
-                            ? 0
-                            : totalAktual * 0.05;
+                        const terminTwo = this.isWithoutWarranty ? 0 : totalAktual - terminOne;
 
                         this.calculation = {
                             subtotal_material: subtotalMaterial.toFixed(2),
@@ -782,6 +834,10 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                             && (!flow.includes('DIROPS') || flow[flow.length - 1] === 'DIROPS');
                     },
                     moveApprovalStep(from, to) {
+                        if (this.formLocked) {
+                            return;
+                        }
+
                         if (!this.canMoveApprovalStep(from, to)) {
                             return;
                         }
@@ -793,6 +849,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         this.refreshApprovalIcons();
                     },
                     startApprovalDrag(index) {
+                        if (this.formLocked) return;
                         this.draggedApprovalIndex = index;
                     },
                     dropApprovalStep(index) {
@@ -876,12 +933,14 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         row.name = '';
                         row.contract_item_id = '';
                         row.unit = '';
+                        row.unit_price_raw = '';
                         row.unit_price = '';
                     },
                     handleKategoriChange(row) {
                         row.name = '';
                         row.contract_item_id = '';
                         row.unit = '';
+                        row.unit_price_raw = '';
                         row.unit_price = '';
                     },
                     handleNameChange(row) {
@@ -890,19 +949,26 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         if (!selectedItem) {
                             row.contract_item_id = '';
                             row.unit = '';
+                            row.unit_price_raw = '';
                             row.unit_price = '';
                             return;
                         }
 
                         row.contract_item_id = String(selectedItem.id ?? '');
                         row.unit = this.normalizeCatalogValue(selectedItem.satuan);
+                        row.unit_price_raw = String(selectedItem.harga_satuan_raw ?? '0.00');
                         row.unit_price = this.normalizeCatalogValue(selectedItem.harga_satuan);
                     },
                     async recalculate() {
-                        if (this.hppValueMatchesBast) {
+                        if (this.formLocked || this.isTerminTwoLocked) {
+                            return;
+                        }
+                        if (this.itemSource === 'hpp_snapshot') {
                             this.applyHppCalculation(this.currentOrder());
                             return;
                         }
+
+                        if (!this.selectedOrder) return;
 
                         const materialRows = Array.isArray(this.materialRows) ? this.materialRows : [];
                         const serviceRows = Array.isArray(this.serviceRows) ? this.serviceRows : [];
@@ -921,9 +987,10 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                     'X-CSRF-TOKEN': document.querySelector('meta[name=\"csrf-token\"]')?.getAttribute('content') ?? '',
                                 },
                                 body: JSON.stringify({
+                                    nomor_order: this.selectedOrder,
+                                    item_source: 'manual',
                                     material_rows: materialRows,
                                     service_rows: serviceRows,
-                                    is_without_warranty: this.isWithoutWarranty,
                                 }),
                                 signal: this.calculationController.signal,
                             });
@@ -935,8 +1002,8 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
 
                             const result = await response.json();
                             if (sequence !== this.calculationSequence) return;
-                            this.materialRows = Array.isArray(result.material_rows) ? result.material_rows : materialRows;
-                            this.serviceRows = Array.isArray(result.service_rows) ? result.service_rows : serviceRows;
+                            this.materialRows = this.mergeCalculatedRows(result.material_rows, materialRows);
+                            this.serviceRows = this.mergeCalculatedRows(result.service_rows, serviceRows);
                             this.calculation = result.totals && typeof result.totals === 'object' ? result.totals : this.calculation;
                             const nextThreshold = this.resolveThreshold();
 
@@ -966,7 +1033,31 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                         this.serviceRows.push(this.emptyRow());
                         this.refreshItemSelects();
                     },
+                    mergeCalculatedRows(calculatedRows, previousRows) {
+                        if (!Array.isArray(calculatedRows)) return previousRows;
+                        return calculatedRows.map((row, index) => ({
+                            ...row,
+                            _key: previousRows[index]?._key || this.makeRowKey(),
+                        }));
+                    },
+                    removeMaterialRow(index) {
+                        if (this.rowsLocked()) return;
+                        this.destroyItemSelects();
+                        this.materialRows.splice(index, 1);
+                        this.$nextTick(() => { this.refreshItemSelects(); this.recalculate(); });
+                    },
+                    removeServiceRow(index) {
+                        if (this.rowsLocked()) return;
+                        this.destroyItemSelects();
+                        this.serviceRows.splice(index, 1);
+                        this.$nextTick(() => { this.refreshItemSelects(); this.recalculate(); });
+                    },
+                    destroyItemSelects() {
+                        this.$root.querySelectorAll('.js-bast-item-select').forEach((element) => element.tomselect?.destroy());
+                    },
                     refreshItemSelects() {
+                        if (this.formLocked) return;
+
                         this.$nextTick(() => {
                             this.$root.querySelectorAll('.js-bast-item-select').forEach((element) => {
                                 if (element.disabled || element.tomselect || !window.TomSelect) return;
@@ -996,9 +1087,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     },
                     rebuildItemSelects() {
                         this.$nextTick(() => {
-                            this.$root.querySelectorAll('.js-bast-item-select').forEach((element) => {
-                                element.tomselect?.destroy();
-                            });
+                            this.destroyItemSelects();
                             this.refreshItemSelects();
                         });
                     },

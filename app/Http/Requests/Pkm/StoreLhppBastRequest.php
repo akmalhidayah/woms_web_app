@@ -39,8 +39,15 @@ class StoreLhppBastRequest extends FormRequest
      */
     public function rules(): array
     {
+        $validatesManualItems = $this->input('termin_type') !== 'termin_2'
+            && $this->input('item_source', LhppBast::ITEM_SOURCE_MANUAL) === LhppBast::ITEM_SOURCE_MANUAL;
+
         return [
             'termin_type' => ['required', 'in:termin_1,termin_2'],
+            'item_source' => ['nullable', Rule::in([
+                LhppBast::ITEM_SOURCE_HPP_SNAPSHOT,
+                LhppBast::ITEM_SOURCE_MANUAL,
+            ])],
             'tanggal_bast' => ['required', 'date'],
             'nomor_order' => ['required', 'exists:orders,nomor_order'],
             'approval_threshold' => ['required', 'in:under_250,over_250'],
@@ -49,18 +56,22 @@ class StoreLhppBastRequest extends FormRequest
             'tipe_pekerjaan' => ['required', Rule::in(array_keys(LhppBast::tipePekerjaanOptions() + LhppBast::legacyTipePekerjaanOptions()))],
             'tanggal_mulai_pekerjaan' => ['nullable', 'date'],
             'tanggal_selesai_pekerjaan' => ['nullable', 'date', 'after_or_equal:tanggal_mulai_pekerjaan'],
-            'material_rows' => ['nullable', 'array', 'max:100'],
-            'material_rows.*.contract_item_id' => ['nullable', 'integer', 'exists:fabrication_construction_contracts,id'],
-            'material_rows.*.name' => ['nullable', 'string', 'max:255'],
-            'material_rows.*.volume' => ['nullable', 'regex:/^\d{1,12}(?:\.\d{1,3})?$/'],
-            'material_rows.*.unit' => ['nullable', 'string', 'max:20'],
-            'material_rows.*.unit_price' => ['nullable', 'string', 'max:50'],
-            'service_rows' => ['nullable', 'array', 'max:100'],
-            'service_rows.*.contract_item_id' => ['nullable', 'integer', 'exists:fabrication_construction_contracts,id'],
-            'service_rows.*.name' => ['nullable', 'string', 'max:255'],
-            'service_rows.*.volume' => ['nullable', 'regex:/^\d{1,12}(?:\.\d{1,3})?$/'],
-            'service_rows.*.unit' => ['nullable', 'string', 'max:20'],
-            'service_rows.*.unit_price' => ['nullable', 'string', 'max:50'],
+            'material_rows' => $validatesManualItems ? ['nullable', 'array', 'max:100'] : ['nullable'],
+            'material_rows.*.contract_item_id' => $validatesManualItems
+                ? ['nullable', 'integer', 'exists:fabrication_construction_contracts,id']
+                : ['nullable'],
+            'material_rows.*.name' => $validatesManualItems ? ['nullable', 'string', 'max:255'] : ['nullable'],
+            'material_rows.*.volume' => $validatesManualItems ? ['nullable', 'regex:/^\d{1,12}(?:\.\d{1,3})?$/'] : ['nullable'],
+            'material_rows.*.unit' => $validatesManualItems ? ['nullable', 'string', 'max:20'] : ['nullable'],
+            'material_rows.*.unit_price' => $validatesManualItems ? ['nullable', 'string', 'max:50'] : ['nullable'],
+            'service_rows' => $validatesManualItems ? ['nullable', 'array', 'max:100'] : ['nullable'],
+            'service_rows.*.contract_item_id' => $validatesManualItems
+                ? ['nullable', 'integer', 'exists:fabrication_construction_contracts,id']
+                : ['nullable'],
+            'service_rows.*.name' => $validatesManualItems ? ['nullable', 'string', 'max:255'] : ['nullable'],
+            'service_rows.*.volume' => $validatesManualItems ? ['nullable', 'regex:/^\d{1,12}(?:\.\d{1,3})?$/'] : ['nullable'],
+            'service_rows.*.unit' => $validatesManualItems ? ['nullable', 'string', 'max:20'] : ['nullable'],
+            'service_rows.*.unit_price' => $validatesManualItems ? ['nullable', 'string', 'max:50'] : ['nullable'],
             'gambar' => ['nullable', 'array'],
             'gambar.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ];

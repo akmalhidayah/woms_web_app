@@ -85,11 +85,14 @@ class BastDocumentNumberTest extends TestCase
             ->where('order_id', $firstOrder->id)
             ->update(['lhpp_bast_id' => $terminOne->id]);
 
+        $terminTwoPayload = $this->bastPayload($firstOrder, [
+            'termin_type' => 'termin_2',
+            'tanggal_bast' => '2026-07-20',
+        ]);
+        FabricationConstructionContract::query()->delete();
+
         $this->actingAs($pkm)
-            ->post(route('pkm.lhpp.store'), $this->bastPayload($firstOrder, [
-                'termin_type' => 'termin_2',
-                'tanggal_bast' => '2026-07-20',
-            ]))
+            ->post(route('pkm.lhpp.store'), $terminTwoPayload)
             ->assertRedirect(route('pkm.lhpp.index'));
 
         $this->actingAs($pkm)
@@ -111,6 +114,15 @@ class BastDocumentNumberTest extends TestCase
         $this->assertSame($terminOne->document_sequence, $terminTwo->document_sequence);
         $this->assertSame($terminOne->document_year, $terminTwo->document_year);
         $this->assertSame('002/BAST/25.10/08-2026', $nextTerminOne->document_no);
+        $this->assertSame(LhppBast::ITEM_SOURCE_MANUAL, $terminOne->item_source);
+        $this->assertSame($terminOne->item_source, $terminTwo->item_source);
+        $this->assertSame($terminOne->material_items, $terminTwo->material_items);
+        $this->assertSame($terminOne->service_items, $terminTwo->service_items);
+        $this->assertSame($terminOne->subtotal_material, $terminTwo->subtotal_material);
+        $this->assertSame($terminOne->subtotal_jasa, $terminTwo->subtotal_jasa);
+        $this->assertSame($terminOne->total_aktual_biaya, $terminTwo->total_aktual_biaya);
+        $this->assertSame($terminOne->termin_1_nilai, $terminTwo->termin_1_nilai);
+        $this->assertSame($terminOne->termin_2_nilai, $terminTwo->termin_2_nilai);
     }
 
     private function createEligibleOrder(string $nomorOrder, OutlineAgreement $outlineAgreement): Order

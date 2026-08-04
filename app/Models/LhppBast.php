@@ -25,6 +25,10 @@ class LhppBast extends Model
 
     public const APPROVAL_REJECTED = 'rejected';
 
+    public const ITEM_SOURCE_HPP_SNAPSHOT = 'hpp_snapshot';
+
+    public const ITEM_SOURCE_MANUAL = 'manual';
+
     public function getRouteKeyName(): string
     {
         return 'id';
@@ -39,6 +43,7 @@ class LhppBast extends Model
         'document_year',
         'order_id',
         'termin_type',
+        'item_source',
         'parent_lhpp_bast_id',
         'hpp_id',
         'purchase_order_id',
@@ -112,6 +117,16 @@ class LhppBast extends Model
             ->all();
 
         return $vendorSectionOptions ?: self::legacyTipePekerjaanOptions();
+    }
+
+    public function usesHppSnapshot(): bool
+    {
+        return $this->item_source === self::ITEM_SOURCE_HPP_SNAPSHOT;
+    }
+
+    public function usesManualItems(): bool
+    {
+        return $this->item_source === self::ITEM_SOURCE_MANUAL;
     }
 
     public static function tipePekerjaanLabel(?string $value): string

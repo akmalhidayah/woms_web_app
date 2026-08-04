@@ -164,6 +164,8 @@
                                         ? (float) ($row->termin_2_nilai ?? round($totalBiaya * 0.05))
                                         : null;
                                     $terminTwoExists = ! $isWithoutWarranty && filled($terminTwo?->id);
+                                    $isTerminOneApprovalLocked = $row->isApprovalLocked();
+                                    $isTerminTwoApprovalLocked = $terminTwo?->isApprovalLocked() ?? false;
                                     $approvalProgress = $row->approvalProgressPercent();
                                     $signedCount = $row->approvalSignedCount();
                                     $totalSteps = $row->approvalStepCount();
@@ -382,8 +384,15 @@
                                             @endunless
 
                                             <div x-show="selectedTerm === 'termin_1'" class="flex items-center justify-center gap-1">
-                                                <a @if ($approvalStatus === \App\Models\LhppBast::APPROVAL_REJECTED) style="display:none" @endif href="{{ route('pkm.lhpp.edit', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" class="pkm-lhpp-action-btn bg-emerald-500 hover:bg-emerald-600" title="{{ $isWithoutWarranty ? 'Edit BAST / LHPP' : 'Edit BAST Termin 1' }}">
-                                                    <i data-lucide="square-pen" class="h-3.5 w-3.5"></i>
+                                                <a
+                                                    href="{{ route('pkm.lhpp.edit', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}"
+                                                    class="pkm-lhpp-action-btn pkm-lhpp-view-edit-btn {{ $isTerminOneApprovalLocked ? 'bg-slate-500 hover:bg-slate-600' : 'bg-emerald-500 hover:bg-emerald-600' }}"
+                                                    title="{{ $isTerminOneApprovalLocked ? ($isWithoutWarranty ? 'Lihat BAST / LHPP' : 'Lihat BAST Termin 1') : ($isWithoutWarranty ? 'Edit BAST / LHPP' : 'Edit BAST Termin 1') }}"
+                                                    aria-label="{{ $isTerminOneApprovalLocked ? ($isWithoutWarranty ? 'Lihat BAST / LHPP' : 'Lihat BAST Termin 1') : ($isWithoutWarranty ? 'Edit BAST / LHPP' : 'Edit BAST Termin 1') }}"
+                                                    data-bast-action="{{ $isTerminOneApprovalLocked ? 'view' : 'edit' }}"
+                                                >
+                                                    <i data-lucide="{{ $isTerminOneApprovalLocked ? 'eye' : 'square-pen' }}" class="h-3.5 w-3.5"></i>
+                                                    <span>{{ $isTerminOneApprovalLocked ? 'Lihat' : 'Edit' }}</span>
                                                 </a>
                                                 <a href="{{ route('pkm.lhpp.pdf', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" target="_blank" rel="noopener noreferrer" class="pkm-lhpp-action-btn bg-blue-500 hover:bg-blue-600" title="{{ $isWithoutWarranty ? 'Download PDF BAST / LHPP' : 'Download PDF BAST Termin 1' }}">
                                                     <i data-lucide="file-text" class="h-3.5 w-3.5"></i>
@@ -403,8 +412,15 @@
                                             <div x-show="selectedTerm === 'termin_2'" class="w-full">
                                                 @if ($terminTwoExists)
                                                     <div class="flex items-center justify-center gap-1">
-                                                        <a @if ($terminTwoApprovalStatus === \App\Models\LhppBast::APPROVAL_REJECTED) style="display:none" @endif href="{{ route('pkm.lhpp.edit', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-2']) }}" class="pkm-lhpp-action-btn bg-emerald-500 hover:bg-emerald-600" title="Edit BAST Termin 2">
-                                                            <i data-lucide="square-pen" class="h-3.5 w-3.5"></i>
+                                                        <a
+                                                            href="{{ route('pkm.lhpp.edit', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-2']) }}"
+                                                            class="pkm-lhpp-action-btn pkm-lhpp-view-edit-btn {{ $isTerminTwoApprovalLocked ? 'bg-slate-500 hover:bg-slate-600' : 'bg-emerald-500 hover:bg-emerald-600' }}"
+                                                            title="{{ $isTerminTwoApprovalLocked ? 'Lihat BAST Termin 2' : 'Edit BAST Termin 2' }}"
+                                                            aria-label="{{ $isTerminTwoApprovalLocked ? 'Lihat BAST Termin 2' : 'Edit BAST Termin 2' }}"
+                                                            data-bast-action="{{ $isTerminTwoApprovalLocked ? 'view' : 'edit' }}"
+                                                        >
+                                                            <i data-lucide="{{ $isTerminTwoApprovalLocked ? 'eye' : 'square-pen' }}" class="h-3.5 w-3.5"></i>
+                                                            <span>{{ $isTerminTwoApprovalLocked ? 'Lihat' : 'Edit' }}</span>
                                                         </a>
                                                         <a href="{{ route('pkm.lhpp.pdf', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-2']) }}" target="_blank" rel="noopener noreferrer" class="pkm-lhpp-action-btn bg-blue-500 hover:bg-blue-600" title="Download PDF BAST Termin 2">
                                                             <i data-lucide="file-text" class="h-3.5 w-3.5"></i>
@@ -524,6 +540,14 @@
                 border-radius: 6px;
                 color: white;
                 transition: .2s;
+            }
+
+            .pkm-lhpp-action-btn.pkm-lhpp-view-edit-btn {
+                width: auto;
+                gap: 4px;
+                padding-inline: 8px;
+                font-size: 9px;
+                font-weight: 700;
             }
 
             .pkm-lhpp-table th,

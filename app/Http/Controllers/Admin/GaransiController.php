@@ -26,6 +26,7 @@ class GaransiController extends Controller
             $garansiList = $this->garansiEligibleOrders()
                 ->with([
                     'garansi:id,order_id,lhpp_bast_id,garansi_months,start_date,end_date',
+                    'latestApprovedHpp:id,order_id,total_keseluruhan',
                     'lhppBasts' => fn ($query) => $query
                         ->select(['id', 'order_id', 'parent_lhpp_bast_id', 'termin_type'])
                         ->whereIn('termin_type', ['termin_1', 'termin_2']),
@@ -69,6 +70,7 @@ class GaransiController extends Controller
                         'order_route_key' => $order->nomor_order,
                         'order_name' => $order->nama_pekerjaan ?: '-',
                         'notification_number' => $order->notifikasi ?: '-',
+                        'hpp_total' => $order->latestApprovedHpp?->total_keseluruhan,
                         'unit_kerja' => $order->seksi ?: $order->unit_kerja ?: '-',
                         'ttd_date' => $startDate?->format('d-m-Y') ?? '-',
                         'end_date' => $endDate?->format('d-m-Y') ?? '-',

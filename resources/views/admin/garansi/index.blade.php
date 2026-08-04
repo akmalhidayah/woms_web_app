@@ -1,4 +1,14 @@
 <x-layouts.admin title="Garansi">
+    @php
+        $formatRupiah = function ($value): string {
+            $normalized = number_format((float) $value, 2, ',', '.');
+
+            return str_ends_with($normalized, ',00')
+                ? substr($normalized, 0, -3)
+                : rtrim(rtrim($normalized, '0'), ',');
+        };
+    @endphp
+
     @if (session('status'))
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
             {{ session('status') }}
@@ -69,6 +79,9 @@
                                     <div class="font-semibold text-slate-900">{{ $g['order_number'] }}</div>
                                     <div class="mt-1 max-w-[260px] break-words text-[10px] leading-4 text-slate-600">{{ $g['order_name'] ?? '-' }}</div>
                                     <div class="mt-0.5 text-[10px] font-medium text-blue-600">Notif: {{ $g['notification_number'] ?? '-' }}</div>
+                                    <div class="mt-0.5 text-[10px] font-semibold text-slate-700">
+                                        Total HPP: {{ $g['hpp_total'] !== null ? 'Rp '.$formatRupiah($g['hpp_total']) : '-' }}
+                                    </div>
                                 </td>
 
                                 <td class="px-4 py-3 text-slate-700">
@@ -179,6 +192,9 @@
                                 <div class="text-sm font-semibold text-slate-800">{{ $g['order_number'] }}</div>
                                 <div class="mt-1 break-words text-[11px] leading-4 text-slate-600">{{ $g['order_name'] ?? '-' }}</div>
                                 <div class="mt-0.5 text-[10px] font-medium text-blue-600">Notif: {{ $g['notification_number'] ?? '-' }}</div>
+                                <div class="mt-0.5 text-[10px] font-semibold text-slate-700">
+                                    Total HPP: {{ $g['hpp_total'] !== null ? 'Rp '.$formatRupiah($g['hpp_total']) : '-' }}
+                                </div>
                                 <div class="mt-1 text-[11px] text-slate-500">{{ $g['unit_kerja'] ?? '-' }}</div>
                             </div>
 

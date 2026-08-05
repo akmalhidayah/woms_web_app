@@ -121,6 +121,23 @@ class AdminActionCenterTest extends TestCase
             'created_by' => $admin->id,
         ]);
 
+        $lpjOrder = $this->order($admin, 'ACTION-ALL-LPJ', OrderUserNoteStatus::Pending);
+        $lpjBast = LhppBast::query()->create([
+            'order_id' => $lpjOrder->id,
+            'termin_type' => 'termin_1',
+            'nomor_order' => $lpjOrder->nomor_order,
+            'notifikasi' => $lpjOrder->notifikasi,
+            'deskripsi_pekerjaan' => $lpjOrder->nama_pekerjaan,
+            'unit_kerja' => $lpjOrder->unit_kerja,
+            'seksi' => $lpjOrder->seksi,
+            'tanggal_bast' => '2026-08-02',
+            'tanggal_mulai_pekerjaan' => '2026-08-01',
+            'tanggal_selesai_pekerjaan' => '2026-08-02',
+            'quality_control_status' => 'approved',
+            'approval_status' => LhppBast::APPROVAL_APPROVED,
+            'created_by' => $admin->id,
+        ]);
+
         $keys = app(AdminActionCenter::class)->actions($admin, 20)->pluck('key');
 
         $this->assertTrue($keys->contains('order-sow:'.$incomplete->id));
@@ -129,7 +146,8 @@ class AdminActionCenterTest extends TestCase
         $this->assertTrue($keys->contains('purchase-order:'.$purchaseOrderHpp->id));
         $this->assertTrue($keys->contains('set-garansi:'.$warrantyOrder->id));
         $this->assertTrue($keys->contains('check-bast:'.$bast->id));
-        $this->assertTrue($keys->contains('lpj-ppl:'.$bast->id));
+        $this->assertFalse($keys->contains('lpj-ppl:'.$bast->id));
+        $this->assertTrue($keys->contains('lpj-ppl:'.$lpjBast->id));
     }
 
     public function test_sidebar_counts_and_bell_count_use_the_same_resolver_values(): void
@@ -176,8 +194,7 @@ class AdminActionCenterTest extends TestCase
         User $creator,
         string $number,
         OrderUserNoteStatus $status = OrderUserNoteStatus::ApprovedJasa,
-    ): Order
-    {
+    ): Order {
         return Order::query()->create([
             'nomor_order' => $number,
             'notifikasi' => 'NOTIF-'.$number,

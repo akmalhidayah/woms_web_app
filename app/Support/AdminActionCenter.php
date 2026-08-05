@@ -335,6 +335,7 @@ class AdminActionCenter
     {
         return LhppBast::query()
             ->where('termin_type', 'termin_1')
+            ->where('approval_status', LhppBast::APPROVAL_APPROVED)
             ->where(function (Builder $query): void {
                 $query
                     ->where(function (Builder $terminOne): void {
@@ -349,8 +350,11 @@ class AdminActionCenter
                     })
                     ->orWhere(function (Builder $terminTwo): void {
                         $terminTwo
+                            ->where('termin1_status', 'sudah')
                             ->whereHas('garansi', fn (Builder $garansi): Builder => $garansi
                                 ->where('garansi_months', '>', 0))
+                            ->whereHas('terminTwo', fn (Builder $child): Builder => $child
+                                ->where('approval_status', LhppBast::APPROVAL_APPROVED))
                             ->where(function (Builder $missingTerminTwo): void {
                                 $missingTerminTwo
                                     ->whereDoesntHave('lpjPpl')

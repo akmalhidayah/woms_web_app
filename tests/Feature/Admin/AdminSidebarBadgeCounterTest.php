@@ -269,8 +269,13 @@ class AdminSidebarBadgeCounterTest extends TestCase
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
         $order = $this->makeOrder($admin, 'BADGE-LPJ-001');
         $lhpp = $this->makeLhppBast($admin, $order, [
+            'approval_status' => LhppBast::APPROVAL_IN_REVIEW,
             'quality_control_status' => 'approved',
         ]);
+
+        $this->assertSame(0, $this->counts()['lpj_ppl']);
+
+        $lhpp->update(['approval_status' => LhppBast::APPROVAL_APPROVED]);
 
         $this->assertSame(1, $this->counts()['lpj_ppl']);
 
@@ -291,6 +296,22 @@ class AdminSidebarBadgeCounterTest extends TestCase
             'start_date' => '2026-07-01',
             'created_by' => $admin->id,
         ]);
+
+        $this->assertSame(0, $this->counts()['lpj_ppl']);
+
+        $lhpp->update(['termin1_status' => 'sudah']);
+
+        $this->assertSame(0, $this->counts()['lpj_ppl']);
+
+        $terminTwo = $this->makeLhppBast($admin, $order, [
+            'termin_type' => 'termin_2',
+            'parent_lhpp_bast_id' => $lhpp->id,
+            'approval_status' => LhppBast::APPROVAL_IN_REVIEW,
+        ]);
+
+        $this->assertSame(0, $this->counts()['lpj_ppl']);
+
+        $terminTwo->update(['approval_status' => LhppBast::APPROVAL_APPROVED]);
 
         $this->assertSame(1, $this->counts()['lpj_ppl']);
 

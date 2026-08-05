@@ -710,6 +710,9 @@
             $adminInformationNotifications = $adminInformationCenter->informationNotifications($user, 5);
             $adminUnreadInformationCount = $adminInformationCenter->unreadInformationCount($user);
             $adminNotificationBadge = $adminPendingActionCount > 9 ? '9+' : (string) $adminPendingActionCount;
+            $adminActionFeedUrl = \Illuminate\Support\Facades\Route::has('admin.notifications.action-feed')
+                ? route('admin.notifications.action-feed')
+                : null;
             $headerQuickLinks = collect([
                 [
                     'key' => \App\Support\AdminMenuRegistry::MENU_UPLOAD_INFORMASI,
@@ -1196,17 +1199,19 @@
                                             @endforelse
                                         </section>
 
-                                        <div class="border-t border-slate-100 bg-slate-50 px-3 py-2.5 sm:px-4" data-admin-browser-notification>
-                                            <div class="flex items-center justify-between gap-3">
-                                                <div class="min-w-0">
-                                                    <div class="text-[11px] font-semibold text-slate-700">Aktifkan notifikasi browser untuk pekerjaan penting.</div>
-                                                    <div class="mt-0.5 text-[10px] text-slate-500" data-admin-browser-notification-status></div>
+                                        @if ($adminActionFeedUrl)
+                                            <div class="border-t border-slate-100 bg-slate-50 px-3 py-2.5 sm:px-4" data-admin-browser-notification>
+                                                <div class="flex items-center justify-between gap-3">
+                                                    <div class="min-w-0">
+                                                        <div class="text-[11px] font-semibold text-slate-700">Aktifkan notifikasi browser untuk pekerjaan penting.</div>
+                                                        <div class="mt-0.5 text-[10px] text-slate-500" data-admin-browser-notification-status></div>
+                                                    </div>
+                                                    <button type="button" class="shrink-0 rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[10px] font-bold text-blue-700 transition hover:bg-blue-50" data-admin-browser-notification-enable>
+                                                        Aktifkan
+                                                    </button>
                                                 </div>
-                                                <button type="button" class="shrink-0 rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[10px] font-bold text-blue-700 transition hover:bg-blue-50" data-admin-browser-notification-enable>
-                                                    Aktifkan
-                                                </button>
                                             </div>
-                                        </div>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -1275,9 +1280,9 @@
         <script>
             (() => {
                 const userId = @json($user?->getKey());
-                const endpoint = @json(route('admin.notifications.action-feed'));
+                const endpoint = @json($adminActionFeedUrl);
 
-                if (!userId || window.__womsAdminBrowserActionCenter?.userId === userId) {
+                if (!userId || !endpoint || window.__womsAdminBrowserActionCenter?.userId === userId) {
                     return;
                 }
 

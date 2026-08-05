@@ -270,7 +270,7 @@ class AdminMenuRegistry
     {
         $items = [];
         $badgeCounts = $user && $user->hasRole(User::ROLE_ADMIN)
-            ? app(AdminSidebarBadgeCounter::class)->counts()
+            ? app(AdminSidebarBadgeCounter::class)->counts($user)
             : [];
 
         foreach (static::definitions() as $item) {

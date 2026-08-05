@@ -703,9 +703,13 @@
             $isInventorySection = $inventoryMenu && ($inventoryMenu['active'] ?? false);
             $isOtherSection = collect($otherMenus)->contains(fn (array $menu) => $menu['active'] ?? false);
             $roleBadge = $user?->isSuperAdmin() ? 'SUPER ADMIN' : strtoupper($user?->role ?? 'admin');
-            $adminNotifications = \App\Support\AdminNotificationCenter::signatureNotifications(5, $user);
-            $adminNotificationCount = \App\Support\AdminNotificationCenter::signatureNotificationCount($user);
-            $adminNotificationBadge = $adminNotificationCount > 9 ? '9+' : (string) $adminNotificationCount;
+            $adminActionCenter = app(\App\Support\AdminActionCenter::class);
+            $adminInformationCenter = app(\App\Support\AdminNotificationCenter::class);
+            $adminActions = $adminActionCenter->actions($user, 10);
+            $adminPendingActionCount = $adminActionCenter->pendingActionCount($user);
+            $adminInformationNotifications = $adminInformationCenter->informationNotifications($user, 5);
+            $adminUnreadInformationCount = $adminInformationCenter->unreadInformationCount($user);
+            $adminNotificationBadge = $adminPendingActionCount > 9 ? '9+' : (string) $adminPendingActionCount;
             $headerQuickLinks = collect([
                 [
                     'key' => \App\Support\AdminMenuRegistry::MENU_UPLOAD_INFORMASI,
@@ -724,6 +728,17 @@
                 'blue' => 'bg-blue-50 text-blue-700 ring-blue-100',
                 'amber' => 'bg-amber-50 text-amber-700 ring-amber-100',
                 'emerald' => 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+                'rose' => 'bg-rose-50 text-rose-700 ring-rose-100',
+            ];
+            $actionWaitingClasses = [
+                'normal' => 'text-slate-500',
+                'warning' => 'text-amber-700',
+                'danger' => 'font-semibold text-rose-700',
+            ];
+            $actionWaitingBadgeClasses = [
+                'normal' => '',
+                'warning' => 'rounded-full bg-amber-50 px-1.5 py-0.5 ring-1 ring-amber-100',
+                'danger' => 'rounded-full bg-rose-50 px-1.5 py-0.5 ring-1 ring-rose-100',
             ];
         @endphp
 
@@ -745,6 +760,7 @@
                 }
             }"
             x-init="$watch('mobileOpen', value => document.body.classList.toggle('overflow-hidden', value))"
+            x-on:admin-action-center:open.window="notificationsOpen = true; $nextTick(() => document.querySelector('[data-admin-action-section]')?.scrollIntoView({ block: 'nearest' }))"
             class="min-h-screen"
         >
             <div
@@ -1072,8 +1088,10 @@
                                     aria-label="Notifications"
                                 >
                                     <i data-lucide="bell" class="h-5 w-5"></i>
-                                    @if ($adminNotificationCount > 0)
+                                    @if ($adminPendingActionCount > 0)
                                         <span class="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">{{ $adminNotificationBadge }}</span>
+                                    @elseif ($adminUnreadInformationCount > 0)
+                                        <span class="absolute right-0 top-0 h-2.5 w-2.5 rounded-full bg-sky-300 ring-2 ring-blue-900" aria-label="Ada informasi terbaru"></span>
                                     @endif
                                 </button>
 
@@ -1086,7 +1104,11 @@
                                     <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-3 py-2.5 sm:px-4 sm:py-3">
                                         <div>
                                             <div class="text-sm font-bold text-slate-900">Pemberitahuan</div>
-                                            @if ($adminNotificationCount > 0)
+                                            <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-semibold text-slate-500">
+                                                <span>Perlu Tindakan: {{ $adminPendingActionCount }}</span>
+                                                <span>Informasi Baru: {{ $adminUnreadInformationCount }}</span>
+                                            </div>
+                                            @if ($adminUnreadInformationCount > 0)
                                                 <form method="POST" action="{{ route('admin.notifications.read-all') }}" class="mt-1">
                                                     @csrf
                                                     <button type="submit" class="text-[11px] font-bold text-blue-700 transition hover:text-blue-900">
@@ -1095,15 +1117,59 @@
                                                 </form>
                                             @endif
                                         </div>
-                                        @if ($adminNotificationCount > 0)
+                                        @if ($adminPendingActionCount > 0)
                                             <span class="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-700 ring-1 ring-red-100">{{ $adminNotificationBadge }}</span>
                                         @endif
                                     </div>
 
                                     <div class="max-h-[min(70vh,24rem)] overflow-y-auto">
-                                        @forelse ($adminNotifications as $notification)
-                                            @php($toneClass = $notificationToneClasses[$notification['tone'] ?? 'blue'] ?? $notificationToneClasses['blue'])
-                                            <form method="POST" action="{{ route('admin.notifications.read') }}" class="border-b border-slate-100 last:border-b-0">
+                                        <section data-admin-action-section>
+                                            <div class="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-slate-50/95 px-3 py-2 backdrop-blur sm:px-4">
+                                                <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Perlu Tindakan</span>
+                                                <span class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">{{ $adminPendingActionCount }}</span>
+                                            </div>
+
+                                            @if ($adminActions->isEmpty())
+                                                <div class="px-4 py-6 text-center text-xs text-slate-500">Tidak ada pekerjaan yang perlu ditindaklanjuti.</div>
+                                            @else
+                                                @foreach ($adminActions as $action)
+                                                @php($toneClass = $notificationToneClasses[$action['tone'] ?? 'blue'] ?? $notificationToneClasses['blue'])
+                                                @php($waitingClass = $actionWaitingClasses[$action['overdue_level'] ?? 'normal'] ?? $actionWaitingClasses['normal'])
+                                                @php($waitingBadgeClass = $actionWaitingBadgeClasses[$action['overdue_level'] ?? 'normal'] ?? '')
+                                                <a href="{{ $action['url'] }}" class="group flex gap-2.5 border-b border-slate-100 px-3 py-2.5 text-left transition hover:bg-slate-50 sm:gap-3 sm:px-4 sm:py-3">
+                                                    <span class="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ring-1 sm:h-9 sm:w-9 {{ $toneClass }}">
+                                                        <i data-lucide="{{ $action['icon'] }}" class="h-4 w-4"></i>
+                                                    </span>
+                                                    <span class="min-w-0 flex-1">
+                                                        <span class="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{{ $action['type'] }}</span>
+                                                        <span class="mt-1 block text-[12px] font-semibold leading-4 text-slate-900 sm:text-sm sm:leading-5">{{ $action['message'] }}</span>
+                                                        <span class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] sm:text-[11px]">
+                                                            <span class="font-semibold text-blue-700">{{ $action['action_label'] }}</span>
+                                                            @if ($action['meta'])
+                                                                <span class="text-slate-300">/</span>
+                                                                <span class="max-w-full truncate text-slate-500">{{ $action['meta'] }}</span>
+                                                            @endif
+                                                            <span class="text-slate-300">/</span>
+                                                            <span class="{{ $waitingClass }} {{ $waitingBadgeClass }}">{{ $action['waiting_text'] }}</span>
+                                                        </span>
+                                                    </span>
+                                                    <span class="mt-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition group-hover:text-blue-600">
+                                                        <i data-lucide="arrow-right" class="h-4 w-4"></i>
+                                                    </span>
+                                                </a>
+                                                @endforeach
+                                            @endif
+                                        </section>
+
+                                        <section>
+                                            <div class="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-slate-50/95 px-3 py-2 backdrop-blur sm:px-4">
+                                                <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Informasi Terbaru</span>
+                                                <span class="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-700">{{ $adminUnreadInformationCount }}</span>
+                                            </div>
+
+                                            @forelse ($adminInformationNotifications as $notification)
+                                                @php($toneClass = $notificationToneClasses[$notification['tone'] ?? 'blue'] ?? $notificationToneClasses['blue'])
+                                                <form method="POST" action="{{ route('admin.notifications.read') }}" class="border-b border-slate-100 last:border-b-0">
                                                 @csrf
                                                 <input type="hidden" name="notification_key" value="{{ $notification['key'] }}">
                                                 <input type="hidden" name="redirect_url" value="{{ $notification['url'] }}">
@@ -1121,19 +1187,26 @@
                                                         </span>
                                                     </span>
                                                     <span class="mt-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition group-hover:text-slate-600">
-                                                        <i data-lucide="check-check" class="h-4 w-4"></i>
+                                                        <i data-lucide="arrow-right" class="h-4 w-4"></i>
                                                     </span>
                                                 </button>
-                                            </form>
-                                        @empty
-                                            <div class="px-4 py-8 text-center">
-                                                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-400 ring-1 ring-slate-100">
-                                                    <i data-lucide="bell-off" class="h-5 w-5"></i>
+                                                </form>
+                                            @empty
+                                                <div class="px-4 py-6 text-center text-xs text-slate-500">Belum ada informasi terbaru.</div>
+                                            @endforelse
+                                        </section>
+
+                                        <div class="border-t border-slate-100 bg-slate-50 px-3 py-2.5 sm:px-4" data-admin-browser-notification>
+                                            <div class="flex items-center justify-between gap-3">
+                                                <div class="min-w-0">
+                                                    <div class="text-[11px] font-semibold text-slate-700">Aktifkan notifikasi browser untuk pekerjaan penting.</div>
+                                                    <div class="mt-0.5 text-[10px] text-slate-500" data-admin-browser-notification-status></div>
                                                 </div>
-                                                <div class="mt-3 text-sm font-semibold text-slate-700">Belum ada aktivitas terbaru</div>
-                                                <div class="mt-1 text-xs leading-5 text-slate-500">Notifikasi hanya menampilkan beberapa aktivitas terbaru.</div>
+                                                <button type="button" class="shrink-0 rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[10px] font-bold text-blue-700 transition hover:bg-blue-50" data-admin-browser-notification-enable>
+                                                    Aktifkan
+                                                </button>
                                             </div>
-                                        @endforelse
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1200,6 +1273,161 @@
         </div>
 
         <script>
+            (() => {
+                const userId = @json($user?->getKey());
+                const endpoint = @json(route('admin.notifications.action-feed'));
+
+                if (!userId || window.__womsAdminBrowserActionCenter?.userId === userId) {
+                    return;
+                }
+
+                const preferenceKey = `woms_admin_browser_notifications:${userId}`;
+                const seenKey = `woms_admin_seen_action_keys:${userId}`;
+                const container = document.querySelector('[data-admin-browser-notification]');
+                const button = container?.querySelector('[data-admin-browser-notification-enable]');
+                const status = container?.querySelector('[data-admin-browser-notification-status]');
+
+                const setStatus = (message) => {
+                    if (status) status.textContent = message;
+                };
+
+                const readSeenKeys = () => {
+                    try {
+                        const value = JSON.parse(localStorage.getItem(seenKey) || '[]');
+                        return Array.isArray(value) ? value.filter((key) => typeof key === 'string') : [];
+                    } catch (_) {
+                        return [];
+                    }
+                };
+
+                const saveSeenKeys = (keys) => {
+                    const uniqueKeys = [...new Set(keys.filter((key) => typeof key === 'string'))];
+                    localStorage.setItem(seenKey, JSON.stringify(uniqueKeys.slice(-200)));
+                };
+
+                const fetchFeed = async () => {
+                    const response = await fetch(endpoint, {
+                        headers: { Accept: 'application/json' },
+                        credentials: 'same-origin',
+                    });
+
+                    if (!response.ok) throw new Error('Action feed tidak dapat dimuat.');
+
+                    return response.json();
+                };
+
+                const saveCurrentActionsAsBaseline = async () => {
+                    const feed = await fetchFeed();
+                    const keys = Array.isArray(feed.actions)
+                        ? feed.actions.map((action) => action.key).filter(Boolean)
+                        : [];
+                    saveSeenKeys(keys);
+                };
+
+                const notifyNewActions = async () => {
+                    if (
+                        document.hidden ||
+                        localStorage.getItem(preferenceKey) !== 'enabled' ||
+                        !('Notification' in window) ||
+                        Notification.permission !== 'granted'
+                    ) {
+                        return;
+                    }
+
+                    try {
+                        const feed = await fetchFeed();
+                        const actions = Array.isArray(feed.actions) ? feed.actions : [];
+                        const seenKeys = readSeenKeys();
+                        const seenSet = new Set(seenKeys);
+                        const newActions = actions.filter((action) => action?.key && !seenSet.has(action.key));
+
+                        if (document.visibilityState !== 'visible') {
+                            newActions.forEach((action) => {
+                                const notification = new Notification(action.title || 'Pekerjaan perlu ditindaklanjuti', {
+                                    body: action.message || 'Buka WOMS untuk melihat detail.',
+                                    tag: action.key,
+                                });
+
+                                notification.onclick = () => {
+                                    window.focus();
+                                    window.location.assign(action.url);
+                                    notification.close();
+                                };
+                            });
+                        }
+
+                        saveSeenKeys([...seenKeys, ...actions.map((action) => action.key).filter(Boolean)]);
+                    } catch (_) {
+                        setStatus('Pemeriksaan pekerjaan terbaru belum berhasil.');
+                    }
+                };
+
+                const startPolling = () => {
+                    if (window.__womsAdminBrowserActionCenter?.intervalId) return;
+
+                    const intervalId = window.setInterval(notifyNewActions, 60_000);
+                    const visibilityHandler = () => {
+                        if (!document.hidden) notifyNewActions();
+                    };
+
+                    document.addEventListener('visibilitychange', visibilityHandler);
+                    window.__womsAdminBrowserActionCenter = { userId, intervalId, visibilityHandler };
+                };
+
+                button?.addEventListener('click', async () => {
+                    if (!('Notification' in window)) {
+                        setStatus('Browser ini tidak mendukung notifikasi.');
+                        return;
+                    }
+
+                    if (Notification.permission === 'denied') {
+                        setStatus('Izin notifikasi diblokir. Aktifkan melalui pengaturan browser.');
+                        return;
+                    }
+
+                    const permission = Notification.permission === 'granted'
+                        ? 'granted'
+                        : await Notification.requestPermission();
+
+                    if (permission !== 'granted') {
+                        setStatus('Notifikasi browser belum diizinkan.');
+                        return;
+                    }
+
+                    try {
+                        localStorage.setItem(preferenceKey, 'enabled');
+                        await saveCurrentActionsAsBaseline();
+                        setStatus('Notifikasi browser aktif.');
+                        button.textContent = 'Aktif';
+                        button.disabled = true;
+                        startPolling();
+                    } catch (_) {
+                        localStorage.removeItem(preferenceKey);
+                        setStatus('Notifikasi belum dapat diaktifkan. Coba lagi.');
+                    }
+                });
+
+                if (!('Notification' in window)) {
+                    setStatus('Browser ini tidak mendukung notifikasi.');
+                } else if (Notification.permission === 'denied') {
+                    setStatus('Izin notifikasi diblokir melalui pengaturan browser.');
+                } else if (localStorage.getItem(preferenceKey) === 'enabled' && Notification.permission === 'granted') {
+                    setStatus('Notifikasi browser aktif.');
+                    if (button) {
+                        button.textContent = 'Aktif';
+                        button.disabled = true;
+                    }
+
+                    if (localStorage.getItem(seenKey) === null) {
+                        saveCurrentActionsAsBaseline().finally(startPolling);
+                    } else {
+                        startPolling();
+                    }
+                } else {
+                    window.__womsAdminBrowserActionCenter = { userId, intervalId: null };
+                }
+            })();
+
             document.addEventListener('DOMContentLoaded', function () {
                 if (window.lucide) {
                     window.lucide.createIcons();

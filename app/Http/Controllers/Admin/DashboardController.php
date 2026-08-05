@@ -12,6 +12,7 @@ use App\Models\OutlineAgreementMonthlyRealization;
 use App\Models\OutlineAgreementTarget;
 use App\Models\PurchaseOrder;
 use App\Services\Admin\DashboardTopTenHppCostService;
+use App\Support\AdminActionCenter;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -26,9 +27,10 @@ class DashboardController extends Controller
 
     public function __construct(
         private readonly DashboardTopTenHppCostService $topTenHppCostService,
+        private readonly AdminActionCenter $actionCenter,
     ) {}
 
-    public function __invoke(): View
+    public function __invoke(Request $request): View
     {
         $documentOnProcessHPPAmount = $this->sumPendingHppApprovalAmount();
         $approvalProcessHPPAmount = $this->sumApprovedHppsWaitingForPoAmount();
@@ -43,6 +45,11 @@ class DashboardController extends Controller
         $budgetUsagePercentageHundredths = $this->percentageHundredths($totalSeluruhAmount, $totalKuotaKontrak);
         $totalBiayaPemeliharaan = $this->sumActiveOutlineAgreementMaintenanceTargets();
         $totalJasaPemeliharaan = $this->sumVerifiedMaintenanceServiceAmount();
+        $pendingActionCount = $this->actionCenter->pendingActionCount($request->user());
+        $showActionSummaryBanner = (bool) $request->session()->pull(
+            'show_admin_action_summary_banner',
+            false,
+        ) && $pendingActionCount > 0;
 
         return view('dashboards.admin', [
             'outstandingNotifications' => $this->countOutstandingOrders(),
@@ -75,6 +82,9 @@ class DashboardController extends Controller
             'realizationChartData' => $this->buildRealizationChartData(),
             'overhaulPrognosis' => $this->overhaulPrognosis(),
             'topTenCostSections' => $this->resolveTopTenCostSections(),
+            'showActionSummaryBanner' => $showActionSummaryBanner,
+            'adminActionSummaryCount' => $pendingActionCount,
+            'adminActionSummary' => $this->actionCenter->summary($request->user()),
         ]);
     }
 

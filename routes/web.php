@@ -128,6 +128,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('admin/notifications/read-all', [AdminNotificationController::class, 'readAll'])
         ->middleware('role:admin')
         ->name('admin.notifications.read-all');
+    Route::get('admin/notifications/action-feed', [AdminNotificationController::class, 'actionFeed'])
+        ->middleware('role:admin')
+        ->name('admin.notifications.action-feed');
 
     Route::get('admin/access-control', [AccessControlController::class, 'index'])
         ->middleware(['role:admin', 'admin_role:super_admin'])

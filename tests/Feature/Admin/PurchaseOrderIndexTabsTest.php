@@ -237,6 +237,7 @@ class PurchaseOrderIndexTabsTest extends TestCase
             'unit_kerja' => 'Unit '.$suffix,
             'seksi' => 'Seksi '.$suffix,
             'deskripsi' => 'Deskripsi '.$suffix,
+            'prioritas' => Order::PRIORITY_MEDIUM,
             'tanggal_order' => '2026-07-01',
             'target_selesai' => '2026-08-01',
             'created_by' => $admin->id,
@@ -275,6 +276,7 @@ class PurchaseOrderIndexTabsTest extends TestCase
         return PurchaseOrder::query()->create([
             'order_id' => $hpp->order_id,
             'hpp_id' => $hpp->id,
+            'progress_pekerjaan' => 0,
             'created_by' => $hpp->created_by,
             ...$attributes,
         ]);

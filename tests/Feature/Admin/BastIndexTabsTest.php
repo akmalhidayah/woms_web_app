@@ -4,6 +4,7 @@ namespace Tests\Feature\Admin;
 
 use App\Models\Garansi;
 use App\Models\LhppBast;
+use App\Models\Order;
 use App\Support\BastIndexTabs;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -91,7 +92,18 @@ class BastIndexTabsTest extends TestCase
 
     private function bast(string $number, array $attributes = [], int $warrantyMonths = 0): LhppBast
     {
+        $order = Order::query()->create([
+            'nomor_order' => $number,
+            'nama_pekerjaan' => 'Pekerjaan '.$number,
+            'unit_kerja' => 'Unit Test',
+            'seksi' => 'Seksi Test',
+            'deskripsi' => 'Deskripsi '.$number,
+            'prioritas' => Order::PRIORITY_MEDIUM,
+            'tanggal_order' => '2026-08-01',
+            'target_selesai' => '2026-08-31',
+        ]);
         $bast = LhppBast::query()->create(array_merge([
+            'order_id' => $order->id,
             'termin_type' => 'termin_1',
             'nomor_order' => $number,
             'tanggal_bast' => '2026-08-01',
@@ -114,6 +126,7 @@ class BastIndexTabsTest extends TestCase
     private function terminTwo(LhppBast $parent, string $status): LhppBast
     {
         return LhppBast::query()->create([
+            'order_id' => $parent->order_id,
             'termin_type' => 'termin_2',
             'parent_lhpp_bast_id' => $parent->id,
             'nomor_order' => $parent->nomor_order,

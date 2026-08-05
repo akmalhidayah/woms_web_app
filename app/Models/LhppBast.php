@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -209,24 +210,39 @@ class LhppBast extends Model
             ->exists();
     }
 
+    /**
+     * @return list<string>
+     */
+    public static function approvalStartedSignatureStatuses(): array
+    {
+        return [
+            LhppBastSignature::STATUS_PENDING,
+            LhppBastSignature::STATUS_SIGNED,
+            LhppBastSignature::STATUS_SKIPPED,
+        ];
+    }
+
+    public function scopeApprovalStarted(Builder $query): Builder
+    {
+        return $query->whereHas('signatures', function (Builder $signatureQuery): void {
+            $signatureQuery->whereIn('status', self::approvalStartedSignatureStatuses());
+        });
+    }
+
     public function hasApprovalStarted(): bool
     {
         if ($this->relationLoaded('signatures')) {
             return $this->signatures->contains(
-                fn (LhppBastSignature $signature): bool => in_array($signature->status, [
-                    LhppBastSignature::STATUS_PENDING,
-                    LhppBastSignature::STATUS_SIGNED,
-                    LhppBastSignature::STATUS_SKIPPED,
-                ], true)
+                fn (LhppBastSignature $signature): bool => in_array(
+                    $signature->status,
+                    self::approvalStartedSignatureStatuses(),
+                    true,
+                )
             );
         }
 
         return $this->signatures()
-            ->whereIn('status', [
-                LhppBastSignature::STATUS_PENDING,
-                LhppBastSignature::STATUS_SIGNED,
-                LhppBastSignature::STATUS_SKIPPED,
-            ])
+            ->whereIn('status', self::approvalStartedSignatureStatuses())
             ->exists();
     }
 

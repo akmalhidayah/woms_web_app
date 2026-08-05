@@ -101,6 +101,46 @@
     @endphp
 
     <div class="space-y-3">
+        @if ($showActionSummaryBanner ?? false)
+            <section
+                x-data="{ visible: true }"
+                x-show="visible"
+                x-transition.opacity
+                data-admin-action-summary-banner
+                class="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 shadow-sm"
+            >
+                <button
+                    type="button"
+                    class="flex min-w-0 flex-1 items-start gap-3 text-left"
+                    @click="$dispatch('admin-action-center:open')"
+                    aria-label="Buka daftar pekerjaan yang perlu ditindaklanjuti"
+                >
+                    <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                        <i data-lucide="circle-alert" class="h-4 w-4"></i>
+                    </span>
+                    <span class="min-w-0">
+                        <span class="block text-xs font-bold text-amber-950">
+                            Ada {{ $adminActionSummaryCount }} pekerjaan yang perlu ditindaklanjuti.
+                        </span>
+                        @if (($adminActionSummary ?? []) !== [])
+                            <span class="mt-1 block text-[11px] leading-4 text-amber-800">
+                                {{ collect($adminActionSummary)->map(fn (array $item): string => $item['label'].': '.$item['count'])->join(' · ') }}
+                            </span>
+                        @endif
+                        <span class="mt-1 block text-[10px] font-semibold text-amber-700">Klik untuk melihat Perlu Tindakan.</span>
+                    </span>
+                </button>
+                <button
+                    type="button"
+                    class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-amber-700 transition hover:bg-amber-100"
+                    @click="visible = false"
+                    aria-label="Tutup ringkasan tindakan"
+                >
+                    <i data-lucide="x" class="h-4 w-4"></i>
+                </button>
+            </section>
+        @endif
+
         <section class="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
             <div class="flex items-center gap-2.5">
                 <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">

@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Pkm;
 
 use App\Domain\Orders\Enums\OrderDocumentType;
-use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Pkm\UpdateJobWaitingRequest;
 use App\Models\Hpp;
 use App\Models\Order;
 use App\Services\Orders\OrderDocumentService;
 use App\Support\PdfMergeService;
+use App\Support\PkmJobWaitingQuery;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -40,7 +40,7 @@ class JobWaitingController extends Controller
                 'Medium' => [Order::PRIORITY_LOW],
             ];
 
-            $notifications = Order::query()
+            $notifications = PkmJobWaitingQuery::query()
                 ->with([
                     'documents',
                     'scopeOfWork',
@@ -71,41 +71,6 @@ class JobWaitingController extends Controller
                         'purchase_orders.updated_at',
                     ]),
                 ])
-                ->whereIn('catatan_status', [
-                    OrderUserNoteStatus::ApprovedJasa->value,
-                    OrderUserNoteStatus::ApprovedWorkshopJasa->value,
-                ])
-                ->where(function (Builder $query): void {
-                    $query
-                        ->whereHas('purchaseOrder', function (Builder $purchaseOrderQuery): void {
-                            $purchaseOrderQuery
-                                ->where('approve_manager', true)
-                                ->whereNotNull('purchase_order_number')
-                                ->whereRaw("TRIM(purchase_order_number) <> ''");
-                        })
-                        ->orWhere(function (Builder $emergencyQuery): void {
-                            $emergencyQuery
-                                ->whereIn('prioritas', [
-                                    Order::PRIORITY_URGENT,
-                                    Order::PRIORITY_HIGH,
-                                ])
-                                ->has('initialWork');
-                        });
-                })
-                ->where(function (Builder $query): void {
-                    $query
-                        ->doesntHave('latestHpp')
-                        ->orWhereDoesntHave('lhppBasts', function (Builder $bastQuery): void {
-                            $bastQuery
-                                ->where('termin_type', 'termin_1')
-                                ->whereHas('garansi')
-                                ->whereHas('lpjPpl', function (Builder $lpjPplQuery): void {
-                                    $lpjPplQuery
-                                        ->whereNotNull('lpj_document_path_termin1')
-                                        ->whereNotNull('ppl_document_path_termin1');
-                                });
-                        });
-                })
                 ->when($selectedPriority !== '' && isset($priorityMap[$selectedPriority]), function (Builder $query) use ($priorityMap, $selectedPriority): void {
                     $mappedPriorities = $priorityMap[$selectedPriority];
 

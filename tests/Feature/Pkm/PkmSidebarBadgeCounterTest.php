@@ -7,6 +7,7 @@ use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\Garansi;
 use App\Models\Hpp;
 use App\Models\LhppBast;
+use App\Models\LhppBastSignature;
 use App\Models\LpjPpl;
 use App\Models\Order;
 use App\Models\OrderDocument;
@@ -48,7 +49,7 @@ class PkmSidebarBadgeCounterTest extends TestCase
         $this->assertSame(0, $this->counts()['create_hpp']);
     }
 
-    public function test_jobwaiting_count_tracks_orders_until_final_documents_exist(): void
+    public function test_jobwaiting_count_tracks_orders_until_bast_termin_one_approval_starts(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
         $order = $this->makeOrder($admin, 'PKM-JW-001', [
@@ -77,6 +78,17 @@ class PkmSidebarBadgeCounterTest extends TestCase
             'lhpp_bast_id' => $lhpp->id,
             'lpj_document_path_termin1' => 'lpj/t1.pdf',
             'ppl_document_path_termin1' => 'ppl/t1.pdf',
+        ]);
+
+        $this->assertSame(1, $this->counts()['jobwaiting']);
+
+        $lhpp->signatures()->create([
+            'step_order' => 1,
+            'role_key' => 'manager_pkm',
+            'role_label' => 'Manager PKM',
+            'signer_user_id' => $admin->id,
+            'signer_name_snapshot' => $admin->name,
+            'status' => LhppBastSignature::STATUS_PENDING,
         ]);
 
         $this->assertSame(0, $this->counts()['jobwaiting']);

@@ -2,10 +2,8 @@
 
 namespace App\Support;
 
-use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\InitialWork;
 use App\Models\LhppBastSignature;
-use App\Models\Order;
 use App\Models\PkmNotificationRead;
 use App\Models\PurchaseOrder;
 use App\Models\User;
@@ -111,10 +109,7 @@ class PkmNotificationCenter
             ->where('approve_manager', true)
             ->whereNotNull('purchase_order_number')
             ->whereRaw("TRIM(purchase_order_number) <> ''")
-            ->whereHas('order', fn ($query) => $query->whereIn('catatan_status', [
-                OrderUserNoteStatus::ApprovedJasa->value,
-                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
-            ])->where(self::activeJobWaitingScope()))
+            ->whereHas('order', fn ($query) => PkmJobWaitingQuery::apply($query))
             ->where('updated_at', '>=', now()->subDays(self::RECENT_DAYS))
             ->latest('updated_at'), $limit)
             ->get()
@@ -141,18 +136,7 @@ class PkmNotificationCenter
     {
         return self::limitQuery(InitialWork::query()
             ->with('order:id,nomor_order,notifikasi,nama_pekerjaan,prioritas,catatan_status')
-            ->whereHas('order', function ($query): void {
-                $query
-                    ->whereIn('catatan_status', [
-                        OrderUserNoteStatus::ApprovedJasa->value,
-                        OrderUserNoteStatus::ApprovedWorkshopJasa->value,
-                    ])
-                    ->whereIn('prioritas', [
-                        Order::PRIORITY_URGENT,
-                        Order::PRIORITY_HIGH,
-                    ])
-                    ->where(self::activeJobWaitingScope());
-            })
+            ->whereHas('order', fn ($query) => PkmJobWaitingQuery::apply($query))
             ->where('created_at', '>=', now()->subDays(self::RECENT_DAYS))
             ->latest('created_at'), $limit)
             ->get()
@@ -218,6 +202,7 @@ class PkmNotificationCenter
     {
         return self::limitQuery(PurchaseOrder::query()
             ->with('order:id,nomor_order,nama_pekerjaan')
+            ->whereHas('order', fn ($query) => PkmJobWaitingQuery::apply($query))
             ->where('approval_target', 'setuju')
             ->whereNotNull('target_penyelesaian')
             ->where(function ($query): void {
@@ -246,23 +231,5 @@ class PkmNotificationCenter
     private static function limitQuery($query, ?int $limit)
     {
         return $limit === null ? $query : $query->limit($limit);
-    }
-
-    private static function activeJobWaitingScope(): \Closure
-    {
-        return function ($query): void {
-            $query
-                ->doesntHave('latestHpp')
-                ->orWhereDoesntHave('lhppBasts', function ($bastQuery): void {
-                    $bastQuery
-                        ->where('termin_type', 'termin_1')
-                        ->whereHas('garansi')
-                        ->whereHas('lpjPpl', function ($lpjPplQuery): void {
-                            $lpjPplQuery
-                                ->whereNotNull('lpj_document_path_termin1')
-                                ->whereNotNull('ppl_document_path_termin1');
-                        });
-                });
-        };
     }
 }

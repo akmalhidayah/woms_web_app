@@ -70,6 +70,34 @@ class JobWaitingApprovalVisibilityTest extends TestCase
         $this->assertSame(1, $this->jobWaitingBadge());
     }
 
+    public function test_approved_termin_one_quality_control_hides_card_even_if_signature_activation_is_incomplete(): void
+    {
+        [$pkm, $order] = $this->eligibleOrder('JW-QC-APPROVED');
+        $bast = $this->makeBast($pkm, $order, ['quality_control_status' => 'pending']);
+
+        $this->makeSignature($bast, $pkm, LhppBastSignature::STATUS_LOCKED);
+
+        $this->assertJobWaitingContains($pkm, $order, true);
+        $this->assertSame(1, $this->jobWaitingBadge());
+
+        $bast->update(['quality_control_status' => 'approved']);
+
+        $this->assertJobWaitingContains($pkm, $order, false);
+        $this->assertSame(0, $this->jobWaitingBadge());
+    }
+
+    public function test_pkm_dashboard_list_and_update_action_follow_job_waiting_visibility(): void
+    {
+        [$pkm, $order] = $this->eligibleOrder('JW-PKM-DASHBOARD');
+        $bast = $this->makeBast($pkm, $order, ['quality_control_status' => 'pending']);
+
+        $this->assertDashboardJobHighlight($pkm, $order, true);
+
+        $bast->update(['quality_control_status' => 'approved']);
+
+        $this->assertDashboardJobHighlight($pkm, $order, false);
+    }
+
     public function test_lpj_ppl_completeness_no_longer_controls_job_waiting_visibility(): void
     {
         [$pkm, $order] = $this->eligibleOrder('JW-LPJ-PPL');
@@ -256,6 +284,21 @@ class JobWaitingApprovalVisibilityTest extends TestCase
 
             return $contains === $expected;
         });
+    }
+
+    private function assertDashboardJobHighlight(User $pkm, Order $order, bool $expected): void
+    {
+        $this->actingAs($pkm)
+            ->get(route('pkm.dashboard'))
+            ->assertOk()
+            ->assertViewHas('jobHighlights', function (array $items) use ($order, $expected): bool {
+                $contains = collect($items)->contains(
+                    fn (array $item): bool => $item['nomor_order'] === $order->nomor_order
+                );
+
+                return $contains === $expected;
+            })
+            ->assertViewHas('pekerjaanMenunggu', $expected ? 1 : 0);
     }
 
     private function jobWaitingBadge(): int

@@ -6,6 +6,7 @@ use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Http\Controllers\Controller;
 use App\Models\LhppBast;
 use App\Models\Order;
+use App\Support\PkmJobWaitingQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -15,6 +16,10 @@ class DashboardController extends Controller
 {
     public function index(Request $request): View
     {
+        $jobWaitingOrderIds = PkmJobWaitingQuery::query()
+            ->pluck('orders.id')
+            ->flip();
+
         $orders = Order::query()
             ->with([
                 'latestHpp' => fn ($query) => $query->select([
@@ -78,7 +83,7 @@ class DashboardController extends Controller
 
         $today = Carbon::today();
 
-        $dashboardItems = $orders->map(function (Order $order) use ($today): array {
+        $dashboardItems = $orders->map(function (Order $order) use ($jobWaitingOrderIds, $today): array {
             /** @var LhppBast|null $terminOne */
             $terminOne = $order->lhppBasts->first();
             $lpjPpl = $terminOne?->lpjPpl;
@@ -109,6 +114,7 @@ class DashboardController extends Controller
             $garansiAktif = $garansi
                 && (int) ($garansi->garansi_months ?? 0) > 0
                 && $garansi->end_date?->gte($today);
+            $showInJobWaiting = $jobWaitingOrderIds->has($order->id);
 
             $isOverdue = ! $isDone && $targetDate && $targetDate->isPast() && ! $targetDate->isToday();
             $isToday = ! $isDone && $targetDate && $targetDate->isToday();
@@ -166,7 +172,7 @@ class DashboardController extends Controller
                 'has_garansi' => $hasGaransi,
                 'garansi_aktif' => (bool) $garansiAktif,
                 'is_initial_work_flow' => $isEmergencyInitialWorkFlow,
-                'show_in_jobwaiting' => ! $isDocumentFinal,
+                'show_in_jobwaiting' => $showInJobWaiting,
                 'is_done' => $isDone,
                 'is_overdue' => $isOverdue,
                 'is_today' => $isToday,
@@ -283,7 +289,7 @@ class DashboardController extends Controller
             ->all();
 
         $jobHighlights = $dashboardItems
-            ->filter(fn (array $item) => $item['target_date'] !== null || $item['is_done'])
+            ->filter(fn (array $item) => $item['show_in_jobwaiting'] && ($item['target_date'] !== null || $item['is_done']))
             ->sortBy(fn (array $item) => sprintf(
                 '%02d_%s',
                 match ($item['status_key']) {

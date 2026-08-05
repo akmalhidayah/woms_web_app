@@ -1472,7 +1472,7 @@ class LhppController extends Controller
             'selectedBastOrder' => $selectedOrder,
             'selectedThreshold' => old('approval_threshold', $lhpp?->approval_threshold ?? $this->resolveThresholdFromTotals($terminType, $calculation['totals'], $isWithoutWarranty)),
             'selectedApprovalFlow' => array_values((array) old('approval_flow', $lhpp?->approval_flow ?? [])),
-            'approvalFlowMatrix' => BastApprovalFlow::flowMatrix(),
+            'approvalFlowMatrix' => BastApprovalFlow::flowMatrix($terminType),
             'selectedTipePekerjaan' => $selectedTipePekerjaan,
             'tipePekerjaanOptions' => $tipePekerjaanOptions,
             'approvalSignerPreview' => $approvalSignerPreview,
@@ -1641,7 +1641,8 @@ class LhppController extends Controller
         LhppBast $approvalContext
     ): array {
         $threshold = $this->resolveThresholdFromTotals($terminType, $totals, $isWithoutWarranty);
-        $baseFlow = BastApprovalFlow::resolveApprovalFlow($threshold);
+        $this->ensureTerminTwoExcludesRequesterManager($terminType, $submittedFlow);
+        $baseFlow = BastApprovalFlow::resolveApprovalFlow($threshold, $terminType);
 
         try {
             $defaultFlow = $this->effectiveFlowResolver->effectiveFlowLabels($approvalContext, $baseFlow);
@@ -1678,6 +1679,29 @@ class LhppController extends Controller
         $context->setRelation('hpp', $hpp);
 
         return $context;
+    }
+
+    private function ensureTerminTwoExcludesRequesterManager(string $terminType, mixed $submittedFlow): void
+    {
+        if ($this->normalizeTerminType($terminType) !== 'termin_2' || ! is_array($submittedFlow)) {
+            return;
+        }
+
+        $containsRequesterManager = collect($submittedFlow)->contains(function (mixed $role): bool {
+            $normalizedRole = Str::lower(trim((string) $role));
+
+            return in_array($normalizedRole, [
+                'manager peminta',
+                'manager user',
+                'manager_peminta',
+            ], true);
+        });
+
+        if ($containsRequesterManager) {
+            throw ValidationException::withMessages([
+                'approval_flow' => 'Manager Peminta tidak termasuk approval BAST Termin 2.',
+            ]);
+        }
     }
 
     /**

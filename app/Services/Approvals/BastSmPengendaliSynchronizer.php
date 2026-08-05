@@ -123,7 +123,10 @@ class BastSmPengendaliSynchronizer
             ->all();
 
         if ($flow === []) {
-            $flow = BastApprovalFlow::resolveApprovalFlow((string) $bast->approval_threshold);
+            $flow = BastApprovalFlow::resolveApprovalFlow(
+                (string) $bast->approval_threshold,
+                (string) $bast->termin_type,
+            );
         }
 
         if (in_array('SM Pengendali', $flow, true)) {

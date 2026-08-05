@@ -410,9 +410,12 @@ Alur bukan selalu linear:
 - Tanpa garansi/0 bulan: Termin 1 100%, Termin 2 0 dan Termin 2 tidak dibuat.
 - Threshold BAST berdasarkan nilai termin sesuai controller aktual.
 - Termin 1 melalui QC sesuai gate aktual.
-- Flow under: Manager PKM, Manager Peminta, Manager Pengendali, SM Pengendali, GM Pengendali.
-- Over threshold menambahkan DIROPS terakhir.
-- Manager Peminta/Pengendali dengan user sama dikonsolidasikan pada BAST baru.
+- Flow Termin 1 under: Manager PKM, Manager Peminta, Manager Pengendali, SM Pengendali, GM Pengendali.
+- Flow Termin 1 over menambahkan DIROPS sebagai step terakhir.
+- Flow Termin 2 under: Manager PKM, Manager Pengendali, SM Pengendali, GM Pengendali; Manager Peminta tidak termasuk approval Termin 2.
+- Flow Termin 2 over menambahkan DIROPS sebagai step terakhir.
+- Konsolidasi Manager Peminta/Pengendali hanya berlaku pada flow yang memuat kedua role tersebut, terutama Termin 1.
+- Flow dan signature historis yang approval-nya sudah berjalan tidak diubah untuk mengikuti matrix baru.
 - Legacy BAST tidak dimigrasikan hanya untuk layout; resolver PDF boleh collapse signer ID sama.
 - Manager berbeda tetap dua tahap; Manager PKM tetap terpisah.
 - Jangan mencampur payment status dengan approval status.

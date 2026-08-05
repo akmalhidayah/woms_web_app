@@ -66,6 +66,7 @@ class PkmSidebarBadgeCounterTest extends TestCase
         $lhpp = $this->makeLhppBast($admin, $order, [
             'purchase_order_id' => $purchaseOrder->id,
             'purchase_order_number' => $purchaseOrder->purchase_order_number,
+            'quality_control_status' => 'pending',
         ]);
         Garansi::query()->create([
             'order_id' => $order->id,
@@ -80,6 +81,12 @@ class PkmSidebarBadgeCounterTest extends TestCase
             'ppl_document_path_termin1' => 'ppl/t1.pdf',
         ]);
 
+        $this->assertSame(1, $this->counts()['jobwaiting']);
+
+        $lhpp->update(['quality_control_status' => 'approved']);
+        $this->assertSame(0, $this->counts()['jobwaiting']);
+
+        $lhpp->update(['quality_control_status' => 'pending']);
         $this->assertSame(1, $this->counts()['jobwaiting']);
 
         $lhpp->signatures()->create([

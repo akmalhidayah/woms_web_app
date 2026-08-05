@@ -40,7 +40,11 @@ final class PkmJobWaitingQuery
             ->whereDoesntHave('lhppBasts', function (Builder $bastQuery): void {
                 $bastQuery
                     ->where('termin_type', 'termin_1')
-                    ->approvalStarted();
+                    ->where(function (Builder $approvalQuery): void {
+                        $approvalQuery
+                            ->approvalStarted()
+                            ->orWhere('quality_control_status', 'approved');
+                    });
             });
     }
 }

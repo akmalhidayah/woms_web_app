@@ -20,15 +20,32 @@ class DashboardAdditionalGridUiTest extends TestCase
             ->assertSee('Prognosa Biaya Overhaul')
             ->assertSee('Tonasa 4')
             ->assertSee('Tonasa 5')
-            ->assertSee('Minor')
-            ->assertSee('Mayor')
+            ->assertSee('Tonasa 2\\/3', false)
+            ->assertSee('id="overhaulPrognosisChart"', false)
+            ->assertSee('id="overhaulPrognosisTotal"', false)
+            ->assertSee("label: 'Prognosa Biaya'", false)
+            ->assertDontSee('Minor')
+            ->assertDontSee('Mayor')
             ->assertSee('Top Ten Unit Kerja Pemicu Biaya')
             ->assertSee('id="topTenCostChart"', false)
             ->assertSee('Belum ada data HPP yang telah disubmit.')
             ->assertSee("label: 'Nilai HPP'", false)
             ->assertViewHas('overhaulPrognosis', [
-                'tonasa_4' => ['minor' => 0, 'major' => 0],
-                'tonasa_5' => ['minor' => 0, 'major' => 0],
+                [
+                    'key' => 'overhaul_tonasa_4',
+                    'label' => 'Tonasa 4',
+                    'amount' => 0,
+                ],
+                [
+                    'key' => 'overhaul_tonasa_5',
+                    'label' => 'Tonasa 5',
+                    'amount' => 0,
+                ],
+                [
+                    'key' => 'overhaul_tonasa_2_3',
+                    'label' => 'Tonasa 2/3',
+                    'amount' => 0,
+                ],
             ])
             ->assertViewHas('topTenCostSections', [])
             ->assertViewHas('totalAmount1', 0)

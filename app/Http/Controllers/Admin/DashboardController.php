@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Http\Controllers\Controller;
+use App\Models\BudgetVerification;
 use App\Models\Hpp;
 use App\Models\LhppBast;
 use App\Models\Order;
@@ -106,6 +107,7 @@ class DashboardController extends Controller
             return response()->json([
                 'realization' => $this->buildRealizationChartData(...$parameters),
                 'top_ten' => $this->resolveTopTenCostSections(...$parameters),
+                'overhaul' => $this->overhaulPrognosis(...$parameters),
             ]);
         }
 
@@ -466,15 +468,49 @@ class DashboardController extends Controller
     }
 
     /**
-     * @return array{tonasa_4: array{minor: int, major: int}, tonasa_5: array{minor: int, major: int}}
+     * @return list<array{key: string, label: string, amount: int}>
      */
-    private function overhaulPrognosis(): array
-    {
-        // Sumber data akan diganti setelah aturan bisnis prognosa ditetapkan.
-        return [
-            'tonasa_4' => ['minor' => 0, 'major' => 0],
-            'tonasa_5' => ['minor' => 0, 'major' => 0],
+    private function overhaulPrognosis(
+        ?int $startYear = null,
+        ?int $endYear = null,
+        ?int $startMonth = null,
+        ?int $endMonth = null,
+    ): array {
+        [$periodStart, $periodEnd] = $this->resolveDashboardPeriod(
+            $startYear,
+            $endYear,
+            $startMonth,
+            $endMonth,
+        );
+
+        $categories = [
+            BudgetVerification::COST_CATEGORY_OVERHAUL_TONASA_4 => 'Tonasa 4',
+            BudgetVerification::COST_CATEGORY_OVERHAUL_TONASA_5 => 'Tonasa 5',
+            BudgetVerification::COST_CATEGORY_OVERHAUL_TONASA_2_3 => 'Tonasa 2/3',
         ];
+
+        $totals = BudgetVerification::query()
+            ->join('hpps', 'hpps.id', '=', 'budget_verifications.hpp_id')
+            ->where('hpps.status', Hpp::STATUS_APPROVED)
+            ->whereNotNull('hpps.submitted_at')
+            ->whereBetween('hpps.submitted_at', [$periodStart, $periodEnd])
+            ->whereIn('budget_verifications.status_anggaran', [
+                BudgetVerification::STATUS_AVAILABLE,
+                BudgetVerification::STATUS_WAITING_BAST,
+            ])
+            ->whereIn('budget_verifications.kategori_biaya', array_keys($categories))
+            ->selectRaw('budget_verifications.kategori_biaya as category_key, SUM(hpps.total_keseluruhan) as aggregate_amount')
+            ->groupBy('budget_verifications.kategori_biaya')
+            ->pluck('aggregate_amount', 'category_key');
+
+        return collect($categories)
+            ->map(fn (string $label, string $key): array => [
+                'key' => $key,
+                'label' => $label,
+                'amount' => $this->moneyInt($totals->get($key, 0)),
+            ])
+            ->values()
+            ->all();
     }
 
     private function normalizeMonth(?int $month): ?int

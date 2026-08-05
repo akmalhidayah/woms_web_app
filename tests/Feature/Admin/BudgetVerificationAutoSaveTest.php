@@ -135,6 +135,60 @@ class BudgetVerificationAutoSaveTest extends TestCase
             ->assertJsonPath('data.kategori_biaya', 'non pemeliharaan');
     }
 
+    public function test_kategori_biaya_options_include_legacy_and_overhaul_categories(): void
+    {
+        $this->assertSame([
+            'pemeliharaan' => 'Pemeliharaan',
+            'non pemeliharaan' => 'Non Pemeliharaan',
+            'capex' => 'Capex',
+            BudgetVerification::COST_CATEGORY_OVERHAUL_TONASA_4 => 'Overhaul Tonasa 4',
+            BudgetVerification::COST_CATEGORY_OVERHAUL_TONASA_5 => 'Overhaul Tonasa 5',
+            BudgetVerification::COST_CATEGORY_OVERHAUL_TONASA_2_3 => 'Overhaul T.2,3',
+        ], BudgetVerification::kategoriBiayaOptions());
+    }
+
+    public function test_auto_save_accepts_each_overhaul_cost_category(): void
+    {
+        foreach (array_keys(BudgetVerification::overhaulKategoriBiayaOptions()) as $category) {
+            [$admin, $hpp] = $this->context();
+
+            $this->actingAs($admin)
+                ->patchJson(route('admin.budget-verification.update', $hpp), [
+                    'kategori_biaya' => $category,
+                ])
+                ->assertOk()
+                ->assertJsonPath('data.kategori_biaya', $category);
+
+            $this->assertDatabaseHas('budget_verifications', [
+                'hpp_id' => $hpp->id,
+                'kategori_biaya' => $category,
+            ]);
+        }
+    }
+
+    public function test_overhaul_category_remains_ready_for_purchase_order_when_fields_are_complete(): void
+    {
+        [$admin, $hpp] = $this->context();
+
+        $this->actingAs($admin)
+            ->patchJson(route('admin.budget-verification.update', $hpp), [
+                'status_anggaran' => BudgetVerification::STATUS_AVAILABLE,
+                'kategori_item' => 'jasa',
+                'kategori_biaya' => BudgetVerification::COST_CATEGORY_OVERHAUL_TONASA_4,
+                'cost_element' => '65340001',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.is_purchase_order_eligible', true);
+
+        $verification = $hpp->fresh()->budgetVerification;
+
+        $this->assertTrue($verification->isReadyForPurchaseOrder());
+        $this->assertTrue(BudgetVerification::query()
+            ->readyForPurchaseOrder()
+            ->whereKey($verification->id)
+            ->exists());
+    }
+
     public function test_invalid_dropdown_value_returns_validation_error(): void
     {
         [$admin, $hpp] = $this->context();
@@ -143,6 +197,20 @@ class BudgetVerificationAutoSaveTest extends TestCase
             ->patchJson(route('admin.budget-verification.update', $hpp), ['status_anggaran' => 'invalid'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('status_anggaran');
+
+        $this->assertDatabaseMissing('budget_verifications', ['hpp_id' => $hpp->id]);
+    }
+
+    public function test_invalid_kategori_biaya_returns_validation_error(): void
+    {
+        [$admin, $hpp] = $this->context();
+
+        $this->actingAs($admin)
+            ->patchJson(route('admin.budget-verification.update', $hpp), [
+                'kategori_biaya' => 'overhaul_tidak_valid',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('kategori_biaya');
 
         $this->assertDatabaseMissing('budget_verifications', ['hpp_id' => $hpp->id]);
     }

@@ -19,6 +19,12 @@ class BudgetVerification extends Model
 
     public const STATUS_WAITING_BAST = 'Menunggu Proses BAST';
 
+    public const COST_CATEGORY_OVERHAUL_TONASA_4 = 'overhaul_tonasa_4';
+
+    public const COST_CATEGORY_OVERHAUL_TONASA_5 = 'overhaul_tonasa_5';
+
+    public const COST_CATEGORY_OVERHAUL_TONASA_2_3 = 'overhaul_tonasa_2_3';
+
     /**
      * @var list<string>
      */
@@ -68,10 +74,22 @@ class BudgetVerification extends Model
      */
     public static function kategoriBiayaOptions(): array
     {
-        return [
+        return array_merge([
             'pemeliharaan' => 'Pemeliharaan',
             'non pemeliharaan' => 'Non Pemeliharaan',
             'capex' => 'Capex',
+        ], self::overhaulKategoriBiayaOptions());
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function overhaulKategoriBiayaOptions(): array
+    {
+        return [
+            self::COST_CATEGORY_OVERHAUL_TONASA_4 => 'Overhaul Tonasa 4',
+            self::COST_CATEGORY_OVERHAUL_TONASA_5 => 'Overhaul Tonasa 5',
+            self::COST_CATEGORY_OVERHAUL_TONASA_2_3 => 'Overhaul T.2,3',
         ];
     }
 

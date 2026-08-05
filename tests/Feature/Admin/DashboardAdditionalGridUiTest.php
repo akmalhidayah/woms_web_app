@@ -22,7 +22,7 @@ class DashboardAdditionalGridUiTest extends TestCase
             ->assertSee('Tonasa 5')
             ->assertSee('Tonasa 2\\/3', false)
             ->assertSee('id="overhaulPrognosisChart"', false)
-            ->assertSee('id="overhaulPrognosisTotal"', false)
+            ->assertDontSee('Total Prognosa')
             ->assertSee("label: 'Prognosa Biaya'", false)
             ->assertDontSee('Minor')
             ->assertDontSee('Mayor')
@@ -32,6 +32,11 @@ class DashboardAdditionalGridUiTest extends TestCase
             ->assertSee("label: 'Nilai HPP'", false)
             ->assertViewHas('overhaulPrognosis', [
                 [
+                    'key' => 'overhaul_tonasa_2_3',
+                    'label' => 'Tonasa 2/3',
+                    'amount' => 0,
+                ],
+                [
                     'key' => 'overhaul_tonasa_4',
                     'label' => 'Tonasa 4',
                     'amount' => 0,
@@ -39,11 +44,6 @@ class DashboardAdditionalGridUiTest extends TestCase
                 [
                     'key' => 'overhaul_tonasa_5',
                     'label' => 'Tonasa 5',
-                    'amount' => 0,
-                ],
-                [
-                    'key' => 'overhaul_tonasa_2_3',
-                    'label' => 'Tonasa 2/3',
                     'amount' => 0,
                 ],
             ])

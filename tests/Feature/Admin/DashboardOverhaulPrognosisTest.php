@@ -23,18 +23,18 @@ class DashboardOverhaulPrognosisTest extends TestCase
         $response->assertOk()
             ->assertJsonCount(3, 'overhaul')
             ->assertJsonPath('overhaul.0', [
+                'key' => BudgetVerification::COST_CATEGORY_OVERHAUL_TONASA_2_3,
+                'label' => 'Tonasa 2/3',
+                'amount' => 0,
+            ])
+            ->assertJsonPath('overhaul.1', [
                 'key' => BudgetVerification::COST_CATEGORY_OVERHAUL_TONASA_4,
                 'label' => 'Tonasa 4',
                 'amount' => 0,
             ])
-            ->assertJsonPath('overhaul.1', [
+            ->assertJsonPath('overhaul.2', [
                 'key' => BudgetVerification::COST_CATEGORY_OVERHAUL_TONASA_5,
                 'label' => 'Tonasa 5',
-                'amount' => 0,
-            ])
-            ->assertJsonPath('overhaul.2', [
-                'key' => BudgetVerification::COST_CATEGORY_OVERHAUL_TONASA_2_3,
-                'label' => 'Tonasa 2/3',
                 'amount' => 0,
             ]);
     }
@@ -146,9 +146,9 @@ class DashboardOverhaulPrognosisTest extends TestCase
         $response = $this->overhaulResponse($admin, 2026, 1, 2026, 1);
 
         $response->assertOk()
-            ->assertJsonPath('overhaul.0.amount', 700000000)
-            ->assertJsonPath('overhaul.1.amount', 400000000)
-            ->assertJsonPath('overhaul.2.amount', 300000001);
+            ->assertJsonPath('overhaul.0.amount', 300000001)
+            ->assertJsonPath('overhaul.1.amount', 700000000)
+            ->assertJsonPath('overhaul.2.amount', 400000000);
     }
 
     public function test_dashboard_ajax_response_keeps_legacy_shape_without_include_top_ten(): void

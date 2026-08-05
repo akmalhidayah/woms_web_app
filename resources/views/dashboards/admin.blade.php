@@ -387,17 +387,9 @@
 
         <section class="grid items-stretch gap-3 xl:grid-cols-2">
             <article class="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="trending-up" class="h-4 w-4 text-amber-500"></i>
-                        <h3 class="text-[13px] font-semibold text-slate-800">Prognosa Biaya Overhaul</h3>
-                    </div>
-                    <div class="text-[10px] text-slate-500">
-                        Total Prognosa:
-                        <span id="overhaulPrognosisTotal" class="font-bold text-slate-800">
-                            {{ $rp(array_sum(array_column($overhaulPrognosis, 'amount'))) }}
-                        </span>
-                    </div>
+                <div class="mb-2 flex items-center gap-2">
+                    <i data-lucide="trending-up" class="h-4 w-4 text-amber-500"></i>
+                    <h3 class="text-[13px] font-semibold text-slate-800">Prognosa Biaya Overhaul</h3>
                 </div>
 
                 <div class="relative min-h-[220px] flex-1">
@@ -458,7 +450,6 @@
             const topTenCostCanvas = document.getElementById('topTenCostChart');
             const topTenCostEmptyState = document.getElementById('topTenCostEmptyState');
             const overhaulPrognosisCanvas = document.getElementById('overhaulPrognosisChart');
-            const overhaulPrognosisTotal = document.getElementById('overhaulPrognosisTotal');
             const initialChartData = @json($realizationChartData ?? []);
             const initialTopTenCostSections = @json($topTenCostSections ?? []);
             const initialOverhaulPrognosis = @json($overhaulPrognosis ?? []);
@@ -696,14 +687,32 @@
                 const safeRows = Array.isArray(rows) ? rows : [];
                 const labels = safeRows.map(item => item.label);
                 const amounts = safeRows.map(item => Number(item.amount || 0));
-                const total = amounts.reduce((sum, amount) => sum + amount, 0);
-
-                overhaulPrognosisTotal.textContent = formatRupiah(total);
 
                 if (window.overhaulPrognosisChartInstance) {
                     window.overhaulPrognosisChartInstance.destroy();
                     window.overhaulPrognosisChartInstance = null;
                 }
+
+                const overhaulValueLabels = {
+                    id: 'overhaulValueLabels',
+                    afterDatasetsDraw(chart) {
+                        const { ctx, chartArea } = chart;
+                        const metadata = chart.getDatasetMeta(0);
+
+                        ctx.save();
+                        ctx.fillStyle = '#334155';
+                        ctx.font = '600 10px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+
+                        metadata.data.forEach((bar, index) => {
+                            const y = Math.max(chartArea.top + 12, bar.y - 6);
+                            ctx.fillText(formatRupiah(amounts[index]), bar.x, y);
+                        });
+
+                        ctx.restore();
+                    },
+                };
 
                 window.overhaulPrognosisChartInstance = new Chart(overhaulPrognosisCanvas, {
                     type: 'bar',
@@ -723,6 +732,7 @@
                         scales: {
                             x: {
                                 grid: { display: false },
+                                border: { display: false },
                                 ticks: {
                                     color: '#475569',
                                     font: { size: 10 },
@@ -730,9 +740,10 @@
                             },
                             y: {
                                 beginAtZero: true,
-                                ticks: {
-                                    callback: value => compactRupiah(value),
-                                },
+                                display: false,
+                                grid: { display: false },
+                                border: { display: false },
+                                grace: '15%',
                             },
                         },
                         plugins: {
@@ -744,6 +755,7 @@
                             },
                         },
                     },
+                    plugins: [overhaulValueLabels],
                 });
             }
 

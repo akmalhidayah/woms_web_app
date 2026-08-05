@@ -484,9 +484,9 @@ class DashboardController extends Controller
         );
 
         $categories = [
+            BudgetVerification::COST_CATEGORY_OVERHAUL_TONASA_2_3 => 'Tonasa 2/3',
             BudgetVerification::COST_CATEGORY_OVERHAUL_TONASA_4 => 'Tonasa 4',
             BudgetVerification::COST_CATEGORY_OVERHAUL_TONASA_5 => 'Tonasa 5',
-            BudgetVerification::COST_CATEGORY_OVERHAUL_TONASA_2_3 => 'Tonasa 2/3',
         ];
 
         $totals = BudgetVerification::query()

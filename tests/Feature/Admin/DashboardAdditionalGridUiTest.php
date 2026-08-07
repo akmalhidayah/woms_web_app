@@ -28,10 +28,12 @@ class DashboardAdditionalGridUiTest extends TestCase
             ->assertSee('TOP TEN PEMICU BIAYA')
             ->assertSee('GENERAL')
             ->assertSee('PEMELIHARAAN')
-            ->assertSee('id="topTenGeneralCostChart"', false)
-            ->assertSee('id="topTenMaintenanceCostChart"', false)
+            ->assertSee('id="topTenCombinedCostChart"', false)
+            ->assertDontSee('id="topTenGeneralCostChart"', false)
+            ->assertDontSee('id="topTenMaintenanceCostChart"', false)
             ->assertSee('Belum ada data HPP pada periode ini.')
-            ->assertSee('Belum ada data HPP kategori Pemeliharaan pada periode ini.')
+            ->assertSee("label: 'General'", false)
+            ->assertSee("label: 'Pemeliharaan'", false)
             ->assertSee("label: 'Nilai HPP'", false)
             ->assertViewHas('overhaulPrognosis', [
                 [

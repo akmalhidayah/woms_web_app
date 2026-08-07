@@ -637,7 +637,7 @@
 
                         ctx.save();
                         ctx.fillStyle = '#ffffff';
-                        ctx.font = '600 10px sans-serif';
+                        ctx.font = '600 11px sans-serif';
                         ctx.textAlign = 'left';
                         ctx.textBaseline = 'middle';
 
@@ -657,7 +657,7 @@
                     },
                 };
 
-                topTenCombinedCostChartContainer.style.height = `${Math.max(260, Math.min(440, (sections.length * 52) + 52))}px`;
+                topTenCombinedCostChartContainer.style.height = `${Math.max(300, Math.min(620, (sections.length * 58) + 48))}px`;
                 window.topTenCombinedCostChartInstance = new Chart(topTenCombinedCostCanvas, {
                     type: 'bar',
                     data: {
@@ -668,14 +668,18 @@
                                 data: sections.map(section => generalBySection.get(section) || 0),
                                 backgroundColor: '#2563eb',
                                 borderRadius: 6,
-                                maxBarThickness: 20,
+                                maxBarThickness: 28,
+                                categoryPercentage: 0.9,
+                                barPercentage: 0.92,
                             },
                             {
                                 label: 'Pemeliharaan',
                                 data: sections.map(section => maintenanceBySection.get(section) || 0),
                                 backgroundColor: '#10b981',
                                 borderRadius: 6,
-                                maxBarThickness: 20,
+                                maxBarThickness: 28,
+                                categoryPercentage: 0.9,
+                                barPercentage: 0.92,
                             },
                         ],
                     },

@@ -348,29 +348,42 @@
                     <h2 class="text-[11px] font-bold tracking-[0.08em] text-slate-800">TOP TEN PEMICU BIAYA</h2>
                 </div>
 
-                <div class="flex min-w-0 flex-1 flex-col rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[9px] font-semibold text-slate-600">
-                        <span class="inline-flex items-center gap-1.5">
+                <div class="grid min-w-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-2">
+                    <section class="flex min-w-0 flex-col rounded-xl border border-blue-100 bg-slate-50 p-3">
+                        <div class="flex items-center gap-1.5 text-[9px] font-bold tracking-[0.08em] text-slate-700">
                             <span class="h-2.5 w-2.5 rounded-sm bg-blue-600"></span>
                             GENERAL
-                        </span>
-                        <span class="inline-flex items-center gap-1.5">
+                        </div>
+                        <div id="topTenGeneralCostChartContainer" class="relative mt-2 min-h-[320px] flex-1">
+                            <canvas
+                                id="topTenGeneralCostChart"
+                                class="h-full w-full"
+                                role="img"
+                                aria-label="Grafik Top Ten Pemicu Biaya General"
+                            ></canvas>
+                        </div>
+                        <div id="topTenGeneralCostEmptyState" class="hidden flex-1 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white px-3 py-8 text-center text-xs text-slate-500">
+                            Belum ada data HPP pada periode ini.
+                        </div>
+                    </section>
+
+                    <section class="flex min-w-0 flex-col rounded-xl border border-emerald-100 bg-slate-50 p-3">
+                        <div class="flex items-center gap-1.5 text-[9px] font-bold tracking-[0.08em] text-slate-700">
                             <span class="h-2.5 w-2.5 rounded-sm bg-emerald-500"></span>
                             PEMELIHARAAN
-                        </span>
-                    </div>
-
-                    <div id="topTenCombinedCostChartContainer" class="relative mt-2 min-h-[260px] flex-1">
-                        <canvas
-                            id="topTenCombinedCostChart"
-                            class="h-full w-full"
-                            role="img"
-                            aria-label="Grafik Top Ten Pemicu Biaya General dan Pemeliharaan"
-                        ></canvas>
-                    </div>
-                    <div id="topTenCombinedCostEmptyState" class="hidden flex-1 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white px-3 py-8 text-center text-xs text-slate-500">
-                        Belum ada data HPP pada periode ini.
-                    </div>
+                        </div>
+                        <div id="topTenMaintenanceCostChartContainer" class="relative mt-2 min-h-[320px] flex-1">
+                            <canvas
+                                id="topTenMaintenanceCostChart"
+                                class="h-full w-full"
+                                role="img"
+                                aria-label="Grafik Top Ten Pemicu Biaya Pemeliharaan"
+                            ></canvas>
+                        </div>
+                        <div id="topTenMaintenanceCostEmptyState" class="hidden flex-1 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white px-3 py-8 text-center text-xs text-slate-500">
+                            Belum ada data HPP kategori Pemeliharaan pada periode ini.
+                        </div>
+                    </section>
                 </div>
             </article>
         </section>
@@ -399,9 +412,12 @@
             const budgetUsageAmount = document.getElementById('budgetUsageAmount');
             const remainingContractBudgetCard = document.getElementById('remainingContractBudgetCard');
             const remainingContractBudget = document.getElementById('remainingContractBudget');
-            const topTenCombinedCostChartContainer = document.getElementById('topTenCombinedCostChartContainer');
-            const topTenCombinedCostCanvas = document.getElementById('topTenCombinedCostChart');
-            const topTenCombinedCostEmptyState = document.getElementById('topTenCombinedCostEmptyState');
+            const topTenGeneralCostChartContainer = document.getElementById('topTenGeneralCostChartContainer');
+            const topTenGeneralCostCanvas = document.getElementById('topTenGeneralCostChart');
+            const topTenGeneralCostEmptyState = document.getElementById('topTenGeneralCostEmptyState');
+            const topTenMaintenanceCostChartContainer = document.getElementById('topTenMaintenanceCostChartContainer');
+            const topTenMaintenanceCostCanvas = document.getElementById('topTenMaintenanceCostChart');
+            const topTenMaintenanceCostEmptyState = document.getElementById('topTenMaintenanceCostEmptyState');
             const overhaulPrognosisCanvas = document.getElementById('overhaulPrognosisChart');
             const initialChartData = @json($realizationChartData ?? []);
             const initialTopTenCostSections = @json($topTenCostSections ?? []);
@@ -589,7 +605,26 @@
             }
 
             function renderTopTenCostCharts(generalRows, maintenanceRows) {
-                renderTopTenCostChart(generalRows, maintenanceRows);
+                renderTopTenCostChart({
+                    rows: generalRows,
+                    canvas: topTenGeneralCostCanvas,
+                    container: topTenGeneralCostChartContainer,
+                    emptyState: topTenGeneralCostEmptyState,
+                    instanceKey: 'topTenGeneralCostChartInstance',
+                    pluginId: 'topTenGeneralCostSectionLabels',
+                    datasetLabel: 'General',
+                    color: '#2563eb',
+                });
+                renderTopTenCostChart({
+                    rows: maintenanceRows,
+                    canvas: topTenMaintenanceCostCanvas,
+                    container: topTenMaintenanceCostChartContainer,
+                    emptyState: topTenMaintenanceCostEmptyState,
+                    instanceKey: 'topTenMaintenanceCostChartInstance',
+                    pluginId: 'topTenMaintenanceCostSectionLabels',
+                    datasetLabel: 'Pemeliharaan',
+                    color: '#10b981',
+                });
             }
 
             function truncateCanvasText(ctx, text, maxWidth) {
@@ -605,24 +640,30 @@
                 return truncated.length > 0 ? `${truncated}${ellipsis}` : '';
             }
 
-            function renderTopTenCostChart(generalRows, maintenanceRows) {
-                if (!topTenCombinedCostCanvas || !topTenCombinedCostChartContainer || !topTenCombinedCostEmptyState) return;
+            function renderTopTenCostChart({
+                rows,
+                canvas,
+                container,
+                emptyState,
+                instanceKey,
+                pluginId,
+                datasetLabel,
+                color,
+            }) {
+                if (!canvas || !container || !emptyState) return;
 
-                const generalBySection = new Map(generalRows.map(item => [item.section, Number(item.amount || 0)]));
-                const maintenanceBySection = new Map(maintenanceRows.map(item => [item.section, Number(item.amount || 0)]));
-                const sections = [...new Set([
-                    ...generalRows.map(item => item.section),
-                    ...maintenanceRows.map(item => item.section),
-                ])];
-                const hasData = sections.length > 0;
+                const safeRows = Array.isArray(rows) ? rows.slice(0, 10) : [];
+                const sections = safeRows.map(item => String(item.section || ''));
+                const amounts = safeRows.map(item => Number(item.amount || 0));
+                const hasData = safeRows.length > 0;
 
-                topTenCombinedCostChartContainer.classList.toggle('hidden', !hasData);
-                topTenCombinedCostEmptyState.classList.toggle('hidden', hasData);
-                topTenCombinedCostEmptyState.classList.toggle('flex', !hasData);
+                container.classList.toggle('hidden', !hasData);
+                emptyState.classList.toggle('hidden', hasData);
+                emptyState.classList.toggle('flex', !hasData);
 
-                if (window.topTenCombinedCostChartInstance) {
-                    window.topTenCombinedCostChartInstance.destroy();
-                    window.topTenCombinedCostChartInstance = null;
+                if (window[instanceKey]) {
+                    window[instanceKey].destroy();
+                    window[instanceKey] = null;
                 }
 
                 if (!hasData) {
@@ -630,72 +671,56 @@
                 }
 
                 const sectionLabelsPlugin = {
-                    id: 'topTenCombinedCostSectionLabels',
+                    id: pluginId,
                     afterDatasetsDraw(chart) {
                         const { ctx, chartArea } = chart;
+                        const metadata = chart.getDatasetMeta(0);
 
                         ctx.save();
                         ctx.font = '600 11px sans-serif';
                         ctx.textAlign = 'left';
                         ctx.textBaseline = 'middle';
 
-                        chart.data.datasets.forEach((dataset, datasetIndex) => {
-                            const metadata = chart.getDatasetMeta(datasetIndex);
+                        metadata.data.forEach((bar, index) => {
+                            const label = `${sections[index]} · ${formatRupiah(amounts[index])}`;
+                            const insideX = chartArea.left + 9;
+                            const insideWidth = bar.x - insideX - 8;
+                            const fullLabelWidth = ctx.measureText(label).width;
 
-                            metadata.data.forEach((bar, index) => {
-                                const section = String(sections[index] || '');
-                                const amount = Number(dataset.data[index] || 0);
-                                const label = `${section} · ${formatRupiah(amount)}`;
-                                const insideX = chartArea.left + 9;
-                                const insideWidth = bar.x - insideX - 8;
-                                const fullLabelWidth = ctx.measureText(label).width;
+                            if (insideWidth >= fullLabelWidth) {
+                                ctx.fillStyle = '#ffffff';
+                                ctx.fillText(label, insideX, bar.y);
+                                return;
+                            }
 
-                                if (insideWidth >= fullLabelWidth) {
-                                    ctx.fillStyle = '#ffffff';
-                                    ctx.fillText(label, insideX, bar.y);
-                                    return;
-                                }
+                            const outsideX = Math.max(chartArea.left + 7, bar.x + 8);
+                            const outsideWidth = chartArea.right - outsideX - 6;
+                            const outsideLabel = truncateCanvasText(ctx, label, outsideWidth);
 
-                                const outsideX = Math.max(chartArea.left + 7, bar.x + 8);
-                                const outsideWidth = chartArea.right - outsideX - 6;
-                                const outsideLabel = truncateCanvasText(ctx, label, outsideWidth);
-
-                                if (outsideLabel !== '') {
-                                    ctx.fillStyle = '#334155';
-                                    ctx.fillText(outsideLabel, outsideX, bar.y);
-                                }
-                            });
+                            if (outsideLabel !== '') {
+                                ctx.fillStyle = '#334155';
+                                ctx.fillText(outsideLabel, outsideX, bar.y);
+                            }
                         });
 
                         ctx.restore();
                     },
                 };
 
-                topTenCombinedCostChartContainer.style.height = `${Math.max(320, Math.min(780, (sections.length * 72) + 52))}px`;
-                window.topTenCombinedCostChartInstance = new Chart(topTenCombinedCostCanvas, {
+                container.style.height = `${Math.max(320, Math.min(620, (safeRows.length * 54) + 52))}px`;
+                window[instanceKey] = new Chart(canvas, {
                     type: 'bar',
                     data: {
                         labels: sections,
-                        datasets: [
-                            {
-                                label: 'General',
-                                data: sections.map(section => generalBySection.get(section) || 0),
-                                backgroundColor: '#2563eb',
-                                borderRadius: 6,
-                                maxBarThickness: 34,
-                                categoryPercentage: 0.78,
-                                barPercentage: 0.86,
-                            },
-                            {
-                                label: 'Pemeliharaan',
-                                data: sections.map(section => maintenanceBySection.get(section) || 0),
-                                backgroundColor: '#10b981',
-                                borderRadius: 6,
-                                maxBarThickness: 34,
-                                categoryPercentage: 0.78,
-                                barPercentage: 0.86,
-                            },
-                        ],
+                        datasets: [{
+                            label: datasetLabel,
+                            data: amounts,
+                            backgroundColor: color,
+                            borderRadius: 6,
+                            maxBarThickness: 34,
+                            categoryPercentage: 0.76,
+                            barPercentage: 0.86,
+                        }],
                     },
                     options: {
                         indexAxis: 'y',
@@ -725,7 +750,7 @@
                             tooltip: {
                                 callbacks: {
                                     title: items => sections[items[0]?.dataIndex] || '',
-                                    label: context => `${context.dataset.label}: ${formatRupiah(context.raw)}`,
+                                    label: context => `${datasetLabel}: ${formatRupiah(context.raw)}`,
                                 },
                             },
                         },

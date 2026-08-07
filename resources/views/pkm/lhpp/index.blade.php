@@ -84,7 +84,7 @@
                             <tr>
                                 <th class="px-3 py-2 text-left font-semibold">Order</th>
                                 <th class="px-3 py-2 text-left font-semibold">Detail Pekerjaan</th>
-                                <th class="px-3 py-2 text-left font-semibold">Tanggal Selesai</th>
+                                <th class="px-3 py-2 text-left font-semibold">Tanggal Dibuat</th>
                                 <th class="px-3 py-2 text-right font-semibold">Total Biaya</th>
                                 <th class="px-3 py-2 text-left font-semibold">Status LHPP</th>
                                 <th class="px-3 py-2 text-left font-semibold">Status Payment</th>
@@ -148,12 +148,6 @@
                                             : 'bg-sky-100 text-sky-800 ring-sky-200',
                                     };
 
-                                    $waktuPengerjaan = null;
-                                    if ($row->tanggal_mulai_pekerjaan && $row->tanggal_selesai_pekerjaan) {
-                                        $waktuPengerjaan = \Carbon\Carbon::parse($row->tanggal_mulai_pekerjaan)->diffInDays(
-                                            \Carbon\Carbon::parse($row->tanggal_selesai_pekerjaan)
-                                        ) + 1;
-                                    }
                                     $totalBiaya = (float) ($row->total_aktual_biaya ?? 0);
                                     $termin1Paid = $t1 === 'sudah';
                                     $termin2Paid = ! $isWithoutWarranty && $t2 === 'sudah';
@@ -231,9 +225,8 @@
                                     </td>
 
                                     <td class="px-3 py-2">
-                                        @if ($row->tanggal_selesai_pekerjaan)
-                                            {{ \Carbon\Carbon::parse($row->tanggal_selesai_pekerjaan)->format('d-m-Y') }}
-                                            ({{ $waktuPengerjaan ? $waktuPengerjaan.' Hari' : '-' }})
+                                        @if ($row->created_at)
+                                            {{ $row->created_at->format('d-m-Y') }}
                                         @else
                                             <span class="text-[10px] text-slate-400">-</span>
                                         @endif

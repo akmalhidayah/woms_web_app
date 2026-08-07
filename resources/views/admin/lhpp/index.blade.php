@@ -54,7 +54,7 @@
                         <tr>
                             <th class="px-4 py-2 text-left font-semibold">Order</th>
                             <th class="px-4 py-2 text-left font-semibold">Detail Pekerjaan</th>
-                            <th class="px-4 py-2 text-left font-semibold">Waktu</th>
+                            <th class="px-4 py-2 text-left font-semibold">Tanggal Dibuat</th>
                             <th class="px-4 py-2 text-left font-semibold">Biaya / Garansi</th>
                             <th class="px-4 py-2 text-left font-semibold">Quality Control / Approval</th>
                             <th class="px-4 py-2 text-center font-semibold">PDF BAST</th>
@@ -71,11 +71,8 @@
                                 $pdfRefreshToken = now()->timestamp;
                                 $seksi = $lhpp->seksi ?: ($lhpp->order?->seksi ?? '-');
                                 $unitKerja = $lhpp->unit_kerja ?: ($lhpp->order?->unit_kerja ?? '-');
-                                $tanggalSelesai = $lhpp->tanggal_selesai_pekerjaan
-                                    ? $lhpp->tanggal_selesai_pekerjaan->format('d-m-Y')
-                                    : '-';
-                                $waktuPengerjaan = ($lhpp->tanggal_mulai_pekerjaan && $lhpp->tanggal_selesai_pekerjaan)
-                                    ? ($lhpp->tanggal_mulai_pekerjaan->diffInDays($lhpp->tanggal_selesai_pekerjaan) + 1).' Hari'
+                                $tanggalDibuat = $lhpp->created_at
+                                    ? $lhpp->created_at->format('d-m-Y')
                                     : '-';
                                 $totalBiaya = (float) ($lhpp->total_aktual_biaya ?? 0);
                                 $garansiMonths = $lhpp->garansi?->garansi_months;
@@ -205,12 +202,7 @@
                                 </td>
                                 <td class="px-4 py-3 align-top">
                                     <div class="space-y-1.5">
-                                        <div class="text-[11px] font-bold text-slate-900">{{ $tanggalSelesai }}</div>
-                                        @if ($waktuPengerjaan !== '-')
-                                            <span class="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-blue-200">
-                                                {{ $waktuPengerjaan }}
-                                            </span>
-                                        @endif
+                                        <div class="text-[11px] font-bold text-slate-900">{{ $tanggalDibuat }}</div>
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 align-top">

@@ -98,6 +98,20 @@
                 'url' => route('admin.purchase-order.index'),
             ],
         ];
+
+        $contractPeriodLabel = collect([
+            $periodeKontrak['start']
+                ? strtoupper(\Carbon\Carbon::parse($periodeKontrak['start'])->locale('id')->translatedFormat('M Y'))
+                : null,
+            $periodeKontrak['end']
+                ? strtoupper(\Carbon\Carbon::parse($periodeKontrak['end'])->locale('id')->translatedFormat('M Y'))
+                : null,
+        ])->filter()->join(' - ');
+
+        $remainingBudgetIsNegative = $sisaKuotaKontrak < 0;
+        $remainingBudgetClasses = $remainingBudgetIsNegative
+            ? 'border-rose-200 bg-rose-50 text-rose-700'
+            : 'border-amber-200 bg-amber-50 text-amber-900';
     @endphp
 
     <div class="space-y-3">
@@ -141,255 +155,181 @@
             </section>
         @endif
 
-        <section class="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-            <div class="flex items-center gap-2.5">
-                <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                    <i data-lucide="bar-chart-3" class="h-3.5 w-3.5"></i>
+        <header class="dashboard-header grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[minmax(0,1fr)_minmax(260px,auto)] lg:items-stretch">
+            <div class="flex min-w-0 items-center gap-3">
+                <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                    <i data-lucide="layout-dashboard" class="h-5 w-5"></i>
                 </span>
-                <div>
-                    <h1 class="text-[1.1rem] font-bold leading-tight tracking-tight text-slate-900">Dashboard Admin</h1>
-                    <p class="text-[11px] text-slate-500">Ringkasan proses notifikasi, HPP, dan approval.</p>
+                <div class="min-w-0">
+                    <h1 class="text-base font-bold tracking-[0.08em] text-slate-900 sm:text-lg">DASHBOARD BIAYA JASA</h1>
+                    <p class="mt-1 text-[11px] leading-4 text-slate-500 sm:text-xs">
+                        Ringkasan prognosa, realisasi, dan penggunaan anggaran.
+                    </p>
                 </div>
+            </div>
+
+            <aside class="contract-budget-summary min-w-0 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white px-4 py-3 lg:text-right">
+                <div class="text-[9px] font-bold uppercase tracking-[0.16em] text-blue-700">Pagu Kontrak Periode</div>
+                <div class="mt-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                    {{ $contractPeriodLabel !== '' ? $contractPeriodLabel : '-' }}
+                </div>
+                <div class="mt-1 break-words text-lg font-extrabold leading-6 text-slate-950 sm:text-xl">
+                    {{ $rp($totalKuotaKontrak) }}
+                </div>
+            </aside>
+        </header>
+
+        <section class="general-cost-section rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <div class="mb-3 flex items-center gap-2">
+                <i data-lucide="wallet-cards" class="h-4 w-4 text-blue-600"></i>
+                <h2 class="text-[12px] font-bold tracking-[0.08em] text-slate-800">GENERAL BIAYA JASA</h2>
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <article class="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <div class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">Total Prognosa Biaya</div>
+                    <div class="mt-2 break-words text-base font-bold text-slate-900">Rp -</div>
+                </article>
+                <article class="min-w-0 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                    <div class="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-700">Realisasi Biaya</div>
+                    <div class="mt-2 break-words text-base font-bold text-slate-900">{{ $rp($totalRealisasiBiaya) }}</div>
+                </article>
+                <article class="min-w-0 rounded-xl border border-blue-200 bg-blue-50 p-3">
+                    <div class="text-[9px] font-bold uppercase tracking-[0.12em] text-blue-700">Outstanding Biaya</div>
+                    <div class="mt-2 break-words text-base font-bold text-slate-900">{{ $rp($totalAmount1) }}</div>
+                </article>
+                <article class="min-w-0 rounded-xl border p-3 {{ $remainingBudgetClasses }}">
+                    <div class="text-[9px] font-bold uppercase tracking-[0.12em]">Anggaran Tersedia</div>
+                    <div class="mt-2 break-words text-base font-bold">{{ $rp($sisaKuotaKontrak) }}</div>
+                </article>
             </div>
         </section>
 
-        <section class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-            <h2 class="mb-2 text-[13px] font-semibold text-slate-800">Order Process</h2>
+        <section class="main-cost-grid grid grid-cols-1 items-stretch gap-3 xl:grid-cols-12">
+            <article class="maintenance-panel flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm xl:col-span-5">
+                <div class="flex items-start gap-2 border-b border-slate-100 pb-2.5">
+                    <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                        <i data-lucide="wrench" class="h-3.5 w-3.5"></i>
+                    </span>
+                    <h2 class="pt-1 text-[11px] font-bold leading-4 tracking-[0.06em] text-slate-800">
+                        PROGNOSA DAN REALISASI BIAYA PEMELIHARAAN
+                    </h2>
+                </div>
 
-            <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:hidden">
-                @foreach ($processCards as $card)
-                    <a href="{{ $card['url'] }}" class="flex h-24 min-w-0 flex-col items-center justify-center rounded-lg px-2.5 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md {{ $card['wrap'] }}">
-                        <i data-lucide="{{ $card['icon'] }}" class="h-5 w-5 {{ $card['iconColor'] }}"></i>
-                        <div class="mt-1.5 text-[11px] font-medium leading-4 text-slate-800">{{ $card['title'] }}</div>
-                        <div class="text-lg font-bold {{ $card['valueColor'] }}">{{ $card['value'] }}</div>
-                    </a>
+                <div class="mt-3 grid gap-3 md:grid-cols-12">
+                    <section class="rounded-xl border border-slate-200 bg-slate-50 p-3 md:col-span-4">
+                        <div class="text-center text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">Target Tahunan</div>
+                        <div class="dashboard-chart-placeholder mx-auto mt-3 flex aspect-square w-full max-w-[138px] items-center justify-center rounded-full border-[10px] border-slate-200 bg-white text-center">
+                            <div class="px-2">
+                                <div class="text-[8px] uppercase tracking-[0.1em] text-slate-400">Target</div>
+                                <div class="mt-1 break-words text-[10px] font-bold text-slate-800">
+                                    {{ $targetPemeliharaan === null ? 'Rp -' : $rp($targetPemeliharaan) }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3 text-center">
+                            <div class="text-[8px] font-semibold uppercase tracking-[0.1em] text-slate-400">Sisa Target</div>
+                            <div class="mt-1 break-words text-[10px] font-bold {{ $sisaBiayaPemeliharaan < 0 ? 'text-rose-700' : 'text-slate-800' }}">
+                                {{ $rp($sisaBiayaPemeliharaan) }}
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="rounded-xl border border-slate-200 bg-white p-3 md:col-span-8">
+                        <h3 class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">Ringkasan Biaya</h3>
+                        <dl class="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-100">
+                            <div class="flex items-center justify-between gap-3 px-3 py-3">
+                                <dt class="text-[10px] font-medium text-slate-600">Outstanding Biaya</dt>
+                                <dd class="shrink-0 text-[11px] font-bold text-slate-900">Rp -</dd>
+                            </div>
+                            <div class="flex items-center justify-between gap-3 px-3 py-3">
+                                <dt class="text-[10px] font-medium text-slate-600">Realisasi Biaya</dt>
+                                <dd class="shrink-0 text-[11px] font-bold text-slate-900">Rp -</dd>
+                            </div>
+                            <div class="flex items-center justify-between gap-3 px-3 py-3">
+                                <dt class="text-[10px] font-medium text-slate-600">Total Prognosa Biaya</dt>
+                                <dd class="shrink-0 text-[11px] font-bold text-slate-900">Rp -</dd>
+                            </div>
+                        </dl>
+                    </section>
+                </div>
+
+                <section class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <h3 class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-600">Monitoring Realisasi Anggaran Pemeliharaan</h3>
+                    <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                        <div class="rounded-lg border border-slate-200 bg-white p-3">
+                            <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Proses LPJ/PPL</div>
+                            <div class="mt-2 text-sm font-bold text-slate-800">Rp -</div>
+                        </div>
+                        <div class="rounded-lg border border-slate-200 bg-white p-3">
+                            <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Sudah Direalisasikan</div>
+                            <div class="mt-2 text-sm font-bold text-slate-800">Rp -</div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="mt-3 flex min-h-[170px] flex-1 flex-col rounded-xl border border-slate-200 bg-white p-3">
+                    <h3 class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-600">Realisasi Per Bulan</h3>
+                    <div class="dashboard-chart-placeholder mt-3 flex min-h-[120px] flex-1 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 text-center text-[10px] text-slate-400">
+                        Area grafik realisasi per bulan
+                    </div>
+                </section>
+            </article>
+
+            <div class="right-cost-column grid min-w-0 gap-3 xl:col-span-7">
+                @foreach ([
+                    ['title' => 'PROGNOSA DAN REALISASI BIAYA NON PEMELIHARAAN', 'icon' => 'building-2', 'accent' => 'text-violet-600', 'background' => 'bg-violet-50'],
+                    ['title' => 'PROGNOSA DAN REALISASI BIAYA CAPEX', 'icon' => 'landmark', 'accent' => 'text-cyan-600', 'background' => 'bg-cyan-50'],
+                ] as $costPanel)
+                    <article class="flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                        <div class="flex items-start gap-2 border-b border-slate-100 pb-2.5">
+                            <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg {{ $costPanel['background'] }} {{ $costPanel['accent'] }}">
+                                <i data-lucide="{{ $costPanel['icon'] }}" class="h-3.5 w-3.5"></i>
+                            </span>
+                            <h2 class="pt-1 text-[11px] font-bold leading-4 tracking-[0.06em] text-slate-800">
+                                {{ $costPanel['title'] }}
+                            </h2>
+                        </div>
+
+                        <div class="mt-3 grid gap-2 sm:grid-cols-2">
+                            <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Total Prognosa Biaya</div>
+                                <div class="mt-2 text-sm font-bold text-slate-900">Rp -</div>
+                            </div>
+                            <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Total Realisasi Biaya</div>
+                                <div class="mt-2 text-sm font-bold text-slate-900">Rp -</div>
+                            </div>
+                        </div>
+
+                        <section class="mt-3 flex-1 rounded-xl border border-slate-200 bg-white p-3">
+                            <h3 class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-600">Outstanding Biaya</h3>
+                            <div class="mt-3 grid gap-2 sm:grid-cols-3">
+                                @foreach (['WAITING APPROVAL', 'HPP APPROVED', 'PURCHASE ORDER'] as $stage)
+                                    <div class="dashboard-chart-placeholder flex min-h-[76px] items-end rounded-lg border border-dashed border-slate-300 bg-slate-50 p-2.5">
+                                        <span class="text-[8px] font-semibold leading-3 tracking-[0.08em] text-slate-500">{{ $stage }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </section>
+                    </article>
                 @endforeach
             </div>
-
-            <div class="hidden gap-2.5 md:flex md:flex-nowrap">
-                @foreach ($processCards as $card)
-                    <a href="{{ $card['url'] }}" class="flex h-24 min-w-0 flex-1 flex-col items-center justify-center rounded-lg px-2.5 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md {{ $card['wrap'] }}">
-                        <i data-lucide="{{ $card['icon'] }}" class="h-5 w-5 {{ $card['iconColor'] }}"></i>
-                        <div class="mt-1.5 text-[11px] font-medium leading-4 text-slate-800">{{ $card['title'] }}</div>
-                        <div class="text-lg font-bold {{ $card['valueColor'] }}">{{ $card['value'] }}</div>
-                    </a>
-                @endforeach
-            </div>
         </section>
 
-        <section class="grid gap-3 xl:grid-cols-2">
-            <article class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                <div class="mb-2 flex items-center gap-2">
-                    <i data-lucide="badge-dollar-sign" class="h-4 w-4 text-emerald-500"></i>
-                    <h3 class="text-[13px] font-semibold text-slate-800">Potensi Biaya (Cost)</h3>
-                </div>
-
-                <div class="grid gap-2.5 md:grid-cols-3">
-                    <div class="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
-                        <div class="text-[11px] leading-4 text-slate-700">Document On Process (HPP)</div>
-                        <div class="mt-2 text-right text-xs font-semibold text-slate-900">{{ $rp($documentOnProcessHPPAmount) }}</div>
-                    </div>
-                    <div class="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
-                        <div class="text-[11px] leading-4 text-slate-700">Approval Process (HPP)</div>
-                        <div class="mt-2 text-right text-xs font-semibold text-slate-900">{{ $rp($approvalProcessHPPAmount) }}</div>
-                    </div>
-                    <div class="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
-                        <div class="text-[11px] leading-4 text-slate-700">PR/PO On Process</div>
-                        <div class="mt-2 text-right text-xs font-semibold text-slate-900">{{ $rp($documentOnProcessPOAmount) }}</div>
-                    </div>
-                </div>
-
-                <div class="mt-2 flex justify-end gap-2 text-[11px]">
-                    <span class="text-slate-500">Subtotal potensi</span>
-                    <span class="font-bold text-slate-900">{{ $rp($totalAmount1) }}</span>
-                </div>
-            </article>
-
-            <article class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                <div class="mb-2 flex items-center gap-2">
-                    <i data-lucide="pie-chart" class="h-4 w-4 text-blue-500"></i>
-                    <h3 class="text-[13px] font-semibold text-slate-800">Realisasi Biaya (LPJ)</h3>
-                </div>
-
-                <div class="grid gap-2.5 md:grid-cols-2">
-                    <div class="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
-                        <div class="text-[11px] leading-4 text-slate-700">Document PR/PO (LHPP)</div>
-                        <div id="documentPrPoAmount" class="mt-2 text-right text-xs font-semibold text-slate-900">{{ $rp($documentPRPOAmount) }}</div>
-                    </div>
-                    <div class="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
-                        <div class="text-[11px] leading-4 text-slate-700">Pekerjaan Urgent</div>
-                        <div id="urgentRealizationAmount" class="mt-2 text-right text-xs font-semibold text-slate-900">{{ $rp($urgentAmount) }}</div>
-                    </div>
-                </div>
-
-                <div class="mt-2 flex justify-end gap-2 text-[11px]">
-                    <span class="text-slate-500">Subtotal realisasi</span>
-                    <span id="realizationSubtotal" class="font-bold text-slate-900">{{ $rp($totalAmount2) }}</span>
-                </div>
-            </article>
-        </section>
-
-        <section class="dashboard-compact-grid grid gap-2 lg:grid-cols-2">
-            <article class="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-                @php
-                    $remainingBudgetIsNegative = $sisaKuotaKontrak < 0;
-                    $remainingBudgetCardClasses = $remainingBudgetIsNegative
-                        ? 'border-rose-200 bg-rose-50'
-                        : 'border-yellow-200 bg-yellow-50';
-                    $remainingBudgetValueClasses = $remainingBudgetIsNegative
-                        ? 'text-rose-700'
-                        : 'text-yellow-900';
-                    $remainingMaintenanceClasses = $sisaBiayaPemeliharaan < 0
-                        ? 'text-rose-700'
-                        : 'text-slate-900';
-                @endphp
-
-                <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="badge-info" class="h-3.5 w-3.5 text-slate-600"></i>
-                        <h3 class="text-[13px] font-semibold text-slate-800">Ringkasan Kuota Anggaran</h3>
-                    </div>
-                    <div class="text-right text-[8.5px] leading-3 text-slate-500">
-                        <div class="font-semibold uppercase tracking-[0.12em] text-slate-400">Periode OA</div>
-                        <div>
-                            {{ $periodeKontrak['start'] ? \Carbon\Carbon::parse($periodeKontrak['start'])->format('d M Y') : '-' }}
-                            s/d
-                            {{ $periodeKontrak['end'] ? \Carbon\Carbon::parse($periodeKontrak['end'])->format('d M Y') : '-' }}
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid gap-2 sm:grid-cols-2">
-                    <div class="min-w-0 rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                        <div class="text-[10px] font-semibold text-slate-600">Kuota Anggaran</div>
-                        <div class="mt-1 break-words text-sm font-bold leading-5 text-slate-900">{{ $rp($totalKuotaKontrak) }}</div>
-                    </div>
-                    <div class="min-w-0 rounded-lg border border-blue-200 bg-blue-50 p-2.5">
-                        <div class="text-[10px] font-semibold text-blue-700">Potensi Biaya</div>
-                        <div id="budgetPotentialAmount" class="mt-1 break-words text-sm font-bold leading-5 text-slate-900">{{ $rp($totalAmount1) }}</div>
-                    </div>
-                    <div class="min-w-0 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5">
-                        <div class="text-[10px] font-semibold text-emerald-700">Realisasi Biaya</div>
-                        <div id="budgetRealizationAmount" class="mt-1 break-words text-sm font-bold leading-5 text-slate-900">{{ $rp($totalRealisasiBiaya) }}</div>
-                    </div>
-                    <div id="remainingContractBudgetCard" class="min-w-0 rounded-lg border p-2.5 {{ $remainingBudgetCardClasses }}">
-                        <div class="text-[10px] font-semibold text-slate-700">Sisa Kuota Kontrak</div>
-                        <div id="remainingContractBudget" class="mt-1 break-words text-sm font-bold leading-5 {{ $remainingBudgetValueClasses }}">{{ $rp($sisaKuotaKontrak) }}</div>
-                    </div>
-                </div>
-
-                <div class="mt-2 rounded-lg border border-slate-200 bg-white p-2.5">
-                    <div class="flex items-center justify-between gap-3 text-[10px]">
-                        <span class="font-semibold text-slate-700">Pemakaian Kuota</span>
-                        <span id="budgetUsagePercentage" class="font-bold text-blue-700">{{ $budgetUsagePercentageLabel }}%</span>
-                    </div>
-                    <div
-                        class="mt-2 h-2 overflow-hidden rounded-full bg-slate-200"
-                        role="progressbar"
-                        aria-label="Pemakaian Kuota"
-                        aria-valuenow="{{ $budgetUsageProgressWidth }}"
-                        aria-valuemin="0"
-                        aria-valuemax="100"
-                        aria-valuetext="{{ $budgetUsagePercentageLabel }}%"
-                    >
-                        <div id="budgetUsageProgress" class="h-full rounded-full bg-blue-600 transition-[width]" style="width: {{ $budgetUsageProgressWidth }}%"></div>
-                    </div>
-                    <div id="budgetUsageAmount" class="mt-1.5 break-words text-[9px] text-slate-500">
-                        {{ $rp($totalPemakaianKuota) }} dari {{ $rp($totalKuotaKontrak) }}
-                    </div>
-                </div>
-
-                <div class="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                    <h4 class="text-[10px] font-semibold text-slate-700">Ringkasan Biaya Pemeliharaan</h4>
-                    <dl class="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                        <div class="min-w-0 rounded-md bg-white p-2">
-                            <dt class="text-[9px] leading-3 text-slate-500">Target Biaya Pemeliharaan</dt>
-                            <dd class="mt-1 break-words text-[11px] font-semibold text-slate-900">{{ $rp($targetPemeliharaan) }}</dd>
-                        </div>
-                        <div class="min-w-0 rounded-md bg-white p-2">
-                            <dt class="text-[9px] leading-3 text-slate-500">Total Jasa Pemeliharaan</dt>
-                            <dd class="mt-1 break-words text-[11px] font-semibold text-slate-900">{{ $rp($totalJasaPemeliharaan) }}</dd>
-                        </div>
-                        <div class="min-w-0 rounded-md bg-white p-2 sm:col-span-2 lg:col-span-1">
-                            <dt class="text-[9px] leading-3 text-slate-500">Sisa Target Pemeliharaan</dt>
-                            <dd class="mt-1 break-words text-[11px] font-semibold {{ $remainingMaintenanceClasses }}">{{ $rp($sisaBiayaPemeliharaan) }}</dd>
-                        </div>
-                    </dl>
-                </div>
-            </article>
-
-            <article class="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-                <div id="totalRealizationAmount" class="rounded-lg bg-emerald-100 px-2.5 py-1 text-center text-[10px] font-bold text-slate-900">
-                    Total Realisasi Biaya: Rp {{ number_format($totalRealisasiBiaya, 0, ',', '.') }}
-                </div>
-
-                <div class="mt-1.5 grid gap-2 text-[10px] text-slate-700 xl:grid-cols-2">
-                    <div>
-                        <p class="mb-1 text-[9px] text-slate-500">Sortir per rentang tahun.</p>
-                        <div class="grid gap-1.5 md:grid-cols-[1fr_auto_1fr] md:items-center">
-                            <div class="grid gap-1">
-                                <label for="startYear" class="text-[9px] text-slate-600">Dari Tahun</label>
-                                <select id="startYear" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] focus:border-blue-500 focus:outline-none">
-                                    <option value="" selected disabled>Pilih Tahun</option>
-                                </select>
-                            </div>
-                            <span class="hidden text-[9px] text-slate-600 md:block">sampai</span>
-                            <div class="grid gap-1">
-                                <label for="endYear" class="text-[9px] text-slate-600">Sampai Tahun</label>
-                                <select id="endYear" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] focus:border-blue-500 focus:outline-none">
-                                    <option value="" selected disabled>Pilih Tahun</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <p class="mb-1 text-[9px] text-slate-500">Sortir per rentang bulan.</p>
-                        <div class="grid gap-1.5 md:grid-cols-[1fr_auto_1fr] md:items-center">
-                            <div class="grid gap-1">
-                                <label for="startMonth" class="text-[9px] text-slate-600">Dari Bulan</label>
-                                <select id="startMonth" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] focus:border-blue-500 focus:outline-none">
-                                    <option value="" selected disabled>Pilih Bulan</option>
-                                </select>
-                            </div>
-                            <span class="hidden text-[9px] text-slate-600 md:block">sampai</span>
-                            <div class="grid gap-1">
-                                <label for="endMonth" class="text-[9px] text-slate-600">Sampai Bulan</label>
-                                <select id="endMonth" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] focus:border-blue-500 focus:outline-none">
-                                    <option value="" selected disabled>Pilih Bulan</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex items-end justify-start lg:col-span-2">
-                        <button id="applyFilters" class="rounded-md bg-blue-600 px-2.5 py-1.5 text-[10px] font-semibold text-white transition hover:bg-blue-700">
-                            Terapkan
-                        </button>
-                    </div>
-                </div>
-
-                <div class="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                        <div class="text-[11px] font-semibold text-slate-800">Grafik Realisasi Biaya</div>
-                        <div id="chartTotal" class="text-[11px] font-bold text-slate-600">Rp 0</div>
-                    </div>
-                    <div class="mt-1.5 h-28">
-                        <canvas id="realisasiBiayaPieChart" class="h-full w-full"></canvas>
-                    </div>
-                    <div id="chartEmptyState" class="hidden rounded-lg border border-dashed border-slate-300 bg-white px-3 py-4 text-center text-xs text-slate-500">
-                        Belum ada data realisasi biaya pada rentang ini.
-                    </div>
-                    <div id="chartLegend" class="mt-2 grid gap-1.5 text-[10px] text-slate-700 md:grid-cols-2"></div>
-                </div>
-            </article>
-        </section>
-
-        <section class="grid items-stretch gap-3 xl:grid-cols-2">
-            <article class="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                <div class="mb-2 flex items-center gap-2">
+        <section class="bottom-cost-grid grid grid-cols-1 items-stretch gap-3 xl:grid-cols-12">
+            <article class="overhaul-panel flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm xl:col-span-5">
+                <div class="mb-2 flex items-center gap-2 border-b border-slate-100 pb-2.5">
                     <i data-lucide="trending-up" class="h-4 w-4 text-amber-500"></i>
-                    <h3 class="text-[13px] font-semibold text-slate-800">Prognosa Biaya Overhaul</h3>
+                    <h2 class="text-[11px] font-bold tracking-[0.08em] text-slate-800">PROGNOSA OVERHAUL</h2>
+                </div>
+
+                <div class="mb-2 grid gap-2 sm:grid-cols-3">
+                    @foreach (['OVERHAUL TONASA 4', 'OVERHAUL TONASA 5', 'OVERHAUL T.2,3'] as $overhaulLabel)
+                        <div class="rounded-lg border border-amber-100 bg-amber-50 px-2.5 py-2 text-center text-[8px] font-semibold leading-3 tracking-[0.06em] text-amber-800">
+                            {{ $overhaulLabel }}
+                        </div>
+                    @endforeach
                 </div>
 
                 <div class="relative min-h-[220px] flex-1">
@@ -402,18 +342,18 @@
                 </div>
             </article>
 
-            <article class="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                <div class="mb-2 flex items-center gap-2">
+            <article class="top-ten-panel flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm xl:col-span-7">
+                <div class="mb-2 flex items-center gap-2 border-b border-slate-100 pb-2.5">
                     <i data-lucide="bar-chart-3" class="h-4 w-4 text-blue-500"></i>
-                    <h3 class="text-[13px] font-semibold text-slate-800">Top Ten Unit Kerja Pemicu Biaya</h3>
+                    <h2 class="text-[11px] font-bold tracking-[0.08em] text-slate-800">TOP TEN PEMICU BIAYA</h2>
                 </div>
 
-                <div id="topTenCostChartContainer" class="relative min-h-[180px] flex-1">
+                <div id="topTenCostChartContainer" class="relative min-h-[220px] flex-1">
                     <canvas
                         id="topTenCostChart"
                         class="h-full w-full"
                         role="img"
-                        aria-label="Grafik Top Ten Unit Kerja Pemicu Biaya"
+                        aria-label="Grafik Top Ten Pemicu Biaya"
                     ></canvas>
                 </div>
                 <div id="topTenCostEmptyState" class="hidden flex-1 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-8 text-center text-xs text-slate-500">
@@ -442,7 +382,7 @@
             const budgetRealizationAmount = document.getElementById('budgetRealizationAmount');
             const budgetUsagePercentage = document.getElementById('budgetUsagePercentage');
             const budgetUsageProgress = document.getElementById('budgetUsageProgress');
-            const budgetUsageProgressbar = budgetUsageProgress.parentElement;
+            const budgetUsageProgressbar = budgetUsageProgress?.parentElement ?? null;
             const budgetUsageAmount = document.getElementById('budgetUsageAmount');
             const remainingContractBudgetCard = document.getElementById('remainingContractBudgetCard');
             const remainingContractBudget = document.getElementById('remainingContractBudget');
@@ -461,6 +401,17 @@
                 normal: '#2563eb',
                 urgent: '#f97316',
             };
+            const hasRealizationChart = [
+                startYearSelect,
+                endYearSelect,
+                startMonthSelect,
+                endMonthSelect,
+                applyFiltersButton,
+                chartLegend,
+                chartTotal,
+                chartEmptyState,
+                chartCanvas,
+            ].every(Boolean);
             const monthNames = {
                 1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'Mei', 6: 'Jun',
                 7: 'Jul', 8: 'Agu', 9: 'Sep', 10: 'Okt', 11: 'Nov', 12: 'Des',
@@ -835,37 +786,42 @@
                 return `Rp ${number.toLocaleString('id-ID')}`;
             }
 
-            applyFiltersButton.addEventListener('click', function () {
-                const startYear = startYearSelect.value;
-                const endYear = endYearSelect.value;
-                const startMonth = startMonthSelect.value;
-                const endMonth = endMonthSelect.value;
+            if (hasRealizationChart) {
+                applyFiltersButton.addEventListener('click', function () {
+                    const startYear = startYearSelect.value;
+                    const endYear = endYearSelect.value;
+                    const startMonth = startMonthSelect.value;
+                    const endMonth = endMonthSelect.value;
 
-                if (!startYear || !endYear) {
-                    alert('Pilih rentang tahun terlebih dahulu!');
-                    return;
-                }
+                    if (!startYear || !endYear) {
+                        alert('Pilih rentang tahun terlebih dahulu!');
+                        return;
+                    }
 
-                if (parseInt(startYear) > parseInt(endYear)) {
-                    alert('Tahun mulai tidak boleh lebih besar dari tahun akhir!');
-                    return;
-                }
+                    if (parseInt(startYear) > parseInt(endYear)) {
+                        alert('Tahun mulai tidak boleh lebih besar dari tahun akhir!');
+                        return;
+                    }
 
-                if (startYear === endYear && startMonth && endMonth && parseInt(startMonth) > parseInt(endMonth)) {
-                    alert('Bulan mulai tidak boleh lebih besar dari bulan akhir!');
-                    return;
-                }
+                    if (startYear === endYear && startMonth && endMonth && parseInt(startMonth) > parseInt(endMonth)) {
+                        alert('Bulan mulai tidak boleh lebih besar dari bulan akhir!');
+                        return;
+                    }
 
-                localStorage.setItem('startYear', startYear);
-                localStorage.setItem('endYear', endYear);
-                if (startMonth) localStorage.setItem('startMonth', startMonth);
-                if (endMonth) localStorage.setItem('endMonth', endMonth);
+                    localStorage.setItem('startYear', startYear);
+                    localStorage.setItem('endYear', endYear);
+                    if (startMonth) localStorage.setItem('startMonth', startMonth);
+                    if (endMonth) localStorage.setItem('endMonth', endMonth);
 
-                fetchData(startYear, endYear, startMonth, endMonth);
-            });
+                    fetchData(startYear, endYear, startMonth, endMonth);
+                });
 
-            fetchYears();
-            loadMonths();
+                fetchYears();
+                loadMonths();
+            } else {
+                renderTopTenCostChart(initialTopTenCostSections);
+                renderOverhaulPrognosisChart(initialOverhaulPrognosis);
+            }
         });
     </script>
 </x-layouts.admin>

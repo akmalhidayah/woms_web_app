@@ -36,6 +36,8 @@ class DashboardController extends Controller
     {
         $financialSummary = $this->financialSummaryService->resolve();
         $maintenanceSummary = $this->financialSummaryService->resolveMaintenanceSummary(Carbon::now()->year);
+        $nonMaintenanceSummary = $this->financialSummaryService->resolveForCategory('non pemeliharaan');
+        $capexSummary = $this->financialSummaryService->resolveForCategory('capex');
         $totalPaguKontrak = $financialSummary['contract_budget'];
         $totalRealisasiSistem = $financialSummary['system_realization'];
         $totalRealisasiManual = $financialSummary['manual_realization'];
@@ -121,6 +123,8 @@ class DashboardController extends Controller
             'maintenanceInvoiceStatusAmount' => $maintenanceSummary['invoice_status_amount'],
             'maintenanceLpjPplInProcess' => $maintenanceSummary['lpj_status_amount'],
             'maintenanceAlreadyRealized' => $maintenanceSummary['already_realized'],
+            'nonMaintenanceSummary' => $nonMaintenanceSummary,
+            'capexSummary' => $capexSummary,
             'periodeKontrak' => $this->resolveActiveOutlineAgreementPeriod(),
             'realizationYears' => $this->realizationYearsList(),
             'realizationChartData' => $this->buildRealizationChartData(),

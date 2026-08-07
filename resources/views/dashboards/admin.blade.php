@@ -68,6 +68,18 @@
         $maintenanceLpjStatusAmount = $maintenanceLpjStatusAmount ?? 0;
         $maintenanceInvoiceStatusAmount = $maintenanceInvoiceStatusAmount ?? 0;
         $maintenanceAlreadyRealized = $maintenanceAlreadyRealized ?? $maintenanceRealization;
+        $emptyCategorySummary = [
+            'realization' => 0,
+            'outstanding' => 0,
+            'prognosis' => 0,
+            'outstanding_stages' => [
+                'hpp_approved' => 0,
+                'purchase_order' => 0,
+                'lpj_process' => 0,
+            ],
+        ];
+        $nonMaintenanceSummary = array_replace_recursive($emptyCategorySummary, $nonMaintenanceSummary ?? []);
+        $capexSummary = array_replace_recursive($emptyCategorySummary, $capexSummary ?? []);
         $totalRealisasiBiaya = $totalRealisasiBiaya ?? 0;
         $totalPaguKontrak = $totalPaguKontrak ?? $totalKuotaKontrak;
         $totalOutstandingBiaya = $totalOutstandingBiaya ?? 0;
@@ -305,8 +317,8 @@
 
             <div class="right-cost-column grid min-w-0 gap-3 xl:col-span-7">
                 @foreach ([
-                    ['title' => 'PROGNOSA DAN REALISASI BIAYA NON PEMELIHARAAN', 'icon' => 'building-2', 'accent' => 'text-violet-600', 'background' => 'bg-violet-50'],
-                    ['title' => 'PROGNOSA DAN REALISASI BIAYA CAPEX', 'icon' => 'landmark', 'accent' => 'text-cyan-600', 'background' => 'bg-cyan-50'],
+                    ['title' => 'PROGNOSA DAN REALISASI BIAYA NON PEMELIHARAAN', 'icon' => 'building-2', 'accent' => 'text-violet-600', 'background' => 'bg-violet-50', 'summary' => $nonMaintenanceSummary, 'canvas' => 'nonMaintenanceOutstandingChart', 'color' => '#7c3aed'],
+                    ['title' => 'PROGNOSA DAN REALISASI BIAYA CAPEX', 'icon' => 'landmark', 'accent' => 'text-cyan-600', 'background' => 'bg-cyan-50', 'summary' => $capexSummary, 'canvas' => 'capexOutstandingChart', 'color' => '#0891b2'],
                 ] as $costPanel)
                     <article class="flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
                         <div class="flex items-start gap-2 border-b border-slate-100 pb-2.5">
@@ -321,22 +333,25 @@
                         <div class="mt-3 grid gap-2 sm:grid-cols-2">
                             <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
                                 <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Total Prognosa Biaya</div>
-                                <div class="mt-2 text-sm font-bold text-slate-900">Rp -</div>
+                                <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $rp($costPanel['summary']['prognosis']) }}</div>
                             </div>
                             <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
                                 <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Total Realisasi Biaya</div>
-                                <div class="mt-2 text-sm font-bold text-slate-900">Rp -</div>
+                                <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $rp($costPanel['summary']['realization']) }}</div>
                             </div>
                         </div>
 
                         <section class="mt-3 flex-1 rounded-xl border border-slate-200 bg-white p-3">
                             <h3 class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-600">Outstanding Biaya</h3>
-                            <div class="mt-3 grid gap-2 sm:grid-cols-3">
-                                @foreach (['WAITING APPROVAL', 'HPP APPROVED', 'PURCHASE ORDER'] as $stage)
-                                    <div class="dashboard-chart-placeholder flex min-h-[76px] items-end rounded-lg border border-dashed border-slate-300 bg-slate-50 p-2.5">
-                                        <span class="text-[8px] font-semibold leading-3 tracking-[0.08em] text-slate-500">{{ $stage }}</span>
-                                    </div>
-                                @endforeach
+                            <div class="relative mt-3 h-[190px] min-w-0">
+                                <canvas
+                                    id="{{ $costPanel['canvas'] }}"
+                                    class="h-full w-full"
+                                    role="img"
+                                    aria-label="Grafik outstanding {{ $costPanel['title'] }}"
+                                    data-stages='@json($costPanel['summary']['outstanding_stages'])'
+                                    data-color="{{ $costPanel['color'] }}"
+                                ></canvas>
                             </div>
                         </section>
                     </article>
@@ -439,6 +454,8 @@
             const budgetUsageAmount = document.getElementById('budgetUsageAmount');
             const remainingContractBudgetCard = document.getElementById('remainingContractBudgetCard');
             const remainingContractBudget = document.getElementById('remainingContractBudget');
+            const nonMaintenanceOutstandingCanvas = document.getElementById('nonMaintenanceOutstandingChart');
+            const capexOutstandingCanvas = document.getElementById('capexOutstandingChart');
             const topTenGeneralCostChartContainer = document.getElementById('topTenGeneralCostChartContainer');
             const topTenGeneralCostCanvas = document.getElementById('topTenGeneralCostChart');
             const topTenGeneralCostEmptyState = document.getElementById('topTenGeneralCostEmptyState');
@@ -651,6 +668,97 @@
                     pluginId: 'topTenMaintenanceCostSectionLabels',
                     datasetLabel: 'Pemeliharaan',
                     color: '#10b981',
+                });
+            }
+
+            function renderOutstandingStageChart(canvas, instanceKey) {
+                if (!canvas) return;
+
+                let stages = {};
+                try {
+                    stages = JSON.parse(canvas.dataset.stages || '{}');
+                } catch (error) {
+                    console.error('Gagal membaca data outstanding kategori.', error);
+                }
+
+                const labels = ['HPP Approved', 'Purchase Order', 'LPJ Process'];
+                const amounts = [
+                    Number(stages.hpp_approved || 0),
+                    Number(stages.purchase_order || 0),
+                    Number(stages.lpj_process || 0),
+                ];
+                const color = canvas.dataset.color || '#2563eb';
+
+                if (window[instanceKey]) {
+                    window[instanceKey].destroy();
+                    window[instanceKey] = null;
+                }
+
+                const valueLabels = {
+                    id: `${instanceKey}ValueLabels`,
+                    afterDatasetsDraw(chart) {
+                        const { ctx, chartArea } = chart;
+                        const metadata = chart.getDatasetMeta(0);
+
+                        ctx.save();
+                        ctx.fillStyle = '#334155';
+                        ctx.font = '600 9px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+
+                        metadata.data.forEach((bar, index) => {
+                            const y = Math.max(chartArea.top + 10, bar.y - 5);
+                            ctx.fillText(compactRupiah(amounts[index]), bar.x, y);
+                        });
+
+                        ctx.restore();
+                    },
+                };
+
+                window[instanceKey] = new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{
+                            data: amounts,
+                            backgroundColor: color,
+                            borderRadius: 7,
+                            maxBarThickness: 52,
+                        }],
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        layout: { padding: { top: 20 } },
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                border: { display: false },
+                                ticks: {
+                                    color: '#475569',
+                                    font: { size: 9, weight: '600' },
+                                },
+                            },
+                            y: {
+                                beginAtZero: true,
+                                border: { display: false },
+                                grid: { color: 'rgba(148, 163, 184, 0.16)' },
+                                ticks: {
+                                    maxTicksLimit: 5,
+                                    callback: value => compactRupiah(value),
+                                },
+                            },
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: context => formatRupiah(context.raw),
+                                },
+                            },
+                        },
+                    },
+                    plugins: [valueLabels],
                 });
             }
 
@@ -993,6 +1101,15 @@
                 renderTopTenCostCharts(initialTopTenCostSections, initialTopTenMaintenanceCostSections);
                 renderOverhaulPrognosisChart(initialOverhaulPrognosis);
             }
+
+            renderOutstandingStageChart(
+                nonMaintenanceOutstandingCanvas,
+                'nonMaintenanceOutstandingChartInstance',
+            );
+            renderOutstandingStageChart(
+                capexOutstandingCanvas,
+                'capexOutstandingChartInstance',
+            );
         });
     </script>
 </x-layouts.admin>

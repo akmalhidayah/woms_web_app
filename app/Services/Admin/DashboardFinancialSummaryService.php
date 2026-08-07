@@ -30,7 +30,10 @@ final class DashboardFinancialSummaryService
      *     outstanding_percentage_hundredths: int,
      *     available_budget_percentage_hundredths: int,
      *     lpj_status_amount: int,
-     *     invoice_status_amount: int
+     *     invoice_status_amount: int,
+     *     outstanding_stages: array{hpp_approved: int, purchase_order: int, lpj_process: int},
+     *     classified_outstanding: int,
+     *     unclassified_outstanding: int
      * }
      */
     public function resolve(?string $costCategory = null): array
@@ -56,6 +59,11 @@ final class DashboardFinancialSummaryService
 
         $lpjStatusAmount = 0;
         $invoiceStatusAmount = 0;
+        $outstandingStages = [
+            'hpp_approved' => 0,
+            'purchase_order' => 0,
+            'lpj_process' => 0,
+        ];
         $outstanding = $this->latestActiveHpps($costCategory)
             ->sum(function (Hpp $hpp) use (
                 $realizationByHpp,
@@ -64,6 +72,7 @@ final class DashboardFinancialSummaryService
                 $invoiceStatusByHpp,
                 &$lpjStatusAmount,
                 &$invoiceStatusAmount,
+                &$outstandingStages,
             ): int {
                 $realized = ($realizationByHpp[$hpp->id] ?? 0)
                     + ($legacyRealizationByOrder[$hpp->order_id] ?? 0);
@@ -71,12 +80,18 @@ final class DashboardFinancialSummaryService
                 $lpjStatusAmount += $lpjStatusByHpp[$hpp->id] ?? 0;
                 $invoiceStatusAmount += $invoiceStatusByHpp[$hpp->id] ?? 0;
 
+                $stage = $this->outstandingStage($hpp, $hppOutstanding);
+                if ($stage !== null) {
+                    $outstandingStages[$stage] += $hppOutstanding;
+                }
+
                 return $hppOutstanding;
             });
 
         $realization = $systemRealization + $manualRealization;
         $prognosis = $realization + $outstanding;
         $availableBudget = $contractBudget - $prognosis;
+        $classifiedOutstanding = array_sum($outstandingStages);
 
         return [
             'contract_budget' => $contractBudget,
@@ -92,11 +107,14 @@ final class DashboardFinancialSummaryService
             'available_budget_percentage_hundredths' => $this->percentageHundredths($availableBudget, $contractBudget),
             'lpj_status_amount' => $lpjStatusAmount,
             'invoice_status_amount' => $invoiceStatusAmount,
+            'outstanding_stages' => $outstandingStages,
+            'classified_outstanding' => $classifiedOutstanding,
+            'unclassified_outstanding' => max($outstanding - $classifiedOutstanding, 0),
         ];
     }
 
     /**
-     * @return array<string, int>
+     * @return array<string, mixed>
      */
     public function resolveForCategory(string $costCategory): array
     {
@@ -104,7 +122,7 @@ final class DashboardFinancialSummaryService
     }
 
     /**
-     * @return array<string, int>
+     * @return array<string, mixed>
      */
     public function resolveMaintenanceSummary(int $year): array
     {
@@ -304,6 +322,28 @@ final class DashboardFinancialSummaryService
         return trim((string) $value) !== '';
     }
 
+    private function outstandingStage(Hpp $hpp, int $outstanding): ?string
+    {
+        if ($outstanding <= 0 || $hpp->status !== Hpp::STATUS_APPROVED) {
+            return null;
+        }
+
+        $purchaseOrder = $hpp->purchaseOrder;
+        $hasCompletePurchaseOrder = $purchaseOrder !== null
+            && $this->hasValue($purchaseOrder->purchase_order_number)
+            && $this->hasValue($purchaseOrder->po_document_path);
+
+        if (! $hasCompletePurchaseOrder) {
+            return 'hpp_approved';
+        }
+
+        $parentBast = $hpp->lhppBasts->first();
+
+        return $parentBast?->approval_status === LhppBast::APPROVAL_APPROVED
+            ? 'lpj_process'
+            : 'purchase_order';
+    }
+
     /** @return \Illuminate\Database\Eloquent\Collection<int, Hpp> */
     private function latestActiveHpps(?string $costCategory): \Illuminate\Database\Eloquent\Collection
     {
@@ -325,7 +365,15 @@ final class DashboardFinancialSummaryService
                     ->whereColumn('newer_hpps.order_id', 'hpps.order_id')
                     ->whereColumn('newer_hpps.id', '>', 'hpps.id');
             })
-            ->get(['id', 'order_id', 'total_keseluruhan']);
+            ->with([
+                'purchaseOrder:id,hpp_id,purchase_order_number,po_document_path',
+                'lhppBasts' => fn (Builder $query): Builder => $query
+                    ->where('termin_type', 'termin_1')
+                    ->whereNull('parent_lhpp_bast_id')
+                    ->latest('id')
+                    ->select(['id', 'hpp_id', 'termin_type', 'parent_lhpp_bast_id', 'approval_status']),
+            ])
+            ->get(['id', 'order_id', 'total_keseluruhan', 'status']);
     }
 
     private function assertValidCostCategory(?string $costCategory): void

@@ -13,6 +13,7 @@ use App\Models\LpjPpl;
 use App\Models\Order;
 use App\Models\OutlineAgreement;
 use App\Models\OutlineAgreementTarget;
+use App\Models\PurchaseOrder;
 use App\Models\UnitWork;
 use App\Models\User;
 use App\Services\Admin\DashboardFinancialSummaryService;
@@ -299,6 +300,137 @@ class DashboardFinancialSummaryTest extends TestCase
         );
     }
 
+    public function test_non_maintenance_summary_classifies_outstanding_into_three_exclusive_stages(): void
+    {
+        $user = User::factory()->create();
+        $agreement = $this->agreement($user, 'OA-NON-MAINTENANCE-STAGES', 5_000, OutlineAgreement::STATUS_ACTIVE);
+        $agreement->monthlyRealizations()->create([
+            'year' => 2026,
+            'month' => 1,
+            'kategori_biaya' => 'non pemeliharaan',
+            'amount' => 200,
+        ]);
+
+        $withoutPo = $this->hpp($user, $agreement, Hpp::STATUS_APPROVED, 300, 'NON-MAINT-NO-PO');
+        $this->verifyCategory($withoutPo, $user, 'non pemeliharaan');
+
+        $waitingBast = $this->hpp($user, $agreement, Hpp::STATUS_APPROVED, 400, 'NON-MAINT-PO');
+        $this->verifyCategory($waitingBast, $user, 'non pemeliharaan');
+        $this->purchaseOrder($user, $waitingBast, 'PO-NON-MAINT', 'po/non-maint.pdf');
+
+        $lpjProcess = $this->hpp($user, $agreement, Hpp::STATUS_APPROVED, 500, 'NON-MAINT-LPJ');
+        $this->verifyCategory($lpjProcess, $user, 'non pemeliharaan');
+        $this->purchaseOrder($user, $lpjProcess, 'PO-NON-MAINT-LPJ', 'po/non-maint-lpj.pdf');
+        $this->parentBast($user, $lpjProcess, LhppBast::APPROVAL_APPROVED, 500, 500, 0);
+
+        $capex = $this->hpp($user, $agreement, Hpp::STATUS_APPROVED, 900, 'CAPEX-EXCLUDED');
+        $this->verifyCategory($capex, $user, 'capex');
+
+        $summary = app(DashboardFinancialSummaryService::class)->resolveForCategory('non pemeliharaan');
+
+        $this->assertSame(0, $summary['system_realization']);
+        $this->assertSame(200, $summary['manual_realization']);
+        $this->assertSame(200, $summary['realization']);
+        $this->assertSame(1_200, $summary['outstanding']);
+        $this->assertSame(1_400, $summary['prognosis']);
+        $this->assertSame([
+            'hpp_approved' => 300,
+            'purchase_order' => 400,
+            'lpj_process' => 500,
+        ], $summary['outstanding_stages']);
+        $this->assertSame($summary['outstanding'], $summary['classified_outstanding']);
+        $this->assertSame(0, $summary['unclassified_outstanding']);
+    }
+
+    public function test_incomplete_purchase_orders_and_unapproved_basts_remain_in_the_correct_stage(): void
+    {
+        $user = User::factory()->create();
+        $agreement = $this->agreement($user, 'OA-CAPEX-STAGES', 5_000, OutlineAgreement::STATUS_ACTIVE);
+
+        foreach ([
+            ['NO-PO', 10, null, null],
+            ['NULL-NUMBER', 20, null, 'po/null-number.pdf'],
+            ['BLANK-NUMBER', 30, '   ', 'po/blank-number.pdf'],
+            ['NO-DOCUMENT', 40, 'PO-NO-DOCUMENT', null],
+        ] as [$suffix, $amount, $number, $document]) {
+            $hpp = $this->hpp($user, $agreement, Hpp::STATUS_APPROVED, $amount, 'CAPEX-'.$suffix);
+            $this->verifyCategory($hpp, $user, 'capex');
+            if ($suffix !== 'NO-PO') {
+                $this->purchaseOrder($user, $hpp, $number, $document);
+            }
+        }
+
+        foreach ([
+            ['NO-BAST', 50, null],
+            ['IN-REVIEW', 60, LhppBast::APPROVAL_IN_REVIEW],
+            ['REJECTED', 70, LhppBast::APPROVAL_REJECTED],
+        ] as [$suffix, $amount, $approvalStatus]) {
+            $hpp = $this->hpp($user, $agreement, Hpp::STATUS_APPROVED, $amount, 'CAPEX-'.$suffix);
+            $this->verifyCategory($hpp, $user, 'capex');
+            $this->purchaseOrder($user, $hpp, 'PO-'.$suffix, 'po/'.$suffix.'.pdf');
+            if ($approvalStatus !== null) {
+                $this->parentBast($user, $hpp, $approvalStatus, $amount, $amount, 0);
+            }
+        }
+
+        $approved = $this->hpp($user, $agreement, Hpp::STATUS_APPROVED, 80, 'CAPEX-BAST-APPROVED');
+        $this->verifyCategory($approved, $user, 'capex');
+        $this->purchaseOrder($user, $approved, 'PO-BAST-APPROVED', 'po/approved.pdf');
+        $this->parentBast($user, $approved, LhppBast::APPROVAL_APPROVED, 80, 80, 0);
+
+        $summary = app(DashboardFinancialSummaryService::class)->resolveForCategory('capex');
+
+        $this->assertSame([
+            'hpp_approved' => 100,
+            'purchase_order' => 180,
+            'lpj_process' => 80,
+        ], $summary['outstanding_stages']);
+        $this->assertSame(360, $summary['outstanding']);
+        $this->assertSame(360, $summary['classified_outstanding']);
+        $this->assertSame(0, $summary['unclassified_outstanding']);
+    }
+
+    public function test_warranty_residual_after_termin_one_lpj_stays_in_lpj_process(): void
+    {
+        $user = User::factory()->create();
+        $agreement = $this->agreement($user, 'OA-CAPEX-RESIDUAL', 1_000, OutlineAgreement::STATUS_ACTIVE);
+        $hpp = $this->hpp($user, $agreement, Hpp::STATUS_APPROVED, 100, 'CAPEX-RESIDUAL');
+        $this->verifyCategory($hpp, $user, 'capex');
+        $this->purchaseOrder($user, $hpp, 'PO-CAPEX-RESIDUAL', 'po/capex-residual.pdf');
+        $bast = $this->paidBast($user, $hpp, 100, 95, 5, 6, false, false);
+        $bast->update(['approval_status' => LhppBast::APPROVAL_APPROVED]);
+        $bast->lpjPpl()->update([
+            'lpj_number_termin2' => null,
+            'lpj_document_path_termin2' => null,
+            'ppl_number_termin2' => null,
+            'ppl_document_path_termin2' => null,
+        ]);
+
+        $summary = app(DashboardFinancialSummaryService::class)->resolveForCategory('capex');
+
+        $this->assertSame(95, $summary['system_realization']);
+        $this->assertSame(5, $summary['outstanding']);
+        $this->assertSame(5, $summary['outstanding_stages']['lpj_process']);
+        $this->assertSame(100, $summary['prognosis']);
+    }
+
+    public function test_dashboard_renders_category_totals_and_two_distinct_outstanding_charts(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $this->agreement($admin, 'OA-CATEGORY-UI', 1_000, OutlineAgreement::STATUS_ACTIVE);
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('id="nonMaintenanceOutstandingChart"', false)
+            ->assertSee('id="capexOutstandingChart"', false)
+            ->assertSee('HPP Approved')
+            ->assertSee('Purchase Order')
+            ->assertSee('LPJ Process')
+            ->assertDontSee('WAITING APPROVAL')
+            ->assertDontSee('Rp -');
+    }
+
     private function verifyCategory(Hpp $hpp, User $user, string $category): BudgetVerification
     {
         return BudgetVerification::query()->create([
@@ -307,6 +439,44 @@ class DashboardFinancialSummaryTest extends TestCase
             'kategori_biaya' => $category,
             'created_by' => $user->id,
             'updated_by' => $user->id,
+        ]);
+    }
+
+    private function purchaseOrder(
+        User $user,
+        Hpp $hpp,
+        ?string $number,
+        ?string $documentPath,
+    ): PurchaseOrder {
+        return PurchaseOrder::query()->create([
+            'order_id' => $hpp->order_id,
+            'hpp_id' => $hpp->id,
+            'purchase_order_number' => $number,
+            'po_document_path' => $documentPath,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+    }
+
+    private function parentBast(
+        User $user,
+        Hpp $hpp,
+        string $approvalStatus,
+        int $actual,
+        int $terminOne,
+        int $terminTwo,
+    ): LhppBast {
+        return LhppBast::query()->create([
+            'order_id' => $hpp->order_id,
+            'hpp_id' => $hpp->id,
+            'termin_type' => 'termin_1',
+            'nomor_order' => $hpp->nomor_order,
+            'tanggal_bast' => '2026-01-10',
+            'total_aktual_biaya' => $actual,
+            'termin_1_nilai' => $terminOne,
+            'termin_2_nilai' => $terminTwo,
+            'approval_status' => $approvalStatus,
+            'created_by' => $user->id,
         ]);
     }
 

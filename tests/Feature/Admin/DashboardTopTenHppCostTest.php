@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\BudgetVerification;
 use App\Models\Hpp;
 use App\Models\Order;
 use App\Models\User;
@@ -62,7 +63,7 @@ class DashboardTopTenHppCostTest extends TestCase
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
 
         foreach (range(1, 12) as $index) {
-            $this->createHpp(
+            $hpp = $this->createHpp(
                 $admin,
                 sprintf('TOPTEN-LIMIT-%02d', $index),
                 sprintf('Seksi %02d', $index),
@@ -70,9 +71,10 @@ class DashboardTopTenHppCostTest extends TestCase
                 Hpp::STATUS_APPROVED,
                 '2026-03-15 08:00:00',
             );
+            $this->createBudgetVerification($hpp, $admin, 'pemeliharaan');
         }
 
-        $this->createHpp(
+        $outsidePeriod = $this->createHpp(
             $admin,
             'TOPTEN-OUTSIDE-PERIOD',
             'Seksi Di Luar Periode',
@@ -80,6 +82,7 @@ class DashboardTopTenHppCostTest extends TestCase
             Hpp::STATUS_APPROVED,
             '2026-04-01 00:00:00',
         );
+        $this->createBudgetVerification($outsidePeriod, $admin, 'pemeliharaan');
 
         $response = $this->topTenResponse($admin, 2026, 3, 2026, 3);
 
@@ -88,7 +91,58 @@ class DashboardTopTenHppCostTest extends TestCase
             ->assertJsonPath('top_ten.0.section', 'Seksi 12')
             ->assertJsonPath('top_ten.0.amount', 12000000)
             ->assertJsonPath('top_ten.9.section', 'Seksi 03')
+            ->assertJsonCount(10, 'top_ten_maintenance')
+            ->assertJsonPath('top_ten_maintenance.0.section', 'Seksi 12')
+            ->assertJsonPath('top_ten_maintenance.9.section', 'Seksi 03')
             ->assertJsonMissing(['section' => 'Seksi Di Luar Periode']);
+    }
+
+    public function test_maintenance_top_ten_filters_by_budget_verification_category_without_changing_general(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+
+        $maintenance = $this->createHpp($admin, 'TOPTEN-MAINTENANCE', 'Seksi A', 500000000, Hpp::STATUS_APPROVED, '2026-05-01 08:00:00');
+        $capex = $this->createHpp($admin, 'TOPTEN-CAPEX', 'Seksi A', 200000000, Hpp::STATUS_APPROVED, '2026-05-02 08:00:00');
+        $otherMaintenance = $this->createHpp($admin, 'TOPTEN-MAINTENANCE-B', 'Seksi B', 300000000, Hpp::STATUS_IN_REVIEW, '2026-05-03 08:00:00');
+        $nonMaintenance = $this->createHpp($admin, 'TOPTEN-NON-MAINTENANCE', 'Seksi C', 400000000, Hpp::STATUS_APPROVED, '2026-05-04 08:00:00');
+        $overhaul = $this->createHpp($admin, 'TOPTEN-OVERHAUL', 'Seksi D', 600000000, Hpp::STATUS_APPROVED, '2026-05-05 08:00:00');
+        $this->createHpp($admin, 'TOPTEN-NO-BUDGET', 'Seksi E', 100000000, Hpp::STATUS_APPROVED, '2026-05-06 08:00:00');
+
+        $this->createBudgetVerification($maintenance, $admin, 'pemeliharaan');
+        $this->createBudgetVerification($capex, $admin, 'capex');
+        $this->createBudgetVerification($otherMaintenance, $admin, 'pemeliharaan');
+        $this->createBudgetVerification($nonMaintenance, $admin, 'non pemeliharaan');
+        $this->createBudgetVerification($overhaul, $admin, BudgetVerification::COST_CATEGORY_OVERHAUL_TONASA_4);
+
+        $response = $this->topTenResponse($admin, 2026, 5, 2026, 5);
+
+        $response->assertOk()
+            ->assertJsonPath('top_ten.0.section', 'Seksi A')
+            ->assertJsonPath('top_ten.0.amount', 700000000)
+            ->assertJsonFragment(['section' => 'Seksi E', 'amount' => 100000000])
+            ->assertJsonCount(2, 'top_ten_maintenance')
+            ->assertJsonPath('top_ten_maintenance.0.section', 'Seksi A')
+            ->assertJsonPath('top_ten_maintenance.0.amount', 500000000)
+            ->assertJsonPath('top_ten_maintenance.1.section', 'Seksi B')
+            ->assertJsonPath('top_ten_maintenance.1.amount', 300000000);
+    }
+
+    public function test_maintenance_filter_is_applied_after_latest_submitted_hpp_is_selected(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $order = $this->createOrder($admin, 'TOPTEN-LATEST-CATEGORY', 'Seksi Revisi');
+        $oldMaintenance = $this->createHppForOrder($order, $admin, 100000000, Hpp::STATUS_REJECTED, '2026-06-01 08:00:00');
+        $latestCapex = $this->createHppForOrder($order, $admin, 150000000, Hpp::STATUS_IN_REVIEW, '2026-06-02 08:00:00');
+
+        $this->createBudgetVerification($oldMaintenance, $admin, 'pemeliharaan');
+        $this->createBudgetVerification($latestCapex, $admin, 'capex');
+
+        $response = $this->topTenResponse($admin, 2026, 6, 2026, 6);
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'top_ten')
+            ->assertJsonPath('top_ten.0.amount', 150000000)
+            ->assertJsonCount(0, 'top_ten_maintenance');
     }
 
     private function topTenResponse(
@@ -163,5 +217,19 @@ class DashboardTopTenHppCostTest extends TestCase
             'submitted_at' => $submittedAt,
             'created_by' => $admin->id,
         ], $attributes));
+    }
+
+    private function createBudgetVerification(Hpp $hpp, User $admin, string $costCategory): BudgetVerification
+    {
+        return BudgetVerification::query()->create([
+            'order_id' => $hpp->order_id,
+            'hpp_id' => $hpp->id,
+            'status_anggaran' => BudgetVerification::STATUS_AVAILABLE,
+            'kategori_item' => 'jasa',
+            'kategori_biaya' => $costCategory,
+            'cost_element' => '65340001',
+            'created_by' => $admin->id,
+            'updated_by' => $admin->id,
+        ]);
     }
 }

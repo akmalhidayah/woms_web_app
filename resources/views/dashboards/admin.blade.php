@@ -348,16 +348,36 @@
                     <h2 class="text-[11px] font-bold tracking-[0.08em] text-slate-800">TOP TEN PEMICU BIAYA</h2>
                 </div>
 
-                <div id="topTenCostChartContainer" class="relative min-h-[220px] flex-1">
-                    <canvas
-                        id="topTenCostChart"
-                        class="h-full w-full"
-                        role="img"
-                        aria-label="Grafik Top Ten Pemicu Biaya"
-                    ></canvas>
-                </div>
-                <div id="topTenCostEmptyState" class="hidden flex-1 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-8 text-center text-xs text-slate-500">
-                    Belum ada data HPP yang telah disubmit.
+                <div class="grid min-w-0 flex-1 gap-3 2xl:grid-cols-2">
+                    <section class="flex min-w-0 flex-col rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <h3 class="text-[9px] font-bold tracking-[0.12em] text-slate-600">GENERAL</h3>
+                        <div id="topTenGeneralCostChartContainer" class="relative mt-2 min-h-[220px] flex-1">
+                            <canvas
+                                id="topTenGeneralCostChart"
+                                class="h-full w-full"
+                                role="img"
+                                aria-label="Grafik Top Ten Pemicu Biaya General"
+                            ></canvas>
+                        </div>
+                        <div id="topTenGeneralCostEmptyState" class="hidden flex-1 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white px-3 py-8 text-center text-xs text-slate-500">
+                            Belum ada data HPP pada periode ini.
+                        </div>
+                    </section>
+
+                    <section class="flex min-w-0 flex-col rounded-xl border border-blue-100 bg-blue-50/40 p-3">
+                        <h3 class="text-[9px] font-bold tracking-[0.12em] text-blue-700">PEMELIHARAAN</h3>
+                        <div id="topTenMaintenanceCostChartContainer" class="relative mt-2 min-h-[220px] flex-1">
+                            <canvas
+                                id="topTenMaintenanceCostChart"
+                                class="h-full w-full"
+                                role="img"
+                                aria-label="Grafik Top Ten Pemicu Biaya Pemeliharaan"
+                            ></canvas>
+                        </div>
+                        <div id="topTenMaintenanceCostEmptyState" class="hidden flex-1 items-center justify-center rounded-lg border border-dashed border-blue-200 bg-white px-3 py-8 text-center text-xs text-slate-500">
+                            Belum ada data HPP kategori Pemeliharaan pada periode ini.
+                        </div>
+                    </section>
                 </div>
             </article>
         </section>
@@ -386,12 +406,16 @@
             const budgetUsageAmount = document.getElementById('budgetUsageAmount');
             const remainingContractBudgetCard = document.getElementById('remainingContractBudgetCard');
             const remainingContractBudget = document.getElementById('remainingContractBudget');
-            const topTenCostChartContainer = document.getElementById('topTenCostChartContainer');
-            const topTenCostCanvas = document.getElementById('topTenCostChart');
-            const topTenCostEmptyState = document.getElementById('topTenCostEmptyState');
+            const topTenGeneralCostChartContainer = document.getElementById('topTenGeneralCostChartContainer');
+            const topTenGeneralCostCanvas = document.getElementById('topTenGeneralCostChart');
+            const topTenGeneralCostEmptyState = document.getElementById('topTenGeneralCostEmptyState');
+            const topTenMaintenanceCostChartContainer = document.getElementById('topTenMaintenanceCostChartContainer');
+            const topTenMaintenanceCostCanvas = document.getElementById('topTenMaintenanceCostChart');
+            const topTenMaintenanceCostEmptyState = document.getElementById('topTenMaintenanceCostEmptyState');
             const overhaulPrognosisCanvas = document.getElementById('overhaulPrognosisChart');
             const initialChartData = @json($realizationChartData ?? []);
             const initialTopTenCostSections = @json($topTenCostSections ?? []);
+            const initialTopTenMaintenanceCostSections = @json($topTenMaintenanceCostSections ?? []);
             const initialOverhaulPrognosis = @json($overhaulPrognosis ?? []);
             const potentialAmount = Number(@json($totalAmount1 ?? 0));
             const contractBudget = Number(@json($totalKuotaKontrak ?? 0));
@@ -467,7 +491,7 @@
                 }
 
                 renderChart(initialChartData);
-                renderTopTenCostChart(initialTopTenCostSections);
+                renderTopTenCostCharts(initialTopTenCostSections, initialTopTenMaintenanceCostSections);
                 renderOverhaulPrognosisChart(initialOverhaulPrognosis);
             }
 
@@ -486,13 +510,14 @@
                         if (
                             !Array.isArray(data.realization) ||
                             !Array.isArray(data.top_ten) ||
+                            !Array.isArray(data.top_ten_maintenance) ||
                             !Array.isArray(data.overhaul)
                         ) {
                             throw new Error('Format data tidak valid.');
                         }
 
                         renderChart(data.realization);
-                        renderTopTenCostChart(data.top_ten);
+                        renderTopTenCostCharts(data.top_ten, data.top_ten_maintenance);
                         renderOverhaulPrognosisChart(data.overhaul);
                     })
                     .catch(error => {
@@ -573,31 +598,93 @@
                 updateLegend(rows);
             }
 
-            function renderTopTenCostChart(rows) {
+            function renderTopTenCostCharts(generalRows, maintenanceRows) {
+                renderTopTenCostChart({
+                    rows: generalRows,
+                    canvas: topTenGeneralCostCanvas,
+                    container: topTenGeneralCostChartContainer,
+                    emptyState: topTenGeneralCostEmptyState,
+                    instanceKey: 'topTenGeneralCostChartInstance',
+                    color: '#2563eb',
+                });
+                renderTopTenCostChart({
+                    rows: maintenanceRows,
+                    canvas: topTenMaintenanceCostCanvas,
+                    container: topTenMaintenanceCostChartContainer,
+                    emptyState: topTenMaintenanceCostEmptyState,
+                    instanceKey: 'topTenMaintenanceCostChartInstance',
+                    color: '#1d4ed8',
+                });
+            }
+
+            function truncateCanvasText(ctx, text, maxWidth) {
+                if (maxWidth <= 0) return '';
+                if (ctx.measureText(text).width <= maxWidth) return text;
+
+                const ellipsis = '…';
+                let truncated = text;
+                while (truncated.length > 0 && ctx.measureText(`${truncated}${ellipsis}`).width > maxWidth) {
+                    truncated = truncated.slice(0, -1);
+                }
+
+                return truncated.length > 0 ? `${truncated}${ellipsis}` : '';
+            }
+
+            function renderTopTenCostChart({ rows, canvas, container, emptyState, instanceKey, color }) {
+                if (!canvas || !container || !emptyState) return;
+
                 const hasData = rows.length > 0;
 
-                topTenCostChartContainer.classList.toggle('hidden', !hasData);
-                topTenCostEmptyState.classList.toggle('hidden', hasData);
-                topTenCostEmptyState.classList.toggle('flex', !hasData);
+                container.classList.toggle('hidden', !hasData);
+                emptyState.classList.toggle('hidden', hasData);
+                emptyState.classList.toggle('flex', !hasData);
 
-                if (window.topTenCostChartInstance) {
-                    window.topTenCostChartInstance.destroy();
-                    window.topTenCostChartInstance = null;
+                if (window[instanceKey]) {
+                    window[instanceKey].destroy();
+                    window[instanceKey] = null;
                 }
 
                 if (!hasData) {
                     return;
                 }
 
-                topTenCostChartContainer.style.height = `${Math.max(180, Math.min(360, (rows.length * 34) + 44))}px`;
-                window.topTenCostChartInstance = new Chart(topTenCostCanvas, {
+                const sectionLabelsPlugin = {
+                    id: `${instanceKey}SectionLabels`,
+                    afterDatasetsDraw(chart) {
+                        const { ctx, chartArea } = chart;
+                        const metadata = chart.getDatasetMeta(0);
+
+                        ctx.save();
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = '600 10px sans-serif';
+                        ctx.textAlign = 'left';
+                        ctx.textBaseline = 'middle';
+
+                        metadata.data.forEach((bar, index) => {
+                            const availableWidth = bar.x - chartArea.left - 16;
+                            if (availableWidth < 24) return;
+
+                            const label = truncateCanvasText(
+                                ctx,
+                                String(rows[index]?.section || ''),
+                                availableWidth,
+                            );
+                            if (label !== '') ctx.fillText(label, chartArea.left + 8, bar.y);
+                        });
+
+                        ctx.restore();
+                    },
+                };
+
+                container.style.height = `${Math.max(220, Math.min(380, (rows.length * 34) + 44))}px`;
+                window[instanceKey] = new Chart(canvas, {
                     type: 'bar',
                     data: {
                         labels: rows.map(item => item.section),
                         datasets: [{
                             label: 'Nilai HPP',
                             data: rows.map(item => Number(item.amount || 0)),
-                            backgroundColor: '#2563eb',
+                            backgroundColor: color,
                             borderRadius: 6,
                             maxBarThickness: 24,
                         }],
@@ -609,16 +696,17 @@
                         scales: {
                             x: {
                                 beginAtZero: true,
+                                grid: { display: false },
+                                border: { display: false },
                                 ticks: {
                                     callback: value => compactRupiah(value),
                                 },
                             },
                             y: {
                                 grid: { display: false },
+                                border: { display: false },
                                 ticks: {
-                                    autoSkip: false,
-                                    color: '#475569',
-                                    font: { size: 10 },
+                                    display: false,
                                 },
                             },
                         },
@@ -626,11 +714,13 @@
                             legend: { display: false },
                             tooltip: {
                                 callbacks: {
+                                    title: items => rows[items[0]?.dataIndex]?.section || '',
                                     label: context => `Nilai HPP: ${formatRupiah(context.raw)}`,
                                 },
                             },
                         },
                     },
+                    plugins: [sectionLabelsPlugin],
                 });
             }
 
@@ -819,7 +909,7 @@
                 fetchYears();
                 loadMonths();
             } else {
-                renderTopTenCostChart(initialTopTenCostSections);
+                renderTopTenCostCharts(initialTopTenCostSections, initialTopTenMaintenanceCostSections);
                 renderOverhaulPrognosisChart(initialOverhaulPrognosis);
             }
         });

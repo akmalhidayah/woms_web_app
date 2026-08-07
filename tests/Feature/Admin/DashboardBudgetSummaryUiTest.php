@@ -44,6 +44,6 @@ class DashboardBudgetSummaryUiTest extends TestCase
             ->get(route('admin.dashboard'))
             ->assertOk()
             ->assertSee('Prognosa Biaya Overhaul')
-            ->assertSee('Top Ten Unit Kerja Pemicu Biaya');
+            ->assertSee('TOP TEN PEMICU BIAYA');
     }
 }

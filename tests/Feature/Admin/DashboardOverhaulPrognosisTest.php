@@ -160,6 +160,7 @@ class DashboardOverhaulPrognosisTest extends TestCase
             ->assertJsonStructure([
                 'realization',
                 'top_ten',
+                'top_ten_maintenance',
                 'overhaul',
             ]);
 

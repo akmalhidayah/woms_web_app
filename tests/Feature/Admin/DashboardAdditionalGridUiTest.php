@@ -17,18 +17,21 @@ class DashboardAdditionalGridUiTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.dashboard'));
 
         $response->assertOk()
-            ->assertSee('Prognosa Biaya Overhaul')
+            ->assertSee('PROGNOSA OVERHAUL')
             ->assertSee('Tonasa 4')
             ->assertSee('Tonasa 5')
             ->assertSee('Tonasa 2\\/3', false)
             ->assertSee('id="overhaulPrognosisChart"', false)
-            ->assertDontSee('Total Prognosa')
             ->assertSee("label: 'Prognosa Biaya'", false)
             ->assertDontSee('Minor')
             ->assertDontSee('Mayor')
-            ->assertSee('Top Ten Unit Kerja Pemicu Biaya')
-            ->assertSee('id="topTenCostChart"', false)
-            ->assertSee('Belum ada data HPP yang telah disubmit.')
+            ->assertSee('TOP TEN PEMICU BIAYA')
+            ->assertSee('GENERAL')
+            ->assertSee('PEMELIHARAAN')
+            ->assertSee('id="topTenGeneralCostChart"', false)
+            ->assertSee('id="topTenMaintenanceCostChart"', false)
+            ->assertSee('Belum ada data HPP pada periode ini.')
+            ->assertSee('Belum ada data HPP kategori Pemeliharaan pada periode ini.')
             ->assertSee("label: 'Nilai HPP'", false)
             ->assertViewHas('overhaulPrognosis', [
                 [
@@ -48,6 +51,7 @@ class DashboardAdditionalGridUiTest extends TestCase
                 ],
             ])
             ->assertViewHas('topTenCostSections', [])
+            ->assertViewHas('topTenMaintenanceCostSections', [])
             ->assertViewHas('totalAmount1', 0)
             ->assertViewHas('totalAmount2', 0);
     }

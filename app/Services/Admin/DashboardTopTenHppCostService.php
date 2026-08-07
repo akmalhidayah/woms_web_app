@@ -4,16 +4,26 @@ declare(strict_types=1);
 
 namespace App\Services\Admin;
 
+use App\Models\BudgetVerification;
 use App\Models\Hpp;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 
 final class DashboardTopTenHppCostService
 {
     /**
      * @return list<array{section: string, amount: int}>
      */
-    public function resolve(CarbonInterface $periodStart, CarbonInterface $periodEnd): array
+    public function resolve(
+        CarbonInterface $periodStart,
+        CarbonInterface $periodEnd,
+        ?string $costCategory = null,
+    ): array
     {
+        if ($costCategory !== null && ! array_key_exists($costCategory, BudgetVerification::kategoriBiayaOptions())) {
+            return [];
+        }
+
         return Hpp::query()
             ->join('orders', 'orders.id', '=', 'hpps.order_id')
             ->whereNotNull('hpps.submitted_at')
@@ -24,6 +34,9 @@ final class DashboardTopTenHppCostService
             ])
             ->whereBetween('hpps.submitted_at', [$periodStart, $periodEnd])
             ->whereRaw("TRIM(COALESCE(orders.seksi, '')) <> ''")
+            ->when($costCategory !== null, fn (Builder $query): Builder => $query
+                ->whereHas('budgetVerification', fn (Builder $budgetQuery): Builder => $budgetQuery
+                    ->where('kategori_biaya', $costCategory)))
             ->whereNotExists(function ($query) use ($periodStart, $periodEnd): void {
                 $query
                     ->selectRaw('1')

@@ -83,6 +83,7 @@ class DashboardController extends Controller
             'realizationChartData' => $this->buildRealizationChartData(),
             'overhaulPrognosis' => $this->overhaulPrognosis(),
             'topTenCostSections' => $this->resolveTopTenCostSections(),
+            'topTenMaintenanceCostSections' => $this->resolveTopTenCostSections(costCategory: 'pemeliharaan'),
             'showActionSummaryBanner' => $showActionSummaryBanner,
             'adminActionSummaryCount' => $pendingActionCount,
             'adminActionSummary' => $this->actionCenter->summary($request->user()),
@@ -107,6 +108,13 @@ class DashboardController extends Controller
             return response()->json([
                 'realization' => $this->buildRealizationChartData(...$parameters),
                 'top_ten' => $this->resolveTopTenCostSections(...$parameters),
+                'top_ten_maintenance' => $this->resolveTopTenCostSections(
+                    $parameters[0],
+                    $parameters[1],
+                    $parameters[2],
+                    $parameters[3],
+                    'pemeliharaan',
+                ),
                 'overhaul' => $this->overhaulPrognosis(...$parameters),
             ]);
         }
@@ -419,6 +427,7 @@ class DashboardController extends Controller
         ?int $endYear = null,
         ?int $startMonth = null,
         ?int $endMonth = null,
+        ?string $costCategory = null,
     ): array {
         [$periodStart, $periodEnd] = $this->resolveDashboardPeriod(
             $startYear,
@@ -427,7 +436,7 @@ class DashboardController extends Controller
             $endMonth,
         );
 
-        return $this->topTenHppCostService->resolve($periodStart, $periodEnd);
+        return $this->topTenHppCostService->resolve($periodStart, $periodEnd, $costCategory);
     }
 
     /**

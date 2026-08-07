@@ -309,6 +309,8 @@
         const monthlyMonth = document.getElementById('monthlyRealizationMonth');
         const monthlyCategory = document.getElementById('monthlyRealizationCategory');
         const monthlyAmount = document.getElementById('monthlyRealizationAmount');
+        const monthlyUnitWork = document.getElementById('monthlyRealizationUnitWork');
+        const monthlySection = document.getElementById('monthlyRealizationSection');
         const monthlyRows = document.getElementById('monthlyRealizationRows');
         const monthlyEmpty = document.getElementById('monthlyRealizationEmpty');
         const monthlyNames = [
@@ -317,11 +319,39 @@
         ];
         const monthlyCsrfToken = @json(csrf_token());
         const oldMonthlyOaId = @json((string) old('_monthly_oa_id', ''));
+        const oldMonthlySection = @json((string) old('seksi', ''));
 
         const formatMonthlyAmount = (value) => new Intl.NumberFormat('id-ID').format(Number(value || 0));
 
+        const syncMonthlySections = (selectedSection = '') => {
+            if (!monthlyUnitWork || !monthlySection) return;
+
+            const sections = parseSectionOptions(monthlyUnitWork);
+            monthlySection.innerHTML = '';
+
+            if (!monthlyUnitWork.value) {
+                const placeholder = new Option('Pilih unit kerja terlebih dahulu', '');
+                monthlySection.appendChild(placeholder);
+                monthlySection.disabled = true;
+                return;
+            }
+
+            monthlySection.disabled = false;
+
+            if (sections.length === 0) {
+                const noSection = new Option('Tidak ada seksi', 'Tidak ada seksi', true, true);
+                monthlySection.appendChild(noSection);
+                return;
+            }
+
+            monthlySection.appendChild(new Option('Pilih seksi', ''));
+            sections.forEach((section) => {
+                monthlySection.appendChild(new Option(section, section, false, section === selectedSection));
+            });
+        };
+
         const fillMonthlyForm = (realization = null) => {
-            if (!monthlyRealizationId || !monthlyYear || !monthlyMonth || !monthlyCategory || !monthlyAmount) return;
+            if (!monthlyRealizationId || !monthlyYear || !monthlyMonth || !monthlyCategory || !monthlyAmount || !monthlyUnitWork) return;
 
             if (realization) {
                 monthlyRealizationId.value = realization.id ?? '';
@@ -332,6 +362,11 @@
                     ? realization.kategori_biaya
                     : '';
                 monthlyAmount.value = formatMonthlyAmount(realization.amount);
+                monthlyUnitWork.value = Array.from(monthlyUnitWork.options)
+                    .some((option) => option.value === realization.unit_kerja)
+                    ? realization.unit_kerja
+                    : '';
+                syncMonthlySections(realization.seksi || '');
                 monthlyYear.focus();
                 return;
             }
@@ -341,6 +376,8 @@
             monthlyMonth.value = '';
             monthlyCategory.value = '';
             monthlyAmount.value = '0';
+            monthlyUnitWork.value = '';
+            syncMonthlySections();
         };
 
         const bindMonthlyAmountFormatter = (input) => {
@@ -351,6 +388,8 @@
         };
 
         bindMonthlyAmountFormatter(monthlyAmount);
+        monthlyUnitWork?.addEventListener('change', () => syncMonthlySections());
+        syncMonthlySections(oldMonthlySection);
 
         const renderMonthlyRows = (realizations) => {
             if (!monthlyRows || !monthlyEmpty) return;
@@ -369,6 +408,14 @@
                 const categoryCell = document.createElement('td');
                 categoryCell.className = 'px-4 py-3';
                 categoryCell.textContent = realization.category_label || realization.kategori_biaya || '-';
+
+                const structureCell = document.createElement('td');
+                structureCell.className = 'px-4 py-3';
+                const sectionName = realization.seksi || 'Belum ditentukan';
+                const unitName = realization.unit_kerja || 'Belum ditentukan';
+                structureCell.innerHTML = `<div class="font-semibold text-slate-700"></div><div class="mt-0.5 text-xs text-slate-400"></div>`;
+                structureCell.children[0].textContent = sectionName;
+                structureCell.children[1].textContent = unitName;
 
                 const amountCell = document.createElement('td');
                 amountCell.className = 'whitespace-nowrap px-4 py-3 text-right';
@@ -405,7 +452,7 @@
                         const result = await window.Swal.fire({
                             icon: 'warning',
                             title: 'Hapus realisasi biaya?',
-                            text: `Realisasi ${categoryCell.textContent} periode ${periodCell.textContent} akan dihapus.`,
+                            text: `Realisasi ${categoryCell.textContent} untuk ${sectionName} periode ${periodCell.textContent} akan dihapus.`,
                             showCancelButton: true,
                             confirmButtonText: 'Ya, hapus',
                             cancelButtonText: 'Batal',
@@ -413,7 +460,7 @@
                         });
                         confirmed = result.isConfirmed;
                     } else {
-                        confirmed = window.confirm(`Hapus realisasi ${categoryCell.textContent} periode ${periodCell.textContent}?`);
+                        confirmed = window.confirm(`Hapus realisasi ${categoryCell.textContent} untuk ${sectionName} periode ${periodCell.textContent}?`);
                     }
 
                     if (confirmed) deleteForm.submit();
@@ -421,7 +468,7 @@
 
                 actionWrap.append(editButton, deleteForm);
                 actionCell.appendChild(actionWrap);
-                row.append(periodCell, categoryCell, amountCell, actionCell);
+                row.append(periodCell, categoryCell, structureCell, amountCell, actionCell);
                 monthlyRows.appendChild(row);
             });
         };

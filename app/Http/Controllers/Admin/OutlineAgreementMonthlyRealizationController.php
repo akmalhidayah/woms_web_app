@@ -18,8 +18,9 @@ class OutlineAgreementMonthlyRealizationController extends Controller
         OutlineAgreement $outlineAgreement,
     ): RedirectResponse {
         $validated = $request->validated();
+        $structureSnapshot = $request->structureSnapshot();
 
-        $isEditing = DB::transaction(function () use ($outlineAgreement, $validated): bool {
+        $isEditing = DB::transaction(function () use ($outlineAgreement, $validated, $structureSnapshot): bool {
             OutlineAgreement::query()
                 ->whereKey($outlineAgreement->getKey())
                 ->lockForUpdate()
@@ -33,6 +34,8 @@ class OutlineAgreementMonthlyRealizationController extends Controller
                 'year' => (int) $validated['year'],
                 'month' => (int) $validated['month'],
                 'kategori_biaya' => (string) $validated['kategori_biaya'],
+                'unit_kerja' => $structureSnapshot['unit_kerja'],
+                'seksi' => $structureSnapshot['seksi'],
             ];
 
             if ($realizationId !== null) {
@@ -54,7 +57,7 @@ class OutlineAgreementMonthlyRealizationController extends Controller
                         ->translatedFormat('F Y');
 
                     throw ValidationException::withMessages([
-                        'kategori_biaya' => "Kategori biaya tersebut sudah memiliki realisasi pada {$period}.",
+                        'seksi' => "Kombinasi kategori, Unit Kerja, dan Seksi tersebut sudah memiliki realisasi pada {$period}.",
                     ]);
                 }
 

@@ -3,8 +3,11 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\BudgetVerification;
+use App\Models\Department;
 use App\Models\Hpp;
 use App\Models\Order;
+use App\Models\OutlineAgreement;
+use App\Models\UnitWork;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
@@ -145,6 +148,115 @@ class DashboardTopTenHppCostTest extends TestCase
             ->assertJsonCount(0, 'top_ten_maintenance');
     }
 
+    public function test_manual_realization_is_merged_with_system_section_before_sorting_and_limit(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $agreement = $this->createAgreement($admin, 'OA-TOP-TEN-MANUAL', OutlineAgreement::STATUS_ACTIVE);
+        $hpp = $this->createHpp(
+            $admin,
+            'TOPTEN-MERGED-MANUAL',
+            'CUS Maintenance',
+            700000000,
+            Hpp::STATUS_APPROVED,
+            '2026-08-01 08:00:00',
+        );
+        $this->createBudgetVerification($hpp, $admin, 'pemeliharaan');
+        $agreement->monthlyRealizations()->create([
+            'year' => 2026,
+            'month' => 8,
+            'kategori_biaya' => 'pemeliharaan',
+            'unit_kerja' => 'Power Plant Maintenance',
+            'seksi' => ' CUS Maintenance ',
+            'amount' => 500000000,
+        ]);
+        $agreement->monthlyRealizations()->create([
+            'year' => 2026,
+            'month' => 8,
+            'kategori_biaya' => 'capex',
+            'unit_kerja' => 'Packing',
+            'seksi' => 'Legacy Packing',
+            'amount' => 1500000000,
+        ]);
+
+        $response = $this->topTenResponse($admin, 2026, 8, 2026, 8);
+
+        $response->assertOk()
+            ->assertJsonPath('top_ten.0.section', 'Legacy Packing')
+            ->assertJsonPath('top_ten.0.amount', 1500000000)
+            ->assertJsonPath('top_ten.1.section', 'CUS Maintenance')
+            ->assertJsonPath('top_ten.1.amount', 1200000000)
+            ->assertJsonCount(1, 'top_ten_maintenance')
+            ->assertJsonPath('top_ten_maintenance.0.section', 'CUS Maintenance')
+            ->assertJsonPath('top_ten_maintenance.0.amount', 1200000000);
+    }
+
+    public function test_manual_top_ten_ignores_unknown_section_inactive_agreement_and_outside_period(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $active = $this->createAgreement($admin, 'OA-TOP-TEN-ACTIVE', OutlineAgreement::STATUS_ACTIVE);
+        $inactive = $this->createAgreement($admin, 'OA-TOP-TEN-CLOSED', OutlineAgreement::STATUS_CLOSED);
+
+        foreach ([
+            [$active, 2026, 11, 'Dalam Periode', 300],
+            [$active, 2027, 2, 'Lintas Tahun', 400],
+            [$active, 2027, 3, 'Di Luar Periode', 900],
+            [$inactive, 2026, 12, 'OA Tidak Aktif', 1000],
+            [$active, 2026, 12, null, 2000],
+        ] as [$agreement, $year, $month, $section, $amount]) {
+            $agreement->monthlyRealizations()->create([
+                'year' => $year,
+                'month' => $month,
+                'kategori_biaya' => 'pemeliharaan',
+                'unit_kerja' => $section ? 'Unit Manual' : null,
+                'seksi' => $section,
+                'amount' => $amount,
+            ]);
+        }
+
+        $response = $this->topTenResponse($admin, 2026, 11, 2027, 2);
+
+        $response->assertOk()
+            ->assertJsonCount(2, 'top_ten')
+            ->assertJsonPath('top_ten.0.section', 'Lintas Tahun')
+            ->assertJsonPath('top_ten.1.section', 'Dalam Periode')
+            ->assertJsonMissing(['section' => 'Di Luar Periode'])
+            ->assertJsonMissing(['section' => 'OA Tidak Aktif']);
+    }
+
+    public function test_limit_is_applied_after_manual_amount_promotes_an_hpp_section_outside_the_original_top_ten(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $agreement = $this->createAgreement($admin, 'OA-TOP-TEN-RANKING', OutlineAgreement::STATUS_ACTIVE);
+
+        for ($rank = 1; $rank <= 11; $rank++) {
+            $this->createHpp(
+                $admin,
+                'TOPTEN-RANK-'.$rank,
+                'Seksi Ranking '.$rank,
+                (12 - $rank) * 1000000,
+                Hpp::STATUS_APPROVED,
+                '2026-08-01 08:00:00',
+            );
+        }
+
+        $agreement->monthlyRealizations()->create([
+            'year' => 2026,
+            'month' => 8,
+            'kategori_biaya' => 'capex',
+            'unit_kerja' => 'Unit Ranking',
+            'seksi' => 'Seksi Ranking 11',
+            'amount' => 100000000,
+        ]);
+
+        $response = $this->topTenResponse($admin, 2026, 8, 2026, 8);
+
+        $response->assertOk()
+            ->assertJsonCount(10, 'top_ten')
+            ->assertJsonPath('top_ten.0.section', 'Seksi Ranking 11')
+            ->assertJsonPath('top_ten.0.amount', 101000000)
+            ->assertJsonMissing(['section' => 'Seksi Ranking 10']);
+    }
+
     private function topTenResponse(
         User $admin,
         int $startYear,
@@ -228,6 +340,31 @@ class DashboardTopTenHppCostTest extends TestCase
             'kategori_item' => 'jasa',
             'kategori_biaya' => $costCategory,
             'cost_element' => '65340001',
+            'created_by' => $admin->id,
+            'updated_by' => $admin->id,
+        ]);
+    }
+
+    private function createAgreement(User $admin, string $number, string $status): OutlineAgreement
+    {
+        $department = Department::query()->firstOrCreate(['name' => 'Top Ten Manual']);
+        $unitWork = UnitWork::query()->firstOrCreate([
+            'department_id' => $department->id,
+            'name' => 'Top Ten Manual Unit',
+        ]);
+
+        return OutlineAgreement::query()->create([
+            'nomor_oa' => $number,
+            'unit_work_id' => $unitWork->id,
+            'jenis_kontrak' => 'Fabrikasi',
+            'nama_kontrak' => $number,
+            'nilai_kontrak_awal' => 10000000000,
+            'periode_awal_start' => '2026-01-01',
+            'periode_awal_end' => '2027-12-31',
+            'current_total_nilai' => 10000000000,
+            'current_period_start' => '2026-01-01',
+            'current_period_end' => '2027-12-31',
+            'status' => $status,
             'created_by' => $admin->id,
             'updated_by' => $admin->id,
         ]);

@@ -54,6 +54,21 @@
                         <label for="monthlyRealizationAmount" class="mb-2 block text-sm font-semibold text-slate-700">Nilai Realisasi</label>
                         <input id="monthlyRealizationAmount" type="text" name="amount" inputmode="numeric" value="{{ old('amount', '0') }}" placeholder="0" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 focus:border-sky-500 focus:outline-none" required>
                     </div>
+                    <div>
+                        <label for="monthlyRealizationUnitWork" class="mb-2 block text-sm font-semibold text-slate-700">Unit Kerja</label>
+                        <select id="monthlyRealizationUnitWork" name="unit_kerja" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 focus:border-sky-500 focus:outline-none" required>
+                            <option value="">Pilih unit kerja</option>
+                            @foreach ($unitWorks as $unit)
+                                <option value="{{ $unit->name }}" data-sections="{{ $unit->sections->pluck('name')->values()->toJson() }}" @selected(old('unit_kerja') === $unit->name)>{{ $unit->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label for="monthlyRealizationSection" class="mb-2 block text-sm font-semibold text-slate-700">Seksi</label>
+                        <select id="monthlyRealizationSection" name="seksi" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 focus:border-sky-500 focus:outline-none" required disabled>
+                            <option value="">Pilih unit kerja terlebih dahulu</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="flex justify-end">
@@ -71,6 +86,7 @@
                             <tr>
                                 <th class="px-4 py-3">Periode</th>
                                 <th class="px-4 py-3">Kategori Biaya</th>
+                                <th class="px-4 py-3">Seksi / Unit Kerja</th>
                                 <th class="px-4 py-3 text-right">Nilai Realisasi</th>
                                 <th class="px-4 py-3 text-right">Aksi</th>
                             </tr>

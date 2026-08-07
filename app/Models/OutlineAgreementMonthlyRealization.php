@@ -18,6 +18,8 @@ class OutlineAgreementMonthlyRealization extends Model
         'year',
         'month',
         'kategori_biaya',
+        'unit_kerja',
+        'seksi',
         'amount',
     ];
 

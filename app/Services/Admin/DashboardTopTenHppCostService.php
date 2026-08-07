@@ -6,6 +6,8 @@ namespace App\Services\Admin;
 
 use App\Models\BudgetVerification;
 use App\Models\Hpp;
+use App\Models\OutlineAgreement;
+use App\Models\OutlineAgreementMonthlyRealization;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -24,7 +26,7 @@ final class DashboardTopTenHppCostService
             return [];
         }
 
-        return Hpp::query()
+        $systemRows = Hpp::query()
             ->join('orders', 'orders.id', '=', 'hpps.order_id')
             ->whereNotNull('hpps.submitted_at')
             ->whereIn('hpps.status', [
@@ -61,13 +63,56 @@ final class DashboardTopTenHppCostService
             })
             ->selectRaw('TRIM(orders.seksi) as section, SUM(hpps.total_keseluruhan) as amount')
             ->groupByRaw('TRIM(orders.seksi)')
-            ->orderByDesc('amount')
-            ->limit(10)
             ->get()
             ->map(fn (Hpp $hpp): array => [
                 'section' => (string) $hpp->getAttribute('section'),
-                'amount' => (int) round((float) $hpp->getAttribute('amount')),
+                'amount' => (int) $hpp->getAttribute('amount'),
             ])
+            ->all();
+
+        $startPeriod = ((int) $periodStart->format('Y') * 100) + (int) $periodStart->format('n');
+        $endPeriod = ((int) $periodEnd->format('Y') * 100) + (int) $periodEnd->format('n');
+        $manualRows = OutlineAgreementMonthlyRealization::query()
+            ->whereHas('outlineAgreement', fn (Builder $query): Builder => $query
+                ->where('status', OutlineAgreement::STATUS_ACTIVE))
+            ->whereRaw("TRIM(COALESCE(seksi, '')) <> ''")
+            ->whereRaw('((year * 100) + month) BETWEEN ? AND ?', [$startPeriod, $endPeriod])
+            ->when($costCategory !== null, fn (Builder $query): Builder => $query
+                ->where('kategori_biaya', $costCategory))
+            ->selectRaw('TRIM(seksi) as section, SUM(amount) as amount')
+            ->groupByRaw('TRIM(seksi)')
+            ->get()
+            ->map(fn (OutlineAgreementMonthlyRealization $realization): array => [
+                'section' => (string) $realization->getAttribute('section'),
+                'amount' => (int) $realization->getAttribute('amount'),
+            ])
+            ->all();
+
+        $merged = [];
+
+        foreach ([...$systemRows, ...$manualRows] as $row) {
+            $section = trim($row['section']);
+
+            if ($section === '') {
+                continue;
+            }
+
+            $merged[$section] = ($merged[$section] ?? 0) + $row['amount'];
+        }
+
+        uksort($merged, function (string $left, string $right) use ($merged): int {
+            $amountComparison = $merged[$right] <=> $merged[$left];
+
+            return $amountComparison !== 0 ? $amountComparison : strcasecmp($left, $right);
+        });
+
+        return collect($merged)
+            ->take(10)
+            ->map(fn (int $amount, string $section): array => [
+                'section' => $section,
+                'amount' => $amount,
+            ])
+            ->values()
             ->all();
     }
 }

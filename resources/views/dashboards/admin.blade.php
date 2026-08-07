@@ -64,7 +64,8 @@
         $maintenanceRemainingTarget = $maintenanceRemainingTarget ?? 0;
         $maintenanceTargetUsagePercentageLabel = $maintenanceTargetUsagePercentageLabel ?? '0';
         $maintenanceTargetUsageProgressWidth = $maintenanceTargetUsageProgressWidth ?? '0';
-        $maintenanceLpjPplInProcess = $maintenanceLpjPplInProcess ?? 0;
+        $maintenanceLpjStatusAmount = $maintenanceLpjStatusAmount ?? 0;
+        $maintenanceInvoiceStatusAmount = $maintenanceInvoiceStatusAmount ?? 0;
         $maintenanceAlreadyRealized = $maintenanceAlreadyRealized ?? $maintenanceRealization;
         $totalRealisasiBiaya = $totalRealisasiBiaya ?? 0;
         $totalPaguKontrak = $totalPaguKontrak ?? $totalKuotaKontrak;
@@ -279,12 +280,12 @@
                     <h3 class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-600">Monitoring Realisasi Anggaran Pemeliharaan</h3>
                     <div class="mt-2 grid gap-2 sm:grid-cols-2">
                         <div class="rounded-lg border border-slate-200 bg-white p-3">
-                            <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Proses LPJ/PPL</div>
-                            <div class="mt-2 text-sm font-bold text-slate-800">{{ $rp($maintenanceLpjPplInProcess) }}</div>
+                            <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Biaya Status LPJ</div>
+                            <div class="mt-2 text-sm font-bold text-slate-800">{{ $rp($maintenanceLpjStatusAmount) }}</div>
                         </div>
                         <div class="rounded-lg border border-slate-200 bg-white p-3">
-                            <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Sudah Direalisasikan</div>
-                            <div class="mt-2 text-sm font-bold text-slate-800">{{ $rp($maintenanceAlreadyRealized) }}</div>
+                            <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Biaya Status Invoice</div>
+                            <div class="mt-2 text-sm font-bold text-slate-800">{{ $rp($maintenanceInvoiceStatusAmount) }}</div>
                         </div>
                     </div>
                 </section>

@@ -91,7 +91,7 @@ class DashboardFinancialSummaryTest extends TestCase
         $this->assertSame(3_500, $summary['prognosis_percentage_hundredths']);
     }
 
-    public function test_incomplete_payment_package_is_not_recognized_as_system_realization(): void
+    public function test_lpj_complete_is_recognized_without_complete_ppl_or_paid_status(): void
     {
         $user = User::factory()->create();
         $agreement = $this->agreement($user, 'OA-INCOMPLETE', 500, OutlineAgreement::STATUS_ACTIVE);
@@ -101,8 +101,9 @@ class DashboardFinancialSummaryTest extends TestCase
 
         $summary = app(DashboardFinancialSummaryService::class)->resolve();
 
-        $this->assertSame(0, $summary['system_realization']);
-        $this->assertSame(100, $summary['outstanding']);
+        $this->assertSame(100, $summary['system_realization']);
+        $this->assertSame(0, $summary['outstanding']);
+        $this->assertSame(0, $summary['invoice_status_amount']);
     }
 
     public function test_both_warranty_terms_are_capped_at_actual_bast_amount(): void
@@ -110,7 +111,20 @@ class DashboardFinancialSummaryTest extends TestCase
         $user = User::factory()->create();
         $agreement = $this->agreement($user, 'OA-CAPPED', 500, OutlineAgreement::STATUS_ACTIVE);
         $hpp = $this->hpp($user, $agreement, Hpp::STATUS_APPROVED, 90, 'CAPPED');
-        $this->paidBast($user, $hpp, 100, 95, 10, 6, true, true);
+        $bast = $this->paidBast($user, $hpp, 100, 95, 10, 6, true, true);
+        LhppBast::query()->create([
+            'order_id' => $hpp->order_id,
+            'hpp_id' => $hpp->id,
+            'parent_lhpp_bast_id' => $bast->id,
+            'termin_type' => 'termin_2',
+            'nomor_order' => $hpp->nomor_order,
+            'tanggal_bast' => '2026-07-10',
+            'total_aktual_biaya' => 100,
+            'termin_1_nilai' => 95,
+            'termin_2_nilai' => 10,
+            'approval_status' => LhppBast::APPROVAL_APPROVED,
+            'created_by' => $user->id,
+        ]);
 
         $summary = app(DashboardFinancialSummaryService::class)->resolve();
 
@@ -198,7 +212,8 @@ class DashboardFinancialSummaryTest extends TestCase
             $this->assertSame(2026, $summary['target_year']);
             $this->assertSame(1_500, $summary['annual_target']);
             $this->assertSame(500, $summary['outstanding']);
-            $this->assertSame(500, $summary['lpj_ppl_in_process']);
+            $this->assertSame(500, $summary['lpj_status_amount']);
+            $this->assertSame(0, $summary['invoice_status_amount']);
             $this->assertSame(500, $summary['prognosis']);
             $this->assertSame(1_000, $summary['remaining_target']);
             $this->assertSame(3_333, $summary['target_usage_percentage_hundredths']);
@@ -208,7 +223,7 @@ class DashboardFinancialSummaryTest extends TestCase
         }
     }
 
-    public function test_maintenance_warranty_term_two_enters_process_only_after_its_bast_is_approved(): void
+    public function test_maintenance_warranty_realization_and_invoice_follow_lpj_and_ppl_documents(): void
     {
         $user = User::factory()->create();
         $agreement = $this->agreement($user, 'OA-MAINTENANCE-T2', 1_000, OutlineAgreement::STATUS_ACTIVE);
@@ -220,7 +235,8 @@ class DashboardFinancialSummaryTest extends TestCase
         $beforeTerminTwo = app(DashboardFinancialSummaryService::class)->resolveForCategory('pemeliharaan');
         $this->assertSame(190, $beforeTerminTwo['system_realization']);
         $this->assertSame(10, $beforeTerminTwo['outstanding']);
-        $this->assertSame(0, $beforeTerminTwo['lpj_ppl_in_process']);
+        $this->assertSame(0, $beforeTerminTwo['lpj_status_amount']);
+        $this->assertSame(190, $beforeTerminTwo['invoice_status_amount']);
 
         LhppBast::query()->create([
             'order_id' => $hpp->order_id,
@@ -236,20 +252,51 @@ class DashboardFinancialSummaryTest extends TestCase
             'created_by' => $user->id,
         ]);
 
-        $whileTerminTwoPendingPayment = app(DashboardFinancialSummaryService::class)
+        $afterTerminTwoDocumentsComplete = app(DashboardFinancialSummaryService::class)
             ->resolveForCategory('pemeliharaan');
-        $this->assertSame(10, $whileTerminTwoPendingPayment['lpj_ppl_in_process']);
-        $this->assertLessThanOrEqual(
-            $whileTerminTwoPendingPayment['outstanding'],
-            $whileTerminTwoPendingPayment['lpj_ppl_in_process'],
-        );
+        $this->assertSame(200, $afterTerminTwoDocumentsComplete['system_realization']);
+        $this->assertSame(0, $afterTerminTwoDocumentsComplete['outstanding']);
+        $this->assertSame(0, $afterTerminTwoDocumentsComplete['lpj_status_amount']);
+        $this->assertSame(200, $afterTerminTwoDocumentsComplete['invoice_status_amount']);
+    }
 
-        $bast->update(['termin2_status' => 'sudah']);
-        $afterTerminTwoRealized = app(DashboardFinancialSummaryService::class)
-            ->resolveForCategory('pemeliharaan');
-        $this->assertSame(200, $afterTerminTwoRealized['system_realization']);
-        $this->assertSame(0, $afterTerminTwoRealized['outstanding']);
-        $this->assertSame(0, $afterTerminTwoRealized['lpj_ppl_in_process']);
+    public function test_approved_warranty_term_two_with_incomplete_lpj_is_monitored_as_lpj_status(): void
+    {
+        $user = User::factory()->create();
+        $agreement = $this->agreement($user, 'OA-MAINTENANCE-T2-LPJ', 1_000, OutlineAgreement::STATUS_ACTIVE);
+        $hpp = $this->hpp($user, $agreement, Hpp::STATUS_APPROVED, 200, 'MAINTENANCE-T2-LPJ');
+        $this->verifyCategory($hpp, $user, 'pemeliharaan');
+        $bast = $this->paidBast($user, $hpp, 200, 190, 10, 6, false, false);
+        $bast->update(['approval_status' => LhppBast::APPROVAL_APPROVED]);
+        $bast->lpjPpl()->update([
+            'lpj_number_termin2' => null,
+            'lpj_document_path_termin2' => null,
+        ]);
+        LhppBast::query()->create([
+            'order_id' => $hpp->order_id,
+            'hpp_id' => $hpp->id,
+            'parent_lhpp_bast_id' => $bast->id,
+            'termin_type' => 'termin_2',
+            'nomor_order' => $hpp->nomor_order,
+            'tanggal_bast' => '2026-07-10',
+            'total_aktual_biaya' => 200,
+            'termin_1_nilai' => 190,
+            'termin_2_nilai' => 10,
+            'approval_status' => LhppBast::APPROVAL_APPROVED,
+            'created_by' => $user->id,
+        ]);
+
+        $summary = app(DashboardFinancialSummaryService::class)->resolveForCategory('pemeliharaan');
+
+        $this->assertSame(190, $summary['system_realization']);
+        $this->assertSame(10, $summary['outstanding']);
+        $this->assertSame(10, $summary['lpj_status_amount']);
+        $this->assertSame(190, $summary['invoice_status_amount']);
+        $this->assertLessThanOrEqual($summary['outstanding'], $summary['lpj_status_amount']);
+        $this->assertSame(
+            $summary['realization'] + $summary['outstanding'],
+            $summary['prognosis'],
+        );
     }
 
     private function verifyCategory(Hpp $hpp, User $user, string $category): BudgetVerification

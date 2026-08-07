@@ -61,6 +61,10 @@ class DashboardBudgetSummaryCalculationTest extends TestCase
         $response->assertViewHas('maintenancePrognosis', 400);
         $response->assertViewHas('maintenanceRemainingTarget', 300);
         $response->assertViewHas('maintenanceAlreadyRealized', 400);
+        $response->assertViewHas('maintenanceLpjStatusAmount', 0);
+        $response->assertViewHas('maintenanceInvoiceStatusAmount', 0);
+        $response->assertSee('Biaya Status LPJ');
+        $response->assertSee('Biaya Status Invoice');
         $response->assertSee('Rp. 600 dari Rp. 1.000');
 
         $agreement->refresh();

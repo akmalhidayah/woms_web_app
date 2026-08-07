@@ -633,33 +633,38 @@
                     id: 'topTenCombinedCostSectionLabels',
                     afterDatasetsDraw(chart) {
                         const { ctx, chartArea } = chart;
-                        const metadata = chart.getDatasetMeta(0);
 
                         ctx.save();
                         ctx.font = '600 11px sans-serif';
                         ctx.textAlign = 'left';
                         ctx.textBaseline = 'middle';
 
-                        metadata.data.forEach((bar, index) => {
-                            const section = String(sections[index] || '');
-                            const insideX = chartArea.left + 9;
-                            const insideWidth = bar.x - insideX - 8;
-                            const fullLabelWidth = ctx.measureText(section).width;
+                        chart.data.datasets.forEach((dataset, datasetIndex) => {
+                            const metadata = chart.getDatasetMeta(datasetIndex);
 
-                            if (insideWidth >= fullLabelWidth) {
-                                ctx.fillStyle = '#ffffff';
-                                ctx.fillText(section, insideX, bar.y);
-                                return;
-                            }
+                            metadata.data.forEach((bar, index) => {
+                                const section = String(sections[index] || '');
+                                const amount = Number(dataset.data[index] || 0);
+                                const label = `${section} · ${formatRupiah(amount)}`;
+                                const insideX = chartArea.left + 9;
+                                const insideWidth = bar.x - insideX - 8;
+                                const fullLabelWidth = ctx.measureText(label).width;
 
-                            const outsideX = Math.max(chartArea.left + 7, bar.x + 8);
-                            const outsideWidth = chartArea.right - outsideX - 6;
-                            const outsideLabel = truncateCanvasText(ctx, section, outsideWidth);
+                                if (insideWidth >= fullLabelWidth) {
+                                    ctx.fillStyle = '#ffffff';
+                                    ctx.fillText(label, insideX, bar.y);
+                                    return;
+                                }
 
-                            if (outsideLabel !== '') {
-                                ctx.fillStyle = '#334155';
-                                ctx.fillText(outsideLabel, outsideX, bar.y);
-                            }
+                                const outsideX = Math.max(chartArea.left + 7, bar.x + 8);
+                                const outsideWidth = chartArea.right - outsideX - 6;
+                                const outsideLabel = truncateCanvasText(ctx, label, outsideWidth);
+
+                                if (outsideLabel !== '') {
+                                    ctx.fillStyle = '#334155';
+                                    ctx.fillText(outsideLabel, outsideX, bar.y);
+                                }
+                            });
                         });
 
                         ctx.restore();
@@ -699,6 +704,7 @@
                         scales: {
                             x: {
                                 beginAtZero: true,
+                                grace: '15%',
                                 grid: { display: false },
                                 border: { display: false },
                                 ticks: {

@@ -278,6 +278,12 @@
                                                     <i data-lucide="info" class="h-3 w-3"></i>
                                                 </button>
                                             </div>
+                                            <div class="mt-1 flex min-w-0 items-center gap-1 text-[8px] text-slate-400">
+                                                <i data-lucide="clock-3" class="h-2.5 w-2.5 shrink-0"></i>
+                                                <span class="truncate">
+                                                    {{ $approvalSummaryLabel }} · {{ $row->updated_at?->locale('id')->diffForHumans() ?? '-' }}
+                                                </span>
+                                            </div>
                                             @if ($isExpired && $activeSignature && $approvalStatus !== \App\Models\LhppBast::APPROVAL_APPROVED)
                                                 <form action="{{ route('pkm.lhpp.approval-token.regenerate', ['lhppId' => $row->id]) }}" method="POST" class="mt-1">
                                                     @csrf
@@ -319,6 +325,12 @@
                                                     >
                                                         <i data-lucide="info" class="h-3 w-3"></i>
                                                     </button>
+                                                </div>
+                                                <div class="mt-1 flex min-w-0 items-center gap-1 text-[8px] text-slate-400">
+                                                    <i data-lucide="clock-3" class="h-2.5 w-2.5 shrink-0"></i>
+                                                    <span class="truncate">
+                                                        {{ $terminTwoSummaryLabel }} · {{ $terminTwo?->updated_at?->locale('id')->diffForHumans() ?? '-' }}
+                                                    </span>
                                                 </div>
                                             </div>
                                             @if ($terminTwoApprovalStatus === \App\Models\LhppBast::APPROVAL_REJECTED)

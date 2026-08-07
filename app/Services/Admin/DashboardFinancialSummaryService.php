@@ -51,21 +51,25 @@ final class DashboardFinancialSummaryService
 
         $manualRealization = $this->moneyInt($manualRealizationQuery->sum('amount'));
 
-        [$systemRealization, $realizationByHpp, $legacyRealizationByOrder, $lpjStatusByHpp, $invoiceStatusAmount] =
+        [$systemRealization, $realizationByHpp, $legacyRealizationByOrder, $lpjStatusByHpp, $invoiceStatusByHpp] =
             $this->resolveSystemRealizations($costCategory);
 
         $lpjStatusAmount = 0;
+        $invoiceStatusAmount = 0;
         $outstanding = $this->latestActiveHpps($costCategory)
             ->sum(function (Hpp $hpp) use (
                 $realizationByHpp,
                 $legacyRealizationByOrder,
                 $lpjStatusByHpp,
+                $invoiceStatusByHpp,
                 &$lpjStatusAmount,
+                &$invoiceStatusAmount,
             ): int {
                 $realized = ($realizationByHpp[$hpp->id] ?? 0)
                     + ($legacyRealizationByOrder[$hpp->order_id] ?? 0);
                 $hppOutstanding = max($this->moneyInt($hpp->total_keseluruhan) - $realized, 0);
-                $lpjStatusAmount += min($lpjStatusByHpp[$hpp->id] ?? 0, $hppOutstanding);
+                $lpjStatusAmount += $lpjStatusByHpp[$hpp->id] ?? 0;
+                $invoiceStatusAmount += $invoiceStatusByHpp[$hpp->id] ?? 0;
 
                 return $hppOutstanding;
             });
@@ -124,7 +128,7 @@ final class DashboardFinancialSummaryService
     }
 
     /**
-     * @return array{0: int, 1: array<int, int>, 2: array<int, int>, 3: array<int, int>, 4: int}
+     * @return array{0: int, 1: array<int, int>, 2: array<int, int>, 3: array<int, int>, 4: array<int, int>}
      */
     private function resolveSystemRealizations(?string $costCategory): array
     {
@@ -184,7 +188,7 @@ final class DashboardFinancialSummaryService
             }
         }
 
-        return [$total, $realizationByHpp, $legacyRealizationByOrder, $lpjStatusByHpp, array_sum($invoiceByHpp)];
+        return [$total, $realizationByHpp, $legacyRealizationByOrder, $lpjStatusByHpp, $invoiceByHpp];
     }
 
     private function lpjStatusAmount(LhppBast $bast): int
@@ -194,24 +198,36 @@ final class DashboardFinancialSummaryService
         }
 
         $lpjPpl = $bast->lpjPpl;
-        $terminOneRealized = $lpjPpl !== null && $this->hasCompleteLpj($lpjPpl, 1);
-        $garansiMonths = $bast->garansi?->garansi_months;
-
-        if ($garansiMonths !== null && (int) $garansiMonths === 0) {
-            return $terminOneRealized ? 0 : max($this->moneyInt($bast->total_aktual_biaya), 0);
-        }
-
-        if (! $terminOneRealized) {
-            return max($this->moneyInt($bast->termin_1_nilai), 0);
-        }
-
-        $terminTwoRealized = $lpjPpl !== null && $this->hasCompleteLpj($lpjPpl, 2);
-
-        if ($bast->terminTwo?->approval_status !== LhppBast::APPROVAL_APPROVED || $terminTwoRealized) {
+        if (! $lpjPpl) {
             return 0;
         }
 
-        return max($this->moneyInt($bast->termin_2_nilai), 0);
+        $terminOneLpjComplete = $this->hasCompleteLpj($lpjPpl, 1);
+        $terminOneInvoiceComplete = $this->hasCompletePackage($lpjPpl, 1);
+        $garansiMonths = $bast->garansi?->garansi_months;
+
+        if ($garansiMonths !== null && (int) $garansiMonths === 0) {
+            return $terminOneLpjComplete && ! $terminOneInvoiceComplete
+                ? max($this->moneyInt($bast->total_aktual_biaya), 0)
+                : 0;
+        }
+
+        $lpjStatusAmount = $terminOneLpjComplete && ! $terminOneInvoiceComplete
+            ? max($this->moneyInt($bast->termin_1_nilai), 0)
+            : 0;
+
+        if ($bast->terminTwo?->approval_status !== LhppBast::APPROVAL_APPROVED) {
+            return $lpjStatusAmount;
+        }
+
+        $terminTwoLpjComplete = $this->hasCompleteLpj($lpjPpl, 2);
+        $terminTwoInvoiceComplete = $this->hasCompletePackage($lpjPpl, 2);
+
+        if ($terminTwoLpjComplete && ! $terminTwoInvoiceComplete) {
+            $lpjStatusAmount += max($this->moneyInt($bast->termin_2_nilai), 0);
+        }
+
+        return min($lpjStatusAmount, max($this->moneyInt($bast->total_aktual_biaya), 0));
     }
 
     private function invoiceStatusAmount(LhppBast $bast): int

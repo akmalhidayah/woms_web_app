@@ -103,6 +103,7 @@ class DashboardFinancialSummaryTest extends TestCase
 
         $this->assertSame(100, $summary['system_realization']);
         $this->assertSame(0, $summary['outstanding']);
+        $this->assertSame(100, $summary['lpj_status_amount']);
         $this->assertSame(0, $summary['invoice_status_amount']);
     }
 
@@ -212,7 +213,7 @@ class DashboardFinancialSummaryTest extends TestCase
             $this->assertSame(2026, $summary['target_year']);
             $this->assertSame(1_500, $summary['annual_target']);
             $this->assertSame(500, $summary['outstanding']);
-            $this->assertSame(500, $summary['lpj_status_amount']);
+            $this->assertSame(0, $summary['lpj_status_amount']);
             $this->assertSame(0, $summary['invoice_status_amount']);
             $this->assertSame(500, $summary['prognosis']);
             $this->assertSame(1_000, $summary['remaining_target']);
@@ -260,7 +261,7 @@ class DashboardFinancialSummaryTest extends TestCase
         $this->assertSame(200, $afterTerminTwoDocumentsComplete['invoice_status_amount']);
     }
 
-    public function test_approved_warranty_term_two_with_incomplete_lpj_is_monitored_as_lpj_status(): void
+    public function test_approved_warranty_term_two_with_complete_lpj_and_incomplete_ppl_is_monitored_as_lpj_status(): void
     {
         $user = User::factory()->create();
         $agreement = $this->agreement($user, 'OA-MAINTENANCE-T2-LPJ', 1_000, OutlineAgreement::STATUS_ACTIVE);
@@ -269,8 +270,8 @@ class DashboardFinancialSummaryTest extends TestCase
         $bast = $this->paidBast($user, $hpp, 200, 190, 10, 6, false, false);
         $bast->update(['approval_status' => LhppBast::APPROVAL_APPROVED]);
         $bast->lpjPpl()->update([
-            'lpj_number_termin2' => null,
-            'lpj_document_path_termin2' => null,
+            'ppl_number_termin2' => null,
+            'ppl_document_path_termin2' => null,
         ]);
         LhppBast::query()->create([
             'order_id' => $hpp->order_id,
@@ -288,11 +289,10 @@ class DashboardFinancialSummaryTest extends TestCase
 
         $summary = app(DashboardFinancialSummaryService::class)->resolveForCategory('pemeliharaan');
 
-        $this->assertSame(190, $summary['system_realization']);
-        $this->assertSame(10, $summary['outstanding']);
+        $this->assertSame(200, $summary['system_realization']);
+        $this->assertSame(0, $summary['outstanding']);
         $this->assertSame(10, $summary['lpj_status_amount']);
         $this->assertSame(190, $summary['invoice_status_amount']);
-        $this->assertLessThanOrEqual($summary['outstanding'], $summary['lpj_status_amount']);
         $this->assertSame(
             $summary['realization'] + $summary['outstanding'],
             $summary['prognosis'],

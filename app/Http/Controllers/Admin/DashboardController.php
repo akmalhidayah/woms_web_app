@@ -10,7 +10,6 @@ use App\Models\LhppBast;
 use App\Models\Order;
 use App\Models\OutlineAgreement;
 use App\Models\OutlineAgreementMonthlyRealization;
-use App\Models\OutlineAgreementTarget;
 use App\Models\PurchaseOrder;
 use App\Services\Admin\DashboardFinancialSummaryService;
 use App\Services\Admin\DashboardTopTenHppCostService;
@@ -36,6 +35,7 @@ class DashboardController extends Controller
     public function __invoke(Request $request): View
     {
         $financialSummary = $this->financialSummaryService->resolve();
+        $maintenanceSummary = $this->financialSummaryService->resolveMaintenanceSummary(Carbon::now()->year);
         $totalPaguKontrak = $financialSummary['contract_budget'];
         $totalRealisasiSistem = $financialSummary['system_realization'];
         $totalRealisasiManual = $financialSummary['manual_realization'];
@@ -54,8 +54,6 @@ class DashboardController extends Controller
         $totalSeluruhAmount = $totalAmount1 + $totalAmount2;
         $totalKuotaKontrak = $totalPaguKontrak;
         $budgetUsagePercentageHundredths = $financialSummary['prognosis_percentage_hundredths'];
-        $totalBiayaPemeliharaan = $this->sumActiveOutlineAgreementMaintenanceTargets();
-        $totalJasaPemeliharaan = $this->sumVerifiedMaintenanceServiceAmount();
         $pendingActionCount = $this->actionCenter->pendingActionCount($request->user());
         $showActionSummaryBanner = (bool) $request->session()->pull(
             'show_admin_action_summary_banner',
@@ -99,9 +97,28 @@ class DashboardController extends Controller
             ),
             'totalKuotaKontrak' => $totalKuotaKontrak,
             'sisaKuotaKontrak' => $totalAnggaranTersedia,
-            'targetPemeliharaan' => $totalBiayaPemeliharaan,
-            'totalJasaPemeliharaan' => $totalJasaPemeliharaan,
-            'sisaBiayaPemeliharaan' => $totalBiayaPemeliharaan - $totalJasaPemeliharaan,
+            'targetPemeliharaan' => $maintenanceSummary['annual_target'],
+            'totalJasaPemeliharaan' => $maintenanceSummary['realization'],
+            'sisaBiayaPemeliharaan' => $maintenanceSummary['remaining_target'],
+            'maintenanceTargetYear' => $maintenanceSummary['target_year'],
+            'maintenanceAnnualTarget' => $maintenanceSummary['annual_target'],
+            'maintenanceSystemRealization' => $maintenanceSummary['system_realization'],
+            'maintenanceManualRealization' => $maintenanceSummary['manual_realization'],
+            'maintenanceRealization' => $maintenanceSummary['realization'],
+            'maintenanceOutstanding' => $maintenanceSummary['outstanding'],
+            'maintenancePrognosis' => $maintenanceSummary['prognosis'],
+            'maintenanceRemainingTarget' => $maintenanceSummary['remaining_target'],
+            'maintenanceTargetUsagePercentageHundredths' => $maintenanceSummary['target_usage_percentage_hundredths'],
+            'maintenanceTargetUsagePercentageLabel' => $this->formatPercentageHundredths(
+                $maintenanceSummary['target_usage_percentage_hundredths'],
+                ',',
+            ),
+            'maintenanceTargetUsageProgressWidth' => $this->formatPercentageHundredths(
+                min(10000, max(0, $maintenanceSummary['target_usage_percentage_hundredths'])),
+                '.',
+            ),
+            'maintenanceLpjPplInProcess' => $maintenanceSummary['lpj_ppl_in_process'],
+            'maintenanceAlreadyRealized' => $maintenanceSummary['already_realized'],
             'periodeKontrak' => $this->resolveActiveOutlineAgreementPeriod(),
             'realizationYears' => $this->realizationYearsList(),
             'realizationChartData' => $this->buildRealizationChartData(),
@@ -270,24 +287,6 @@ class DashboardController extends Controller
             Order::PRIORITY_URGENT,
             Order::PRIORITY_HIGH,
         ];
-    }
-
-    private function sumActiveOutlineAgreementMaintenanceTargets(): int
-    {
-        return $this->moneyInt(OutlineAgreementTarget::query()
-            ->whereHas('outlineAgreement', fn (Builder $query) => $query->where('status', OutlineAgreement::STATUS_ACTIVE))
-            ->sum('nilai_target'));
-    }
-
-    private function sumVerifiedMaintenanceServiceAmount(): int
-    {
-        return $this->moneyInt(Hpp::query()
-            ->whereHas('order')
-            ->whereHas('budgetVerification', fn (Builder $query) => $query
-                ->where('status_anggaran', 'Tersedia')
-                ->where('kategori_item', 'jasa')
-                ->where('kategori_biaya', 'pemeliharaan'))
-            ->sum('total_keseluruhan'));
     }
 
     /**

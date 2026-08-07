@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\Admin;
 
+use App\Models\BudgetVerification;
 use App\Models\Hpp;
 use App\Models\LhppBast;
 use App\Models\LpjPpl;
 use App\Models\OutlineAgreement;
 use App\Models\OutlineAgreementMonthlyRealization;
+use App\Models\OutlineAgreementTarget;
 use Illuminate\Database\Eloquent\Builder;
+use InvalidArgumentException;
 
 final class DashboardFinancialSummaryService
 {
@@ -25,29 +28,45 @@ final class DashboardFinancialSummaryService
      *     prognosis_percentage_hundredths: int,
      *     realization_percentage_hundredths: int,
      *     outstanding_percentage_hundredths: int,
-     *     available_budget_percentage_hundredths: int
+     *     available_budget_percentage_hundredths: int,
+     *     lpj_ppl_in_process: int
      * }
      */
-    public function resolve(): array
+    public function resolve(?string $costCategory = null): array
     {
+        $this->assertValidCostCategory($costCategory);
+
         $contractBudget = $this->moneyInt(OutlineAgreement::query()
             ->where('status', OutlineAgreement::STATUS_ACTIVE)
             ->sum('current_total_nilai'));
 
-        $manualRealization = $this->moneyInt(OutlineAgreementMonthlyRealization::query()
+        $manualRealizationQuery = OutlineAgreementMonthlyRealization::query()
             ->whereHas('outlineAgreement', fn (Builder $query): Builder => $query
-                ->where('status', OutlineAgreement::STATUS_ACTIVE))
-            ->sum('amount'));
+                ->where('status', OutlineAgreement::STATUS_ACTIVE));
 
-        [$systemRealization, $realizationByHpp, $legacyRealizationByOrder] =
-            $this->resolveSystemRealizations();
+        if ($costCategory !== null) {
+            $manualRealizationQuery->where('kategori_biaya', $costCategory);
+        }
 
-        $outstanding = $this->latestActiveHpps()
-            ->sum(function (Hpp $hpp) use ($realizationByHpp, $legacyRealizationByOrder): int {
+        $manualRealization = $this->moneyInt($manualRealizationQuery->sum('amount'));
+
+        [$systemRealization, $realizationByHpp, $legacyRealizationByOrder, $processByHpp] =
+            $this->resolveSystemRealizations($costCategory);
+
+        $lpjPplInProcess = 0;
+        $outstanding = $this->latestActiveHpps($costCategory)
+            ->sum(function (Hpp $hpp) use (
+                $realizationByHpp,
+                $legacyRealizationByOrder,
+                $processByHpp,
+                &$lpjPplInProcess,
+            ): int {
                 $realized = ($realizationByHpp[$hpp->id] ?? 0)
                     + ($legacyRealizationByOrder[$hpp->order_id] ?? 0);
+                $hppOutstanding = max($this->moneyInt($hpp->total_keseluruhan) - $realized, 0);
+                $lpjPplInProcess += min($processByHpp[$hpp->id] ?? 0, $hppOutstanding);
 
-                return max($this->moneyInt($hpp->total_keseluruhan) - $realized, 0);
+                return $hppOutstanding;
             });
 
         $realization = $systemRealization + $manualRealization;
@@ -66,21 +85,58 @@ final class DashboardFinancialSummaryService
             'realization_percentage_hundredths' => $this->percentageHundredths($realization, $contractBudget),
             'outstanding_percentage_hundredths' => $this->percentageHundredths($outstanding, $contractBudget),
             'available_budget_percentage_hundredths' => $this->percentageHundredths($availableBudget, $contractBudget),
+            'lpj_ppl_in_process' => $lpjPplInProcess,
         ];
     }
 
     /**
-     * @return array{0: int, 1: array<int, int>, 2: array<int, int>}
+     * @return array<string, int>
      */
-    private function resolveSystemRealizations(): array
+    public function resolveForCategory(string $costCategory): array
+    {
+        return $this->resolve($costCategory);
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    public function resolveMaintenanceSummary(int $year): array
+    {
+        $summary = $this->resolveForCategory('pemeliharaan');
+        $annualTarget = $this->moneyInt(OutlineAgreementTarget::query()
+            ->where('tahun', $year)
+            ->whereHas('outlineAgreement', fn (Builder $query): Builder => $query
+                ->where('status', OutlineAgreement::STATUS_ACTIVE))
+            ->sum('nilai_target'));
+
+        return $summary + [
+            'target_year' => $year,
+            'annual_target' => $annualTarget,
+            'remaining_target' => $annualTarget - $summary['prognosis'],
+            'target_usage_percentage_hundredths' => $this->percentageHundredths(
+                $summary['prognosis'],
+                $annualTarget,
+            ),
+            'already_realized' => $summary['realization'],
+        ];
+    }
+
+    /**
+     * @return array{0: int, 1: array<int, int>, 2: array<int, int>, 3: array<int, int>}
+     */
+    private function resolveSystemRealizations(?string $costCategory): array
     {
         $realizationByHpp = [];
         $legacyRealizationByOrder = [];
+        $processByHpp = [];
         $total = 0;
 
         $rows = LhppBast::query()
             ->where('termin_type', 'termin_1')
             ->whereNull('parent_lhpp_bast_id')
+            ->when($costCategory !== null, fn (Builder $query): Builder => $query
+                ->whereHas('hpp.budgetVerification', fn (Builder $verificationQuery): Builder => $verificationQuery
+                    ->where('kategori_biaya', $costCategory)))
             ->where(function (Builder $query): void {
                 $query
                     ->whereHas('hpp.outlineAgreement', fn (Builder $agreementQuery): Builder => $agreementQuery
@@ -95,6 +151,7 @@ final class DashboardFinancialSummaryService
             ->with([
                 'garansi:id,lhpp_bast_id,garansi_months',
                 'lpjPpl:id,lhpp_bast_id,lpj_number_termin1,ppl_number_termin1,lpj_document_path_termin1,ppl_document_path_termin1,lpj_number_termin2,ppl_number_termin2,lpj_document_path_termin2,ppl_document_path_termin2',
+                'terminTwo:id,parent_lhpp_bast_id,approval_status',
             ])
             ->get([
                 'id',
@@ -105,21 +162,55 @@ final class DashboardFinancialSummaryService
                 'termin_2_nilai',
                 'termin1_status',
                 'termin2_status',
+                'approval_status',
             ]);
 
         foreach ($rows as $bast) {
             $realized = $this->realizedAmount($bast);
+            $inProcess = $this->lpjPplInProcessAmount($bast);
             $total += $realized;
 
             if ($bast->hpp_id !== null) {
                 $realizationByHpp[$bast->hpp_id] = ($realizationByHpp[$bast->hpp_id] ?? 0) + $realized;
+                $processByHpp[$bast->hpp_id] = ($processByHpp[$bast->hpp_id] ?? 0) + $inProcess;
             } else {
                 $legacyRealizationByOrder[$bast->order_id] =
                     ($legacyRealizationByOrder[$bast->order_id] ?? 0) + $realized;
             }
         }
 
-        return [$total, $realizationByHpp, $legacyRealizationByOrder];
+        return [$total, $realizationByHpp, $legacyRealizationByOrder, $processByHpp];
+    }
+
+    private function lpjPplInProcessAmount(LhppBast $bast): int
+    {
+        if ($bast->approval_status !== LhppBast::APPROVAL_APPROVED) {
+            return 0;
+        }
+
+        $lpjPpl = $bast->lpjPpl;
+        $terminOneRealized = $lpjPpl !== null
+            && $bast->termin1_status === 'sudah'
+            && $this->hasCompletePackage($lpjPpl, 1);
+        $garansiMonths = $bast->garansi?->garansi_months;
+
+        if ($garansiMonths !== null && (int) $garansiMonths === 0) {
+            return $terminOneRealized ? 0 : max($this->moneyInt($bast->total_aktual_biaya), 0);
+        }
+
+        if (! $terminOneRealized) {
+            return max($this->moneyInt($bast->termin_1_nilai), 0);
+        }
+
+        $terminTwoRealized = $lpjPpl !== null
+            && $bast->termin2_status === 'sudah'
+            && $this->hasCompletePackage($lpjPpl, 2);
+
+        if ($bast->terminTwo?->approval_status !== LhppBast::APPROVAL_APPROVED || $terminTwoRealized) {
+            return 0;
+        }
+
+        return max($this->moneyInt($bast->termin_2_nilai), 0);
     }
 
     private function realizedAmount(LhppBast $bast): int
@@ -163,7 +254,7 @@ final class DashboardFinancialSummaryService
     }
 
     /** @return \Illuminate\Database\Eloquent\Collection<int, Hpp> */
-    private function latestActiveHpps(): \Illuminate\Database\Eloquent\Collection
+    private function latestActiveHpps(?string $costCategory): \Illuminate\Database\Eloquent\Collection
     {
         return Hpp::query()
             ->whereHas('outlineAgreement', fn (Builder $query): Builder => $query
@@ -173,6 +264,9 @@ final class DashboardFinancialSummaryService
                 Hpp::STATUS_IN_REVIEW,
                 Hpp::STATUS_APPROVED,
             ])
+            ->when($costCategory !== null, fn (Builder $query): Builder => $query
+                ->whereHas('budgetVerification', fn (Builder $verificationQuery): Builder => $verificationQuery
+                    ->where('kategori_biaya', $costCategory)))
             ->whereNotExists(function ($query): void {
                 $query
                     ->selectRaw('1')
@@ -181,6 +275,13 @@ final class DashboardFinancialSummaryService
                     ->whereColumn('newer_hpps.id', '>', 'hpps.id');
             })
             ->get(['id', 'order_id', 'total_keseluruhan']);
+    }
+
+    private function assertValidCostCategory(?string $costCategory): void
+    {
+        if ($costCategory !== null && ! array_key_exists($costCategory, BudgetVerification::kategoriBiayaOptions())) {
+            throw new InvalidArgumentException("Kategori biaya {$costCategory} tidak valid.");
+        }
     }
 
     private function percentageHundredths(int $amount, int $total): int

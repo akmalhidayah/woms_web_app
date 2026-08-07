@@ -51,8 +51,16 @@ class DashboardBudgetSummaryCalculationTest extends TestCase
         $response->assertViewHas('budgetUsagePercentageLabel', '60');
         $response->assertViewHas('budgetUsageProgressWidth', '60');
         $response->assertViewHas('targetPemeliharaan', 700);
-        $response->assertViewHas('totalJasaPemeliharaan', 0);
-        $response->assertViewHas('sisaBiayaPemeliharaan', 700);
+        $response->assertViewHas('totalJasaPemeliharaan', 400);
+        $response->assertViewHas('sisaBiayaPemeliharaan', 300);
+        $response->assertViewHas('maintenanceTargetYear', 2026);
+        $response->assertViewHas('maintenanceAnnualTarget', 700);
+        $response->assertViewHas('maintenanceManualRealization', 400);
+        $response->assertViewHas('maintenanceRealization', 400);
+        $response->assertViewHas('maintenanceOutstanding', 0);
+        $response->assertViewHas('maintenancePrognosis', 400);
+        $response->assertViewHas('maintenanceRemainingTarget', 300);
+        $response->assertViewHas('maintenanceAlreadyRealized', 400);
         $response->assertSee('Rp. 600 dari Rp. 1.000');
 
         $agreement->refresh();

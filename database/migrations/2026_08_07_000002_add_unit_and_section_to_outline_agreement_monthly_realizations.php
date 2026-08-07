@@ -11,22 +11,43 @@ return new class extends Migration
 
     public function up(): void
     {
-        Schema::table(self::TABLE, function (Blueprint $table): void {
-            $table->string('unit_kerja')->nullable()->after('kategori_biaya');
-            $table->string('seksi')->nullable()->after('unit_kerja');
-        });
+        if (! Schema::hasColumn(self::TABLE, 'unit_kerja')) {
+            Schema::table(self::TABLE, function (Blueprint $table): void {
+                $table->string('unit_kerja')->nullable()->after('kategori_biaya');
+            });
+        }
 
-        Schema::table(self::TABLE, function (Blueprint $table): void {
-            $table->dropUnique('oa_monthly_realizations_period_category_unique');
-            $table->unique(
+        if (! Schema::hasColumn(self::TABLE, 'seksi')) {
+            Schema::table(self::TABLE, function (Blueprint $table): void {
+                $table->string('seksi')->nullable()->after('unit_kerja');
+            });
+        }
+
+        if (Schema::hasIndex(self::TABLE, 'oa_monthly_realizations_period_category_unique')) {
+            Schema::table(self::TABLE, function (Blueprint $table): void {
+                $table->dropUnique('oa_monthly_realizations_period_category_unique');
+            });
+        }
+
+        if (! Schema::hasIndex(self::TABLE, 'oa_month_real_cat_unit_sec_unique')) {
+            Schema::table(self::TABLE, function (Blueprint $table): void {
+                $table->unique(
                 ['outline_agreement_id', 'year', 'month', 'kategori_biaya', 'unit_kerja', 'seksi'],
                 'oa_month_real_cat_unit_sec_unique',
-            );
-            $table->index(
-                ['year', 'month', 'kategori_biaya', 'seksi'],
-                'oa_month_real_top_ten_index',
-            );
-        });
+                );
+            });
+        }
+
+        if (! Schema::hasIndex(self::TABLE, 'oa_month_real_top_ten_index')) {
+            Schema::table(self::TABLE, function (Blueprint $table): void {
+                // `seksi` tetap dipakai untuk GROUP BY, tetapi tidak dimasukkan ke
+                // index agar kompatibel dengan server yang membatasi key 1000 byte.
+                $table->index(
+                    ['year', 'month', 'kategori_biaya'],
+                    'oa_month_real_top_ten_index',
+                );
+            });
+        }
     }
 
     public function down(): void
@@ -59,9 +80,19 @@ return new class extends Migration
                 }
             });
 
+        if (Schema::hasIndex(self::TABLE, 'oa_month_real_cat_unit_sec_unique')) {
+            Schema::table(self::TABLE, function (Blueprint $table): void {
+                $table->dropUnique('oa_month_real_cat_unit_sec_unique');
+            });
+        }
+
+        if (Schema::hasIndex(self::TABLE, 'oa_month_real_top_ten_index')) {
+            Schema::table(self::TABLE, function (Blueprint $table): void {
+                $table->dropIndex('oa_month_real_top_ten_index');
+            });
+        }
+
         Schema::table(self::TABLE, function (Blueprint $table): void {
-            $table->dropUnique('oa_month_real_cat_unit_sec_unique');
-            $table->dropIndex('oa_month_real_top_ten_index');
             $table->dropColumn(['unit_kerja', 'seksi']);
         });
 

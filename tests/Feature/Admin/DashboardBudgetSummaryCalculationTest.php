@@ -23,8 +23,8 @@ class DashboardBudgetSummaryCalculationTest extends TestCase
         $agreement->monthlyRealizations()->create([
             'year' => 2026,
             'month' => 1,
-            'pr_po_amount' => 300,
-            'urgent_amount' => 100,
+            'kategori_biaya' => 'pemeliharaan',
+            'amount' => 400,
         ]);
         OutlineAgreementTarget::query()->create([
             'outline_agreement_id' => $agreement->id,

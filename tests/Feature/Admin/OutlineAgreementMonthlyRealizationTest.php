@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\BudgetVerification;
 use App\Models\Department;
 use App\Models\OutlineAgreement;
 use App\Models\OutlineAgreementMonthlyRealization;
@@ -14,7 +15,7 @@ class OutlineAgreementMonthlyRealizationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admin_can_store_and_update_one_realization_per_period(): void
+    public function test_admin_can_store_formatted_realization_and_update_the_same_period_category(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
         $agreement = $this->createAgreement($admin, 'OA-MONTHLY-001');
@@ -23,69 +24,90 @@ class OutlineAgreementMonthlyRealizationTest extends TestCase
             ->post(route('admin.outline-agreements.monthly-realizations.store', $agreement), [
                 'year' => 2026,
                 'month' => 1,
-                'pr_po_amount' => 'Rp 100.000.000',
-                'urgent_amount' => '20.000.000',
+                'kategori_biaya' => 'pemeliharaan',
+                'amount' => 'Rp 100.000.000',
             ])
-            ->assertRedirect(route('admin.outline-agreements.index'));
+            ->assertRedirect(route('admin.outline-agreements.index'))
+            ->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('outline_agreement_monthly_realizations', [
             'outline_agreement_id' => $agreement->id,
             'year' => 2026,
             'month' => 1,
-            'pr_po_amount' => 100000000,
-            'urgent_amount' => 20000000,
+            'kategori_biaya' => 'pemeliharaan',
+            'amount' => 100000000,
         ]);
 
         $this->actingAs($admin)
             ->post(route('admin.outline-agreements.monthly-realizations.store', $agreement), [
                 'year' => 2026,
                 'month' => 1,
-                'pr_po_amount' => 125000000,
-                'urgent_amount' => 25000000,
+                'kategori_biaya' => 'pemeliharaan',
+                'amount' => 125000000,
             ])
-            ->assertRedirect(route('admin.outline-agreements.index'));
+            ->assertSessionHasNoErrors();
 
         $this->assertSame(1, OutlineAgreementMonthlyRealization::query()->count());
         $this->assertDatabaseHas('outline_agreement_monthly_realizations', [
             'outline_agreement_id' => $agreement->id,
             'year' => 2026,
             'month' => 1,
-            'pr_po_amount' => 125000000,
-            'urgent_amount' => 25000000,
+            'kategori_biaya' => 'pemeliharaan',
+            'amount' => 125000000,
         ]);
-
-        $this->actingAs($admin)
-            ->get(route('admin.outline-agreements.index'))
-            ->assertOk()
-            ->assertSee('Realisasi Bulanan')
-            ->assertSee('Realisasi Biaya Bulanan');
     }
 
-    public function test_different_agreements_can_use_the_same_period_and_large_amounts(): void
+    public function test_same_period_accepts_multiple_categories_and_different_agreements(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
         $firstAgreement = $this->createAgreement($admin, 'OA-MONTHLY-002');
         $secondAgreement = $this->createAgreement($admin, 'OA-MONTHLY-003');
 
-        foreach ([$firstAgreement, $secondAgreement] as $agreement) {
+        foreach (['pemeliharaan', 'capex'] as $category) {
             $this->actingAs($admin)
-                ->post(route('admin.outline-agreements.monthly-realizations.store', $agreement), [
+                ->post(route('admin.outline-agreements.monthly-realizations.store', $firstAgreement), [
                     'year' => 2026,
                     'month' => 2,
-                    'pr_po_amount' => 47950426696,
-                    'urgent_amount' => 0,
+                    'kategori_biaya' => $category,
+                    'amount' => 1000,
                 ])
                 ->assertSessionHasNoErrors();
         }
 
-        $this->assertSame(2, OutlineAgreementMonthlyRealization::query()->count());
+        $this->actingAs($admin)
+            ->post(route('admin.outline-agreements.monthly-realizations.store', $secondAgreement), [
+                'year' => 2026,
+                'month' => 2,
+                'kategori_biaya' => 'pemeliharaan',
+                'amount' => 2000,
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseCount('outline_agreement_monthly_realizations', 3);
+    }
+
+    public function test_large_amount_is_stored_without_overflow(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $agreement = $this->createAgreement($admin, 'OA-MONTHLY-LARGE');
+
+        $this->actingAs($admin)
+            ->post(route('admin.outline-agreements.monthly-realizations.store', $agreement), [
+                'year' => 2026,
+                'month' => 2,
+                'kategori_biaya' => 'capex',
+                'amount' => '47.950.426.696',
+            ])
+            ->assertSessionHasNoErrors();
+
         $this->assertDatabaseHas('outline_agreement_monthly_realizations', [
-            'outline_agreement_id' => $firstAgreement->id,
-            'pr_po_amount' => 47950426696,
+            'outline_agreement_id' => $agreement->id,
+            'kategori_biaya' => 'capex',
+            'amount' => 47950426696,
         ]);
     }
 
-    public function test_invalid_amount_month_and_period_are_rejected(): void
+    public function test_invalid_category_amount_month_and_period_are_rejected(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
         $agreement = $this->createAgreement($admin, 'OA-MONTHLY-004');
@@ -95,19 +117,19 @@ class OutlineAgreementMonthlyRealizationTest extends TestCase
             ->post(route('admin.outline-agreements.monthly-realizations.store', $agreement), [
                 'year' => 2026,
                 'month' => 13,
-                'pr_po_amount' => -1,
-                'urgent_amount' => 0,
+                'kategori_biaya' => OutlineAgreementMonthlyRealization::CATEGORY_UNCATEGORIZED,
+                'amount' => -1,
             ])
             ->assertRedirect(route('admin.outline-agreements.index'))
-            ->assertSessionHasErrors(['month', 'pr_po_amount']);
+            ->assertSessionHasErrors(['month', 'kategori_biaya', 'amount']);
 
         $this->actingAs($admin)
             ->from(route('admin.outline-agreements.index'))
             ->post(route('admin.outline-agreements.monthly-realizations.store', $agreement), [
                 'year' => 2027,
                 'month' => 1,
-                'pr_po_amount' => 1,
-                'urgent_amount' => 0,
+                'kategori_biaya' => 'pemeliharaan',
+                'amount' => 1,
             ])
             ->assertRedirect(route('admin.outline-agreements.index'))
             ->assertSessionHasErrors(['month']);
@@ -115,7 +137,74 @@ class OutlineAgreementMonthlyRealizationTest extends TestCase
         $this->assertDatabaseCount('outline_agreement_monthly_realizations', 0);
     }
 
-    public function test_admin_can_delete_only_a_realization_owned_by_the_agreement(): void
+    public function test_edit_updates_the_selected_record_and_can_change_its_category(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $agreement = $this->createAgreement($admin, 'OA-MONTHLY-EDIT');
+        $realization = $agreement->monthlyRealizations()->create([
+            'year' => 2026,
+            'month' => 3,
+            'kategori_biaya' => 'pemeliharaan',
+            'amount' => 1000,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.outline-agreements.monthly-realizations.store', $agreement), [
+                'realization_id' => $realization->id,
+                'year' => 2026,
+                'month' => 4,
+                'kategori_biaya' => 'capex',
+                'amount' => 2500,
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseCount('outline_agreement_monthly_realizations', 1);
+        $this->assertDatabaseHas('outline_agreement_monthly_realizations', [
+            'id' => $realization->id,
+            'year' => 2026,
+            'month' => 4,
+            'kategori_biaya' => 'capex',
+            'amount' => 2500,
+        ]);
+    }
+
+    public function test_edit_to_an_existing_period_category_returns_validation_error(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $agreement = $this->createAgreement($admin, 'OA-MONTHLY-CONFLICT');
+        $source = $agreement->monthlyRealizations()->create([
+            'year' => 2026,
+            'month' => 5,
+            'kategori_biaya' => 'pemeliharaan',
+            'amount' => 1000,
+        ]);
+        $agreement->monthlyRealizations()->create([
+            'year' => 2026,
+            'month' => 5,
+            'kategori_biaya' => 'capex',
+            'amount' => 2000,
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('admin.outline-agreements.index'))
+            ->post(route('admin.outline-agreements.monthly-realizations.store', $agreement), [
+                'realization_id' => $source->id,
+                'year' => 2026,
+                'month' => 5,
+                'kategori_biaya' => 'capex',
+                'amount' => 3000,
+            ])
+            ->assertRedirect(route('admin.outline-agreements.index'))
+            ->assertSessionHasErrors(['kategori_biaya']);
+
+        $this->assertDatabaseHas('outline_agreement_monthly_realizations', [
+            'id' => $source->id,
+            'kategori_biaya' => 'pemeliharaan',
+            'amount' => 1000,
+        ]);
+    }
+
+    public function test_admin_can_edit_or_delete_only_a_realization_owned_by_the_agreement(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
         $firstAgreement = $this->createAgreement($admin, 'OA-MONTHLY-005');
@@ -123,15 +212,23 @@ class OutlineAgreementMonthlyRealizationTest extends TestCase
         $realization = $firstAgreement->monthlyRealizations()->create([
             'year' => 2026,
             'month' => 3,
-            'pr_po_amount' => 1000,
-            'urgent_amount' => 500,
+            'kategori_biaya' => 'pemeliharaan',
+            'amount' => 1500,
         ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.outline-agreements.monthly-realizations.store', $secondAgreement), [
+                'realization_id' => $realization->id,
+                'year' => 2026,
+                'month' => 3,
+                'kategori_biaya' => 'capex',
+                'amount' => 2000,
+            ])
+            ->assertNotFound();
 
         $this->actingAs($admin)
             ->delete(route('admin.outline-agreements.monthly-realizations.destroy', [$secondAgreement, $realization]))
             ->assertNotFound();
-
-        $this->assertDatabaseHas('outline_agreement_monthly_realizations', ['id' => $realization->id]);
 
         $this->actingAs($admin)
             ->delete(route('admin.outline-agreements.monthly-realizations.destroy', [$firstAgreement, $realization]))
@@ -149,16 +246,16 @@ class OutlineAgreementMonthlyRealizationTest extends TestCase
         $realization = $agreement->monthlyRealizations()->create([
             'year' => 2026,
             'month' => 4,
-            'pr_po_amount' => 1000,
-            'urgent_amount' => 0,
+            'kategori_biaya' => 'pemeliharaan',
+            'amount' => 1000,
         ]);
 
         $this->actingAs($user)
             ->post(route('admin.outline-agreements.monthly-realizations.store', $agreement), [
                 'year' => 2026,
                 'month' => 5,
-                'pr_po_amount' => 1000,
-                'urgent_amount' => 0,
+                'kategori_biaya' => 'capex',
+                'amount' => 1000,
             ])
             ->assertForbidden();
 
@@ -167,6 +264,26 @@ class OutlineAgreementMonthlyRealizationTest extends TestCase
             ->assertForbidden();
 
         $this->assertDatabaseCount('outline_agreement_monthly_realizations', 1);
+    }
+
+    public function test_modal_uses_budget_verification_categories_and_new_field_names(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $this->createAgreement($admin, 'OA-MONTHLY-UI');
+
+        $response = $this->actingAs($admin)->get(route('admin.outline-agreements.index'));
+
+        $response->assertOk()
+            ->assertSee('Kategori Biaya')
+            ->assertSee('Nilai Realisasi')
+            ->assertSee('name="kategori_biaya"', false)
+            ->assertSee('name="amount"', false)
+            ->assertDontSee('name="pr_po_amount"', false)
+            ->assertDontSee('name="urgent_amount"', false);
+
+        foreach (BudgetVerification::kategoriBiayaOptions() as $value => $label) {
+            $response->assertSee('value="'.$value.'"', false)->assertSee($label);
+        }
     }
 
     private function createAgreement(User $admin, string $number): OutlineAgreement

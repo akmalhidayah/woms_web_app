@@ -14,6 +14,7 @@
             <form id="monthlyRealizationForm" method="POST" action="" class="space-y-4">
                 @csrf
                 <input id="monthlyRealizationOaId" type="hidden" name="_monthly_oa_id" value="{{ old('_monthly_oa_id') }}">
+                <input id="monthlyRealizationId" type="hidden" name="realization_id" value="{{ old('realization_id') }}">
 
                 @if ($errors->any() && old('_monthly_oa_id'))
                     <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -41,12 +42,17 @@
                         </select>
                     </div>
                     <div>
-                        <label for="monthlyRealizationPrPo" class="mb-2 block text-sm font-semibold text-slate-700">Document PR/PO (LHPP)</label>
-                        <input id="monthlyRealizationPrPo" type="text" name="pr_po_amount" inputmode="numeric" value="{{ old('pr_po_amount', '0') }}" placeholder="0" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 focus:border-sky-500 focus:outline-none" required>
+                        <label for="monthlyRealizationCategory" class="mb-2 block text-sm font-semibold text-slate-700">Kategori Biaya</label>
+                        <select id="monthlyRealizationCategory" name="kategori_biaya" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 focus:border-sky-500 focus:outline-none" required>
+                            <option value="">Pilih kategori biaya</option>
+                            @foreach ($monthlyRealizationCategoryOptions as $categoryValue => $categoryLabel)
+                                <option value="{{ $categoryValue }}" @selected(old('kategori_biaya') === $categoryValue)>{{ $categoryLabel }}</option>
+                            @endforeach
+                        </select>
                     </div>
                     <div>
-                        <label for="monthlyRealizationUrgent" class="mb-2 block text-sm font-semibold text-slate-700">Pekerjaan Urgent</label>
-                        <input id="monthlyRealizationUrgent" type="text" name="urgent_amount" inputmode="numeric" value="{{ old('urgent_amount', '0') }}" placeholder="0" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 focus:border-sky-500 focus:outline-none" required>
+                        <label for="monthlyRealizationAmount" class="mb-2 block text-sm font-semibold text-slate-700">Nilai Realisasi</label>
+                        <input id="monthlyRealizationAmount" type="text" name="amount" inputmode="numeric" value="{{ old('amount', '0') }}" placeholder="0" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 focus:border-sky-500 focus:outline-none" required>
                     </div>
                 </div>
 
@@ -64,8 +70,8 @@
                         <thead class="bg-slate-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
                             <tr>
                                 <th class="px-4 py-3">Periode</th>
-                                <th class="px-4 py-3 text-right">Document PR/PO</th>
-                                <th class="px-4 py-3 text-right">Pekerjaan Urgent</th>
+                                <th class="px-4 py-3">Kategori Biaya</th>
+                                <th class="px-4 py-3 text-right">Nilai Realisasi</th>
                                 <th class="px-4 py-3 text-right">Aksi</th>
                             </tr>
                         </thead>

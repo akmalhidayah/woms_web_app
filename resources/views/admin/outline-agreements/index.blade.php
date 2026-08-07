@@ -160,8 +160,9 @@
                                                         'id' => $realization->id,
                                                         'year' => $realization->year,
                                                         'month' => $realization->month,
-                                                        'pr_po_amount' => $realization->pr_po_amount,
-                                                        'urgent_amount' => $realization->urgent_amount,
+                                                        'kategori_biaya' => $realization->kategori_biaya,
+                                                        'category_label' => $realization->categoryLabel(),
+                                                        'amount' => $realization->amount,
                                                         'destroy_url' => route('admin.outline-agreements.monthly-realizations.destroy', [$agreement, $realization]),
                                                     ])
                                                     ->values()

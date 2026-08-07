@@ -303,11 +303,12 @@
         const monthlyModal = document.getElementById('oaMonthlyRealizationModal');
         const monthlyForm = document.getElementById('monthlyRealizationForm');
         const monthlyOaId = document.getElementById('monthlyRealizationOaId');
+        const monthlyRealizationId = document.getElementById('monthlyRealizationId');
         const monthlyAgreementInfo = document.getElementById('monthlyRealizationAgreementInfo');
         const monthlyYear = document.getElementById('monthlyRealizationYear');
         const monthlyMonth = document.getElementById('monthlyRealizationMonth');
-        const monthlyPrPo = document.getElementById('monthlyRealizationPrPo');
-        const monthlyUrgent = document.getElementById('monthlyRealizationUrgent');
+        const monthlyCategory = document.getElementById('monthlyRealizationCategory');
+        const monthlyAmount = document.getElementById('monthlyRealizationAmount');
         const monthlyRows = document.getElementById('monthlyRealizationRows');
         const monthlyEmpty = document.getElementById('monthlyRealizationEmpty');
         const monthlyNames = [
@@ -320,21 +321,26 @@
         const formatMonthlyAmount = (value) => new Intl.NumberFormat('id-ID').format(Number(value || 0));
 
         const fillMonthlyForm = (realization = null) => {
-            if (!monthlyYear || !monthlyMonth || !monthlyPrPo || !monthlyUrgent) return;
+            if (!monthlyRealizationId || !monthlyYear || !monthlyMonth || !monthlyCategory || !monthlyAmount) return;
 
             if (realization) {
+                monthlyRealizationId.value = realization.id ?? '';
                 monthlyYear.value = realization.year ?? '';
                 monthlyMonth.value = realization.month ?? '';
-                monthlyPrPo.value = formatMonthlyAmount(realization.pr_po_amount);
-                monthlyUrgent.value = formatMonthlyAmount(realization.urgent_amount);
+                monthlyCategory.value = Array.from(monthlyCategory.options)
+                    .some((option) => option.value === realization.kategori_biaya)
+                    ? realization.kategori_biaya
+                    : '';
+                monthlyAmount.value = formatMonthlyAmount(realization.amount);
                 monthlyYear.focus();
                 return;
             }
 
+            monthlyRealizationId.value = '';
             monthlyYear.value = '';
             monthlyMonth.value = '';
-            monthlyPrPo.value = '0';
-            monthlyUrgent.value = '0';
+            monthlyCategory.value = '';
+            monthlyAmount.value = '0';
         };
 
         const bindMonthlyAmountFormatter = (input) => {
@@ -344,8 +350,7 @@
             });
         };
 
-        bindMonthlyAmountFormatter(monthlyPrPo);
-        bindMonthlyAmountFormatter(monthlyUrgent);
+        bindMonthlyAmountFormatter(monthlyAmount);
 
         const renderMonthlyRows = (realizations) => {
             if (!monthlyRows || !monthlyEmpty) return;
@@ -361,13 +366,13 @@
                 periodCell.className = 'whitespace-nowrap px-4 py-3 font-semibold';
                 periodCell.textContent = `${monthlyNames[Number(realization.month)] || realization.month} ${realization.year}`;
 
-                const prPoCell = document.createElement('td');
-                prPoCell.className = 'whitespace-nowrap px-4 py-3 text-right';
-                prPoCell.textContent = `Rp${formatMonthlyAmount(realization.pr_po_amount)}`;
+                const categoryCell = document.createElement('td');
+                categoryCell.className = 'px-4 py-3';
+                categoryCell.textContent = realization.category_label || realization.kategori_biaya || '-';
 
-                const urgentCell = document.createElement('td');
-                urgentCell.className = 'whitespace-nowrap px-4 py-3 text-right';
-                urgentCell.textContent = `Rp${formatMonthlyAmount(realization.urgent_amount)}`;
+                const amountCell = document.createElement('td');
+                amountCell.className = 'whitespace-nowrap px-4 py-3 text-right';
+                amountCell.textContent = `Rp${formatMonthlyAmount(realization.amount)}`;
 
                 const actionCell = document.createElement('td');
                 actionCell.className = 'whitespace-nowrap px-4 py-3 text-right';
@@ -400,7 +405,7 @@
                         const result = await window.Swal.fire({
                             icon: 'warning',
                             title: 'Hapus realisasi biaya?',
-                            text: `Realisasi periode ${periodCell.textContent} akan dihapus.`,
+                            text: `Realisasi ${categoryCell.textContent} periode ${periodCell.textContent} akan dihapus.`,
                             showCancelButton: true,
                             confirmButtonText: 'Ya, hapus',
                             cancelButtonText: 'Batal',
@@ -408,7 +413,7 @@
                         });
                         confirmed = result.isConfirmed;
                     } else {
-                        confirmed = window.confirm(`Hapus realisasi periode ${periodCell.textContent}?`);
+                        confirmed = window.confirm(`Hapus realisasi ${categoryCell.textContent} periode ${periodCell.textContent}?`);
                     }
 
                     if (confirmed) deleteForm.submit();
@@ -416,7 +421,7 @@
 
                 actionWrap.append(editButton, deleteForm);
                 actionCell.appendChild(actionWrap);
-                row.append(periodCell, prPoCell, urgentCell, actionCell);
+                row.append(periodCell, categoryCell, amountCell, actionCell);
                 monthlyRows.appendChild(row);
             });
         };

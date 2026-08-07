@@ -22,8 +22,8 @@ class DashboardMonthlyRealizationTest extends TestCase
         $agreement->monthlyRealizations()->create([
             'year' => 2026,
             'month' => 1,
-            'pr_po_amount' => 100000000,
-            'urgent_amount' => 20000000,
+            'kategori_biaya' => 'pemeliharaan',
+            'amount' => 120000000,
         ]);
         $this->createBast($admin, 'ORDER-NORMAL-MONTHLY', Order::PRIORITY_MEDIUM, 15000000, true);
         $this->createBast($admin, 'ORDER-URGENT-MONTHLY', Order::PRIORITY_HIGH, 5000000, false);
@@ -31,8 +31,8 @@ class DashboardMonthlyRealizationTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.dashboard'));
 
         $response->assertOk();
-        $response->assertViewHas('documentPRPOAmount', 115000000);
-        $response->assertViewHas('urgentAmount', 25000000);
+        $response->assertViewHas('documentPRPOAmount', 135000000);
+        $response->assertViewHas('urgentAmount', 5000000);
         $response->assertViewHas('totalAmount2', 140000000);
         $response->assertViewHas('totalRealisasiBiaya', 140000000);
         $response->assertViewHas('totalSeluruhAmount', 140000000);
@@ -55,14 +55,14 @@ class DashboardMonthlyRealizationTest extends TestCase
             [
                 'year' => 2026,
                 'month' => 1,
-                'pr_po_amount' => 100000000,
-                'urgent_amount' => 20000000,
+                'kategori_biaya' => 'pemeliharaan',
+                'amount' => 120000000,
             ],
             [
                 'year' => 2026,
                 'month' => 7,
-                'pr_po_amount' => 5000000,
-                'urgent_amount' => 1000000,
+                'kategori_biaya' => 'capex',
+                'amount' => 6000000,
             ],
         ]);
         $this->createBast($admin, 'ORDER-JUL-NORMAL', Order::PRIORITY_MEDIUM, 15871421, true, '2026-07-15');
@@ -80,8 +80,8 @@ class DashboardMonthlyRealizationTest extends TestCase
                 'month' => 7,
                 'label' => 'Jul 2026',
                 'total' => 21871421,
-                'normal_total' => 20871421,
-                'urgent_total' => 1000000,
+                'normal_total' => 21871421,
+                'urgent_total' => 0,
             ],
         ]);
     }
@@ -94,20 +94,20 @@ class DashboardMonthlyRealizationTest extends TestCase
         $activeAgreement->monthlyRealizations()->create([
             'year' => 2026,
             'month' => 1,
-            'pr_po_amount' => 100,
-            'urgent_amount' => 200,
+            'kategori_biaya' => 'pemeliharaan',
+            'amount' => 300,
         ]);
         $closedAgreement->monthlyRealizations()->create([
             'year' => 2026,
             'month' => 1,
-            'pr_po_amount' => 1000,
-            'urgent_amount' => 2000,
+            'kategori_biaya' => 'pemeliharaan',
+            'amount' => 3000,
         ]);
 
         $response = $this->actingAs($admin)->get(route('admin.dashboard'));
 
-        $response->assertViewHas('documentPRPOAmount', 100);
-        $response->assertViewHas('urgentAmount', 200);
+        $response->assertViewHas('documentPRPOAmount', 300);
+        $response->assertViewHas('urgentAmount', 0);
         $response->assertViewHas('totalKuotaKontrak', 500000000);
     }
 
@@ -123,9 +123,9 @@ class DashboardMonthlyRealizationTest extends TestCase
             '2026-12-31',
         );
         $agreement->monthlyRealizations()->createMany([
-            ['year' => 2025, 'month' => 12, 'pr_po_amount' => 100, 'urgent_amount' => 10],
-            ['year' => 2026, 'month' => 1, 'pr_po_amount' => 200, 'urgent_amount' => 20],
-            ['year' => 2026, 'month' => 3, 'pr_po_amount' => 300, 'urgent_amount' => 30],
+            ['year' => 2025, 'month' => 12, 'kategori_biaya' => 'pemeliharaan', 'amount' => 110],
+            ['year' => 2026, 'month' => 1, 'kategori_biaya' => 'capex', 'amount' => 220],
+            ['year' => 2026, 'month' => 3, 'kategori_biaya' => 'non pemeliharaan', 'amount' => 330],
         ]);
 
         $response = $this->actingAs($admin)->getJson(route('admin.dashboard.realization-chart', [

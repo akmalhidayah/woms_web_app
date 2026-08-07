@@ -37,8 +37,8 @@ class DashboardController extends Controller
         $approvalProcessHPPAmount = $this->sumApprovedHppsWaitingForPoAmount();
         $documentOnProcessPOAmount = $this->sumPurchaseOrdersWithNumberAndDocumentAmount();
         $monthlyRealizations = $this->sumActiveOutlineAgreementMonthlyRealizations();
-        $documentPRPOAmount = $this->sumNormalLhppBastAmount() + $monthlyRealizations['pr_po'];
-        $urgentAmount = $this->sumEmergencyLhppBastAmount() + $monthlyRealizations['urgent'];
+        $documentPRPOAmount = $this->sumNormalLhppBastAmount() + $monthlyRealizations;
+        $urgentAmount = $this->sumEmergencyLhppBastAmount();
         $totalAmount1 = $documentOnProcessHPPAmount + $approvalProcessHPPAmount + $documentOnProcessPOAmount;
         $totalAmount2 = $documentPRPOAmount + $urgentAmount;
         $totalSeluruhAmount = $totalAmount1 + $totalAmount2;
@@ -209,17 +209,9 @@ class DashboardController extends Controller
             ->sum('total_aktual_biaya'));
     }
 
-    /**
-     * @return array{pr_po: int, urgent: int}
-     */
-    private function sumActiveOutlineAgreementMonthlyRealizations(): array
+    private function sumActiveOutlineAgreementMonthlyRealizations(): int
     {
-        $query = $this->activeOutlineAgreementMonthlyRealizationsQuery();
-
-        return [
-            'pr_po' => (int) (clone $query)->sum('pr_po_amount'),
-            'urgent' => (int) (clone $query)->sum('urgent_amount'),
-        ];
+        return (int) $this->activeOutlineAgreementMonthlyRealizationsQuery()->sum('amount');
     }
 
     private function activeOutlineAgreementMonthlyRealizationsQuery(): Builder
@@ -389,7 +381,7 @@ class DashboardController extends Controller
                             ->where('month', '<=', $filterEndMonth);
                     });
             })
-            ->selectRaw('year, month, SUM(pr_po_amount) as normal_total, SUM(urgent_amount) as urgent_total')
+            ->selectRaw('year, month, SUM(amount) as normal_total')
             ->groupBy('year', 'month')
             ->get()
             ->keyBy(fn (OutlineAgreementMonthlyRealization $row): string => sprintf('%04d-%02d', $row->year, $row->month));
@@ -403,7 +395,7 @@ class DashboardController extends Controller
                 $transaction = $transactionTotals->get($key, ['normal_total' => 0, 'urgent_total' => 0]);
                 $monthly = $monthlyTotals->get($key);
                 $normalTotal = (int) $transaction['normal_total'] + (int) ($monthly?->normal_total ?? 0);
-                $urgentTotal = (int) $transaction['urgent_total'] + (int) ($monthly?->urgent_total ?? 0);
+                $urgentTotal = (int) $transaction['urgent_total'];
 
                 return [
                     'year' => $year,

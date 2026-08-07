@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\BudgetVerification;
 use App\Models\OutlineAgreement;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class StoreOutlineAgreementMonthlyRealizationRequest extends FormRequest
@@ -23,8 +25,7 @@ class StoreOutlineAgreementMonthlyRealizationRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'pr_po_amount' => $this->normalizeRupiah($this->input('pr_po_amount')),
-            'urgent_amount' => $this->normalizeRupiah($this->input('urgent_amount')),
+            'amount' => $this->normalizeRupiah($this->input('amount')),
         ]);
     }
 
@@ -36,10 +37,15 @@ class StoreOutlineAgreementMonthlyRealizationRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'realization_id' => ['nullable', 'integer', 'min:1'],
             'year' => ['required', 'integer', 'min:1', 'max:9999'],
             'month' => ['required', 'integer', 'between:1,12'],
-            'pr_po_amount' => ['required', 'integer', 'min:0', 'max:'.PHP_INT_MAX],
-            'urgent_amount' => ['required', 'integer', 'min:0', 'max:'.PHP_INT_MAX],
+            'kategori_biaya' => [
+                'required',
+                'string',
+                Rule::in(array_keys(BudgetVerification::kategoriBiayaOptions())),
+            ],
+            'amount' => ['required', 'integer', 'min:0', 'max:'.PHP_INT_MAX],
         ];
     }
 

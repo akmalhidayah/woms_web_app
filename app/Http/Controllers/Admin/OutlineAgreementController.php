@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreOutlineAgreementAmendmentRequest;
 use App\Http\Requests\Admin\StoreOutlineAgreementRequest;
 use App\Http\Requests\Admin\UpdateOutlineAgreementRequest;
+use App\Models\BudgetVerification;
 use App\Models\OutlineAgreement;
 use App\Models\UnitWork;
 use App\Services\OutlineAgreementService;
@@ -17,8 +18,7 @@ class OutlineAgreementController extends Controller
 {
     public function __construct(
         private readonly OutlineAgreementService $service,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): View
     {
@@ -59,6 +59,7 @@ class OutlineAgreementController extends Controller
             'status' => $status,
             'statusOptions' => OutlineAgreement::statusOptions(),
             'amendmentTypeOptions' => OutlineAgreement::amendmentTypeOptions(),
+            'monthlyRealizationCategoryOptions' => BudgetVerification::kategoriBiayaOptions(),
             'summary' => [
                 'active_count' => (clone $summaryQuery)->where('status', OutlineAgreement::STATUS_ACTIVE)->count(),
                 'expiring_count' => (clone $summaryQuery)

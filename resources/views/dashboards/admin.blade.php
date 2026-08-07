@@ -636,28 +636,37 @@
                         const metadata = chart.getDatasetMeta(0);
 
                         ctx.save();
-                        ctx.fillStyle = '#ffffff';
                         ctx.font = '600 11px sans-serif';
                         ctx.textAlign = 'left';
                         ctx.textBaseline = 'middle';
 
                         metadata.data.forEach((bar, index) => {
-                            const availableWidth = bar.x - chartArea.left - 16;
-                            if (availableWidth < 24) return;
+                            const section = String(sections[index] || '');
+                            const insideX = chartArea.left + 9;
+                            const insideWidth = bar.x - insideX - 8;
+                            const fullLabelWidth = ctx.measureText(section).width;
 
-                            const label = truncateCanvasText(
-                                ctx,
-                                String(sections[index] || ''),
-                                availableWidth,
-                            );
-                            if (label !== '') ctx.fillText(label, chartArea.left + 8, bar.y);
+                            if (insideWidth >= fullLabelWidth) {
+                                ctx.fillStyle = '#ffffff';
+                                ctx.fillText(section, insideX, bar.y);
+                                return;
+                            }
+
+                            const outsideX = Math.max(chartArea.left + 7, bar.x + 8);
+                            const outsideWidth = chartArea.right - outsideX - 6;
+                            const outsideLabel = truncateCanvasText(ctx, section, outsideWidth);
+
+                            if (outsideLabel !== '') {
+                                ctx.fillStyle = '#334155';
+                                ctx.fillText(outsideLabel, outsideX, bar.y);
+                            }
                         });
 
                         ctx.restore();
                     },
                 };
 
-                topTenCombinedCostChartContainer.style.height = `${Math.max(300, Math.min(620, (sections.length * 58) + 48))}px`;
+                topTenCombinedCostChartContainer.style.height = `${Math.max(320, Math.min(780, (sections.length * 72) + 52))}px`;
                 window.topTenCombinedCostChartInstance = new Chart(topTenCombinedCostCanvas, {
                     type: 'bar',
                     data: {
@@ -668,18 +677,18 @@
                                 data: sections.map(section => generalBySection.get(section) || 0),
                                 backgroundColor: '#2563eb',
                                 borderRadius: 6,
-                                maxBarThickness: 28,
-                                categoryPercentage: 0.9,
-                                barPercentage: 0.92,
+                                maxBarThickness: 34,
+                                categoryPercentage: 0.78,
+                                barPercentage: 0.86,
                             },
                             {
                                 label: 'Pemeliharaan',
                                 data: sections.map(section => maintenanceBySection.get(section) || 0),
                                 backgroundColor: '#10b981',
                                 borderRadius: 6,
-                                maxBarThickness: 28,
-                                categoryPercentage: 0.9,
-                                barPercentage: 0.92,
+                                maxBarThickness: 34,
+                                categoryPercentage: 0.78,
+                                barPercentage: 0.86,
                             },
                         ],
                     },
@@ -693,6 +702,7 @@
                                 grid: { display: false },
                                 border: { display: false },
                                 ticks: {
+                                    maxTicksLimit: 5,
                                     callback: value => compactRupiah(value),
                                 },
                             },

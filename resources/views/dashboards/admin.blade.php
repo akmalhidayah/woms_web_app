@@ -62,6 +62,7 @@
         $maintenanceOutstanding = $maintenanceOutstanding ?? 0;
         $maintenancePrognosis = $maintenancePrognosis ?? 0;
         $maintenanceRemainingTarget = $maintenanceRemainingTarget ?? 0;
+        $maintenanceTargetUsagePercentageHundredths = $maintenanceTargetUsagePercentageHundredths ?? 0;
         $maintenanceTargetUsagePercentageLabel = $maintenanceTargetUsagePercentageLabel ?? '0';
         $maintenanceTargetUsageProgressWidth = $maintenanceTargetUsageProgressWidth ?? '0';
         $maintenanceLpjStatusAmount = $maintenanceLpjStatusAmount ?? 0;
@@ -236,21 +237,25 @@
                 </div>
 
                 <div class="mt-3 grid gap-3 md:grid-cols-12">
-                    <section class="rounded-xl border border-slate-200 bg-slate-50 p-3 md:col-span-4">
-                        <div class="text-center text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">Target Tahunan {{ $maintenanceTargetYear }}</div>
-                        <div class="dashboard-chart-placeholder mx-auto mt-3 aspect-square w-full max-w-[138px] rounded-full p-[10px]" style="background: conic-gradient(#10b981 {{ $maintenanceTargetUsageProgressWidth }}%, #e2e8f0 {{ $maintenanceTargetUsageProgressWidth }}%);">
-                            <div class="flex h-full w-full items-center justify-center rounded-full bg-white text-center">
-                                <div class="px-2">
-                                    <div class="text-[8px] uppercase tracking-[0.1em] text-slate-400">Pemakaian</div>
-                                    <div class="mt-1 text-sm font-bold text-emerald-700">{{ $maintenanceTargetUsagePercentageLabel }}%</div>
-                                    <div class="mt-1 break-words text-[9px] font-semibold text-slate-700">
-                                        {{ $rp($maintenanceAnnualTarget) }}
+                    <section class="flex flex-col rounded-xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-3 md:col-span-4">
+                        <div class="text-center">
+                            <div class="text-[8px] font-bold uppercase tracking-[0.16em] text-slate-500">Target Tahunan {{ $maintenanceTargetYear }}</div>
+                            <div class="mt-1.5 break-words text-[11px] font-bold text-slate-900">{{ $rp($maintenanceAnnualTarget) }}</div>
+                        </div>
+
+                        <div class="dashboard-chart-placeholder mx-auto my-3 aspect-square w-full max-w-[112px] rounded-full p-[9px] shadow-inner" style="background: conic-gradient(#10b981 0 {{ $maintenanceTargetUsageProgressWidth }}%, #e2e8f0 {{ $maintenanceTargetUsageProgressWidth }}% 100%);">
+                            <div class="flex h-full w-full items-center justify-center rounded-full bg-white shadow-sm">
+                                <div class="px-2 text-center">
+                                    <div class="text-[7px] font-semibold uppercase tracking-[0.12em] text-slate-400">Pemakaian</div>
+                                    <div class="mt-0.5 text-base font-extrabold {{ $maintenanceTargetUsagePercentageHundredths > 10000 ? 'text-rose-600' : 'text-emerald-700' }}">
+                                        {{ $maintenanceTargetUsagePercentageLabel }}%
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="mt-3 text-center">
-                            <div class="text-[8px] font-semibold uppercase tracking-[0.1em] text-slate-400">Sisa Target</div>
+
+                        <div class="mt-auto border-t border-slate-200 pt-2.5 text-center">
+                            <div class="text-[7px] font-semibold uppercase tracking-[0.14em] text-slate-400">Sisa Target</div>
                             <div class="mt-1 break-words text-[10px] font-bold {{ $maintenanceRemainingTarget < 0 ? 'text-rose-700' : 'text-slate-800' }}">
                                 {{ $rp($maintenanceRemainingTarget) }}
                             </div>

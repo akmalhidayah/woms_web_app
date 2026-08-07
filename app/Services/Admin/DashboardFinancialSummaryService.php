@@ -367,7 +367,7 @@ final class DashboardFinancialSummaryService
             })
             ->with([
                 'purchaseOrder:id,hpp_id,purchase_order_number,po_document_path',
-                'lhppBasts' => fn (Builder $query): Builder => $query
+                'lhppBasts' => fn ($query) => $query
                     ->where('termin_type', 'termin_1')
                     ->whereNull('parent_lhpp_bast_id')
                     ->latest('id')

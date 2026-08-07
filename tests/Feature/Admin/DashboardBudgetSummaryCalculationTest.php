@@ -31,14 +31,20 @@ class DashboardBudgetSummaryCalculationTest extends TestCase
             'tahun' => 2026,
             'nilai_target' => 700,
         ]);
-        $this->createPendingHpp($admin, 'ORDER-BUDGET-SUMMARY-001', 200);
+        $this->createPendingHpp($admin, $agreement, 'ORDER-BUDGET-SUMMARY-001', 200);
 
         $response = $this->actingAs($admin)->get(route('admin.dashboard'));
 
         $response->assertOk();
         $response->assertViewHas('totalKuotaKontrak', 1000);
+        $response->assertViewHas('totalPaguKontrak', 1000);
+        $response->assertViewHas('totalRealisasiSistem', 0);
+        $response->assertViewHas('totalRealisasiManual', 400);
         $response->assertViewHas('totalAmount1', 200);
         $response->assertViewHas('totalRealisasiBiaya', 400);
+        $response->assertViewHas('totalOutstandingBiaya', 200);
+        $response->assertViewHas('totalPrognosaBiaya', 600);
+        $response->assertViewHas('totalAnggaranTersedia', 400);
         $response->assertViewHas('totalPemakaianKuota', 600);
         $response->assertViewHas('sisaKuotaKontrak', 400);
         $response->assertViewHas('budgetUsagePercentageHundredths', 6000);
@@ -56,7 +62,8 @@ class DashboardBudgetSummaryCalculationTest extends TestCase
     public function test_budget_usage_percentage_is_safe_when_contract_budget_is_zero(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
-        $this->createPendingHpp($admin, 'ORDER-BUDGET-SUMMARY-ZERO', 200);
+        $agreement = $this->createAgreement($admin, 'OA-BUDGET-SUMMARY-ZERO', 0);
+        $this->createPendingHpp($admin, $agreement, 'ORDER-BUDGET-SUMMARY-ZERO', 200);
 
         $response = $this->actingAs($admin)->get(route('admin.dashboard'));
 
@@ -75,8 +82,8 @@ class DashboardBudgetSummaryCalculationTest extends TestCase
     public function test_percentage_text_can_exceed_one_hundred_while_visual_width_is_capped(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
-        $this->createAgreement($admin, 'OA-BUDGET-SUMMARY-OVER', 100);
-        $this->createPendingHpp($admin, 'ORDER-BUDGET-SUMMARY-OVER', 200);
+        $agreement = $this->createAgreement($admin, 'OA-BUDGET-SUMMARY-OVER', 100);
+        $this->createPendingHpp($admin, $agreement, 'ORDER-BUDGET-SUMMARY-OVER', 200);
 
         $response = $this->actingAs($admin)->get(route('admin.dashboard'));
 
@@ -115,7 +122,12 @@ class DashboardBudgetSummaryCalculationTest extends TestCase
         ]);
     }
 
-    private function createPendingHpp(User $admin, string $orderNumber, int $amount): Hpp
+    private function createPendingHpp(
+        User $admin,
+        OutlineAgreement $agreement,
+        string $orderNumber,
+        int $amount,
+    ): Hpp
     {
         $order = Order::query()->create([
             'nomor_order' => $orderNumber,
@@ -131,6 +143,7 @@ class DashboardBudgetSummaryCalculationTest extends TestCase
 
         return Hpp::query()->create([
             'order_id' => $order->id,
+            'outline_agreement_id' => $agreement->id,
             'nomor_order' => $order->nomor_order,
             'nama_pekerjaan' => $order->nama_pekerjaan,
             'unit_kerja' => $order->unit_kerja,

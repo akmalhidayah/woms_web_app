@@ -12,6 +12,7 @@ use App\Models\OutlineAgreement;
 use App\Models\OutlineAgreementMonthlyRealization;
 use App\Models\OutlineAgreementTarget;
 use App\Models\PurchaseOrder;
+use App\Services\Admin\DashboardFinancialSummaryService;
 use App\Services\Admin\DashboardTopTenHppCostService;
 use App\Support\AdminActionCenter;
 use Carbon\CarbonInterface;
@@ -27,12 +28,21 @@ class DashboardController extends Controller
     private ?array $cachedRealizationYears = null;
 
     public function __construct(
+        private readonly DashboardFinancialSummaryService $financialSummaryService,
         private readonly DashboardTopTenHppCostService $topTenHppCostService,
         private readonly AdminActionCenter $actionCenter,
     ) {}
 
     public function __invoke(Request $request): View
     {
+        $financialSummary = $this->financialSummaryService->resolve();
+        $totalPaguKontrak = $financialSummary['contract_budget'];
+        $totalRealisasiSistem = $financialSummary['system_realization'];
+        $totalRealisasiManual = $financialSummary['manual_realization'];
+        $totalRealisasiBiaya = $financialSummary['realization'];
+        $totalOutstandingBiaya = $financialSummary['outstanding'];
+        $totalPrognosaBiaya = $financialSummary['prognosis'];
+        $totalAnggaranTersedia = $financialSummary['available_budget'];
         $documentOnProcessHPPAmount = $this->sumPendingHppApprovalAmount();
         $approvalProcessHPPAmount = $this->sumApprovedHppsWaitingForPoAmount();
         $documentOnProcessPOAmount = $this->sumPurchaseOrdersWithNumberAndDocumentAmount();
@@ -42,8 +52,8 @@ class DashboardController extends Controller
         $totalAmount1 = $documentOnProcessHPPAmount + $approvalProcessHPPAmount + $documentOnProcessPOAmount;
         $totalAmount2 = $documentPRPOAmount + $urgentAmount;
         $totalSeluruhAmount = $totalAmount1 + $totalAmount2;
-        $totalKuotaKontrak = $this->sumActiveOutlineAgreementBudget();
-        $budgetUsagePercentageHundredths = $this->percentageHundredths($totalSeluruhAmount, $totalKuotaKontrak);
+        $totalKuotaKontrak = $totalPaguKontrak;
+        $budgetUsagePercentageHundredths = $financialSummary['prognosis_percentage_hundredths'];
         $totalBiayaPemeliharaan = $this->sumActiveOutlineAgreementMaintenanceTargets();
         $totalJasaPemeliharaan = $this->sumVerifiedMaintenanceServiceAmount();
         $pendingActionCount = $this->actionCenter->pendingActionCount($request->user());
@@ -64,9 +74,23 @@ class DashboardController extends Controller
             'urgentAmount' => $urgentAmount,
             'totalAmount1' => $totalAmount1,
             'totalAmount2' => $totalAmount2,
-            'totalRealisasiBiaya' => $totalAmount2,
+            'totalPaguKontrak' => $totalPaguKontrak,
+            'totalRealisasiSistem' => $totalRealisasiSistem,
+            'totalRealisasiManual' => $totalRealisasiManual,
+            'totalRealisasiBiaya' => $totalRealisasiBiaya,
+            'totalOutstandingBiaya' => $totalOutstandingBiaya,
+            'totalPrognosaBiaya' => $totalPrognosaBiaya,
+            'totalAnggaranTersedia' => $totalAnggaranTersedia,
+            'prognosaPercentageHundredths' => $financialSummary['prognosis_percentage_hundredths'],
+            'realisasiPercentageHundredths' => $financialSummary['realization_percentage_hundredths'],
+            'outstandingPercentageHundredths' => $financialSummary['outstanding_percentage_hundredths'],
+            'anggaranTersediaPercentageHundredths' => $financialSummary['available_budget_percentage_hundredths'],
+            'prognosaPercentageLabel' => $this->formatPercentageHundredths($financialSummary['prognosis_percentage_hundredths'], ','),
+            'realisasiPercentageLabel' => $this->formatPercentageHundredths($financialSummary['realization_percentage_hundredths'], ','),
+            'outstandingPercentageLabel' => $this->formatPercentageHundredths($financialSummary['outstanding_percentage_hundredths'], ','),
+            'anggaranTersediaPercentageLabel' => $this->formatPercentageHundredths($financialSummary['available_budget_percentage_hundredths'], ','),
             'totalSeluruhAmount' => $totalSeluruhAmount,
-            'totalPemakaianKuota' => $totalSeluruhAmount,
+            'totalPemakaianKuota' => $totalPrognosaBiaya,
             'budgetUsagePercentageHundredths' => $budgetUsagePercentageHundredths,
             'budgetUsagePercentageLabel' => $this->formatPercentageHundredths($budgetUsagePercentageHundredths, ','),
             'budgetUsageProgressWidth' => $this->formatPercentageHundredths(
@@ -74,7 +98,7 @@ class DashboardController extends Controller
                 '.',
             ),
             'totalKuotaKontrak' => $totalKuotaKontrak,
-            'sisaKuotaKontrak' => $totalKuotaKontrak - $totalSeluruhAmount,
+            'sisaKuotaKontrak' => $totalAnggaranTersedia,
             'targetPemeliharaan' => $totalBiayaPemeliharaan,
             'totalJasaPemeliharaan' => $totalJasaPemeliharaan,
             'sisaBiayaPemeliharaan' => $totalBiayaPemeliharaan - $totalJasaPemeliharaan,
@@ -246,13 +270,6 @@ class DashboardController extends Controller
             Order::PRIORITY_URGENT,
             Order::PRIORITY_HIGH,
         ];
-    }
-
-    private function sumActiveOutlineAgreementBudget(): int
-    {
-        return $this->moneyInt(OutlineAgreement::query()
-            ->where('status', OutlineAgreement::STATUS_ACTIVE)
-            ->sum('current_total_nilai'));
     }
 
     private function sumActiveOutlineAgreementMaintenanceTargets(): int
@@ -521,21 +538,6 @@ class DashboardController extends Controller
         }
 
         return $month;
-    }
-
-    private function percentageHundredths(int $amount, int $total): int
-    {
-        if ($total <= 0) {
-            return 0;
-        }
-
-        $scaledAmount = $amount * 10000;
-        $percentage = intdiv($scaledAmount, $total);
-        $remainder = $scaledAmount % $total;
-
-        return ($remainder * 2) >= $total
-            ? $percentage + 1
-            : $percentage;
     }
 
     private function formatPercentageHundredths(int $value, string $decimalSeparator): string

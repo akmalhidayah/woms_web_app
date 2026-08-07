@@ -57,6 +57,10 @@
         $totalJasaPemeliharaan = $totalJasaPemeliharaan ?? 0;
         $sisaBiayaPemeliharaan = $sisaBiayaPemeliharaan ?? 0;
         $totalRealisasiBiaya = $totalRealisasiBiaya ?? 0;
+        $totalPaguKontrak = $totalPaguKontrak ?? $totalKuotaKontrak;
+        $totalOutstandingBiaya = $totalOutstandingBiaya ?? 0;
+        $totalPrognosaBiaya = $totalPrognosaBiaya ?? 0;
+        $totalAnggaranTersedia = $totalAnggaranTersedia ?? 0;
         $latestKuotaAnggaran = $latestKuotaAnggaran ?? null;
         $periodeKontrak = $periodeKontrak ?? ['start' => null, 'end' => null, 'adendum' => null];
 
@@ -174,7 +178,7 @@
                     {{ $contractPeriodLabel !== '' ? $contractPeriodLabel : '-' }}
                 </div>
                 <div class="mt-1 break-words text-lg font-extrabold leading-6 text-slate-950 sm:text-xl">
-                    {{ $rp($totalKuotaKontrak) }}
+                    {{ $rp($totalPaguKontrak) }}
                 </div>
             </aside>
         </header>
@@ -188,19 +192,23 @@
             <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <article class="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <div class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">Total Prognosa Biaya</div>
-                    <div class="mt-2 break-words text-base font-bold text-slate-900">Rp -</div>
+                    <div class="mt-2 break-words text-base font-bold text-slate-900">{{ $rp($totalPrognosaBiaya) }}</div>
+                    <div class="mt-1 text-[9px] font-semibold text-slate-500">{{ $prognosaPercentageLabel ?? '0' }}% dari pagu</div>
                 </article>
                 <article class="min-w-0 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
                     <div class="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-700">Realisasi Biaya</div>
                     <div class="mt-2 break-words text-base font-bold text-slate-900">{{ $rp($totalRealisasiBiaya) }}</div>
+                    <div class="mt-1 text-[9px] font-semibold text-emerald-700">{{ $realisasiPercentageLabel ?? '0' }}% dari pagu</div>
                 </article>
                 <article class="min-w-0 rounded-xl border border-blue-200 bg-blue-50 p-3">
                     <div class="text-[9px] font-bold uppercase tracking-[0.12em] text-blue-700">Outstanding Biaya</div>
-                    <div class="mt-2 break-words text-base font-bold text-slate-900">{{ $rp($totalAmount1) }}</div>
+                    <div class="mt-2 break-words text-base font-bold text-slate-900">{{ $rp($totalOutstandingBiaya) }}</div>
+                    <div class="mt-1 text-[9px] font-semibold text-blue-700">{{ $outstandingPercentageLabel ?? '0' }}% dari pagu</div>
                 </article>
                 <article class="min-w-0 rounded-xl border p-3 {{ $remainingBudgetClasses }}">
                     <div class="text-[9px] font-bold uppercase tracking-[0.12em]">Anggaran Tersedia</div>
-                    <div class="mt-2 break-words text-base font-bold">{{ $rp($sisaKuotaKontrak) }}</div>
+                    <div class="mt-2 break-words text-base font-bold">{{ $rp($totalAnggaranTersedia) }}</div>
+                    <div class="mt-1 text-[9px] font-semibold opacity-80">{{ $anggaranTersediaPercentageLabel ?? '0' }}% dari pagu</div>
                 </article>
             </div>
         </section>
@@ -423,8 +431,8 @@
             const initialTopTenCostSections = @json($topTenCostSections ?? []);
             const initialTopTenMaintenanceCostSections = @json($topTenMaintenanceCostSections ?? []);
             const initialOverhaulPrognosis = @json($overhaulPrognosis ?? []);
-            const potentialAmount = Number(@json($totalAmount1 ?? 0));
-            const contractBudget = Number(@json($totalKuotaKontrak ?? 0));
+            const potentialAmount = Number(@json($totalOutstandingBiaya ?? 0));
+            const contractBudget = Number(@json($totalPaguKontrak ?? 0));
             const yearsEndpoint = @json(url('/admin/get-years'));
             const chartEndpoint = @json(url('/admin/realisasi-biaya'));
             const chartColors = {
@@ -836,6 +844,17 @@
             }
 
             function updateRealizationSummary(normalTotal, urgentTotal) {
+                if (![
+                    documentPrPoAmount,
+                    urgentRealizationAmount,
+                    realizationSubtotal,
+                    totalRealizationAmount,
+                    budgetRealizationAmount,
+                    remainingContractBudget,
+                ].every(Boolean)) {
+                    return;
+                }
+
                 const realizationTotal = normalTotal + urgentTotal;
                 const potentialAndRealization = potentialAmount + realizationTotal;
                 const remainingBudget = contractBudget - potentialAndRealization;
@@ -851,6 +870,10 @@
             }
 
             function updateBudgetUsage(usedAmount) {
+                if (!budgetUsagePercentage || !budgetUsageProgress || !budgetUsageProgressbar || !budgetUsageAmount) {
+                    return;
+                }
+
                 const usagePercentage = contractBudget > 0 ? (usedAmount / contractBudget) * 100 : 0;
                 const visualPercentage = Math.min(100, Math.max(0, usagePercentage));
                 const percentageLabel = new Intl.NumberFormat('id-ID', {
@@ -865,6 +888,10 @@
             }
 
             function updateRemainingBudgetState(remainingBudget) {
+                if (!remainingContractBudgetCard || !remainingContractBudget) {
+                    return;
+                }
+
                 const isNegative = remainingBudget < 0;
 
                 remainingContractBudgetCard.classList.toggle('border-rose-200', isNegative);

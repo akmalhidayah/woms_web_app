@@ -34,11 +34,13 @@ class DashboardMonthlyRealizationTest extends TestCase
         $response->assertViewHas('documentPRPOAmount', 135000000);
         $response->assertViewHas('urgentAmount', 5000000);
         $response->assertViewHas('totalAmount2', 140000000);
-        $response->assertViewHas('totalRealisasiBiaya', 140000000);
+        $response->assertViewHas('totalRealisasiSistem', 0);
+        $response->assertViewHas('totalRealisasiManual', 120000000);
+        $response->assertViewHas('totalRealisasiBiaya', 120000000);
         $response->assertViewHas('totalSeluruhAmount', 140000000);
         $response->assertViewHas('totalKuotaKontrak', 1000000000);
-        $response->assertViewHas('sisaKuotaKontrak', 860000000);
-        $response->assertSee('Rp. 860.000.000');
+        $response->assertViewHas('sisaKuotaKontrak', 880000000);
+        $response->assertSee('Rp. 880.000.000');
         $response->assertDontSee('Manual');
         $response->assertDontSee('Otomatis');
         $response->assertDontSee('Historis');

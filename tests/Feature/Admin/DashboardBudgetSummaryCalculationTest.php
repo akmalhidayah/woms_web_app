@@ -36,36 +36,26 @@ class DashboardBudgetSummaryCalculationTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.dashboard'));
 
         $response->assertOk();
-        $response->assertViewHas('totalKuotaKontrak', 1000);
         $response->assertViewHas('totalPaguKontrak', 1000);
         $response->assertViewHas('totalRealisasiSistem', 0);
         $response->assertViewHas('totalRealisasiManual', 400);
-        $response->assertViewHas('totalAmount1', 200);
         $response->assertViewHas('totalRealisasiBiaya', 400);
         $response->assertViewHas('totalOutstandingBiaya', 200);
         $response->assertViewHas('totalPrognosaBiaya', 600);
         $response->assertViewHas('totalAnggaranTersedia', 400);
-        $response->assertViewHas('totalPemakaianKuota', 600);
-        $response->assertViewHas('sisaKuotaKontrak', 400);
-        $response->assertViewHas('budgetUsagePercentageHundredths', 6000);
-        $response->assertViewHas('budgetUsagePercentageLabel', '60');
-        $response->assertViewHas('budgetUsageProgressWidth', '60');
-        $response->assertViewHas('targetPemeliharaan', 700);
-        $response->assertViewHas('totalJasaPemeliharaan', 400);
-        $response->assertViewHas('sisaBiayaPemeliharaan', 300);
+        $response->assertViewHas('prognosaPercentageHundredths', 6000);
+        $response->assertViewHas('prognosaPercentageLabel', '60');
         $response->assertViewHas('maintenanceTargetYear', 2026);
         $response->assertViewHas('maintenanceAnnualTarget', 700);
-        $response->assertViewHas('maintenanceManualRealization', 400);
         $response->assertViewHas('maintenanceRealization', 400);
         $response->assertViewHas('maintenanceOutstanding', 0);
         $response->assertViewHas('maintenancePrognosis', 400);
         $response->assertViewHas('maintenanceRemainingTarget', 300);
-        $response->assertViewHas('maintenanceAlreadyRealized', 400);
         $response->assertViewHas('maintenanceLpjStatusAmount', 0);
         $response->assertViewHas('maintenanceInvoiceStatusAmount', 0);
         $response->assertSee('Biaya Status LPJ');
         $response->assertSee('Biaya Status Invoice');
-        $response->assertSee('Rp. 600 dari Rp. 1.000');
+        $response->assertSee('60% dari pagu');
 
         $agreement->refresh();
         $this->assertSame('1000.00', $agreement->current_total_nilai);
@@ -80,13 +70,11 @@ class DashboardBudgetSummaryCalculationTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.dashboard'));
 
         $response->assertOk();
-        $response->assertViewHas('totalKuotaKontrak', 0);
-        $response->assertViewHas('totalPemakaianKuota', 200);
-        $response->assertViewHas('sisaKuotaKontrak', -200);
-        $response->assertViewHas('budgetUsagePercentageHundredths', 0);
-        $response->assertViewHas('budgetUsagePercentageLabel', '0');
-        $response->assertViewHas('budgetUsageProgressWidth', '0');
-        $response->assertSee('style="width: 0%"', false);
+        $response->assertViewHas('totalPaguKontrak', 0);
+        $response->assertViewHas('totalPrognosaBiaya', 200);
+        $response->assertViewHas('totalAnggaranTersedia', -200);
+        $response->assertViewHas('prognosaPercentageHundredths', 0);
+        $response->assertViewHas('prognosaPercentageLabel', '0');
         $response->assertSee('Rp. -200');
         $response->assertSee('border-rose-200 bg-rose-50', false);
     }
@@ -100,12 +88,10 @@ class DashboardBudgetSummaryCalculationTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.dashboard'));
 
         $response->assertOk();
-        $response->assertViewHas('budgetUsagePercentageHundredths', 20000);
-        $response->assertViewHas('budgetUsagePercentageLabel', '200');
-        $response->assertViewHas('budgetUsageProgressWidth', '100');
-        $response->assertViewHas('sisaKuotaKontrak', -100);
-        $response->assertSee('200%');
-        $response->assertSee('style="width: 100%"', false);
+        $response->assertViewHas('prognosaPercentageHundredths', 20000);
+        $response->assertViewHas('prognosaPercentageLabel', '200');
+        $response->assertViewHas('totalAnggaranTersedia', -100);
+        $response->assertSee('200% dari pagu');
         $response->assertSee('Rp. -100');
     }
 
@@ -139,8 +125,7 @@ class DashboardBudgetSummaryCalculationTest extends TestCase
         OutlineAgreement $agreement,
         string $orderNumber,
         int $amount,
-    ): Hpp
-    {
+    ): Hpp {
         $order = Order::query()->create([
             'nomor_order' => $orderNumber,
             'nama_pekerjaan' => 'Pekerjaan '.$orderNumber,

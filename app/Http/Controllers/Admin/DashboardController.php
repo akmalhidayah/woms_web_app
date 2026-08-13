@@ -2,15 +2,12 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Http\Controllers\Controller;
 use App\Models\BudgetVerification;
 use App\Models\Hpp;
 use App\Models\LhppBast;
-use App\Models\Order;
 use App\Models\OutlineAgreement;
 use App\Models\OutlineAgreementMonthlyRealization;
-use App\Models\PurchaseOrder;
 use App\Services\Admin\DashboardFinancialSummaryService;
 use App\Services\Admin\DashboardTopTenHppCostService;
 use App\Support\AdminActionCenter;
@@ -45,17 +42,6 @@ class DashboardController extends Controller
         $totalOutstandingBiaya = $financialSummary['outstanding'];
         $totalPrognosaBiaya = $financialSummary['prognosis'];
         $totalAnggaranTersedia = $financialSummary['available_budget'];
-        $documentOnProcessHPPAmount = $this->sumPendingHppApprovalAmount();
-        $approvalProcessHPPAmount = $this->sumApprovedHppsWaitingForPoAmount();
-        $documentOnProcessPOAmount = $this->sumPurchaseOrdersWithNumberAndDocumentAmount();
-        $monthlyRealizations = $this->sumActiveOutlineAgreementMonthlyRealizations();
-        $documentPRPOAmount = $this->sumNormalLhppBastAmount() + $monthlyRealizations;
-        $urgentAmount = $this->sumEmergencyLhppBastAmount();
-        $totalAmount1 = $documentOnProcessHPPAmount + $approvalProcessHPPAmount + $documentOnProcessPOAmount;
-        $totalAmount2 = $documentPRPOAmount + $urgentAmount;
-        $totalSeluruhAmount = $totalAmount1 + $totalAmount2;
-        $totalKuotaKontrak = $totalPaguKontrak;
-        $budgetUsagePercentageHundredths = $financialSummary['prognosis_percentage_hundredths'];
         $pendingActionCount = $this->actionCenter->pendingActionCount($request->user());
         $showActionSummaryBanner = (bool) $request->session()->pull(
             'show_admin_action_summary_banner',
@@ -63,17 +49,6 @@ class DashboardController extends Controller
         ) && $pendingActionCount > 0;
 
         return view('dashboards.admin', [
-            'outstandingNotifications' => $this->countOutstandingOrders(),
-            'pendingProcessJasa' => $this->countPendingHppApprovals(),
-            'approvalProcessHPPCount' => $this->countApprovedHppsWaitingForPo(),
-            'documentOnProcessPOCount' => $this->countPurchaseOrdersWithNumberAndDocument(),
-            'documentOnProcessHPPAmount' => $documentOnProcessHPPAmount,
-            'approvalProcessHPPAmount' => $approvalProcessHPPAmount,
-            'documentOnProcessPOAmount' => $documentOnProcessPOAmount,
-            'documentPRPOAmount' => $documentPRPOAmount,
-            'urgentAmount' => $urgentAmount,
-            'totalAmount1' => $totalAmount1,
-            'totalAmount2' => $totalAmount2,
             'totalPaguKontrak' => $totalPaguKontrak,
             'totalRealisasiSistem' => $totalRealisasiSistem,
             'totalRealisasiManual' => $totalRealisasiManual,
@@ -89,23 +64,8 @@ class DashboardController extends Controller
             'realisasiPercentageLabel' => $this->formatPercentageHundredths($financialSummary['realization_percentage_hundredths'], ','),
             'outstandingPercentageLabel' => $this->formatPercentageHundredths($financialSummary['outstanding_percentage_hundredths'], ','),
             'anggaranTersediaPercentageLabel' => $this->formatPercentageHundredths($financialSummary['available_budget_percentage_hundredths'], ','),
-            'totalSeluruhAmount' => $totalSeluruhAmount,
-            'totalPemakaianKuota' => $totalPrognosaBiaya,
-            'budgetUsagePercentageHundredths' => $budgetUsagePercentageHundredths,
-            'budgetUsagePercentageLabel' => $this->formatPercentageHundredths($budgetUsagePercentageHundredths, ','),
-            'budgetUsageProgressWidth' => $this->formatPercentageHundredths(
-                min(10000, max(0, $budgetUsagePercentageHundredths)),
-                '.',
-            ),
-            'totalKuotaKontrak' => $totalKuotaKontrak,
-            'sisaKuotaKontrak' => $totalAnggaranTersedia,
-            'targetPemeliharaan' => $maintenanceSummary['annual_target'],
-            'totalJasaPemeliharaan' => $maintenanceSummary['realization'],
-            'sisaBiayaPemeliharaan' => $maintenanceSummary['remaining_target'],
             'maintenanceTargetYear' => $maintenanceSummary['target_year'],
             'maintenanceAnnualTarget' => $maintenanceSummary['annual_target'],
-            'maintenanceSystemRealization' => $maintenanceSummary['system_realization'],
-            'maintenanceManualRealization' => $maintenanceSummary['manual_realization'],
             'maintenanceRealization' => $maintenanceSummary['realization'],
             'maintenanceOutstanding' => $maintenanceSummary['outstanding'],
             'maintenancePrognosis' => $maintenanceSummary['prognosis'],
@@ -121,8 +81,6 @@ class DashboardController extends Controller
             ),
             'maintenanceLpjStatusAmount' => $maintenanceSummary['lpj_status_amount'],
             'maintenanceInvoiceStatusAmount' => $maintenanceSummary['invoice_status_amount'],
-            'maintenanceLpjPplInProcess' => $maintenanceSummary['lpj_status_amount'],
-            'maintenanceAlreadyRealized' => $maintenanceSummary['already_realized'],
             'nonMaintenanceSummary' => $nonMaintenanceSummary,
             'capexSummary' => $capexSummary,
             'periodeKontrak' => $this->resolveActiveOutlineAgreementPeriod(),
@@ -169,106 +127,6 @@ class DashboardController extends Controller
         return response()->json($this->buildRealizationChartData(...$parameters));
     }
 
-    private function countOutstandingOrders(): int
-    {
-        return Order::query()
-            ->whereIn('catatan_status', [
-                OrderUserNoteStatus::ApprovedJasa->value,
-                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
-            ])
-            ->whereHas('scopeOfWork')
-            ->doesntHave('hpps')
-            ->count();
-    }
-
-    private function countPendingHppApprovals(): int
-    {
-        return Hpp::query()
-            ->whereHas('order')
-            ->where('status', Hpp::STATUS_IN_REVIEW)
-            ->whereNotNull('submitted_at')
-            ->count();
-    }
-
-    private function countApprovedHppsWaitingForPo(): int
-    {
-        return Hpp::query()
-            ->whereHas('order')
-            ->where('status', Hpp::STATUS_APPROVED)
-            ->whereDoesntHave('purchaseOrder', fn (Builder $query) => $query
-                ->whereNotNull('purchase_order_number')
-                ->whereRaw("TRIM(purchase_order_number) <> ''"))
-            ->count();
-    }
-
-    private function countPurchaseOrdersWithNumberAndDocument(): int
-    {
-        return PurchaseOrder::query()
-            ->whereHas('order')
-            ->whereHas('hpp', fn (Builder $query) => $query->whereHas('order'))
-            ->whereNotNull('purchase_order_number')
-            ->whereRaw("TRIM(purchase_order_number) <> ''")
-            ->whereNotNull('po_document_path')
-            ->whereRaw("TRIM(po_document_path) <> ''")
-            ->count();
-    }
-
-    private function sumPendingHppApprovalAmount(): int
-    {
-        return $this->moneyInt(Hpp::query()
-            ->whereHas('order')
-            ->where('status', Hpp::STATUS_IN_REVIEW)
-            ->whereNotNull('submitted_at')
-            ->sum('total_keseluruhan'));
-    }
-
-    private function sumApprovedHppsWaitingForPoAmount(): int
-    {
-        return $this->moneyInt(Hpp::query()
-            ->whereHas('order')
-            ->where('status', Hpp::STATUS_APPROVED)
-            ->whereDoesntHave('purchaseOrder', fn (Builder $query) => $query
-                ->whereNotNull('purchase_order_number')
-                ->whereRaw("TRIM(purchase_order_number) <> ''")
-                ->whereNotNull('po_document_path')
-                ->whereRaw("TRIM(po_document_path) <> ''"))
-            ->sum('total_keseluruhan'));
-    }
-
-    private function sumPurchaseOrdersWithNumberAndDocumentAmount(): int
-    {
-        return $this->moneyInt(Hpp::query()
-            ->whereHas('order')
-            ->whereHas('purchaseOrder', fn (Builder $query) => $query
-                ->whereHas('order')
-                ->whereNotNull('purchase_order_number')
-                ->whereRaw("TRIM(purchase_order_number) <> ''")
-                ->whereNotNull('po_document_path')
-                ->whereRaw("TRIM(po_document_path) <> ''"))
-            ->sum('total_keseluruhan'));
-    }
-
-    private function sumNormalLhppBastAmount(): int
-    {
-        return $this->moneyInt($this->baseLhppBastRealizationQuery()
-            ->whereHas('order', fn (Builder $query) => $query->whereNotIn('prioritas', $this->emergencyPriorities()))
-            ->whereNotNull('purchase_order_number')
-            ->whereRaw("TRIM(purchase_order_number) <> ''")
-            ->sum('total_aktual_biaya'));
-    }
-
-    private function sumEmergencyLhppBastAmount(): int
-    {
-        return $this->moneyInt($this->baseLhppBastRealizationQuery()
-            ->whereHas('order', fn (Builder $query) => $query->whereIn('prioritas', $this->emergencyPriorities()))
-            ->sum('total_aktual_biaya'));
-    }
-
-    private function sumActiveOutlineAgreementMonthlyRealizations(): int
-    {
-        return (int) $this->activeOutlineAgreementMonthlyRealizationsQuery()->sum('amount');
-    }
-
     private function activeOutlineAgreementMonthlyRealizationsQuery(): Builder
     {
         return OutlineAgreementMonthlyRealization::query()
@@ -282,17 +140,6 @@ class DashboardController extends Controller
             ->whereHas('order')
             ->where('termin_type', 'termin_1')
             ->whereNull('parent_lhpp_bast_id');
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function emergencyPriorities(): array
-    {
-        return [
-            Order::PRIORITY_URGENT,
-            Order::PRIORITY_HIGH,
-        ];
     }
 
     /**
@@ -512,6 +359,8 @@ class DashboardController extends Controller
 
         $totals = BudgetVerification::query()
             ->join('hpps', 'hpps.id', '=', 'budget_verifications.hpp_id')
+            ->join('outline_agreements', 'outline_agreements.id', '=', 'hpps.outline_agreement_id')
+            ->where('outline_agreements.status', OutlineAgreement::STATUS_ACTIVE)
             ->where('hpps.status', Hpp::STATUS_APPROVED)
             ->whereNotNull('hpps.submitted_at')
             ->whereBetween('hpps.submitted_at', [$periodStart, $periodEnd])

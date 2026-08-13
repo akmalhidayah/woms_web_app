@@ -231,6 +231,23 @@ class DashboardFinancialSummaryTest extends TestCase
         $this->assertSame(2_000, $general['outstanding']);
     }
 
+    public function test_legacy_bast_without_hpp_id_uses_latest_hpp_budget_category_fallback(): void
+    {
+        $user = User::factory()->create();
+        $agreement = $this->agreement($user, 'OA-LEGACY-BAST-CATEGORY', 1_000, OutlineAgreement::STATUS_ACTIVE);
+        $hpp = $this->hpp($user, $agreement, Hpp::STATUS_APPROVED, 100, 'LEGACY-BAST-CATEGORY');
+        $this->verifyCategory($hpp, $user, 'pemeliharaan');
+        $bast = $this->paidBast($user, $hpp, 100, 100, 0, 0, false, false);
+        $bast->update(['hpp_id' => null]);
+
+        $maintenance = app(DashboardFinancialSummaryService::class)->resolveForCategory('pemeliharaan');
+        $capex = app(DashboardFinancialSummaryService::class)->resolveForCategory('capex');
+
+        $this->assertSame(100, $maintenance['system_realization']);
+        $this->assertSame(0, $maintenance['outstanding']);
+        $this->assertSame(0, $capex['system_realization']);
+    }
+
     public function test_maintenance_target_uses_current_year_and_approved_bast_enters_lpj_ppl_process(): void
     {
         Carbon::setTestNow('2026-06-01 08:00:00');
@@ -364,7 +381,7 @@ class DashboardFinancialSummaryTest extends TestCase
         );
     }
 
-    public function test_non_maintenance_summary_classifies_outstanding_into_five_exclusive_stages(): void
+    public function test_non_maintenance_summary_classifies_outstanding_into_three_exclusive_stages(): void
     {
         $user = User::factory()->create();
         $agreement = $this->agreement($user, 'OA-NON-MAINTENANCE-STAGES', 5_000, OutlineAgreement::STATUS_ACTIVE);
@@ -404,9 +421,7 @@ class DashboardFinancialSummaryTest extends TestCase
         $this->assertSame(1_500, $summary['outstanding']);
         $this->assertSame(1_700, $summary['prognosis']);
         $this->assertSame([
-            'hpp_draft' => 100,
-            'hpp_in_review' => 200,
-            'hpp_approved' => 300,
+            'hpp' => 600,
             'purchase_order' => 400,
             'lpj_process' => 500,
         ], $summary['outstanding_stages']);
@@ -453,9 +468,7 @@ class DashboardFinancialSummaryTest extends TestCase
         $summary = app(DashboardFinancialSummaryService::class)->resolveForCategory('capex');
 
         $this->assertSame([
-            'hpp_draft' => 0,
-            'hpp_in_review' => 0,
-            'hpp_approved' => 100,
+            'hpp' => 100,
             'purchase_order' => 180,
             'lpj_process' => 80,
         ], $summary['outstanding_stages']);
@@ -499,8 +512,9 @@ class DashboardFinancialSummaryTest extends TestCase
             ->assertSee('id="nonMaintenanceOutstandingChart"', false)
             ->assertSee('id="capexOutstandingChart"', false)
             ->assertDontSee('HPP Draft')
-            ->assertSee('HPP In Review')
-            ->assertSee('HPP Approved')
+            ->assertDontSee('HPP In Review')
+            ->assertDontSee('HPP Approved')
+            ->assertSee("const labels = ['HPP', 'Purchase Order', 'LPJ Process']", false)
             ->assertSee('Purchase Order')
             ->assertSee('LPJ Process')
             ->assertDontSee('WAITING APPROVAL')

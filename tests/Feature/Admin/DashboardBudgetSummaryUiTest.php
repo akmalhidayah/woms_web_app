@@ -10,7 +10,7 @@ class DashboardBudgetSummaryUiTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_dashboard_displays_the_consolidated_budget_summary_layout(): void
+    public function test_dashboard_displays_the_current_general_financial_summary_layout(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
 
@@ -18,22 +18,15 @@ class DashboardBudgetSummaryUiTest extends TestCase
 
         $response->assertOk();
         $response->assertSeeTextInOrder([
-            'Ringkasan Kuota Anggaran',
-            'Kuota Anggaran',
-            'Potensi Biaya',
+            'GENERAL BIAYA JASA',
+            'Total Prognosa Biaya',
             'Realisasi Biaya',
-            'Sisa Kuota Kontrak',
-            'Pemakaian Kuota',
-            'Ringkasan Biaya Pemeliharaan',
-            'Target Biaya Pemeliharaan',
-            'Total Jasa Pemeliharaan',
-            'Sisa Target Pemeliharaan',
+            'Outstanding Biaya',
+            'Anggaran Tersedia',
         ]);
         $response->assertDontSee('Kuota Anggaran Actual');
         $response->assertDontSee('Potensi Biaya + Realisasi Biaya');
-        $response->assertSee('role="progressbar"', false);
-        $response->assertSee('aria-valuemin="0"', false);
-        $response->assertSee('aria-valuemax="100"', false);
+        $response->assertDontSee('Ringkasan Kuota Anggaran');
     }
 
     public function test_existing_overhaul_and_top_ten_sections_remain_visible(): void

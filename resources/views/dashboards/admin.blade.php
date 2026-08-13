@@ -38,24 +38,6 @@
 
         $rp = fn ($v) => 'Rp. ' . $fmt($v);
 
-        $outstandingNotifications = $outstandingNotifications ?? 0;
-        $pendingProcessJasa = $pendingProcessJasa ?? 0;
-        $approvalProcessHPPCount = $approvalProcessHPPCount ?? 0;
-        $documentOnProcessPOCount = $documentOnProcessPOCount ?? 0;
-
-        $documentOnProcessHPPAmount = $documentOnProcessHPPAmount ?? 0;
-        $approvalProcessHPPAmount = $approvalProcessHPPAmount ?? 0;
-        $documentOnProcessPOAmount = $documentOnProcessPOAmount ?? 0;
-        $documentPRPOAmount = $documentPRPOAmount ?? 0;
-        $urgentAmount = $urgentAmount ?? 0;
-        $totalAmount1 = $totalAmount1 ?? 0;
-        $totalAmount2 = $totalAmount2 ?? 0;
-        $totalSeluruhAmount = $totalSeluruhAmount ?? 0;
-        $totalKuotaKontrak = $totalKuotaKontrak ?? 0;
-        $sisaKuotaKontrak = $sisaKuotaKontrak ?? 0;
-        $targetPemeliharaan = $targetPemeliharaan ?? null;
-        $totalJasaPemeliharaan = $totalJasaPemeliharaan ?? 0;
-        $sisaBiayaPemeliharaan = $sisaBiayaPemeliharaan ?? 0;
         $maintenanceTargetYear = $maintenanceTargetYear ?? now()->year;
         $maintenanceAnnualTarget = $maintenanceAnnualTarget ?? 0;
         $maintenanceRealization = $maintenanceRealization ?? 0;
@@ -67,15 +49,12 @@
         $maintenanceTargetUsageProgressWidth = $maintenanceTargetUsageProgressWidth ?? '0';
         $maintenanceLpjStatusAmount = $maintenanceLpjStatusAmount ?? 0;
         $maintenanceInvoiceStatusAmount = $maintenanceInvoiceStatusAmount ?? 0;
-        $maintenanceAlreadyRealized = $maintenanceAlreadyRealized ?? $maintenanceRealization;
         $emptyCategorySummary = [
             'realization' => 0,
             'outstanding' => 0,
             'prognosis' => 0,
             'outstanding_stages' => [
-                'hpp_draft' => 0,
-                'hpp_in_review' => 0,
-                'hpp_approved' => 0,
+                'hpp' => 0,
                 'purchase_order' => 0,
                 'lpj_process' => 0,
             ],
@@ -83,51 +62,12 @@
         $nonMaintenanceSummary = array_replace_recursive($emptyCategorySummary, $nonMaintenanceSummary ?? []);
         $capexSummary = array_replace_recursive($emptyCategorySummary, $capexSummary ?? []);
         $totalRealisasiBiaya = $totalRealisasiBiaya ?? 0;
-        $totalPaguKontrak = $totalPaguKontrak ?? $totalKuotaKontrak;
+        $totalPaguKontrak = $totalPaguKontrak ?? 0;
         $totalOutstandingBiaya = $totalOutstandingBiaya ?? 0;
         $totalPrognosaBiaya = $totalPrognosaBiaya ?? 0;
         $totalAnggaranTersedia = $totalAnggaranTersedia ?? 0;
         $latestKuotaAnggaran = $latestKuotaAnggaran ?? null;
         $periodeKontrak = $periodeKontrak ?? ['start' => null, 'end' => null, 'adendum' => null];
-
-        $processCards = [
-            [
-                'title' => 'Outstanding Order',
-                'value' => $outstandingNotifications,
-                'icon' => 'bell',
-                'wrap' => 'bg-[#5f9ae8]',
-                'iconColor' => 'text-[#2453d4]',
-                'valueColor' => 'text-[#2453d4]',
-                'url' => route('admin.hpp.index'),
-            ],
-            [
-                'title' => 'Document On Process (HPP)',
-                'value' => $pendingProcessJasa,
-                'icon' => 'hourglass',
-                'wrap' => 'bg-[#ffca19]',
-                'iconColor' => 'text-[#ab7700]',
-                'valueColor' => 'text-[#ab7700]',
-                'url' => route('admin.hpp.index', ['status' => \App\Models\Hpp::STATUS_IN_REVIEW]),
-            ],
-            [
-                'title' => 'Approval Process (HPP)',
-                'value' => $approvalProcessHPPCount,
-                'icon' => 'badge-check',
-                'wrap' => 'bg-[#49d97a]',
-                'iconColor' => 'text-[#0b8a57]',
-                'valueColor' => 'text-[#0b7d4f]',
-                'url' => route('admin.budget-verification.index'),
-            ],
-            [
-                'title' => 'PR/PO Process (HPP Approved)',
-                'value' => $documentOnProcessPOCount,
-                'icon' => 'alert-circle',
-                'wrap' => 'bg-[#fb6a6f]',
-                'iconColor' => 'text-[#a71922]',
-                'valueColor' => 'text-[#a71922]',
-                'url' => route('admin.purchase-order.index'),
-            ],
-        ];
 
         $contractPeriodLabel = collect([
             $periodeKontrak['start']
@@ -138,7 +78,7 @@
                 : null,
         ])->filter()->join(' - ');
 
-        $remainingBudgetIsNegative = $sisaKuotaKontrak < 0;
+        $remainingBudgetIsNegative = $totalAnggaranTersedia < 0;
         $remainingBudgetClasses = $remainingBudgetIsNegative
             ? 'border-rose-200 bg-rose-50 text-rose-700'
             : 'border-amber-200 bg-amber-50 text-amber-900';
@@ -515,7 +455,7 @@
                             endYearSelect.innerHTML += option;
                         });
 
-                        loadSavedFilters();
+                        loadSavedFilters(data);
                     })
                     .catch(error => console.error('Error fetching years:', error));
             }
@@ -536,29 +476,43 @@
                 });
             }
 
-            function loadSavedFilters() {
+            function loadSavedFilters(availableYears) {
                 const firstRow = initialChartData[0] || {};
                 const lastRow = initialChartData[initialChartData.length - 1] || firstRow;
-                const savedStartYear = localStorage.getItem('monthlyRealizationStartYear') || firstRow.year;
-                const savedEndYear = localStorage.getItem('monthlyRealizationEndYear') || lastRow.year;
-                const savedStartMonth = localStorage.getItem('monthlyRealizationStartMonth') || firstRow.month || 1;
-                const savedEndMonth = localStorage.getItem('monthlyRealizationEndMonth') || lastRow.month || 12;
+                const savedStartYear = Number(localStorage.getItem('monthlyRealizationStartYear'));
+                const savedEndYear = Number(localStorage.getItem('monthlyRealizationEndYear'));
+                const savedStartMonth = Number(localStorage.getItem('monthlyRealizationStartMonth'));
+                const savedEndMonth = Number(localStorage.getItem('monthlyRealizationEndMonth'));
+                const hasValidSavedFilter = availableYears.includes(savedStartYear)
+                    && availableYears.includes(savedEndYear)
+                    && savedStartMonth >= 1
+                    && savedStartMonth <= 12
+                    && savedEndMonth >= 1
+                    && savedEndMonth <= 12
+                    && savedStartYear <= savedEndYear
+                    && (savedStartYear !== savedEndYear || savedStartMonth <= savedEndMonth);
 
-                if (savedStartYear) startYearSelect.value = savedStartYear;
-                if (savedEndYear) endYearSelect.value = savedEndYear;
-                if (savedStartMonth) startMonthSelect.value = savedStartMonth;
-                if (savedEndMonth) endMonthSelect.value = savedEndMonth;
+                const startYear = hasValidSavedFilter ? savedStartYear : Number(firstRow.year || availableYears[0]);
+                const endYear = hasValidSavedFilter ? savedEndYear : Number(lastRow.year || availableYears.at(-1));
+                const startMonth = hasValidSavedFilter ? savedStartMonth : Number(firstRow.month || 1);
+                const endMonth = hasValidSavedFilter ? savedEndMonth : Number(lastRow.month || 12);
 
-                renderChart(initialChartData);
-                renderTopTenCostCharts(initialTopTenCostSections, initialTopTenMaintenanceCostSections);
-                renderOverhaulPrognosisChart(initialOverhaulPrognosis);
+                if (startYear) startYearSelect.value = startYear;
+                if (endYear) endYearSelect.value = endYear;
+                if (startMonth) startMonthSelect.value = startMonth;
+                if (endMonth) endMonthSelect.value = endMonth;
+
+                if (hasValidSavedFilter) {
+                    fetchRealizationData(startYear, endYear, startMonth, endMonth);
+                } else {
+                    renderChart(initialChartData);
+                }
             }
 
-            function fetchData(startYear, endYear, startMonth = null, endMonth = null) {
+            function fetchRealizationData(startYear, endYear, startMonth = null, endMonth = null) {
                 const queryParams = new URLSearchParams({
                     startYear,
                     endYear,
-                    includeTopTen: '1',
                     ...(startMonth && { startMonth }),
                     ...(endMonth && { endMonth })
                 }).toString();
@@ -566,18 +520,11 @@
                 fetch(`${chartEndpoint}?${queryParams}`)
                     .then(response => response.json())
                     .then(data => {
-                        if (
-                            !Array.isArray(data.realization) ||
-                            !Array.isArray(data.top_ten) ||
-                            !Array.isArray(data.top_ten_maintenance) ||
-                            !Array.isArray(data.overhaul)
-                        ) {
+                        if (!Array.isArray(data)) {
                             throw new Error('Format data tidak valid.');
                         }
 
-                        renderChart(data.realization);
-                        renderTopTenCostCharts(data.top_ten, data.top_ten_maintenance);
-                        renderOverhaulPrognosisChart(data.overhaul);
+                        renderChart(data);
                     })
                     .catch(error => {
                         console.error('Error saat memproses data:', error);
@@ -688,12 +635,9 @@
                     console.error('Gagal membaca data outstanding kategori.', error);
                 }
 
-                // Nilai Draft tetap menjadi bagian total Outstanding, tetapi tidak
-                // ditampilkan sebagai batang agar grafik fokus pada proses berjalan.
-                const labels = ['HPP In Review', 'HPP Approved', 'Purchase Order', 'LPJ Process'];
+                const labels = ['HPP', 'Purchase Order', 'LPJ Process'];
                 const amounts = [
-                    Number(stages.hpp_in_review || 0),
-                    Number(stages.hpp_approved || 0),
+                    Number(stages.hpp || 0),
                     Number(stages.purchase_order || 0),
                     Number(stages.lpj_process || 0),
                 ];
@@ -1021,9 +965,11 @@
                     localStorage.setItem('monthlyRealizationStartMonth', startMonth);
                     localStorage.setItem('monthlyRealizationEndMonth', endMonth);
 
-                    fetchData(startYear, endYear, startMonth, endMonth);
+                    fetchRealizationData(startYear, endYear, startMonth, endMonth);
                 });
 
+                renderTopTenCostCharts(initialTopTenCostSections, initialTopTenMaintenanceCostSections);
+                renderOverhaulPrognosisChart(initialOverhaulPrognosis);
                 fetchYears();
                 loadMonths();
             } else {

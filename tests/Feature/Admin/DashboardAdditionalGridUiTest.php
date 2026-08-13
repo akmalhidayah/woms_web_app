@@ -34,6 +34,8 @@ class DashboardAdditionalGridUiTest extends TestCase
             ->assertSee('id="monthlyStartMonth"', false)
             ->assertSee('id="monthlyEndYear"', false)
             ->assertDontSee('monthly-realization-toggle', false)
+            ->assertDontSee("includeTopTen: '1'", false)
+            ->assertSee('fetchRealizationData', false)
             ->assertSee('display: true', false)
             ->assertSee('maintenance-panel flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm xl:col-span-8', false)
             ->assertSee('top-ten-panel flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm xl:col-span-8', false)
@@ -60,8 +62,6 @@ class DashboardAdditionalGridUiTest extends TestCase
                 ],
             ])
             ->assertViewHas('topTenCostSections', [])
-            ->assertViewHas('topTenMaintenanceCostSections', [])
-            ->assertViewHas('totalAmount1', 0)
-            ->assertViewHas('totalAmount2', 0);
+            ->assertViewHas('topTenMaintenanceCostSections', []);
     }
 }

@@ -34,15 +34,13 @@ class DashboardMonthlyRealizationTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.dashboard'));
 
         $response->assertOk();
-        $response->assertViewHas('documentPRPOAmount', 135000000);
-        $response->assertViewHas('urgentAmount', 5000000);
-        $response->assertViewHas('totalAmount2', 140000000);
         $response->assertViewHas('totalRealisasiSistem', 0);
         $response->assertViewHas('totalRealisasiManual', 120000000);
         $response->assertViewHas('totalRealisasiBiaya', 120000000);
-        $response->assertViewHas('totalSeluruhAmount', 160000000);
-        $response->assertViewHas('totalKuotaKontrak', 1000000000);
-        $response->assertViewHas('sisaKuotaKontrak', 860000000);
+        $response->assertViewHas('totalOutstandingBiaya', 20000000);
+        $response->assertViewHas('totalPrognosaBiaya', 140000000);
+        $response->assertViewHas('totalAnggaranTersedia', 860000000);
+        $response->assertViewHas('totalPaguKontrak', 1000000000);
         $response->assertSee('Rp. 860.000.000');
         $response->assertDontSee('Manual');
         $response->assertDontSee('Otomatis');
@@ -113,8 +111,8 @@ class DashboardMonthlyRealizationTest extends TestCase
 
         $response = $this->actingAs($admin)->get(route('admin.dashboard'));
 
-        $response->assertViewHas('documentPRPOAmount', 300);
-        $response->assertViewHas('urgentAmount', 0);
+        $response->assertViewHas('totalRealisasiManual', 300);
+        $response->assertViewHas('totalRealisasiBiaya', 300);
         $response->assertViewHas('totalKuotaKontrak', 500000000);
     }
 

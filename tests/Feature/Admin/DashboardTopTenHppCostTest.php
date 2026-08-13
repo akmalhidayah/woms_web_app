@@ -257,6 +257,67 @@ class DashboardTopTenHppCostTest extends TestCase
             ->assertJsonMissing(['section' => 'Seksi Ranking 10']);
     }
 
+    public function test_system_top_ten_only_uses_hpps_from_active_outline_agreements(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $inactiveAgreement = $this->createAgreement($admin, 'OA-TOP-TEN-INACTIVE-HPP', OutlineAgreement::STATUS_CLOSED);
+
+        $this->createHpp(
+            $admin,
+            'TOPTEN-INACTIVE-HPP',
+            'Seksi OA Tidak Aktif',
+            900000000,
+            Hpp::STATUS_APPROVED,
+            '2026-08-10 08:00:00',
+            ['outline_agreement_id' => $inactiveAgreement->id],
+        );
+        $this->createHpp(
+            $admin,
+            'TOPTEN-ACTIVE-HPP',
+            'Seksi OA Aktif',
+            100000000,
+            Hpp::STATUS_APPROVED,
+            '2026-08-10 08:00:00',
+        );
+
+        $this->topTenResponse($admin, 2026, 8, 2026, 8)
+            ->assertOk()
+            ->assertJsonCount(1, 'top_ten')
+            ->assertJsonPath('top_ten.0.section', 'Seksi OA Aktif')
+            ->assertJsonMissing(['section' => 'Seksi OA Tidak Aktif']);
+    }
+
+    public function test_newer_hpp_from_inactive_agreement_does_not_hide_active_agreement_candidate(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $activeAgreement = $this->defaultActiveAgreement($admin);
+        $inactiveAgreement = $this->createAgreement($admin, 'OA-TOP-TEN-INACTIVE-REVISION', OutlineAgreement::STATUS_CLOSED);
+        $order = $this->createOrder($admin, 'TOPTEN-MIXED-OA-REVISION', 'Seksi Active Candidate');
+
+        $this->createHppForOrder(
+            $order,
+            $admin,
+            125000000,
+            Hpp::STATUS_APPROVED,
+            '2026-08-10 08:00:00',
+            ['outline_agreement_id' => $activeAgreement->id],
+        );
+        $this->createHppForOrder(
+            $order,
+            $admin,
+            500000000,
+            Hpp::STATUS_APPROVED,
+            '2026-08-11 08:00:00',
+            ['outline_agreement_id' => $inactiveAgreement->id],
+        );
+
+        $this->topTenResponse($admin, 2026, 8, 2026, 8)
+            ->assertOk()
+            ->assertJsonCount(1, 'top_ten')
+            ->assertJsonPath('top_ten.0.section', 'Seksi Active Candidate')
+            ->assertJsonPath('top_ten.0.amount', 125000000);
+    }
+
     private function topTenResponse(
         User $admin,
         int $startYear,
@@ -316,8 +377,11 @@ class DashboardTopTenHppCostTest extends TestCase
         ?string $submittedAt,
         array $attributes = [],
     ): Hpp {
+        $activeAgreement = $this->defaultActiveAgreement($admin);
+
         return Hpp::query()->create(array_merge([
             'order_id' => $order->id,
+            'outline_agreement_id' => $activeAgreement->id,
             'nomor_order' => $order->nomor_order,
             'nama_pekerjaan' => $order->nama_pekerjaan,
             'unit_kerja' => $order->unit_kerja,
@@ -329,6 +393,27 @@ class DashboardTopTenHppCostTest extends TestCase
             'submitted_at' => $submittedAt,
             'created_by' => $admin->id,
         ], $attributes));
+    }
+
+    private function defaultActiveAgreement(User $admin): OutlineAgreement
+    {
+        return OutlineAgreement::query()->firstOrCreate(
+            ['nomor_oa' => 'OA-TOP-TEN-SYSTEM-ACTIVE'],
+            [
+                'unit_work_id' => $this->topTenUnitWork()->id,
+                'jenis_kontrak' => 'Fabrikasi',
+                'nama_kontrak' => 'OA Top Ten System Active',
+                'nilai_kontrak_awal' => 10000000000,
+                'periode_awal_start' => '2026-01-01',
+                'periode_awal_end' => '2027-12-31',
+                'current_total_nilai' => 10000000000,
+                'current_period_start' => '2026-01-01',
+                'current_period_end' => '2027-12-31',
+                'status' => OutlineAgreement::STATUS_ACTIVE,
+                'created_by' => $admin->id,
+                'updated_by' => $admin->id,
+            ],
+        );
     }
 
     private function createBudgetVerification(Hpp $hpp, User $admin, string $costCategory): BudgetVerification
@@ -347,15 +432,9 @@ class DashboardTopTenHppCostTest extends TestCase
 
     private function createAgreement(User $admin, string $number, string $status): OutlineAgreement
     {
-        $department = Department::query()->firstOrCreate(['name' => 'Top Ten Manual']);
-        $unitWork = UnitWork::query()->firstOrCreate([
-            'department_id' => $department->id,
-            'name' => 'Top Ten Manual Unit',
-        ]);
-
         return OutlineAgreement::query()->create([
             'nomor_oa' => $number,
-            'unit_work_id' => $unitWork->id,
+            'unit_work_id' => $this->topTenUnitWork()->id,
             'jenis_kontrak' => 'Fabrikasi',
             'nama_kontrak' => $number,
             'nilai_kontrak_awal' => 10000000000,
@@ -367,6 +446,16 @@ class DashboardTopTenHppCostTest extends TestCase
             'status' => $status,
             'created_by' => $admin->id,
             'updated_by' => $admin->id,
+        ]);
+    }
+
+    private function topTenUnitWork(): UnitWork
+    {
+        $department = Department::query()->firstOrCreate(['name' => 'Top Ten Manual']);
+
+        return UnitWork::query()->firstOrCreate([
+            'department_id' => $department->id,
+            'name' => 'Top Ten Manual Unit',
         ]);
     }
 }

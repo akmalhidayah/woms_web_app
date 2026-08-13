@@ -33,7 +33,7 @@ final class DashboardFinancialSummaryService
      *     available_budget_percentage_hundredths: int,
      *     lpj_status_amount: int,
      *     invoice_status_amount: int,
-     *     outstanding_stages: array{hpp_draft: int, hpp_in_review: int, hpp_approved: int, purchase_order: int, lpj_process: int},
+     *     outstanding_stages: array{hpp: int, purchase_order: int, lpj_process: int},
      *     classified_outstanding: int,
      *     unclassified_outstanding: int
      * }
@@ -62,9 +62,7 @@ final class DashboardFinancialSummaryService
         $lpjStatusAmount = 0;
         $invoiceStatusAmount = 0;
         $outstandingStages = [
-            'hpp_draft' => 0,
-            'hpp_in_review' => 0,
-            'hpp_approved' => 0,
+            'hpp' => 0,
             'purchase_order' => 0,
             'lpj_process' => 0,
         ];
@@ -237,9 +235,19 @@ final class DashboardFinancialSummaryService
         return LhppBast::query()
             ->where('termin_type', 'termin_1')
             ->whereNull('parent_lhpp_bast_id')
-            ->when($costCategory !== null, fn (Builder $query): Builder => $query
-                ->whereHas('hpp.budgetVerification', fn (Builder $verificationQuery): Builder => $verificationQuery
-                    ->where('kategori_biaya', $costCategory)))
+            ->when($costCategory !== null, function (Builder $query) use ($costCategory): void {
+                $query->where(function (Builder $categoryQuery) use ($costCategory): void {
+                    $categoryQuery
+                        ->whereHas('hpp.budgetVerification', fn (Builder $verificationQuery): Builder => $verificationQuery
+                            ->where('kategori_biaya', $costCategory))
+                        ->orWhere(function (Builder $legacyQuery) use ($costCategory): void {
+                            $legacyQuery
+                                ->whereNull('hpp_id')
+                                ->whereHas('order.latestHpp.budgetVerification', fn (Builder $verificationQuery): Builder => $verificationQuery
+                                    ->where('kategori_biaya', $costCategory));
+                        });
+                });
+            })
             ->where(function (Builder $query): void {
                 $query
                     ->whereHas('hpp.outlineAgreement', fn (Builder $agreementQuery): Builder => $agreementQuery
@@ -387,16 +395,12 @@ final class DashboardFinancialSummaryService
             return null;
         }
 
-        if ($hpp->status === Hpp::STATUS_DRAFT) {
-            return 'hpp_draft';
-        }
-
-        if ($hpp->status === Hpp::STATUS_IN_REVIEW) {
-            return 'hpp_in_review';
+        if (! in_array($hpp->status, [Hpp::STATUS_DRAFT, Hpp::STATUS_IN_REVIEW, Hpp::STATUS_APPROVED], true)) {
+            return null;
         }
 
         if ($hpp->status !== Hpp::STATUS_APPROVED) {
-            return null;
+            return 'hpp';
         }
 
         $purchaseOrder = $hpp->purchaseOrder;
@@ -405,7 +409,7 @@ final class DashboardFinancialSummaryService
             && $this->hasValue($purchaseOrder->po_document_path);
 
         if (! $hasCompletePurchaseOrder) {
-            return 'hpp_approved';
+            return 'hpp';
         }
 
         $parentBast = $hpp->lhppBasts->first();

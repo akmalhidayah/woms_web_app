@@ -3,8 +3,11 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\BudgetVerification;
+use App\Models\Department;
 use App\Models\Hpp;
 use App\Models\Order;
+use App\Models\OutlineAgreement;
+use App\Models\UnitWork;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
@@ -176,6 +179,36 @@ class DashboardOverhaulPrognosisTest extends TestCase
         $this->assertArrayNotHasKey('overhaul', $legacyResponse->json());
     }
 
+    public function test_overhaul_prognosis_excludes_hpps_from_non_active_outline_agreements(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+
+        $this->createVerifiedHpp(
+            $admin,
+            'OVERHAUL-ACTIVE-OA',
+            100000000,
+            Hpp::STATUS_APPROVED,
+            '2026-01-05 08:00:00',
+            BudgetVerification::STATUS_AVAILABLE,
+            BudgetVerification::COST_CATEGORY_OVERHAUL_TONASA_4,
+        );
+        $this->createVerifiedHpp(
+            $admin,
+            'OVERHAUL-CLOSED-OA',
+            900000000,
+            Hpp::STATUS_APPROVED,
+            '2026-01-06 08:00:00',
+            BudgetVerification::STATUS_AVAILABLE,
+            BudgetVerification::COST_CATEGORY_OVERHAUL_TONASA_4,
+            'jasa',
+            OutlineAgreement::STATUS_CLOSED,
+        );
+
+        $this->overhaulResponse($admin, 2026, 1, 2026, 1)
+            ->assertOk()
+            ->assertJsonPath('overhaul.1.amount', 100000000);
+    }
+
     private function overhaulResponse(
         User $admin,
         int $startYear,
@@ -201,7 +234,9 @@ class DashboardOverhaulPrognosisTest extends TestCase
         ?string $budgetStatus,
         ?string $costCategory,
         string $itemCategory = 'jasa',
+        string $agreementStatus = OutlineAgreement::STATUS_ACTIVE,
     ): Hpp {
+        $agreement = $this->createAgreement($admin, $orderNumber, $agreementStatus);
         $order = Order::query()->create([
             'nomor_order' => $orderNumber,
             'nama_pekerjaan' => 'Pekerjaan '.$orderNumber,
@@ -215,6 +250,7 @@ class DashboardOverhaulPrognosisTest extends TestCase
         ]);
         $hpp = Hpp::query()->create([
             'order_id' => $order->id,
+            'outline_agreement_id' => $agreement->id,
             'nomor_order' => $order->nomor_order,
             'nama_pekerjaan' => $order->nama_pekerjaan,
             'unit_kerja' => $order->unit_kerja,
@@ -239,5 +275,30 @@ class DashboardOverhaulPrognosisTest extends TestCase
         ]);
 
         return $hpp;
+    }
+
+    private function createAgreement(User $admin, string $suffix, string $status): OutlineAgreement
+    {
+        $department = Department::query()->firstOrCreate(['name' => 'Dashboard Overhaul']);
+        $unitWork = UnitWork::query()->firstOrCreate([
+            'department_id' => $department->id,
+            'name' => 'Dashboard Overhaul Unit',
+        ]);
+
+        return OutlineAgreement::query()->create([
+            'nomor_oa' => 'OA-'.$suffix,
+            'unit_work_id' => $unitWork->id,
+            'jenis_kontrak' => 'Fabrikasi',
+            'nama_kontrak' => 'Kontrak '.$suffix,
+            'nilai_kontrak_awal' => 10000000000,
+            'periode_awal_start' => '2026-01-01',
+            'periode_awal_end' => '2026-12-31',
+            'current_total_nilai' => 10000000000,
+            'current_period_start' => '2026-01-01',
+            'current_period_end' => '2026-12-31',
+            'status' => $status,
+            'created_by' => $admin->id,
+            'updated_by' => $admin->id,
+        ]);
     }
 }

@@ -20,14 +20,15 @@ final class DashboardTopTenHppCostService
         CarbonInterface $periodStart,
         CarbonInterface $periodEnd,
         ?string $costCategory = null,
-    ): array
-    {
+    ): array {
         if ($costCategory !== null && ! array_key_exists($costCategory, BudgetVerification::kategoriBiayaOptions())) {
             return [];
         }
 
         $systemRows = Hpp::query()
             ->join('orders', 'orders.id', '=', 'hpps.order_id')
+            ->join('outline_agreements', 'outline_agreements.id', '=', 'hpps.outline_agreement_id')
+            ->where('outline_agreements.status', OutlineAgreement::STATUS_ACTIVE)
             ->whereNotNull('hpps.submitted_at')
             ->whereIn('hpps.status', [
                 Hpp::STATUS_IN_REVIEW,
@@ -51,6 +52,13 @@ final class DashboardTopTenHppCostService
                         Hpp::STATUS_REJECTED,
                     ])
                     ->whereBetween('newer_hpps.submitted_at', [$periodStart, $periodEnd])
+                    ->whereExists(function ($agreementQuery): void {
+                        $agreementQuery
+                            ->selectRaw('1')
+                            ->from('outline_agreements as newer_outline_agreements')
+                            ->whereColumn('newer_outline_agreements.id', 'newer_hpps.outline_agreement_id')
+                            ->where('newer_outline_agreements.status', OutlineAgreement::STATUS_ACTIVE);
+                    })
                     ->where(function ($newerQuery): void {
                         $newerQuery
                             ->whereColumn('newer_hpps.submitted_at', '>', 'hpps.submitted_at')

@@ -155,13 +155,19 @@ final class DashboardFinancialSummaryService
      * `tanggal_bast` is only the monthly bucket. Eligibility and amount use
      * the same approval/LPJ rules as the financial summary cards.
      *
-     * @return Collection<int, array{date: CarbonInterface, amount: int, priority: string|null}>
+     * @return Collection<int, array{date: CarbonInterface, amount: int, category: string|null}>
      */
     public function realizationEvents(CarbonInterface $startDate, CarbonInterface $endDate): Collection
     {
         return $this->systemRealizationQuery()
             ->whereBetween('tanggal_bast', [$startDate->toDateString(), $endDate->toDateString()])
-            ->with(['order:id,prioritas'])
+            ->with([
+                'hpp:id',
+                'hpp.budgetVerification:id,hpp_id,kategori_biaya',
+                'order:id',
+                'order.latestHpp',
+                'order.latestHpp.budgetVerification:id,hpp_id,kategori_biaya',
+            ])
             ->orderBy('tanggal_bast')
             ->get([
                 'id',
@@ -176,7 +182,8 @@ final class DashboardFinancialSummaryService
             ->map(fn (LhppBast $bast): array => [
                 'date' => $bast->tanggal_bast,
                 'amount' => $this->realizedAmount($bast),
-                'priority' => $bast->order?->prioritas,
+                'category' => $bast->hpp?->budgetVerification?->kategori_biaya
+                    ?? $bast->order?->latestHpp?->budgetVerification?->kategori_biaya,
             ])
             ->filter(fn (array $event): bool => $event['amount'] > 0 && $event['date'] !== null)
             ->values();

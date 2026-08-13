@@ -351,7 +351,7 @@ class DashboardController extends Controller
     }
 
     /**
-     * @return list<array{year: int, month: int, label: string, total: int, normal_total: int, urgent_total: int}>
+     * @return list<array{year: int, month: int, label: string, total: int, general: int, maintenance: int, non_maintenance: int, capex: int}>
      */
     private function buildRealizationChartData(
         ?int $startYear = null,
@@ -369,18 +369,12 @@ class DashboardController extends Controller
         $transactionTotals = $this->financialSummaryService
             ->realizationEvents($startDate, $endDate)
             ->groupBy(fn (array $event): string => $event['date']->format('Y-m'))
-            ->filter(fn ($group, string $key): bool => $key !== 'unknown')
-            ->map(function ($group, string $key): array {
-                $normalTotal = $group
-                    ->reject(fn (array $event): bool => in_array($event['priority'], $this->emergencyPriorities(), true))
-                    ->sum(fn (array $event): int => $event['amount']);
-                $urgentTotal = $group
-                    ->filter(fn (array $event): bool => in_array($event['priority'], $this->emergencyPriorities(), true))
-                    ->sum(fn (array $event): int => $event['amount']);
-
+            ->map(function ($group): array {
                 return [
-                    'normal_total' => (int) $normalTotal,
-                    'urgent_total' => (int) $urgentTotal,
+                    'general' => (int) $group->sum('amount'),
+                    'maintenance' => (int) $group->where('category', 'pemeliharaan')->sum('amount'),
+                    'non_maintenance' => (int) $group->where('category', 'non pemeliharaan')->sum('amount'),
+                    'capex' => (int) $group->where('category', 'capex')->sum('amount'),
                 ];
             });
 
@@ -403,32 +397,44 @@ class DashboardController extends Controller
                             ->where('month', '<=', $filterEndMonth);
                     });
             })
-            ->selectRaw('year, month, SUM(amount) as normal_total')
-            ->groupBy('year', 'month')
+            ->selectRaw('year, month, kategori_biaya, SUM(amount) as total_amount')
+            ->groupBy('year', 'month', 'kategori_biaya')
             ->get()
-            ->keyBy(fn (OutlineAgreementMonthlyRealization $row): string => sprintf('%04d-%02d', $row->year, $row->month));
+            ->groupBy(fn (OutlineAgreementMonthlyRealization $row): string => sprintf('%04d-%02d', $row->year, $row->month));
 
-        return $transactionTotals
-            ->keys()
-            ->merge($monthlyTotals->keys())
-            ->unique()
-            ->map(function (string $key) use ($transactionTotals, $monthlyTotals): array {
-                [$year, $month] = array_map('intval', explode('-', $key));
-                $transaction = $transactionTotals->get($key, ['normal_total' => 0, 'urgent_total' => 0]);
-                $monthly = $monthlyTotals->get($key);
-                $normalTotal = (int) $transaction['normal_total'] + (int) ($monthly?->normal_total ?? 0);
-                $urgentTotal = (int) $transaction['urgent_total'];
+        $months = collect();
+        for ($cursor = $startDate->copy()->startOfMonth(); $cursor->lte($endDate); $cursor->addMonth()) {
+            $months->push($cursor->copy());
+        }
+
+        return $months
+            ->map(function (Carbon $monthDate) use ($transactionTotals, $monthlyTotals): array {
+                $key = $monthDate->format('Y-m');
+                $transaction = $transactionTotals->get($key, [
+                    'general' => 0,
+                    'maintenance' => 0,
+                    'non_maintenance' => 0,
+                    'capex' => 0,
+                ]);
+                $manualRows = $monthlyTotals->get($key, collect());
+                $manualGeneral = (int) $manualRows->sum('total_amount');
+                $manualByCategory = fn (string $category): int => (int) $manualRows
+                    ->where('kategori_biaya', $category)
+                    ->sum('total_amount');
+
+                $general = (int) $transaction['general'] + $manualGeneral;
 
                 return [
-                    'year' => $year,
-                    'month' => $month,
-                    'label' => Carbon::create($year, $month, 1)->translatedFormat('M Y'),
-                    'total' => $normalTotal + $urgentTotal,
-                    'normal_total' => $normalTotal,
-                    'urgent_total' => $urgentTotal,
+                    'year' => $monthDate->year,
+                    'month' => $monthDate->month,
+                    'label' => $monthDate->translatedFormat('M Y'),
+                    'total' => $general,
+                    'general' => $general,
+                    'maintenance' => (int) $transaction['maintenance'] + $manualByCategory('pemeliharaan'),
+                    'non_maintenance' => (int) $transaction['non_maintenance'] + $manualByCategory('non pemeliharaan'),
+                    'capex' => (int) $transaction['capex'] + $manualByCategory('capex'),
                 ];
             })
-            ->sortBy([['year', 'asc'], ['month', 'asc']])
             ->values()
             ->all();
     }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\BudgetVerification;
 use App\Models\Department;
 use App\Models\Hpp;
 use App\Models\LhppBast;
@@ -84,8 +85,10 @@ class DashboardMonthlyRealizationTest extends TestCase
                 'month' => 7,
                 'label' => 'Jul 2026',
                 'total' => 21871421,
-                'normal_total' => 21871421,
-                'urgent_total' => 0,
+                'general' => 21871421,
+                'maintenance' => 15871421,
+                'non_maintenance' => 0,
+                'capex' => 6000000,
             ],
         ]);
     }
@@ -140,9 +143,10 @@ class DashboardMonthlyRealizationTest extends TestCase
         ]));
 
         $response->assertOk()
-            ->assertJsonCount(2)
+            ->assertJsonCount(3)
             ->assertJsonPath('0.total', 110)
-            ->assertJsonPath('1.total', 220);
+            ->assertJsonPath('1.total', 220)
+            ->assertJsonPath('2.total', 0);
     }
 
     public function test_chart_and_summary_only_recognize_approved_bast_with_complete_lpj(): void
@@ -165,7 +169,10 @@ class DashboardMonthlyRealizationTest extends TestCase
             'startMonth' => 7,
             'endMonth' => 7,
         ]));
-        $before->assertOk()->assertExactJson([]);
+        $before->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.total', 0)
+            ->assertJsonPath('0.general', 0);
         $this->actingAs($admin)->get(route('admin.dashboard'))
             ->assertViewHas('totalRealisasiSistem', 0);
 
@@ -253,6 +260,14 @@ class DashboardMonthlyRealizationTest extends TestCase
             'status' => Hpp::STATUS_APPROVED,
             'submitted_at' => $date,
             'created_by' => $admin->id,
+        ]);
+
+        BudgetVerification::query()->create([
+            'order_id' => $order->id,
+            'hpp_id' => $hpp->id,
+            'kategori_biaya' => 'pemeliharaan',
+            'created_by' => $admin->id,
+            'updated_by' => $admin->id,
         ]);
 
         $bast = LhppBast::query()->create([

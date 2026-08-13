@@ -240,7 +240,7 @@
         </section>
 
         <section class="main-cost-grid grid grid-cols-1 items-stretch gap-3 xl:grid-cols-12">
-            <article class="maintenance-panel flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm xl:col-span-5">
+            <article class="maintenance-panel flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm xl:col-span-8">
                 <div class="flex items-start gap-2 border-b border-slate-100 pb-2.5">
                     <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
                         <i data-lucide="wrench" class="h-3.5 w-3.5"></i>
@@ -309,15 +309,61 @@
                     </div>
                 </section>
 
-                <section class="mt-3 flex min-h-[170px] flex-1 flex-col rounded-xl border border-slate-200 bg-white p-3">
-                    <h3 class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-600">Realisasi Per Bulan</h3>
-                    <div class="dashboard-chart-placeholder mt-3 flex min-h-[120px] flex-1 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 text-center text-[10px] text-slate-400">
-                        Area grafik realisasi per bulan
+                <section class="mt-3 flex min-h-[330px] flex-1 flex-col rounded-xl border border-slate-200 bg-white p-3">
+                    <div class="flex flex-col gap-3 border-b border-slate-100 pb-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <h3 class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-600">Realisasi Per Bulan</h3>
+                            <div id="monthlyRealizationTotal" class="text-[10px] font-bold text-slate-700">{{ $rp(collect($realizationChartData ?? [])->sum('general')) }}</div>
+                        </div>
+
+                        <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+                            <label class="min-w-0">
+                                <span class="mb-1 block text-[8px] font-semibold uppercase tracking-[0.08em] text-slate-500">Dari Bulan</span>
+                                <select id="monthlyStartMonth" class="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] text-slate-700"></select>
+                            </label>
+                            <label class="min-w-0">
+                                <span class="mb-1 block text-[8px] font-semibold uppercase tracking-[0.08em] text-slate-500">Dari Tahun</span>
+                                <select id="monthlyStartYear" class="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] text-slate-700"></select>
+                            </label>
+                            <label class="min-w-0">
+                                <span class="mb-1 block text-[8px] font-semibold uppercase tracking-[0.08em] text-slate-500">Sampai Bulan</span>
+                                <select id="monthlyEndMonth" class="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] text-slate-700"></select>
+                            </label>
+                            <label class="min-w-0">
+                                <span class="mb-1 block text-[8px] font-semibold uppercase tracking-[0.08em] text-slate-500">Sampai Tahun</span>
+                                <select id="monthlyEndYear" class="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] text-slate-700"></select>
+                            </label>
+                            <button id="applyMonthlyRealizationFilter" type="button" class="self-end rounded-lg bg-blue-600 px-3 py-2 text-[9px] font-bold text-white transition hover:bg-blue-700">
+                                Terapkan
+                            </button>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2" aria-label="Pilih garis grafik realisasi">
+                            @foreach ([
+                                ['key' => 'general', 'label' => 'General', 'color' => '#2563eb'],
+                                ['key' => 'maintenance', 'label' => 'Pemeliharaan', 'color' => '#10b981'],
+                                ['key' => 'non_maintenance', 'label' => 'Non Pemeliharaan', 'color' => '#7c3aed'],
+                                ['key' => 'capex', 'label' => 'CAPEX', 'color' => '#0891b2'],
+                            ] as $datasetToggle)
+                                <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-[9px] font-semibold text-slate-700">
+                                    <input type="checkbox" class="monthly-realization-toggle h-3 w-3 rounded border-slate-300" data-dataset-key="{{ $datasetToggle['key'] }}" checked>
+                                    <span class="h-2 w-2 rounded-full" style="background-color: {{ $datasetToggle['color'] }}"></span>
+                                    {{ $datasetToggle['label'] }}
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div id="monthlyRealizationChartContainer" class="relative mt-3 min-h-[230px] flex-1">
+                        <canvas id="monthlyRealizationChart" class="h-full w-full" role="img" aria-label="Grafik garis Realisasi Per Bulan"></canvas>
+                    </div>
+                    <div id="monthlyRealizationEmptyState" class="mt-3 hidden min-h-[230px] items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 text-center text-[10px] text-slate-500">
+                        Tidak ada data realisasi pada periode ini.
                     </div>
                 </section>
             </article>
 
-            <div class="right-cost-column grid min-w-0 gap-3 xl:col-span-7">
+            <div class="right-cost-column grid min-w-0 gap-3 xl:col-span-4">
                 @foreach ([
                     ['title' => 'PROGNOSA DAN REALISASI BIAYA NON PEMELIHARAAN', 'icon' => 'building-2', 'accent' => 'text-violet-600', 'background' => 'bg-violet-50', 'summary' => $nonMaintenanceSummary, 'canvas' => 'nonMaintenanceOutstandingChart', 'color' => '#7c3aed'],
                     ['title' => 'PROGNOSA DAN REALISASI BIAYA CAPEX', 'icon' => 'landmark', 'accent' => 'text-cyan-600', 'background' => 'bg-cyan-50', 'summary' => $capexSummary, 'canvas' => 'capexOutstandingChart', 'color' => '#0891b2'],
@@ -362,23 +408,7 @@
         </section>
 
         <section class="bottom-cost-grid grid grid-cols-1 items-stretch gap-3 xl:grid-cols-12">
-            <article class="overhaul-panel flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm xl:col-span-5">
-                <div class="mb-2 flex items-center gap-2 border-b border-slate-100 pb-2.5">
-                    <i data-lucide="trending-up" class="h-4 w-4 text-amber-500"></i>
-                    <h2 class="text-[11px] font-bold tracking-[0.08em] text-slate-800">PROGNOSA OVERHAUL</h2>
-                </div>
-
-                <div class="relative min-h-[220px] flex-1">
-                    <canvas
-                        id="overhaulPrognosisChart"
-                        class="h-full w-full"
-                        role="img"
-                        aria-label="Grafik Prognosa Biaya Overhaul"
-                    ></canvas>
-                </div>
-            </article>
-
-            <article class="top-ten-panel flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm xl:col-span-7">
+            <article class="top-ten-panel flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm xl:col-span-8">
                 <div class="mb-2 flex items-center gap-2 border-b border-slate-100 pb-2.5">
                     <i data-lucide="bar-chart-3" class="h-4 w-4 text-blue-500"></i>
                     <h2 class="text-[11px] font-bold tracking-[0.08em] text-slate-800">TOP TEN PEMICU BIAYA</h2>
@@ -422,21 +452,38 @@
                     </section>
                 </div>
             </article>
+
+            <article class="overhaul-panel flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm xl:col-span-4">
+                <div class="mb-2 flex items-center gap-2 border-b border-slate-100 pb-2.5">
+                    <i data-lucide="trending-up" class="h-4 w-4 text-amber-500"></i>
+                    <h2 class="text-[11px] font-bold tracking-[0.08em] text-slate-800">PROGNOSA OVERHAUL</h2>
+                </div>
+
+                <div class="relative min-h-[220px] flex-1">
+                    <canvas
+                        id="overhaulPrognosisChart"
+                        class="h-full w-full"
+                        role="img"
+                        aria-label="Grafik Prognosa Biaya Overhaul"
+                    ></canvas>
+                </div>
+            </article>
         </section>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const startYearSelect = document.getElementById('startYear');
-            const endYearSelect = document.getElementById('endYear');
-            const startMonthSelect = document.getElementById('startMonth');
-            const endMonthSelect = document.getElementById('endMonth');
-            const applyFiltersButton = document.getElementById('applyFilters');
-            const chartLegend = document.getElementById('chartLegend');
-            const chartTotal = document.getElementById('chartTotal');
-            const chartEmptyState = document.getElementById('chartEmptyState');
-            const chartCanvas = document.getElementById('realisasiBiayaPieChart');
+            const startYearSelect = document.getElementById('monthlyStartYear');
+            const endYearSelect = document.getElementById('monthlyEndYear');
+            const startMonthSelect = document.getElementById('monthlyStartMonth');
+            const endMonthSelect = document.getElementById('monthlyEndMonth');
+            const applyFiltersButton = document.getElementById('applyMonthlyRealizationFilter');
+            const chartTotal = document.getElementById('monthlyRealizationTotal');
+            const chartEmptyState = document.getElementById('monthlyRealizationEmptyState');
+            const chartContainer = document.getElementById('monthlyRealizationChartContainer');
+            const chartCanvas = document.getElementById('monthlyRealizationChart');
+            const datasetToggles = [...document.querySelectorAll('.monthly-realization-toggle')];
             const nonMaintenanceOutstandingCanvas = document.getElementById('nonMaintenanceOutstandingChart');
             const capexOutstandingCanvas = document.getElementById('capexOutstandingChart');
             const topTenGeneralCostChartContainer = document.getElementById('topTenGeneralCostChartContainer');
@@ -453,8 +500,10 @@
             const yearsEndpoint = @json(url('/admin/get-years'));
             const chartEndpoint = @json(url('/admin/realisasi-biaya'));
             const chartColors = {
-                normal: '#2563eb',
-                urgent: '#f97316',
+                general: '#2563eb',
+                maintenance: '#10b981',
+                non_maintenance: '#7c3aed',
+                capex: '#0891b2',
             };
             const hasRealizationChart = [
                 startYearSelect,
@@ -462,9 +511,9 @@
                 startMonthSelect,
                 endMonthSelect,
                 applyFiltersButton,
-                chartLegend,
                 chartTotal,
                 chartEmptyState,
+                chartContainer,
                 chartCanvas,
             ].every(Boolean);
             const monthNames = {
@@ -476,8 +525,8 @@
                 fetch(yearsEndpoint)
                     .then(response => response.json())
                     .then(data => {
-                        startYearSelect.innerHTML = '<option value="" selected disabled>Pilih Tahun</option>';
-                        endYearSelect.innerHTML = '<option value="" selected disabled>Pilih Tahun</option>';
+                        startYearSelect.innerHTML = '';
+                        endYearSelect.innerHTML = '';
                         data.forEach(year => {
                             const option = `<option value="${year}">${year}</option>`;
                             startYearSelect.innerHTML += option;
@@ -498,7 +547,7 @@
                 ];
 
                 [startMonthSelect, endMonthSelect].forEach(select => {
-                    select.innerHTML = '<option value="" selected disabled>Pilih Bulan</option>';
+                    select.innerHTML = '';
                     months.forEach(month => {
                         select.innerHTML += `<option value="${month.number}">${month.name}</option>`;
                     });
@@ -506,20 +555,17 @@
             }
 
             function loadSavedFilters() {
-                const savedStartYear = localStorage.getItem('startYear');
-                const savedEndYear = localStorage.getItem('endYear');
-                const savedStartMonth = localStorage.getItem('startMonth');
-                const savedEndMonth = localStorage.getItem('endMonth');
+                const firstRow = initialChartData[0] || {};
+                const lastRow = initialChartData[initialChartData.length - 1] || firstRow;
+                const savedStartYear = localStorage.getItem('monthlyRealizationStartYear') || firstRow.year;
+                const savedEndYear = localStorage.getItem('monthlyRealizationEndYear') || lastRow.year;
+                const savedStartMonth = localStorage.getItem('monthlyRealizationStartMonth') || firstRow.month || 1;
+                const savedEndMonth = localStorage.getItem('monthlyRealizationEndMonth') || lastRow.month || 12;
 
                 if (savedStartYear) startYearSelect.value = savedStartYear;
                 if (savedEndYear) endYearSelect.value = savedEndYear;
                 if (savedStartMonth) startMonthSelect.value = savedStartMonth;
                 if (savedEndMonth) endMonthSelect.value = savedEndMonth;
-
-                if (savedStartYear && savedEndYear) {
-                    fetchData(savedStartYear, savedEndYear, savedStartMonth, savedEndMonth);
-                    return;
-                }
 
                 renderChart(initialChartData);
                 renderTopTenCostCharts(initialTopTenCostSections, initialTopTenMaintenanceCostSections);
@@ -559,48 +605,49 @@
 
             function renderChart(rows) {
                 const labels = rows.map(item => item.label || `${monthNames[item.month] || item.month} ${item.year}`);
-                const normalValues = rows.map(item => Number(item.normal_total || 0));
-                const urgentValues = rows.map(item => Number(item.urgent_total || 0));
-                const normalTotal = normalValues.reduce((sum, value) => sum + value, 0);
-                const urgentTotal = urgentValues.reduce((sum, value) => sum + value, 0);
-                const total = rows.reduce((sum, item) => sum + Number(item.total || 0), 0);
+                const datasetDefinitions = [
+                    { key: 'general', label: 'General', color: chartColors.general },
+                    { key: 'maintenance', label: 'Pemeliharaan', color: chartColors.maintenance },
+                    { key: 'non_maintenance', label: 'Non Pemeliharaan', color: chartColors.non_maintenance },
+                    { key: 'capex', label: 'CAPEX', color: chartColors.capex },
+                ];
+                const total = rows.reduce((sum, item) => sum + Number(item.general || 0), 0);
+                const hasData = rows.some(item => datasetDefinitions.some(dataset => Number(item[dataset.key] || 0) > 0));
 
                 chartTotal.textContent = formatRupiah(total);
-                chartEmptyState.classList.toggle('hidden', rows.length > 0);
-                chartCanvas.classList.toggle('hidden', rows.length === 0);
+                chartEmptyState.classList.toggle('hidden', hasData);
+                chartEmptyState.classList.toggle('flex', !hasData);
+                chartContainer.classList.toggle('hidden', !hasData);
 
                 if (window.realisasiBiayaChart) window.realisasiBiayaChart.destroy();
 
-                if (rows.length > 0) {
+                if (hasData) {
                     window.realisasiBiayaChart = new Chart(chartCanvas, {
-                        type: 'bar',
+                        type: 'line',
                         data: {
                             labels,
-                            datasets: [
-                                {
-                                    label: 'Realisasi Reguler',
-                                    data: normalValues,
-                                    backgroundColor: chartColors.normal,
-                                    borderRadius: 8,
-                                },
-                                {
-                                    label: 'Realisasi Urgent',
-                                    data: urgentValues,
-                                    backgroundColor: chartColors.urgent,
-                                    borderRadius: 8,
-                                },
-                            ],
+                            datasets: datasetDefinitions.map(dataset => ({
+                                key: dataset.key,
+                                label: dataset.label,
+                                data: rows.map(item => Number(item[dataset.key] || 0)),
+                                borderColor: dataset.color,
+                                backgroundColor: dataset.color,
+                                borderWidth: dataset.key === 'general' ? 3 : 2,
+                                pointRadius: 3,
+                                pointHoverRadius: 5,
+                                tension: 0.3,
+                                fill: false,
+                                hidden: !datasetToggles.find(toggle => toggle.dataset.datasetKey === dataset.key)?.checked,
+                            })),
                         },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
                             scales: {
                                 x: {
-                                    stacked: true,
                                     grid: { display: false },
                                 },
                                 y: {
-                                    stacked: true,
                                     beginAtZero: true,
                                     ticks: {
                                         callback: value => compactRupiah(value),
@@ -609,23 +656,22 @@
                             },
                             plugins: {
                                 legend: {
-                                    display: false,
+                                    display: true,
+                                    labels: {
+                                        boxWidth: 10,
+                                        boxHeight: 10,
+                                        font: { size: 9 },
+                                    },
                                 },
                                 tooltip: {
                                     callbacks: {
                                         label: context => `${context.dataset.label}: ${formatRupiah(context.raw)}`,
-                                        footer: items => {
-                                            const index = items[0]?.dataIndex ?? 0;
-                                            return `Total: ${formatRupiah(rows[index]?.total || 0)}`;
-                                        },
                                     },
                                 },
                             },
                         },
                     });
                 }
-
-                updateLegend(rows);
             }
 
             function renderTopTenCostCharts(generalRows, maintenanceRows) {
@@ -955,30 +1001,6 @@
                 });
             }
 
-            function updateLegend(rows) {
-                chartLegend.innerHTML = '';
-
-                rows.forEach(item => {
-                    chartLegend.innerHTML += `
-                        <div class="rounded-lg border border-slate-200 bg-white px-2 py-1.5">
-                            <div class="flex items-center justify-between gap-2">
-                                <span class="font-semibold text-slate-700">${item.label || `${monthNames[item.month] || item.month} ${item.year}`}</span>
-                                <span class="font-bold text-slate-900">${formatRupiah(item.total || 0)}</span>
-                            </div>
-                            <div class="mt-1 grid gap-0.5 text-[10px] text-slate-500">
-                                <div class="flex items-center justify-between gap-2">
-                                    <span><span class="mr-1 inline-block h-2 w-2 rounded-full" style="background-color:${chartColors.normal}"></span>Realisasi Reguler</span>
-                                    <span>${formatRupiah(item.normal_total || 0)}</span>
-                                </div>
-                                <div class="flex items-center justify-between gap-2">
-                                    <span><span class="mr-1 inline-block h-2 w-2 rounded-full" style="background-color:${chartColors.urgent}"></span>Realisasi Urgent</span>
-                                    <span>${formatRupiah(item.urgent_total || 0)}</span>
-                                </div>
-                            </div>
-                        </div>`;
-                });
-            }
-
             function formatRupiah(value) {
                 return `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
             }
@@ -1013,12 +1035,25 @@
                         return;
                     }
 
-                    localStorage.setItem('startYear', startYear);
-                    localStorage.setItem('endYear', endYear);
-                    if (startMonth) localStorage.setItem('startMonth', startMonth);
-                    if (endMonth) localStorage.setItem('endMonth', endMonth);
+                    localStorage.setItem('monthlyRealizationStartYear', startYear);
+                    localStorage.setItem('monthlyRealizationEndYear', endYear);
+                    localStorage.setItem('monthlyRealizationStartMonth', startMonth);
+                    localStorage.setItem('monthlyRealizationEndMonth', endMonth);
 
                     fetchData(startYear, endYear, startMonth, endMonth);
+                });
+
+                datasetToggles.forEach(toggle => {
+                    toggle.addEventListener('change', function () {
+                        const dataset = window.realisasiBiayaChart?.data.datasets.find(
+                            item => item.key === this.dataset.datasetKey,
+                        );
+
+                        if (!dataset) return;
+
+                        dataset.hidden = !this.checked;
+                        window.realisasiBiayaChart.update();
+                    });
                 });
 
                 fetchYears();

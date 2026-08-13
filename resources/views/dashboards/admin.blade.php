@@ -146,9 +146,9 @@
                 </div>
             </div>
 
-            <div class="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(220px,320px)_110px_minmax(210px,auto)]">
+            <div class="grid min-w-0 gap-x-3 gap-y-2 sm:grid-cols-2 xl:grid-cols-[minmax(220px,320px)_110px_minmax(210px,auto)] xl:items-center">
                 <form id="dashboardGlobalFilter" method="GET" action="{{ route('admin.dashboard') }}" class="contents">
-                    <label class="min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                    <label class="min-w-0">
                         <span class="block text-[8px] font-bold uppercase tracking-[0.14em] text-slate-500">Outline Agreement</span>
                         <select id="dashboardOutlineAgreement" name="oa_id" class="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-slate-700">
                             @forelse ($dashboardOutlineAgreements ?? [] as $agreement)
@@ -160,7 +160,7 @@
                             @endforelse
                         </select>
                     </label>
-                    <label class="min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                    <label class="min-w-0">
                         <span class="block text-[8px] font-bold uppercase tracking-[0.14em] text-slate-500">Tahun</span>
                         <select id="dashboardYear" name="year" class="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-slate-700">
                             <option value="all" @selected($selectedDashboardYear === null)>Semua Tahun</option>
@@ -172,7 +172,7 @@
                     <noscript><button type="submit">Terapkan</button></noscript>
                 </form>
 
-                <aside class="contract-budget-summary min-w-0 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white px-4 py-3 sm:col-span-2 xl:col-span-1 xl:text-right">
+                <aside class="contract-budget-summary min-w-0 border-t-2 border-blue-600 pt-3 sm:col-span-2 xl:col-span-1 xl:border-l-2 xl:border-t-0 xl:py-1 xl:pl-4 xl:text-right">
                     <div class="text-[9px] font-bold uppercase tracking-[0.16em] text-blue-700">Pagu Kontrak</div>
                     <div class="mt-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
                         {{ $contractPeriodLabel !== '' ? $contractPeriodLabel : '-' }}

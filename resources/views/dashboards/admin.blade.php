@@ -183,29 +183,29 @@
             </div>
         </header>
 
-        <section class="general-cost-section rounded-xl border border-slate-200 bg-white px-3 py-2.5">
-            <div class="mb-3 flex items-center gap-2">
+        <section class="general-cost-section rounded-xl border border-blue-600 bg-slate-100 px-3 py-2.5">
+            <div class="mb-3 flex items-center gap-2 border-b border-slate-300 pb-2.5">
                 <i data-lucide="wallet-cards" class="h-4 w-4 text-blue-600"></i>
                 <h2 class="text-[12px] font-bold tracking-[0.08em] text-slate-800">GENERAL BIAYA JASA</h2>
             </div>
 
-            <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                <article class="min-w-0 rounded-lg bg-blue-700 px-3 py-2.5 text-white">
+            <div class="grid overflow-hidden sm:grid-cols-2 xl:grid-cols-4">
+                <article class="min-w-0 border-b border-white/30 bg-blue-700 px-3 py-2.5 text-white sm:border-r xl:border-b-0">
                     <div class="border-l-4 border-blue-300 pl-2 text-[9px] font-bold uppercase tracking-[0.12em] text-blue-100">Total Prognosa Biaya</div>
                     <div class="mt-2 break-words text-base font-bold text-white">{{ $rp($totalPrognosaBiaya) }}</div>
                     <div class="mt-1 text-[9px] font-semibold text-blue-100">{{ $prognosaPercentageLabel ?? '0' }}% dari pagu</div>
                 </article>
-                <article class="min-w-0 rounded-lg bg-emerald-700 px-3 py-2.5 text-white">
+                <article class="min-w-0 border-b border-white/30 bg-emerald-700 px-3 py-2.5 text-white xl:border-b-0 xl:border-r">
                     <div class="border-l-4 border-emerald-300 pl-2 text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-100">Realisasi Biaya</div>
                     <div class="mt-2 break-words text-base font-bold text-white">{{ $rp($totalRealisasiBiaya) }}</div>
                     <div class="mt-1 text-[9px] font-semibold text-emerald-100">{{ $realisasiPercentageLabel ?? '0' }}% dari pagu</div>
                 </article>
-                <article class="min-w-0 rounded-lg bg-indigo-700 px-3 py-2.5 text-white">
+                <article class="min-w-0 border-b border-white/30 bg-indigo-700 px-3 py-2.5 text-white sm:border-b-0 sm:border-r">
                     <div class="border-l-4 border-indigo-300 pl-2 text-[9px] font-bold uppercase tracking-[0.12em] text-indigo-100">Outstanding Biaya</div>
                     <div class="mt-2 break-words text-base font-bold text-white">{{ $rp($totalOutstandingBiaya) }}</div>
                     <div class="mt-1 text-[9px] font-semibold text-indigo-100">{{ $outstandingPercentageLabel ?? '0' }}% dari pagu</div>
                 </article>
-                <article class="min-w-0 rounded-lg bg-amber-500 px-3 py-2.5 text-slate-950">
+                <article class="min-w-0 bg-amber-500 px-3 py-2.5 text-slate-950">
                     <div class="border-l-4 border-amber-900 pl-2 text-[9px] font-bold uppercase tracking-[0.12em] text-amber-950">Anggaran Tersedia</div>
                     <div class="mt-2 break-words text-base font-bold text-slate-950">{{ $rp($totalAnggaranTersedia) }}</div>
                     <div class="mt-1 text-[9px] font-semibold text-amber-950">{{ $anggaranTersediaPercentageLabel ?? '0' }}% dari pagu</div>

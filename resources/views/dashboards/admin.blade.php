@@ -338,20 +338,6 @@
                             </button>
                         </div>
 
-                        <div class="flex flex-wrap gap-2" aria-label="Pilih garis grafik realisasi">
-                            @foreach ([
-                                ['key' => 'general', 'label' => 'General', 'color' => '#2563eb'],
-                                ['key' => 'maintenance', 'label' => 'Pemeliharaan', 'color' => '#10b981'],
-                                ['key' => 'non_maintenance', 'label' => 'Non Pemeliharaan', 'color' => '#7c3aed'],
-                                ['key' => 'capex', 'label' => 'CAPEX', 'color' => '#0891b2'],
-                            ] as $datasetToggle)
-                                <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-[9px] font-semibold text-slate-700">
-                                    <input type="checkbox" class="monthly-realization-toggle h-3 w-3 rounded border-slate-300" data-dataset-key="{{ $datasetToggle['key'] }}" checked>
-                                    <span class="h-2 w-2 rounded-full" style="background-color: {{ $datasetToggle['color'] }}"></span>
-                                    {{ $datasetToggle['label'] }}
-                                </label>
-                            @endforeach
-                        </div>
                     </div>
 
                     <div id="monthlyRealizationChartContainer" class="relative mt-3 min-h-[230px] flex-1">
@@ -483,7 +469,6 @@
             const chartEmptyState = document.getElementById('monthlyRealizationEmptyState');
             const chartContainer = document.getElementById('monthlyRealizationChartContainer');
             const chartCanvas = document.getElementById('monthlyRealizationChart');
-            const datasetToggles = [...document.querySelectorAll('.monthly-realization-toggle')];
             const nonMaintenanceOutstandingCanvas = document.getElementById('nonMaintenanceOutstandingChart');
             const capexOutstandingCanvas = document.getElementById('capexOutstandingChart');
             const topTenGeneralCostChartContainer = document.getElementById('topTenGeneralCostChartContainer');
@@ -637,7 +622,6 @@
                                 pointHoverRadius: 5,
                                 tension: 0.3,
                                 fill: false,
-                                hidden: !datasetToggles.find(toggle => toggle.dataset.datasetKey === dataset.key)?.checked,
                             })),
                         },
                         options: {
@@ -1041,19 +1025,6 @@
                     localStorage.setItem('monthlyRealizationEndMonth', endMonth);
 
                     fetchData(startYear, endYear, startMonth, endMonth);
-                });
-
-                datasetToggles.forEach(toggle => {
-                    toggle.addEventListener('change', function () {
-                        const dataset = window.realisasiBiayaChart?.data.datasets.find(
-                            item => item.key === this.dataset.datasetKey,
-                        );
-
-                        if (!dataset) return;
-
-                        dataset.hidden = !this.checked;
-                        window.realisasiBiayaChart.update();
-                    });
                 });
 
                 fetchYears();

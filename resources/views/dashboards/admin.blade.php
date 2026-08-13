@@ -183,7 +183,7 @@
             </div>
         </header>
 
-        <section class="general-cost-section rounded-xl border border-blue-600 bg-slate-100 px-3 py-2.5">
+        <section class="general-cost-section rounded-xl border border-blue-600 bg-blue-50 px-3 py-2.5">
             <div class="mb-3 flex items-center gap-2 border-b border-slate-300 pb-2.5">
                 <i data-lucide="wallet-cards" class="h-4 w-4 text-blue-600"></i>
                 <h2 class="text-[12px] font-bold tracking-[0.08em] text-slate-800">GENERAL BIAYA JASA</h2>
@@ -215,7 +215,7 @@
 
         <section class="main-cost-grid grid grid-cols-1 items-stretch gap-3 xl:grid-cols-12">
             <div class="grid min-w-0 gap-3 xl:col-span-8">
-                <article class="maintenance-panel flex min-w-0 flex-col rounded-xl border border-emerald-600 bg-slate-100 p-3">
+                <article class="maintenance-panel flex min-w-0 flex-col rounded-xl border border-emerald-600 bg-emerald-50 p-3">
                 <div class="flex items-start gap-2 border-b border-slate-100 pb-2.5">
                     <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
                         <i data-lucide="wrench" class="h-3.5 w-3.5"></i>
@@ -285,7 +285,7 @@
                 </section>
                 </article>
 
-                <article class="monthly-realization-panel flex min-h-[330px] flex-col rounded-xl border border-blue-600 bg-slate-100 p-3">
+                <article class="monthly-realization-panel flex min-h-[330px] flex-col rounded-xl border border-blue-600 bg-blue-50 p-3">
                     <div class="flex flex-col gap-3 border-b border-slate-100 pb-3">
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <h3 class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-600">Realisasi Per Bulan</h3>
@@ -319,10 +319,10 @@
 
             <div class="right-cost-column grid min-w-0 gap-3 xl:col-span-4">
                 @foreach ([
-                    ['title' => 'PROGNOSA DAN REALISASI BIAYA NON PEMELIHARAAN', 'icon' => 'building-2', 'accent' => 'bg-violet-600 text-white', 'border' => 'border-violet-600', 'summary' => $nonMaintenanceSummary, 'canvas' => 'nonMaintenanceOutstandingChart', 'color' => '#7c3aed'],
-                    ['title' => 'PROGNOSA DAN REALISASI BIAYA CAPEX', 'icon' => 'landmark', 'accent' => 'bg-cyan-600 text-white', 'border' => 'border-cyan-600', 'summary' => $capexSummary, 'canvas' => 'capexOutstandingChart', 'color' => '#0891b2'],
+                    ['title' => 'PROGNOSA DAN REALISASI BIAYA NON PEMELIHARAAN', 'icon' => 'building-2', 'accent' => 'bg-violet-600 text-white', 'border' => 'border-violet-600', 'background' => 'bg-violet-50', 'summary' => $nonMaintenanceSummary, 'canvas' => 'nonMaintenanceOutstandingChart', 'color' => '#7c3aed'],
+                    ['title' => 'PROGNOSA DAN REALISASI BIAYA CAPEX', 'icon' => 'landmark', 'accent' => 'bg-cyan-600 text-white', 'border' => 'border-cyan-600', 'background' => 'bg-cyan-50', 'summary' => $capexSummary, 'canvas' => 'capexOutstandingChart', 'color' => '#0891b2'],
                 ] as $costPanel)
-                    <article class="flex min-w-0 flex-col rounded-xl border bg-slate-100 p-3 {{ $costPanel['border'] }}">
+                    <article class="flex min-w-0 flex-col rounded-xl border p-3 {{ $costPanel['border'] }} {{ $costPanel['background'] }}">
                         <div class="flex items-start gap-2 border-b border-slate-300 pb-2.5">
                             <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg {{ $costPanel['accent'] }}">
                                 <i data-lucide="{{ $costPanel['icon'] }}" class="h-3.5 w-3.5"></i>
@@ -362,7 +362,7 @@
         </section>
 
         <section class="bottom-cost-grid grid grid-cols-1 items-stretch gap-3 xl:grid-cols-12">
-            <article class="top-ten-panel flex min-w-0 flex-col rounded-xl border border-blue-600 bg-slate-100 p-3 xl:col-span-8">
+            <article class="top-ten-panel flex min-w-0 flex-col rounded-xl border border-blue-600 bg-blue-50 p-3 xl:col-span-8">
                 <div class="mb-2 flex items-center gap-2 border-b border-slate-300 pb-2.5">
                     <i data-lucide="bar-chart-3" class="h-4 w-4 text-blue-500"></i>
                     <h2 class="text-[11px] font-bold tracking-[0.08em] text-slate-800">TOP TEN PEMICU BIAYA</h2>
@@ -407,7 +407,7 @@
                 </div>
             </article>
 
-            <article class="overhaul-panel flex min-w-0 flex-col rounded-xl border border-amber-600 bg-slate-100 p-3 xl:col-span-4">
+            <article class="overhaul-panel flex min-w-0 flex-col rounded-xl border border-amber-600 bg-amber-50 p-3 xl:col-span-4">
                 <div class="mb-2 flex items-center gap-2 border-b border-slate-300 pb-2.5">
                     <i data-lucide="trending-up" class="h-4 w-4 text-amber-500"></i>
                     <h2 class="text-[11px] font-bold tracking-[0.08em] text-slate-800">PROGNOSA OVERHAUL</h2>

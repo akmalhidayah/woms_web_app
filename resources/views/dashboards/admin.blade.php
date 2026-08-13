@@ -366,14 +366,6 @@
                     <h2 class="text-[11px] font-bold tracking-[0.08em] text-slate-800">PROGNOSA OVERHAUL</h2>
                 </div>
 
-                <div class="mb-2 grid gap-2 sm:grid-cols-3">
-                    @foreach (['OVERHAUL TONASA 4', 'OVERHAUL TONASA 5', 'OVERHAUL T.2,3'] as $overhaulLabel)
-                        <div class="rounded-lg border border-amber-100 bg-amber-50 px-2.5 py-2 text-center text-[8px] font-semibold leading-3 tracking-[0.06em] text-amber-800">
-                            {{ $overhaulLabel }}
-                        </div>
-                    @endforeach
-                </div>
-
                 <div class="relative min-h-[220px] flex-1">
                     <canvas
                         id="overhaulPrognosisChart"

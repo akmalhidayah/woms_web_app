@@ -319,32 +319,32 @@
 
             <div class="right-cost-column grid min-w-0 gap-3 xl:col-span-4">
                 @foreach ([
-                    ['title' => 'PROGNOSA DAN REALISASI BIAYA NON PEMELIHARAAN', 'icon' => 'building-2', 'accent' => 'text-violet-600', 'background' => 'bg-violet-50', 'summary' => $nonMaintenanceSummary, 'canvas' => 'nonMaintenanceOutstandingChart', 'color' => '#7c3aed'],
-                    ['title' => 'PROGNOSA DAN REALISASI BIAYA CAPEX', 'icon' => 'landmark', 'accent' => 'text-cyan-600', 'background' => 'bg-cyan-50', 'summary' => $capexSummary, 'canvas' => 'capexOutstandingChart', 'color' => '#0891b2'],
+                    ['title' => 'PROGNOSA DAN REALISASI BIAYA NON PEMELIHARAAN', 'icon' => 'building-2', 'accent' => 'bg-violet-600 text-white', 'border' => 'border-violet-600', 'summary' => $nonMaintenanceSummary, 'canvas' => 'nonMaintenanceOutstandingChart', 'color' => '#7c3aed'],
+                    ['title' => 'PROGNOSA DAN REALISASI BIAYA CAPEX', 'icon' => 'landmark', 'accent' => 'bg-cyan-600 text-white', 'border' => 'border-cyan-600', 'summary' => $capexSummary, 'canvas' => 'capexOutstandingChart', 'color' => '#0891b2'],
                 ] as $costPanel)
-                    <article class="flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                        <div class="flex items-start gap-2 border-b border-slate-100 pb-2.5">
-                            <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg {{ $costPanel['background'] }} {{ $costPanel['accent'] }}">
+                    <article class="flex min-w-0 flex-col rounded-xl border bg-slate-100 p-3 {{ $costPanel['border'] }}">
+                        <div class="flex items-start gap-2 border-b border-slate-300 pb-2.5">
+                            <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg {{ $costPanel['accent'] }}">
                                 <i data-lucide="{{ $costPanel['icon'] }}" class="h-3.5 w-3.5"></i>
                             </span>
-                            <h2 class="pt-1 text-[11px] font-bold leading-4 tracking-[0.06em] text-slate-800">
+                            <h2 class="pt-1 text-xs font-bold leading-4 tracking-[0.06em] text-slate-800">
                                 {{ $costPanel['title'] }}
                             </h2>
                         </div>
 
-                        <div class="mt-3 grid gap-2 sm:grid-cols-2">
-                            <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                                <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Total Prognosa Biaya</div>
-                                <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $rp($costPanel['summary']['prognosis']) }}</div>
+                        <div class="mt-3 grid sm:grid-cols-2">
+                            <div class="pb-3 sm:pr-3">
+                                <div class="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Total Prognosa Biaya</div>
+                                <div class="mt-2 break-words text-base font-bold text-slate-900">{{ $rp($costPanel['summary']['prognosis']) }}</div>
                             </div>
-                            <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                                <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Total Realisasi Biaya</div>
-                                <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $rp($costPanel['summary']['realization']) }}</div>
+                            <div class="border-t border-slate-300 pt-3 sm:border-l sm:border-t-0 sm:pl-3 sm:pt-0">
+                                <div class="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Total Realisasi Biaya</div>
+                                <div class="mt-2 break-words text-base font-bold text-slate-900">{{ $rp($costPanel['summary']['realization']) }}</div>
                             </div>
                         </div>
 
-                        <section class="mt-3 flex-1 rounded-xl border border-slate-200 bg-white p-3">
-                            <h3 class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-600">Outstanding Biaya</h3>
+                        <section class="mt-3 flex-1 border-t border-slate-300 px-1 pt-3">
+                            <h3 class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">Outstanding Biaya</h3>
                             <div class="relative mt-3 h-[190px] min-w-0">
                                 <canvas
                                     id="{{ $costPanel['canvas'] }}"

@@ -5,14 +5,15 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\BudgetVerification;
 use App\Models\Hpp;
-use App\Models\LhppBast;
 use App\Models\OutlineAgreement;
 use App\Models\OutlineAgreementMonthlyRealization;
+use App\Models\OutlineAgreementTarget;
 use App\Services\Admin\DashboardFinancialSummaryService;
 use App\Services\Admin\DashboardTopTenHppCostService;
 use App\Support\AdminActionCenter;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -20,9 +21,6 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    /** @var list<int>|null */
-    private ?array $cachedRealizationYears = null;
-
     public function __construct(
         private readonly DashboardFinancialSummaryService $financialSummaryService,
         private readonly DashboardTopTenHppCostService $topTenHppCostService,
@@ -31,10 +29,13 @@ class DashboardController extends Controller
 
     public function __invoke(Request $request): View
     {
-        $financialSummary = $this->financialSummaryService->resolve();
-        $maintenanceSummary = $this->financialSummaryService->resolveMaintenanceSummary(Carbon::now()->year);
-        $nonMaintenanceSummary = $this->financialSummaryService->resolveForCategory('non pemeliharaan');
-        $capexSummary = $this->financialSummaryService->resolveForCategory('capex');
+        $context = $this->resolveDashboardContext($request);
+        $agreementId = $context['outline_agreement_id'];
+        $year = $context['year'];
+        $financialSummary = $this->financialSummaryService->resolve(outlineAgreementId: $agreementId, year: $year);
+        $maintenanceSummary = $this->financialSummaryService->resolveMaintenanceSummary($year, $agreementId);
+        $nonMaintenanceSummary = $this->financialSummaryService->resolveForCategory('non pemeliharaan', $agreementId, $year);
+        $capexSummary = $this->financialSummaryService->resolveForCategory('capex', $agreementId, $year);
         $totalPaguKontrak = $financialSummary['contract_budget'];
         $totalRealisasiSistem = $financialSummary['system_realization'];
         $totalRealisasiManual = $financialSummary['manual_realization'];
@@ -83,138 +84,160 @@ class DashboardController extends Controller
             'maintenanceInvoiceStatusAmount' => $maintenanceSummary['invoice_status_amount'],
             'nonMaintenanceSummary' => $nonMaintenanceSummary,
             'capexSummary' => $capexSummary,
-            'periodeKontrak' => $this->resolveActiveOutlineAgreementPeriod(),
-            'realizationYears' => $this->realizationYearsList(),
-            'realizationChartData' => $this->buildRealizationChartData(),
-            'overhaulPrognosis' => $this->overhaulPrognosis(),
-            'topTenCostSections' => $this->resolveTopTenCostSections(),
-            'topTenMaintenanceCostSections' => $this->resolveTopTenCostSections(costCategory: 'pemeliharaan'),
+            'selectedOutlineAgreement' => $context['outline_agreement'],
+            'selectedOutlineAgreementId' => $agreementId,
+            'selectedDashboardYear' => $year,
+            'dashboardOutlineAgreements' => $context['outline_agreements'],
+            'dashboardAvailableYears' => $context['available_years'],
+            'periodeKontrak' => $this->resolveOutlineAgreementPeriod($context['outline_agreement']),
+            'realizationChartData' => $this->buildRealizationChartData($agreementId, $year),
+            'overhaulPrognosis' => $this->overhaulPrognosis($agreementId, $year),
+            'topTenCostSections' => $this->resolveTopTenCostSections($agreementId, $year),
+            'topTenMaintenanceCostSections' => $this->resolveTopTenCostSections($agreementId, $year, 'pemeliharaan'),
             'showActionSummaryBanner' => $showActionSummaryBanner,
             'adminActionSummaryCount' => $pendingActionCount,
             'adminActionSummary' => $this->actionCenter->summary($request->user()),
         ]);
     }
 
-    public function years(): JsonResponse
+    public function years(Request $request): JsonResponse
     {
-        return response()->json($this->realizationYearsList());
+        return response()->json($this->resolveDashboardContext($request)['available_years']);
     }
 
     public function realizationChart(Request $request): JsonResponse
     {
-        $parameters = [
-            $request->integer('startYear') ?: null,
-            $request->integer('endYear') ?: null,
-            $request->integer('startMonth') ?: null,
-            $request->integer('endMonth') ?: null,
-        ];
+        $context = $this->resolveDashboardContext($request);
+        $agreementId = $context['outline_agreement_id'];
+        $year = $context['year'];
+        $startMonth = $this->normalizeMonth($request->integer('startMonth')) ?? 1;
+        $endMonth = $this->normalizeMonth($request->integer('endMonth')) ?? 12;
 
         if ($request->boolean('includeTopTen')) {
             return response()->json([
-                'realization' => $this->buildRealizationChartData(...$parameters),
-                'top_ten' => $this->resolveTopTenCostSections(...$parameters),
-                'top_ten_maintenance' => $this->resolveTopTenCostSections(
-                    $parameters[0],
-                    $parameters[1],
-                    $parameters[2],
-                    $parameters[3],
-                    'pemeliharaan',
-                ),
-                'overhaul' => $this->overhaulPrognosis(...$parameters),
+                'realization' => $this->buildRealizationChartData($agreementId, $year, $startMonth, $endMonth),
+                'top_ten' => $this->resolveTopTenCostSections($agreementId, $year),
+                'top_ten_maintenance' => $this->resolveTopTenCostSections($agreementId, $year, 'pemeliharaan'),
+                'overhaul' => $this->overhaulPrognosis($agreementId, $year),
             ]);
         }
 
-        return response()->json($this->buildRealizationChartData(...$parameters));
-    }
-
-    private function activeOutlineAgreementMonthlyRealizationsQuery(): Builder
-    {
-        return OutlineAgreementMonthlyRealization::query()
-            ->whereHas('outlineAgreement', fn (Builder $query) => $query
-                ->where('status', OutlineAgreement::STATUS_ACTIVE));
-    }
-
-    private function baseLhppBastRealizationQuery(): Builder
-    {
-        return LhppBast::query()
-            ->whereHas('order')
-            ->where('termin_type', 'termin_1')
-            ->whereNull('parent_lhpp_bast_id');
+        return response()->json($this->buildRealizationChartData($agreementId, $year, $startMonth, $endMonth));
     }
 
     /**
-     * @return array{start: string|null, end: string|null, adendum: string|null}
+     * @return array{
+     *     outline_agreement: OutlineAgreement|null,
+     *     outline_agreement_id: int|null,
+     *     year: int,
+     *     available_years: list<int>,
+     *     outline_agreements: Collection<int, OutlineAgreement>
+     * }
      */
-    private function resolveActiveOutlineAgreementPeriod(): array
+    private function resolveDashboardContext(Request $request): array
     {
-        $start = OutlineAgreement::query()
-            ->where('status', OutlineAgreement::STATUS_ACTIVE)
-            ->min('current_period_start');
-        $end = OutlineAgreement::query()
-            ->where('status', OutlineAgreement::STATUS_ACTIVE)
-            ->max('current_period_end');
+        $agreements = OutlineAgreement::query()
+            ->whereIn('status', [
+                OutlineAgreement::STATUS_ACTIVE,
+                OutlineAgreement::STATUS_EXPIRED,
+                OutlineAgreement::STATUS_CLOSED,
+            ])
+            ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [OutlineAgreement::STATUS_ACTIVE])
+            ->orderByDesc('current_period_end')
+            ->orderByDesc('id')
+            ->get();
+        $requestedAgreementId = $request->integer('oa_id');
+        $selectedAgreement = $agreements->firstWhere('id', $requestedAgreementId)
+            ?? $agreements->firstWhere('status', OutlineAgreement::STATUS_ACTIVE)
+            ?? $agreements->first();
+        $availableYears = $this->availableYearsForAgreement($selectedAgreement);
+        $currentYear = (int) Carbon::now()->year;
+        $requestedYear = $request->integer('year');
+        $selectedYear = in_array($requestedYear, $availableYears, true)
+            ? $requestedYear
+            : (in_array($currentYear, $availableYears, true)
+                ? $currentYear
+                : ($availableYears[array_key_last($availableYears)] ?? $currentYear));
 
         return [
-            'start' => $start ?: null,
-            'end' => $end ?: null,
-            'adendum' => null,
+            'outline_agreement' => $selectedAgreement,
+            'outline_agreement_id' => $selectedAgreement?->id,
+            'year' => $selectedYear,
+            'available_years' => $availableYears,
+            'outline_agreements' => $agreements,
         ];
     }
 
-    /**
-     * @return list<int>
-     */
-    private function realizationYearsList(): array
+    /** @return list<int> */
+    private function availableYearsForAgreement(?OutlineAgreement $agreement): array
     {
-        if ($this->cachedRealizationYears !== null) {
-            return $this->cachedRealizationYears;
+        if ($agreement === null) {
+            return [(int) Carbon::now()->year];
         }
 
-        $transactionYears = $this->baseLhppBastRealizationQuery()
-            ->whereNotNull('tanggal_bast')
-            ->pluck('tanggal_bast')
-            ->map(fn ($date): int => Carbon::parse($date)->year);
-        $outlineAgreementYears = $this->activeOutlineAgreementMonthlyRealizationsQuery()
-            ->distinct()
-            ->pluck('year')
-            ->map(fn ($year): int => (int) $year);
-        $submittedHppYears = Hpp::query()
-            ->whereNotNull('submitted_at')
-            ->whereIn('status', [
-                Hpp::STATUS_IN_REVIEW,
-                Hpp::STATUS_APPROVED,
-                Hpp::STATUS_REJECTED,
-            ])
-            ->pluck('submitted_at')
-            ->map(fn ($date): int => Carbon::parse($date)->year);
+        $years = collect();
+        if ($agreement->current_period_start && $agreement->current_period_end) {
+            foreach (range($agreement->current_period_start->year, $agreement->current_period_end->year) as $year) {
+                $years->push($year);
+            }
+        }
 
-        return $this->cachedRealizationYears = $transactionYears
-            ->merge($outlineAgreementYears)
-            ->merge($submittedHppYears)
+        $years = $years
+            ->merge(OutlineAgreementTarget::query()
+                ->where('outline_agreement_id', $agreement->id)
+                ->pluck('tahun'))
+            ->merge(OutlineAgreementMonthlyRealization::query()
+                ->where('outline_agreement_id', $agreement->id)
+                ->pluck('year'))
+            ->merge(Hpp::query()
+                ->where('outline_agreement_id', $agreement->id)
+                ->get(['submitted_at', 'created_at'])
+                ->map(fn (Hpp $hpp): int => ($hpp->submitted_at ?? $hpp->created_at)->year));
+
+        return $years
+            ->map(fn ($year): int => (int) $year)
+            ->filter(fn (int $year): bool => $year > 0)
             ->unique()
             ->sort()
             ->values()
             ->all();
     }
 
+    private function outlineAgreementMonthlyRealizationsQuery(?int $outlineAgreementId): Builder
+    {
+        return OutlineAgreementMonthlyRealization::query()
+            ->when(
+                $outlineAgreementId !== null,
+                fn (Builder $query): Builder => $query->where('outline_agreement_id', $outlineAgreementId),
+                fn (Builder $query): Builder => $query->whereRaw('1 = 0'),
+            );
+    }
+
+    /**
+     * @return array{start: string|null, end: string|null, adendum: string|null}
+     */
+    private function resolveOutlineAgreementPeriod(?OutlineAgreement $agreement): array
+    {
+        return [
+            'start' => $agreement?->current_period_start?->toDateString(),
+            'end' => $agreement?->current_period_end?->toDateString(),
+            'adendum' => null,
+        ];
+    }
+
     /**
      * @return list<array{year: int, month: int, label: string, total: int, general: int, maintenance: int, non_maintenance: int, capex: int}>
      */
     private function buildRealizationChartData(
-        ?int $startYear = null,
-        ?int $endYear = null,
+        ?int $outlineAgreementId,
+        int $year,
         ?int $startMonth = null,
         ?int $endMonth = null,
     ): array {
-        [$startDate, $endDate] = $this->resolveDashboardPeriod($startYear, $endYear, $startMonth, $endMonth);
-
-        $filterStartYear = $startDate->year;
-        $filterStartMonth = $startDate->month;
-        $filterEndYear = $endDate->year;
-        $filterEndMonth = $endDate->month;
+        [$startDate, $endDate] = $this->resolveYearPeriod($year, $startMonth, $endMonth);
 
         $transactionTotals = $this->financialSummaryService
-            ->realizationEvents($startDate, $endDate)
+            ->realizationEvents($startDate, $endDate, $outlineAgreementId)
             ->groupBy(fn (array $event): string => $event['date']->format('Y-m'))
             ->map(function ($group): array {
                 return [
@@ -225,25 +248,9 @@ class DashboardController extends Controller
                 ];
             });
 
-        $monthlyTotals = $this->activeOutlineAgreementMonthlyRealizationsQuery()
-            ->where(function (Builder $query) use ($filterStartYear, $filterStartMonth): void {
-                $query
-                    ->where('year', '>', $filterStartYear)
-                    ->orWhere(function (Builder $periodQuery) use ($filterStartYear, $filterStartMonth): void {
-                        $periodQuery
-                            ->where('year', $filterStartYear)
-                            ->where('month', '>=', $filterStartMonth);
-                    });
-            })
-            ->where(function (Builder $query) use ($filterEndYear, $filterEndMonth): void {
-                $query
-                    ->where('year', '<', $filterEndYear)
-                    ->orWhere(function (Builder $periodQuery) use ($filterEndYear, $filterEndMonth): void {
-                        $periodQuery
-                            ->where('year', $filterEndYear)
-                            ->where('month', '<=', $filterEndMonth);
-                    });
-            })
+        $monthlyTotals = $this->outlineAgreementMonthlyRealizationsQuery($outlineAgreementId)
+            ->where('year', $year)
+            ->whereBetween('month', [$startDate->month, $endDate->month])
             ->selectRaw('year, month, kategori_biaya, SUM(amount) as total_amount')
             ->groupBy('year', 'month', 'kategori_biaya')
             ->get()
@@ -290,43 +297,27 @@ class DashboardController extends Controller
      * @return list<array{section: string, amount: int}>
      */
     private function resolveTopTenCostSections(
-        ?int $startYear = null,
-        ?int $endYear = null,
-        ?int $startMonth = null,
-        ?int $endMonth = null,
+        ?int $outlineAgreementId,
+        int $year,
         ?string $costCategory = null,
     ): array {
-        [$periodStart, $periodEnd] = $this->resolveDashboardPeriod(
-            $startYear,
-            $endYear,
-            $startMonth,
-            $endMonth,
-        );
+        [$periodStart, $periodEnd] = $this->resolveYearPeriod($year);
 
-        return $this->topTenHppCostService->resolve($periodStart, $periodEnd, $costCategory);
+        return $this->topTenHppCostService->resolve($periodStart, $periodEnd, $costCategory, $outlineAgreementId);
     }
 
     /**
      * @return array{0: CarbonInterface, 1: CarbonInterface}
      */
-    private function resolveDashboardPeriod(
-        ?int $startYear = null,
-        ?int $endYear = null,
+    private function resolveYearPeriod(
+        int $year,
         ?int $startMonth = null,
         ?int $endMonth = null,
     ): array {
-        $availableYears = $this->realizationYearsList();
-        $startYear ??= $availableYears[0] ?? (int) Carbon::now()->year;
-        $endYear ??= $availableYears[array_key_last($availableYears)] ?? $startYear;
         $startMonth = $this->normalizeMonth($startMonth) ?? 1;
         $endMonth = $this->normalizeMonth($endMonth) ?? 12;
-
-        if ($startYear > $endYear) {
-            [$startYear, $endYear] = [$endYear, $startYear];
-        }
-
-        $startDate = Carbon::create($startYear, $startMonth, 1)->startOfDay();
-        $endDate = Carbon::create($endYear, $endMonth, 1)->endOfMonth();
+        $startDate = Carbon::create($year, $startMonth, 1)->startOfDay();
+        $endDate = Carbon::create($year, $endMonth, 1)->endOfMonth();
 
         if ($startDate->gt($endDate)) {
             [$startDate, $endDate] = [$endDate->copy()->startOfMonth(), $startDate->copy()->endOfMonth()];
@@ -339,17 +330,10 @@ class DashboardController extends Controller
      * @return list<array{key: string, label: string, amount: int}>
      */
     private function overhaulPrognosis(
-        ?int $startYear = null,
-        ?int $endYear = null,
-        ?int $startMonth = null,
-        ?int $endMonth = null,
+        ?int $outlineAgreementId,
+        int $year,
     ): array {
-        [$periodStart, $periodEnd] = $this->resolveDashboardPeriod(
-            $startYear,
-            $endYear,
-            $startMonth,
-            $endMonth,
-        );
+        [$periodStart, $periodEnd] = $this->resolveYearPeriod($year);
 
         $categories = [
             BudgetVerification::COST_CATEGORY_OVERHAUL_TONASA_2_3 => 'Tonasa 2/3',
@@ -359,8 +343,11 @@ class DashboardController extends Controller
 
         $totals = BudgetVerification::query()
             ->join('hpps', 'hpps.id', '=', 'budget_verifications.hpp_id')
-            ->join('outline_agreements', 'outline_agreements.id', '=', 'hpps.outline_agreement_id')
-            ->where('outline_agreements.status', OutlineAgreement::STATUS_ACTIVE)
+            ->when(
+                $outlineAgreementId !== null,
+                fn (Builder $query): Builder => $query->where('hpps.outline_agreement_id', $outlineAgreementId),
+                fn (Builder $query): Builder => $query->whereRaw('1 = 0'),
+            )
             ->where('hpps.status', Hpp::STATUS_APPROVED)
             ->whereNotNull('hpps.submitted_at')
             ->whereBetween('hpps.submitted_at', [$periodStart, $periodEnd])

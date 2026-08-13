@@ -83,7 +83,7 @@ class DashboardTopTenHppCostTest extends TestCase
             'Seksi Di Luar Periode',
             999000000,
             Hpp::STATUS_APPROVED,
-            '2026-04-01 00:00:00',
+            '2025-12-31 23:59:59',
         );
         $this->createBudgetVerification($outsidePeriod, $admin, 'pemeliharaan');
 
@@ -159,6 +159,7 @@ class DashboardTopTenHppCostTest extends TestCase
             700000000,
             Hpp::STATUS_APPROVED,
             '2026-08-01 08:00:00',
+            ['outline_agreement_id' => $agreement->id],
         );
         $this->createBudgetVerification($hpp, $admin, 'pemeliharaan');
         $agreement->monthlyRealizations()->create([
@@ -178,7 +179,7 @@ class DashboardTopTenHppCostTest extends TestCase
             'amount' => 1500000000,
         ]);
 
-        $response = $this->topTenResponse($admin, 2026, 8, 2026, 8);
+        $response = $this->topTenResponse($admin, 2026, 8, 2026, 8, $agreement);
 
         $response->assertOk()
             ->assertJsonPath('top_ten.0.section', 'Legacy Packing')
@@ -213,12 +214,12 @@ class DashboardTopTenHppCostTest extends TestCase
             ]);
         }
 
-        $response = $this->topTenResponse($admin, 2026, 11, 2027, 2);
+        $response = $this->topTenResponse($admin, 2026, 11, 2027, 2, $active);
 
         $response->assertOk()
-            ->assertJsonCount(2, 'top_ten')
-            ->assertJsonPath('top_ten.0.section', 'Lintas Tahun')
-            ->assertJsonPath('top_ten.1.section', 'Dalam Periode')
+            ->assertJsonCount(1, 'top_ten')
+            ->assertJsonPath('top_ten.0.section', 'Dalam Periode')
+            ->assertJsonMissing(['section' => 'Lintas Tahun'])
             ->assertJsonMissing(['section' => 'Di Luar Periode'])
             ->assertJsonMissing(['section' => 'OA Tidak Aktif']);
     }
@@ -236,6 +237,7 @@ class DashboardTopTenHppCostTest extends TestCase
                 (12 - $rank) * 1000000,
                 Hpp::STATUS_APPROVED,
                 '2026-08-01 08:00:00',
+                ['outline_agreement_id' => $agreement->id],
             );
         }
 
@@ -248,7 +250,7 @@ class DashboardTopTenHppCostTest extends TestCase
             'amount' => 100000000,
         ]);
 
-        $response = $this->topTenResponse($admin, 2026, 8, 2026, 8);
+        $response = $this->topTenResponse($admin, 2026, 8, 2026, 8, $agreement);
 
         $response->assertOk()
             ->assertJsonCount(10, 'top_ten')
@@ -324,10 +326,13 @@ class DashboardTopTenHppCostTest extends TestCase
         int $startMonth,
         int $endYear,
         int $endMonth,
+        ?OutlineAgreement $agreement = null,
     ): TestResponse {
+        $agreement ??= $this->defaultActiveAgreement($admin);
+
         return $this->actingAs($admin)->getJson(route('admin.dashboard.realization-chart', [
-            'startYear' => $startYear,
-            'endYear' => $endYear,
+            'oa_id' => $agreement->id,
+            'year' => $startYear,
             'startMonth' => $startMonth,
             'endMonth' => $endMonth,
             'includeTopTen' => 1,

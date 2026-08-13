@@ -1,4 +1,14 @@
 <x-layouts.admin title="Dashboard Admin">
+    <style>
+        .admin-compact {
+            border: 0 !important;
+            background: transparent !important;
+            padding: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+    </style>
+
     @php
         $cleanNumber = function ($x) {
             if ($x === null || $x === '') {
@@ -125,53 +135,80 @@
             </section>
         @endif
 
-        <header class="dashboard-header grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[minmax(0,1fr)_minmax(260px,auto)] lg:items-stretch">
+        <header class="dashboard-header grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:grid-cols-[minmax(240px,1fr)_minmax(0,auto)] xl:items-stretch">
             <div class="flex min-w-0 items-center gap-3">
                 <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                     <i data-lucide="layout-dashboard" class="h-5 w-5"></i>
                 </span>
                 <div class="min-w-0">
                     <h1 class="text-xl font-bold tracking-[0.08em] text-slate-900 sm:text-2xl">DASHBOARD BIAYA JASA</h1>
+                    <p class="mt-1 text-[10px] text-slate-500">Ringkasan prognosa, realisasi, dan penggunaan anggaran.</p>
                 </div>
             </div>
 
-            <aside class="contract-budget-summary min-w-0 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white px-4 py-3 lg:text-right">
-                <div class="text-[9px] font-bold uppercase tracking-[0.16em] text-blue-700">Pagu Kontrak Periode</div>
-                <div class="mt-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-                    {{ $contractPeriodLabel !== '' ? $contractPeriodLabel : '-' }}
-                </div>
-                <div class="mt-1 break-words text-lg font-extrabold leading-6 text-slate-950 sm:text-xl">
-                    {{ $rp($totalPaguKontrak) }}
-                </div>
-            </aside>
+            <div class="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(220px,320px)_110px_minmax(210px,auto)]">
+                <form id="dashboardGlobalFilter" method="GET" action="{{ route('admin.dashboard') }}" class="contents">
+                    <label class="min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                        <span class="block text-[8px] font-bold uppercase tracking-[0.14em] text-slate-500">Outline Agreement</span>
+                        <select id="dashboardOutlineAgreement" name="oa_id" class="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-slate-700">
+                            @forelse ($dashboardOutlineAgreements ?? [] as $agreement)
+                                <option value="{{ $agreement->id }}" @selected((int) $selectedOutlineAgreementId === (int) $agreement->id)>
+                                    {{ $agreement->nomor_oa }} — {{ $agreement->nama_kontrak }} — {{ \App\Models\OutlineAgreement::statusOptions()[$agreement->status] ?? ucfirst($agreement->status) }}
+                                </option>
+                            @empty
+                                <option value="">Belum ada Outline Agreement</option>
+                            @endforelse
+                        </select>
+                    </label>
+                    <label class="min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                        <span class="block text-[8px] font-bold uppercase tracking-[0.14em] text-slate-500">Tahun</span>
+                        <select id="dashboardYear" name="year" class="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-slate-700">
+                            @foreach ($dashboardAvailableYears ?? [] as $year)
+                                <option value="{{ $year }}" @selected((int) $selectedDashboardYear === (int) $year)>{{ $year }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <noscript><button type="submit">Terapkan</button></noscript>
+                </form>
+
+                <aside class="contract-budget-summary min-w-0 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white px-4 py-3 sm:col-span-2 xl:col-span-1 xl:text-right">
+                    <div class="text-[9px] font-bold uppercase tracking-[0.16em] text-blue-700">Pagu Kontrak</div>
+                    <div class="mt-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                        {{ $contractPeriodLabel !== '' ? $contractPeriodLabel : '-' }}
+                    </div>
+                    <div class="mt-1 break-words text-lg font-extrabold leading-6 text-slate-950 sm:text-xl">
+                        {{ $rp($totalPaguKontrak) }}
+                    </div>
+                </aside>
+            </div>
         </header>
 
-        <section class="general-cost-section rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <section class="general-cost-section rounded-xl border border-slate-200 bg-white px-3 py-2.5">
             <div class="mb-3 flex items-center gap-2">
                 <i data-lucide="wallet-cards" class="h-4 w-4 text-blue-600"></i>
                 <h2 class="text-[12px] font-bold tracking-[0.08em] text-slate-800">GENERAL BIAYA JASA</h2>
             </div>
 
-            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <article class="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <div class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">Total Prognosa Biaya</div>
+            <div class="grid sm:grid-cols-2 xl:grid-cols-4">
+                <article class="min-w-0 border-b border-slate-200 px-2 py-2 sm:border-r xl:border-b-0">
+                    <div class="border-l-4 border-blue-600 pl-2 text-[9px] font-bold uppercase tracking-[0.12em] text-blue-700">Total Prognosa Biaya</div>
                     <div class="mt-2 break-words text-base font-bold text-slate-900">{{ $rp($totalPrognosaBiaya) }}</div>
                     <div class="mt-1 text-[9px] font-semibold text-slate-500">{{ $prognosaPercentageLabel ?? '0' }}% dari pagu</div>
                 </article>
-                <article class="min-w-0 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                    <div class="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-700">Realisasi Biaya</div>
+                <article class="min-w-0 border-b border-slate-200 px-2 py-2 xl:border-b-0 xl:border-r">
+                    <div class="border-l-4 border-emerald-500 pl-2 text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-700">Realisasi Biaya</div>
                     <div class="mt-2 break-words text-base font-bold text-slate-900">{{ $rp($totalRealisasiBiaya) }}</div>
-                    <div class="mt-1 text-[9px] font-semibold text-emerald-700">{{ $realisasiPercentageLabel ?? '0' }}% dari pagu</div>
+                    <div class="mt-1 text-[9px] font-semibold text-slate-500">{{ $realisasiPercentageLabel ?? '0' }}% dari pagu</div>
                 </article>
-                <article class="min-w-0 rounded-xl border border-blue-200 bg-blue-50 p-3">
-                    <div class="text-[9px] font-bold uppercase tracking-[0.12em] text-blue-700">Outstanding Biaya</div>
+                <article class="min-w-0 border-b border-slate-200 px-2 py-2 sm:border-b-0 sm:border-r">
+                    <div class="border-l-4 border-indigo-500 pl-2 text-[9px] font-bold uppercase tracking-[0.12em] text-indigo-700">Outstanding Biaya</div>
                     <div class="mt-2 break-words text-base font-bold text-slate-900">{{ $rp($totalOutstandingBiaya) }}</div>
-                    <div class="mt-1 text-[9px] font-semibold text-blue-700">{{ $outstandingPercentageLabel ?? '0' }}% dari pagu</div>
+                    <div class="mt-1 text-[9px] font-semibold text-slate-500">{{ $outstandingPercentageLabel ?? '0' }}% dari pagu</div>
                 </article>
-                <article class="min-w-0 rounded-xl border p-3 {{ $remainingBudgetClasses }}">
-                    <div class="text-[9px] font-bold uppercase tracking-[0.12em]">Anggaran Tersedia</div>
-                    <div class="mt-2 break-words text-base font-bold">{{ $rp($totalAnggaranTersedia) }}</div>
-                    <div class="mt-1 text-[9px] font-semibold opacity-80">{{ $anggaranTersediaPercentageLabel ?? '0' }}% dari pagu</div>
+                <article class="min-w-0 px-2 py-2">
+                    <div class="border-l-4 border-amber-500 pl-2 text-[9px] font-bold uppercase tracking-[0.12em] text-amber-700">Anggaran Tersedia</div>
+                    <div class="mt-2 break-words text-base font-bold text-slate-900">{{ $rp($totalAnggaranTersedia) }}</div>
+                    <div class="mt-1 text-[9px] font-semibold text-slate-500">{{ $anggaranTersediaPercentageLabel ?? '0' }}% dari pagu</div>
                 </article>
             </div>
         </section>
@@ -253,22 +290,14 @@
                             <div id="monthlyRealizationTotal" class="text-[10px] font-bold text-slate-700">{{ $rp(collect($realizationChartData ?? [])->sum('general')) }}</div>
                         </div>
 
-                        <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+                        <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
                             <label class="min-w-0">
                                 <span class="mb-1 block text-[8px] font-semibold uppercase tracking-[0.08em] text-slate-500">Dari Bulan</span>
                                 <select id="monthlyStartMonth" class="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] text-slate-700"></select>
                             </label>
                             <label class="min-w-0">
-                                <span class="mb-1 block text-[8px] font-semibold uppercase tracking-[0.08em] text-slate-500">Dari Tahun</span>
-                                <select id="monthlyStartYear" class="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] text-slate-700"></select>
-                            </label>
-                            <label class="min-w-0">
                                 <span class="mb-1 block text-[8px] font-semibold uppercase tracking-[0.08em] text-slate-500">Sampai Bulan</span>
                                 <select id="monthlyEndMonth" class="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] text-slate-700"></select>
-                            </label>
-                            <label class="min-w-0">
-                                <span class="mb-1 block text-[8px] font-semibold uppercase tracking-[0.08em] text-slate-500">Sampai Tahun</span>
-                                <select id="monthlyEndYear" class="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] text-slate-700"></select>
                             </label>
                             <button id="applyMonthlyRealizationFilter" type="button" class="self-end rounded-lg bg-blue-600 px-3 py-2 text-[9px] font-bold text-white transition hover:bg-blue-700">
                                 Terapkan
@@ -397,8 +426,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const startYearSelect = document.getElementById('monthlyStartYear');
-            const endYearSelect = document.getElementById('monthlyEndYear');
+            const globalFilterForm = document.getElementById('dashboardGlobalFilter');
+            const globalAgreementSelect = document.getElementById('dashboardOutlineAgreement');
+            const globalYearSelect = document.getElementById('dashboardYear');
             const startMonthSelect = document.getElementById('monthlyStartMonth');
             const endMonthSelect = document.getElementById('monthlyEndMonth');
             const applyFiltersButton = document.getElementById('applyMonthlyRealizationFilter');
@@ -419,8 +449,9 @@
             const initialTopTenCostSections = @json($topTenCostSections ?? []);
             const initialTopTenMaintenanceCostSections = @json($topTenMaintenanceCostSections ?? []);
             const initialOverhaulPrognosis = @json($overhaulPrognosis ?? []);
-            const yearsEndpoint = @json(url('/admin/get-years'));
             const chartEndpoint = @json(url('/admin/realisasi-biaya'));
+            const selectedAgreementId = @json($selectedOutlineAgreementId ?? null);
+            const selectedDashboardYear = @json($selectedDashboardYear ?? now()->year);
             const chartColors = {
                 general: '#2563eb',
                 maintenance: '#10b981',
@@ -428,8 +459,6 @@
                 capex: '#0891b2',
             };
             const hasRealizationChart = [
-                startYearSelect,
-                endYearSelect,
                 startMonthSelect,
                 endMonthSelect,
                 applyFiltersButton,
@@ -442,23 +471,6 @@
                 1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'Mei', 6: 'Jun',
                 7: 'Jul', 8: 'Agu', 9: 'Sep', 10: 'Okt', 11: 'Nov', 12: 'Des',
             };
-
-            function fetchYears() {
-                fetch(yearsEndpoint)
-                    .then(response => response.json())
-                    .then(data => {
-                        startYearSelect.innerHTML = '';
-                        endYearSelect.innerHTML = '';
-                        data.forEach(year => {
-                            const option = `<option value="${year}">${year}</option>`;
-                            startYearSelect.innerHTML += option;
-                            endYearSelect.innerHTML += option;
-                        });
-
-                        loadSavedFilters(data);
-                    })
-                    .catch(error => console.error('Error fetching years:', error));
-            }
 
             function loadMonths() {
                 const months = [
@@ -476,43 +488,33 @@
                 });
             }
 
-            function loadSavedFilters(availableYears) {
+            function loadSavedFilters() {
                 const firstRow = initialChartData[0] || {};
                 const lastRow = initialChartData[initialChartData.length - 1] || firstRow;
-                const savedStartYear = Number(localStorage.getItem('monthlyRealizationStartYear'));
-                const savedEndYear = Number(localStorage.getItem('monthlyRealizationEndYear'));
                 const savedStartMonth = Number(localStorage.getItem('monthlyRealizationStartMonth'));
                 const savedEndMonth = Number(localStorage.getItem('monthlyRealizationEndMonth'));
-                const hasValidSavedFilter = availableYears.includes(savedStartYear)
-                    && availableYears.includes(savedEndYear)
-                    && savedStartMonth >= 1
+                const hasValidSavedFilter = savedStartMonth >= 1
                     && savedStartMonth <= 12
                     && savedEndMonth >= 1
                     && savedEndMonth <= 12
-                    && savedStartYear <= savedEndYear
-                    && (savedStartYear !== savedEndYear || savedStartMonth <= savedEndMonth);
-
-                const startYear = hasValidSavedFilter ? savedStartYear : Number(firstRow.year || availableYears[0]);
-                const endYear = hasValidSavedFilter ? savedEndYear : Number(lastRow.year || availableYears.at(-1));
+                    && savedStartMonth <= savedEndMonth;
                 const startMonth = hasValidSavedFilter ? savedStartMonth : Number(firstRow.month || 1);
                 const endMonth = hasValidSavedFilter ? savedEndMonth : Number(lastRow.month || 12);
 
-                if (startYear) startYearSelect.value = startYear;
-                if (endYear) endYearSelect.value = endYear;
                 if (startMonth) startMonthSelect.value = startMonth;
                 if (endMonth) endMonthSelect.value = endMonth;
 
                 if (hasValidSavedFilter) {
-                    fetchRealizationData(startYear, endYear, startMonth, endMonth);
+                    fetchRealizationData(startMonth, endMonth);
                 } else {
                     renderChart(initialChartData);
                 }
             }
 
-            function fetchRealizationData(startYear, endYear, startMonth = null, endMonth = null) {
+            function fetchRealizationData(startMonth = null, endMonth = null) {
                 const queryParams = new URLSearchParams({
-                    startYear,
-                    endYear,
+                    oa_id: selectedAgreementId,
+                    year: selectedDashboardYear,
                     ...(startMonth && { startMonth }),
                     ...(endMonth && { endMonth })
                 }).toString();
@@ -940,38 +942,24 @@
 
             if (hasRealizationChart) {
                 applyFiltersButton.addEventListener('click', function () {
-                    const startYear = startYearSelect.value;
-                    const endYear = endYearSelect.value;
                     const startMonth = startMonthSelect.value;
                     const endMonth = endMonthSelect.value;
 
-                    if (!startYear || !endYear) {
-                        alert('Pilih rentang tahun terlebih dahulu!');
-                        return;
-                    }
-
-                    if (parseInt(startYear) > parseInt(endYear)) {
-                        alert('Tahun mulai tidak boleh lebih besar dari tahun akhir!');
-                        return;
-                    }
-
-                    if (startYear === endYear && startMonth && endMonth && parseInt(startMonth) > parseInt(endMonth)) {
+                    if (startMonth && endMonth && parseInt(startMonth) > parseInt(endMonth)) {
                         alert('Bulan mulai tidak boleh lebih besar dari bulan akhir!');
                         return;
                     }
 
-                    localStorage.setItem('monthlyRealizationStartYear', startYear);
-                    localStorage.setItem('monthlyRealizationEndYear', endYear);
                     localStorage.setItem('monthlyRealizationStartMonth', startMonth);
                     localStorage.setItem('monthlyRealizationEndMonth', endMonth);
 
-                    fetchRealizationData(startYear, endYear, startMonth, endMonth);
+                    fetchRealizationData(startMonth, endMonth);
                 });
 
                 renderTopTenCostCharts(initialTopTenCostSections, initialTopTenMaintenanceCostSections);
                 renderOverhaulPrognosisChart(initialOverhaulPrognosis);
-                fetchYears();
                 loadMonths();
+                loadSavedFilters();
             } else {
                 renderTopTenCostCharts(initialTopTenCostSections, initialTopTenMaintenanceCostSections);
                 renderOverhaulPrognosisChart(initialOverhaulPrognosis);
@@ -985,6 +973,10 @@
                 capexOutstandingCanvas,
                 'capexOutstandingChartInstance',
             );
+
+            [globalAgreementSelect, globalYearSelect].forEach(select => {
+                select?.addEventListener('change', () => globalFilterForm?.submit());
+            });
         });
     </script>
 </x-layouts.admin>

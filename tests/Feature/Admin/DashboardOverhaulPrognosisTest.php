@@ -149,7 +149,7 @@ class DashboardOverhaulPrognosisTest extends TestCase
         $response = $this->overhaulResponse($admin, 2026, 1, 2026, 1);
 
         $response->assertOk()
-            ->assertJsonPath('overhaul.0.amount', 300000001)
+            ->assertJsonPath('overhaul.0.amount', 800000001)
             ->assertJsonPath('overhaul.1.amount', 700000000)
             ->assertJsonPath('overhaul.2.amount', 400000000);
     }
@@ -285,11 +285,16 @@ class DashboardOverhaulPrognosisTest extends TestCase
             'name' => 'Dashboard Overhaul Unit',
         ]);
 
-        return OutlineAgreement::query()->create([
-            'nomor_oa' => 'OA-'.$suffix,
+        $number = $status === OutlineAgreement::STATUS_ACTIVE
+            ? 'OA-DASHBOARD-OVERHAUL-ACTIVE'
+            : 'OA-'.$suffix;
+
+        return OutlineAgreement::query()->firstOrCreate([
+            'nomor_oa' => $number,
+        ], [
             'unit_work_id' => $unitWork->id,
             'jenis_kontrak' => 'Fabrikasi',
-            'nama_kontrak' => 'Kontrak '.$suffix,
+            'nama_kontrak' => 'Kontrak '.$number,
             'nilai_kontrak_awal' => 10000000000,
             'periode_awal_start' => '2026-01-01',
             'periode_awal_end' => '2026-12-31',

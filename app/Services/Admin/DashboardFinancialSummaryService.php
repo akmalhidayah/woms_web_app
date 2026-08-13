@@ -38,17 +38,27 @@ final class DashboardFinancialSummaryService
      *     unclassified_outstanding: int
      * }
      */
-    public function resolve(?string $costCategory = null): array
-    {
+    public function resolve(
+        ?string $costCategory = null,
+        ?int $outlineAgreementId = null,
+        ?int $year = null,
+    ): array {
         $this->assertValidCostCategory($costCategory);
 
-        $contractBudget = $this->moneyInt(OutlineAgreement::query()
-            ->where('status', OutlineAgreement::STATUS_ACTIVE)
-            ->sum('current_total_nilai'));
+        $contractBudgetQuery = OutlineAgreement::query();
+        $outlineAgreementId === null
+            ? $contractBudgetQuery->where('status', OutlineAgreement::STATUS_ACTIVE)
+            : $contractBudgetQuery->whereKey($outlineAgreementId);
+        $contractBudget = $this->moneyInt($contractBudgetQuery->sum('current_total_nilai'));
 
         $manualRealizationQuery = OutlineAgreementMonthlyRealization::query()
-            ->whereHas('outlineAgreement', fn (Builder $query): Builder => $query
-                ->where('status', OutlineAgreement::STATUS_ACTIVE));
+            ->when(
+                $outlineAgreementId !== null,
+                fn (Builder $query): Builder => $query->where('outline_agreement_id', $outlineAgreementId),
+                fn (Builder $query): Builder => $query->whereHas('outlineAgreement', fn (Builder $agreementQuery): Builder => $agreementQuery
+                    ->where('status', OutlineAgreement::STATUS_ACTIVE)),
+            )
+            ->when($year !== null, fn (Builder $query): Builder => $query->where('year', $year));
 
         if ($costCategory !== null) {
             $manualRealizationQuery->where('kategori_biaya', $costCategory);
@@ -57,7 +67,7 @@ final class DashboardFinancialSummaryService
         $manualRealization = $this->moneyInt($manualRealizationQuery->sum('amount'));
 
         [$systemRealization, $realizationByHpp, $legacyRealizationByOrder, $lpjStatusByHpp, $invoiceStatusByHpp] =
-            $this->resolveSystemRealizations($costCategory);
+            $this->resolveSystemRealizations($costCategory, $outlineAgreementId, $year);
 
         $lpjStatusAmount = 0;
         $invoiceStatusAmount = 0;
@@ -66,7 +76,7 @@ final class DashboardFinancialSummaryService
             'purchase_order' => 0,
             'lpj_process' => 0,
         ];
-        $outstanding = $this->latestActiveHpps($costCategory)
+        $outstanding = $this->latestActiveHpps($costCategory, $outlineAgreementId, $year)
             ->sum(function (Hpp $hpp) use (
                 $realizationByHpp,
                 $legacyRealizationByOrder,
@@ -118,21 +128,28 @@ final class DashboardFinancialSummaryService
     /**
      * @return array<string, mixed>
      */
-    public function resolveForCategory(string $costCategory): array
-    {
-        return $this->resolve($costCategory);
+    public function resolveForCategory(
+        string $costCategory,
+        ?int $outlineAgreementId = null,
+        ?int $year = null,
+    ): array {
+        return $this->resolve($costCategory, $outlineAgreementId, $year);
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function resolveMaintenanceSummary(int $year): array
+    public function resolveMaintenanceSummary(int $year, ?int $outlineAgreementId = null): array
     {
-        $summary = $this->resolveForCategory('pemeliharaan');
+        $summary = $this->resolveForCategory('pemeliharaan', $outlineAgreementId, $year);
         $annualTarget = $this->moneyInt(OutlineAgreementTarget::query()
             ->where('tahun', $year)
-            ->whereHas('outlineAgreement', fn (Builder $query): Builder => $query
-                ->where('status', OutlineAgreement::STATUS_ACTIVE))
+            ->when(
+                $outlineAgreementId !== null,
+                fn (Builder $query): Builder => $query->where('outline_agreement_id', $outlineAgreementId),
+                fn (Builder $query): Builder => $query->whereHas('outlineAgreement', fn (Builder $agreementQuery): Builder => $agreementQuery
+                    ->where('status', OutlineAgreement::STATUS_ACTIVE)),
+            )
             ->sum('nilai_target'));
 
         return $summary + [
@@ -155,9 +172,12 @@ final class DashboardFinancialSummaryService
      *
      * @return Collection<int, array{date: CarbonInterface, amount: int, category: string|null}>
      */
-    public function realizationEvents(CarbonInterface $startDate, CarbonInterface $endDate): Collection
-    {
-        return $this->systemRealizationQuery()
+    public function realizationEvents(
+        CarbonInterface $startDate,
+        CarbonInterface $endDate,
+        ?int $outlineAgreementId = null,
+    ): Collection {
+        return $this->systemRealizationQuery(outlineAgreementId: $outlineAgreementId)
             ->whereBetween('tanggal_bast', [$startDate->toDateString(), $endDate->toDateString()])
             ->with([
                 'hpp:id',
@@ -190,15 +210,18 @@ final class DashboardFinancialSummaryService
     /**
      * @return array{0: int, 1: array<int, int>, 2: array<int, int>, 3: array<int, int>, 4: array<int, int>}
      */
-    private function resolveSystemRealizations(?string $costCategory): array
-    {
+    private function resolveSystemRealizations(
+        ?string $costCategory,
+        ?int $outlineAgreementId,
+        ?int $year,
+    ): array {
         $realizationByHpp = [];
         $legacyRealizationByOrder = [];
         $lpjStatusByHpp = [];
         $invoiceByHpp = [];
         $total = 0;
 
-        $rows = $this->systemRealizationQuery($costCategory)
+        $rows = $this->systemRealizationQuery($costCategory, $outlineAgreementId, $year)
             ->get([
                 'id',
                 'order_id',
@@ -230,8 +253,11 @@ final class DashboardFinancialSummaryService
         return [$total, $realizationByHpp, $legacyRealizationByOrder, $lpjStatusByHpp, $invoiceByHpp];
     }
 
-    private function systemRealizationQuery(?string $costCategory = null): Builder
-    {
+    private function systemRealizationQuery(
+        ?string $costCategory = null,
+        ?int $outlineAgreementId = null,
+        ?int $year = null,
+    ): Builder {
         return LhppBast::query()
             ->where('termin_type', 'termin_1')
             ->whereNull('parent_lhpp_bast_id')
@@ -248,17 +274,23 @@ final class DashboardFinancialSummaryService
                         });
                 });
             })
-            ->where(function (Builder $query): void {
-                $query
-                    ->whereHas('hpp.outlineAgreement', fn (Builder $agreementQuery): Builder => $agreementQuery
-                        ->where('status', OutlineAgreement::STATUS_ACTIVE))
-                    ->orWhere(function (Builder $legacyQuery): void {
-                        $legacyQuery
-                            ->whereNull('hpp_id')
-                            ->whereHas('order.latestHpp.outlineAgreement', fn (Builder $agreementQuery): Builder => $agreementQuery
-                                ->where('status', OutlineAgreement::STATUS_ACTIVE));
-                    });
+            ->where(function (Builder $query) use ($outlineAgreementId): void {
+                $query->whereHas('hpp.outlineAgreement', function (Builder $agreementQuery) use ($outlineAgreementId): void {
+                    $outlineAgreementId === null
+                        ? $agreementQuery->where('status', OutlineAgreement::STATUS_ACTIVE)
+                        : $agreementQuery->whereKey($outlineAgreementId);
+                })->orWhere(function (Builder $legacyQuery) use ($outlineAgreementId): void {
+                    $legacyQuery
+                        ->whereNull('hpp_id')
+                        ->whereHas('order.latestHpp.outlineAgreement', function (Builder $agreementQuery) use ($outlineAgreementId): void {
+                            $outlineAgreementId === null
+                                ? $agreementQuery->where('status', OutlineAgreement::STATUS_ACTIVE)
+                                : $agreementQuery->whereKey($outlineAgreementId);
+                        });
+                });
             })
+            ->when($year !== null, fn (Builder $query): Builder => $query
+                ->whereBetween('tanggal_bast', ["{$year}-01-01", "{$year}-12-31"]))
             ->with([
                 'garansi:id,lhpp_bast_id,garansi_months',
                 'lpjPpl:id,lhpp_bast_id,lpj_number_termin1,ppl_number_termin1,lpj_document_path_termin1,ppl_document_path_termin1,lpj_number_termin2,ppl_number_termin2,lpj_document_path_termin2,ppl_document_path_termin2',
@@ -420,11 +452,27 @@ final class DashboardFinancialSummaryService
     }
 
     /** @return \Illuminate\Database\Eloquent\Collection<int, Hpp> */
-    private function latestActiveHpps(?string $costCategory): \Illuminate\Database\Eloquent\Collection
-    {
+    private function latestActiveHpps(
+        ?string $costCategory,
+        ?int $outlineAgreementId,
+        ?int $year,
+    ): \Illuminate\Database\Eloquent\Collection {
         return Hpp::query()
-            ->whereHas('outlineAgreement', fn (Builder $query): Builder => $query
-                ->where('status', OutlineAgreement::STATUS_ACTIVE))
+            ->when(
+                $outlineAgreementId !== null,
+                fn (Builder $query): Builder => $query->where('outline_agreement_id', $outlineAgreementId),
+                fn (Builder $query): Builder => $query->whereHas('outlineAgreement', fn (Builder $agreementQuery): Builder => $agreementQuery
+                    ->where('status', OutlineAgreement::STATUS_ACTIVE)),
+            )
+            ->when($year !== null, fn (Builder $query): Builder => $query->where(function (Builder $dateQuery) use ($year): void {
+                $dateQuery
+                    ->whereBetween('submitted_at', ["{$year}-01-01 00:00:00", "{$year}-12-31 23:59:59"])
+                    ->orWhere(function (Builder $draftDateQuery) use ($year): void {
+                        $draftDateQuery
+                            ->whereNull('submitted_at')
+                            ->whereBetween('created_at', ["{$year}-01-01 00:00:00", "{$year}-12-31 23:59:59"]);
+                    });
+            }))
             ->whereIn('status', [
                 Hpp::STATUS_DRAFT,
                 Hpp::STATUS_IN_REVIEW,
@@ -433,11 +481,13 @@ final class DashboardFinancialSummaryService
             ->when($costCategory !== null, fn (Builder $query): Builder => $query
                 ->whereHas('budgetVerification', fn (Builder $verificationQuery): Builder => $verificationQuery
                     ->where('kategori_biaya', $costCategory)))
-            ->whereNotExists(function ($query): void {
+            ->whereNotExists(function ($query) use ($outlineAgreementId): void {
                 $query
                     ->selectRaw('1')
                     ->from('hpps as newer_hpps')
                     ->whereColumn('newer_hpps.order_id', 'hpps.order_id')
+                    ->when($outlineAgreementId !== null, fn ($newerQuery) => $newerQuery
+                        ->where('newer_hpps.outline_agreement_id', $outlineAgreementId))
                     ->whereColumn('newer_hpps.id', '>', 'hpps.id');
             })
             ->with([

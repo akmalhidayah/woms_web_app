@@ -20,6 +20,7 @@ final class DashboardTopTenHppCostService
         CarbonInterface $periodStart,
         CarbonInterface $periodEnd,
         ?string $costCategory = null,
+        ?int $outlineAgreementId = null,
     ): array {
         if ($costCategory !== null && ! array_key_exists($costCategory, BudgetVerification::kategoriBiayaOptions())) {
             return [];
@@ -27,8 +28,13 @@ final class DashboardTopTenHppCostService
 
         $systemRows = Hpp::query()
             ->join('orders', 'orders.id', '=', 'hpps.order_id')
-            ->join('outline_agreements', 'outline_agreements.id', '=', 'hpps.outline_agreement_id')
-            ->where('outline_agreements.status', OutlineAgreement::STATUS_ACTIVE)
+            ->when(
+                $outlineAgreementId !== null,
+                fn (Builder $query): Builder => $query->where('hpps.outline_agreement_id', $outlineAgreementId),
+                fn (Builder $query): Builder => $query
+                    ->join('outline_agreements', 'outline_agreements.id', '=', 'hpps.outline_agreement_id')
+                    ->where('outline_agreements.status', OutlineAgreement::STATUS_ACTIVE),
+            )
             ->whereNotNull('hpps.submitted_at')
             ->whereIn('hpps.status', [
                 Hpp::STATUS_IN_REVIEW,
@@ -40,7 +46,7 @@ final class DashboardTopTenHppCostService
             ->when($costCategory !== null, fn (Builder $query): Builder => $query
                 ->whereHas('budgetVerification', fn (Builder $budgetQuery): Builder => $budgetQuery
                     ->where('kategori_biaya', $costCategory)))
-            ->whereNotExists(function ($query) use ($periodStart, $periodEnd): void {
+            ->whereNotExists(function ($query) use ($periodStart, $periodEnd, $outlineAgreementId): void {
                 $query
                     ->selectRaw('1')
                     ->from('hpps as newer_hpps')
@@ -52,13 +58,17 @@ final class DashboardTopTenHppCostService
                         Hpp::STATUS_REJECTED,
                     ])
                     ->whereBetween('newer_hpps.submitted_at', [$periodStart, $periodEnd])
-                    ->whereExists(function ($agreementQuery): void {
-                        $agreementQuery
-                            ->selectRaw('1')
-                            ->from('outline_agreements as newer_outline_agreements')
-                            ->whereColumn('newer_outline_agreements.id', 'newer_hpps.outline_agreement_id')
-                            ->where('newer_outline_agreements.status', OutlineAgreement::STATUS_ACTIVE);
-                    })
+                    ->when(
+                        $outlineAgreementId !== null,
+                        fn ($newerQuery) => $newerQuery->where('newer_hpps.outline_agreement_id', $outlineAgreementId),
+                        fn ($newerQuery) => $newerQuery->whereExists(function ($agreementQuery): void {
+                            $agreementQuery
+                                ->selectRaw('1')
+                                ->from('outline_agreements as newer_outline_agreements')
+                                ->whereColumn('newer_outline_agreements.id', 'newer_hpps.outline_agreement_id')
+                                ->where('newer_outline_agreements.status', OutlineAgreement::STATUS_ACTIVE);
+                        }),
+                    )
                     ->where(function ($newerQuery): void {
                         $newerQuery
                             ->whereColumn('newer_hpps.submitted_at', '>', 'hpps.submitted_at')
@@ -81,8 +91,12 @@ final class DashboardTopTenHppCostService
         $startPeriod = ((int) $periodStart->format('Y') * 100) + (int) $periodStart->format('n');
         $endPeriod = ((int) $periodEnd->format('Y') * 100) + (int) $periodEnd->format('n');
         $manualRows = OutlineAgreementMonthlyRealization::query()
-            ->whereHas('outlineAgreement', fn (Builder $query): Builder => $query
-                ->where('status', OutlineAgreement::STATUS_ACTIVE))
+            ->when(
+                $outlineAgreementId !== null,
+                fn (Builder $query): Builder => $query->where('outline_agreement_id', $outlineAgreementId),
+                fn (Builder $query): Builder => $query->whereHas('outlineAgreement', fn (Builder $agreementQuery): Builder => $agreementQuery
+                    ->where('status', OutlineAgreement::STATUS_ACTIVE)),
+            )
             ->whereRaw("TRIM(COALESCE(seksi, '')) <> ''")
             ->whereRaw('((year * 100) + month) BETWEEN ? AND ?', [$startPeriod, $endPeriod])
             ->when($costCategory !== null, fn (Builder $query): Builder => $query

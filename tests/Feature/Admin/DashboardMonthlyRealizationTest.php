@@ -116,7 +116,7 @@ class DashboardMonthlyRealizationTest extends TestCase
         $response->assertViewHas('totalKuotaKontrak', 500000000);
     }
 
-    public function test_chart_filter_supports_a_month_range_across_years(): void
+    public function test_chart_local_filter_uses_month_range_within_global_year(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
         $agreement = $this->createAgreement(
@@ -134,17 +134,16 @@ class DashboardMonthlyRealizationTest extends TestCase
         ]);
 
         $response = $this->actingAs($admin)->getJson(route('admin.dashboard.realization-chart', [
-            'startYear' => 2025,
-            'endYear' => 2026,
-            'startMonth' => 12,
+            'oa_id' => $agreement->id,
+            'year' => 2026,
+            'startMonth' => 1,
             'endMonth' => 2,
         ]));
 
         $response->assertOk()
-            ->assertJsonCount(3)
-            ->assertJsonPath('0.total', 110)
-            ->assertJsonPath('1.total', 220)
-            ->assertJsonPath('2.total', 0);
+            ->assertJsonCount(2)
+            ->assertJsonPath('0.total', 220)
+            ->assertJsonPath('1.total', 0);
     }
 
     public function test_chart_and_summary_only_recognize_approved_bast_with_complete_lpj(): void

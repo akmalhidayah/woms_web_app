@@ -18,7 +18,7 @@ class DashboardBudgetSummaryUiTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('body:has(.dashboard-header)', false);
-        $response->assertSee('dashboard-header sticky top-[52px] z-10', false);
+        $response->assertSee('dashboard-header grid gap-3 rounded-xl border border-slate-200 bg-white p-4 lg:sticky lg:top-[52px] lg:z-10', false);
         $response->assertSeeTextInOrder([
             'GENERAL BIAYA JASA',
             'Total Prognosa Biaya',

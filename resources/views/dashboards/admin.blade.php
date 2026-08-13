@@ -191,10 +191,7 @@
                     <i data-lucide="layout-dashboard" class="h-5 w-5"></i>
                 </span>
                 <div class="min-w-0">
-                    <h1 class="text-base font-bold tracking-[0.08em] text-slate-900 sm:text-lg">DASHBOARD BIAYA JASA</h1>
-                    <p class="mt-1 text-[11px] leading-4 text-slate-500 sm:text-xs">
-                        Ringkasan prognosa, realisasi, dan penggunaan anggaran.
-                    </p>
+                    <h1 class="text-xl font-bold tracking-[0.08em] text-slate-900 sm:text-2xl">DASHBOARD BIAYA JASA</h1>
                 </div>
             </div>
 

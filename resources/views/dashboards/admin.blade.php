@@ -135,14 +135,13 @@
             </section>
         @endif
 
-        <header class="dashboard-header grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:grid-cols-[minmax(240px,1fr)_minmax(0,auto)] xl:items-stretch">
+        <header class="dashboard-header grid gap-3 rounded-xl border border-slate-200 bg-white p-4 xl:grid-cols-[minmax(240px,1fr)_minmax(0,auto)] xl:items-stretch">
             <div class="flex min-w-0 items-center gap-3">
                 <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                     <i data-lucide="layout-dashboard" class="h-5 w-5"></i>
                 </span>
                 <div class="min-w-0">
-                    <h1 class="text-xl font-bold tracking-[0.08em] text-slate-900 sm:text-2xl">DASHBOARD BIAYA JASA</h1>
-                    <p class="mt-1 text-[10px] text-slate-500">Ringkasan prognosa, realisasi, dan penggunaan anggaran.</p>
+                    <h1 class="text-2xl font-bold tracking-[0.08em] text-slate-900 sm:text-3xl">DASHBOARD BIAYA JASA</h1>
                 </div>
             </div>
 
@@ -577,6 +576,9 @@
                             scales: {
                                 x: {
                                     grid: { display: false },
+                                    ticks: {
+                                        display: selectedDashboardYear !== null,
+                                    },
                                 },
                                 y: {
                                     beginAtZero: true,

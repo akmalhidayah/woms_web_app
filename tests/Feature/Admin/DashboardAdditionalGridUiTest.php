@@ -34,6 +34,7 @@ class DashboardAdditionalGridUiTest extends TestCase
             ->assertSee('id="monthlyStartMonth"', false)
             ->assertSee('id="dashboardYear"', false)
             ->assertDontSee('id="monthlyEndYear"', false)
+            ->assertSee('display: selectedDashboardYear !== null', false)
             ->assertDontSee('monthly-realization-toggle', false)
             ->assertDontSee("includeTopTen: '1'", false)
             ->assertSee('fetchRealizationData', false)

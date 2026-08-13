@@ -17,6 +17,7 @@ class DashboardBudgetSummaryUiTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.dashboard'));
 
         $response->assertOk();
+        $response->assertSee('body:has(.dashboard-header)', false);
         $response->assertSee('dashboard-header sticky top-[52px] z-10', false);
         $response->assertSeeTextInOrder([
             'GENERAL BIAYA JASA',

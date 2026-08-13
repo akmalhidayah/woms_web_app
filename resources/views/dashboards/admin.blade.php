@@ -1,5 +1,13 @@
 <x-layouts.admin title="Dashboard Admin">
     <style>
+        html:has(.dashboard-header) {
+            overflow-y: auto !important;
+        }
+
+        body:has(.dashboard-header) {
+            overflow-y: visible !important;
+        }
+
         .admin-compact {
             border: 0 !important;
             background: transparent !important;

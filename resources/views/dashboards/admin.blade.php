@@ -661,9 +661,10 @@
                     console.error('Gagal membaca data outstanding kategori.', error);
                 }
 
-                const labels = ['HPP Draft', 'HPP In Review', 'HPP Approved', 'Purchase Order', 'LPJ Process'];
+                // Nilai Draft tetap menjadi bagian total Outstanding, tetapi tidak
+                // ditampilkan sebagai batang agar grafik fokus pada proses berjalan.
+                const labels = ['HPP In Review', 'HPP Approved', 'Purchase Order', 'LPJ Process'];
                 const amounts = [
-                    Number(stages.hpp_draft || 0),
                     Number(stages.hpp_in_review || 0),
                     Number(stages.hpp_approved || 0),
                     Number(stages.purchase_order || 0),

@@ -498,6 +498,8 @@ class DashboardFinancialSummaryTest extends TestCase
             ->assertOk()
             ->assertSee('id="nonMaintenanceOutstandingChart"', false)
             ->assertSee('id="capexOutstandingChart"', false)
+            ->assertDontSee('HPP Draft')
+            ->assertSee('HPP In Review')
             ->assertSee('HPP Approved')
             ->assertSee('Purchase Order')
             ->assertSee('LPJ Process')

@@ -345,7 +345,7 @@
 
                         <section class="mt-3 flex-1 border-t border-slate-300 px-1 pt-3">
                             <h3 class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">Outstanding Biaya</h3>
-                            <div class="relative mt-3 h-[190px] min-w-0">
+                            <div class="relative mt-3 min-h-[190px] min-w-0 flex-1">
                                 <canvas
                                     id="{{ $costPanel['canvas'] }}"
                                     class="h-full w-full"

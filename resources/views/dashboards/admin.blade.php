@@ -220,7 +220,7 @@
                     <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
                         <i data-lucide="wrench" class="h-3.5 w-3.5"></i>
                     </span>
-                    <h2 class="pt-1 text-[11px] font-bold leading-4 tracking-[0.06em] text-slate-800">
+                    <h2 class="pt-1 text-xs font-bold leading-4 tracking-[0.06em] text-slate-800 sm:text-sm">
                         PROGNOSA DAN REALISASI BIAYA PEMELIHARAAN
                     </h2>
                 </div>
@@ -228,15 +228,15 @@
                 <div class="mt-3 grid gap-3 md:grid-cols-12">
                     <section class="flex flex-col px-3 py-2 md:col-span-4">
                         <div class="text-center">
-                            <div class="text-[8px] font-bold uppercase tracking-[0.16em] text-slate-500">Target Tahunan {{ $maintenanceTargetYear }}</div>
-                            <div class="mt-1.5 break-words text-[11px] font-bold text-slate-900">{{ $rp($maintenanceAnnualTarget) }}</div>
+                            <div class="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500 sm:text-[10px]">Target Tahunan {{ $maintenanceTargetYear }}</div>
+                            <div class="mt-1.5 break-words text-sm font-bold text-slate-900 sm:text-base">{{ $rp($maintenanceAnnualTarget) }}</div>
                         </div>
 
-                        <div class="dashboard-chart-placeholder mx-auto my-3 aspect-square w-full max-w-[112px] rounded-full p-[9px] shadow-inner" style="background: conic-gradient(#10b981 0 {{ $maintenanceTargetUsageProgressWidth }}%, #e2e8f0 {{ $maintenanceTargetUsageProgressWidth }}% 100%);">
+                        <div class="dashboard-chart-placeholder mx-auto my-3 aspect-square w-full max-w-[128px] rounded-full p-[9px] shadow-inner" style="background: conic-gradient(#10b981 0 {{ $maintenanceTargetUsageProgressWidth }}%, #e2e8f0 {{ $maintenanceTargetUsageProgressWidth }}% 100%);">
                             <div class="flex h-full w-full items-center justify-center rounded-full bg-white shadow-sm">
                                 <div class="px-2 text-center">
-                                    <div class="text-[7px] font-semibold uppercase tracking-[0.12em] text-slate-400">Pemakaian</div>
-                                    <div class="mt-0.5 text-base font-extrabold {{ $maintenanceTargetUsagePercentageHundredths > 10000 ? 'text-rose-600' : 'text-emerald-700' }}">
+                                    <div class="text-[8px] font-semibold uppercase tracking-[0.12em] text-slate-400">Pemakaian</div>
+                                    <div class="mt-0.5 text-lg font-extrabold sm:text-xl {{ $maintenanceTargetUsagePercentageHundredths > 10000 ? 'text-rose-600' : 'text-emerald-700' }}">
                                         {{ $maintenanceTargetUsagePercentageLabel }}%
                                     </div>
                                 </div>
@@ -244,42 +244,42 @@
                         </div>
 
                         <div class="mt-auto border-t border-slate-200 pt-2.5 text-center">
-                            <div class="text-[7px] font-semibold uppercase tracking-[0.14em] text-slate-400">Sisa Target</div>
-                            <div class="mt-1 break-words text-[10px] font-bold {{ $maintenanceRemainingTarget < 0 ? 'text-rose-700' : 'text-slate-800' }}">
+                            <div class="text-[8px] font-semibold uppercase tracking-[0.14em] text-slate-400 sm:text-[9px]">Sisa Target</div>
+                            <div class="mt-1 break-words text-xs font-bold sm:text-sm {{ $maintenanceRemainingTarget < 0 ? 'text-rose-700' : 'text-slate-800' }}">
                                 {{ $rp($maintenanceRemainingTarget) }}
                             </div>
                         </div>
                     </section>
 
                     <section class="px-3 py-2 md:col-span-8 md:border-l md:border-slate-200">
-                        <h3 class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">Ringkasan Biaya</h3>
+                        <h3 class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 sm:text-[11px]">Ringkasan Biaya</h3>
                         <dl class="mt-2 divide-y divide-slate-100">
-                            <div class="flex items-center justify-between gap-3 py-3">
-                                <dt class="text-[10px] font-medium text-slate-600">Outstanding Biaya</dt>
-                                <dd class="shrink-0 text-[11px] font-bold text-slate-900">{{ $rp($maintenanceOutstanding) }}</dd>
+                            <div class="flex items-center justify-between gap-3 py-4">
+                                <dt class="text-[11px] font-medium text-slate-600 sm:text-xs">Outstanding Biaya</dt>
+                                <dd class="shrink-0 text-xs font-bold text-slate-900 sm:text-sm">{{ $rp($maintenanceOutstanding) }}</dd>
                             </div>
-                            <div class="flex items-center justify-between gap-3 py-3">
-                                <dt class="text-[10px] font-medium text-slate-600">Realisasi Biaya</dt>
-                                <dd class="shrink-0 text-[11px] font-bold text-slate-900">{{ $rp($maintenanceRealization) }}</dd>
+                            <div class="flex items-center justify-between gap-3 py-4">
+                                <dt class="text-[11px] font-medium text-slate-600 sm:text-xs">Realisasi Biaya</dt>
+                                <dd class="shrink-0 text-xs font-bold text-slate-900 sm:text-sm">{{ $rp($maintenanceRealization) }}</dd>
                             </div>
-                            <div class="flex items-center justify-between gap-3 py-3">
-                                <dt class="text-[10px] font-medium text-slate-600">Total Prognosa Biaya</dt>
-                                <dd class="shrink-0 text-[11px] font-bold text-slate-900">{{ $rp($maintenancePrognosis) }}</dd>
+                            <div class="flex items-center justify-between gap-3 py-4">
+                                <dt class="text-[11px] font-medium text-slate-600 sm:text-xs">Total Prognosa Biaya</dt>
+                                <dd class="shrink-0 text-xs font-bold text-slate-900 sm:text-sm">{{ $rp($maintenancePrognosis) }}</dd>
                             </div>
                         </dl>
                     </section>
                 </div>
 
                 <section class="mt-3 border-t border-slate-200 px-3 pt-3">
-                    <h3 class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-600">Monitoring Realisasi Anggaran Pemeliharaan</h3>
-                    <div class="mt-2 grid sm:grid-cols-2">
-                        <div class="py-2 sm:pr-3">
-                            <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Biaya Status LPJ</div>
-                            <div class="mt-2 text-sm font-bold text-slate-800">{{ $rp($maintenanceLpjStatusAmount) }}</div>
+                    <h3 class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600 sm:text-[11px]">Monitoring Realisasi Anggaran Pemeliharaan</h3>
+                    <div class="mt-3 grid overflow-hidden rounded-lg sm:grid-cols-2">
+                        <div class="bg-emerald-700 px-4 py-3.5 text-white">
+                            <div class="text-[10px] font-semibold uppercase tracking-[0.1em] text-emerald-100 sm:text-[11px]">Biaya Status LPJ</div>
+                            <div class="mt-2 text-base font-bold text-white sm:text-lg">{{ $rp($maintenanceLpjStatusAmount) }}</div>
                         </div>
-                        <div class="border-t border-slate-200 py-2 sm:border-l sm:border-t-0 sm:pl-3">
-                            <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Biaya Status Invoice</div>
-                            <div class="mt-2 text-sm font-bold text-slate-800">{{ $rp($maintenanceInvoiceStatusAmount) }}</div>
+                        <div class="border-t border-white/30 bg-blue-700 px-4 py-3.5 text-white sm:border-l sm:border-t-0">
+                            <div class="text-[10px] font-semibold uppercase tracking-[0.1em] text-blue-100 sm:text-[11px]">Biaya Status Invoice</div>
+                            <div class="mt-2 text-base font-bold text-white sm:text-lg">{{ $rp($maintenanceInvoiceStatusAmount) }}</div>
                         </div>
                     </div>
                 </section>

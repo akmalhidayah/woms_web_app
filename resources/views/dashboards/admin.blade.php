@@ -73,6 +73,8 @@
             'outstanding' => 0,
             'prognosis' => 0,
             'outstanding_stages' => [
+                'hpp_draft' => 0,
+                'hpp_in_review' => 0,
                 'hpp_approved' => 0,
                 'purchase_order' => 0,
                 'lpj_process' => 0,
@@ -435,17 +437,6 @@
             const chartTotal = document.getElementById('chartTotal');
             const chartEmptyState = document.getElementById('chartEmptyState');
             const chartCanvas = document.getElementById('realisasiBiayaPieChart');
-            const documentPrPoAmount = document.getElementById('documentPrPoAmount');
-            const urgentRealizationAmount = document.getElementById('urgentRealizationAmount');
-            const realizationSubtotal = document.getElementById('realizationSubtotal');
-            const totalRealizationAmount = document.getElementById('totalRealizationAmount');
-            const budgetRealizationAmount = document.getElementById('budgetRealizationAmount');
-            const budgetUsagePercentage = document.getElementById('budgetUsagePercentage');
-            const budgetUsageProgress = document.getElementById('budgetUsageProgress');
-            const budgetUsageProgressbar = budgetUsageProgress?.parentElement ?? null;
-            const budgetUsageAmount = document.getElementById('budgetUsageAmount');
-            const remainingContractBudgetCard = document.getElementById('remainingContractBudgetCard');
-            const remainingContractBudget = document.getElementById('remainingContractBudget');
             const nonMaintenanceOutstandingCanvas = document.getElementById('nonMaintenanceOutstandingChart');
             const capexOutstandingCanvas = document.getElementById('capexOutstandingChart');
             const topTenGeneralCostChartContainer = document.getElementById('topTenGeneralCostChartContainer');
@@ -459,8 +450,6 @@
             const initialTopTenCostSections = @json($topTenCostSections ?? []);
             const initialTopTenMaintenanceCostSections = @json($topTenMaintenanceCostSections ?? []);
             const initialOverhaulPrognosis = @json($overhaulPrognosis ?? []);
-            const potentialAmount = Number(@json($totalOutstandingBiaya ?? 0));
-            const contractBudget = Number(@json($totalPaguKontrak ?? 0));
             const yearsEndpoint = @json(url('/admin/get-years'));
             const chartEndpoint = @json(url('/admin/realisasi-biaya'));
             const chartColors = {
@@ -576,7 +565,6 @@
                 const urgentTotal = urgentValues.reduce((sum, value) => sum + value, 0);
                 const total = rows.reduce((sum, item) => sum + Number(item.total || 0), 0);
 
-                updateRealizationSummary(normalTotal, urgentTotal);
                 chartTotal.textContent = formatRupiah(total);
                 chartEmptyState.classList.toggle('hidden', rows.length > 0);
                 chartCanvas.classList.toggle('hidden', rows.length === 0);
@@ -590,13 +578,13 @@
                             labels,
                             datasets: [
                                 {
-                                    label: 'Document PR/PO (LHPP)',
+                                    label: 'Realisasi Reguler',
                                     data: normalValues,
                                     backgroundColor: chartColors.normal,
                                     borderRadius: 8,
                                 },
                                 {
-                                    label: 'Pekerjaan Urgent',
+                                    label: 'Realisasi Urgent',
                                     data: urgentValues,
                                     backgroundColor: chartColors.urgent,
                                     borderRadius: 8,
@@ -673,8 +661,10 @@
                     console.error('Gagal membaca data outstanding kategori.', error);
                 }
 
-                const labels = ['HPP Approved', 'Purchase Order', 'LPJ Process'];
+                const labels = ['HPP Draft', 'HPP In Review', 'HPP Approved', 'Purchase Order', 'LPJ Process'];
                 const amounts = [
+                    Number(stages.hpp_draft || 0),
+                    Number(stages.hpp_in_review || 0),
                     Number(stages.hpp_approved || 0),
                     Number(stages.purchase_order || 0),
                     Number(stages.lpj_process || 0),
@@ -728,7 +718,9 @@
                                 border: { display: false },
                                 ticks: {
                                     color: '#475569',
-                                    font: { size: 9, weight: '600' },
+                                    font: { size: 8, weight: '600' },
+                                    maxRotation: 0,
+                                    autoSkip: false,
                                 },
                             },
                             y: {
@@ -962,65 +954,6 @@
                 });
             }
 
-            function updateRealizationSummary(normalTotal, urgentTotal) {
-                if (![
-                    documentPrPoAmount,
-                    urgentRealizationAmount,
-                    realizationSubtotal,
-                    totalRealizationAmount,
-                    budgetRealizationAmount,
-                    remainingContractBudget,
-                ].every(Boolean)) {
-                    return;
-                }
-
-                const realizationTotal = normalTotal + urgentTotal;
-                const potentialAndRealization = potentialAmount + realizationTotal;
-                const remainingBudget = contractBudget - potentialAndRealization;
-
-                documentPrPoAmount.textContent = formatRupiah(normalTotal);
-                urgentRealizationAmount.textContent = formatRupiah(urgentTotal);
-                realizationSubtotal.textContent = formatRupiah(realizationTotal);
-                totalRealizationAmount.textContent = `Total Realisasi Biaya: ${formatRupiah(realizationTotal)}`;
-                budgetRealizationAmount.textContent = formatRupiah(realizationTotal);
-                remainingContractBudget.textContent = formatRupiah(remainingBudget);
-                updateBudgetUsage(potentialAndRealization);
-                updateRemainingBudgetState(remainingBudget);
-            }
-
-            function updateBudgetUsage(usedAmount) {
-                if (!budgetUsagePercentage || !budgetUsageProgress || !budgetUsageProgressbar || !budgetUsageAmount) {
-                    return;
-                }
-
-                const usagePercentage = contractBudget > 0 ? (usedAmount / contractBudget) * 100 : 0;
-                const visualPercentage = Math.min(100, Math.max(0, usagePercentage));
-                const percentageLabel = new Intl.NumberFormat('id-ID', {
-                    maximumFractionDigits: 2,
-                }).format(usagePercentage);
-
-                budgetUsagePercentage.textContent = `${percentageLabel}%`;
-                budgetUsageProgress.style.width = `${visualPercentage}%`;
-                budgetUsageProgressbar.setAttribute('aria-valuenow', visualPercentage.toFixed(2));
-                budgetUsageProgressbar.setAttribute('aria-valuetext', `${percentageLabel}%`);
-                budgetUsageAmount.textContent = `${formatRupiah(usedAmount)} dari ${formatRupiah(contractBudget)}`;
-            }
-
-            function updateRemainingBudgetState(remainingBudget) {
-                if (!remainingContractBudgetCard || !remainingContractBudget) {
-                    return;
-                }
-
-                const isNegative = remainingBudget < 0;
-
-                remainingContractBudgetCard.classList.toggle('border-rose-200', isNegative);
-                remainingContractBudgetCard.classList.toggle('bg-rose-50', isNegative);
-                remainingContractBudgetCard.classList.toggle('border-yellow-200', !isNegative);
-                remainingContractBudgetCard.classList.toggle('bg-yellow-50', !isNegative);
-                remainingContractBudget.classList.toggle('text-rose-700', isNegative);
-                remainingContractBudget.classList.toggle('text-yellow-900', !isNegative);
-            }
-
             function updateLegend(rows) {
                 chartLegend.innerHTML = '';
 
@@ -1033,11 +966,11 @@
                             </div>
                             <div class="mt-1 grid gap-0.5 text-[10px] text-slate-500">
                                 <div class="flex items-center justify-between gap-2">
-                                    <span><span class="mr-1 inline-block h-2 w-2 rounded-full" style="background-color:${chartColors.normal}"></span>Document PR/PO</span>
+                                    <span><span class="mr-1 inline-block h-2 w-2 rounded-full" style="background-color:${chartColors.normal}"></span>Realisasi Reguler</span>
                                     <span>${formatRupiah(item.normal_total || 0)}</span>
                                 </div>
                                 <div class="flex items-center justify-between gap-2">
-                                    <span><span class="mr-1 inline-block h-2 w-2 rounded-full" style="background-color:${chartColors.urgent}"></span>Urgent</span>
+                                    <span><span class="mr-1 inline-block h-2 w-2 rounded-full" style="background-color:${chartColors.urgent}"></span>Realisasi Urgent</span>
                                     <span>${formatRupiah(item.urgent_total || 0)}</span>
                                 </div>
                             </div>

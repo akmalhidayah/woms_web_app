@@ -366,29 +366,21 @@ class DashboardController extends Controller
         $filterEndYear = $endDate->year;
         $filterEndMonth = $endDate->month;
 
-        $rows = $this->baseLhppBastRealizationQuery()
-            ->with('order:id,prioritas')
-            ->whereBetween('tanggal_bast', [$startDate->toDateString(), $endDate->toDateString()])
-            ->orderBy('tanggal_bast')
-            ->get(['id', 'order_id', 'tanggal_bast', 'total_aktual_biaya']);
-
-        $transactionTotals = $rows
-            ->groupBy(fn (LhppBast $row): string => $row->tanggal_bast?->format('Y-m') ?? 'unknown')
+        $transactionTotals = $this->financialSummaryService
+            ->realizationEvents($startDate, $endDate)
+            ->groupBy(fn (array $event): string => $event['date']->format('Y-m'))
             ->filter(fn ($group, string $key): bool => $key !== 'unknown')
             ->map(function ($group, string $key): array {
-                [$year, $month] = array_map('intval', explode('-', $key));
                 $normalTotal = $group
-                    ->reject(fn (LhppBast $row): bool => in_array($row->order?->prioritas, $this->emergencyPriorities(), true))
-                    ->sum(fn (LhppBast $row): float => (float) $row->total_aktual_biaya);
+                    ->reject(fn (array $event): bool => in_array($event['priority'], $this->emergencyPriorities(), true))
+                    ->sum(fn (array $event): int => $event['amount']);
                 $urgentTotal = $group
-                    ->filter(fn (LhppBast $row): bool => in_array($row->order?->prioritas, $this->emergencyPriorities(), true))
-                    ->sum(fn (LhppBast $row): float => (float) $row->total_aktual_biaya);
-                $normalTotal = $this->moneyInt($normalTotal);
-                $urgentTotal = $this->moneyInt($urgentTotal);
+                    ->filter(fn (array $event): bool => in_array($event['priority'], $this->emergencyPriorities(), true))
+                    ->sum(fn (array $event): int => $event['amount']);
 
                 return [
-                    'normal_total' => $normalTotal,
-                    'urgent_total' => $urgentTotal,
+                    'normal_total' => (int) $normalTotal,
+                    'urgent_total' => (int) $urgentTotal,
                 ];
             });
 

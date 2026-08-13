@@ -135,6 +135,70 @@ class DashboardFinancialSummaryTest extends TestCase
         $this->assertSame(100, $summary['prognosis']);
     }
 
+    public function test_realization_and_invoice_require_approved_parent_and_approved_termin_two(): void
+    {
+        $user = User::factory()->create();
+        $agreement = $this->agreement($user, 'OA-APPROVAL-GUARD', 1_000, OutlineAgreement::STATUS_ACTIVE);
+        $hpp = $this->hpp($user, $agreement, Hpp::STATUS_APPROVED, 100, 'APPROVAL-GUARD');
+        $bast = $this->paidBast($user, $hpp, 100, 95, 5, 6, false, false);
+        $terminTwo = LhppBast::query()->create([
+            'order_id' => $hpp->order_id,
+            'hpp_id' => $hpp->id,
+            'parent_lhpp_bast_id' => $bast->id,
+            'termin_type' => 'termin_2',
+            'nomor_order' => $hpp->nomor_order,
+            'tanggal_bast' => '2026-01-10',
+            'total_aktual_biaya' => 100,
+            'termin_1_nilai' => 95,
+            'termin_2_nilai' => 5,
+            'approval_status' => LhppBast::APPROVAL_IN_REVIEW,
+            'created_by' => $user->id,
+        ]);
+
+        $bast->update(['approval_status' => LhppBast::APPROVAL_IN_REVIEW]);
+        $inReview = app(DashboardFinancialSummaryService::class)->resolve();
+        $this->assertSame(0, $inReview['system_realization']);
+        $this->assertSame(0, $inReview['invoice_status_amount']);
+
+        $bast->update(['approval_status' => LhppBast::APPROVAL_REJECTED]);
+        $rejected = app(DashboardFinancialSummaryService::class)->resolve();
+        $this->assertSame(0, $rejected['system_realization']);
+        $this->assertSame(0, $rejected['invoice_status_amount']);
+
+        $bast->update(['approval_status' => LhppBast::APPROVAL_APPROVED]);
+        $terminTwoInReview = app(DashboardFinancialSummaryService::class)->resolve();
+        $this->assertSame(95, $terminTwoInReview['system_realization']);
+        $this->assertSame(95, $terminTwoInReview['invoice_status_amount']);
+
+        $terminTwo->update(['approval_status' => LhppBast::APPROVAL_APPROVED]);
+        $fullyApproved = app(DashboardFinancialSummaryService::class)->resolve();
+        $this->assertSame(100, $fullyApproved['system_realization']);
+        $this->assertSame(100, $fullyApproved['invoice_status_amount']);
+    }
+
+    public function test_realization_requires_both_lpj_number_and_document_path(): void
+    {
+        $user = User::factory()->create();
+        $agreement = $this->agreement($user, 'OA-LPJ-COMPLETENESS', 1_000, OutlineAgreement::STATUS_ACTIVE);
+        $hpp = $this->hpp($user, $agreement, Hpp::STATUS_APPROVED, 100, 'LPJ-COMPLETENESS');
+        $bast = $this->paidBast($user, $hpp, 100, 100, 0, 0, false, false);
+
+        $bast->lpjPpl()->update(['lpj_document_path_termin1' => null]);
+        $missingDocument = app(DashboardFinancialSummaryService::class)->resolve();
+        $this->assertSame(0, $missingDocument['system_realization']);
+
+        $bast->lpjPpl()->update([
+            'lpj_number_termin1' => null,
+            'lpj_document_path_termin1' => 'lpj/t1.pdf',
+        ]);
+        $missingNumber = app(DashboardFinancialSummaryService::class)->resolve();
+        $this->assertSame(0, $missingNumber['system_realization']);
+
+        $bast->lpjPpl()->update(['lpj_number_termin1' => 'LPJ-T1']);
+        $complete = app(DashboardFinancialSummaryService::class)->resolve();
+        $this->assertSame(100, $complete['system_realization']);
+    }
+
     public function test_maintenance_summary_filters_manual_and_latest_hpp_by_budget_verification_category(): void
     {
         $user = User::factory()->create();
@@ -300,7 +364,7 @@ class DashboardFinancialSummaryTest extends TestCase
         );
     }
 
-    public function test_non_maintenance_summary_classifies_outstanding_into_three_exclusive_stages(): void
+    public function test_non_maintenance_summary_classifies_outstanding_into_five_exclusive_stages(): void
     {
         $user = User::factory()->create();
         $agreement = $this->agreement($user, 'OA-NON-MAINTENANCE-STAGES', 5_000, OutlineAgreement::STATUS_ACTIVE);
@@ -310,6 +374,12 @@ class DashboardFinancialSummaryTest extends TestCase
             'kategori_biaya' => 'non pemeliharaan',
             'amount' => 200,
         ]);
+
+        $draft = $this->hpp($user, $agreement, Hpp::STATUS_DRAFT, 100, 'NON-MAINT-DRAFT');
+        $this->verifyCategory($draft, $user, 'non pemeliharaan');
+
+        $inReview = $this->hpp($user, $agreement, Hpp::STATUS_IN_REVIEW, 200, 'NON-MAINT-REVIEW');
+        $this->verifyCategory($inReview, $user, 'non pemeliharaan');
 
         $withoutPo = $this->hpp($user, $agreement, Hpp::STATUS_APPROVED, 300, 'NON-MAINT-NO-PO');
         $this->verifyCategory($withoutPo, $user, 'non pemeliharaan');
@@ -331,9 +401,11 @@ class DashboardFinancialSummaryTest extends TestCase
         $this->assertSame(0, $summary['system_realization']);
         $this->assertSame(200, $summary['manual_realization']);
         $this->assertSame(200, $summary['realization']);
-        $this->assertSame(1_200, $summary['outstanding']);
-        $this->assertSame(1_400, $summary['prognosis']);
+        $this->assertSame(1_500, $summary['outstanding']);
+        $this->assertSame(1_700, $summary['prognosis']);
         $this->assertSame([
+            'hpp_draft' => 100,
+            'hpp_in_review' => 200,
             'hpp_approved' => 300,
             'purchase_order' => 400,
             'lpj_process' => 500,
@@ -381,6 +453,8 @@ class DashboardFinancialSummaryTest extends TestCase
         $summary = app(DashboardFinancialSummaryService::class)->resolveForCategory('capex');
 
         $this->assertSame([
+            'hpp_draft' => 0,
+            'hpp_in_review' => 0,
             'hpp_approved' => 100,
             'purchase_order' => 180,
             'lpj_process' => 80,
@@ -574,6 +648,7 @@ class DashboardFinancialSummaryTest extends TestCase
             'termin_2_nilai' => $terminTwo,
             'termin1_status' => $terminOnePaid ? 'sudah' : 'belum',
             'termin2_status' => $terminTwoPaid ? 'sudah' : 'belum',
+            'approval_status' => LhppBast::APPROVAL_APPROVED,
             'created_by' => $user->id,
         ]);
 

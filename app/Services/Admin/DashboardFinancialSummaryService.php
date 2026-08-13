@@ -11,7 +11,9 @@ use App\Models\LpjPpl;
 use App\Models\OutlineAgreement;
 use App\Models\OutlineAgreementMonthlyRealization;
 use App\Models\OutlineAgreementTarget;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use InvalidArgumentException;
 
 final class DashboardFinancialSummaryService
@@ -31,7 +33,7 @@ final class DashboardFinancialSummaryService
      *     available_budget_percentage_hundredths: int,
      *     lpj_status_amount: int,
      *     invoice_status_amount: int,
-     *     outstanding_stages: array{hpp_approved: int, purchase_order: int, lpj_process: int},
+     *     outstanding_stages: array{hpp_draft: int, hpp_in_review: int, hpp_approved: int, purchase_order: int, lpj_process: int},
      *     classified_outstanding: int,
      *     unclassified_outstanding: int
      * }
@@ -60,6 +62,8 @@ final class DashboardFinancialSummaryService
         $lpjStatusAmount = 0;
         $invoiceStatusAmount = 0;
         $outstandingStages = [
+            'hpp_draft' => 0,
+            'hpp_in_review' => 0,
             'hpp_approved' => 0,
             'purchase_order' => 0,
             'lpj_process' => 0,
@@ -146,6 +150,39 @@ final class DashboardFinancialSummaryService
     }
 
     /**
+     * Return valid system-realization events for the dashboard chart.
+     *
+     * `tanggal_bast` is only the monthly bucket. Eligibility and amount use
+     * the same approval/LPJ rules as the financial summary cards.
+     *
+     * @return Collection<int, array{date: CarbonInterface, amount: int, priority: string|null}>
+     */
+    public function realizationEvents(CarbonInterface $startDate, CarbonInterface $endDate): Collection
+    {
+        return $this->systemRealizationQuery()
+            ->whereBetween('tanggal_bast', [$startDate->toDateString(), $endDate->toDateString()])
+            ->with(['order:id,prioritas'])
+            ->orderBy('tanggal_bast')
+            ->get([
+                'id',
+                'order_id',
+                'hpp_id',
+                'tanggal_bast',
+                'total_aktual_biaya',
+                'termin_1_nilai',
+                'termin_2_nilai',
+                'approval_status',
+            ])
+            ->map(fn (LhppBast $bast): array => [
+                'date' => $bast->tanggal_bast,
+                'amount' => $this->realizedAmount($bast),
+                'priority' => $bast->order?->prioritas,
+            ])
+            ->filter(fn (array $event): bool => $event['amount'] > 0 && $event['date'] !== null)
+            ->values();
+    }
+
+    /**
      * @return array{0: int, 1: array<int, int>, 2: array<int, int>, 3: array<int, int>, 4: array<int, int>}
      */
     private function resolveSystemRealizations(?string $costCategory): array
@@ -156,28 +193,7 @@ final class DashboardFinancialSummaryService
         $invoiceByHpp = [];
         $total = 0;
 
-        $rows = LhppBast::query()
-            ->where('termin_type', 'termin_1')
-            ->whereNull('parent_lhpp_bast_id')
-            ->when($costCategory !== null, fn (Builder $query): Builder => $query
-                ->whereHas('hpp.budgetVerification', fn (Builder $verificationQuery): Builder => $verificationQuery
-                    ->where('kategori_biaya', $costCategory)))
-            ->where(function (Builder $query): void {
-                $query
-                    ->whereHas('hpp.outlineAgreement', fn (Builder $agreementQuery): Builder => $agreementQuery
-                        ->where('status', OutlineAgreement::STATUS_ACTIVE))
-                    ->orWhere(function (Builder $legacyQuery): void {
-                        $legacyQuery
-                            ->whereNull('hpp_id')
-                            ->whereHas('order.latestHpp.outlineAgreement', fn (Builder $agreementQuery): Builder => $agreementQuery
-                                ->where('status', OutlineAgreement::STATUS_ACTIVE));
-                    });
-            })
-            ->with([
-                'garansi:id,lhpp_bast_id,garansi_months',
-                'lpjPpl:id,lhpp_bast_id,lpj_number_termin1,ppl_number_termin1,lpj_document_path_termin1,ppl_document_path_termin1,lpj_number_termin2,ppl_number_termin2,lpj_document_path_termin2,ppl_document_path_termin2',
-                'terminTwo:id,parent_lhpp_bast_id,approval_status',
-            ])
+        $rows = $this->systemRealizationQuery($costCategory)
             ->get([
                 'id',
                 'order_id',
@@ -207,6 +223,32 @@ final class DashboardFinancialSummaryService
         }
 
         return [$total, $realizationByHpp, $legacyRealizationByOrder, $lpjStatusByHpp, $invoiceByHpp];
+    }
+
+    private function systemRealizationQuery(?string $costCategory = null): Builder
+    {
+        return LhppBast::query()
+            ->where('termin_type', 'termin_1')
+            ->whereNull('parent_lhpp_bast_id')
+            ->when($costCategory !== null, fn (Builder $query): Builder => $query
+                ->whereHas('hpp.budgetVerification', fn (Builder $verificationQuery): Builder => $verificationQuery
+                    ->where('kategori_biaya', $costCategory)))
+            ->where(function (Builder $query): void {
+                $query
+                    ->whereHas('hpp.outlineAgreement', fn (Builder $agreementQuery): Builder => $agreementQuery
+                        ->where('status', OutlineAgreement::STATUS_ACTIVE))
+                    ->orWhere(function (Builder $legacyQuery): void {
+                        $legacyQuery
+                            ->whereNull('hpp_id')
+                            ->whereHas('order.latestHpp.outlineAgreement', fn (Builder $agreementQuery): Builder => $agreementQuery
+                                ->where('status', OutlineAgreement::STATUS_ACTIVE));
+                    });
+            })
+            ->with([
+                'garansi:id,lhpp_bast_id,garansi_months',
+                'lpjPpl:id,lhpp_bast_id,lpj_number_termin1,ppl_number_termin1,lpj_document_path_termin1,ppl_document_path_termin1,lpj_number_termin2,ppl_number_termin2,lpj_document_path_termin2,ppl_document_path_termin2',
+                'terminTwo:id,parent_lhpp_bast_id,approval_status',
+            ]);
     }
 
     private function lpjStatusAmount(LhppBast $bast): int
@@ -250,6 +292,10 @@ final class DashboardFinancialSummaryService
 
     private function invoiceStatusAmount(LhppBast $bast): int
     {
+        if ($bast->approval_status !== LhppBast::APPROVAL_APPROVED) {
+            return 0;
+        }
+
         $lpjPpl = $bast->lpjPpl;
 
         if (! $lpjPpl) {
@@ -267,7 +313,8 @@ final class DashboardFinancialSummaryService
             ? max($this->moneyInt($bast->termin_1_nilai), 0)
             : 0;
 
-        if ($bast->terminTwo !== null && $this->hasCompletePackage($lpjPpl, 2)) {
+        if ($bast->terminTwo?->approval_status === LhppBast::APPROVAL_APPROVED
+            && $this->hasCompletePackage($lpjPpl, 2)) {
             $invoiceAmount += max($this->moneyInt($bast->termin_2_nilai), 0);
         }
 
@@ -276,6 +323,10 @@ final class DashboardFinancialSummaryService
 
     private function realizedAmount(LhppBast $bast): int
     {
+        if ($bast->approval_status !== LhppBast::APPROVAL_APPROVED) {
+            return 0;
+        }
+
         $lpjPpl = $bast->lpjPpl;
 
         if (! $lpjPpl) {
@@ -292,7 +343,8 @@ final class DashboardFinancialSummaryService
 
         $realized = $terminOneLpjComplete ? max($this->moneyInt($bast->termin_1_nilai), 0) : 0;
 
-        if ($bast->terminTwo !== null && $this->hasCompleteLpj($lpjPpl, 2)) {
+        if ($bast->terminTwo?->approval_status === LhppBast::APPROVAL_APPROVED
+            && $this->hasCompleteLpj($lpjPpl, 2)) {
             $realized += max($this->moneyInt($bast->termin_2_nilai), 0);
         }
 
@@ -324,7 +376,19 @@ final class DashboardFinancialSummaryService
 
     private function outstandingStage(Hpp $hpp, int $outstanding): ?string
     {
-        if ($outstanding <= 0 || $hpp->status !== Hpp::STATUS_APPROVED) {
+        if ($outstanding <= 0) {
+            return null;
+        }
+
+        if ($hpp->status === Hpp::STATUS_DRAFT) {
+            return 'hpp_draft';
+        }
+
+        if ($hpp->status === Hpp::STATUS_IN_REVIEW) {
+            return 'hpp_in_review';
+        }
+
+        if ($hpp->status !== Hpp::STATUS_APPROVED) {
             return null;
         }
 

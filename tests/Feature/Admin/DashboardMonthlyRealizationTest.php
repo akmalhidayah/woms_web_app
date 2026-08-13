@@ -3,7 +3,9 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\Department;
+use App\Models\Hpp;
 use App\Models\LhppBast;
+use App\Models\LpjPpl;
 use App\Models\Order;
 use App\Models\OutlineAgreement;
 use App\Models\UnitWork;
@@ -25,8 +27,8 @@ class DashboardMonthlyRealizationTest extends TestCase
             'kategori_biaya' => 'pemeliharaan',
             'amount' => 120000000,
         ]);
-        $this->createBast($admin, 'ORDER-NORMAL-MONTHLY', Order::PRIORITY_MEDIUM, 15000000, true);
-        $this->createBast($admin, 'ORDER-URGENT-MONTHLY', Order::PRIORITY_HIGH, 5000000, false);
+        $this->createBast($admin, $agreement, 'ORDER-NORMAL-MONTHLY', Order::PRIORITY_MEDIUM, 15000000, true);
+        $this->createBast($admin, $agreement, 'ORDER-URGENT-MONTHLY', Order::PRIORITY_HIGH, 5000000, false);
 
         $response = $this->actingAs($admin)->get(route('admin.dashboard'));
 
@@ -37,10 +39,10 @@ class DashboardMonthlyRealizationTest extends TestCase
         $response->assertViewHas('totalRealisasiSistem', 0);
         $response->assertViewHas('totalRealisasiManual', 120000000);
         $response->assertViewHas('totalRealisasiBiaya', 120000000);
-        $response->assertViewHas('totalSeluruhAmount', 140000000);
+        $response->assertViewHas('totalSeluruhAmount', 160000000);
         $response->assertViewHas('totalKuotaKontrak', 1000000000);
-        $response->assertViewHas('sisaKuotaKontrak', 880000000);
-        $response->assertSee('Rp. 880.000.000');
+        $response->assertViewHas('sisaKuotaKontrak', 860000000);
+        $response->assertSee('Rp. 860.000.000');
         $response->assertDontSee('Manual');
         $response->assertDontSee('Otomatis');
         $response->assertDontSee('Historis');
@@ -67,7 +69,7 @@ class DashboardMonthlyRealizationTest extends TestCase
                 'amount' => 6000000,
             ],
         ]);
-        $this->createBast($admin, 'ORDER-JUL-NORMAL', Order::PRIORITY_MEDIUM, 15871421, true, '2026-07-15');
+        $this->createBast($admin, $agreement, 'ORDER-JUL-NORMAL', Order::PRIORITY_MEDIUM, 15871421, true, '2026-07-15', true);
 
         $response = $this->actingAs($admin)->getJson(route('admin.dashboard.realization-chart', [
             'startYear' => 2026,
@@ -143,6 +145,48 @@ class DashboardMonthlyRealizationTest extends TestCase
             ->assertJsonPath('1.total', 220);
     }
 
+    public function test_chart_and_summary_only_recognize_approved_bast_with_complete_lpj(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $agreement = $this->createAgreement($admin, 'OA-DASH-LPJ-CONSISTENCY', 500000000);
+        $bast = $this->createBast(
+            $admin,
+            $agreement,
+            'ORDER-LPJ-CONSISTENCY',
+            Order::PRIORITY_MEDIUM,
+            100000000,
+            true,
+            '2026-07-15',
+        );
+
+        $before = $this->actingAs($admin)->getJson(route('admin.dashboard.realization-chart', [
+            'startYear' => 2026,
+            'endYear' => 2026,
+            'startMonth' => 7,
+            'endMonth' => 7,
+        ]));
+        $before->assertOk()->assertExactJson([]);
+        $this->actingAs($admin)->get(route('admin.dashboard'))
+            ->assertViewHas('totalRealisasiSistem', 0);
+
+        LpjPpl::query()->create([
+            'lhpp_bast_id' => $bast->id,
+            'lpj_number_termin1' => 'LPJ-001',
+            'lpj_document_path_termin1' => 'lpj/LPJ-001.pdf',
+            'created_by' => $admin->id,
+        ]);
+
+        $after = $this->actingAs($admin)->getJson(route('admin.dashboard.realization-chart', [
+            'startYear' => 2026,
+            'endYear' => 2026,
+            'startMonth' => 7,
+            'endMonth' => 7,
+        ]));
+        $after->assertOk()->assertJsonPath('0.total', 100000000);
+        $this->actingAs($admin)->get(route('admin.dashboard'))
+            ->assertViewHas('totalRealisasiSistem', 100000000);
+    }
+
     private function createAgreement(
         User $admin,
         string $number,
@@ -176,11 +220,13 @@ class DashboardMonthlyRealizationTest extends TestCase
 
     private function createBast(
         User $admin,
+        OutlineAgreement $agreement,
         string $orderNumber,
         string $priority,
         int $amount,
         bool $withPurchaseOrderNumber,
         string $date = '2026-01-15',
+        bool $completeLpj = false,
     ): LhppBast {
         $order = Order::query()->create([
             'nomor_order' => $orderNumber,
@@ -194,8 +240,24 @@ class DashboardMonthlyRealizationTest extends TestCase
             'created_by' => $admin->id,
         ]);
 
-        return LhppBast::query()->create([
+        $hpp = Hpp::query()->create([
             'order_id' => $order->id,
+            'outline_agreement_id' => $agreement->id,
+            'nomor_order' => $order->nomor_order,
+            'nama_pekerjaan' => $order->nama_pekerjaan,
+            'unit_kerja' => $order->unit_kerja,
+            'kategori_pekerjaan' => 'Fabrikasi',
+            'area_pekerjaan' => 'Workshop',
+            'nilai_hpp_bucket' => 'under',
+            'total_keseluruhan' => $amount,
+            'status' => Hpp::STATUS_APPROVED,
+            'submitted_at' => $date,
+            'created_by' => $admin->id,
+        ]);
+
+        $bast = LhppBast::query()->create([
+            'order_id' => $order->id,
+            'hpp_id' => $hpp->id,
             'termin_type' => 'termin_1',
             'nomor_order' => $order->nomor_order,
             'purchase_order_number' => $withPurchaseOrderNumber ? 'PO-'.$orderNumber : null,
@@ -206,8 +268,20 @@ class DashboardMonthlyRealizationTest extends TestCase
             'total_aktual_biaya' => $amount,
             'termin_1_nilai' => $amount,
             'termin_2_nilai' => 0,
+            'approval_status' => LhppBast::APPROVAL_APPROVED,
             'created_by' => $admin->id,
             'updated_by' => $admin->id,
         ]);
+
+        if ($completeLpj) {
+            LpjPpl::query()->create([
+                'lhpp_bast_id' => $bast->id,
+                'lpj_number_termin1' => 'LPJ-'.$orderNumber,
+                'lpj_document_path_termin1' => 'lpj/'.$orderNumber.'.pdf',
+                'created_by' => $admin->id,
+            ]);
+        }
+
+        return $bast;
     }
 }

@@ -6,6 +6,8 @@
 <body class="min-h-screen bg-slate-100 text-slate-900">
     @php
         $lhpp = $signature?->lhppBast;
+        $isTerminTwo = $lhpp?->termin_type === 'termin_2';
+        $currentBastPreviewTitle = $isTerminTwo ? 'Preview BAST Termin 2' : 'Preview BAST';
         $isRejected = $lhpp?->approval_status === \App\Models\LhppBast::APPROVAL_REJECTED;
         $isDirops = $signature?->role_key === 'dirops';
         $canSign = $signature?->isPending() && ! $isExpired && ! $isRejected && ! $isDirops;
@@ -149,14 +151,49 @@
                             <div class="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
                                     <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Preview Dokumen</div>
-                                    <h2 class="mt-1 text-lg font-bold text-slate-900">Preview PDF BAST</h2>
+                                    <h2 id="activePreviewTitle" class="mt-1 text-lg font-bold text-slate-900">{{ $currentBastPreviewTitle }}</h2>
                                 </div>
 
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <button
+                                        type="button"
+                                        class="preview-tab-btn rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700 transition"
+                                        data-preview-target="bast"
+                                    >
+                                        {{ $isTerminTwo ? 'BAST Termin 2' : 'BAST' }}
+                                    </button>
+                                    @if ($isTerminTwo)
+                                        <button
+                                            type="button"
+                                            class="preview-tab-btn rounded-xl border px-3 py-2 text-xs font-semibold transition {{ $terminOneBastPdfUrl ? 'border-transparent text-slate-600 hover:bg-amber-50 hover:text-amber-700' : 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400' }}"
+                                            data-preview-target="bast-termin-1"
+                                            @disabled(! $terminOneBastPdfUrl)
+                                        >
+                                            BAST Termin 1
+                                        </button>
+                                    @endif
+                                    <button
+                                        type="button"
+                                        class="preview-tab-btn rounded-xl border px-3 py-2 text-xs font-semibold transition {{ $hppPdfUrl ? 'border-transparent text-slate-600 hover:bg-blue-50 hover:text-blue-700' : 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400' }}"
+                                        data-preview-target="hpp"
+                                        @disabled(! $hppPdfUrl)
+                                    >
+                                        HPP
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="preview-tab-btn rounded-xl border px-3 py-2 text-xs font-semibold transition {{ $abnormalitasUrl ? 'border-transparent text-slate-600 hover:bg-rose-50 hover:text-rose-700' : 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400' }}"
+                                        data-preview-target="abnormalitas"
+                                        @disabled(! $abnormalitasUrl)
+                                    >
+                                        Abnormalitas
+                                    </button>
+                                </div>
                             </div>
 
                             <div class="p-4">
                                 @include('approval.partials.pdfjs-preview', [
-                                    'title' => 'Preview PDF BAST',
+                                    'title' => $currentBastPreviewTitle,
                                     'url' => $bastPdfUrl,
                                 ])
                             </div>
@@ -286,6 +323,82 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const previewConfig = {
+                bast: {
+                    title: @json($currentBastPreviewTitle),
+                    url: @json($bastPdfUrl),
+                    activeBtn: 'border-orange-200 bg-orange-50 text-orange-700',
+                    inactiveBtn: 'border-transparent text-slate-600 hover:bg-orange-50 hover:text-orange-700',
+                },
+                'bast-termin-1': {
+                    title: 'Preview BAST Termin 1',
+                    url: @json($terminOneBastPdfUrl),
+                    activeBtn: 'border-amber-200 bg-amber-50 text-amber-700',
+                    inactiveBtn: 'border-transparent text-slate-600 hover:bg-amber-50 hover:text-amber-700',
+                    unavailableBtn: 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400',
+                },
+                hpp: {
+                    title: 'Preview HPP',
+                    url: @json($hppPdfUrl),
+                    activeBtn: 'border-blue-200 bg-blue-50 text-blue-700',
+                    inactiveBtn: 'border-transparent text-slate-600 hover:bg-blue-50 hover:text-blue-700',
+                    unavailableBtn: 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400',
+                },
+                abnormalitas: {
+                    title: 'Preview Abnormalitas',
+                    url: @json($abnormalitasUrl),
+                    activeBtn: 'border-rose-200 bg-rose-50 text-rose-700',
+                    inactiveBtn: 'border-transparent text-slate-600 hover:bg-rose-50 hover:text-rose-700',
+                    unavailableBtn: 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400',
+                },
+            };
+
+            const previewTitle = document.getElementById('activePreviewTitle');
+            const previewOpen = document.getElementById('activePreviewOpen');
+            const previewDownload = document.getElementById('activePreviewDownload');
+            const previewButtons = document.querySelectorAll('.preview-tab-btn');
+
+            const setActivePreview = (key) => {
+                const config = previewConfig[key];
+
+                if (!config?.url) {
+                    return;
+                }
+
+                if (previewTitle) {
+                    previewTitle.textContent = config.title;
+                }
+
+                if (previewOpen) {
+                    previewOpen.href = config.url;
+                }
+
+                if (previewDownload) {
+                    previewDownload.href = config.url;
+                }
+
+                window.approvalPdfPreview?.load(config.title, config.url);
+
+                previewButtons.forEach((button) => {
+                    const targetConfig = previewConfig[button.dataset.previewTarget];
+                    const isActive = button.dataset.previewTarget === key;
+
+                    if (!targetConfig?.url) {
+                        button.disabled = true;
+                        button.className = `preview-tab-btn rounded-xl border px-3 py-2 text-xs font-semibold transition ${targetConfig?.unavailableBtn ?? 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400'}`;
+
+                        return;
+                    }
+
+                    button.disabled = false;
+                    button.className = `preview-tab-btn rounded-xl border px-3 py-2 text-xs font-semibold transition ${isActive ? targetConfig.activeBtn : targetConfig.inactiveBtn}`;
+                });
+            };
+
+            previewButtons.forEach((button) => {
+                button.addEventListener('click', () => setActivePreview(button.dataset.previewTarget));
+            });
+
             const canvas = document.getElementById('signatureCanvas');
             const form = document.getElementById('signatureForm');
             const signatureFile = document.getElementById('signatureFile');

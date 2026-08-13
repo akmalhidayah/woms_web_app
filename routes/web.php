@@ -103,6 +103,12 @@ Route::middleware(['auth'])->group(function () {
         ->name('approval.bast.sign');
     Route::get('approval/bast/{token}/pdf', [BastSignatureController::class, 'pdf'])
         ->name('approval.bast.pdf');
+    Route::get('approval/bast/{token}/hpp', [BastSignatureController::class, 'previewHpp'])
+        ->name('approval.bast.hpp');
+    Route::get('approval/bast/{token}/abnormalitas', [BastSignatureController::class, 'previewAbnormalitas'])
+        ->name('approval.bast.abnormalitas');
+    Route::get('approval/bast/{token}/termin-1', [BastSignatureController::class, 'previewTerminOne'])
+        ->name('approval.bast.termin-one');
 
     Route::get('admin/dashboard', AdminDashboardController::class)
         ->middleware('role:admin')

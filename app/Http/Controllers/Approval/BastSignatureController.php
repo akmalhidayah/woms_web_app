@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers\Approval;
 
+use App\Domain\Orders\Enums\OrderDocumentType;
+use App\Http\Controllers\Admin\Hpp\HppController as AdminHppController;
+use App\Http\Controllers\Admin\Orders\OrderDocumentController;
 use App\Http\Controllers\Controller;
+use App\Models\Hpp;
 use App\Models\LhppBast;
 use App\Models\LhppBastSignature;
 use App\Support\BastApprovalSignatureBuilder;
@@ -34,6 +38,9 @@ class BastSignatureController extends Controller
                 'token' => $token,
                 'isExpired' => false,
                 'bastPdfUrl' => null,
+                'hppPdfUrl' => null,
+                'abnormalitasUrl' => null,
+                'terminOneBastPdfUrl' => null,
                 'progressPercent' => 0,
                 'signedCount' => 0,
                 'totalSteps' => 0,
@@ -45,9 +52,20 @@ class BastSignatureController extends Controller
 
         $signature->loadMissing([
             'lhppBast.signatures',
-            'lhppBast.order',
+            'lhppBast.order.documents',
+            'lhppBast.order.latestApprovedHpp',
+            'lhppBast.hpp',
+            'lhppBast.parentLhppBast',
             'signer',
         ]);
+
+        $lhpp = $signature->lhppBast;
+        $attachedHpp = $this->resolveAttachedHpp($lhpp);
+        $terminOne = $this->resolveTerminOneBast($lhpp);
+        $hasAbnormalitas = $this->hasOrderDocument(
+            $lhpp->order?->documents ?? collect(),
+            OrderDocumentType::Abnormalitas,
+        );
 
         if ($signature->isPending() && ! $signature->opened_at) {
             $signature->update(['opened_at' => now()]);
@@ -58,6 +76,11 @@ class BastSignatureController extends Controller
             'token' => $token,
             'isExpired' => $signature->isPending() && $signature->tokenExpired(),
             'bastPdfUrl' => route('approval.bast.pdf', $token),
+            'hppPdfUrl' => $attachedHpp ? route('approval.bast.hpp', $token) : null,
+            'abnormalitasUrl' => $hasAbnormalitas ? route('approval.bast.abnormalitas', $token) : null,
+            'terminOneBastPdfUrl' => $lhpp->termin_type === 'termin_2' && $terminOne
+                ? route('approval.bast.termin-one', $token)
+                : null,
             'progressPercent' => $signature->lhppBast->approvalProgressPercent(),
             'signedCount' => $signature->lhppBast->approvalSignedCount(),
             'totalSteps' => $signature->lhppBast->approvalStepCount(),
@@ -94,6 +117,92 @@ class BastSignatureController extends Controller
                 $lhpp->termin_type === 'termin_2' ? 'termin-2' : 'termin-1',
                 $lhpp->nomor_order,
             ),
+            'Cache-Control' => 'private, no-store, max-age=0',
+        ]);
+    }
+
+    public function previewHpp(Request $request, string $token): Response
+    {
+        $signature = $this->resolveSignatureByToken($token);
+        abort_unless($signature, 404, 'Token approval BAST tidak valid.');
+        $this->authorizeSigner($request, $signature);
+
+        $signature->loadMissing([
+            'lhppBast.hpp',
+            'lhppBast.order.latestApprovedHpp',
+        ]);
+
+        $hpp = $this->resolveAttachedHpp($signature->lhppBast);
+        abort_unless($hpp, 404, 'HPP sumber BAST tidak ditemukan.');
+
+        return app(AdminHppController::class)->pdf($hpp);
+    }
+
+    public function previewAbnormalitas(Request $request, string $token): Response
+    {
+        return $this->previewOrderDocument($request, $token, OrderDocumentType::Abnormalitas);
+    }
+
+    public function previewTerminOne(Request $request, string $token): Response
+    {
+        $signature = $this->resolveSignatureByToken($token);
+        abort_unless($signature, 404, 'Token approval BAST tidak valid.');
+        $this->authorizeSigner($request, $signature);
+
+        $signature->loadMissing([
+            'lhppBast.parentLhppBast',
+        ]);
+
+        $lhpp = $signature->lhppBast;
+        abort_unless($lhpp->termin_type === 'termin_2', 404, 'BAST Termin 1 tidak tersedia.');
+
+        $terminOne = $this->resolveTerminOneBast($lhpp);
+        abort_unless(
+            $terminOne && (int) $terminOne->order_id === (int) $lhpp->order_id,
+            404,
+            'BAST Termin 1 tidak ditemukan.',
+        );
+
+        $terminOne->loadMissing([
+            'images',
+            'garansi',
+            'signatures',
+            'purchaseOrder:id,order_id,purchase_order_number',
+            'order.purchaseOrder:id,order_id,purchase_order_number',
+        ]);
+
+        $finalDocumentSignature = $terminOne->finalSignedDocumentSignature();
+
+        if ($finalDocumentSignature?->hasUploadedSignedDocument()) {
+            abort_unless(
+                Storage::disk('public')->exists($finalDocumentSignature->signed_document_path),
+                Response::HTTP_NOT_FOUND,
+            );
+
+            return response()->file(
+                Storage::disk('public')->path($finalDocumentSignature->signed_document_path),
+                [
+                    'Content-Type' => $finalDocumentSignature->signed_document_mime_type
+                        ?: (Storage::disk('public')->mimeType($finalDocumentSignature->signed_document_path) ?: 'application/octet-stream'),
+                    'Content-Disposition' => sprintf(
+                        'inline; filename="%s"',
+                        $finalDocumentSignature->signed_document_original_name
+                            ?: basename($finalDocumentSignature->signed_document_path),
+                    ),
+                    'Cache-Control' => 'private, no-store, max-age=0',
+                ],
+            );
+        }
+
+        $pdf = Pdf::loadView('pkm.lhpp.pdf', [
+            'lhpp' => $terminOne,
+            'materialItems' => collect($terminOne->material_items ?? []),
+            'serviceItems' => collect($terminOne->service_items ?? []),
+        ])->setPaper('a4', 'portrait')->output();
+
+        return response($pdf, Response::HTTP_OK, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => sprintf('inline; filename="bast-termin-1-%s.pdf"', $terminOne->nomor_order),
             'Cache-Control' => 'private, no-store, max-age=0',
         ]);
     }
@@ -299,6 +408,66 @@ class BastSignatureController extends Controller
             Response::HTTP_FORBIDDEN,
             'Link approval BAST ini hanya untuk penanda tangan yang ditetapkan.'
         );
+    }
+
+    private function resolveAttachedHpp(LhppBast $lhpp): ?Hpp
+    {
+        return $lhpp->hpp ?: $lhpp->order?->latestApprovedHpp;
+    }
+
+    private function resolveTerminOneBast(LhppBast $lhpp): ?LhppBast
+    {
+        if ($lhpp->termin_type !== 'termin_2') {
+            return null;
+        }
+
+        $parent = $lhpp->parentLhppBast;
+
+        if ($parent && (int) $parent->order_id === (int) $lhpp->order_id) {
+            return $parent;
+        }
+
+        return LhppBast::query()
+            ->where('order_id', $lhpp->order_id)
+            ->where('termin_type', 'termin_1')
+            ->first();
+    }
+
+    private function previewOrderDocument(Request $request, string $token, OrderDocumentType $type): Response
+    {
+        $signature = $this->resolveSignatureByToken($token);
+        abort_unless($signature, 404, 'Token approval BAST tidak valid.');
+        $this->authorizeSigner($request, $signature);
+
+        $signature->loadMissing(['lhppBast.order.documents']);
+
+        $order = $signature->lhppBast->order;
+        abort_unless($order, 404, 'Order sumber BAST tidak ditemukan.');
+
+        $document = $order->documents->first(fn ($document): bool => $this->documentMatchesType($document, $type));
+        abort_unless($document, 404, 'Dokumen '.$type->label().' tidak ditemukan.');
+
+        return app(OrderDocumentController::class)->preview($order, $document);
+    }
+
+    private function hasOrderDocument(iterable $documents, OrderDocumentType $type): bool
+    {
+        foreach ($documents as $document) {
+            if ($this->documentMatchesType($document, $type)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function documentMatchesType(mixed $document, OrderDocumentType $type): bool
+    {
+        $documentType = $document->jenis_dokumen;
+
+        return $documentType instanceof OrderDocumentType
+            ? $documentType === $type
+            : (string) $documentType === $type->value;
     }
 
     private function normalizeNullableString(mixed $value): ?string

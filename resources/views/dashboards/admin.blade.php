@@ -215,7 +215,7 @@
 
         <section class="main-cost-grid grid grid-cols-1 items-stretch gap-3 xl:grid-cols-12">
             <div class="grid min-w-0 gap-3 xl:col-span-8">
-                <article class="maintenance-panel flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3">
+                <article class="maintenance-panel flex min-w-0 flex-col rounded-xl border border-emerald-600 bg-slate-100 p-3">
                 <div class="flex items-start gap-2 border-b border-slate-100 pb-2.5">
                     <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
                         <i data-lucide="wrench" class="h-3.5 w-3.5"></i>

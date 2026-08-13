@@ -40,7 +40,7 @@ class DashboardAdditionalGridUiTest extends TestCase
             ->assertSee('fetchRealizationData', false)
             ->assertSee('display: true', false)
             ->assertSee('grid min-w-0 gap-3 xl:col-span-8', false)
-            ->assertSee('maintenance-panel flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3', false)
+            ->assertSee('maintenance-panel flex min-w-0 flex-col rounded-xl border border-emerald-600 bg-slate-100 p-3', false)
             ->assertSee('monthly-realization-panel flex min-h-[330px] flex-col rounded-xl border border-slate-200 bg-white p-3', false)
             ->assertSee('top-ten-panel flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm xl:col-span-8', false)
             ->assertSee('overhaul-panel flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm xl:col-span-4', false)

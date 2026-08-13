@@ -214,7 +214,8 @@
         </section>
 
         <section class="main-cost-grid grid grid-cols-1 items-stretch gap-3 xl:grid-cols-12">
-            <article class="maintenance-panel flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm xl:col-span-8">
+            <div class="grid min-w-0 gap-3 xl:col-span-8">
+                <article class="maintenance-panel flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3">
                 <div class="flex items-start gap-2 border-b border-slate-100 pb-2.5">
                     <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
                         <i data-lucide="wrench" class="h-3.5 w-3.5"></i>
@@ -225,7 +226,7 @@
                 </div>
 
                 <div class="mt-3 grid gap-3 md:grid-cols-12">
-                    <section class="flex flex-col rounded-xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-3 md:col-span-4">
+                    <section class="flex flex-col px-3 py-2 md:col-span-4">
                         <div class="text-center">
                             <div class="text-[8px] font-bold uppercase tracking-[0.16em] text-slate-500">Target Tahunan {{ $maintenanceTargetYear }}</div>
                             <div class="mt-1.5 break-words text-[11px] font-bold text-slate-900">{{ $rp($maintenanceAnnualTarget) }}</div>
@@ -250,18 +251,18 @@
                         </div>
                     </section>
 
-                    <section class="rounded-xl border border-slate-200 bg-white p-3 md:col-span-8">
+                    <section class="px-3 py-2 md:col-span-8 md:border-l md:border-slate-200">
                         <h3 class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">Ringkasan Biaya</h3>
-                        <dl class="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-100">
-                            <div class="flex items-center justify-between gap-3 px-3 py-3">
+                        <dl class="mt-2 divide-y divide-slate-100">
+                            <div class="flex items-center justify-between gap-3 py-3">
                                 <dt class="text-[10px] font-medium text-slate-600">Outstanding Biaya</dt>
                                 <dd class="shrink-0 text-[11px] font-bold text-slate-900">{{ $rp($maintenanceOutstanding) }}</dd>
                             </div>
-                            <div class="flex items-center justify-between gap-3 px-3 py-3">
+                            <div class="flex items-center justify-between gap-3 py-3">
                                 <dt class="text-[10px] font-medium text-slate-600">Realisasi Biaya</dt>
                                 <dd class="shrink-0 text-[11px] font-bold text-slate-900">{{ $rp($maintenanceRealization) }}</dd>
                             </div>
-                            <div class="flex items-center justify-between gap-3 px-3 py-3">
+                            <div class="flex items-center justify-between gap-3 py-3">
                                 <dt class="text-[10px] font-medium text-slate-600">Total Prognosa Biaya</dt>
                                 <dd class="shrink-0 text-[11px] font-bold text-slate-900">{{ $rp($maintenancePrognosis) }}</dd>
                             </div>
@@ -269,21 +270,22 @@
                     </section>
                 </div>
 
-                <section class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <section class="mt-3 border-t border-slate-200 px-3 pt-3">
                     <h3 class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-600">Monitoring Realisasi Anggaran Pemeliharaan</h3>
-                    <div class="mt-2 grid gap-2 sm:grid-cols-2">
-                        <div class="rounded-lg border border-slate-200 bg-white p-3">
+                    <div class="mt-2 grid sm:grid-cols-2">
+                        <div class="py-2 sm:pr-3">
                             <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Biaya Status LPJ</div>
                             <div class="mt-2 text-sm font-bold text-slate-800">{{ $rp($maintenanceLpjStatusAmount) }}</div>
                         </div>
-                        <div class="rounded-lg border border-slate-200 bg-white p-3">
+                        <div class="border-t border-slate-200 py-2 sm:border-l sm:border-t-0 sm:pl-3">
                             <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Biaya Status Invoice</div>
                             <div class="mt-2 text-sm font-bold text-slate-800">{{ $rp($maintenanceInvoiceStatusAmount) }}</div>
                         </div>
                     </div>
                 </section>
+                </article>
 
-                <section class="mt-3 flex min-h-[330px] flex-1 flex-col rounded-xl border border-slate-200 bg-white p-3">
+                <article class="monthly-realization-panel flex min-h-[330px] flex-col rounded-xl border border-slate-200 bg-white p-3">
                     <div class="flex flex-col gap-3 border-b border-slate-100 pb-3">
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <h3 class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-600">Realisasi Per Bulan</h3>
@@ -312,8 +314,8 @@
                     <div id="monthlyRealizationEmptyState" class="mt-3 hidden min-h-[230px] items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 text-center text-[10px] text-slate-500">
                         Tidak ada data realisasi pada periode ini.
                     </div>
-                </section>
-            </article>
+                </article>
+            </div>
 
             <div class="right-cost-column grid min-w-0 gap-3 xl:col-span-4">
                 @foreach ([

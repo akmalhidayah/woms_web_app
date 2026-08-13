@@ -139,11 +139,11 @@ final class DashboardFinancialSummaryService
     /**
      * @return array<string, mixed>
      */
-    public function resolveMaintenanceSummary(int $year, ?int $outlineAgreementId = null): array
+    public function resolveMaintenanceSummary(?int $year, ?int $outlineAgreementId = null): array
     {
         $summary = $this->resolveForCategory('pemeliharaan', $outlineAgreementId, $year);
         $annualTarget = $this->moneyInt(OutlineAgreementTarget::query()
-            ->where('tahun', $year)
+            ->when($year !== null, fn (Builder $query): Builder => $query->where('tahun', $year))
             ->when(
                 $outlineAgreementId !== null,
                 fn (Builder $query): Builder => $query->where('outline_agreement_id', $outlineAgreementId),
@@ -153,7 +153,7 @@ final class DashboardFinancialSummaryService
             ->sum('nilai_target'));
 
         return $summary + [
-            'target_year' => $year,
+            'target_year' => $year ?? 'Semua Tahun',
             'annual_target' => $annualTarget,
             'remaining_target' => $annualTarget - $summary['prognosis'],
             'target_usage_percentage_hundredths' => $this->percentageHundredths(

@@ -146,6 +146,46 @@ class DashboardMonthlyRealizationTest extends TestCase
             ->assertJsonPath('1.total', 0);
     }
 
+    public function test_active_agreement_defaults_to_all_years_and_allows_a_single_year_filter(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $agreement = $this->createAgreement(
+            $admin,
+            'OA-DASH-MONTHLY-ALL-YEARS',
+            1000000000,
+            OutlineAgreement::STATUS_ACTIVE,
+            '2024-01-01',
+            '2026-12-31',
+        );
+        $agreement->monthlyRealizations()->createMany([
+            ['year' => 2024, 'month' => 2, 'kategori_biaya' => 'pemeliharaan', 'amount' => 100],
+            ['year' => 2025, 'month' => 6, 'kategori_biaya' => 'capex', 'amount' => 200],
+            ['year' => 2026, 'month' => 10, 'kategori_biaya' => 'non pemeliharaan', 'amount' => 300],
+        ]);
+
+        $this->actingAs($admin)->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertViewHas('selectedOutlineAgreementId', $agreement->id)
+            ->assertViewHas('selectedDashboardYear', null)
+            ->assertViewHas('dashboardAvailableYears', [2024, 2025, 2026])
+            ->assertViewHas('totalRealisasiManual', 600)
+            ->assertViewHas('realizationChartData', fn (array $data): bool => count($data) === 36
+                && $data[1]['total'] === 100
+                && $data[17]['total'] === 200
+                && $data[33]['total'] === 300)
+            ->assertSee('<option value="all" selected>Semua Tahun</option>', false);
+
+        $this->actingAs($admin)->get(route('admin.dashboard', [
+            'oa_id' => $agreement->id,
+            'year' => 2025,
+        ]))
+            ->assertOk()
+            ->assertViewHas('selectedDashboardYear', 2025)
+            ->assertViewHas('totalRealisasiManual', 200)
+            ->assertViewHas('realizationChartData', fn (array $data): bool => count($data) === 12
+                && $data[5]['total'] === 200);
+    }
+
     public function test_chart_and_summary_only_recognize_approved_bast_with_complete_lpj(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);

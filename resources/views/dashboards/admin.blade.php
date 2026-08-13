@@ -163,6 +163,7 @@
                     <label class="min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
                         <span class="block text-[8px] font-bold uppercase tracking-[0.14em] text-slate-500">Tahun</span>
                         <select id="dashboardYear" name="year" class="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-slate-700">
+                            <option value="all" @selected($selectedDashboardYear === null)>Semua Tahun</option>
                             @foreach ($dashboardAvailableYears ?? [] as $year)
                                 <option value="{{ $year }}" @selected((int) $selectedDashboardYear === (int) $year)>{{ $year }}</option>
                             @endforeach
@@ -189,26 +190,26 @@
                 <h2 class="text-[12px] font-bold tracking-[0.08em] text-slate-800">GENERAL BIAYA JASA</h2>
             </div>
 
-            <div class="grid sm:grid-cols-2 xl:grid-cols-4">
-                <article class="min-w-0 border-b border-slate-200 px-2 py-2 sm:border-r xl:border-b-0">
-                    <div class="border-l-4 border-blue-600 pl-2 text-[9px] font-bold uppercase tracking-[0.12em] text-blue-700">Total Prognosa Biaya</div>
-                    <div class="mt-2 break-words text-base font-bold text-slate-900">{{ $rp($totalPrognosaBiaya) }}</div>
-                    <div class="mt-1 text-[9px] font-semibold text-slate-500">{{ $prognosaPercentageLabel ?? '0' }}% dari pagu</div>
+            <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                <article class="min-w-0 rounded-lg bg-blue-700 px-3 py-2.5 text-white">
+                    <div class="border-l-4 border-blue-300 pl-2 text-[9px] font-bold uppercase tracking-[0.12em] text-blue-100">Total Prognosa Biaya</div>
+                    <div class="mt-2 break-words text-base font-bold text-white">{{ $rp($totalPrognosaBiaya) }}</div>
+                    <div class="mt-1 text-[9px] font-semibold text-blue-100">{{ $prognosaPercentageLabel ?? '0' }}% dari pagu</div>
                 </article>
-                <article class="min-w-0 border-b border-slate-200 px-2 py-2 xl:border-b-0 xl:border-r">
-                    <div class="border-l-4 border-emerald-500 pl-2 text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-700">Realisasi Biaya</div>
-                    <div class="mt-2 break-words text-base font-bold text-slate-900">{{ $rp($totalRealisasiBiaya) }}</div>
-                    <div class="mt-1 text-[9px] font-semibold text-slate-500">{{ $realisasiPercentageLabel ?? '0' }}% dari pagu</div>
+                <article class="min-w-0 rounded-lg bg-emerald-700 px-3 py-2.5 text-white">
+                    <div class="border-l-4 border-emerald-300 pl-2 text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-100">Realisasi Biaya</div>
+                    <div class="mt-2 break-words text-base font-bold text-white">{{ $rp($totalRealisasiBiaya) }}</div>
+                    <div class="mt-1 text-[9px] font-semibold text-emerald-100">{{ $realisasiPercentageLabel ?? '0' }}% dari pagu</div>
                 </article>
-                <article class="min-w-0 border-b border-slate-200 px-2 py-2 sm:border-b-0 sm:border-r">
-                    <div class="border-l-4 border-indigo-500 pl-2 text-[9px] font-bold uppercase tracking-[0.12em] text-indigo-700">Outstanding Biaya</div>
-                    <div class="mt-2 break-words text-base font-bold text-slate-900">{{ $rp($totalOutstandingBiaya) }}</div>
-                    <div class="mt-1 text-[9px] font-semibold text-slate-500">{{ $outstandingPercentageLabel ?? '0' }}% dari pagu</div>
+                <article class="min-w-0 rounded-lg bg-indigo-700 px-3 py-2.5 text-white">
+                    <div class="border-l-4 border-indigo-300 pl-2 text-[9px] font-bold uppercase tracking-[0.12em] text-indigo-100">Outstanding Biaya</div>
+                    <div class="mt-2 break-words text-base font-bold text-white">{{ $rp($totalOutstandingBiaya) }}</div>
+                    <div class="mt-1 text-[9px] font-semibold text-indigo-100">{{ $outstandingPercentageLabel ?? '0' }}% dari pagu</div>
                 </article>
-                <article class="min-w-0 px-2 py-2">
-                    <div class="border-l-4 border-amber-500 pl-2 text-[9px] font-bold uppercase tracking-[0.12em] text-amber-700">Anggaran Tersedia</div>
-                    <div class="mt-2 break-words text-base font-bold text-slate-900">{{ $rp($totalAnggaranTersedia) }}</div>
-                    <div class="mt-1 text-[9px] font-semibold text-slate-500">{{ $anggaranTersediaPercentageLabel ?? '0' }}% dari pagu</div>
+                <article class="min-w-0 rounded-lg bg-amber-500 px-3 py-2.5 text-slate-950">
+                    <div class="border-l-4 border-amber-900 pl-2 text-[9px] font-bold uppercase tracking-[0.12em] text-amber-950">Anggaran Tersedia</div>
+                    <div class="mt-2 break-words text-base font-bold text-slate-950">{{ $rp($totalAnggaranTersedia) }}</div>
+                    <div class="mt-1 text-[9px] font-semibold text-amber-950">{{ $anggaranTersediaPercentageLabel ?? '0' }}% dari pagu</div>
                 </article>
             </div>
         </section>
@@ -451,7 +452,7 @@
             const initialOverhaulPrognosis = @json($overhaulPrognosis ?? []);
             const chartEndpoint = @json(url('/admin/realisasi-biaya'));
             const selectedAgreementId = @json($selectedOutlineAgreementId ?? null);
-            const selectedDashboardYear = @json($selectedDashboardYear ?? now()->year);
+            const selectedDashboardYear = @json($selectedDashboardYear);
             const chartColors = {
                 general: '#2563eb',
                 maintenance: '#10b981',
@@ -514,7 +515,7 @@
             function fetchRealizationData(startMonth = null, endMonth = null) {
                 const queryParams = new URLSearchParams({
                     oa_id: selectedAgreementId,
-                    year: selectedDashboardYear,
+                    ...(selectedDashboardYear && { year: selectedDashboardYear }),
                     ...(startMonth && { startMonth }),
                     ...(endMonth && { endMonth })
                 }).toString();

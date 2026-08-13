@@ -90,10 +90,10 @@ class DashboardController extends Controller
             'dashboardOutlineAgreements' => $context['outline_agreements'],
             'dashboardAvailableYears' => $context['available_years'],
             'periodeKontrak' => $this->resolveOutlineAgreementPeriod($context['outline_agreement']),
-            'realizationChartData' => $this->buildRealizationChartData($agreementId, $year),
-            'overhaulPrognosis' => $this->overhaulPrognosis($agreementId, $year),
-            'topTenCostSections' => $this->resolveTopTenCostSections($agreementId, $year),
-            'topTenMaintenanceCostSections' => $this->resolveTopTenCostSections($agreementId, $year, 'pemeliharaan'),
+            'realizationChartData' => $this->buildRealizationChartData($context['outline_agreement'], $year),
+            'overhaulPrognosis' => $this->overhaulPrognosis($context['outline_agreement'], $year),
+            'topTenCostSections' => $this->resolveTopTenCostSections($context['outline_agreement'], $year),
+            'topTenMaintenanceCostSections' => $this->resolveTopTenCostSections($context['outline_agreement'], $year, 'pemeliharaan'),
             'showActionSummaryBanner' => $showActionSummaryBanner,
             'adminActionSummaryCount' => $pendingActionCount,
             'adminActionSummary' => $this->actionCenter->summary($request->user()),
@@ -108,28 +108,27 @@ class DashboardController extends Controller
     public function realizationChart(Request $request): JsonResponse
     {
         $context = $this->resolveDashboardContext($request);
-        $agreementId = $context['outline_agreement_id'];
         $year = $context['year'];
         $startMonth = $this->normalizeMonth($request->integer('startMonth')) ?? 1;
         $endMonth = $this->normalizeMonth($request->integer('endMonth')) ?? 12;
 
         if ($request->boolean('includeTopTen')) {
             return response()->json([
-                'realization' => $this->buildRealizationChartData($agreementId, $year, $startMonth, $endMonth),
-                'top_ten' => $this->resolveTopTenCostSections($agreementId, $year),
-                'top_ten_maintenance' => $this->resolveTopTenCostSections($agreementId, $year, 'pemeliharaan'),
-                'overhaul' => $this->overhaulPrognosis($agreementId, $year),
+                'realization' => $this->buildRealizationChartData($context['outline_agreement'], $year, $startMonth, $endMonth),
+                'top_ten' => $this->resolveTopTenCostSections($context['outline_agreement'], $year),
+                'top_ten_maintenance' => $this->resolveTopTenCostSections($context['outline_agreement'], $year, 'pemeliharaan'),
+                'overhaul' => $this->overhaulPrognosis($context['outline_agreement'], $year),
             ]);
         }
 
-        return response()->json($this->buildRealizationChartData($agreementId, $year, $startMonth, $endMonth));
+        return response()->json($this->buildRealizationChartData($context['outline_agreement'], $year, $startMonth, $endMonth));
     }
 
     /**
      * @return array{
      *     outline_agreement: OutlineAgreement|null,
      *     outline_agreement_id: int|null,
-     *     year: int,
+     *     year: int|null,
      *     available_years: list<int>,
      *     outline_agreements: Collection<int, OutlineAgreement>
      * }
@@ -151,13 +150,10 @@ class DashboardController extends Controller
             ?? $agreements->firstWhere('status', OutlineAgreement::STATUS_ACTIVE)
             ?? $agreements->first();
         $availableYears = $this->availableYearsForAgreement($selectedAgreement);
-        $currentYear = (int) Carbon::now()->year;
         $requestedYear = $request->integer('year');
         $selectedYear = in_array($requestedYear, $availableYears, true)
             ? $requestedYear
-            : (in_array($currentYear, $availableYears, true)
-                ? $currentYear
-                : ($availableYears[array_key_last($availableYears)] ?? $currentYear));
+            : null;
 
         return [
             'outline_agreement' => $selectedAgreement,
@@ -229,12 +225,13 @@ class DashboardController extends Controller
      * @return list<array{year: int, month: int, label: string, total: int, general: int, maintenance: int, non_maintenance: int, capex: int}>
      */
     private function buildRealizationChartData(
-        ?int $outlineAgreementId,
-        int $year,
+        ?OutlineAgreement $agreement,
+        ?int $year,
         ?int $startMonth = null,
         ?int $endMonth = null,
     ): array {
-        [$startDate, $endDate] = $this->resolveYearPeriod($year, $startMonth, $endMonth);
+        [$startDate, $endDate] = $this->resolveDashboardPeriod($agreement, $year, $startMonth, $endMonth);
+        $outlineAgreementId = $agreement?->id;
 
         $transactionTotals = $this->financialSummaryService
             ->realizationEvents($startDate, $endDate, $outlineAgreementId)
@@ -249,8 +246,22 @@ class DashboardController extends Controller
             });
 
         $monthlyTotals = $this->outlineAgreementMonthlyRealizationsQuery($outlineAgreementId)
-            ->where('year', $year)
-            ->whereBetween('month', [$startDate->month, $endDate->month])
+            ->whereBetween('year', [$startDate->year, $endDate->year])
+            ->where(function (Builder $query) use ($startDate, $endDate): void {
+                $query
+                    ->where(function (Builder $startQuery) use ($startDate): void {
+                        $startQuery->where('year', '>', $startDate->year)
+                            ->orWhere(fn (Builder $sameYear): Builder => $sameYear
+                                ->where('year', $startDate->year)
+                                ->where('month', '>=', $startDate->month));
+                    })
+                    ->where(function (Builder $endQuery) use ($endDate): void {
+                        $endQuery->where('year', '<', $endDate->year)
+                            ->orWhere(fn (Builder $sameYear): Builder => $sameYear
+                                ->where('year', $endDate->year)
+                                ->where('month', '<=', $endDate->month));
+                    });
+            })
             ->selectRaw('year, month, kategori_biaya, SUM(amount) as total_amount')
             ->groupBy('year', 'month', 'kategori_biaya')
             ->get()
@@ -297,27 +308,36 @@ class DashboardController extends Controller
      * @return list<array{section: string, amount: int}>
      */
     private function resolveTopTenCostSections(
-        ?int $outlineAgreementId,
-        int $year,
+        ?OutlineAgreement $agreement,
+        ?int $year,
         ?string $costCategory = null,
     ): array {
-        [$periodStart, $periodEnd] = $this->resolveYearPeriod($year);
+        [$periodStart, $periodEnd] = $this->resolveDashboardPeriod($agreement, $year);
 
-        return $this->topTenHppCostService->resolve($periodStart, $periodEnd, $costCategory, $outlineAgreementId);
+        return $this->topTenHppCostService->resolve($periodStart, $periodEnd, $costCategory, $agreement?->id);
     }
 
     /**
      * @return array{0: CarbonInterface, 1: CarbonInterface}
      */
-    private function resolveYearPeriod(
-        int $year,
+    private function resolveDashboardPeriod(
+        ?OutlineAgreement $agreement,
+        ?int $year,
         ?int $startMonth = null,
         ?int $endMonth = null,
     ): array {
         $startMonth = $this->normalizeMonth($startMonth) ?? 1;
         $endMonth = $this->normalizeMonth($endMonth) ?? 12;
-        $startDate = Carbon::create($year, $startMonth, 1)->startOfDay();
-        $endDate = Carbon::create($year, $endMonth, 1)->endOfMonth();
+        $fallbackYear = (int) Carbon::now()->year;
+        $startYear = $year ?? $agreement?->current_period_start?->year ?? $fallbackYear;
+        $endYear = $year ?? $agreement?->current_period_end?->year ?? $fallbackYear;
+        $startDate = Carbon::create($startYear, $startMonth, 1)->startOfDay();
+        $endDate = Carbon::create($endYear, $endMonth, 1)->endOfMonth();
+
+        if ($year === null && $agreement !== null) {
+            $startDate = $startDate->max($agreement->current_period_start?->copy()->startOfDay() ?? $startDate);
+            $endDate = $endDate->min($agreement->current_period_end?->copy()->endOfDay() ?? $endDate);
+        }
 
         if ($startDate->gt($endDate)) {
             [$startDate, $endDate] = [$endDate->copy()->startOfMonth(), $startDate->copy()->endOfMonth()];
@@ -330,10 +350,11 @@ class DashboardController extends Controller
      * @return list<array{key: string, label: string, amount: int}>
      */
     private function overhaulPrognosis(
-        ?int $outlineAgreementId,
-        int $year,
+        ?OutlineAgreement $agreement,
+        ?int $year,
     ): array {
-        [$periodStart, $periodEnd] = $this->resolveYearPeriod($year);
+        [$periodStart, $periodEnd] = $this->resolveDashboardPeriod($agreement, $year);
+        $outlineAgreementId = $agreement?->id;
 
         $categories = [
             BudgetVerification::COST_CATEGORY_OVERHAUL_TONASA_2_3 => 'Tonasa 2/3',

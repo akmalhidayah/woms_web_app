@@ -285,7 +285,7 @@
                 </section>
                 </article>
 
-                <article class="monthly-realization-panel flex min-h-[330px] flex-col rounded-xl border border-slate-200 bg-white p-3">
+                <article class="monthly-realization-panel flex min-h-[330px] flex-col rounded-xl border border-blue-600 bg-slate-100 p-3">
                     <div class="flex flex-col gap-3 border-b border-slate-100 pb-3">
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <h3 class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-600">Realisasi Per Bulan</h3>
@@ -311,7 +311,7 @@
                     <div id="monthlyRealizationChartContainer" class="relative mt-3 min-h-[230px] flex-1">
                         <canvas id="monthlyRealizationChart" class="h-full w-full" role="img" aria-label="Grafik garis Realisasi Per Bulan"></canvas>
                     </div>
-                    <div id="monthlyRealizationEmptyState" class="mt-3 hidden min-h-[230px] items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 text-center text-[10px] text-slate-500">
+                    <div id="monthlyRealizationEmptyState" class="mt-3 hidden min-h-[230px] items-center justify-center px-4 text-center text-[10px] text-slate-500">
                         Tidak ada data realisasi pada periode ini.
                     </div>
                 </article>
@@ -362,14 +362,14 @@
         </section>
 
         <section class="bottom-cost-grid grid grid-cols-1 items-stretch gap-3 xl:grid-cols-12">
-            <article class="top-ten-panel flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm xl:col-span-8">
-                <div class="mb-2 flex items-center gap-2 border-b border-slate-100 pb-2.5">
+            <article class="top-ten-panel flex min-w-0 flex-col rounded-xl border border-blue-600 bg-slate-100 p-3 xl:col-span-8">
+                <div class="mb-2 flex items-center gap-2 border-b border-slate-300 pb-2.5">
                     <i data-lucide="bar-chart-3" class="h-4 w-4 text-blue-500"></i>
                     <h2 class="text-[11px] font-bold tracking-[0.08em] text-slate-800">TOP TEN PEMICU BIAYA</h2>
                 </div>
 
-                <div class="grid min-w-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-2">
-                    <section class="flex min-w-0 flex-col rounded-xl border border-blue-100 bg-slate-50 p-3">
+                <div class="grid min-w-0 flex-1 grid-cols-1 xl:grid-cols-2">
+                    <section class="flex min-w-0 flex-col p-3 xl:pr-4">
                         <div class="flex items-center gap-1.5 text-[9px] font-bold tracking-[0.08em] text-slate-700">
                             <span class="h-2.5 w-2.5 rounded-sm bg-blue-600"></span>
                             GENERAL
@@ -382,12 +382,12 @@
                                 aria-label="Grafik Top Ten Pemicu Biaya General"
                             ></canvas>
                         </div>
-                        <div id="topTenGeneralCostEmptyState" class="hidden flex-1 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white px-3 py-8 text-center text-xs text-slate-500">
+                        <div id="topTenGeneralCostEmptyState" class="hidden flex-1 items-center justify-center px-3 py-8 text-center text-xs text-slate-500">
                             Belum ada data HPP pada periode ini.
                         </div>
                     </section>
 
-                    <section class="flex min-w-0 flex-col rounded-xl border border-emerald-100 bg-slate-50 p-3">
+                    <section class="flex min-w-0 flex-col border-t border-slate-300 p-3 xl:border-l xl:border-t-0 xl:pl-4">
                         <div class="flex items-center gap-1.5 text-[9px] font-bold tracking-[0.08em] text-slate-700">
                             <span class="h-2.5 w-2.5 rounded-sm bg-emerald-500"></span>
                             PEMELIHARAAN
@@ -400,15 +400,15 @@
                                 aria-label="Grafik Top Ten Pemicu Biaya Pemeliharaan"
                             ></canvas>
                         </div>
-                        <div id="topTenMaintenanceCostEmptyState" class="hidden flex-1 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white px-3 py-8 text-center text-xs text-slate-500">
+                        <div id="topTenMaintenanceCostEmptyState" class="hidden flex-1 items-center justify-center px-3 py-8 text-center text-xs text-slate-500">
                             Belum ada data HPP kategori Pemeliharaan pada periode ini.
                         </div>
                     </section>
                 </div>
             </article>
 
-            <article class="overhaul-panel flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm xl:col-span-4">
-                <div class="mb-2 flex items-center gap-2 border-b border-slate-100 pb-2.5">
+            <article class="overhaul-panel flex min-w-0 flex-col rounded-xl border border-amber-600 bg-slate-100 p-3 xl:col-span-4">
+                <div class="mb-2 flex items-center gap-2 border-b border-slate-300 pb-2.5">
                     <i data-lucide="trending-up" class="h-4 w-4 text-amber-500"></i>
                     <h2 class="text-[11px] font-bold tracking-[0.08em] text-slate-800">PROGNOSA OVERHAUL</h2>
                 </div>

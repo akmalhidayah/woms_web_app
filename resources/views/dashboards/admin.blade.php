@@ -1,10 +1,5 @@
 <x-layouts.admin title="Dashboard Admin">
     <style>
-        body:has(.dashboard-header) main {
-            min-height: calc(100vh - 3.5rem);
-            background-color: #000 !important;
-        }
-
         .admin-compact {
             border: 0 !important;
             background: transparent !important;

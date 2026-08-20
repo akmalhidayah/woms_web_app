@@ -229,7 +229,7 @@
                         <i data-lucide="wrench" class="h-3.5 w-3.5"></i>
                     </span>
                     <h2 class="pt-1 text-xs font-bold leading-4 tracking-[0.06em] text-slate-800 sm:text-sm">
-                        PROGNOSA DAN REALISASI BIAYA PEMELIHARAAN
+                        PROGNOSA DAN REALISASI BIAYA JASA OPEX PEMELIHARAAN
                     </h2>
                 </div>
 
@@ -327,7 +327,7 @@
 
             <div class="right-cost-column grid min-w-0 gap-3 xl:col-span-4">
                 @foreach ([
-                    ['title' => 'PROGNOSA DAN REALISASI BIAYA NON PEMELIHARAAN', 'icon' => 'building-2', 'accent' => 'bg-violet-600 text-white', 'background' => 'bg-violet-100', 'summary' => $nonMaintenanceSummary, 'canvas' => 'nonMaintenanceOutstandingChart', 'color' => '#7c3aed'],
+                    ['title' => 'PROGNOSA DAN REALISASI BIAYA OPEX NON PEMELIHARAAN', 'icon' => 'building-2', 'accent' => 'bg-violet-600 text-white', 'background' => 'bg-violet-100', 'summary' => $nonMaintenanceSummary, 'canvas' => 'nonMaintenanceOutstandingChart', 'color' => '#7c3aed'],
                     ['title' => 'PROGNOSA DAN REALISASI BIAYA CAPEX', 'icon' => 'landmark', 'accent' => 'bg-cyan-600 text-white', 'background' => 'bg-cyan-100', 'summary' => $capexSummary, 'canvas' => 'capexOutstandingChart', 'color' => '#0891b2'],
                 ] as $costPanel)
                     <article class="flex min-w-0 flex-col rounded-xl p-3 {{ $costPanel['background'] }}">

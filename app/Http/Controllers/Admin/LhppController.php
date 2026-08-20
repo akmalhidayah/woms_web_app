@@ -8,6 +8,7 @@ use App\Models\LhppBastSignature;
 use App\Models\User;
 use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\Approvals\ApprovalSignatureRollbackService;
+use App\Services\Approvals\BulkApprovalNotificationService;
 use App\Services\Pkm\BastDeletionService;
 use App\Support\BastApprovalSignatureBuilder;
 use App\Support\BastDisplayLabel;
@@ -32,6 +33,7 @@ class LhppController extends Controller
         private readonly BastDeletionService $bastDeletionService,
         private readonly BastEffectiveApprovalFlowResolver $effectiveFlowResolver,
         private readonly BastIndexTabs $indexTabs,
+        private readonly BulkApprovalNotificationService $bulkNotificationService,
     ) {}
 
     public function destroy(Request $request, LhppBast $lhppBast): RedirectResponse
@@ -292,6 +294,13 @@ class LhppController extends Controller
             'Link approval BAST/LHPP berhasil dikirim ulang ke %s.',
             $signature->signer?->email ?: 'email approver',
         ));
+    }
+
+    public function resendAllActiveApprovals(): RedirectResponse
+    {
+        $result = $this->bulkNotificationService->resendActiveBastApprovals();
+
+        return back()->with('status', $this->bulkNotificationService->resultMessage('BAST/LHPP', $result));
     }
 
     public function rollbackSignature(Request $request, LhppBast $lhppBast, LhppBastSignature $signature): RedirectResponse

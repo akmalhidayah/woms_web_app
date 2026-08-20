@@ -89,7 +89,20 @@
                             <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Order</th>
                             <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Detail Pekerjaan</th>
                             <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Nilai HPP / Status</th>
-                            <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Progress Approval</th>
+                            <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span>Progress Approval</span>
+                                    @if ($activeTab === \App\Support\HppIndexTabs::IN_APPROVAL)
+                                        <form method="POST" action="{{ route('admin.hpp.approval.resend-all') }}" onsubmit="return confirm('Kirim ulang email kepada seluruh approver HPP yang sedang aktif?')">
+                                            @csrf
+                                            <button type="submit" class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-[8px] font-bold normal-case tracking-normal text-white shadow-sm transition hover:bg-blue-700">
+                                                <i data-lucide="send" class="h-2.5 w-2.5"></i>
+                                                Resend Semua
+                                            </button>
+                                        </form>
+                                    @endif
+                                </div>
+                            </th>
                             <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Aksi</th>
                         </tr>
                     </thead>

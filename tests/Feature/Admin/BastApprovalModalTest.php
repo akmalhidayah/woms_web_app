@@ -6,12 +6,29 @@ use App\Models\LhppBast;
 use App\Models\LhppBastSignature;
 use App\Models\Order;
 use App\Models\User;
+use App\Support\BastIndexTabs;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class BastApprovalModalTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_admin_in_progress_tab_shows_bulk_resend_in_approval_header(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+        $this->createPendingBastSignature($admin, 'bast-admin-bulk-token');
+
+        $this->actingAs($admin)
+            ->get(route('admin.lhpp.index', ['tab' => BastIndexTabs::TAB_IN_PROGRESS]))
+            ->assertOk()
+            ->assertSee('Quality Control / Approval')
+            ->assertSee('Resend Semua')
+            ->assertSee(route('admin.lhpp.approval.resend-all'), false);
+    }
 
     public function test_admin_bast_approval_flow_includes_whatsapp_action(): void
     {
@@ -105,8 +122,7 @@ class BastApprovalModalTest extends TestCase
         User $creator,
         string $token,
         string $status = LhppBastSignature::STATUS_PENDING,
-    ): LhppBastSignature
-    {
+    ): LhppBastSignature {
         $order = Order::query()->create([
             'nomor_order' => 'ORD-BAST-WA-'.$creator->role,
             'notifikasi' => 'NOTIF-BAST-WA-'.$creator->role,

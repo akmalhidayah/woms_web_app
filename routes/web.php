@@ -238,6 +238,9 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
         ->whereNumber('lhppId')
         ->name('admin.lhpp.approval.resend');
+    Route::post('admin/lhpp/resend-all-active-approvals', [AdminLhppController::class, 'resendAllActiveApprovals'])
+        ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
+        ->name('admin.lhpp.approval.resend-all');
     Route::get('admin/lpj', [LpjPplController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:lpj_ppl'])
         ->name('admin.lpj.index');
@@ -637,6 +640,8 @@ Route::prefix('admin/hpp')
     ->middleware(['auth', 'role:admin', 'admin_menu:create_hpp'])
     ->group(function () {
         Route::get('/', [HppController::class, 'index'])->name('index');
+        Route::post('/resend-all-active-approvals', [HppController::class, 'resendAllActiveApprovals'])
+            ->name('approval.resend-all');
         Route::get('/create', [HppController::class, 'create'])->name('create');
         Route::prefix('id/{hpp}')
             ->whereNumber('hpp')

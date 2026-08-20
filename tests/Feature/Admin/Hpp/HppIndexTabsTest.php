@@ -26,21 +26,27 @@ class HppIndexTabsTest extends TestCase
         $inReview = $this->hpp($admin, Hpp::STATUS_IN_REVIEW, 'TAB-REVIEW');
         $approved = $this->hpp($admin, Hpp::STATUS_APPROVED, 'TAB-APPROVED');
 
-        $this->actingAs($admin)
+        $actionResponse = $this->actingAs($admin)
             ->get(route('admin.hpp.index'))
             ->assertOk()
-            ->assertSee($draft->nomor_order)
-            ->assertSee($rejected->nomor_order)
-            ->assertDontSee($inReview->nomor_order)
-            ->assertDontSee($approved->nomor_order)
-            ->assertDontSee('Semua Status');
+            ->assertDontSee('Semua Status')
+            ->assertDontSee('Resend Semua');
 
-        $this->actingAs($admin)
+        $this->assertEqualsCanonicalizing(
+            [$draft->id, $rejected->id],
+            collect($actionResponse->viewData('rows')->items())->pluck('id')->all(),
+        );
+
+        $approvalResponse = $this->actingAs($admin)
             ->get(route('admin.hpp.index', ['tab' => HppIndexTabs::IN_APPROVAL]))
             ->assertOk()
-            ->assertSee($inReview->nomor_order)
-            ->assertDontSee($draft->nomor_order)
-            ->assertDontSee($approved->nomor_order);
+            ->assertSee('Resend Semua')
+            ->assertSee(route('admin.hpp.approval.resend-all'), false);
+
+        $this->assertSame(
+            [$inReview->id],
+            collect($approvalResponse->viewData('rows')->items())->pluck('id')->all(),
+        );
     }
 
     public function test_approved_and_history_tabs_follow_downstream_relationships(): void

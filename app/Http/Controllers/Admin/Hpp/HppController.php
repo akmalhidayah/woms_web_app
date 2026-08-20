@@ -14,6 +14,7 @@ use App\Models\UnitWork;
 use App\Models\User;
 use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\Approvals\ApprovalSignatureRollbackService;
+use App\Services\Approvals\BulkApprovalNotificationService;
 use App\Support\HppApprovalFlow;
 use App\Support\HppApprovalSignatureBuilder;
 use App\Support\HppDocumentNumberGenerator;
@@ -35,6 +36,7 @@ class HppController extends Controller
         private readonly ApprovalNotificationService $approvalNotificationService,
         private readonly ApprovalSignatureRollbackService $rollbackService,
         private readonly HppDocumentNumberGenerator $documentNumberGenerator,
+        private readonly BulkApprovalNotificationService $bulkNotificationService,
     ) {}
 
     public function index(Request $request): View
@@ -290,6 +292,13 @@ class HppController extends Controller
             'Link approval HPP berhasil dikirim ulang ke %s.',
             $signature->signer?->email ?: 'email approver',
         ));
+    }
+
+    public function resendAllActiveApprovals(): RedirectResponse
+    {
+        $result = $this->bulkNotificationService->resendActiveHppApprovals();
+
+        return back()->with('status', $this->bulkNotificationService->resultMessage('HPP', $result));
     }
 
     public function rollbackSignature(Request $request, Hpp $hpp, HppSignature $signature): RedirectResponse

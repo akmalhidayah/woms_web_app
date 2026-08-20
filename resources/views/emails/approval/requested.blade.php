@@ -90,6 +90,12 @@
                                     <td style="padding:0 18px 16px;color:#64748b;font-size:13px;">Nomor Order</td>
                                     <td style="padding:0 18px 16px;text-align:right;font-weight:800;">{{ $documentNumber }}</td>
                                 </tr>
+                                @if ($documentAmount !== null && filled($documentAmountLabel))
+                                    <tr>
+                                        <td style="padding:0 18px 16px;color:#64748b;font-size:13px;">{{ $documentAmountLabel }}</td>
+                                        <td style="padding:0 18px 16px;text-align:right;font-weight:800;">Rp {{ number_format($documentAmount, 0, ',', '.') }}</td>
+                                    </tr>
+                                @endif
                                 <tr>
                                     <td style="padding:0 18px 16px;color:#64748b;font-size:13px;">Role Approval</td>
                                     <td style="padding:0 18px 16px;text-align:right;font-weight:800;">{{ $roleLabel }}</td>

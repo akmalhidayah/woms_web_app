@@ -5,6 +5,9 @@ Halo Bpk/Ibu {{ $userName ?? 'Pengguna' }},
 Dokumen        : {{ $documentType }}
 Deskripsi      : {{ trim((string) ($documentDescription ?? '')) !== '' ? trim((string) $documentDescription) : '-' }}
 Nomor Order : {{ $documentNumber }}
+@if ($documentAmount !== null && filled($documentAmountLabel))
+{{ $documentAmountLabel }} : Rp {{ number_format($documentAmount, 0, ',', '.') }}
+@endif
 Role Approval : {{ $roleLabel }}
 
 Akses Login Approval

@@ -20,6 +20,8 @@ class ApprovalRequestedNotification extends Notification
         public readonly string $roleLabel,
         public readonly string $approvalUrl,
         public readonly ?Carbon $expiresAt,
+        public readonly ?string $documentAmountLabel = null,
+        public readonly ?int $documentAmount = null,
     ) {}
 
     /**
@@ -50,6 +52,8 @@ class ApprovalRequestedNotification extends Notification
                 'defaultPassword' => 'bengkelmesin123',
                 'approvalUrl' => $this->approvalUrl,
                 'expiresAt' => $this->expiresAt?->format('d/m/Y H:i'),
+                'documentAmountLabel' => $this->documentAmountLabel,
+                'documentAmount' => $this->documentAmount,
                 'guideTitle' => $guideFile?->original_name ?: 'Buku Panduan Role Approval',
                 'guideUrl' => $guideFile ? route('public.information-upload.preview', $guideFile) : null,
                 'logoStPath' => public_path('assets/branding/logos/logo-st.png'),

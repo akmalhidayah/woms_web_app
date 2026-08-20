@@ -247,6 +247,9 @@ class ApprovalEmailNotificationTest extends TestCase
             'unit_kerja' => $order->unit_kerja,
             'seksi' => $order->seksi,
             'tanggal_bast' => now()->toDateString(),
+            'total_aktual_biaya' => 900000,
+            'termin_1_nilai' => 855000,
+            'termin_2_nilai' => 45000,
             'approval_threshold' => 'under_250',
             'approval_flow' => ['Manager Test'],
             'approval_status' => LhppBast::APPROVAL_IN_REVIEW,
@@ -270,8 +273,17 @@ class ApprovalEmailNotificationTest extends TestCase
         Notification::assertSentTo(
             $approver,
             ApprovalRequestedNotification::class,
+            fn (ApprovalRequestedNotification $notification): bool => $notification->documentType === 'HPP'
+                && $notification->documentAmountLabel === 'Amount'
+                && $notification->documentAmount === 1000000
+        );
+        Notification::assertSentTo(
+            $approver,
+            ApprovalRequestedNotification::class,
             fn (ApprovalRequestedNotification $notification): bool => $notification->documentType === 'BAST/LHPP'
                 && $notification->documentNumber === $order->nomor_order.' Termin 1'
+                && $notification->documentAmountLabel === 'Amount'
+                && $notification->documentAmount === 855000
         );
 
         Garansi::create([
@@ -292,10 +304,52 @@ class ApprovalEmailNotificationTest extends TestCase
             ApprovalRequestedNotification::class,
             fn (ApprovalRequestedNotification $notification): bool => $notification->documentType === 'BAST/LHPP'
                 && $notification->documentNumber === $order->nomor_order
+                && $notification->documentAmountLabel === 'Amount'
+                && $notification->documentAmount === 900000
         );
 
         $inboxBast = ApprovalDocumentInbox::pendingDocumentsFor($approver, 'bast')->first();
         $this->assertSame($order->nomor_order, $inboxBast['number']);
+
+        $terminTwo = LhppBast::create([
+            ...$lhpp->only([
+                'order_id',
+                'hpp_id',
+                'nomor_order',
+                'notifikasi',
+                'deskripsi_pekerjaan',
+                'tipe_pekerjaan',
+                'unit_kerja',
+                'seksi',
+                'tanggal_bast',
+                'approval_threshold',
+                'approval_flow',
+                'approval_status',
+                'quality_control_status',
+                'created_by',
+                'updated_by',
+            ]),
+            'termin_type' => 'termin_2',
+            'parent_lhpp_bast_id' => $lhpp->id,
+            'total_aktual_biaya' => 900000,
+            'termin_1_nilai' => 855000,
+            'termin_2_nilai' => 45000,
+        ]);
+        $terminTwoSignature = $terminTwo->signatures()->create(
+            $this->baseBastSignature($approver, 'bast-termin-two-token'),
+        );
+
+        $this->assertTrue($service->sendBast($terminTwoSignature));
+        Notification::assertSentToTimes($approver, ApprovalRequestedNotification::class, 6);
+        Notification::assertSentTo(
+            $approver,
+            ApprovalRequestedNotification::class,
+            fn (ApprovalRequestedNotification $notification): bool => $notification->documentType === 'BAST/LHPP'
+                && $notification->documentNumber === $order->nomor_order.' Termin 2'
+                && $notification->documentAmountLabel === 'Amount'
+                && $notification->documentAmount === 45000
+        );
+
     }
 
     private function createAdmin(): User

@@ -327,7 +327,7 @@
 
             <div class="right-cost-column grid min-w-0 gap-3 xl:col-span-4">
                 @foreach ([
-                    ['title' => 'PROGNOSA DAN REALISASI BIAYA OPEX NON PEMELIHARAAN', 'icon' => 'building-2', 'accent' => 'bg-violet-600 text-white', 'background' => 'bg-violet-100', 'summary' => $nonMaintenanceSummary, 'canvas' => 'nonMaintenanceOutstandingChart', 'color' => '#7c3aed'],
+                    ['title' => 'PROGNOSA DAN REALISASI BIAYA JASA OPEX NON PEMELIHARAAN', 'icon' => 'building-2', 'accent' => 'bg-violet-600 text-white', 'background' => 'bg-violet-100', 'summary' => $nonMaintenanceSummary, 'canvas' => 'nonMaintenanceOutstandingChart', 'color' => '#7c3aed'],
                     ['title' => 'PROGNOSA DAN REALISASI BIAYA CAPEX', 'icon' => 'landmark', 'accent' => 'bg-cyan-600 text-white', 'background' => 'bg-cyan-100', 'summary' => $capexSummary, 'canvas' => 'capexOutstandingChart', 'color' => '#0891b2'],
                 ] as $costPanel)
                     <article class="flex min-w-0 flex-col rounded-xl p-3 {{ $costPanel['background'] }}">

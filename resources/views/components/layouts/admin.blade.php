@@ -832,7 +832,7 @@
 
                         @if ($orderMenu || $mainMenus !== [])
                             <div class="pb-0.5 pt-2" x-show="sidebarOpen" x-transition.opacity.duration.200ms>
-                                <div class="px-2.5 text-[10px] uppercase tracking-wider text-white/60">Menu Utama</div>
+                                <div class="px-2.5 text-[10px] uppercase tracking-wider text-white/60">Pekerjaan Jasa</div>
                             </div>
                         @endif
 
@@ -946,7 +946,7 @@
 
                         @if ($workshopMenus !== [])
                             <div class="pb-0.5 pt-2" x-show="sidebarOpen" x-transition.opacity.duration.200ms>
-                                <div class="px-2.5 text-[10px] uppercase tracking-wider text-white/60">Menu Bengkel</div>
+                                <div class="px-2.5 text-[10px] uppercase tracking-wider text-white/60">Pekerjaan Bengkel</div>
                             </div>
                         @endif
 

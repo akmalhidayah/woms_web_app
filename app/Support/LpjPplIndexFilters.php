@@ -28,8 +28,8 @@ class LpjPplIndexFilters
     {
         return [
             self::TAB_ACTION => 'Perlu Tindakan',
-            self::TAB_LPJ_COMPLETE => 'LPJ Lengkap',
-            self::TAB_DOCUMENTS_COMPLETE => 'Dokumen Lengkap',
+            self::TAB_LPJ_COMPLETE => 'Sudah LPJ',
+            self::TAB_DOCUMENTS_COMPLETE => 'Sudah PPL',
             self::TAB_COMPLETED => 'Selesai',
         ];
     }

@@ -693,7 +693,7 @@
             $sidebarMenus = \App\Support\AdminMenuRegistry::sidebarForUser($user);
             $dashboardMenu = $sidebarMenus['dashboard'];
             $inventoryMenu = $sidebarMenus['inventory'] ?? null;
-            $orderMenu = $sidebarMenus['orders'];
+            $orderMenu = $sidebarMenus['orders'] ?? null;
             $mainMenus = $sidebarMenus['main'];
             $supportMenus = $sidebarMenus['support'];
             $otherMenus = $sidebarMenus['other'];

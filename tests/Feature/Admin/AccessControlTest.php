@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\AdminRoleMenuAccess;
+use App\Models\Order;
 use App\Models\User;
 use App\Support\AdminMenuRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -32,6 +34,8 @@ class AccessControlTest extends TestCase
             ->assertSee('Menu Access Matrix')
             ->assertSee('Super Admin')
             ->assertSee('Admin')
+            ->assertSee('Order Pekerjaan Jasa')
+            ->assertSee('Order Pekerjaan Bengkel')
             ->assertDontSee('Admin Operasional')
             ->assertDontSee('Approval');
     }
@@ -63,7 +67,7 @@ class AccessControlTest extends TestCase
         $this->actingAs($superAdmin)
             ->put(route('admin.access-control.update'), [
                 'menu_keys' => [
-                    AdminMenuRegistry::MENU_ORDERS,
+                    AdminMenuRegistry::MENU_ORDER_JASA,
                     AdminMenuRegistry::MENU_CREATE_HPP,
                 ],
             ])
@@ -72,7 +76,7 @@ class AccessControlTest extends TestCase
 
         $this->assertDatabaseHas('admin_role_menu_accesses', [
             'admin_role' => User::ADMIN_ROLE_ADMIN,
-            'menu_key' => AdminMenuRegistry::MENU_ORDERS,
+            'menu_key' => AdminMenuRegistry::MENU_ORDER_JASA,
         ]);
         $this->assertDatabaseHas('admin_role_menu_accesses', [
             'admin_role' => User::ADMIN_ROLE_ADMIN,
@@ -98,6 +102,63 @@ class AccessControlTest extends TestCase
 
         $this->assertTrue($admin->hasAdminMenuAccess(AdminMenuRegistry::MENU_CREATE_HPP));
         $this->assertFalse($admin->hasAdminMenuAccess(AdminMenuRegistry::MENU_PURCHASE_ORDER));
+    }
+
+    public function test_order_jasa_and_bengkel_permissions_control_sidebar_and_backend_separately(): void
+    {
+        $jasaAdmin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_ADMIN,
+        ]);
+        $jasaOrder = $this->makeOrder($jasaAdmin, 'ORDER-JASA', OrderUserNoteStatus::ApprovedJasa);
+        $workshopOrder = $this->makeOrder($jasaAdmin, 'ORDER-BENGKEL', OrderUserNoteStatus::ApprovedWorkshop);
+
+        AdminRoleMenuAccess::query()->create([
+            'admin_role' => User::ADMIN_ROLE_ADMIN,
+            'menu_key' => AdminMenuRegistry::MENU_ORDER_JASA,
+        ]);
+
+        $this->actingAs($jasaAdmin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Order Pekerjaan Jasa')
+            ->assertDontSee('Order Pekerjaan Bengkel');
+        $this->actingAs($jasaAdmin)->get(route('admin.orders.index'))->assertOk();
+        $this->actingAs($jasaAdmin)->get(route('admin.orders.workshop.index'))->assertForbidden();
+        $this->actingAs($jasaAdmin)->get(route('admin.orders.show', $jasaOrder))->assertOk();
+        $this->actingAs($jasaAdmin)->get(route('admin.orders.show', $workshopOrder))->assertForbidden();
+
+        AdminRoleMenuAccess::query()->delete();
+        AdminRoleMenuAccess::query()->create([
+            'admin_role' => User::ADMIN_ROLE_ADMIN,
+            'menu_key' => AdminMenuRegistry::MENU_ORDER_BENGKEL,
+        ]);
+
+        $this->actingAs($jasaAdmin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertDontSee('Order Pekerjaan Jasa')
+            ->assertSee('Order Pekerjaan Bengkel');
+        $this->actingAs($jasaAdmin)->get(route('admin.orders.index'))->assertForbidden();
+        $this->actingAs($jasaAdmin)->get(route('admin.orders.workshop.index'))->assertOk();
+        $this->actingAs($jasaAdmin)->get(route('admin.orders.show', $jasaOrder))->assertForbidden();
+        $this->actingAs($jasaAdmin)->get(route('admin.orders.show', $workshopOrder))->assertOk();
+    }
+
+    public function test_legacy_orders_permission_temporarily_grants_both_split_order_menus(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_ADMIN,
+        ]);
+
+        AdminRoleMenuAccess::query()->create([
+            'admin_role' => User::ADMIN_ROLE_ADMIN,
+            'menu_key' => AdminMenuRegistry::MENU_ORDERS,
+        ]);
+
+        $this->assertTrue(AdminMenuRegistry::canAccess($admin, AdminMenuRegistry::MENU_ORDER_JASA));
+        $this->assertTrue(AdminMenuRegistry::canAccess($admin, AdminMenuRegistry::MENU_ORDER_BENGKEL));
     }
 
     public function test_admin_header_shortcuts_follow_global_menu_permission(): void
@@ -133,5 +194,22 @@ class AccessControlTest extends TestCase
             ->assertOk()
             ->assertSee('aria-label="Upload Informasi"', false)
             ->assertDontSee('aria-label="Struktur Organisasi"', false);
+    }
+
+    private function makeOrder(User $admin, string $number, OrderUserNoteStatus $status): Order
+    {
+        return Order::query()->create([
+            'nomor_order' => $number,
+            'notifikasi' => 'NOTIF-'.$number,
+            'nama_pekerjaan' => 'Pekerjaan '.$number,
+            'unit_kerja' => 'Unit Test',
+            'seksi' => 'Seksi Test',
+            'deskripsi' => 'Deskripsi',
+            'prioritas' => Order::PRIORITY_MEDIUM,
+            'catatan_status' => $status->value,
+            'tanggal_order' => '2026-08-01',
+            'target_selesai' => '2026-08-10',
+            'created_by' => $admin->id,
+        ]);
     }
 }

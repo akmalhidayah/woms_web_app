@@ -19,11 +19,21 @@ class AccessControlController extends Controller
      */
     public function index(): View
     {
+        $adminMenuKeys = AdminRoleMenuAccess::query()
+            ->where('admin_role', User::ADMIN_ROLE_ADMIN)
+            ->pluck('menu_key');
+
+        if ($adminMenuKeys->contains(AdminMenuRegistry::MENU_ORDERS)
+            && ! $adminMenuKeys->contains(AdminMenuRegistry::MENU_ORDER_JASA)
+            && ! $adminMenuKeys->contains(AdminMenuRegistry::MENU_ORDER_BENGKEL)) {
+            $adminMenuKeys->push(
+                AdminMenuRegistry::MENU_ORDER_JASA,
+                AdminMenuRegistry::MENU_ORDER_BENGKEL,
+            );
+        }
+
         return view('admin.access-control.index', [
-            'adminMenuKeys' => AdminRoleMenuAccess::query()
-                ->where('admin_role', User::ADMIN_ROLE_ADMIN)
-                ->pluck('menu_key')
-                ->all(),
+            'adminMenuKeys' => $adminMenuKeys->all(),
             'menuOptions' => $this->roleMatrixItems(),
         ]);
     }
@@ -85,6 +95,7 @@ class AccessControlController extends Controller
             ->all();
 
         return collect($definitions)
+            ->filter(fn (array $item): bool => ! ($item['access_control_hidden'] ?? false))
             ->filter(fn (array $item): bool => ! ($item['sidebar_hidden'] ?? false) || in_array($item['key'], $configurableKeys, true))
             ->map(function (array $item) use ($configurableKeys): array {
                 return [

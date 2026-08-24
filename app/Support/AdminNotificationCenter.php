@@ -20,7 +20,7 @@ class AdminNotificationCenter
     private array $readKeysCache = [];
 
     /**
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     * @return Collection<int, array<string, mixed>>
      */
     public function informationNotifications(?User $user, int $limit = 5): Collection
     {
@@ -78,7 +78,7 @@ class AdminNotificationCenter
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     * @return Collection<int, array<string, mixed>>
      */
     private static function allNotifications(?int $limit = null): Collection
     {
@@ -114,7 +114,7 @@ class AdminNotificationCenter
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     * @return Collection<int, array<string, mixed>>
      */
     private static function hppSignedNotifications(?int $limit): Collection
     {
@@ -144,7 +144,7 @@ class AdminNotificationCenter
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     * @return Collection<int, array<string, mixed>>
      */
     private static function initialWorkSignedNotifications(?int $limit): Collection
     {
@@ -157,7 +157,7 @@ class AdminNotificationCenter
             ->get()
             ->map(fn (InitialWorkSignature $signature): array => [
                 'key' => 'initial-work-signature:'.$signature->id,
-                'menu_key' => AdminMenuRegistry::MENU_ORDERS,
+                'menu_key' => AdminMenuRegistry::MENU_ORDER_JASA,
                 'type' => 'Initial Work',
                 'icon' => 'clipboard-pen-line',
                 'tone' => 'amber',
@@ -174,7 +174,7 @@ class AdminNotificationCenter
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     * @return Collection<int, array<string, mixed>>
      */
     private static function bastSignedNotifications(?int $limit): Collection
     {
@@ -212,7 +212,7 @@ class AdminNotificationCenter
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     * @return Collection<int, array<string, mixed>>
      */
     private static function pkmPurchaseOrderProgressNotifications(?int $limit): Collection
     {
@@ -223,7 +223,7 @@ class AdminNotificationCenter
             ->get()
             ->map(fn (PurchaseOrder $purchaseOrder): array => self::mapPkmProgressNotification(
                 key: 'pkm-po-progress:'.$purchaseOrder->id.':'.($purchaseOrder->updated_at?->timestamp ?? 0),
-                menuKey: AdminMenuRegistry::MENU_ORDERS,
+                menuKey: AdminMenuRegistry::MENU_ORDER_JASA,
                 nomorOrder: $purchaseOrder->order?->nomor_order ?: '-',
                 sourceLabel: 'PO',
                 progress: (int) ($purchaseOrder->progress_pekerjaan ?? 0),
@@ -234,7 +234,7 @@ class AdminNotificationCenter
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     * @return Collection<int, array<string, mixed>>
      */
     private static function pkmInitialWorkProgressNotifications(?int $limit): Collection
     {
@@ -244,7 +244,7 @@ class AdminNotificationCenter
             ->get()
             ->map(fn (InitialWork $initialWork): array => self::mapPkmProgressNotification(
                 key: 'pkm-initial-work-progress:'.$initialWork->id.':'.($initialWork->updated_at?->timestamp ?? 0),
-                menuKey: AdminMenuRegistry::MENU_ORDERS,
+                menuKey: AdminMenuRegistry::MENU_ORDER_JASA,
                 nomorOrder: $initialWork->nomor_order ?: '-',
                 sourceLabel: 'Initial Work',
                 progress: (int) ($initialWork->progress_pekerjaan ?? 0),

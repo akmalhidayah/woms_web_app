@@ -198,7 +198,7 @@ class AdminActionCenter
     {
         return [
             self::MODULE_ORDER_INCOMPLETE => [
-                'menu_key' => AdminMenuRegistry::MENU_ORDERS,
+                'menu_key' => AdminMenuRegistry::MENU_ORDER_JASA,
                 'summary_label' => 'Order perlu dilengkapi',
             ],
             self::MODULE_CREATE_HPP => [
@@ -378,7 +378,7 @@ class AdminActionCenter
             ->get(['id', 'nomor_order', 'nama_pekerjaan', 'updated_at'])
             ->map(fn (Order $order): array => $this->action(
                 key: 'order-sow:'.$order->id,
-                menuKey: AdminMenuRegistry::MENU_ORDERS,
+                menuKey: AdminMenuRegistry::MENU_ORDER_JASA,
                 type: 'Order',
                 title: 'Lengkapi Order',
                 message: 'Order '.$this->orderNumber($order).' belum memiliki Scope of Work.',

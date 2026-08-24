@@ -5,6 +5,7 @@ use App\Console\Commands\RunMaintenanceScanCommand;
 use App\Console\Commands\SyncBastSmPengendali;
 use App\Http\Middleware\EnsureAdminHasSubrole;
 use App\Http\Middleware\EnsureAdminMenuAccess;
+use App\Http\Middleware\EnsureAdminOrderMenuAccess;
 use App\Http\Middleware\EnsurePkmPanelAccess;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\Inventory\HandleInventoryApiExceptions;
@@ -30,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => EnsureUserHasRole::class,
             'admin_role' => EnsureAdminHasSubrole::class,
             'admin_menu' => EnsureAdminMenuAccess::class,
+            'admin_order_menu' => EnsureAdminOrderMenuAccess::class,
             'pkm_panel' => EnsurePkmPanelAccess::class,
         ]);
 

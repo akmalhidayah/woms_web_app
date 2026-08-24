@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\AdminRoleMenuAccess;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
@@ -12,6 +13,10 @@ class AdminMenuRegistry
     public const MENU_INVENTORY = 'inventory';
 
     public const MENU_ORDERS = 'orders';
+
+    public const MENU_ORDER_JASA = 'order_jasa';
+
+    public const MENU_ORDER_BENGKEL = 'order_bengkel';
 
     public const MENU_CREATE_HPP = 'create_hpp';
 
@@ -83,19 +88,41 @@ class AdminMenuRegistry
                 'group' => 'main',
                 'route_name' => 'admin.orders.index',
                 'active_patterns' => ['admin.orders.*'],
+                'configurable' => false,
+                'access_control_hidden' => true,
                 'children' => [
                     [
+                        'key' => self::MENU_ORDER_JASA,
                         'label' => 'Order Pekerjaan Jasa',
                         'badge_key' => 'order_jasa_incomplete',
                         'route_name' => 'admin.orders.index',
                         'active_patterns' => ['admin.orders.index', 'admin.orders.show', 'admin.orders.edit', 'admin.orders.create', 'admin.orders.scope-of-work.*'],
                     ],
                     [
+                        'key' => self::MENU_ORDER_BENGKEL,
                         'label' => 'Order Pekerjaan Bengkel',
                         'route_name' => 'admin.orders.workshop.index',
                         'active_patterns' => ['admin.orders.workshop.*'],
                     ],
                 ],
+            ],
+            self::MENU_ORDER_JASA => [
+                'key' => self::MENU_ORDER_JASA,
+                'label' => 'Order Pekerjaan Jasa',
+                'icon' => 'briefcase-business',
+                'group' => 'main',
+                'route_name' => 'admin.orders.index',
+                'active_patterns' => ['admin.orders.index', 'admin.orders.show', 'admin.orders.edit', 'admin.orders.create', 'admin.orders.scope-of-work.*'],
+                'sidebar_hidden' => true,
+            ],
+            self::MENU_ORDER_BENGKEL => [
+                'key' => self::MENU_ORDER_BENGKEL,
+                'label' => 'Order Pekerjaan Bengkel',
+                'icon' => 'factory',
+                'group' => 'main',
+                'route_name' => 'admin.orders.workshop.index',
+                'active_patterns' => ['admin.orders.workshop.*'],
+                'sidebar_hidden' => true,
             ],
             self::MENU_CREATE_HPP => [
                 'key' => self::MENU_CREATE_HPP,
@@ -256,6 +283,25 @@ class AdminMenuRegistry
 
         if (($item['always_visible'] ?? false) || $user->isSuperAdmin()) {
             return true;
+        }
+
+        if ($menuKey === self::MENU_ORDERS) {
+            return static::canAccess($user, self::MENU_ORDER_JASA)
+                || static::canAccess($user, self::MENU_ORDER_BENGKEL);
+        }
+
+        if (in_array($menuKey, [self::MENU_ORDER_JASA, self::MENU_ORDER_BENGKEL], true)) {
+            if ($user->hasAdminMenuAccess($menuKey)) {
+                return true;
+            }
+
+            $hasSplitOrderPermission = AdminRoleMenuAccess::query()
+                ->where('admin_role', User::ADMIN_ROLE_ADMIN)
+                ->whereIn('menu_key', [self::MENU_ORDER_JASA, self::MENU_ORDER_BENGKEL])
+                ->exists();
+
+            return ! $hasSplitOrderPermission
+                && $user->hasAdminMenuAccess(self::MENU_ORDERS);
         }
 
         return $user->hasAdminMenuAccess($menuKey);

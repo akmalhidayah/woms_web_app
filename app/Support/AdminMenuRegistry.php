@@ -80,40 +80,14 @@ class AdminMenuRegistry
                     ['key' => self::MENU_INVENTORY, 'label' => 'Master Data', 'route_name' => 'admin.inventory.master-data.index', 'active_patterns' => ['admin.inventory.master-data.*'], 'badge_count' => 0],
                 ],
             ],
-            self::MENU_ORDERS => [
-                'key' => self::MENU_ORDERS,
-                'label' => 'Order',
-                'badge_key' => 'orders_total',
-                'icon' => 'inbox',
-                'group' => 'main',
-                'route_name' => 'admin.orders.index',
-                'active_patterns' => ['admin.orders.*'],
-                'configurable' => false,
-                'access_control_hidden' => true,
-                'children' => [
-                    [
-                        'key' => self::MENU_ORDER_JASA,
-                        'label' => 'Order Pekerjaan Jasa',
-                        'badge_key' => 'order_jasa_incomplete',
-                        'route_name' => 'admin.orders.index',
-                        'active_patterns' => ['admin.orders.index', 'admin.orders.show', 'admin.orders.edit', 'admin.orders.create', 'admin.orders.scope-of-work.*'],
-                    ],
-                    [
-                        'key' => self::MENU_ORDER_BENGKEL,
-                        'label' => 'Order Pekerjaan Bengkel',
-                        'route_name' => 'admin.orders.workshop.index',
-                        'active_patterns' => ['admin.orders.workshop.*'],
-                    ],
-                ],
-            ],
             self::MENU_ORDER_JASA => [
                 'key' => self::MENU_ORDER_JASA,
                 'label' => 'Order Pekerjaan Jasa',
+                'badge_key' => 'order_jasa_incomplete',
                 'icon' => 'briefcase-business',
                 'group' => 'main',
                 'route_name' => 'admin.orders.index',
                 'active_patterns' => ['admin.orders.index', 'admin.orders.show', 'admin.orders.edit', 'admin.orders.create', 'admin.orders.scope-of-work.*'],
-                'sidebar_hidden' => true,
             ],
             self::MENU_ORDER_BENGKEL => [
                 'key' => self::MENU_ORDER_BENGKEL,
@@ -122,7 +96,6 @@ class AdminMenuRegistry
                 'group' => 'main',
                 'route_name' => 'admin.orders.workshop.index',
                 'active_patterns' => ['admin.orders.workshop.*'],
-                'sidebar_hidden' => true,
             ],
             self::MENU_CREATE_HPP => [
                 'key' => self::MENU_CREATE_HPP,
@@ -355,7 +328,7 @@ class AdminMenuRegistry
         return [
             'dashboard' => $items[self::MENU_DASHBOARD] ?? null,
             'inventory' => $items[self::MENU_INVENTORY] ?? null,
-            'orders' => $items[self::MENU_ORDERS] ?? null,
+            'orders' => null,
             'main' => array_values(array_filter(
                 $items,
                 fn (array $item) => $item['group'] === 'main'

@@ -7,8 +7,9 @@ use App\Models\Garansi;
 use App\Models\LhppBast;
 use App\Models\LhppBastImage;
 use App\Models\Order;
-use Illuminate\Http\Request;
+use App\Support\GaransiIndexTabs;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
@@ -18,12 +19,14 @@ use Throwable;
 
 class GaransiController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, GaransiIndexTabs $indexTabs): View
     {
         try {
             $search = trim((string) $request->string('search'));
+            $activeTab = $indexTabs->normalize($request->string('tab')->toString());
+            $eligibleOrders = $this->garansiEligibleOrders();
 
-            $garansiList = $this->garansiEligibleOrders()
+            $garansiQuery = $eligibleOrders
                 ->with([
                     'garansi:id,order_id,lhpp_bast_id,garansi_months,start_date,end_date',
                     'latestApprovedHpp' => fn ($query) => $query->select([
@@ -35,7 +38,11 @@ class GaransiController extends Controller
                         ->select(['id', 'order_id', 'parent_lhpp_bast_id', 'termin_type'])
                         ->whereIn('termin_type', ['termin_1', 'termin_2']),
                     'lhppBasts.images:id,lhpp_bast_id,file_path,file_name,mime_type',
-                ])
+                ]);
+
+            $indexTabs->apply($garansiQuery, $activeTab);
+
+            $garansiList = $garansiQuery
                 ->when($search !== '', function ($query) use ($search): void {
                     $query->where(function ($builder) use ($search): void {
                         $builder
@@ -89,6 +96,9 @@ class GaransiController extends Controller
             return view('admin.garansi.index', [
                 'search' => $search,
                 'garansiList' => $garansiList,
+                'activeTab' => $activeTab,
+                'tabOptions' => $indexTabs->options(),
+                'tabCounts' => $indexTabs->counts($this->garansiEligibleOrders()),
             ]);
         } catch (Throwable $exception) {
             Log::error('Failed to load admin garansi page.', [
@@ -148,7 +158,7 @@ class GaransiController extends Controller
             );
 
             return redirect()
-                ->route('admin.garansi.index', $request->only('search', 'page'))
+                ->route('admin.garansi.index', $request->only('search', 'tab', 'page'))
                 ->with('status', sprintf('Garansi untuk order %s berhasil diperbarui.', $order->nomor_order));
         } catch (Throwable $exception) {
             Log::error('Failed to update admin garansi.', [

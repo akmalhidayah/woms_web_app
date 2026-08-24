@@ -24,6 +24,7 @@ use App\Http\Controllers\Admin\PurchaseOrderController;
 use App\Http\Controllers\Admin\StructureOrganizationController;
 use App\Http\Controllers\Admin\UserImpersonationController;
 use App\Http\Controllers\Admin\UserPanelController;
+use App\Http\Controllers\Admin\WorkshopHandoverController;
 use App\Http\Controllers\Admin\WorkshopQualityControlController;
 use App\Http\Controllers\Approval\BastSignatureController;
 use App\Http\Controllers\Approval\HppSignatureController;
@@ -267,6 +268,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('admin/quality-control-bengkel', WorkshopQualityControlController::class)
         ->middleware(['role:admin', 'admin_menu:quality_control_bengkel'])
         ->name('admin.workshop-quality-control.index');
+    Route::get('admin/serah-terima-bengkel', WorkshopHandoverController::class)
+        ->middleware(['role:admin', 'admin_menu:serah_terima_bengkel'])
+        ->name('admin.workshop-handover.index');
     Route::get('admin/display-pekerjaan-bengkel/create', [BengkelTaskController::class, 'create'])
         ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
         ->name('admin.bengkel-tasks.create');

@@ -37,6 +37,7 @@ class AccessControlTest extends TestCase
             ->assertSee('Order Pekerjaan Jasa')
             ->assertSee('Order Pekerjaan Bengkel')
             ->assertSee('Quality Control')
+            ->assertSee('Serah Terima')
             ->assertDontSee('Admin Operasional')
             ->assertDontSee('Approval');
     }
@@ -129,6 +130,32 @@ class AccessControlTest extends TestCase
             ->assertSeeText('Monitoring pemeriksaan kualitas pekerjaan bengkel.')
             ->assertSeeText('Perlu Pemeriksaan')
             ->assertSeeText('Dalam Pemeriksaan');
+    }
+
+    public function test_workshop_handover_menu_has_independent_frontend_access(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_ADMIN,
+        ]);
+
+        AdminRoleMenuAccess::query()->create([
+            'admin_role' => User::ADMIN_ROLE_ADMIN,
+            'menu_key' => AdminMenuRegistry::MENU_SERAH_TERIMA_BENGKEL,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSeeText('Pekerjaan Bengkel')
+            ->assertSeeText('Serah Terima');
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop-handover.index'))
+            ->assertOk()
+            ->assertSeeText('Monitoring proses penyerahan hasil pekerjaan bengkel.')
+            ->assertSeeText('Menunggu Serah Terima')
+            ->assertSeeText('Dalam Proses');
     }
 
     public function test_order_jasa_and_bengkel_permissions_control_sidebar_and_backend_separately(): void

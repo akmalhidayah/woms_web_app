@@ -34,6 +34,8 @@ class AdminMenuRegistry
 
     public const MENU_QUALITY_CONTROL_BENGKEL = 'quality_control_bengkel';
 
+    public const MENU_SERAH_TERIMA_BENGKEL = 'serah_terima_bengkel';
+
     public const MENU_ACCESS_CONTROL = 'access_control';
 
     public const MENU_KUOTA_ANGGARAN_OA = 'kuota_anggaran_oa';
@@ -184,6 +186,14 @@ class AdminMenuRegistry
                 'group' => 'workshop',
                 'route_name' => 'admin.workshop-quality-control.index',
                 'active_patterns' => ['admin.workshop-quality-control.*'],
+            ],
+            self::MENU_SERAH_TERIMA_BENGKEL => [
+                'key' => self::MENU_SERAH_TERIMA_BENGKEL,
+                'label' => 'Serah Terima',
+                'icon' => 'handshake',
+                'group' => 'workshop',
+                'route_name' => 'admin.workshop-handover.index',
+                'active_patterns' => ['admin.workshop-handover.*'],
             ],
             self::MENU_ACCESS_CONTROL => [
                 'key' => self::MENU_ACCESS_CONTROL,

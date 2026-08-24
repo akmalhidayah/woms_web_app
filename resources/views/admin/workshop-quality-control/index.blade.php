@@ -21,31 +21,16 @@
             </div>
         </section>
 
-        <section class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div class="rounded-xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm">
-                <p class="text-[10px] font-semibold uppercase tracking-wider text-amber-700">Perlu Pemeriksaan</p>
-                <p class="mt-2 text-2xl font-bold text-slate-900">{{ $summary['needs_action'] }}</p>
-            </div>
-            <div class="rounded-xl border border-blue-200 bg-blue-50/60 p-4 shadow-sm">
-                <p class="text-[10px] font-semibold uppercase tracking-wider text-blue-700">Sedang Diproses</p>
-                <p class="mt-2 text-2xl font-bold text-slate-900">{{ $summary['in_progress'] }}</p>
-            </div>
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 shadow-sm">
-                <p class="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">Selesai</p>
-                <p class="mt-2 text-2xl font-bold text-slate-900">{{ $summary['completed'] }}</p>
-            </div>
-        </section>
-
         <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div class="grid grid-cols-1 gap-3 border-b border-slate-200 p-3 sm:p-4 lg:grid-cols-12 lg:items-end">
-                <div class="lg:col-span-6">
+            <div class="grid grid-cols-1 gap-3 border-b border-slate-200 p-3 sm:grid-cols-12 sm:items-end sm:p-4">
+                <div class="sm:col-span-6">
                     <label for="quality-control-search" class="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Pencarian</label>
                     <div class="relative">
                         <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
                         <input id="quality-control-search" type="search" placeholder="Cari nomor order / pekerjaan / unit..." class="h-10 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-xs text-slate-700 focus:border-blue-500 focus:outline-none">
                     </div>
                 </div>
-                <div class="lg:col-span-3">
+                <div class="sm:col-span-3">
                     <label for="quality-control-type" class="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Jenis QC</label>
                     <select id="quality-control-type" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs text-slate-700 focus:border-blue-500 focus:outline-none">
                         <option>Semua Jenis</option>
@@ -53,7 +38,7 @@
                         <option>Refurbish</option>
                     </select>
                 </div>
-                <div class="lg:col-span-3">
+                <div class="sm:col-span-3">
                     <label for="quality-control-status" class="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Status</label>
                     <select id="quality-control-status" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs text-slate-700 focus:border-blue-500 focus:outline-none">
                         <option>Semua Status</option>

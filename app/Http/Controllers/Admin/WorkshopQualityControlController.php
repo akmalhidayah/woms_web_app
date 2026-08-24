@@ -63,11 +63,6 @@ class WorkshopQualityControlController extends Controller
 
         return view('admin.workshop-quality-control.index', [
             'qualityControls' => $qualityControls,
-            'summary' => [
-                'needs_action' => $qualityControls->where('status', 'Perlu Pemeriksaan')->count(),
-                'in_progress' => $qualityControls->whereIn('status', ['Dalam Pemeriksaan', 'Menunggu Approval'])->count(),
-                'completed' => $qualityControls->where('status', 'Selesai')->count(),
-            ],
         ]);
     }
 }

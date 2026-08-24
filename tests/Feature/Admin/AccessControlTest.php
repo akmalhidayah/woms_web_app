@@ -36,6 +36,7 @@ class AccessControlTest extends TestCase
             ->assertSee('Admin')
             ->assertSee('Order Pekerjaan Jasa')
             ->assertSee('Order Pekerjaan Bengkel')
+            ->assertSee('Quality Control')
             ->assertDontSee('Admin Operasional')
             ->assertDontSee('Approval');
     }
@@ -102,6 +103,32 @@ class AccessControlTest extends TestCase
 
         $this->assertTrue($admin->hasAdminMenuAccess(AdminMenuRegistry::MENU_CREATE_HPP));
         $this->assertFalse($admin->hasAdminMenuAccess(AdminMenuRegistry::MENU_PURCHASE_ORDER));
+    }
+
+    public function test_workshop_quality_control_menu_has_independent_frontend_access(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_ADMIN,
+        ]);
+
+        AdminRoleMenuAccess::query()->create([
+            'admin_role' => User::ADMIN_ROLE_ADMIN,
+            'menu_key' => AdminMenuRegistry::MENU_QUALITY_CONTROL_BENGKEL,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSeeText('Pekerjaan Bengkel')
+            ->assertSeeText('Quality Control');
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop-quality-control.index'))
+            ->assertOk()
+            ->assertSeeText('Monitoring pemeriksaan kualitas pekerjaan bengkel.')
+            ->assertSeeText('Perlu Pemeriksaan')
+            ->assertSeeText('Dalam Pemeriksaan');
     }
 
     public function test_order_jasa_and_bengkel_permissions_control_sidebar_and_backend_separately(): void

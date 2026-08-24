@@ -32,6 +32,8 @@ class AdminMenuRegistry
 
     public const MENU_DISPLAY_PEKERJAAN_BENGKEL = 'display_pekerjaan_bengkel';
 
+    public const MENU_QUALITY_CONTROL_BENGKEL = 'quality_control_bengkel';
+
     public const MENU_ACCESS_CONTROL = 'access_control';
 
     public const MENU_KUOTA_ANGGARAN_OA = 'kuota_anggaran_oa';
@@ -174,6 +176,14 @@ class AdminMenuRegistry
                 'group' => 'workshop',
                 'route_name' => 'admin.bengkel-tasks.index',
                 'active_patterns' => ['admin.bengkel-tasks.*', 'admin.bengkel-pics.*'],
+            ],
+            self::MENU_QUALITY_CONTROL_BENGKEL => [
+                'key' => self::MENU_QUALITY_CONTROL_BENGKEL,
+                'label' => 'Quality Control',
+                'icon' => 'clipboard-check',
+                'group' => 'workshop',
+                'route_name' => 'admin.workshop-quality-control.index',
+                'active_patterns' => ['admin.workshop-quality-control.*'],
             ],
             self::MENU_ACCESS_CONTROL => [
                 'key' => self::MENU_ACCESS_CONTROL,

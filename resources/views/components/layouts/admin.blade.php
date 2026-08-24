@@ -695,6 +695,7 @@
             $inventoryMenu = $sidebarMenus['inventory'] ?? null;
             $orderMenu = $sidebarMenus['orders'] ?? null;
             $mainMenus = $sidebarMenus['main'];
+            $workshopMenus = $sidebarMenus['workshop'];
             $supportMenus = $sidebarMenus['support'];
             $otherMenus = $sidebarMenus['other'];
             $orderMenus = $orderMenu['children'] ?? [];
@@ -941,6 +942,34 @@
                                     @endif
                                 </a>
                             @endif
+                        @endforeach
+
+                        @if ($workshopMenus !== [])
+                            <div class="pb-0.5 pt-2" x-show="sidebarOpen" x-transition.opacity.duration.200ms>
+                                <div class="px-2.5 text-[10px] uppercase tracking-wider text-white/60">Menu Bengkel</div>
+                            </div>
+                        @endif
+
+                        @foreach ($workshopMenus as $workshopMenu)
+                            @php($workshopActive = $workshopMenu['active'] ?? false)
+                            <a
+                                href="{{ $workshopMenu['href'] }}"
+                                class="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ $workshopActive ? 'bg-white text-blue-900 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
+                            >
+                                <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition {{ $workshopActive ? 'bg-blue-100 text-blue-900' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
+                                    <i data-lucide="{{ $workshopMenu['icon'] }}" class="h-4 w-4"></i>
+                                </span>
+                                <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="font-medium">{{ $workshopMenu['label'] }}</span>
+                                @if (($workshopMenu['badge_count'] ?? 0) > 0)
+                                    <span
+                                        x-show="sidebarOpen"
+                                        x-transition.opacity.duration.200ms
+                                        class="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
+                                    >
+                                        {{ $workshopMenu['badge_count'] > 99 ? '99+' : $workshopMenu['badge_count'] }}
+                                    </span>
+                                @endif
+                            </a>
                         @endforeach
 
                         @if ($supportMenus !== [] || $otherMenus !== [] || $inventoryMenu)

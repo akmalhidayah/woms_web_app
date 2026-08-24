@@ -93,7 +93,7 @@ class AdminMenuRegistry
                 'key' => self::MENU_ORDER_BENGKEL,
                 'label' => 'Order Pekerjaan Bengkel',
                 'icon' => 'factory',
-                'group' => 'main',
+                'group' => 'workshop',
                 'route_name' => 'admin.orders.workshop.index',
                 'active_patterns' => ['admin.orders.workshop.*'],
             ],
@@ -171,7 +171,7 @@ class AdminMenuRegistry
                 'key' => self::MENU_DISPLAY_PEKERJAAN_BENGKEL,
                 'label' => 'Display Pekerjaan Bengkel',
                 'icon' => 'monitor',
-                'group' => 'support',
+                'group' => 'workshop',
                 'route_name' => 'admin.bengkel-tasks.index',
                 'active_patterns' => ['admin.bengkel-tasks.*', 'admin.bengkel-pics.*'],
             ],
@@ -334,6 +334,10 @@ class AdminMenuRegistry
                 fn (array $item) => $item['group'] === 'main'
                     && $item['key'] !== self::MENU_ORDERS
                     && ! ($item['sidebar_hidden'] ?? false),
+            )),
+            'workshop' => array_values(array_filter(
+                $items,
+                fn (array $item) => $item['group'] === 'workshop',
             )),
             'support' => array_values(array_filter(
                 $items,

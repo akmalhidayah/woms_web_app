@@ -38,6 +38,13 @@ class AccessControlTest extends TestCase
             ->assertSee('Order Pekerjaan Bengkel')
             ->assertSee('Quality Control')
             ->assertSee('Serah Terima')
+            ->assertSeeInOrder([
+                'Dashboard',
+                'Pekerjaan Jasa',
+                'Pekerjaan Bengkel',
+                'Menu Pendukung',
+                'Lainnya',
+            ])
             ->assertDontSee('Admin Operasional')
             ->assertDontSee('Approval');
     }

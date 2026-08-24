@@ -701,6 +701,10 @@
             $orderMenus = $orderMenu['children'] ?? [];
             $inventoryMenus = $inventoryMenu['children'] ?? [];
             $isOrdersSection = $orderMenu && ($orderMenu['active'] ?? false);
+            $isMainSection = collect($mainMenus)->contains(fn (array $menu) => $menu['active'] ?? false);
+            $isWorkshopSection = collect($workshopMenus)->contains(fn (array $menu) => $menu['active'] ?? false);
+            $mainMenuBadgeCount = collect($mainMenus)->sum(fn (array $menu) => (int) ($menu['badge_count'] ?? 0));
+            $workshopMenuBadgeCount = collect($workshopMenus)->sum(fn (array $menu) => (int) ($menu['badge_count'] ?? 0));
             $isInventorySection = $inventoryMenu && ($inventoryMenu['active'] ?? false);
             $isOtherSection = collect($otherMenus)->contains(fn (array $menu) => $menu['active'] ?? false);
             $roleBadge = $user?->isSuperAdmin() ? 'SUPER ADMIN' : strtoupper($user?->role ?? 'admin');
@@ -753,6 +757,8 @@
                 profileOpen: false,
                 notificationsOpen: false,
                 orderOpen: {{ $isOrdersSection ? 'true' : 'false' }},
+                mainOpen: {{ $isMainSection ? 'true' : 'false' }},
+                workshopOpen: {{ $isWorkshopSection ? 'true' : 'false' }},
                 inventoryOpen: {{ $isInventorySection ? 'true' : 'false' }},
                 otherOpen: {{ $isOtherSection ? 'true' : 'false' }},
                 toggleSidebar() {
@@ -831,9 +837,22 @@
                         @endif
 
                         @if ($orderMenu || $mainMenus !== [])
-                            <div class="pb-0.5 pt-2" x-show="sidebarOpen" x-transition.opacity.duration.200ms>
-                                <div class="px-2.5 text-[10px] uppercase tracking-wider text-white/60">Pekerjaan Jasa</div>
-                            </div>
+                            <button
+                                type="button"
+                                @click="mainOpen = !mainOpen; if (mainOpen) workshopOpen = false"
+                                x-show="sidebarOpen"
+                                x-transition.opacity.duration.200ms
+                                class="mt-2 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-white/65 transition hover:bg-white/10 hover:text-white"
+                                :aria-expanded="mainOpen.toString()"
+                            >
+                                <span class="flex-1">Pekerjaan Jasa</span>
+                                @if ($mainMenuBadgeCount > 0)
+                                    <span x-show="!mainOpen" class="inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[9px] font-semibold leading-none text-white">
+                                        {{ $mainMenuBadgeCount > 99 ? '99+' : $mainMenuBadgeCount }}
+                                    </span>
+                                @endif
+                                <i data-lucide="chevron-down" class="h-3.5 w-3.5 transition" :class="mainOpen ? 'rotate-180' : ''"></i>
+                            </button>
                         @endif
 
                         @if ($orderMenu)
@@ -879,6 +898,7 @@
                             </div>
                         @endif
 
+                        <div x-show="mainOpen || !sidebarOpen" x-transition.opacity.duration.200ms x-cloak class="space-y-0.5">
                         @foreach ($mainMenus as $menu)
                             @php($isActive = $menu['active'] ?? false)
                             @if (! empty($menu['children']))
@@ -943,13 +963,28 @@
                                 </a>
                             @endif
                         @endforeach
+                        </div>
 
                         @if ($workshopMenus !== [])
-                            <div class="pb-0.5 pt-2" x-show="sidebarOpen" x-transition.opacity.duration.200ms>
-                                <div class="px-2.5 text-[10px] uppercase tracking-wider text-white/60">Pekerjaan Bengkel</div>
-                            </div>
+                            <button
+                                type="button"
+                                @click="workshopOpen = !workshopOpen; if (workshopOpen) mainOpen = false"
+                                x-show="sidebarOpen"
+                                x-transition.opacity.duration.200ms
+                                class="mt-2 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-white/65 transition hover:bg-white/10 hover:text-white"
+                                :aria-expanded="workshopOpen.toString()"
+                            >
+                                <span class="flex-1">Pekerjaan Bengkel</span>
+                                @if ($workshopMenuBadgeCount > 0)
+                                    <span x-show="!workshopOpen" class="inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[9px] font-semibold leading-none text-white">
+                                        {{ $workshopMenuBadgeCount > 99 ? '99+' : $workshopMenuBadgeCount }}
+                                    </span>
+                                @endif
+                                <i data-lucide="chevron-down" class="h-3.5 w-3.5 transition" :class="workshopOpen ? 'rotate-180' : ''"></i>
+                            </button>
                         @endif
 
+                        <div x-show="workshopOpen || !sidebarOpen" x-transition.opacity.duration.200ms x-cloak class="space-y-0.5">
                         @foreach ($workshopMenus as $workshopMenu)
                             @php($workshopActive = $workshopMenu['active'] ?? false)
                             <a
@@ -971,6 +1006,7 @@
                                 @endif
                             </a>
                         @endforeach
+                        </div>
 
                         @if ($supportMenus !== [] || $otherMenus !== [] || $inventoryMenu)
                             <div class="pb-0.5 pt-2" x-show="sidebarOpen" x-transition.opacity.duration.200ms>

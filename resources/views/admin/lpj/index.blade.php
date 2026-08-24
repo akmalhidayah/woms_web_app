@@ -13,13 +13,50 @@
 
         <section class="order-list-panel overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 px-4 py-3">
+                <nav class="mb-3 overflow-x-auto" aria-label="Status dokumen LPJ dan PPL">
+                    <div class="flex min-w-max items-center gap-2 pb-1">
+                        @foreach ($tabOptions as $tabKey => $tabLabel)
+                            @php
+                                $isActiveTab = $activeTab === $tabKey;
+                                $tabQuery = array_filter([
+                                    'tab' => $tabKey,
+                                    'stage' => $selectedStage !== 'all' ? $selectedStage : null,
+                                    'search' => $search !== '' ? $search : null,
+                                    'po' => $selectedPo !== '' ? $selectedPo : null,
+                                ]);
+                            @endphp
+                            <a
+                                href="{{ route('admin.lpj.index', $tabQuery) }}"
+                                @if ($isActiveTab) aria-current="page" @endif
+                                class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-[10px] font-semibold transition {{ $isActiveTab ? 'border-sky-600 bg-sky-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50' }}"
+                            >
+                                <span>{{ $tabLabel }}</span>
+                                <span class="inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[9px] {{ $isActiveTab ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">
+                                    {{ $tabCounts[$tabKey] ?? 0 }}
+                                </span>
+                            </a>
+                        @endforeach
+                    </div>
+                </nav>
+
                 <form method="GET" action="{{ route('admin.lpj.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:flex lg:items-end lg:gap-2">
+                    <input type="hidden" name="tab" value="{{ $activeTab }}">
+
                     <div class="min-w-0 lg:w-[280px]">
                         <label class="mb-1 block text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-500">Pencarian</label>
                         <div class="relative">
                             <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 h-[12px] w-[12px] -translate-y-1/2 text-slate-400"></i>
                             <input type="text" name="search" value="{{ $search }}" placeholder="Cari nomor order" class="w-full rounded-lg border border-slate-300 px-8 py-1.5 text-[10px] text-slate-700 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none">
                         </div>
+                    </div>
+
+                    <div class="min-w-0 lg:w-[150px]">
+                        <label class="mb-1 block text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-500">Tahap</label>
+                        <select name="stage" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-700 focus:border-sky-500 focus:outline-none">
+                            @foreach ($stageOptions as $stageKey => $stageLabel)
+                                <option value="{{ $stageKey }}" @selected($selectedStage === $stageKey)>{{ $stageLabel }}</option>
+                            @endforeach
+                        </select>
                     </div>
 
                     <div class="min-w-0 lg:w-[210px]">
@@ -91,12 +128,9 @@
                                 $terminTwoEligible = (int) $garansiMonths > 0
                                     && $termin1Paid
                                     && $row->terminTwo?->approval_status === \App\Models\LhppBast::APPROVAL_APPROVED;
-                                $initialTermin = $terminTwoEligible && (filled($lpj?->lpj_number_termin2)
-                                    || filled($lpj?->ppl_number_termin2)
-                                    || filled($lpj?->lpj_document_path_termin2)
-                                    || filled($lpj?->ppl_document_path_termin2))
-                                        ? '2'
-                                        : '1';
+                                $initialTermin = $selectedStage === 'termin_2' || ($selectedStage === 'all' && $terminTwoEligible)
+                                    ? '2'
+                                    : '1';
                                 $documentName = fn (?string $path): string => $path ? basename(str_replace('\\', '/', $path)) : '';
                                 $displayDocumentName = fn (string $kind, ?string $path, string $terminType): string => $path
                                     ? (\App\Support\BastDisplayLabel::documentLabel($kind, $terminType, $garansiMonths).'-'.$nomorOrder.'.pdf')
@@ -151,6 +185,8 @@
                                         @method('PATCH')
                                         <input type="hidden" name="search" value="{{ $search }}">
                                         <input type="hidden" name="po" value="{{ $selectedPo }}">
+                                        <input type="hidden" name="tab" value="{{ $activeTab }}">
+                                        <input type="hidden" name="stage" value="{{ $selectedStage }}">
                                         <input type="hidden" name="page" value="{{ $lpjRows->currentPage() }}">
                                         <input id="remove-lpj-document-{{ $row->id }}" type="hidden" name="remove_lpj_document" value="0">
                                         <input id="remove-ppl-document-{{ $row->id }}" type="hidden" name="remove_ppl_document" value="0">
@@ -258,7 +294,14 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-8 text-center text-[11px] text-slate-500">Tidak ada data LPJ / PPL.</td>
+                                <td colspan="7" class="px-4 py-8 text-center text-[11px] text-slate-500">
+                                    {{ match ($activeTab) {
+                                        'lpj_complete' => 'Belum ada LPJ lengkap yang menunggu PPL.',
+                                        'documents_complete' => 'Belum ada dokumen lengkap yang menunggu penyelesaian pembayaran.',
+                                        'completed' => 'Belum ada LPJ / PPL yang selesai.',
+                                        default => 'Belum ada LPJ / PPL yang perlu tindakan.',
+                                    } }}
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>

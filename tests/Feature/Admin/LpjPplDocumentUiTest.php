@@ -55,7 +55,7 @@ class LpjPplDocumentUiTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->get(route('admin.lpj.index'))
+            ->get(route('admin.lpj.index', ['tab' => 'lpj_complete']))
             ->assertOk()
             ->assertSee('LPJ T1')
             ->assertSee('LPJ-Termin-1-ORD-LPJ-UI.pdf')
@@ -118,7 +118,7 @@ class LpjPplDocumentUiTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->get(route('admin.lpj.index'))
+            ->get(route('admin.lpj.index', ['tab' => 'documents_complete']))
             ->assertOk()
             ->assertSee('id="termin-select-'.$lhpp->id.'" type="hidden" name="selected_termin" value="1"', false)
             ->assertSee('LPJ-ORD-LPJ-SINGLE.pdf')
@@ -126,8 +126,6 @@ class LpjPplDocumentUiTest extends TestCase
             ->assertSee('Pembayaran')
             ->assertDontSee('LPJ T1')
             ->assertDontSee('PPL T1')
-            ->assertDontSee('Tanpa T2')
-            ->assertDontSee('>Termin 1<', false)
-            ->assertDontSee('>Termin 2<', false);
+            ->assertDontSee('Tanpa T2');
     }
 }

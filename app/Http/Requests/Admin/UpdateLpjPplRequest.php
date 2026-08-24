@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\LpjPplIndexFilters;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateLpjPplRequest extends FormRequest
 {
@@ -12,7 +15,7 @@ class UpdateLpjPplRequest extends FormRequest
     }
 
     /**
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -28,6 +31,8 @@ class UpdateLpjPplRequest extends FormRequest
             'termin2_status' => ['required_if:selected_termin,2', 'nullable', 'in:belum,sudah'],
             'search' => ['nullable', 'string', 'max:255'],
             'po' => ['nullable', 'string', 'max:255'],
+            'tab' => ['nullable', 'string', Rule::in(array_keys(app(LpjPplIndexFilters::class)->tabOptions()))],
+            'stage' => ['nullable', 'string', Rule::in(array_keys(app(LpjPplIndexFilters::class)->stageOptions()))],
             'page' => ['nullable', 'integer', 'min:1'],
         ];
     }

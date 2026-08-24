@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\UpdateLpjPplRequest;
 use App\Models\LhppBast;
 use App\Services\Admin\LpjPplUpdateService;
 use App\Support\BastDisplayLabel;
+use App\Support\LpjPplIndexFilters;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\RedirectResponse;
@@ -20,11 +21,13 @@ use Throwable;
 
 class LpjPplController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, LpjPplIndexFilters $indexFilters): View
     {
         try {
             $search = trim((string) $request->string('search'));
             $selectedPo = trim((string) $request->string('po'));
+            $activeTab = $indexFilters->normalizeTab($request->string('tab')->toString());
+            $selectedStage = $indexFilters->normalizeStage($request->string('stage')->toString());
 
             $poOptions = LhppBast::query()
                 ->where('termin_type', 'termin_1')
@@ -36,7 +39,7 @@ class LpjPplController extends Controller
                 ->unique()
                 ->values();
 
-            $lpjRows = LhppBast::query()
+            $lpjRowsQuery = LhppBast::query()
                 ->with([
                     'order:id,nomor_order,notifikasi,nama_pekerjaan,unit_kerja,seksi',
                     'purchaseOrder:id,order_id,purchase_order_number',
@@ -62,12 +65,26 @@ class LpjPplController extends Controller
                             });
                     });
                 })
-                ->when($selectedPo !== '', fn ($query) => $query->where('purchase_order_number', $selectedPo))
+                ->when($selectedPo !== '', fn ($query) => $query->where('purchase_order_number', $selectedPo));
+
+            $indexFilters->apply($lpjRowsQuery, $activeTab, $selectedStage);
+
+            $lpjRows = $lpjRowsQuery
                 ->latest('id')
                 ->paginate(10)
                 ->withQueryString();
 
-            return view('admin.lpj.index', compact('search', 'selectedPo', 'poOptions', 'lpjRows'));
+            return view('admin.lpj.index', [
+                'search' => $search,
+                'selectedPo' => $selectedPo,
+                'poOptions' => $poOptions,
+                'lpjRows' => $lpjRows,
+                'activeTab' => $activeTab,
+                'tabOptions' => $indexFilters->tabOptions(),
+                'tabCounts' => $indexFilters->counts($selectedStage),
+                'selectedStage' => $selectedStage,
+                'stageOptions' => $indexFilters->stageOptions(),
+            ]);
         } catch (Throwable $exception) {
             Log::error('Failed to load admin LPJ/PPL index page.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
@@ -83,8 +100,7 @@ class LpjPplController extends Controller
         UpdateLpjPplRequest $request,
         int $lhppId,
         LpjPplUpdateService $updateService,
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         $validated = $request->validated();
 
         try {
@@ -100,6 +116,8 @@ class LpjPplController extends Controller
                 ->route('admin.lpj.index', array_filter([
                     'search' => $validated['search'] ?? null,
                     'po' => $validated['po'] ?? null,
+                    'tab' => $validated['tab'] ?? null,
+                    'stage' => $validated['stage'] ?? null,
                     'page' => $validated['page'] ?? null,
                 ]))
                 ->with('status', sprintf('Data %s untuk order %s berhasil diperbarui.', $label, $lhpp->nomor_order));

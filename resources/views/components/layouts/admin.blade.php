@@ -705,6 +705,10 @@
             $isWorkshopSection = collect($workshopMenus)->contains(fn (array $menu) => $menu['active'] ?? false);
             $mainMenuBadgeCount = collect($mainMenus)->sum(fn (array $menu) => (int) ($menu['badge_count'] ?? 0));
             $workshopMenuBadgeCount = collect($workshopMenus)->sum(fn (array $menu) => (int) ($menu['badge_count'] ?? 0));
+            $defaultMainSectionOpen = $isMainSection
+                || (! $isWorkshopSection && $mainMenus !== [] && ($user?->isSuperAdmin() || $workshopMenus === []));
+            $defaultWorkshopSectionOpen = $isWorkshopSection
+                || (! $isMainSection && $workshopMenus !== [] && (! $user?->isSuperAdmin() || $mainMenus === []));
             $isInventorySection = $inventoryMenu && ($inventoryMenu['active'] ?? false);
             $isOtherSection = collect($otherMenus)->contains(fn (array $menu) => $menu['active'] ?? false);
             $roleBadge = $user?->isSuperAdmin() ? 'SUPER ADMIN' : strtoupper($user?->role ?? 'admin');
@@ -757,8 +761,8 @@
                 profileOpen: false,
                 notificationsOpen: false,
                 orderOpen: {{ $isOrdersSection ? 'true' : 'false' }},
-                mainOpen: {{ $isMainSection ? 'true' : 'false' }},
-                workshopOpen: {{ $isWorkshopSection ? 'true' : 'false' }},
+                mainOpen: {{ $defaultMainSectionOpen ? 'true' : 'false' }},
+                workshopOpen: {{ $defaultWorkshopSectionOpen ? 'true' : 'false' }},
                 inventoryOpen: {{ $isInventorySection ? 'true' : 'false' }},
                 otherOpen: {{ $isOtherSection ? 'true' : 'false' }},
                 toggleSidebar() {

@@ -113,6 +113,44 @@ class AccessControlTest extends TestCase
         $this->assertFalse($admin->hasAdminMenuAccess(AdminMenuRegistry::MENU_PURCHASE_ORDER));
     }
 
+    public function test_sidebar_accordion_uses_role_default_and_keeps_active_section_open(): void
+    {
+        $superAdmin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('mainOpen: true', false)
+            ->assertSee('workshopOpen: false', false);
+
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_ADMIN,
+        ]);
+
+        foreach ([AdminMenuRegistry::MENU_ORDER_JASA, AdminMenuRegistry::MENU_ORDER_BENGKEL] as $menuKey) {
+            AdminRoleMenuAccess::query()->create([
+                'admin_role' => User::ADMIN_ROLE_ADMIN,
+                'menu_key' => $menuKey,
+            ]);
+        }
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('mainOpen: false', false)
+            ->assertSee('workshopOpen: true', false);
+
+        $this->actingAs($superAdmin)
+            ->get(route('admin.orders.workshop.index'))
+            ->assertOk()
+            ->assertSee('mainOpen: false', false)
+            ->assertSee('workshopOpen: true', false);
+    }
+
     public function test_workshop_quality_control_menu_has_independent_frontend_access(): void
     {
         $admin = User::factory()->create([

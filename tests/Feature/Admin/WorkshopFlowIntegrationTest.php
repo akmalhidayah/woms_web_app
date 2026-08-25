@@ -69,6 +69,37 @@ class WorkshopFlowIntegrationTest extends TestCase
             ->assertSessionDoesntHaveErrors();
     }
 
+    public function test_readiness_fields_can_be_saved_incrementally_for_legacy_advanced_progress(): void
+    {
+        $admin = $this->superAdmin();
+        [$order] = $this->workshopOrder($admin, OrderWorkshop::PROGRESS_IN_PROGRESS);
+
+        $this->actingAs($admin)
+            ->patchJson(route('admin.orders.workshop.update', $order), [
+                'konfirmasi_anggaran' => OrderWorkshop::KONFIRMASI_MATERIAL_READY,
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('order_workshops', [
+            'order_id' => $order->id,
+            'konfirmasi_anggaran' => OrderWorkshop::KONFIRMASI_MATERIAL_READY,
+            'status_material' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson(route('admin.orders.workshop.update', $order), [
+                'status_material' => OrderWorkshop::STATUS_MATERIAL_GOOD_ISSUE,
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('order_workshops', [
+            'order_id' => $order->id,
+            'konfirmasi_anggaran' => OrderWorkshop::KONFIRMASI_MATERIAL_READY,
+            'status_material' => OrderWorkshop::STATUS_MATERIAL_GOOD_ISSUE,
+            'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
+        ]);
+    }
+
     public function test_qc_draft_has_no_signatures_and_real_queues_render(): void
     {
         $admin = $this->superAdmin();

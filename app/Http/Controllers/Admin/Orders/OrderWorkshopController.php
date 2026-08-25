@@ -135,7 +135,8 @@ class OrderWorkshopController extends Controller
         $candidate = clone $workshop;
         $candidate->fill(collect($validated)->map(fn ($value) => $value === '' ? null : $value)->all());
 
-        if ($this->workshopReadiness->requiresReadiness($requestedProgress)
+        if (array_key_exists('progress_status', $validated)
+            && $this->workshopReadiness->requiresReadiness($requestedProgress)
             && ! $this->workshopReadiness->canAdvance($candidate)) {
             throw ValidationException::withMessages([
                 'progress_status' => 'Konfirmasi anggaran dan status material harus dilengkapi melalui menu Order Pekerjaan Bengkel sebelum progress dapat dilanjutkan.',

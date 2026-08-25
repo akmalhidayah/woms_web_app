@@ -47,13 +47,7 @@
     $selectedProgressStatus = old('progress_status', $task?->progress_status ?? \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL);
     $selectedPendingReason = old('pending_reason', $task?->pending_reason);
     $linkedOrder = $task?->order;
-    $isDisplayManagedOrder = $linkedOrder
-        && (
-            str_contains((string) $linkedOrder->deskripsi, 'Dibuat dari Display Pekerjaan Bengkel.')
-            || str_contains((string) $linkedOrder->deskripsi, 'Arsip dari Display Pekerjaan Bengkel.')
-            || str_starts_with((string) $linkedOrder->nomor_order, 'MANUAL-BENGKEL-')
-        );
-    $isOrderLocked = $linkedOrder && ! $isDisplayManagedOrder;
+    $isOrderLocked = (bool) $linkedOrder;
     $selectedRegu = old('catatan', $task?->catatan);
     $progressOptions = $progressOptions ?? \App\Models\OrderWorkshop::progressOptions();
     $unitsPayload = $units->map(fn ($unit) => [
@@ -80,17 +74,23 @@
             <div class="space-y-4">
                 <div>
                     <input id="order_id" type="hidden" name="order_id" value="{{ $selectedOrderId }}">
-                    <label for="notification_number" class="mb-1.5 block text-[11px] font-semibold text-slate-700">Nomor Order / Notifikasi</label>
+                    <label for="nomor_order" class="mb-1.5 block text-[11px] font-semibold text-slate-700">Nomor Order</label>
                     @if ($isOrderLocked)
-                        <input id="notification_number" type="hidden" name="notification_number" value="{{ $selectedNotificationNumber }}">
                         <div class="rounded-xl border border-blue-100 bg-blue-50/60 px-3 py-2.5 text-sm font-semibold text-slate-800">
                             {{ $linkedOrder->nomor_order ?: '-' }} - {{ \Illuminate\Support\Str::limit($linkedOrder->nama_pekerjaan, 90) }}
                         </div>
                         <div class="mt-1 text-[10px] text-slate-500">Data pekerjaan otomatis mengikuti Order Pekerjaan Bengkel. Lengkapi PIC, uraian, dan lampiran melalui tombol edit ini.</div>
                     @else
-                        <input id="notification_number" type="text" name="notification_number" value="{{ $selectedNotificationNumber }}" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none" placeholder="Ketik nomor order / notifikasi manual">
-                        <div class="mt-1 text-[10px] text-slate-500">Isi manual. Data ini otomatis dibuatkan Order Pekerjaan Bengkel agar tampil juga di dashboard user.</div>
+                        <input id="nomor_order" type="text" name="nomor_order" value="{{ old('nomor_order') }}" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none" placeholder="Masukkan nomor order" required>
                     @endif
+                    @error('nomor_order')
+                        <div class="mt-1 text-[11px] font-medium text-rose-600">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div>
+                    <label for="notification_number" class="mb-1.5 block text-[11px] font-semibold text-slate-700">Nomor Notifikasi <span class="font-normal text-slate-400">(opsional)</span></label>
+                    <input id="notification_number" type="text" name="notification_number" value="{{ $selectedNotificationNumber }}" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none" placeholder="Masukkan nomor notifikasi">
                     @error('order_id')
                         <div class="mt-1 text-[11px] font-medium text-rose-600">{{ $message }}</div>
                     @enderror

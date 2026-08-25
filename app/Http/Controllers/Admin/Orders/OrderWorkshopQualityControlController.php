@@ -16,9 +16,11 @@ use App\Support\SignatureImageStorage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -27,8 +29,7 @@ class OrderWorkshopQualityControlController extends Controller
     public function __construct(
         private readonly QualityControlSignatureService $signatureService,
         private readonly ApprovalNotificationService $approvalNotificationService,
-    ) {
-    }
+    ) {}
 
     public function create(Order $order): View|RedirectResponse
     {
@@ -66,20 +67,38 @@ class OrderWorkshopQualityControlController extends Controller
         $type = $guard;
         $validated = $this->validateReport($request, $type);
 
-        $report = QualityControlReport::create([
-            'order_id' => $order->id,
-            'bengkel_task_id' => BengkelTask::query()->where('order_id', $order->id)->latest('id')->value('id'),
-            'type' => $type,
-            'report_no' => $this->suggestReportNumber(),
-            'report_date' => $validated['report_date'] ?? null,
-            'status' => $validated['status'] ?? QualityControlReport::STATUS_DRAFT,
-            'payload' => $this->payloadFromRequest($request, $type),
-            'created_by' => $request->user()?->id,
-            'updated_by' => $request->user()?->id,
-        ]);
+        if ($order->qualityControlReports()->exists()) {
+            return back()->withErrors([
+                'quality_control' => 'Order ini sudah mempunyai laporan Quality Control aktif.',
+            ])->withInput();
+        }
+
+        $report = DB::transaction(function () use ($order, $type, $validated, $request): QualityControlReport {
+            $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->id);
+
+            if ($lockedOrder->qualityControlReports()->exists()) {
+                throw ValidationException::withMessages([
+                    'quality_control' => 'Order ini sudah mempunyai laporan Quality Control aktif.',
+                ]);
+            }
+
+            return QualityControlReport::create([
+                'order_id' => $lockedOrder->id,
+                'bengkel_task_id' => BengkelTask::query()->where('order_id', $lockedOrder->id)->latest('id')->value('id'),
+                'type' => $type,
+                'report_no' => $this->suggestReportNumber(),
+                'report_date' => $validated['report_date'] ?? null,
+                'status' => $validated['status'] ?? QualityControlReport::STATUS_DRAFT,
+                'payload' => $this->payloadFromRequest($request, $type),
+                'created_by' => $request->user()?->id,
+                'updated_by' => $request->user()?->id,
+            ]);
+        });
 
         $this->storeUploadedFiles($request, $report, $type);
-        $signatureResult = $this->signatureService->createSignatureChain($report->fresh('order'));
+        $signatureResult = $report->status === QualityControlReport::STATUS_SUBMITTED
+            ? $this->signatureService->createSignatureChain($report->fresh('order'))
+            : ['workshop_url' => null, 'workshop_signature' => null, 'user_signature' => null];
 
         $redirect = redirect()
             ->route('admin.orders.workshop.quality-control.edit', [$order, $report])
@@ -147,7 +166,9 @@ class OrderWorkshopQualityControlController extends Controller
         ]);
 
         $this->storeUploadedFiles($request, $qualityControlReport, $type);
-        $signatureResult = $this->signatureService->rebuildIfUnsigned($qualityControlReport->refresh()->load('order'));
+        $signatureResult = $qualityControlReport->status === QualityControlReport::STATUS_SUBMITTED
+            ? $this->signatureService->rebuildIfUnsigned($qualityControlReport->refresh()->load('order'))
+            : ['workshop_url' => null, 'workshop_signature' => null, 'user_signature' => null];
 
         $redirect = redirect()
             ->route('admin.orders.workshop.quality-control.edit', [$order, $qualityControlReport])

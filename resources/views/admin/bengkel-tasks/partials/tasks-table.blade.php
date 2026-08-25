@@ -102,6 +102,15 @@
                                     </div>
                                 @endif
                                 <span>{{ optional($task->usage_plan_date)->format('d-m-Y') ?: '-' }}</span>
+                                @php($readiness = $task->getAttribute('workshop_readiness'))
+                                @if (is_array($readiness))
+                                    <span class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold {{ $readiness['can_advance'] ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700' }}">{{ $readiness['label'] }}</span>
+                                    @if (! $readiness['can_advance'] && auth()->user() && \App\Support\AdminMenuRegistry::canAccess(auth()->user(), \App\Support\AdminMenuRegistry::MENU_ORDER_BENGKEL) && $task->order)
+                                        <a href="{{ route('admin.orders.workshop.index', ['search' => $task->order->nomor_order, 'readiness' => 'incomplete']) }}" class="text-[9px] font-semibold text-blue-700 underline">Lengkapi di Order Pekerjaan Bengkel</a>
+                                    @elseif (! $readiness['can_advance'])
+                                        <span class="text-[9px] text-slate-500">Harus dilengkapi admin Order Pekerjaan Bengkel.</span>
+                                    @endif
+                                @endif
                             </div>
                         </td>
 

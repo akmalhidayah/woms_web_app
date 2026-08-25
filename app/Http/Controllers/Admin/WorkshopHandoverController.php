@@ -3,49 +3,27 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\BengkelTasks\WorkshopHandoverQueue;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class WorkshopHandoverController extends Controller
 {
-    public function __invoke(): View
+    public function __invoke(Request $request, WorkshopHandoverQueue $queue): View
     {
-        // Data sementara untuk mematangkan tampilan sebelum alur serah terima ditentukan.
-        $handovers = collect([
-            [
-                'order_number' => '17049907',
-                'notification_number' => '300001960812',
-                'work_name' => '408RE01M2.1 FABRIKASI PORTAL KABEL',
-                'unit' => 'Elins Maintenance 2',
-                'section' => 'Line 4/5 RKC Electrical Maint',
-                'recipient' => 'Muh. Akbar',
-                'date' => '25-08-2026',
-                'status' => 'Menunggu Serah Terima',
-                'tone' => 'amber',
-            ],
-            [
-                'order_number' => 'MANUAL-BENGKEL-000206',
-                'notification_number' => '-',
-                'work_name' => 'FABRIKASI CEKHOLE BIN PASIR BESI RAWMILL 5',
-                'unit' => 'Clinker Production',
-                'section' => 'Line 4 RKC Operation',
-                'recipient' => 'Haerullah',
-                'date' => '24-08-2026',
-                'status' => 'Dalam Proses',
-                'tone' => 'blue',
-            ],
-            [
-                'order_number' => '17049873',
-                'notification_number' => '300001958640',
-                'work_name' => '417-CC01-PERBAIKAN PEMBUANGAN DUST TRAP OVH 2027',
-                'unit' => 'Clinker Production',
-                'section' => 'Line 4 RKC Operation',
-                'recipient' => 'Herman R.',
-                'date' => '22-08-2026',
-                'status' => 'Selesai',
-                'tone' => 'emerald',
-            ],
-        ]);
+        $search = trim((string) $request->string('search'));
+        $path = trim((string) $request->string('path'));
+        $handovers = $queue->query()
+            ->when($search !== '', fn ($query) => $query->where(function ($query) use ($search): void {
+                $query->where('nomor_order', 'like', "%{$search}%")
+                    ->orWhere('nama_pekerjaan', 'like', "%{$search}%")
+                    ->orWhere('unit_kerja', 'like', "%{$search}%");
+            }))
+            ->latest('id')
+            ->get()
+            ->filter(fn ($order): bool => $path === '' || $queue->path($order) === $path)
+            ->values();
 
-        return view('admin.workshop-handover.index', compact('handovers'));
+        return view('admin.workshop-handover.index', compact('handovers', 'queue', 'search', 'path'));
     }
 }

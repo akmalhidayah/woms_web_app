@@ -52,7 +52,7 @@ class WorkshopOrderTaskSyncer
         $task->forceFill([
             'order_id' => $order->id,
             'job_name' => $jobName !== '' ? $jobName : ($order->nomor_order ?: 'PEKERJAAN BENGKEL'),
-            'notification_number' => $order->nomor_order ?: $order->notifikasi,
+            'notification_number' => $order->notifikasi,
             'unit_work' => $order->unit_kerja,
             'seksi' => $order->seksi,
             'usage_plan_date' => $order->target_selesai ?: $order->tanggal_order,
@@ -76,16 +76,6 @@ class WorkshopOrderTaskSyncer
 
     private function resolveTask(Order $order): BengkelTask
     {
-        $archivedTask = BengkelTask::query()
-            ->where('order_id', $order->id)
-            ->whereNotNull('archived_at')
-            ->latest('id')
-            ->first();
-
-        if ($archivedTask) {
-            return $archivedTask;
-        }
-
         $activeTask = BengkelTask::query()
             ->where('order_id', $order->id)
             ->whereNull('archived_at')
@@ -116,7 +106,7 @@ class WorkshopOrderTaskSyncer
             }
         }
 
-        return new BengkelTask();
+        return new BengkelTask;
     }
 
     private function resolveRegu(Order $order, BengkelTask $task): string

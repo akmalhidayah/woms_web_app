@@ -4,31 +4,36 @@ namespace App\Http\Controllers\Admin\Orders;
 
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\Orders\StoreOrderRequest;
 use App\Http\Requests\Admin\Orders\UpdateOrderWorkshopRequest;
 use App\Models\BengkelTask;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
+use App\Models\QualityControlReport;
 use App\Models\UnitWork;
 use App\Models\User;
-use App\Services\QualityControl\QualityControlSignatureService;
 use App\Services\BengkelTasks\WorkshopOrderTaskSyncer;
+use App\Support\WorkshopReadiness;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class OrderWorkshopController extends Controller
 {
     public function __construct(
-        private readonly QualityControlSignatureService $qualityControlSignatureService,
         private readonly WorkshopOrderTaskSyncer $workshopOrderTaskSyncer,
-    ) {
-    }
+        private readonly WorkshopReadiness $workshopReadiness,
+    ) {}
 
     public function index(Request $request): View
     {
         $search = trim((string) $request->string('search'));
         $progress = trim((string) $request->string('progress'));
         $regu = trim((string) $request->string('regu'));
+        $readiness = trim((string) $request->string('readiness'));
         $perPage = 10;
 
         $orders = Order::query()
@@ -56,23 +61,18 @@ class OrderWorkshopController extends Controller
                 $query->whereHas('orderWorkshop', fn ($builder) => $builder->where('progress_status', $progress));
             })
             ->when($regu !== '', fn ($query) => $query->where('catatan', $regu))
+            ->when($readiness === 'incomplete', fn ($query) => $this->workshopReadiness->applyIncomplete($query))
             ->orderByDesc('tanggal_order')
             ->orderByDesc('id')
             ->paginate($perPage)
             ->withQueryString();
-
-        $orders->getCollection()->each(function (Order $order): void {
-            if ($order->latestQualityControlReport) {
-                $this->qualityControlSignatureService->ensureSignatureChain($order->latestQualityControlReport);
-                $order->latestQualityControlReport->load('signatures.signer:id,name,email,nomor_hp');
-            }
-        });
 
         return view('admin.orders.workshop.index', [
             'orders' => $orders,
             'search' => $search,
             'selectedProgress' => $progress,
             'selectedRegu' => $regu,
+            'selectedReadiness' => $readiness,
             'progressOptions' => OrderWorkshop::progressOptions(),
             'materialOptions' => OrderWorkshop::materialOptions(),
             'konfirmasiOptions' => OrderWorkshop::konfirmasiAnggaranOptions(),
@@ -90,7 +90,31 @@ class OrderWorkshopController extends Controller
             'approvalReassignmentUsers' => User::query()
                 ->orderBy('name')
                 ->get(['id', 'name', 'email', 'role', 'nomor_hp']),
+            'workshopReadiness' => $this->workshopReadiness,
         ]);
+    }
+
+    public function store(StoreOrderRequest $request): RedirectResponse
+    {
+        $order = DB::transaction(function () use ($request): Order {
+            $order = Order::create([
+                ...$request->validated(),
+                'catatan_status' => OrderUserNoteStatus::ApprovedWorkshop->value,
+                'created_by' => $request->user()?->id,
+            ]);
+
+            $workshop = $order->orderWorkshop()->create([
+                'progress_status' => OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
+                'catatan' => $order->catatan,
+            ]);
+            $this->workshopOrderTaskSyncer->syncOrder($order, $workshop);
+
+            return $order;
+        });
+
+        return redirect()
+            ->route('admin.orders.workshop.index', ['search' => $order->nomor_order])
+            ->with('status', 'Order pekerjaan bengkel berhasil dibuat.');
     }
 
     public function update(UpdateOrderWorkshopRequest $request, Order $order): JsonResponse
@@ -106,6 +130,26 @@ class OrderWorkshopController extends Controller
 
         $workshop = $order->orderWorkshop()->firstOrNew();
         $validated = $request->validated();
+
+        $requestedProgress = (string) ($validated['progress_status'] ?? $workshop->progress_status ?? '');
+        $candidate = clone $workshop;
+        $candidate->fill(collect($validated)->map(fn ($value) => $value === '' ? null : $value)->all());
+
+        if ($this->workshopReadiness->requiresReadiness($requestedProgress)
+            && ! $this->workshopReadiness->canAdvance($candidate)) {
+            throw ValidationException::withMessages([
+                'progress_status' => 'Konfirmasi anggaran dan status material harus dilengkapi melalui menu Order Pekerjaan Bengkel sebelum progress dapat dilanjutkan.',
+            ]);
+        }
+
+        if ($requestedProgress === OrderWorkshop::PROGRESS_DONE
+            && $order->qualityControlReports()->exists()
+            && ! $order->qualityControlReports()->with('signatures')->get()
+                ->contains(fn (QualityControlReport $report): bool => $report->approvalCompleted())) {
+            throw ValidationException::withMessages([
+                'progress_status' => 'Proses Quality Control harus diselesaikan sebelum pekerjaan dapat ditandai selesai.',
+            ]);
+        }
 
         foreach ($validated as $field => $value) {
             $workshop->{$field} = $value === '' ? null : $value;

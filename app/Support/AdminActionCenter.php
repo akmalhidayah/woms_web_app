@@ -13,6 +13,8 @@ use App\Models\LhppBastSignature;
 use App\Models\Order;
 use App\Models\PurchaseOrder;
 use App\Models\User;
+use App\Services\BengkelTasks\WorkshopHandoverQueue;
+use App\Services\BengkelTasks\WorkshopQualityControlQueue;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -44,6 +46,9 @@ class AdminActionCenter
     public function __construct(
         private readonly BudgetVerificationIndexTabs $budgetVerificationTabs,
         private readonly PurchaseOrderIndexTabs $purchaseOrderTabs,
+        private readonly WorkshopReadiness $workshopReadiness,
+        private readonly WorkshopQualityControlQueue $workshopQualityControlQueue,
+        private readonly WorkshopHandoverQueue $workshopHandoverQueue,
     ) {}
 
     /**
@@ -125,7 +130,24 @@ class AdminActionCenter
             'cek_bast' => $counts[self::MODULE_CHECK_BAST],
             'bast_total' => $counts[self::MODULE_SET_GARANSI] + $counts[self::MODULE_CHECK_BAST],
             'lpj_ppl' => $counts[self::MODULE_LPJ_PPL],
+            'order_bengkel_incomplete' => ($user === null || AdminMenuRegistry::canAccess($user, AdminMenuRegistry::MENU_ORDER_BENGKEL))
+                ? $this->workshopReadiness->applyIncomplete($this->workshopOrderQuery())->count()
+                : 0,
+            'quality_control_bengkel' => ($user === null || AdminMenuRegistry::canAccess($user, AdminMenuRegistry::MENU_QUALITY_CONTROL_BENGKEL))
+                ? $this->workshopQualityControlQueue->actionCount()
+                : 0,
+            'serah_terima_bengkel' => ($user === null || AdminMenuRegistry::canAccess($user, AdminMenuRegistry::MENU_SERAH_TERIMA_BENGKEL))
+                ? $this->workshopHandoverQueue->count()
+                : 0,
         ];
+    }
+
+    private function workshopOrderQuery(): Builder
+    {
+        return Order::query()->whereIn('catatan_status', [
+            OrderUserNoteStatus::ApprovedWorkshop->value,
+            OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+        ]);
     }
 
     /**

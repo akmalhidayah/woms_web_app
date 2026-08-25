@@ -293,6 +293,7 @@ class BengkelDisplayManagementTest extends TestCase
 
         $this->actingAs($user)
             ->post(route('admin.bengkel-tasks.store'), [
+                'nomor_order' => 'ORDER-PENDING-001',
                 'job_name' => 'Repair Conveyor',
                 'notification_number' => 'WO-PENDING',
                 'unit_work' => 'Machine Maintenance 2',
@@ -319,7 +320,7 @@ class BengkelDisplayManagementTest extends TestCase
             ->assertSee('Menunggu spare part dari gudang.');
     }
 
-    public function test_bengkel_task_archive_creates_workshop_order_and_hides_task_from_display_admin(): void
+    public function test_bengkel_task_archive_keeps_linked_workshop_order_and_hides_task_from_display_admin(): void
     {
         $user = $this->adminUser();
         $task = BengkelTask::create([
@@ -338,6 +339,7 @@ class BengkelDisplayManagementTest extends TestCase
                 ],
             ],
         ]);
+        $order = $this->linkTaskToWorkshopOrder($task, $user, 'ORDER-ARCHIVE-001');
 
         $this->actingAs($user)
             ->patch(route('admin.bengkel-tasks.archive', $task))
@@ -345,11 +347,11 @@ class BengkelDisplayManagementTest extends TestCase
             ->assertSessionHas('status', 'Pekerjaan bengkel diarsipkan ke Order Pekerjaan Bengkel.');
 
         $task->refresh();
-        $order = Order::query()->findOrFail($task->archived_order_id);
+        $order->refresh();
 
         $this->assertNotNull($task->archived_at);
         $this->assertSame($order->id, $task->order_id);
-        $this->assertSame('WO-ARCHIVE-001', $order->nomor_order);
+        $this->assertSame('ORDER-ARCHIVE-001', $order->nomor_order);
 
         $this->assertDatabaseHas('orders', [
             'id' => $order->id,
@@ -399,6 +401,7 @@ class BengkelDisplayManagementTest extends TestCase
             'attachment_mime_type' => 'application/pdf',
             'attachment_size' => 1024,
         ]);
+        $this->linkTaskToWorkshopOrder($task, $user, 'ORDER-ATTACHMENT-001');
 
         $this->actingAs($user)
             ->patch(route('admin.bengkel-tasks.archive', $task))
@@ -453,6 +456,7 @@ class BengkelDisplayManagementTest extends TestCase
             'created_by' => $user->id,
             'updated_by' => $user->id,
         ]);
+        $this->linkTaskToWorkshopOrder($task, $user, 'ORDER-QC-ARCHIVE-001');
 
         $this->actingAs($user)
             ->patch(route('admin.bengkel-tasks.archive', $task))
@@ -462,11 +466,6 @@ class BengkelDisplayManagementTest extends TestCase
 
         $this->assertSame($archivedOrder->id, $report->fresh()->order_id);
         $this->assertSame($report->id, $archivedOrder->latestQualityControlReport()->first()?->id);
-
-        $this->actingAs($user)
-            ->get(route('admin.orders.workshop.index'))
-            ->assertOk()
-            ->assertSee('PDF QC');
     }
 
     public function test_archived_workshop_order_number_and_notification_can_be_completed_later(): void
@@ -482,6 +481,7 @@ class BengkelDisplayManagementTest extends TestCase
             'person_in_charge' => [],
             'person_in_charge_profiles' => [],
         ]);
+        $this->linkTaskToWorkshopOrder($task, $user, 'ORDER-COMPLETE-LATER-001');
 
         $this->actingAs($user)
             ->patch(route('admin.bengkel-tasks.archive', $task))
@@ -519,5 +519,29 @@ class BengkelDisplayManagementTest extends TestCase
             'role' => User::ROLE_ADMIN,
             'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
         ]);
+    }
+
+    private function linkTaskToWorkshopOrder(BengkelTask $task, User $user, string $number): Order
+    {
+        $order = Order::query()->create([
+            'nomor_order' => $number,
+            'nama_pekerjaan' => $task->job_name,
+            'unit_kerja' => $task->unit_work ?: '-',
+            'seksi' => $task->seksi ?: '-',
+            'deskripsi' => 'Pekerjaan dari Display Pekerjaan Bengkel.',
+            'prioritas' => Order::PRIORITY_LOW,
+            'tanggal_order' => now()->toDateString(),
+            'target_selesai' => $task->usage_plan_date?->format('Y-m-d') ?: now()->toDateString(),
+            'catatan_status' => OrderUserNoteStatus::ApprovedWorkshop->value,
+            'catatan' => $task->catatan ?: 'Regu Fabrikasi',
+            'created_by' => $user->id,
+        ]);
+        $order->orderWorkshop()->create([
+            'progress_status' => $task->progress_status ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
+            'catatan' => $task->catatan ?: 'Regu Fabrikasi',
+        ]);
+        $task->forceFill(['order_id' => $order->id])->save();
+
+        return $order;
     }
 }

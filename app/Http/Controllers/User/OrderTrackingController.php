@@ -24,6 +24,7 @@ use App\Support\BastDisplayLabel;
 use App\Support\PdfMergeService;
 use App\Support\ScopeOfWorkPdfPresenter;
 use App\Support\SignatureImageStorage;
+use App\Support\WorkshopReadiness;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -1204,17 +1205,18 @@ class OrderTrackingController extends Controller
         };
 
         $workers = $this->resolveBengkelTaskPicAssignments($workshopTask);
+
         return [
             ...$this->buildTimelineInfoPayload('Pekerjaan Bengkel', [
-            ['label' => 'Konfirmasi Anggaran', 'value' => $konfirmasi ?: 'Belum dikonfirmasi'],
-            ['label' => 'Budget / Transfer', 'value' => $budgetTransferStatus],
-            ['label' => 'Status Material', 'value' => $materialStatus],
-            ['label' => 'Progress Pekerjaan', 'value' => $progressLabel],
-            ['label' => 'Regu', 'value' => $workshopTask?->catatan ?: $order->catatan ?: '-'],
-            ['label' => 'Dikerjakan Oleh', 'value' => $workers !== [] ? count($workers).' PIC' : 'Belum ada PIC'],
-            ['label' => 'Catatan Konfirmasi', 'value' => $workshop?->keterangan_konfirmasi ?: '-'],
-            ['label' => 'Catatan Material', 'value' => $workshop?->keterangan_material ?: '-'],
-            ['label' => 'Catatan Progress', 'value' => $workshop?->keterangan_progress ?: '-'],
+                ['label' => 'Konfirmasi Anggaran', 'value' => $konfirmasi ?: 'Belum dikonfirmasi'],
+                ['label' => 'Budget / Transfer', 'value' => $budgetTransferStatus],
+                ['label' => 'Status Material', 'value' => $materialStatus],
+                ['label' => 'Progress Pekerjaan', 'value' => $progressLabel],
+                ['label' => 'Regu', 'value' => $workshopTask?->catatan ?: $order->catatan ?: '-'],
+                ['label' => 'Dikerjakan Oleh', 'value' => $workers !== [] ? count($workers).' PIC' : 'Belum ada PIC'],
+                ['label' => 'Catatan Konfirmasi', 'value' => $workshop?->keterangan_konfirmasi ?: '-'],
+                ['label' => 'Catatan Material', 'value' => $workshop?->keterangan_material ?: '-'],
+                ['label' => 'Catatan Progress', 'value' => $workshop?->keterangan_progress ?: '-'],
             ], $this->resolveWorkshopTimelineTone($order)),
             'headline' => $progressLabel,
             'summary' => $summary,
@@ -1452,7 +1454,27 @@ class OrderTrackingController extends Controller
 
     private function resolveWorkshopPhase(Order $order): string
     {
+        $readiness = app(WorkshopReadiness::class)->resolve($order->orderWorkshop);
+
+        if (! $readiness['can_advance']) {
+            return $readiness['label'];
+        }
+
         $progressStatus = $order->orderWorkshop?->progress_status;
+
+        if ($progressStatus === OrderWorkshop::PROGRESS_QUALITY_CONTROL) {
+            $report = $order->latestQualityControlReport;
+
+            if ($report?->hasApprovalStarted() && ! $report->approvalCompleted()) {
+                return 'Menunggu Approval QC';
+            }
+
+            return 'Quality Control';
+        }
+
+        if ($progressStatus === OrderWorkshop::PROGRESS_DONE) {
+            return 'Pekerjaan Selesai – Menunggu Serah Terima';
+        }
 
         if ($progressStatus) {
             return OrderWorkshop::progressOptions()[$progressStatus] ?? ucfirst(str_replace('_', ' ', $progressStatus));

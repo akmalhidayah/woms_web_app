@@ -8,7 +8,6 @@ use App\Models\BengkelPic;
 use App\Models\BengkelTask;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
-use App\Services\BengkelTasks\WorkshopOrderTaskSyncer;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
@@ -80,7 +79,6 @@ class DashboardPekerjaan extends Component
     public function loadTasks(): void
     {
         if (Cache::add('bengkel_tasks:auto_sync_display', true, now()->addSeconds(20))) {
-            app(WorkshopOrderTaskSyncer::class)->syncOpenWorkshopOrders();
         }
 
         $this->loadDisplaySettings();
@@ -285,6 +283,7 @@ class DashboardPekerjaan extends Component
     {
         if ($this->maxPages <= 1) {
             $this->pageSlide = 0;
+
             return;
         }
 
@@ -297,7 +296,6 @@ class DashboardPekerjaan extends Component
     }
 
     /**
-     * @param  mixed  $descriptions
      * @return list<string>
      */
     private static function normalizeWorkDescriptions(mixed $descriptions): array

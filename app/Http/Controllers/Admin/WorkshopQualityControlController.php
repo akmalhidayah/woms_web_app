@@ -3,66 +3,41 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Order;
+use App\Services\BengkelTasks\WorkshopQualityControlQueue;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class WorkshopQualityControlController extends Controller
 {
-    public function __invoke(): View
+    public function __invoke(Request $request, WorkshopQualityControlQueue $queue): View
     {
-        // Data sementara untuk mematangkan tampilan sebelum sumber data QC disepakati.
-        $qualityControls = collect([
-            [
-                'order_number' => '17049907',
-                'notification_number' => '300001960812',
-                'work_name' => '408RE01M2.1 FABRIKASI PORTAL KABEL',
-                'unit' => 'Elins Maintenance 2',
-                'section' => 'Line 4/5 RKC Electrical Maint',
-                'type' => 'Fabrikasi',
-                'inspector' => 'Herman R.',
-                'date' => '24-08-2026',
-                'status' => 'Perlu Pemeriksaan',
-                'tone' => 'amber',
-            ],
-            [
-                'order_number' => 'MANUAL-BENGKEL-000206',
-                'notification_number' => '-',
-                'work_name' => 'FABRIKASI CEKHOLE BIN PASIR BESI RAWMILL 5',
-                'unit' => 'Clinker Production',
-                'section' => 'Line 4 RKC Operation',
-                'type' => 'Fabrikasi',
-                'inspector' => 'Haerullah',
-                'date' => '23-08-2026',
-                'status' => 'Dalam Pemeriksaan',
-                'tone' => 'blue',
-            ],
-            [
-                'order_number' => 'MANUAL-BENGKEL-000205',
-                'notification_number' => '-',
-                'work_name' => 'MODIFIKASI MESIN LIPAT HYDROLIK BMS',
-                'unit' => 'Workshop',
-                'section' => 'Machine Workshop',
-                'type' => 'Refurbish',
-                'inspector' => 'Sudirman. MJ',
-                'date' => '22-08-2026',
-                'status' => 'Menunggu Approval',
-                'tone' => 'violet',
-            ],
-            [
-                'order_number' => '17049873',
-                'notification_number' => '300001958640',
-                'work_name' => '417-CC01-PERBAIKAN PEMBUANGAN DUST TRAP OVH 2027',
-                'unit' => 'Clinker Production',
-                'section' => 'Line 4 RKC Operation',
-                'type' => 'Refurbish',
-                'inspector' => 'Akbar',
-                'date' => '21-08-2026',
-                'status' => 'Selesai',
-                'tone' => 'emerald',
-            ],
-        ]);
+        $search = trim((string) $request->string('search'));
+        $type = trim((string) $request->string('type'));
+        $status = trim((string) $request->string('status', WorkshopQualityControlQueue::ACTION));
+
+        $orders = $queue->query()
+            ->when($search !== '', fn ($query) => $query->where(function ($query) use ($search): void {
+                $query->where('nomor_order', 'like', "%{$search}%")
+                    ->orWhere('nama_pekerjaan', 'like', "%{$search}%")
+                    ->orWhere('unit_kerja', 'like', "%{$search}%");
+            }))
+            ->when($type !== '', fn ($query) => $query->whereHas('latestQualityControlReport', fn ($report) => $report->where('type', $type)))
+            ->latest('id')
+            ->get()
+            ->filter(function (Order $order) use ($queue, $status): bool {
+                $resolved = $queue->status($order);
+
+                return $status === '' || ($status === WorkshopQualityControlQueue::ACTION ? $resolved['action'] : $resolved['key'] === $status);
+            })
+            ->values();
 
         return view('admin.workshop-quality-control.index', [
-            'qualityControls' => $qualityControls,
+            'orders' => $orders,
+            'queue' => $queue,
+            'search' => $search,
+            'selectedType' => $type,
+            'selectedStatus' => $status,
         ]);
     }
 }

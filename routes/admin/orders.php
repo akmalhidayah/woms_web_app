@@ -15,20 +15,21 @@ Route::prefix('admin/orders')
     ->group(function () {
         Route::get('/', [OrderController::class, 'index'])->middleware('admin_menu:order_jasa')->name('index');
         Route::get('/workshop/list', [OrderWorkshopController::class, 'index'])->middleware('admin_menu:order_bengkel')->name('workshop.index');
+        Route::post('/workshop', [OrderWorkshopController::class, 'store'])->middleware('admin_menu:order_bengkel')->name('workshop.store');
         Route::get('/create', [OrderController::class, 'create'])->middleware('admin_menu:order_jasa')->name('create');
         Route::post('/', [OrderController::class, 'store'])->middleware('admin_menu:order_jasa')->name('store');
         Route::patch('/{order}/priority', [OrderController::class, 'updatePriority'])->middleware('admin_order_menu')->name('priority.update');
         Route::patch('/{order}/user-note', [OrderController::class, 'updateUserNote'])->middleware('admin_order_menu')->name('user-note.update');
         Route::patch('/workshop/{order}', [OrderWorkshopController::class, 'update'])->middleware('admin_menu:order_bengkel')->name('workshop.update');
-        Route::get('/workshop/{order}/quality-control/create', [OrderWorkshopQualityControlController::class, 'create'])->middleware('admin_menu:order_bengkel')->name('workshop.quality-control.create');
-        Route::post('/workshop/{order}/quality-control', [OrderWorkshopQualityControlController::class, 'store'])->middleware('admin_menu:order_bengkel')->name('workshop.quality-control.store');
-        Route::get('/workshop/{order}/quality-control/{qualityControlReport}/edit', [OrderWorkshopQualityControlController::class, 'edit'])->middleware('admin_menu:order_bengkel')->name('workshop.quality-control.edit');
-        Route::put('/workshop/{order}/quality-control/{qualityControlReport}', [OrderWorkshopQualityControlController::class, 'update'])->middleware('admin_menu:order_bengkel')->name('workshop.quality-control.update');
-        Route::get('/workshop/{order}/quality-control/{qualityControlReport}/pdf', [OrderWorkshopQualityControlController::class, 'pdf'])->middleware('admin_menu:order_bengkel')->name('workshop.quality-control.pdf');
-        Route::post('/workshop/{order}/quality-control/{qualityControlReport}/resend-approval', [OrderWorkshopQualityControlController::class, 'resendApproval'])->middleware('admin_menu:order_bengkel')->name('workshop.quality-control.approval.resend');
-        Route::post('/workshop/{order}/quality-control/{qualityControlReport}/regenerate-approval-token', [OrderWorkshopQualityControlController::class, 'regenerateApprovalToken'])->middleware('admin_menu:order_bengkel')->name('workshop.quality-control.approval.regenerate');
+        Route::get('/workshop/{order}/quality-control/create', [OrderWorkshopQualityControlController::class, 'create'])->middleware('admin_menu:quality_control_bengkel')->name('workshop.quality-control.create');
+        Route::post('/workshop/{order}/quality-control', [OrderWorkshopQualityControlController::class, 'store'])->middleware('admin_menu:quality_control_bengkel')->name('workshop.quality-control.store');
+        Route::get('/workshop/{order}/quality-control/{qualityControlReport}/edit', [OrderWorkshopQualityControlController::class, 'edit'])->middleware('admin_menu:quality_control_bengkel')->name('workshop.quality-control.edit');
+        Route::put('/workshop/{order}/quality-control/{qualityControlReport}', [OrderWorkshopQualityControlController::class, 'update'])->middleware('admin_menu:quality_control_bengkel')->name('workshop.quality-control.update');
+        Route::get('/workshop/{order}/quality-control/{qualityControlReport}/pdf', [OrderWorkshopQualityControlController::class, 'pdf'])->middleware('admin_menu:quality_control_bengkel')->name('workshop.quality-control.pdf');
+        Route::post('/workshop/{order}/quality-control/{qualityControlReport}/resend-approval', [OrderWorkshopQualityControlController::class, 'resendApproval'])->middleware('admin_menu:quality_control_bengkel')->name('workshop.quality-control.approval.resend');
+        Route::post('/workshop/{order}/quality-control/{qualityControlReport}/regenerate-approval-token', [OrderWorkshopQualityControlController::class, 'regenerateApprovalToken'])->middleware('admin_menu:quality_control_bengkel')->name('workshop.quality-control.approval.regenerate');
         Route::patch('/approval-signatures/quality-control/{signature}/reassign', [ApprovalSignatureReassignmentController::class, 'qualityControl'])
-            ->middleware('admin_menu:order_bengkel')
+            ->middleware('admin_menu:quality_control_bengkel')
             ->whereNumber('signature')
             ->name('approval-signatures.quality-control.reassign');
         Route::get('/{order}', [OrderController::class, 'show'])->middleware('admin_order_menu')->name('show');
@@ -56,9 +57,9 @@ Route::prefix('admin/orders')
     });
 
 Route::delete('admin/quality-control/{qualityControlReport}/files/{file}', [OrderWorkshopQualityControlController::class, 'destroyFile'])
-    ->middleware(['auth', 'role:admin', 'admin_menu:order_bengkel'])
+    ->middleware(['auth', 'role:admin', 'admin_menu:quality_control_bengkel'])
     ->name('admin.quality-control.files.destroy');
 
 Route::get('admin/quality-control/{qualityControlReport}/files/{file}/preview', [OrderWorkshopQualityControlController::class, 'showFile'])
-    ->middleware(['auth', 'role:admin', 'admin_menu:order_bengkel'])
+    ->middleware(['auth', 'role:admin', 'admin_menu:quality_control_bengkel'])
     ->name('admin.quality-control.files.preview');

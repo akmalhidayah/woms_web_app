@@ -8,6 +8,8 @@ use App\Models\Order;
 use App\Models\OrderWorkshop;
 use App\Models\QualityControlReport;
 use App\Models\User;
+use App\Services\BengkelTasks\WorkshopHandoverQueue;
+use App\Support\WorkshopReadiness;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -134,6 +136,41 @@ class WorkshopFlowIntegrationTest extends TestCase
             ->assertSee('Non-Critical')
             ->assertSee('Menunggu Bukti Serah Terima')
             ->assertDontSee('MANUAL-BENGKEL-000206');
+    }
+
+    public function test_completed_legacy_order_skips_readiness_queue_and_enters_handover(): void
+    {
+        $admin = $this->superAdmin();
+        [$completedOrder] = $this->workshopOrder($admin, OrderWorkshop::PROGRESS_DONE);
+        [$activeOrder] = $this->workshopOrder($admin, OrderWorkshop::PROGRESS_IN_PROGRESS);
+
+        $incompleteOrderIds = app(WorkshopReadiness::class)
+            ->applyIncomplete(Order::query()->whereKey([$completedOrder->id, $activeOrder->id]))
+            ->pluck('id');
+
+        $this->assertFalse($incompleteOrderIds->contains($completedOrder->id));
+        $this->assertTrue($incompleteOrderIds->contains($activeOrder->id));
+
+        $handoverOrderIds = app(WorkshopHandoverQueue::class)
+            ->query()
+            ->whereKey([$completedOrder->id, $activeOrder->id])
+            ->pluck('id');
+
+        $this->assertTrue($handoverOrderIds->contains($completedOrder->id));
+        $this->assertFalse($handoverOrderIds->contains($activeOrder->id));
+
+        $this->actingAs($admin)
+            ->get(route('admin.orders.workshop.index'))
+            ->assertOk()
+            ->assertDontSee($completedOrder->nomor_order)
+            ->assertSee($activeOrder->nomor_order);
+
+        $this->actingAs($admin)
+            ->get(route('admin.orders.workshop.index', [
+                'progress' => OrderWorkshop::PROGRESS_DONE,
+            ]))
+            ->assertOk()
+            ->assertSee($completedOrder->nomor_order);
     }
 
     private function superAdmin(): User

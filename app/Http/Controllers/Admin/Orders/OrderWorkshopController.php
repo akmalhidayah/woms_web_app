@@ -57,9 +57,14 @@ class OrderWorkshopController extends Controller
                         ->orWhere('seksi', 'like', "%{$search}%");
                 });
             })
-            ->when($progress !== '', function ($query) use ($progress) {
-                $query->whereHas('orderWorkshop', fn ($builder) => $builder->where('progress_status', $progress));
-            })
+            ->when(
+                $progress !== '',
+                fn ($query) => $query->whereHas('orderWorkshop', fn ($builder) => $builder->where('progress_status', $progress)),
+                fn ($query) => $query->whereDoesntHave(
+                    'orderWorkshop',
+                    fn ($builder) => $builder->where('progress_status', OrderWorkshop::PROGRESS_DONE),
+                ),
+            )
             ->when($regu !== '', fn ($query) => $query->where('catatan', $regu))
             ->when($readiness === 'incomplete', fn ($query) => $this->workshopReadiness->applyIncomplete($query))
             ->orderByDesc('tanggal_order')

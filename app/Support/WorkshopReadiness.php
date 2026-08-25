@@ -17,9 +17,15 @@ final class WorkshopReadiness
 
     public const READY = 'ready';
 
+    public const COMPLETED = 'completed';
+
     /** @return array{code: string, label: string, can_advance: bool} */
     public function resolve(?OrderWorkshop $workshop): array
     {
+        if ($workshop?->progress_status === OrderWorkshop::PROGRESS_DONE) {
+            return $this->state(self::COMPLETED, 'Selesai', true);
+        }
+
         if (! $workshop || blank($workshop->konfirmasi_anggaran)) {
             return $this->state(self::WAITING_CONFIRMATION, 'Menunggu Konfirmasi', false);
         }
@@ -60,23 +66,31 @@ final class WorkshopReadiness
                 ->whereDoesntHave('orderWorkshop')
                 ->orWhereHas('orderWorkshop', function (Builder $workshop): void {
                     $workshop
-                        ->whereNull('konfirmasi_anggaran')
-                        ->orWhereRaw("TRIM(konfirmasi_anggaran) = ''")
-                        ->orWhere(function (Builder $notReady): void {
-                            $notReady
-                                ->where('konfirmasi_anggaran', OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY)
-                                ->where(function (Builder $status): void {
-                                    $status
-                                        ->whereNull('status_anggaran')
-                                        ->orWhereRaw("TRIM(status_anggaran) = ''")
-                                        ->orWhere('status_anggaran', OrderWorkshop::STATUS_ANGGARAN_WAITING_BUDGET);
-                                });
+                        ->where(function (Builder $progress): void {
+                            $progress
+                                ->whereNull('progress_status')
+                                ->orWhere('progress_status', '!=', OrderWorkshop::PROGRESS_DONE);
                         })
-                        ->orWhere(function (Builder $ready): void {
-                            $ready
-                                ->where('konfirmasi_anggaran', OrderWorkshop::KONFIRMASI_MATERIAL_READY)
-                                ->where(function (Builder $status): void {
-                                    $status->whereNull('status_material')->orWhereRaw("TRIM(status_material) = ''");
+                        ->where(function (Builder $incomplete): void {
+                            $incomplete
+                                ->whereNull('konfirmasi_anggaran')
+                                ->orWhereRaw("TRIM(konfirmasi_anggaran) = ''")
+                                ->orWhere(function (Builder $notReady): void {
+                                    $notReady
+                                        ->where('konfirmasi_anggaran', OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY)
+                                        ->where(function (Builder $status): void {
+                                            $status
+                                                ->whereNull('status_anggaran')
+                                                ->orWhereRaw("TRIM(status_anggaran) = ''")
+                                                ->orWhere('status_anggaran', OrderWorkshop::STATUS_ANGGARAN_WAITING_BUDGET);
+                                        });
+                                })
+                                ->orWhere(function (Builder $ready): void {
+                                    $ready
+                                        ->where('konfirmasi_anggaran', OrderWorkshop::KONFIRMASI_MATERIAL_READY)
+                                        ->where(function (Builder $status): void {
+                                            $status->whereNull('status_material')->orWhereRaw("TRIM(status_material) = ''");
+                                        });
                                 });
                         });
                 });

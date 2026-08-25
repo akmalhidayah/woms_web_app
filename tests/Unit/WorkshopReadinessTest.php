@@ -27,5 +27,10 @@ class WorkshopReadinessTest extends TestCase
         $materialReady->status_material = OrderWorkshop::STATUS_MATERIAL_GOOD_ISSUE;
         $this->assertSame('Siap Diproses', $readiness->resolve($materialReady)['label']);
         $this->assertTrue($readiness->canAdvance($materialReady));
+
+        $completedLegacy = new OrderWorkshop(['progress_status' => OrderWorkshop::PROGRESS_DONE]);
+        $this->assertSame(WorkshopReadiness::COMPLETED, $readiness->resolve($completedLegacy)['code']);
+        $this->assertSame('Selesai', $readiness->resolve($completedLegacy)['label']);
+        $this->assertTrue($readiness->canAdvance($completedLegacy));
     }
 }

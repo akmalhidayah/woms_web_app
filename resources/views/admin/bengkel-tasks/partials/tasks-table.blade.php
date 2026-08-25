@@ -74,8 +74,8 @@
                         </td>
 
                         <td class="px-3 py-2.5">
-                            <div class="font-semibold text-slate-900">{{ $task->notification_number ?: '-' }}</div>
-                            @if ($task->notification_number)
+                            <div class="font-semibold text-slate-900">{{ $task->order?->nomor_order ?: '-' }}</div>
+                            @if ($task->order?->nomor_order)
                                 <div class="text-[10px] text-slate-500">Order</div>
                             @endif
                         </td>
@@ -102,7 +102,9 @@
                                     </div>
                                 @endif
                                 <span>{{ optional($task->usage_plan_date)->format('d-m-Y') ?: '-' }}</span>
-                                @php($readiness = $task->getAttribute('workshop_readiness'))
+                                @php
+                                    $readiness = $task->getAttribute('workshop_readiness');
+                                @endphp
                                 @if (is_array($readiness))
                                     <span class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold {{ $readiness['can_advance'] ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700' }}">{{ $readiness['label'] }}</span>
                                     @if (! $readiness['can_advance'] && auth()->user() && \App\Support\AdminMenuRegistry::canAccess(auth()->user(), \App\Support\AdminMenuRegistry::MENU_ORDER_BENGKEL) && $task->order)
@@ -171,7 +173,7 @@
                         <div class="mt-3 grid grid-cols-2 gap-2 text-[10px]">
                             <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                                 <div class="font-semibold uppercase tracking-[0.12em] text-slate-400">Nomor</div>
-                                <div class="mt-1 font-bold text-slate-900">{{ $task->notification_number ?: '-' }}</div>
+                                <div class="mt-1 font-bold text-slate-900">{{ $task->order?->nomor_order ?: '-' }}</div>
                             </div>
                             <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                                 <div class="font-semibold uppercase tracking-[0.12em] text-slate-400">Target</div>
@@ -187,6 +189,14 @@
                                         </div>
                                     @endif
                                     <span class="font-bold text-slate-900">{{ optional($task->usage_plan_date)->format('d-m-Y') ?: '-' }}</span>
+                                    @php
+                                        $readiness = $task->getAttribute('workshop_readiness');
+                                    @endphp
+                                    @if (is_array($readiness))
+                                        <span class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold {{ $readiness['can_advance'] ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700' }}">
+                                            {{ $readiness['label'] }}
+                                        </span>
+                                    @endif
                                 </div>
                             </div>
                         </div>

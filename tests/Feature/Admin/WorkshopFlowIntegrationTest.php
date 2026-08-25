@@ -37,6 +37,13 @@ class WorkshopFlowIntegrationTest extends TestCase
         $this->assertDatabaseHas('order_workshops', ['order_id' => $order->id]);
         $this->assertDatabaseHas('bengkel_tasks', ['order_id' => $order->id]);
         $this->assertStringNotContainsString('MANUAL-BENGKEL-', $order->nomor_order);
+
+        $this->actingAs($admin)
+            ->get(route('admin.bengkel-tasks.index'))
+            ->assertOk()
+            ->assertSee('BENGKEL-INPUT-001')
+            ->assertDontSee('@empty', false)
+            ->assertDontSee('@include', false);
     }
 
     public function test_advanced_progress_is_blocked_until_readiness_is_complete(): void

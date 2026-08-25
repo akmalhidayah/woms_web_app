@@ -30,13 +30,38 @@ class OrderWorkshopController extends Controller
 
     public function index(Request $request): View
     {
+        $activeTab = in_array($request->string('tab')->toString(), ['action', 'history'], true)
+            ? $request->string('tab')->toString()
+            : 'action';
         $search = trim((string) $request->string('search'));
         $progress = trim((string) $request->string('progress'));
         $regu = trim((string) $request->string('regu'));
         $readiness = trim((string) $request->string('readiness'));
         $perPage = 10;
 
-        $orders = Order::query()
+        if ($activeTab === 'history' || $progress === OrderWorkshop::PROGRESS_DONE) {
+            $progress = '';
+            $readiness = '';
+        }
+
+        $baseQuery = Order::query()
+            ->whereIn('catatan_status', [
+                OrderUserNoteStatus::ApprovedWorkshop->value,
+                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+            ]);
+
+        $tabCounts = [
+            'action' => (clone $baseQuery)->whereDoesntHave(
+                'orderWorkshop',
+                fn ($builder) => $builder->where('progress_status', OrderWorkshop::PROGRESS_DONE),
+            )->count(),
+            'history' => (clone $baseQuery)->whereHas(
+                'orderWorkshop',
+                fn ($builder) => $builder->where('progress_status', OrderWorkshop::PROGRESS_DONE),
+            )->count(),
+        ];
+
+        $orders = (clone $baseQuery)
             ->with([
                 'documents:id,order_id,jenis_dokumen,nama_file_asli',
                 'scopeOfWork:id,order_id',
@@ -44,10 +69,17 @@ class OrderWorkshopController extends Controller
                 'latestQualityControlReport.signatures',
                 'latestQualityControlReport.signatures.signer:id,name,email,nomor_hp',
             ])
-            ->whereIn('catatan_status', [
-                OrderUserNoteStatus::ApprovedWorkshop->value,
-                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
-            ])
+            ->when(
+                $activeTab === 'history',
+                fn ($query) => $query->whereHas(
+                    'orderWorkshop',
+                    fn ($builder) => $builder->where('progress_status', OrderWorkshop::PROGRESS_DONE),
+                ),
+                fn ($query) => $query->whereDoesntHave(
+                    'orderWorkshop',
+                    fn ($builder) => $builder->where('progress_status', OrderWorkshop::PROGRESS_DONE),
+                ),
+            )
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($builder) use ($search) {
                     $builder
@@ -57,14 +89,10 @@ class OrderWorkshopController extends Controller
                         ->orWhere('seksi', 'like', "%{$search}%");
                 });
             })
-            ->when(
-                $progress !== '',
-                fn ($query) => $query->whereHas('orderWorkshop', fn ($builder) => $builder->where('progress_status', $progress)),
-                fn ($query) => $query->whereDoesntHave(
-                    'orderWorkshop',
-                    fn ($builder) => $builder->where('progress_status', OrderWorkshop::PROGRESS_DONE),
-                ),
-            )
+            ->when($progress !== '', fn ($query) => $query->whereHas(
+                'orderWorkshop',
+                fn ($builder) => $builder->where('progress_status', $progress),
+            ))
             ->when($regu !== '', fn ($query) => $query->where('catatan', $regu))
             ->when($readiness === 'incomplete', fn ($query) => $this->workshopReadiness->applyIncomplete($query))
             ->orderByDesc('tanggal_order')
@@ -74,6 +102,8 @@ class OrderWorkshopController extends Controller
 
         return view('admin.orders.workshop.index', [
             'orders' => $orders,
+            'activeTab' => $activeTab,
+            'tabCounts' => $tabCounts,
             'search' => $search,
             'selectedProgress' => $progress,
             'selectedRegu' => $regu,

@@ -43,31 +43,53 @@
                         'Regu Bengkel (Refurbish)' => 'Refurbish',
                     ];
                 @endphp
+                <nav class="mb-3 flex gap-2 overflow-x-auto pb-1" aria-label="Status order pekerjaan bengkel">
+                    @foreach ([
+                        'action' => 'Perlu Tindakan',
+                        'history' => 'Riwayat',
+                    ] as $tabKey => $tabLabel)
+                        <a
+                            href="{{ route('admin.orders.workshop.index', array_filter(['tab' => $tabKey, 'search' => $search, 'regu' => $selectedRegu])) }}"
+                            @if ($activeTab === $tabKey) aria-current="page" @endif
+                            class="inline-flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-semibold transition {{ $activeTab === $tabKey ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700' }}"
+                        >
+                            {{ $tabLabel }}
+                            <span class="inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[9px] {{ $activeTab === $tabKey ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">
+                                {{ $tabCounts[$tabKey] ?? 0 }}
+                            </span>
+                        </a>
+                    @endforeach
+                </nav>
                 <form method="GET" action="{{ route('admin.orders.workshop.index') }}" class="space-y-2.5">
+                    <input type="hidden" name="tab" value="{{ $activeTab }}">
                     <input type="hidden" id="reguToggleInput" name="regu" value="{{ $selectedRegu }}">
 
                     <div class="flex flex-col gap-2.5 md:flex-row md:items-end">
-                        <div class="grid flex-1 gap-2.5 md:grid-cols-[minmax(0,1.2fr)_minmax(190px,0.7fr)_minmax(190px,0.7fr)]">
+                        <div class="grid flex-1 gap-2.5 {{ $activeTab === 'action' ? 'md:grid-cols-[minmax(0,1.2fr)_minmax(190px,0.7fr)_minmax(190px,0.7fr)]' : '' }}">
                             <div class="flex flex-col">
                                 <label for="search" class="mb-1.5 text-[10px] font-semibold text-slate-700">Pencarian</label>
                                 <input id="search" name="search" type="text" value="{{ $search }}" placeholder="Cari nomor / pekerjaan / unit..." class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-[13px] text-slate-900 placeholder:text-slate-500 shadow-sm focus:border-blue-500 focus:outline-none">
                             </div>
-                            <div class="flex flex-col">
-                                <label for="readiness" class="mb-1.5 text-[10px] font-semibold text-slate-700">Kelengkapan</label>
-                                <select id="readiness" name="readiness" class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-[13px] font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none">
-                                    <option value="">Semua Data</option>
-                                    <option value="incomplete" @selected($selectedReadiness === 'incomplete')>Perlu Dilengkapi</option>
-                                </select>
-                            </div>
-                            <div class="flex flex-col">
-                                <label for="progress" class="mb-1.5 text-[10px] font-semibold text-slate-700">Progress</label>
-                                <select id="progress" name="progress" class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-[13px] font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none">
-                                    <option value="">Semua Progress</option>
-                                    @foreach ($progressOptions as $value => $label)
-                                        <option value="{{ $value }}" @selected($selectedProgress === $value)>{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
+                            @if ($activeTab === 'action')
+                                <div class="flex flex-col">
+                                    <label for="readiness" class="mb-1.5 text-[10px] font-semibold text-slate-700">Kelengkapan</label>
+                                    <select id="readiness" name="readiness" class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-[13px] font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none">
+                                        <option value="">Semua Data</option>
+                                        <option value="incomplete" @selected($selectedReadiness === 'incomplete')>Perlu Dilengkapi</option>
+                                    </select>
+                                </div>
+                                <div class="flex flex-col">
+                                    <label for="progress" class="mb-1.5 text-[10px] font-semibold text-slate-700">Progress</label>
+                                    <select id="progress" name="progress" class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-[13px] font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none">
+                                        <option value="">Semua Progress</option>
+                                        @foreach ($progressOptions as $value => $label)
+                                            @if ($value !== \App\Models\OrderWorkshop::PROGRESS_DONE)
+                                                <option value="{{ $value }}" @selected($selectedProgress === $value)>{{ $label }}</option>
+                                            @endif
+                                        @endforeach
+                                    </select>
+                                </div>
+                            @endif
                         </div>
 
                         <div class="flex items-center gap-1.5">
@@ -75,7 +97,7 @@
                                 <i data-lucide="search" class="h-[13px] w-[13px]"></i>
                                 Cari
                             </button>
-                            <a href="{{ route('admin.orders.workshop.index') }}" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50" title="Reset">
+                            <a href="{{ route('admin.orders.workshop.index', ['tab' => $activeTab]) }}" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50" title="Reset">
                                 <i data-lucide="rotate-ccw" class="h-[13px] w-[13px]"></i>
                             </a>
                         </div>
@@ -438,7 +460,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-3 py-8 text-center text-sm text-slate-500">Tidak ada order bengkel untuk ditampilkan.</td>
+                                <td colspan="7" class="px-3 py-8 text-center text-sm text-slate-500">{{ $activeTab === 'history' ? 'Belum ada riwayat pekerjaan bengkel yang selesai.' : 'Tidak ada order bengkel yang perlu tindakan.' }}</td>
                             </tr>
                         @endforelse
                     </tbody>

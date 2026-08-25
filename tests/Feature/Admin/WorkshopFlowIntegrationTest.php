@@ -162,15 +162,18 @@ class WorkshopFlowIntegrationTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.orders.workshop.index'))
             ->assertOk()
+            ->assertSee('Perlu Tindakan')
+            ->assertSee('Riwayat')
             ->assertDontSee($completedOrder->nomor_order)
             ->assertSee($activeOrder->nomor_order);
 
         $this->actingAs($admin)
             ->get(route('admin.orders.workshop.index', [
-                'progress' => OrderWorkshop::PROGRESS_DONE,
+                'tab' => 'history',
             ]))
             ->assertOk()
-            ->assertSee($completedOrder->nomor_order);
+            ->assertSee($completedOrder->nomor_order)
+            ->assertDontSee($activeOrder->nomor_order);
     }
 
     private function superAdmin(): User

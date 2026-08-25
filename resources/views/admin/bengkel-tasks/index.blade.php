@@ -40,6 +40,10 @@
         <div id="bengkel-task-status-alert" data-message="{{ session('status') }}" class="hidden"></div>
     @endif
 
+    @if ($errors->any())
+        <div id="bengkel-task-error-alert" data-message="{{ implode(' | ', $errors->all()) }}" class="hidden"></div>
+    @endif
+
     <div x-data="{ runningTextModal: {{ ($errors->has('ticker_text') || $errors->has('ticker_speed_seconds')) ? 'true' : 'false' }} }" class="order-list-compact bengkel-compact space-y-3 sm:space-y-4">
         <section class="order-list-hero rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:px-5">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -49,24 +53,24 @@
                     </span>
                     <div class="min-w-0">
                         <h1 class="text-[1.05rem] font-bold leading-tight text-slate-900 sm:text-[1.18rem]">Display Pekerjaan Bengkel</h1>
-                        <p class="mt-1 max-w-2xl text-[11px] leading-4 text-slate-500">Order yang di Tampilkan di Layar Monitor</p>
+                        <p class="mt-1 max-w-2xl text-[11px] leading-4 text-slate-500">Kelola pekerjaan yang ditampilkan pada layar monitor bengkel.</p>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-                    <a href="{{ route('display.bengkel') }}" target="_blank" rel="noopener" class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50">
+                    <a href="{{ route('display.bengkel') }}" target="_blank" rel="noopener" class="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50">
                         <i data-lucide="external-link" class="h-3.5 w-3.5"></i>
                         Buka Display
                     </a>
-                    <button type="button" @click="runningTextModal = true" class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50">
+                    <button type="button" @click="runningTextModal = true" class="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50">
                         <i data-lucide="settings-2" class="h-3.5 w-3.5"></i>
                         Running Text
                     </button>
-                    <a href="{{ route('admin.bengkel-pics.index') }}" class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50">
+                    <a href="{{ route('admin.bengkel-pics.index') }}" class="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50">
                         <i data-lucide="user-round-cog" class="h-3.5 w-3.5"></i>
                         Master PIC
                     </a>
-                    <a href="{{ route('admin.bengkel-tasks.create') }}" class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-900 px-3 py-2 text-[11px] font-semibold text-white transition hover:bg-blue-800">
+                    <a href="{{ route('admin.bengkel-tasks.create') }}" class="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-blue-900 px-3 text-[11px] font-semibold text-white transition hover:bg-blue-800">
                         <i data-lucide="plus" class="h-3.5 w-3.5"></i>
                         Tambah Pekerjaan
                     </a>
@@ -176,6 +180,17 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const statusAlert = document.getElementById('bengkel-task-status-alert');
+            const errorAlert = document.getElementById('bengkel-task-error-alert');
+
+            if (errorAlert?.dataset.message && window.Swal) {
+                window.Swal.fire({
+                    icon: 'error',
+                    title: 'Perubahan belum dapat disimpan',
+                    text: errorAlert.dataset.message,
+                    confirmButtonText: 'Mengerti',
+                    confirmButtonColor: '#1e3a8a',
+                });
+            }
 
             if (statusAlert?.dataset.message && window.Swal) {
                 window.Swal.fire({
@@ -219,6 +234,31 @@
                         confirmButtonText: 'Selesai',
                         cancelButtonText: 'Batal',
                         confirmButtonColor: '#059669',
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            form.submit();
+                        }
+                    });
+                });
+            });
+
+            document.querySelectorAll('.quick-progress-form').forEach((form) => {
+                form.addEventListener('submit', (event) => {
+                    if (! window.Swal) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    const label = form.dataset.progressLabel || 'Ubah Progress';
+
+                    window.Swal.fire({
+                        icon: 'question',
+                        title: `${label}?`,
+                        text: 'Progress akan diperbarui setelah lolos validasi sistem.',
+                        showCancelButton: true,
+                        confirmButtonText: 'Ya, lanjutkan',
+                        cancelButtonText: 'Batal',
+                        confirmButtonColor: '#1e3a8a',
                     }).then((result) => {
                         if (result.isConfirmed) {
                             form.submit();

@@ -28,12 +28,30 @@ class QualityControlSignatureService
     public function createSignatureChain(QualityControlReport $report): array
     {
         return DB::transaction(function () use ($report): array {
-            $report->loadMissing('order');
+            $lockedReport = QualityControlReport::query()
+                ->whereKey($report->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+            $lockedReport->loadMissing(['order', 'signatures']);
 
-            $source = $this->resolveSignatureSource($report);
+            if ($lockedReport->signatures->isNotEmpty()) {
+                $workshopSignature = $lockedReport->signatures
+                    ->firstWhere('role_key', QualityControlSignature::ROLE_WORKSHOP_MANAGER);
+                $userSignature = $lockedReport->signatures
+                    ->firstWhere('role_key', QualityControlSignature::ROLE_USER_MANAGER);
+
+                return [
+                    'workshop_url' => $workshopSignature?->approvalUrl(),
+                    'workshop_signature' => $workshopSignature?->fresh('signer'),
+                    'user_signature' => $userSignature?->fresh('signer'),
+                ];
+            }
+
+            $this->assertApprovalReady($lockedReport);
+            $source = $this->resolveSignatureSource($lockedReport);
 
             $workshopSignature = $this->createSignatureRecord(
-                $report,
+                $lockedReport,
                 QualityControlSignature::ROLE_WORKSHOP_MANAGER,
                 1,
                 $source['workshop_manager'],
@@ -45,7 +63,7 @@ class QualityControlSignatureService
             );
 
             $userSignature = $this->createSignatureRecord(
-                $report,
+                $lockedReport,
                 QualityControlSignature::ROLE_USER_MANAGER,
                 2,
                 $source['user_manager'],
@@ -66,6 +84,24 @@ class QualityControlSignatureService
                 'user_signature' => $userSignature->fresh('signer'),
             ];
         });
+    }
+
+    public function assertApprovalReady(QualityControlReport $report): void
+    {
+        $report->loadMissing('order');
+        $source = $this->resolveSignatureSource($report);
+
+        if (! $source['workshop_manager']) {
+            throw ValidationException::withMessages([
+                'approval' => 'Manager Workshop belum ditemukan di struktur organisasi.',
+            ]);
+        }
+
+        if (! $source['user_manager']) {
+            throw ValidationException::withMessages([
+                'approval' => 'Manager User belum ditemukan dari unit/seksi order.',
+            ]);
+        }
     }
 
     /**
@@ -99,6 +135,12 @@ class QualityControlSignatureService
     public function ensureSignatureChain(QualityControlReport $report): array
     {
         return DB::transaction(function () use ($report): array {
+            if ($report->status !== QualityControlReport::STATUS_SUBMITTED) {
+                throw ValidationException::withMessages([
+                    'approval' => 'Approval Quality Control hanya dapat dibuat setelah laporan disubmit.',
+                ]);
+            }
+
             $report->loadMissing(['order', 'signatures']);
 
             if ($report->signatures->isEmpty()) {
@@ -112,6 +154,7 @@ class QualityControlSignatureService
                 ];
             }
 
+            $this->assertApprovalReady($report);
             $source = $this->resolveSignatureSource($report);
             $workshopSignature = $this->upsertRepairableSignature(
                 $report,

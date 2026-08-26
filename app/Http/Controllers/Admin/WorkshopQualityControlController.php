@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\User;
 use App\Services\BengkelTasks\WorkshopQualityControlQueue;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -38,6 +39,9 @@ class WorkshopQualityControlController extends Controller
             'search' => $search,
             'selectedType' => $type,
             'selectedStatus' => $status,
+            'approvalReassignmentUsers' => User::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'email', 'role', 'nomor_hp']),
         ]);
     }
 }

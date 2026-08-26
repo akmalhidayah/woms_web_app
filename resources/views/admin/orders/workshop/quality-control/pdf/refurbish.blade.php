@@ -29,9 +29,11 @@
     $notesAfterRows = $notesRows('notes_after_rows', 'notes_after');
     $notesCount = max($notesBeforeRows->count(), $notesAfterRows->count());
     $signature = collect($payload['signature'] ?? []);
-    $signatureData = \App\Support\SignatureImageStorage::imageSource((string) $signature->get('signature_data', '')) ?: '';
-    $signatureName = (string) $signature->get('signer_name', '');
-    $signatureDate = (string) $signature->get('signed_at', '');
+    $makerSigned = $report->status === \App\Models\QualityControlReport::STATUS_SUBMITTED
+        && $report->hasValidMakerSignature();
+    $signatureData = $makerSigned ? (\App\Support\SignatureImageStorage::imageSource((string) $signature->get('signature_data', '')) ?: '') : '';
+    $signatureName = $makerSigned ? (string) $signature->get('signer_name', '') : '';
+    $signatureDate = $makerSigned ? (string) $signature->get('signed_at', '') : '';
     $qcSignatures = ($report->relationLoaded('signatures') ? $report->signatures : $report->signatures()->get())
         ->keyBy('role_key');
     $approvalSignatureFor = fn (string $roleKey) => $qcSignatures->get($roleKey);
@@ -206,25 +208,11 @@
 
     <table class="signature" style="margin-top: 8px;">
         <tr class="signature-label">
-            <td>Diterima oleh User</td>
-            <td>Diperiksa oleh Supervisor Of Refurbish</td>
-            <td>Mengetahui Manager Workshop Machine</td>
+            <td>Pembuat QC</td>
+            <td>Manager Workshop</td>
+            <td>Manager User</td>
         </tr>
         <tr>
-            <td>
-                <div class="signature-box">
-                    @if ($approvalSignatureDate($userManagerSignature) !== '')
-                        <div class="signature-date">{{ $approvalSignatureDate($userManagerSignature) }}</div>
-                    @endif
-                    @if ($approvalSignatureData($userManagerSignature) !== '')
-                        <img src="{{ $approvalSignatureData($userManagerSignature) }}" class="signature-img" alt="">
-                    @endif
-                    <div class="signature-name">{{ $approvalSignatureName($userManagerSignature) !== '' ? $approvalSignatureName($userManagerSignature) : '( ____________________ )' }}</div>
-                    @if ($approvalSignatureRole($userManagerSignature) !== '')
-                        <div class="muted">{{ $approvalSignatureRole($userManagerSignature) }}</div>
-                    @endif
-                </div>
-            </td>
             <td>
                 <div class="signature-box">
                     @if ($signatureDate !== '')
@@ -234,6 +222,7 @@
                         <img src="{{ $signatureData }}" class="signature-img" alt="">
                     @endif
                     <div class="signature-name">{{ $signatureName !== '' ? $signatureName : '( ____________________ )' }}</div>
+                    <div class="muted">Supervisor Refurbish</div>
                 </div>
             </td>
             <td>
@@ -247,6 +236,20 @@
                     <div class="signature-name">{{ $approvalSignatureName($workshopManagerSignature) !== '' ? $approvalSignatureName($workshopManagerSignature) : '( ____________________ )' }}</div>
                     @if ($approvalSignatureRole($workshopManagerSignature) !== '')
                         <div class="muted">{{ $approvalSignatureRole($workshopManagerSignature) }}</div>
+                    @endif
+                </div>
+            </td>
+            <td>
+                <div class="signature-box">
+                    @if ($approvalSignatureDate($userManagerSignature) !== '')
+                        <div class="signature-date">{{ $approvalSignatureDate($userManagerSignature) }}</div>
+                    @endif
+                    @if ($approvalSignatureData($userManagerSignature) !== '')
+                        <img src="{{ $approvalSignatureData($userManagerSignature) }}" class="signature-img" alt="">
+                    @endif
+                    <div class="signature-name">{{ $approvalSignatureName($userManagerSignature) !== '' ? $approvalSignatureName($userManagerSignature) : '( ____________________ )' }}</div>
+                    @if ($approvalSignatureRole($userManagerSignature) !== '')
+                        <div class="muted">{{ $approvalSignatureRole($userManagerSignature) }}</div>
                     @endif
                 </div>
             </td>

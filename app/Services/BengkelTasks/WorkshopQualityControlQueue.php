@@ -39,9 +39,14 @@ final class WorkshopQualityControlQueue
         }
 
         $signatures = $report->signatures;
-        $broken = $signatures->isEmpty() || $signatures->contains(fn (QualityControlSignature $signature): bool => $signature->status === QualityControlSignature::STATUS_MISSING
-            || ($signature->status === QualityControlSignature::STATUS_PENDING && ! $signature->signer_user_id)
-        );
+        $roleCounts = $signatures->groupBy('role_key')->map->count();
+        $broken = ! $report->hasValidMakerSignature()
+            || $signatures->isEmpty()
+            || $roleCounts->get(QualityControlSignature::ROLE_WORKSHOP_MANAGER, 0) !== 1
+            || $roleCounts->get(QualityControlSignature::ROLE_USER_MANAGER, 0) !== 1
+            || $signatures->contains(fn (QualityControlSignature $signature): bool => $signature->status === QualityControlSignature::STATUS_MISSING
+                || ($signature->status === QualityControlSignature::STATUS_PENDING && ! $signature->signer_user_id)
+            );
 
         return $broken
             ? ['key' => 'broken', 'label' => 'Perlu Tindakan', 'tone' => 'rose', 'action' => true]

@@ -3,6 +3,7 @@
     $signature = $payload['signature'] ?? [];
     $theme = $theme ?? 'blue';
     $roleLabel = $roleLabel ?? 'Tanda tangan';
+    $isLocked = $isLocked ?? false;
     $signatureData = old('signature.signature_data', $signature['signature_data'] ?? '');
     $signaturePreview = $signatureData;
 
@@ -57,12 +58,16 @@
         >
             <canvas class="h-44 w-full rounded-xl bg-white ring-1 {{ $themeClasses['ring'] }}" data-qc-signature-canvas></canvas>
             <input type="hidden" name="signature[signature_existing]" value="{{ $signatureData }}" data-qc-signature-existing>
-            <input type="file" name="signature[signature_file]" accept="image/png,image/jpeg" class="hidden" data-qc-signature-data>
+            @if (! $isLocked)
+                <input type="file" name="signature[signature_file]" accept="image/png,image/jpeg" class="hidden" data-qc-signature-data>
+            @endif
             <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
-                <div class="text-[11px] font-medium text-slate-500">Gunakan mouse/touchpad untuk tanda tangan.</div>
-                <button type="button" class="rounded-lg border px-3 py-1.5 text-xs font-semibold transition {{ $themeClasses['button'] }}" data-qc-signature-clear>
-                    Hapus TTD
-                </button>
+                <div class="text-[11px] font-medium text-slate-500">{{ $isLocked ? 'Tanda tangan tersimpan dan tidak dapat diubah.' : 'Gunakan mouse/touchpad untuk tanda tangan.' }}</div>
+                @if (! $isLocked)
+                    <button type="button" class="rounded-lg border px-3 py-1.5 text-xs font-semibold transition {{ $themeClasses['button'] }}" data-qc-signature-clear>
+                        Hapus TTD
+                    </button>
+                @endif
             </div>
         </div>
 

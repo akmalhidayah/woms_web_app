@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\BengkelTasks\WorkshopHandoverQueue;
 use App\Support\WorkshopReadiness;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class WorkshopFlowIntegrationTest extends TestCase
@@ -122,6 +123,66 @@ class WorkshopFlowIntegrationTest extends TestCase
             ->assertOk()
             ->assertSee($order->nomor_order)
             ->assertSee('Dalam Pemeriksaan');
+    }
+
+    public function test_qc_progress_counts_maker_workshop_and_user_stages(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('quality-control-maker-signatures/qc-maker.png', 'signature');
+
+        $admin = $this->superAdmin();
+        [$order] = $this->workshopOrder($admin, OrderWorkshop::PROGRESS_QUALITY_CONTROL, true);
+        $report = QualityControlReport::create([
+            'order_id' => $order->id,
+            'type' => QualityControlReport::TYPE_FABRICATION,
+            'report_no' => 'QC-3-STAGE',
+            'report_date' => now()->toDateString(),
+            'status' => QualityControlReport::STATUS_SUBMITTED,
+            'payload' => ['signature' => [
+                'signature_data' => 'quality-control-maker-signatures/qc-maker.png',
+                'signer_name' => $admin->name,
+                'signed_at' => now()->toDateString(),
+            ]],
+            'created_by' => $admin->id,
+            'updated_by' => $admin->id,
+        ]);
+        $report->signatures()->createMany([
+            ['step_order' => 1, 'role_key' => \App\Models\QualityControlSignature::ROLE_WORKSHOP_MANAGER, 'role_label' => 'Manager Workshop', 'signer_user_id' => $admin->id, 'status' => \App\Models\QualityControlSignature::STATUS_PENDING],
+            ['step_order' => 2, 'role_key' => \App\Models\QualityControlSignature::ROLE_USER_MANAGER, 'role_label' => 'Manager User', 'signer_user_id' => $admin->id, 'status' => \App\Models\QualityControlSignature::STATUS_LOCKED],
+        ]);
+
+        $this->assertSame(3, $report->fresh('signatures')->approvalStepCount());
+        $this->assertSame(1, $report->fresh('signatures')->approvalSignedCount());
+        $this->assertSame(33, $report->fresh('signatures')->approvalProgressPercent());
+
+        $report->signatures()->where('role_key', \App\Models\QualityControlSignature::ROLE_WORKSHOP_MANAGER)->update([
+            'status' => \App\Models\QualityControlSignature::STATUS_SIGNED,
+            'signed_at' => now(),
+        ]);
+        $this->assertSame(2, $report->fresh('signatures')->approvalSignedCount());
+
+        $report->signatures()->where('role_key', \App\Models\QualityControlSignature::ROLE_USER_MANAGER)->update([
+            'status' => \App\Models\QualityControlSignature::STATUS_SIGNED,
+            'signed_at' => now(),
+        ]);
+        $completed = $report->fresh('signatures');
+        $this->assertSame(3, $completed->approvalSignedCount());
+        $this->assertTrue($completed->approvalCompleted());
+    }
+
+    public function test_qc_submit_without_maker_signature_is_rejected(): void
+    {
+        $admin = $this->superAdmin();
+        [$order] = $this->workshopOrder($admin, OrderWorkshop::PROGRESS_QUALITY_CONTROL, true);
+
+        $this->actingAs($admin)
+            ->post(route('admin.orders.workshop.quality-control.store', $order), [
+                'intent' => 'submit',
+                'report_date' => now()->toDateString(),
+            ])
+            ->assertSessionHasErrors('signature.signature_data');
+
+        $this->assertDatabaseCount('quality_control_reports', 0);
     }
 
     public function test_non_critical_done_order_enters_real_handover_queue(): void

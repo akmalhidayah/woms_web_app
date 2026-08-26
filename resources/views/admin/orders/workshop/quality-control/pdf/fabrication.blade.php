@@ -5,9 +5,11 @@
     $beforeFiles = collect($filesByCategory->get('fabrication_before', collect()));
     $afterFiles = collect($filesByCategory->get('fabrication_after', collect()));
     $signature = collect($payload['signature'] ?? []);
-    $signatureData = \App\Support\SignatureImageStorage::imageSource((string) $signature->get('signature_data', '')) ?: '';
-    $signatureName = (string) $signature->get('signer_name', '');
-    $signatureDate = (string) $signature->get('signed_at', '');
+    $makerSigned = $report->status === \App\Models\QualityControlReport::STATUS_SUBMITTED
+        && $report->hasValidMakerSignature();
+    $signatureData = $makerSigned ? (\App\Support\SignatureImageStorage::imageSource((string) $signature->get('signature_data', '')) ?: '') : '';
+    $signatureName = $makerSigned ? (string) $signature->get('signer_name', '') : '';
+    $signatureDate = $makerSigned ? (string) $signature->get('signed_at', '') : '';
     $qcSignatures = ($report->relationLoaded('signatures') ? $report->signatures : $report->signatures()->get())
         ->keyBy('role_key');
     $approvalSignatureFor = fn (string $roleKey) => $qcSignatures->get($roleKey);
@@ -148,9 +150,9 @@
 
     <table class="signature" style="margin-top: 12px;">
         <tr class="signature-label">
-            <td>Inspector</td>
-            <td>Supervisor</td>
-            <td>Menyetujui</td>
+            <td>Pembuat QC</td>
+            <td>Manager Workshop</td>
+            <td>Manager User</td>
         </tr>
         <tr>
             <td>
@@ -162,6 +164,7 @@
                         <img src="{{ $signatureData }}" class="signature-img" alt="">
                     @endif
                     <div class="signature-name">{{ $signatureName !== '' ? $signatureName : '( ____________________ )' }}</div>
+                    <div class="muted">Inspector</div>
                 </div>
             </td>
             <td>

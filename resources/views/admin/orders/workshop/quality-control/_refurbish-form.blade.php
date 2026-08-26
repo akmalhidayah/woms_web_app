@@ -20,13 +20,15 @@
             : [['note' => '']];
     }
 
-    $unitWorkValue = $order->seksi ?: '';
+    $unitWorkValue = $order->unit_kerja ?: '';
     $sectionNumberPayload = (string) ($payload['section_number'] ?? '');
     $sectionNumberValue = $sectionNumberPayload === (string) $order->seksi ? '' : $sectionNumberPayload;
     $filesByCategory = $report->exists ? $report->files->groupBy('category') : collect();
+    $isLocked = $report->exists && ($report->status === \App\Models\QualityControlReport::STATUS_SUBMITTED || $report->hasApprovalStarted());
 @endphp
 
 <div class="space-y-5">
+    <style>.qc-locked [data-add-row], .qc-locked [data-remove-row] { display: none !important; }</style>
     @if (session('status'))
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">{{ session('status') }}</div>
     @endif
@@ -68,6 +70,14 @@
             @method($method)
         @endif
 
+        @if ($isLocked)
+            <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+                Quality Control terkunci karena proses approval telah dimulai. Data hanya dapat dilihat.
+            </div>
+        @endif
+
+        <fieldset @if ($isLocked) disabled @endif class="space-y-5 {{ $isLocked ? 'qc-locked' : '' }}">
+
         <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div class="grid gap-4 lg:grid-cols-4">
                 <div>
@@ -80,10 +90,7 @@
                 </div>
                 <div>
                     <label class="mb-1.5 block text-[12px] font-semibold text-slate-700">Status</label>
-                    <select name="status" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-emerald-500 focus:outline-none">
-                        <option value="draft" @selected(old('status', $report->status ?: 'draft') === 'draft')>Draft</option>
-                        <option value="submitted" @selected(old('status', $report->status) === 'submitted')>Submitted</option>
-                    </select>
+                    <div class="rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm font-semibold text-slate-700">{{ $report->status === \App\Models\QualityControlReport::STATUS_SUBMITTED ? 'Submitted' : 'Draft' }}</div>
                 </div>
                 <div>
                     <label class="mb-1.5 block text-[12px] font-semibold text-slate-700">No Notifikasi</label>
@@ -117,6 +124,15 @@
                     <label class="mb-1.5 block text-[12px] font-semibold text-slate-700">Jenis peralatan</label>
                     <input type="text" name="equipment_type" value="{{ old('equipment_type', $payload['equipment_type'] ?? $order->nama_pekerjaan) }}" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:border-emerald-500 focus:outline-none">
                 </div>
+            </div>
+        </section>
+
+        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 class="text-sm font-bold text-slate-900">Alur Approval Quality Control</h2>
+            <div class="mt-3 grid gap-2 sm:grid-cols-3">
+                @foreach (['Pembuat QC', 'Manager Workshop', 'Manager User'] as $step => $label)
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700">{{ $step + 1 }}. {{ $label }}</div>
+                @endforeach
             </div>
         </section>
 
@@ -268,19 +284,30 @@
 
         @include('admin.orders.workshop.quality-control._signature-pad', [
             'payload' => $payload,
-            'roleLabel' => 'Diperiksa oleh Supervisor Of Refurbish',
+            'roleLabel' => 'Pembuat QC',
             'theme' => 'emerald',
+            'isLocked' => $isLocked,
         ])
+
+        </fieldset>
 
         <div class="flex flex-col-reverse gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <a href="{{ route('admin.orders.workshop.index') }}" class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700">
                 <i data-lucide="arrow-left" class="h-4 w-4"></i>
                 Kembali
             </a>
-            <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white">
-                <i data-lucide="save" class="h-4 w-4"></i>
-                {{ $submitLabel }}
-            </button>
+            @if (! $isLocked)
+                <div class="flex flex-wrap justify-end gap-2">
+                    <button type="submit" name="intent" value="draft" class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700">
+                        <i data-lucide="save" class="h-4 w-4"></i>
+                        Simpan Draft
+                    </button>
+                    <button type="submit" name="intent" value="submit" class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white" onclick="return confirm('Submit QC dan kirim approval ke Manager Workshop?')">
+                        <i data-lucide="send" class="h-4 w-4"></i>
+                        Submit dan Kirim Approval
+                    </button>
+                </div>
+            @endif
         </div>
     </form>
 

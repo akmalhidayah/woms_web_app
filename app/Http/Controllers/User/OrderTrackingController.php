@@ -18,7 +18,6 @@ use App\Models\OrderWorkshop;
 use App\Models\QualityControlReport;
 use App\Models\QualityControlSignature;
 use App\Services\Orders\OrderDocumentService;
-use App\Services\QualityControl\QualityControlSignatureService;
 use App\Support\ApprovalWhatsappLink;
 use App\Support\BastDisplayLabel;
 use App\Support\PdfMergeService;
@@ -36,7 +35,6 @@ use Symfony\Component\HttpFoundation\Response;
 class OrderTrackingController extends Controller
 {
     public function __construct(
-        private readonly QualityControlSignatureService $qualityControlSignatureService,
         private readonly OrderDocumentService $orderDocumentService,
     ) {}
 
@@ -966,29 +964,28 @@ class OrderTrackingController extends Controller
             return null;
         }
 
-        $this->qualityControlSignatureService->ensureSignatureChain($report);
         $report->loadMissing('signatures');
-        $report->refresh()->loadMissing('signatures');
 
-        $makerSignature = collect($report->payload['signature'] ?? []);
-        $makerName = trim((string) ($makerSignature->get('signer_name') ?: $makerSignature->get('name')));
-        $makerSignedAt = $makerSignature->get('signed_at');
-        $makerSigned = filled($makerSignature->get('signature_data'))
-            || filled($makerSignedAt)
-            || filled($makerName);
+        $makerSignature = $report->makerSignature();
+        $makerName = trim((string) ($makerSignature['signer_name'] ?? ''));
+        $makerSignedAt = $makerSignature['signed_at'] ?? null;
+        $makerSigned = $report->status === QualityControlReport::STATUS_SUBMITTED
+            && $report->hasValidMakerSignature();
 
         $approvalSignatures = $report->signatures
+            ->whereIn('role_key', [
+                QualityControlSignature::ROLE_WORKSHOP_MANAGER,
+                QualityControlSignature::ROLE_USER_MANAGER,
+            ])
             ->sortBy('step_order')
             ->values();
+        $signaturesByRole = $approvalSignatures->keyBy('role_key');
         $activeSignature = $approvalSignatures
             ->first(fn (QualityControlSignature $signature): bool => $signature->isPending());
         $missingSignature = $approvalSignatures
             ->firstWhere('status', QualityControlSignature::STATUS_MISSING);
-        $completedSteps = ($makerSigned ? 1 : 0)
-            + $approvalSignatures
-                ->filter(fn (QualityControlSignature $signature): bool => $signature->isSigned())
-                ->count();
-        $totalSteps = 1 + max(2, $approvalSignatures->count());
+        $completedSteps = $report->approvalSignedCount();
+        $totalSteps = $report->approvalStepCount();
         $signatureLinks = $approvalSignatures
             ->filter(
                 fn (QualityControlSignature $signature): bool => $signature->isPending()
@@ -1023,27 +1020,32 @@ class OrderTrackingController extends Controller
             'is_expired' => false,
         ];
         $steps = collect([
-            [
-                ...$makerStep,
-            ],
-        ])
-            ->merge($approvalSignatures->map(fn (QualityControlSignature $signature): array => [
-                'step' => ((int) $signature->step_order) + 1,
-                'role_label' => $signature->role_label,
-                'signer_name' => $signature->signer_name ?: '-',
-                'status' => $signature->status,
-                'status_label' => match ($signature->status) {
-                    QualityControlSignature::STATUS_SIGNED => 'Sudah TTD',
-                    QualityControlSignature::STATUS_PENDING => $signature->tokenExpired() ? 'Token kedaluwarsa' : 'Menunggu TTD',
-                    QualityControlSignature::STATUS_LOCKED => 'Belum aktif',
-                    QualityControlSignature::STATUS_MISSING => 'Signer belum lengkap',
-                    default => ucfirst((string) $signature->status),
-                },
-                'signed_at' => $signature->signed_at?->format('d/m/Y H:i'),
-                'link' => $signature->approvalUrl(),
-            ]))
-            ->values()
-            ->all();
+            $makerStep,
+            ...collect([
+                [QualityControlSignature::ROLE_WORKSHOP_MANAGER, 'Manager Workshop'],
+                [QualityControlSignature::ROLE_USER_MANAGER, 'Manager User'],
+            ])->map(function (array $role) use ($signaturesByRole): array {
+                $signature = $signaturesByRole->get($role[0]);
+
+                return [
+                    'step' => $role[0] === QualityControlSignature::ROLE_WORKSHOP_MANAGER ? 2 : 3,
+                    'role_label' => $signature?->displayRoleLabel() ?: $role[1],
+                    'signer_name' => $signature?->signer_name ?: '-',
+                    'status' => $signature?->status ?: QualityControlSignature::STATUS_MISSING,
+                    'status_label' => ! $signature
+                        ? 'Signer belum lengkap'
+                        : match ($signature->status) {
+                            QualityControlSignature::STATUS_SIGNED => 'Sudah TTD',
+                            QualityControlSignature::STATUS_PENDING => $signature->tokenExpired() ? 'Token kedaluwarsa' : 'Menunggu TTD',
+                            QualityControlSignature::STATUS_LOCKED => 'Belum aktif',
+                            QualityControlSignature::STATUS_MISSING => 'Signer belum lengkap',
+                            default => ucfirst((string) $signature->status),
+                        },
+                    'signed_at' => $signature?->signed_at?->format('d/m/Y H:i'),
+                    'link' => $signature?->approvalUrl(),
+                ];
+            })->all(),
+        ])->values()->all();
 
         $isCompleted = $makerSigned && $report->approvalCompleted();
         $state = match (true) {

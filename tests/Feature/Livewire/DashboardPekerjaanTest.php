@@ -9,11 +9,130 @@ use App\Models\OrderWorkshop;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class DashboardPekerjaanTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_public_display_uses_one_combined_grid_for_both_teams_and_six_cards_per_page(): void
+    {
+        foreach (range(1, 7) as $number) {
+            BengkelTask::create([
+                'job_name' => 'Pekerjaan Gabungan '.$number,
+                'notification_number' => 'WO-'.$number,
+                'unit_work' => 'Workshop',
+                'seksi' => 'Seksi '.$number,
+                'usage_plan_date' => '2026-04-20',
+                'catatan' => $number % 2 === 0 ? 'Regu Bengkel (Refurbish)' : 'Regu Fabrikasi',
+                'person_in_charge' => [],
+                'person_in_charge_profiles' => [],
+            ]);
+        }
+
+        $component = Livewire::test(DashboardPekerjaan::class, ['mode' => 'display']);
+
+        $this->assertSame(2, $component->get('maxPages'));
+        $this->assertLessThanOrEqual(6, substr_count($component->html(), 'data-testid="display-task-card"'));
+        $component->assertSee('FABRIKASI')->assertSee('REFURBISH');
+    }
+
+    public function test_public_display_slide_is_safe_when_page_count_changes(): void
+    {
+        foreach (range(1, 7) as $number) {
+            BengkelTask::create([
+                'job_name' => 'Pekerjaan Slide '.$number,
+                'notification_number' => 'SLIDE-'.$number,
+                'unit_work' => 'Workshop',
+                'seksi' => 'Seksi',
+                'usage_plan_date' => '2026-04-20',
+                'catatan' => 'Regu Fabrikasi',
+                'person_in_charge' => [],
+                'person_in_charge_profiles' => [],
+            ]);
+        }
+
+        $component = Livewire::test(DashboardPekerjaan::class, ['mode' => 'display'])
+            ->call('nextSlide');
+
+        $this->assertSame(1, $component->get('pageSlide'));
+
+        BengkelTask::query()->where('job_name', 'like', 'Pekerjaan Slide%')->get()->take(2)->each->delete();
+        $component->call('refreshBoard');
+
+        $this->assertSame(0, $component->get('pageSlide'));
+        $this->assertSame(1, $component->get('maxPages'));
+    }
+
+    public function test_public_display_limits_pic_rows_and_keeps_each_description_with_its_pic(): void
+    {
+        BengkelTask::create([
+            'job_name' => 'Pekerjaan PIC Vertikal',
+            'notification_number' => 'PIC-001',
+            'unit_work' => 'Workshop',
+            'seksi' => 'Seksi',
+            'usage_plan_date' => '2026-04-20',
+            'catatan' => 'Regu Fabrikasi',
+            'person_in_charge' => [],
+            'person_in_charge_profiles' => [
+                ['name' => 'PIC Satu', 'work_descriptions' => ['Uraian satu']],
+                ['name' => 'PIC Dua', 'work_descriptions' => ['Uraian dua']],
+                ['name' => 'PIC Tiga', 'work_descriptions' => []],
+                ['name' => 'PIC Empat', 'work_descriptions' => ['Uraian empat']],
+            ],
+        ]);
+
+        $component = Livewire::test(DashboardPekerjaan::class, ['mode' => 'display']);
+
+        $this->assertSame(3, substr_count($component->html(), 'data-testid="display-pic-row"'));
+        $component
+            ->assertSee('Uraian satu')
+            ->assertSee('Uraian dua')
+            ->assertSee('Uraian belum diisi.')
+            ->assertSee('+1 PIC lainnya')
+            ->assertDontSee('Uraian empat');
+    }
+
+    public function test_public_display_empty_state_is_single_and_page_count_is_one(): void
+    {
+        $component = Livewire::test(DashboardPekerjaan::class, ['mode' => 'display']);
+
+        $this->assertSame(1, $component->get('maxPages'));
+        $component->assertSee('Belum ada pekerjaan bengkel yang ditampilkan.');
+    }
+
+    #[DataProvider('displayPageCountCases')]
+    public function test_public_display_page_count_matches_six_card_capacity(int $taskCount, int $expectedPages): void
+    {
+        foreach (range(1, $taskCount) as $number) {
+            BengkelTask::create([
+                'job_name' => 'Pekerjaan Kapasitas '.$number,
+                'notification_number' => 'CAP-'.$number,
+                'unit_work' => 'Workshop',
+                'seksi' => 'Seksi',
+                'usage_plan_date' => '2026-04-20',
+                'catatan' => 'Regu Fabrikasi',
+                'person_in_charge' => [],
+                'person_in_charge_profiles' => [],
+            ]);
+        }
+
+        $component = Livewire::test(DashboardPekerjaan::class, ['mode' => 'display']);
+
+        $this->assertSame($expectedPages, $component->get('maxPages'));
+    }
+
+    /** @return array<string, array{int, int}> */
+    public static function displayPageCountCases(): array
+    {
+        return [
+            'six tasks' => [6, 1],
+            'seven tasks' => [7, 2],
+            'ten tasks' => [10, 2],
+            'twelve tasks' => [12, 2],
+        ];
+    }
 
     public function test_refresh_board_reloads_latest_tasks(): void
     {

@@ -479,6 +479,108 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* Public display: one balanced six-card board shared by both teams. */
+        .tv-display-shell .tv-board-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-rows: repeat(2, minmax(0, 1fr));
+            gap: 0.65rem;
+            min-height: 0;
+            flex: 1 1 0%;
+            overflow: hidden;
+            padding: 0.6rem;
+            background: #f1f5f9;
+        }
+        .tv-display-shell .tv-task-card {
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-width: 1px;
+            border-radius: 0.8rem;
+            padding: 0.65rem;
+            box-shadow: 0 2px 7px rgba(15, 23, 42, 0.09);
+        }
+        .tv-display-shell .tv-card-topline {
+            display: flex;
+            min-width: 0;
+            align-items: center;
+            gap: 0.35rem;
+            flex-wrap: wrap;
+        }
+        .tv-display-shell .tv-team-badge,
+        .tv-display-shell .tv-progress-badge,
+        .tv-display-shell .tv-deadline-badge {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid transparent;
+            border-radius: 999px;
+            padding: 0.22rem 0.45rem;
+            font-size: clamp(0.48rem, 0.52vw, 0.62rem);
+            font-weight: 900;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .tv-display-shell .tv-team-fabrication { background: #dbeafe; border-color: #bfdbfe; color: #1d4ed8; }
+        .tv-display-shell .tv-team-refurbish { background: #dcfce7; border-color: #bbf7d0; color: #15803d; }
+        .tv-display-shell .tv-order-number {
+            min-width: 0;
+            flex: 1 1 5rem;
+            overflow: hidden;
+            color: #334155;
+            font-size: clamp(0.52rem, 0.58vw, 0.68rem);
+            font-weight: 800;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .tv-display-shell .tv-card-title {
+            margin-top: 0.45rem;
+            color: #0f172a;
+            font-size: clamp(0.82rem, 1vw, 1.14rem);
+            font-weight: 900;
+            line-height: 1.12;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .tv-display-shell .tv-card-meta {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 0.45rem;
+            margin-top: 0.45rem;
+            padding: 0.4rem 0.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.55rem;
+            background: #f8fafc;
+            color: #334155;
+            font-size: clamp(0.54rem, 0.6vw, 0.7rem);
+        }
+        .tv-display-shell .tv-card-meta > div { min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+        .tv-display-shell .tv-card-meta strong { color: #64748b; font-size: 0.78em; text-transform: uppercase; letter-spacing: 0.08em; }
+        .tv-display-shell .tv-card-meta span { overflow: hidden; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+        .tv-display-shell .tv-pic-section { min-height: 0; flex: 1 1 0%; margin-top: 0.5rem; overflow: hidden; border-top: 1px solid #e2e8f0; padding-top: 0.4rem; }
+        .tv-display-shell .tv-pic-section-label { display: flex; align-items: center; justify-content: space-between; gap: 0.35rem; color: #64748b; font-size: clamp(0.5rem, 0.55vw, 0.64rem); font-weight: 900; letter-spacing: 0.09em; text-transform: uppercase; }
+        .tv-display-shell .tv-extra-pic { flex: 0 0 auto; border-radius: 999px; background: #f1f5f9; padding: 0.18rem 0.35rem; color: #64748b; font-size: 0.9em; letter-spacing: 0; text-transform: none; }
+        .tv-display-shell .tv-pic-list { display: flex; min-height: 0; flex-direction: column; gap: 0.3rem; margin-top: 0.35rem; }
+        .tv-display-shell .tv-pic-row { display: grid; min-width: 0; grid-template-columns: 2.8rem 6.8rem minmax(0, 1fr); align-items: center; gap: 0.4rem; min-height: 2.8rem; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 0.5rem; background: #fff; padding: 0.25rem; }
+        .tv-display-shell .tv-pic-avatar { height: 2.25rem; width: 2.25rem; overflow: hidden; border-radius: 0.4rem; background: #e2e8f0; }
+        .tv-display-shell .tv-pic-avatar img, .tv-display-shell .tv-pic-fallback { display: flex; height: 100%; width: 100%; align-items: center; justify-content: center; object-fit: cover; color: #334155; font-size: 0.7rem; font-weight: 900; }
+        .tv-display-shell .tv-pic-identity { min-width: 0; overflow: hidden; border-right: 1px solid #e2e8f0; padding-right: 0.35rem; color: #0f172a; font-size: clamp(0.54rem, 0.62vw, 0.72rem); font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
+        .tv-display-shell .tv-pic-description { min-width: 0; color: #475569; font-size: clamp(0.5rem, 0.58vw, 0.68rem); font-weight: 700; line-height: 1.22; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .tv-display-shell .tv-empty-pic, .tv-display-shell .tv-display-empty { display: flex; align-items: center; justify-content: center; color: #64748b; font-size: clamp(0.65rem, 0.75vw, 0.85rem); font-weight: 700; text-align: center; }
+        .tv-display-shell .tv-empty-pic { min-height: 3rem; border: 1px dashed #cbd5e1; border-radius: 0.5rem; background: #f8fafc; }
+        .tv-display-shell .tv-display-empty { grid-column: 1 / -1; min-height: 0; border: 1px dashed #cbd5e1; border-radius: 0.8rem; background: #fff; }
+        @media (max-width: 1100px) {
+            .tv-display-shell .tv-board-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); }
+            .tv-display-shell .tv-pic-row { grid-template-columns: 2.5rem 5.6rem minmax(0, 1fr); }
+        }
+        @media (max-width: 700px) {
+            .tv-display-shell .tv-board-grid { grid-template-columns: 1fr; grid-template-rows: none; overflow-y: auto; }
+            .tv-display-shell .tv-task-card { min-height: 15rem; }
+        }
     </style>
 </head>
 

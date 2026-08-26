@@ -13,6 +13,8 @@ use Livewire\Component;
 
 class DashboardPekerjaan extends Component
 {
+    public const DISPLAY_PER_PAGE = 6;
+
     public string $mode = 'admin';
 
     /**
@@ -197,6 +199,15 @@ class DashboardPekerjaan extends Component
         })->all();
 
         $collection = collect($this->tasks);
+
+        if ($this->mode === 'display') {
+            $this->maxPages = max(1, (int) ceil($collection->count() / self::DISPLAY_PER_PAGE));
+            $this->pageSlide = $this->maxPages > 0
+                ? $this->pageSlide % $this->maxPages
+                : 0;
+
+            return;
+        }
 
         $fabrikasiRows = $collection
             ->filter(fn (array $row): bool => (($row['catatan'] ?? null) === 'Regu Fabrikasi') || empty($row['catatan']))

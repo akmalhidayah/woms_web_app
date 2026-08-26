@@ -11,6 +11,15 @@
 
     $isDisplayMode = ($mode ?? 'admin') === 'display';
 
+    $displayMaxPages = max(1, (int) ($maxPages ?? 1));
+    $displayPages = $allTasks->isEmpty()
+        ? collect([collect()])
+        : $allTasks->split($displayMaxPages);
+    $displaySlideIndex = $displayPages->isNotEmpty()
+        ? ((int) ($pageSlide ?? 0) % $displayPages->count())
+        : 0;
+    $displayPage = $displayPages->get($displaySlideIndex, collect())->values();
+
     $fabrikasiPerPage = $isDisplayMode
         ? 3
         : ($fabrikasiTasks->contains(fn ($row) => count($row['person_in_charge_profiles'] ?? []) > 2)
@@ -98,7 +107,7 @@
         if ($daysLeft <= 3) {
             return [
                 'badge_text' => $daysLeft.' hari lagi',
-                'badge_class' => 'border-red-200 bg-red-50 text-red-700',
+                'badge_class' => 'border-amber-200 bg-amber-50 text-amber-700',
             ];
         }
 
@@ -150,6 +159,7 @@
 
 <div>
     @if (($mode ?? 'admin') === 'display')
+        @if (false)
         <div wire:poll.keep-alive.5s="tickDisplay" class="flex h-screen w-screen flex-col overflow-hidden bg-slate-100 text-slate-950" style="color-scheme: light only;">
             <div class="tv-board-header mb-2 border border-red-950 bg-red-900 text-white shadow-sm">
                 <div class="flex items-center gap-3">
@@ -415,6 +425,75 @@
                         @endforelse
                     </div>
                 </section>
+            </div>
+        </div>
+        @endif
+
+        <div wire:poll.keep-alive.5s="tickDisplay" class="tv-display-shell flex h-screen w-screen flex-col overflow-hidden bg-slate-100 text-slate-950" style="color-scheme: light only;">
+            <div class="tv-board-header mb-2 border border-red-950 bg-red-900 text-white shadow-sm">
+                <div class="flex items-center gap-3">
+                    <span class="tv-logo-box"><img src="{{ asset('assets/branding/logos/logo-sig.png') }}" alt="SIG" class="h-8 w-auto object-contain"></span>
+                    <span class="tv-logo-box"><img src="{{ asset('assets/branding/logos/logo-st2.png') }}" alt="ST" class="h-9 w-auto object-contain"></span>
+                </div>
+                <div class="text-left">
+                    <h1 class="tv-board-title text-white">Pekerjaan Bengkel</h1>
+                    <div id="dateDisplay" class="tv-board-date text-slate-300"></div>
+                </div>
+                <div class="tv-header-right">
+                    <div class="tv-summary-card"><div class="tv-summary-title">Total Order</div><div class="tv-summary-values"><div><span>Bengkel</span><strong>{{ $orderSummary['total_workshop'] ?? 0 }}</strong></div><div><span>Jasa</span><strong>{{ $orderSummary['total_service'] ?? 0 }}</strong></div></div></div>
+                    <div class="tv-summary-card"><div class="tv-summary-title">Diproses</div><div class="tv-summary-values"><div><span>Bengkel</span><strong>{{ $orderSummary['processed_workshop'] ?? 0 }}</strong></div><div><span>Jasa</span><strong>{{ $orderSummary['processed_service'] ?? 0 }}</strong></div></div></div>
+                    <div class="tv-header-clock text-right"><div class="text-[9px] font-bold uppercase tracking-[0.22em] text-slate-300">Jam</div><div id="timeDisplay" class="tv-board-time tracking-tight text-white"></div><div class="mt-1 text-[9px] font-semibold text-slate-300">Fabrikasi {{ $fabrikasiTasks->count() }} • Refurbish {{ $refurbishTasks->count() }} • Halaman {{ $displaySlideIndex + 1 }}/{{ $displayMaxPages }}</div></div>
+                </div>
+            </div>
+
+            <div class="ticker mb-2 border border-red-950 bg-red-900 text-white shadow-sm" style="--ticker-duration: {{ $tickerDuration }}s;"><div class="ticker-track"><span class="ticker-item">{{ $tickerMessage }}</span><span class="ticker-item">{{ $tickerMessage }}</span><span class="ticker-item">{{ $tickerMessage }}</span><span class="ticker-item">{{ $tickerMessage }}</span></div></div>
+
+            <div class="tv-board-grid">
+                @forelse ($displayPage as $task)
+                    @php
+                        $profiles = collect($task['person_in_charge_profiles'] ?? []);
+                        $visibleProfiles = $profiles->take(3);
+                        $extraProfiles = max(0, $profiles->count() - 3);
+                        $targetMeta = $targetStatus($task['usage_plan_date'] ?? null);
+                        $isCompleted = (bool) ($task['is_completed'] ?? false);
+                        $progressMeta = $progressBadge($task['progress_status'] ?? null, $task['progress_label'] ?? null);
+                        $isRefurbish = ($task['catatan'] ?? null) === 'Regu Bengkel (Refurbish)';
+                    @endphp
+                    <article data-testid="display-task-card" wire:key="display-task-{{ $task['id'] }}" class="tv-task-card {{ $isCompleted ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-white' }}">
+                        <div class="tv-card-topline">
+                            <span class="tv-team-badge {{ $isRefurbish ? 'tv-team-refurbish' : 'tv-team-fabrication' }}">{{ $isRefurbish ? 'REFURBISH' : 'FABRIKASI' }}</span>
+                            <span class="tv-order-number">{{ $task['notification_number'] ?: '-' }}</span>
+                            <span class="tv-progress-badge {{ $progressMeta['class'] }}">{{ $progressShortLabel($task['progress_status'] ?? null, $progressMeta['label']) }}</span>
+                            @if ($targetMeta['badge_text'])<span class="tv-deadline-badge {{ $targetMeta['badge_class'] }}">{{ $targetMeta['badge_text'] }}</span>@endif
+                        </div>
+                        <h2 class="tv-card-title">{{ $task['job_name'] ?? '-' }}</h2>
+                        <div class="tv-card-meta"><div><strong>Seksi</strong><span>{{ $task['seksi'] ?: '-' }}</span></div><div><strong>Target</strong><span>{{ $task['usage_plan_date'] ?: '-' }}</span></div></div>
+                        <div class="tv-pic-section"><div class="tv-pic-section-label">PIC &amp; URAIAN PEKERJAAN @if ($extraProfiles > 0)<span class="tv-extra-pic">+{{ $extraProfiles }} PIC lainnya</span>@endif</div>
+                            @if ($visibleProfiles->isNotEmpty())
+                                <div class="tv-pic-list">
+                                    @foreach ($visibleProfiles as $profile)
+                                        @php
+                                            $name = is_array($profile) ? (string) ($profile['name'] ?? '') : '';
+                                            $avatar = is_array($profile) ? ($profile['avatar_url'] ?? null) : null;
+                                            $descriptions = collect(is_array($profile) ? ($profile['work_descriptions'] ?? []) : [])->filter()->values();
+                                        @endphp
+                                        <div data-testid="display-pic-row" class="tv-pic-row">
+                                            <div class="tv-pic-avatar">
+                                                @if ($avatar)<img src="{{ $avatar }}" alt="{{ $name }}" style="object-position: {{ $avatarObjectPosition($profile) }};" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><span style="display:none" class="tv-pic-fallback">{{ $initials($name) }}</span>@else<span class="tv-pic-fallback">{{ $initials($name) }}</span>@endif
+                                            </div>
+                                            <div class="tv-pic-identity">{{ $name ?: '-' }}</div>
+                                            <div class="tv-pic-description">@if ($descriptions->isNotEmpty()){{ $descriptions->implode(' • ') }}@else<span class="text-slate-400">Uraian belum diisi.</span>@endif</div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                <div class="tv-empty-pic">PIC belum ditugaskan</div>
+                            @endif
+                        </div>
+                    </article>
+                @empty
+                    <div class="tv-display-empty">Belum ada pekerjaan bengkel yang ditampilkan.</div>
+                @endforelse
             </div>
         </div>
     @else

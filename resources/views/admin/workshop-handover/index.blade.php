@@ -111,9 +111,16 @@
                                         </div>
                                     @elseif ($handover)
                                         <div class="flex flex-wrap gap-1.5">
-                                            <button type="button" disabled class="inline-flex cursor-not-allowed items-center rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[10px] font-semibold text-amber-700">Status TTD</button>
+                                            <button type="button" class="inline-flex items-center rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[10px] font-semibold text-amber-700" data-handover-status data-admin="{{ $handover->admin_name_snapshot }}" data-recipient="{{ $handover->recipient_name_snapshot }}" data-recipient-status="{{ $handover->tokenExpired() ? 'Token kedaluwarsa' : 'Menunggu TTD' }}">Status TTD</button>
                                             @if ($photoPath)
                                                 <a href="{{ route('admin.workshop-handover.photo', [$handover, 0]) }}" target="_blank" rel="noopener" class="inline-flex items-center rounded-lg bg-slate-600 px-2.5 py-1.5 text-[10px] font-semibold text-white hover:bg-slate-700">Lihat Bukti</a>
+                                            @endif
+                                            <a href="{{ route('admin.workshop-handover.pdf', $handover) }}" target="_blank" rel="noopener" class="inline-flex items-center rounded-lg bg-blue-700 px-2.5 py-1.5 text-[10px] font-semibold text-white">PDF</a>
+                                            @if ($handover->approvalUrl())
+                                                <button type="button" data-copy-handover-link="{{ $handover->approvalUrl() }}" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-700">Salin Link</button>
+                                                <form method="POST" action="{{ route('admin.workshop-handover.resend', $handover) }}" class="inline"><input type="hidden" name="_token" value="{{ csrf_token() }}"><button class="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10px] font-semibold text-blue-700">Kirim Ulang</button></form>
+                                            @elseif ($handover->tokenExpired())
+                                                <form method="POST" action="{{ route('admin.workshop-handover.regenerate', $handover) }}" class="inline"><input type="hidden" name="_token" value="{{ csrf_token() }}"><button class="inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[10px] font-semibold text-rose-700">Buat Token Baru</button></form>
                                             @endif
                                         </div>
                                     @elseif ($canProcess)
@@ -192,6 +199,19 @@
     </div>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('[data-handover-status]').forEach((button) => button.addEventListener('click', () => {
+            window.alert(`Admin Workshop: Sudah TTD\nManager User: ${button.dataset.recipientStatus}`);
+        }));
+        document.querySelectorAll('[data-copy-handover-link]').forEach((button) => button.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(button.dataset.copyHandoverLink);
+                const label = button.textContent;
+                button.textContent = 'Tersalin';
+                window.setTimeout(() => { button.textContent = label; }, 1500);
+            } catch (_) {
+                window.prompt('Salin link Serah Terima berikut:', button.dataset.copyHandoverLink);
+            }
+        }));
         const modal = document.getElementById('workshop-handover-modal');
         const form = document.getElementById('workshop-handover-form');
         const canvas = document.getElementById('workshop-handover-signature');

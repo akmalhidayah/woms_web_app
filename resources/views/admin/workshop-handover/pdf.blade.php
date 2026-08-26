@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><style>
+@page{margin:24px}body{font-family:DejaVu Sans,sans-serif;font-size:11px;color:#172033}h1{font-size:18px;margin:0 0 4px}table{width:100%;border-collapse:collapse}td{padding:5px;vertical-align:top}.meta{border:1px solid #cbd5e1;margin:12px 0}.photos{width:100%;margin:10px 0}.photos td{width:33%;text-align:center}.photos img{max-width:160px;max-height:140px}.signatures{margin-top:40px}.signatures td{width:50%;text-align:center;border-top:1px solid #94a3b8}.signature{height:70px;max-width:180px}
+</style></head><body>
+<h1>BUKTI SERAH TERIMA PEKERJAAN BENGKEL</h1><div>{{ $handover->document_no }}</div>
+<table class="meta"><tr><td>Nomor Order</td><td>{{ $handover->order_no_snapshot }}</td></tr><tr><td>Pekerjaan</td><td>{{ $handover->job_name_snapshot }}</td></tr><tr><td>Unit / Seksi</td><td>{{ $handover->unit_snapshot ?: '-' }} / {{ $handover->section_snapshot ?: '-' }}</td></tr><tr><td>Jalur</td><td>{{ $handover->path }}</td></tr><tr><td>Tanggal</td><td>{{ optional($handover->handed_over_at)->format('d/m/Y H:i') }}</td></tr></table>
+<table class="photos"><tr>@foreach ($photoSources as $source)<td><img src="{{ $source }}" alt="Foto bukti"></td>@endforeach</tr></table>
+<table class="signatures"><tr><td>Diserahkan oleh<br>@if ($adminSignatureSource)<img class="signature" src="{{ $adminSignatureSource }}"><br>@endif<strong>{{ $handover->admin_name_snapshot }}</strong><br>{{ optional($handover->admin_signed_at)->format('d/m/Y H:i') }}</td><td>Diterima oleh<br>@if ($userSignatureSource)<img class="signature" src="{{ $userSignatureSource }}"><br>@endif<strong>{{ $handover->recipient_name_snapshot }}</strong><br>{{ $handover->user_signed_at ? $handover->user_signed_at->format('d/m/Y H:i') : 'Menunggu Tanda Tangan' }}</td></tr></table>
+</body></html>

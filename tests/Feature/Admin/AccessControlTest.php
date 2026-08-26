@@ -173,8 +173,9 @@ class AccessControlTest extends TestCase
             ->get(route('admin.workshop-quality-control.index'))
             ->assertOk()
             ->assertSeeText('Monitoring pemeriksaan kualitas pekerjaan bengkel.')
-            ->assertSeeText('Perlu Pemeriksaan')
-            ->assertSeeText('Dalam Pemeriksaan');
+            ->assertSeeText('Perlu Tindakan')
+            ->assertSeeText('Dalam Proses')
+            ->assertSeeText('Riwayat');
     }
 
     public function test_workshop_handover_menu_has_independent_frontend_access(): void
@@ -200,7 +201,7 @@ class AccessControlTest extends TestCase
             ->assertOk()
             ->assertSeeText('Monitoring proses penyerahan hasil pekerjaan bengkel.')
             ->assertSeeText('Menunggu Serah Terima')
-            ->assertSeeText('Dalam Proses');
+            ->assertSeeText('Riwayat');
     }
 
     public function test_order_jasa_and_bengkel_permissions_control_sidebar_and_backend_separately(): void

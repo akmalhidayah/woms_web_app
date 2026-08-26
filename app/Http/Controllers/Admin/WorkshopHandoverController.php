@@ -103,6 +103,7 @@ class WorkshopHandoverController extends Controller
 
         $storedPaths = [];
         $signaturePath = null;
+        $emailSent = false;
 
         try {
             $handover = DB::transaction(function () use ($request, $order, $queue, $recipientResolver, &$storedPaths, &$signaturePath): WorkshopHandover {
@@ -175,8 +176,8 @@ class WorkshopHandoverController extends Controller
                     'token_expires_at' => now()->addDays(self::TOKEN_TTL_DAYS),
                 ]);
 
-                DB::afterCommit(function () use ($handover): void {
-                    $this->notificationService->sendWorkshopHandover($handover->fresh(['recipient', 'order']));
+                DB::afterCommit(function () use ($handover, &$emailSent): void {
+                    $emailSent = $this->notificationService->sendWorkshopHandover($handover->fresh(['recipient', 'order']));
                 });
 
                 return $handover;
@@ -186,7 +187,9 @@ class WorkshopHandoverController extends Controller
             throw $exception;
         }
 
-        return back()->with('status', "Serah Terima {$handover->document_no} berhasil dibuat dan link dikirim ke Manager User.");
+        return back()->with('status', $emailSent
+            ? "Serah Terima {$handover->document_no} berhasil dibuat dan link dikirim ke Manager User."
+            : "Serah Terima {$handover->document_no} berhasil dibuat, tetapi email gagal dikirim. Gunakan Salin Link atau Kirim Ulang.");
     }
 
     public function resend(Request $request, WorkshopHandover $workshopHandover): RedirectResponse

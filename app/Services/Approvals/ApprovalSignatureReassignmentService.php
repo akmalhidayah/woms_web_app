@@ -32,6 +32,7 @@ class ApprovalSignatureReassignmentService
                 ->firstOrFail();
 
             $this->assertReassignable($lockedSignature);
+            $this->assertNewSigner($lockedSignature, $newSigner);
 
             $previousSigner = $lockedSignature->signer;
             $status = $this->resolveStatusAfterReassign($lockedSignature);
@@ -66,6 +67,23 @@ class ApprovalSignatureReassignmentService
         if ($this->isSigned($signature) || $this->isSkipped($signature)) {
             throw ValidationException::withMessages([
                 'signature' => 'Approver yang sudah TTD atau dilewati tidak dapat dialihkan.',
+            ]);
+        }
+    }
+
+    private function assertNewSigner(Model $signature, User $newSigner): void
+    {
+        if ((int) $signature->signer_user_id === (int) $newSigner->id) {
+            throw ValidationException::withMessages([
+                'signer_user_id' => 'Signer baru harus berbeda dari signer sebelumnya.',
+            ]);
+        }
+
+        $isDeleted = method_exists($newSigner, 'trashed') && $newSigner->trashed();
+
+        if ($isDeleted || blank($newSigner->email)) {
+            throw ValidationException::withMessages([
+                'signer_user_id' => 'Signer baru harus merupakan user aktif dengan email yang valid.',
             ]);
         }
     }

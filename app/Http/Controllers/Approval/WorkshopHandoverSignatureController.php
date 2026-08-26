@@ -76,9 +76,6 @@ class WorkshopHandoverSignatureController extends Controller
                     'user_signed_at' => now(),
                     'user_signed_ip' => $request->ip(),
                     'user_signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
-                    'token_hash' => null,
-                    'token_encrypted' => null,
-                    'token_expires_at' => null,
                 ]);
 
                 return true;

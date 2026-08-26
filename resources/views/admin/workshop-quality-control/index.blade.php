@@ -18,10 +18,21 @@
         </section>
 
         <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div class="flex flex-wrap gap-2 border-b border-slate-200 px-4 pt-4">
+                @foreach ([
+                    'action' => 'Perlu Tindakan',
+                    'process' => 'Dalam Proses',
+                    'history' => 'Riwayat',
+                ] as $key => $label)
+                    <a href="{{ request()->fullUrlWithQuery(['tab' => $key, 'page' => null]) }}" class="rounded-lg px-3 py-2 text-xs font-semibold {{ $tab === $key ? 'bg-blue-700 text-white' : 'border border-slate-200 text-slate-600 hover:bg-slate-50' }}">
+                        {{ $label }} <span class="ml-1 rounded-full bg-white/20 px-1.5 py-0.5">{{ $tabCounts[$key] ?? 0 }}</span>
+                    </a>
+                @endforeach
+            </div>
             <form method="GET" class="grid grid-cols-1 gap-3 border-b border-slate-200 p-4 sm:grid-cols-12 sm:items-end">
+                <input type="hidden" name="tab" value="{{ $tab }}">
                 <div class="sm:col-span-5"><label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Pencarian</label><input name="search" value="{{ $search }}" placeholder="Cari nomor order / pekerjaan / unit..." class="h-10 w-full rounded-lg border border-slate-300 px-3 text-xs"></div>
                 <div class="sm:col-span-2"><label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Jenis QC</label><select name="type" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs"><option value="">Semua Jenis</option><option value="fabrication" @selected($selectedType === 'fabrication')>Fabrikasi</option><option value="refurbish" @selected($selectedType === 'refurbish')>Refurbish</option></select></div>
-                <div class="sm:col-span-3"><label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Status</label><select name="status" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs"><option value="action" @selected($selectedStatus === 'action')>Perlu Tindakan</option><option value="" @selected($selectedStatus === '')>Semua Status</option><option value="missing" @selected($selectedStatus === 'missing')>Perlu Pemeriksaan</option><option value="draft" @selected($selectedStatus === 'draft')>Dalam Pemeriksaan</option><option value="approval" @selected($selectedStatus === 'approval')>Menunggu Approval</option><option value="completed" @selected($selectedStatus === 'completed')>Selesai</option></select></div>
                 <button class="h-10 rounded-lg bg-blue-700 px-4 text-xs font-semibold text-white">Terapkan</button>
             </form>
             <div class="overflow-x-auto"><table class="min-w-[1100px] w-full text-left text-xs"><thead class="bg-slate-100 text-[10px] uppercase tracking-wider text-slate-600"><tr><th class="px-4 py-3">Order</th><th class="px-4 py-3">Detail Pekerjaan</th><th class="px-4 py-3">Jenis QC</th><th class="px-4 py-3">Report</th><th class="px-4 py-3">Progress Approval</th><th class="px-4 py-3 text-center">Aksi</th></tr></thead><tbody class="divide-y divide-slate-200">
@@ -99,10 +110,13 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">Belum ada pekerjaan Quality Control pada filter ini.</td></tr>
+                    <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">{{ $tab === 'action' ? 'Tidak ada QC yang memerlukan tindakan.' : ($tab === 'process' ? 'Tidak ada QC yang sedang menunggu tanda tangan.' : 'Belum ada riwayat QC selesai.') }}</td></tr>
                 @endforelse
             </tbody></table></div>
             <div class="border-t border-slate-200 px-4 py-3 text-[10px] text-slate-500">Menampilkan {{ $orders->count() }} pekerjaan Quality Control.</div>
+            @if ($orders->hasPages())
+                <div class="border-t border-slate-200 px-4 py-3">{{ $orders->links() }}</div>
+            @endif
         </section>
     </div>
 

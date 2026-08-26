@@ -44,6 +44,10 @@ final class WorkshopHandoverQueue
                             ->whereHas('latestQualityControlReport.signatures', fn (Builder $signature) => $signature
                                 ->where('role_key', QualityControlSignature::ROLE_USER_MANAGER)
                                 ->where('status', QualityControlSignature::STATUS_SIGNED))
+                            ->whereHas('latestQualityControlReport.signatures', fn (Builder $signature) => $signature->whereIn('role_key', [
+                                QualityControlSignature::ROLE_WORKSHOP_MANAGER,
+                                QualityControlSignature::ROLE_USER_MANAGER,
+                            ]), '=', 2)
                             ->whereDoesntHave('latestQualityControlReport.signatures', fn (Builder $signature) => $signature
                                 ->where('status', '!=', QualityControlSignature::STATUS_SIGNED));
                     })

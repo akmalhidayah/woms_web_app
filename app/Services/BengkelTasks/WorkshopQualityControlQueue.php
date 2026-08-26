@@ -41,11 +41,11 @@ final class WorkshopQualityControlQueue
         $signatures = $report->signatures;
         $roleCounts = $signatures->groupBy('role_key')->map->count();
         $broken = ! $report->hasValidMakerSignature()
-            || $signatures->isEmpty()
+            || $signatures->count() !== 2
             || $roleCounts->get(QualityControlSignature::ROLE_WORKSHOP_MANAGER, 0) !== 1
             || $roleCounts->get(QualityControlSignature::ROLE_USER_MANAGER, 0) !== 1
             || $signatures->contains(fn (QualityControlSignature $signature): bool => $signature->status === QualityControlSignature::STATUS_MISSING
-                || ($signature->status === QualityControlSignature::STATUS_PENDING && ! $signature->signer_user_id)
+                || ($signature->status === QualityControlSignature::STATUS_PENDING && (! $signature->signer_user_id || ! $signature->approvalUrl() || $signature->tokenExpired()))
             );
 
         return $broken
@@ -55,6 +55,14 @@ final class WorkshopQualityControlQueue
 
     public function actionCount(): int
     {
-        return $this->query()->get()->filter(fn (Order $order): bool => $this->status($order)['action'])->count();
+        $count = 0;
+
+        foreach ($this->query()->lazyById(200) as $order) {
+            if ($this->status($order)['action']) {
+                $count++;
+            }
+        }
+
+        return $count;
     }
 }

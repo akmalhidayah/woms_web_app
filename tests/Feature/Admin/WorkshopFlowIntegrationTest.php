@@ -7,6 +7,7 @@ use App\Models\BengkelTask;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
 use App\Models\QualityControlReport;
+use App\Models\QualityControlSignature;
 use App\Models\User;
 use App\Services\BengkelTasks\WorkshopHandoverQueue;
 use App\Support\WorkshopReadiness;
@@ -49,7 +50,7 @@ class WorkshopFlowIntegrationTest extends TestCase
             ->assertDontSee('@include', false);
     }
 
-    public function test_advanced_progress_is_blocked_until_readiness_is_complete(): void
+    public function test_sementara_proses_does_not_require_readiness(): void
     {
         $admin = $this->superAdmin();
         [$order, $task] = $this->workshopOrder($admin, OrderWorkshop::PROGRESS_MENUNGGU_JADWAL);
@@ -58,18 +59,17 @@ class WorkshopFlowIntegrationTest extends TestCase
             ->patch(route('admin.bengkel-tasks.progress.update', $task), [
                 'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
             ])
-            ->assertSessionHasErrors('progress_status');
+            ->assertSessionDoesntHaveErrors();
 
         $order->orderWorkshop()->update([
             'konfirmasi_anggaran' => OrderWorkshop::KONFIRMASI_MATERIAL_READY,
             'status_material' => OrderWorkshop::STATUS_MATERIAL_GOOD_ISSUE,
         ]);
 
-        $this->actingAs($admin)
-            ->patch(route('admin.bengkel-tasks.progress.update', $task), [
-                'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
-            ])
-            ->assertSessionDoesntHaveErrors();
+        $this->assertDatabaseHas('order_workshops', [
+            'order_id' => $order->id,
+            'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
+        ]);
     }
 
     public function test_readiness_fields_can_be_saved_incrementally_for_legacy_advanced_progress(): void
@@ -147,22 +147,22 @@ class WorkshopFlowIntegrationTest extends TestCase
             'updated_by' => $admin->id,
         ]);
         $report->signatures()->createMany([
-            ['step_order' => 1, 'role_key' => \App\Models\QualityControlSignature::ROLE_WORKSHOP_MANAGER, 'role_label' => 'Manager Workshop', 'signer_user_id' => $admin->id, 'status' => \App\Models\QualityControlSignature::STATUS_PENDING],
-            ['step_order' => 2, 'role_key' => \App\Models\QualityControlSignature::ROLE_USER_MANAGER, 'role_label' => 'Manager User', 'signer_user_id' => $admin->id, 'status' => \App\Models\QualityControlSignature::STATUS_LOCKED],
+            ['step_order' => 1, 'role_key' => QualityControlSignature::ROLE_WORKSHOP_MANAGER, 'role_label' => 'Manager Workshop', 'signer_user_id' => $admin->id, 'status' => QualityControlSignature::STATUS_PENDING],
+            ['step_order' => 2, 'role_key' => QualityControlSignature::ROLE_USER_MANAGER, 'role_label' => 'Manager User', 'signer_user_id' => $admin->id, 'status' => QualityControlSignature::STATUS_LOCKED],
         ]);
 
         $this->assertSame(3, $report->fresh('signatures')->approvalStepCount());
         $this->assertSame(1, $report->fresh('signatures')->approvalSignedCount());
         $this->assertSame(33, $report->fresh('signatures')->approvalProgressPercent());
 
-        $report->signatures()->where('role_key', \App\Models\QualityControlSignature::ROLE_WORKSHOP_MANAGER)->update([
-            'status' => \App\Models\QualityControlSignature::STATUS_SIGNED,
+        $report->signatures()->where('role_key', QualityControlSignature::ROLE_WORKSHOP_MANAGER)->update([
+            'status' => QualityControlSignature::STATUS_SIGNED,
             'signed_at' => now(),
         ]);
         $this->assertSame(2, $report->fresh('signatures')->approvalSignedCount());
 
-        $report->signatures()->where('role_key', \App\Models\QualityControlSignature::ROLE_USER_MANAGER)->update([
-            'status' => \App\Models\QualityControlSignature::STATUS_SIGNED,
+        $report->signatures()->where('role_key', QualityControlSignature::ROLE_USER_MANAGER)->update([
+            'status' => QualityControlSignature::STATUS_SIGNED,
             'signed_at' => now(),
         ]);
         $completed = $report->fresh('signatures');

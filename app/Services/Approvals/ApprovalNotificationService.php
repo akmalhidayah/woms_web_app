@@ -7,6 +7,7 @@ use App\Models\InitialWorkSignature;
 use App\Models\LhppBast;
 use App\Models\LhppBastSignature;
 use App\Models\QualityControlSignature;
+use App\Models\WorkshopHandover;
 use App\Models\User;
 use App\Notifications\ApprovalRequestedNotification;
 use App\Support\ApprovalRecipientRoleLabel;
@@ -108,6 +109,26 @@ class ApprovalNotificationService
             [
                 'quality_control_signature_id' => $signature->id,
                 'quality_control_report_id' => $signature->quality_control_report_id,
+            ],
+        );
+    }
+
+    public function sendWorkshopHandover(WorkshopHandover $handover, bool $resend = false): bool
+    {
+        $handover->loadMissing(['recipient', 'order']);
+
+        return $this->send(
+            $handover->recipient,
+            'Serah Terima Bengkel',
+            (string) $handover->document_no,
+            (string) $handover->job_name_snapshot,
+            (string) $handover->recipient_position_snapshot,
+            $handover->approvalUrl(),
+            $handover->token_expires_at,
+            $resend,
+            [
+                'workshop_handover_id' => $handover->id,
+                'order_id' => $handover->order_id,
             ],
         );
     }

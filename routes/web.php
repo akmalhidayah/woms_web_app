@@ -30,6 +30,7 @@ use App\Http\Controllers\Approval\BastSignatureController;
 use App\Http\Controllers\Approval\HppSignatureController;
 use App\Http\Controllers\Approval\InitialWorkSignatureController;
 use App\Http\Controllers\Approval\QualityControlSignatureController;
+use App\Http\Controllers\Approval\WorkshopHandoverSignatureController;
 use App\Http\Controllers\ApprovalDocumentController;
 use App\Http\Controllers\Pkm\DashboardController as PkmDashboardController;
 use App\Http\Controllers\Pkm\DocumentsController as PkmDocumentsController;
@@ -111,6 +112,15 @@ Route::middleware(['auth'])->group(function () {
         ->name('approval.bast.abnormalitas');
     Route::get('approval/bast/{token}/termin-1', [BastSignatureController::class, 'previewTerminOne'])
         ->name('approval.bast.termin-one');
+    Route::get('approval/workshop-handover/{token}', [WorkshopHandoverSignatureController::class, 'show'])
+        ->name('approval.workshop-handover.show');
+    Route::post('approval/workshop-handover/{token}', [WorkshopHandoverSignatureController::class, 'sign'])
+        ->name('approval.workshop-handover.sign');
+    Route::get('approval/workshop-handover/{token}/pdf', [WorkshopHandoverSignatureController::class, 'pdf'])
+        ->name('approval.workshop-handover.pdf');
+    Route::get('approval/workshop-handover/{token}/photo/{index}', [WorkshopHandoverSignatureController::class, 'photo'])
+        ->whereNumber('index')
+        ->name('approval.workshop-handover.photo');
 
     Route::get('admin/dashboard', AdminDashboardController::class)
         ->middleware('role:admin')
@@ -271,6 +281,25 @@ Route::middleware(['auth'])->group(function () {
     Route::get('admin/serah-terima-bengkel', WorkshopHandoverController::class)
         ->middleware(['role:admin', 'admin_menu:serah_terima_bengkel'])
         ->name('admin.workshop-handover.index');
+    Route::post('admin/serah-terima-bengkel/{order:nomor_order}/process', [WorkshopHandoverController::class, 'process'])
+        ->middleware(['role:admin', 'admin_menu:serah_terima_bengkel'])
+        ->name('admin.workshop-handover.process');
+    Route::post('admin/serah-terima-bengkel/{workshopHandover}/resend', [WorkshopHandoverController::class, 'resend'])
+        ->middleware(['role:admin', 'admin_menu:serah_terima_bengkel'])
+        ->whereNumber('workshopHandover')
+        ->name('admin.workshop-handover.resend');
+    Route::post('admin/serah-terima-bengkel/{workshopHandover}/regenerate', [WorkshopHandoverController::class, 'regenerate'])
+        ->middleware(['role:admin', 'admin_menu:serah_terima_bengkel'])
+        ->whereNumber('workshopHandover')
+        ->name('admin.workshop-handover.regenerate');
+    Route::get('admin/serah-terima-bengkel/{workshopHandover}/photo/{index}', [WorkshopHandoverController::class, 'photo'])
+        ->middleware(['role:admin', 'admin_menu:serah_terima_bengkel'])
+        ->whereNumber(['workshopHandover', 'index'])
+        ->name('admin.workshop-handover.photo');
+    Route::get('admin/serah-terima-bengkel/{workshopHandover}/pdf', [WorkshopHandoverController::class, 'pdf'])
+        ->middleware(['role:admin', 'admin_menu:serah_terima_bengkel'])
+        ->whereNumber('workshopHandover')
+        ->name('admin.workshop-handover.pdf');
     Route::get('admin/display-pekerjaan-bengkel/create', [BengkelTaskController::class, 'create'])
         ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
         ->name('admin.bengkel-tasks.create');

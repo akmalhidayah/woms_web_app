@@ -7,6 +7,7 @@ namespace App\Services\BengkelTasks;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
 use App\Models\QualityControlSignature;
+use App\Models\WorkshopHandover;
 use Illuminate\Database\Eloquent\Builder;
 
 final class WorkshopHandoverQueue
@@ -14,12 +15,35 @@ final class WorkshopHandoverQueue
     public function query(): Builder
     {
         return Order::query()
-            ->with(['orderWorkshop', 'latestQualityControlReport.signatures'])
+            ->with(['orderWorkshop', 'latestQualityControlReport.signatures', 'workshopHandover.recipient'])
+            ->where(function (Builder $query): void {
+                $this->readyQuery($query);
+            })
+            ->where(function (Builder $query): void {
+                $query
+                    ->whereDoesntHave('workshopHandover')
+                    ->orWhereHas('workshopHandover', fn (Builder $handover) => $handover
+                        ->where('status', WorkshopHandover::STATUS_WAITING_USER_SIGNATURE));
+            });
+    }
+
+    public function readyQuery(Builder $query): Builder
+    {
+        return $query
             ->where(function (Builder $query): void {
                 $query
                     ->where(function (Builder $critical): void {
                         $critical
-                            ->whereHas('latestQualityControlReport.signatures')
+                            ->whereHas('latestQualityControlReport', fn (Builder $report) => $report
+                                ->where('status', 'submitted')
+                                ->whereNotNull('payload->signature->signature_data')
+                                ->where('payload->signature->signature_data', '!=', ''))
+                            ->whereHas('latestQualityControlReport.signatures', fn (Builder $signature) => $signature
+                                ->where('role_key', QualityControlSignature::ROLE_WORKSHOP_MANAGER)
+                                ->where('status', QualityControlSignature::STATUS_SIGNED))
+                            ->whereHas('latestQualityControlReport.signatures', fn (Builder $signature) => $signature
+                                ->where('role_key', QualityControlSignature::ROLE_USER_MANAGER)
+                                ->where('status', QualityControlSignature::STATUS_SIGNED))
                             ->whereDoesntHave('latestQualityControlReport.signatures', fn (Builder $signature) => $signature
                                 ->where('status', '!=', QualityControlSignature::STATUS_SIGNED));
                     })
@@ -34,11 +58,30 @@ final class WorkshopHandoverQueue
 
     public function path(Order $order): string
     {
-        return $order->qualityControlReports()->exists() ? 'Critical' : 'Non-Critical';
+        if ($order->relationLoaded('latestQualityControlReport')) {
+            return $order->latestQualityControlReport !== null
+                ? WorkshopHandover::PATH_CRITICAL
+                : WorkshopHandover::PATH_NON_CRITICAL;
+        }
+
+        return $order->qualityControlReports()->exists()
+            ? WorkshopHandover::PATH_CRITICAL
+            : WorkshopHandover::PATH_NON_CRITICAL;
     }
 
     public function count(): int
     {
         return $this->query()->count();
+    }
+
+    public function isReady(Order $order): bool
+    {
+        $order->loadMissing(['orderWorkshop', 'latestQualityControlReport.signatures']);
+
+        if ($order->latestQualityControlReport !== null) {
+            return $order->latestQualityControlReport?->approvalCompleted() ?? false;
+        }
+
+        return $order->orderWorkshop?->progress_status === OrderWorkshop::PROGRESS_DONE;
     }
 }

@@ -10,7 +10,8 @@ return new class extends Migration
     {
         Schema::create('workshop_handovers', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('order_id')->unique()->constrained('orders')->cascadeOnDelete();
+            // Tabel orders production masih menggunakan MyISAM sehingga tidak mendukung foreign key.
+            $table->unsignedBigInteger('order_id')->unique();
             $table->string('document_no', 80)->unique();
             $table->string('path', 20);
             $table->string('status', 40)->index();

@@ -53,7 +53,6 @@ final class WorkshopReadiness
     public function requiresReadiness(string $progress): bool
     {
         return in_array($progress, [
-            OrderWorkshop::PROGRESS_IN_PROGRESS,
             OrderWorkshop::PROGRESS_QUALITY_CONTROL,
             OrderWorkshop::PROGRESS_DONE,
         ], true);

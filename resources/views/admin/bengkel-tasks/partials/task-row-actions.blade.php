@@ -30,7 +30,7 @@
                 <div class="absolute {{ $isMobile ? 'left-0' : 'right-0' }} z-30 mt-1.5 w-44 rounded-xl border border-slate-200 bg-white p-1.5 text-left shadow-xl">
                     @foreach ($progressActions as $value => $action)
                         @continue($progressStatus === $value)
-                        @if ($canAdvance)
+                        @if ($canAdvance || $value === \App\Models\OrderWorkshop::PROGRESS_IN_PROGRESS)
                             <form action="{{ route('admin.bengkel-tasks.progress.update', array_merge(['bengkel_task' => $task], $indexQuery)) }}" method="POST" class="quick-progress-form" data-progress-label="{{ $action['label'] }}">
                                 @csrf
                                 @method('PATCH')

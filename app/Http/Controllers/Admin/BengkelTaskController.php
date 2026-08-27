@@ -13,6 +13,7 @@ use App\Models\OrderWorkshop;
 use App\Models\QualityControlReport;
 use App\Models\UnitWork;
 use App\Services\BengkelTasks\WorkshopOrderTaskSyncer;
+use App\Services\BengkelTasks\WorkshopWorkPackageService;
 use App\Support\WorkshopReadiness;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -42,6 +43,7 @@ class BengkelTaskController extends Controller
     public function __construct(
         private readonly WorkshopOrderTaskSyncer $workshopOrderTaskSyncer,
         private readonly WorkshopReadiness $workshopReadiness,
+        private readonly WorkshopWorkPackageService $workPackageService,
     ) {}
 
     public function index(Request $request): View
@@ -59,7 +61,7 @@ class BengkelTaskController extends Controller
         }
 
         $query = BengkelTask::query()
-            ->with('order.orderWorkshop')
+            ->with('order.orderWorkshop', 'order.workPackages.assignments')
             ->whereNull('archived_at')
             ->where(function ($builder): void {
                 $builder
@@ -844,6 +846,11 @@ class BengkelTaskController extends Controller
     {
         $task->loadMissing('order.orderWorkshop');
         $workshop = $task->order?->orderWorkshop;
+
+        if (in_array($progressStatus, [OrderWorkshop::PROGRESS_QUALITY_CONTROL, OrderWorkshop::PROGRESS_DONE], true)
+            && $task->order?->isWorkshopOrder()) {
+            $this->workPackageService->assertParentMayAdvance($task->order);
+        }
 
         if ($this->workshopReadiness->requiresReadiness($progressStatus)
             && ! $this->workshopReadiness->canAdvance($workshop)) {

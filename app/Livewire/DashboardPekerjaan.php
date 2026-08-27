@@ -96,7 +96,7 @@ class DashboardPekerjaan extends Component
             ->keyBy('avatar_path');
 
         $tasks = BengkelTask::query()
-            ->with('order.orderWorkshop')
+            ->with('order.orderWorkshop', 'order.workPackages.assignments')
             ->whereNull('archived_at')
             ->where(function ($builder): void {
                 $builder
@@ -124,7 +124,7 @@ class DashboardPekerjaan extends Component
             ->orderByDesc('created_at')
             ->get();
 
-        $this->tasks = $tasks->map(static function (BengkelTask $task) use ($picDirectory, $picDirectoryByName, $picDirectoryByPath): array {
+        $taskRows = $tasks->map(static function (BengkelTask $task) use ($picDirectory, $picDirectoryByName, $picDirectoryByPath): array {
             $names = collect(is_array($task->person_in_charge) ? $task->person_in_charge : [])
                 ->filter(fn ($name) => filled($name))
                 ->values();
@@ -181,7 +181,50 @@ class DashboardPekerjaan extends Component
             $progressStatus = $task->effectiveProgressStatus() ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
             $isCompleted = $progressStatus === OrderWorkshop::PROGRESS_DONE || (bool) $task->is_completed;
 
+            $packageRows = ($task->order?->isWorkshopOrder() ? $task->order?->workPackages : collect())
+                ?->map(static function ($package) use ($task, $picDirectory): array {
+                    $profiles = $package->assignments->map(static function ($assignment) use ($picDirectory): array {
+                        $pic = $assignment->bengkel_pic_id ? $picDirectory->get((int) $assignment->bengkel_pic_id) : null;
+
+                        return [
+                            'id' => $assignment->bengkel_pic_id,
+                            'name' => $assignment->pic_name_snapshot,
+                            'avatar_path' => $assignment->pic_avatar_path_snapshot,
+                            'avatar_url' => $pic?->avatar_url,
+                            'avatar_position_x' => $assignment->avatar_position_x ?? 50,
+                            'avatar_position_y' => $assignment->avatar_position_y ?? 50,
+                            'work_descriptions' => is_array($assignment->work_descriptions) ? $assignment->work_descriptions : [],
+                        ];
+                    })->values()->all();
+                    $status = match ($package->status) {
+                        \App\Models\WorkshopWorkPackage::STATUS_COMPLETED => OrderWorkshop::PROGRESS_DONE,
+                        \App\Models\WorkshopWorkPackage::STATUS_IN_PROGRESS => OrderWorkshop::PROGRESS_IN_PROGRESS,
+                        \App\Models\WorkshopWorkPackage::STATUS_PENDING => OrderWorkshop::PROGRESS_PENDING,
+                        default => OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
+                    };
+
+                    return [
+                        'id' => 'package-'.$package->id,
+                        'entity_type' => 'work_package',
+                        'entity_id' => $package->id,
+                        'order_id' => $task->order_id,
+                        'notification_number' => $package->display_no,
+                        'unit_work' => $task->unit_work,
+                        'seksi' => $task->seksi,
+                        'job_name' => mb_strtoupper((string) $package->job_name),
+                        'usage_plan_date' => $package->target_date?->format('Y-m-d'),
+                        'person_in_charge' => collect($profiles)->pluck('name')->all(),
+                        'person_in_charge_profiles' => $profiles,
+                        'catatan' => $task->catatan,
+                        'is_completed' => $package->isCompleted(),
+                        'progress_status' => $status,
+                        'progress_label' => $package->statusLabel(),
+                        'pending_reason' => $package->pending_reason,
+                    ];
+                })->values()->all() ?? [];
+
             return [
+                'entity_type' => 'task',
                 'id' => $task->id,
                 'order_id' => $task->order_id,
                 'notification_number' => $task->notification_number,
@@ -195,8 +238,21 @@ class DashboardPekerjaan extends Component
                 'is_completed' => $isCompleted,
                 'progress_status' => $progressStatus,
                 'progress_label' => OrderWorkshop::progressOptions()[$progressStatus] ?? 'Menunggu Jadwal',
+                'work_packages' => $packageRows,
             ];
         })->all();
+
+        $this->tasks = collect($taskRows)
+            ->flatMap(static function (array $row): array {
+                return $row['work_packages'] !== [] ? $row['work_packages'] : [$row];
+            })
+            ->map(static function (array $row): array {
+                unset($row['work_packages']);
+
+                return $row;
+            })
+            ->values()
+            ->all();
 
         $collection = collect($this->tasks);
 

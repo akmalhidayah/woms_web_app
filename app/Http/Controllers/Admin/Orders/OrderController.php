@@ -19,6 +19,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
+use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
@@ -202,7 +203,15 @@ class OrderController extends Controller
      */
     public function destroy(Order $order): RedirectResponse
     {
-        $order->load('documents');
+        $order->load(['documents', 'orderWorkshop', 'workPackages']);
+
+        // Jasa orders retain their existing delete flow. Only a workshop
+        // parent with actual packages needs the package cleanup guard.
+        if ($order->isWorkshopOrder() && $order->workPackages->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'order' => 'Hapus seluruh paket pekerjaan bengkel terlebih dahulu sebelum menghapus Order.',
+            ]);
+        }
 
         foreach ($order->documents as $document) {
             $this->documentService->delete($document);

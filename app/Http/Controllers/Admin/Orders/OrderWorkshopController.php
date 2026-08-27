@@ -13,6 +13,7 @@ use App\Models\QualityControlReport;
 use App\Models\UnitWork;
 use App\Models\User;
 use App\Services\BengkelTasks\WorkshopOrderTaskSyncer;
+use App\Services\BengkelTasks\WorkshopWorkPackageService;
 use App\Support\WorkshopReadiness;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -26,6 +27,7 @@ class OrderWorkshopController extends Controller
     public function __construct(
         private readonly WorkshopOrderTaskSyncer $workshopOrderTaskSyncer,
         private readonly WorkshopReadiness $workshopReadiness,
+        private readonly WorkshopWorkPackageService $workPackageService,
     ) {}
 
     public function index(Request $request): View
@@ -66,6 +68,7 @@ class OrderWorkshopController extends Controller
                 'documents:id,order_id,jenis_dokumen,nama_file_asli',
                 'scopeOfWork:id,order_id',
                 'orderWorkshop',
+                'workPackages.assignments',
                 'latestQualityControlReport.signatures',
                 'latestQualityControlReport.signatures.signer:id,name,email,nomor_hp',
             ])
@@ -86,7 +89,10 @@ class OrderWorkshopController extends Controller
                         ->where('nomor_order', 'like', "%{$search}%")
                         ->orWhere('nama_pekerjaan', 'like', "%{$search}%")
                         ->orWhere('unit_kerja', 'like', "%{$search}%")
-                        ->orWhere('seksi', 'like', "%{$search}%");
+                        ->orWhere('seksi', 'like', "%{$search}%")
+                        ->orWhereHas('workPackages', fn ($package) => $package
+                            ->where('display_no', 'like', "%{$search}%")
+                            ->orWhere('job_name', 'like', "%{$search}%"));
                 });
             })
             ->when($progress !== '', fn ($query) => $query->whereHas(
@@ -149,7 +155,11 @@ class OrderWorkshopController extends Controller
 
         return redirect()
             ->route('admin.orders.workshop.index', ['search' => $order->nomor_order])
-            ->with('status', 'Order pekerjaan bengkel berhasil dibuat.');
+            ->with('status', 'Order pekerjaan bengkel berhasil dibuat.')
+            ->with('work_package_order', [
+                'nomor_order' => $order->nomor_order,
+                'url' => route('admin.orders.workshop.work-packages.index', $order),
+            ]);
     }
 
     public function update(UpdateOrderWorkshopRequest $request, Order $order): JsonResponse
@@ -167,6 +177,9 @@ class OrderWorkshopController extends Controller
         $validated = $request->validated();
 
         $requestedProgress = (string) ($validated['progress_status'] ?? $workshop->progress_status ?? '');
+        if (in_array($requestedProgress, [OrderWorkshop::PROGRESS_QUALITY_CONTROL, OrderWorkshop::PROGRESS_DONE], true)) {
+            $this->workPackageService->assertParentMayAdvance($order);
+        }
         $candidate = clone $workshop;
         $candidate->fill(collect($validated)->map(fn ($value) => $value === '' ? null : $value)->all());
 

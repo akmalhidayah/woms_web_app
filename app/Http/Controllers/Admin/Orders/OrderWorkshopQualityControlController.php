@@ -12,6 +12,7 @@ use App\Models\QualityControlReportFile;
 use App\Models\QualityControlSignature;
 use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\QualityControl\QualityControlSignatureService;
+use App\Services\BengkelTasks\WorkshopWorkPackageService;
 use App\Support\SignatureImageStorage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
@@ -29,6 +30,7 @@ class OrderWorkshopQualityControlController extends Controller
     public function __construct(
         private readonly QualityControlSignatureService $signatureService,
         private readonly ApprovalNotificationService $approvalNotificationService,
+        private readonly WorkshopWorkPackageService $workPackageService,
     ) {}
 
     public function create(Order $order): View|RedirectResponse
@@ -361,6 +363,8 @@ class OrderWorkshopQualityControlController extends Controller
         if ($order->orderWorkshop?->progress_status !== OrderWorkshop::PROGRESS_QUALITY_CONTROL) {
             return back()->withErrors(['quality_control' => 'Quality Control hanya bisa dibuat saat progress Proses Quality Control.']);
         }
+
+        $this->workPackageService->assertParentMayAdvance($order);
 
         $type = $this->typeForOrder($order);
 

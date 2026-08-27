@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\BengkelTasks;
 
+use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
 use App\Models\QualityControlSignature;
@@ -16,6 +17,10 @@ final class WorkshopHandoverQueue
     {
         return Order::query()
             ->with(['orderWorkshop', 'latestQualityControlReport.signatures', 'workshopHandover.recipient'])
+            ->whereIn('catatan_status', [
+                OrderUserNoteStatus::ApprovedWorkshop->value,
+                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+            ])
             ->where(function (Builder $query): void {
                 $this->readyQuery($query);
             })
@@ -30,6 +35,8 @@ final class WorkshopHandoverQueue
     public function readyQuery(Builder $query): Builder
     {
         return $query
+            ->whereDoesntHave('workPackages', fn (Builder $package) => $package
+                ->where('status', '!=', \App\Models\WorkshopWorkPackage::STATUS_COMPLETED))
             ->where(function (Builder $query): void {
                 $query
                     ->where(function (Builder $critical): void {
@@ -80,7 +87,11 @@ final class WorkshopHandoverQueue
 
     public function isReady(Order $order): bool
     {
-        $order->loadMissing(['orderWorkshop', 'latestQualityControlReport.signatures']);
+        $order->loadMissing(['orderWorkshop', 'latestQualityControlReport.signatures', 'workPackages']);
+
+        if ($order->isWorkshopOrder() && $order->workPackages->isNotEmpty() && ! $order->allWorkPackagesCompleted()) {
+            return false;
+        }
 
         if ($order->latestQualityControlReport !== null) {
             return $order->latestQualityControlReport?->approvalCompleted() ?? false;

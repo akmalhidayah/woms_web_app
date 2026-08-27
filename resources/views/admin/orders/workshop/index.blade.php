@@ -6,6 +6,9 @@
     @if (session('status'))
         <div id="flash-success" data-message="{{ session('status') }}" class="hidden"></div>
     @endif
+    @if (session('work_package_order'))
+        <div id="work-package-order" data-payload='@json(session('work_package_order'))' class="hidden"></div>
+    @endif
 
     @if ($errors->any())
         <div id="flash-error" data-message="{{ implode(' | ', $errors->all()) }}" class="hidden"></div>
@@ -138,6 +141,7 @@
                                 $abnormalDocument = $order->documents->firstWhere('jenis_dokumen.value', 'abnormalitas');
                                 $gambarDocument = $order->documents->firstWhere('jenis_dokumen.value', 'gambar_teknik');
                                 $workshop = $order->orderWorkshop;
+                                $workPackages = $order->workPackages;
                                 $konfirmasi = $workshop?->konfirmasi_anggaran;
                                 $showMaterial = $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_READY;
                                 $showProgress = in_array($konfirmasi, [
@@ -290,6 +294,8 @@
                             <tr class="align-top odd:bg-white even:bg-slate-50/80 hover:bg-blue-50/70">
                                 <td class="px-3 py-3">
                                     <div class="font-semibold text-slate-800">{{ $order->nomor_order }}</div>
+                                    <div class="mt-1 text-[9px] font-semibold text-blue-700">Pembagian: {{ $workPackages->count() }} paket · {{ $order->workPackageProgressLabel() }}</div>
+                                    <a href="{{ route('admin.orders.workshop.work-packages.index', $order) }}" class="mt-1 inline-flex text-[9px] font-semibold text-blue-600 underline">Kelola Pembagian</a>
                                     <div class="mt-1 text-[9px] text-slate-400">Tanggal: {{ optional($order->tanggal_order)->format('d-m-Y') ?: '-' }}</div>
                                     <button
                                         type="button"
@@ -1386,6 +1392,23 @@
                     text: successFlash.dataset.message,
                     timer: 1600,
                     showConfirmButton: false,
+                });
+            }
+
+            const workPackageOrder = document.getElementById('work-package-order');
+            const workPackagePayload = workPackageOrder?.dataset.payload ? JSON.parse(workPackageOrder.dataset.payload) : null;
+            if (workPackagePayload?.url && swal) {
+                swal.fire({
+                    icon: 'success',
+                    title: 'Order berhasil dibuat',
+                    text: `Order ${workPackagePayload.nomor_order} berhasil dibuat. Apakah pekerjaan ini perlu dibagi menjadi beberapa paket?`,
+                    showCancelButton: true,
+                    confirmButtonText: 'Atur Pembagian Pekerjaan',
+                    cancelButtonText: 'Tidak, Selesai',
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = workPackagePayload.url;
+                    }
                 });
             }
 

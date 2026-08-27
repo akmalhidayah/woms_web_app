@@ -286,6 +286,73 @@ class Order extends Model
         return $this->hasOne(OrderWorkshop::class);
     }
 
+    /**
+     * Work packages belong to the workshop parent order only.
+     */
+    public function workPackages(): HasMany
+    {
+        return $this->hasMany(WorkshopWorkPackage::class)->orderBy('sequence');
+    }
+
+    /**
+     * The active workshop task remains the parent lifecycle record for packages.
+     * This relation is passive; it does not alter any global Order query.
+     */
+    public function bengkelTasks(): HasMany
+    {
+        return $this->hasMany(BengkelTask::class);
+    }
+
+    public function isWorkshopOrder(): bool
+    {
+        return $this->orderWorkshop !== null
+            && in_array($this->catatan_status?->value, [
+                OrderUserNoteStatus::ApprovedWorkshop->value,
+                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+            ], true);
+    }
+
+    public function hasWorkPackages(): bool
+    {
+        return $this->relationLoaded('workPackages')
+            ? $this->workPackages->isNotEmpty()
+            : $this->workPackages()->exists();
+    }
+
+    public function workPackageCount(): int
+    {
+        return $this->relationLoaded('workPackages')
+            ? $this->workPackages->count()
+            : $this->workPackages()->count();
+    }
+
+    public function completedWorkPackageCount(): int
+    {
+        return $this->relationLoaded('workPackages')
+            ? $this->workPackages->where('status', WorkshopWorkPackage::STATUS_COMPLETED)->count()
+            : $this->workPackages()->where('status', WorkshopWorkPackage::STATUS_COMPLETED)->count();
+    }
+
+    public function workPackageProgressLabel(): string
+    {
+        if (! $this->isWorkshopOrder()) {
+            return 'Tidak dibagi';
+        }
+
+        return $this->workPackageCount() === 0
+            ? 'Tidak dibagi'
+            : $this->completedWorkPackageCount().'/'.$this->workPackageCount().' selesai';
+    }
+
+    public function allWorkPackagesCompleted(): bool
+    {
+        if (! $this->isWorkshopOrder() || ! $this->hasWorkPackages()) {
+            return true;
+        }
+
+        return $this->completedWorkPackageCount() === $this->workPackageCount();
+    }
+
     public function qualityControlReports(): HasMany
     {
         return $this->hasMany(QualityControlReport::class);

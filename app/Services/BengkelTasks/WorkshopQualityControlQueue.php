@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\BengkelTasks;
 
+use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
 use App\Models\QualityControlReport;
@@ -18,8 +19,14 @@ final class WorkshopQualityControlQueue
     {
         return Order::query()
             ->with(['orderWorkshop', 'latestQualityControlReport.signatures.signer'])
+            ->whereIn('catatan_status', [
+                OrderUserNoteStatus::ApprovedWorkshop->value,
+                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+            ])
             ->whereHas('orderWorkshop', fn (Builder $query) => $query
-                ->where('progress_status', OrderWorkshop::PROGRESS_QUALITY_CONTROL));
+                ->where('progress_status', OrderWorkshop::PROGRESS_QUALITY_CONTROL))
+            ->whereDoesntHave('workPackages', fn (Builder $package) => $package
+                ->where('status', '!=', \App\Models\WorkshopWorkPackage::STATUS_COMPLETED));
     }
 
     public function status(Order $order): array

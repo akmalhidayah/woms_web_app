@@ -73,6 +73,16 @@
                                 <div class="truncate">{{ $task->unit_work ?: '-' }}</div>
                                 <div class="truncate text-[10px] text-slate-500">Seksi: {{ $task->seksi ?: '-' }}</div>
                             </div>
+                            @if ($task->order?->isWorkshopOrder() && $task->order->workPackages->isNotEmpty())
+                                <div class="mt-2 rounded-lg border border-blue-100 bg-blue-50/60 px-2 py-1.5 text-left">
+                                    <div class="text-[9px] font-bold uppercase tracking-wide text-blue-700">Pembagian Pekerjaan ({{ $task->order->workPackages->count() }} paket)</div>
+                                    <div class="mt-1 space-y-0.5 text-[10px] text-slate-700">
+                                        @foreach ($task->order->workPackages as $package)
+                                            <div><span class="font-semibold text-blue-700">{{ $package->displayNumber() }}</span> — {{ $package->job_name }}</div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
                         </td>
 
                         <td class="px-3 py-2.5">
@@ -180,6 +190,14 @@
                                     <div>{{ $task->unit_work ?: '-' }}</div>
                                     <div class="text-slate-500">Seksi: {{ $task->seksi ?: '-' }}</div>
                                 </div>
+                                @if ($task->order?->isWorkshopOrder() && $task->order->workPackages->isNotEmpty())
+                                    <div class="mt-2 rounded-lg border border-blue-100 bg-blue-50/60 px-2.5 py-2 text-[10px] text-slate-700">
+                                        <div class="font-bold uppercase tracking-wide text-blue-700">Pembagian Pekerjaan</div>
+                                        @foreach ($task->order->workPackages as $package)
+                                            <div class="mt-0.5"><span class="font-semibold text-blue-700">{{ $package->displayNumber() }}</span> — {{ $package->job_name }}</div>
+                                        @endforeach
+                                    </div>
+                                @endif
                             </div>
                         </div>
 

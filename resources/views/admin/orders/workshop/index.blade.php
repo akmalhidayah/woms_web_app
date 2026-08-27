@@ -294,8 +294,21 @@
                             <tr class="align-top odd:bg-white even:bg-slate-50/80 hover:bg-blue-50/70">
                                 <td class="px-3 py-3">
                                     <div class="font-semibold text-slate-800">{{ $order->nomor_order }}</div>
-                                    <div class="mt-1 text-[9px] font-semibold text-blue-700">Pembagian: {{ $workPackages->count() }} paket · {{ $order->workPackageProgressLabel() }}</div>
-                                    <a href="{{ route('admin.orders.workshop.work-packages.index', $order) }}" class="mt-1 inline-flex text-[9px] font-semibold text-blue-600 underline">Kelola Pembagian</a>
+                                    @php
+                                        $workshopPackagesLocked = $order->qualityControlReports->isNotEmpty()
+                                            || $order->workshopHandover !== null
+                                            || in_array($order->orderWorkshop?->progress_status, [\App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL, \App\Models\OrderWorkshop::PROGRESS_DONE], true)
+                                            || $order->bengkelTasks->contains(fn ($task) => $task->archived_at !== null);
+                                    @endphp
+                                    @if ($workPackages->isEmpty())
+                                        <div class="mt-1 text-[9px] font-semibold text-slate-500">Pembagian: Tidak dibagi</div>
+                                        @if (! $workshopPackagesLocked)
+                                            <a href="{{ route('admin.orders.workshop.work-packages.index', $order) }}" class="mt-1 inline-flex text-[9px] font-semibold text-blue-600 underline">Buat Pembagian</a>
+                                        @endif
+                                    @else
+                                        <div class="mt-1 text-[9px] font-semibold text-blue-700">Pembagian: {{ $workPackages->count() }} paket · {{ $order->workPackageProgressLabel() }}</div>
+                                        <a href="{{ route('admin.orders.workshop.work-packages.index', $order) }}" class="mt-1 inline-flex text-[9px] font-semibold {{ $workshopPackagesLocked ? 'text-slate-500' : 'text-blue-600' }} underline">Kelola Pembagian</a>
+                                    @endif
                                     <div class="mt-1 text-[9px] text-slate-400">Tanggal: {{ optional($order->tanggal_order)->format('d-m-Y') ?: '-' }}</div>
                                     <button
                                         type="button"
@@ -1435,7 +1448,7 @@
                     const result = await swal.fire({
                         icon: 'warning',
                         title: 'Hapus order?',
-                        text: 'Data order akan dihapus permanen.',
+                        text: 'Order beserta seluruh paket, dokumen, approval, QC, Serah Terima, foto, dan lampiran terkait akan dihapus permanen.',
                         showCancelButton: true,
                         confirmButtonText: 'Ya, hapus',
                         cancelButtonText: 'Batal',

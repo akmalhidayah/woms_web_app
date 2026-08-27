@@ -484,6 +484,9 @@ class BengkelDisplayManagementTest extends TestCase
             ],
         ]);
         $order = $this->linkTaskToWorkshopOrder($task, $user, 'ORDER-ARCHIVE-001');
+        $order->orderWorkshop()->update([
+            'progress_status' => OrderWorkshop::PROGRESS_PENDING,
+        ]);
 
         $this->actingAs($user)
             ->patch(route('admin.bengkel-tasks.archive', $task))
@@ -508,7 +511,7 @@ class BengkelDisplayManagementTest extends TestCase
 
         $this->assertDatabaseHas('order_workshops', [
             'order_id' => $order->id,
-            'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
+            'progress_status' => OrderWorkshop::PROGRESS_PENDING,
             'catatan' => 'Regu Fabrikasi',
         ]);
 

@@ -12,19 +12,18 @@ use App\Models\Order;
 use App\Models\OutlineAgreement;
 use App\Models\UnitWork;
 use App\Models\User;
-use App\Services\Orders\OrderDocumentService;
+use App\Services\Orders\OrderDeletionService;
 use App\Support\RecentApprovalSignatureResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
-use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
     public function __construct(
-        private readonly OrderDocumentService $documentService,
+        private readonly OrderDeletionService $orderDeletionService,
     ) {}
 
     /**
@@ -203,24 +202,12 @@ class OrderController extends Controller
      */
     public function destroy(Order $order): RedirectResponse
     {
-        $order->load(['documents', 'orderWorkshop', 'workPackages']);
-
-        // Jasa orders retain their existing delete flow. Only a workshop
-        // parent with actual packages needs the package cleanup guard.
-        if ($order->isWorkshopOrder() && $order->workPackages->isNotEmpty()) {
-            throw ValidationException::withMessages([
-                'order' => 'Hapus seluruh paket pekerjaan bengkel terlebih dahulu sebelum menghapus Order.',
-            ]);
-        }
-
-        foreach ($order->documents as $document) {
-            $this->documentService->delete($document);
-        }
-
-        $order->delete();
+        $order->loadMissing('orderWorkshop');
+        $isWorkshopOrder = $order->isWorkshopOrder();
+        $this->orderDeletionService->delete($order);
 
         return redirect()
-            ->route('admin.orders.index')
+            ->route($isWorkshopOrder ? 'admin.orders.workshop.index' : 'admin.orders.index')
             ->with('status', 'Order pekerjaan berhasil dihapus.');
     }
 

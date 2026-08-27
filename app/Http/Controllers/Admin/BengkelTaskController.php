@@ -563,10 +563,14 @@ class BengkelTaskController extends Controller
             $order->update($orderData);
 
             $workshop = $order->orderWorkshop()->firstOrNew();
-            $workshop->fill([
-                'progress_status' => $lockedTask->progress_status ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
-                'catatan' => $this->archiveRegu($lockedTask),
-            ]);
+
+            // Archiving a display task must not overwrite an existing workshop
+            // lifecycle state. Only initialize progress for a new record.
+            if (! $workshop->exists) {
+                $workshop->progress_status = $lockedTask->progress_status ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
+            }
+
+            $workshop->catatan = $this->archiveRegu($lockedTask);
             $order->orderWorkshop()->save($workshop);
 
             $this->copyTaskAttachmentToOrderGambarTeknik($lockedTask, $order, $userId);

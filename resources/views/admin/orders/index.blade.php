@@ -1548,7 +1548,7 @@ $initialWorkFlowSummary = match (true) {
                     const result = await swal.fire({
                         icon: 'warning',
                         title: 'Hapus order?',
-                        text: 'Data order akan dihapus permanen.',
+                        text: 'Order beserta seluruh paket, dokumen, approval, QC, Serah Terima, foto, dan lampiran terkait akan dihapus permanen.',
                         showCancelButton: true,
                         confirmButtonText: 'Ya, hapus',
                         cancelButtonText: 'Batal',

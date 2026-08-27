@@ -1,9 +1,13 @@
 <x-layouts.admin title="Pembagian Pekerjaan Bengkel">
     @php
-        $orderLocked = $order->qualityControlReports->isNotEmpty()
+        $archivedParentTask = $order->bengkelTasks->contains(fn ($task) => $task->archived_at !== null);
+        $workflowLock = $order->qualityControlReports->isNotEmpty()
             || $order->workshopHandover !== null
-            || in_array($order->orderWorkshop?->progress_status, [\App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL, \App\Models\OrderWorkshop::PROGRESS_DONE], true)
-            || $order->bengkelTasks->contains(fn ($task) => $task->archived_at !== null);
+            || in_array($order->orderWorkshop?->progress_status, [\App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL, \App\Models\OrderWorkshop::PROGRESS_DONE], true);
+        $orderLocked = $workflowLock || $archivedParentTask;
+        $orderLockMessage = $archivedParentTask && ! $workflowLock
+            ? 'Terkunci karena pekerjaan telah diarsipkan'
+            : 'Terkunci karena Quality Control/Serah Terima dimulai';
     @endphp
     <div class="space-y-4">
         <section class="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
@@ -23,7 +27,7 @@
         <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div><h2 class="font-semibold text-slate-900">Paket Pekerjaan</h2><p class="text-xs text-slate-500">{{ $order->workPackageProgressLabel() }}</p></div>
-                @if (! $orderLocked)<span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">Nomor paket dibuat otomatis</span>@else<span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Terkunci karena Quality Control/Serah Terima dimulai</span>@endif
+                @if (! $orderLocked)<span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">Nomor paket dibuat otomatis</span>@else<span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">{{ $orderLockMessage }}</span>@endif
             </div>
 
             @if (! $orderLocked && $workPackages->isEmpty())
@@ -123,11 +127,18 @@
                     const wrap = document.getElementById('package-batch-rows');
                     renumberBatch(wrap);
 
-                    document.getElementById('add-package-row')?.addEventListener('click', () => {
+                    document.getElementById('add-package-row')?.addEventListener('click', (event) => {
+                        event.preventDefault();
                         const rows = wrap.querySelectorAll('.package-batch-row');
                         if (rows.length >= 99) return;
 
                         const clone = rows[0].cloneNode(true);
+                        clone.querySelectorAll('.assignment-row').forEach((assignment, index) => {
+                            if (index > 0) assignment.remove();
+                        });
+                        clone.querySelectorAll('.description-rows').forEach((descriptions) => {
+                            descriptions.innerHTML = descriptionInput('');
+                        });
                         clone.querySelectorAll('input, select, textarea').forEach((element) => {
                             if (element.type !== 'date') element.value = '';
                         });

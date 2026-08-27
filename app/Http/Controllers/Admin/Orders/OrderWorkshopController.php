@@ -69,6 +69,8 @@ class OrderWorkshopController extends Controller
                 'scopeOfWork:id,order_id',
                 'orderWorkshop',
                 'workPackages.assignments',
+                'bengkelTasks:id,order_id,archived_at',
+                'workshopHandover:id,order_id,status',
                 'latestQualityControlReport.signatures',
                 'latestQualityControlReport.signatures.signer:id,name,email,nomor_hp',
             ])

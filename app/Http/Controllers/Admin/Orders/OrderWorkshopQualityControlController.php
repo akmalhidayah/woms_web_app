@@ -11,9 +11,9 @@ use App\Models\QualityControlReport;
 use App\Models\QualityControlReportFile;
 use App\Models\QualityControlSignature;
 use App\Services\Approvals\ApprovalNotificationService;
-use App\Services\QualityControl\QualityControlSignatureService;
-use App\Services\BengkelTasks\WorkshopWorkPackageService;
 use App\Services\BengkelTasks\WorkshopWorkPackagePresenter;
+use App\Services\BengkelTasks\WorkshopWorkPackageService;
+use App\Services\QualityControl\QualityControlSignatureService;
 use App\Support\SignatureImageStorage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
@@ -101,6 +101,10 @@ class OrderWorkshopQualityControlController extends Controller
                     throw ValidationException::withMessages([
                         'quality_control' => 'Order ini sudah mempunyai laporan Quality Control aktif.',
                     ]);
+                }
+
+                if ($isSubmit) {
+                    $this->workPackageService->assertParentMayAdvance($lockedOrder);
                 }
 
                 if ($isSubmit) {
@@ -215,6 +219,7 @@ class OrderWorkshopQualityControlController extends Controller
                 $order->orderWorkshop()->lockForUpdate()->firstOrFail();
                 $order->load(['workPackages.assignments']);
                 if ($isSubmit) {
+                    $this->workPackageService->assertParentMayAdvance($order);
                     $payload['work_packages_snapshot'] = $this->workPackagePresenter->snapshotForOrder($order);
                 }
                 $qualityControlReport->update([
@@ -458,8 +463,7 @@ class OrderWorkshopQualityControlController extends Controller
         string $type,
         bool $isSubmit,
         array $existingSignature = [],
-    ): array
-    {
+    ): array {
         return $type === QualityControlReport::TYPE_FABRICATION
             ? $this->fabricationPayloadFromRequest($request, $isSubmit, $existingSignature)
             : $this->refurbishPayloadFromRequest($request, $isSubmit, $existingSignature);
@@ -572,8 +576,7 @@ class OrderWorkshopQualityControlController extends Controller
         Request $request,
         bool $isSubmit,
         array $existingSignature = [],
-    ): array
-    {
+    ): array {
         $signatureData = '';
         $order = $request->route('order');
         $orderId = $order instanceof Order ? $order->id : 'manual';

@@ -7,10 +7,11 @@ namespace App\Services\BengkelTasks;
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\BengkelPic;
 use App\Models\Order;
+use App\Models\OrderWorkshop;
 use App\Models\WorkshopWorkPackage;
-use App\Models\WorkshopWorkPackageAssignment;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -27,7 +28,7 @@ final class WorkshopWorkPackageService
         $order->loadMissing('orderWorkshop');
 
         if ($order->orderWorkshop === null || ! in_array($order->catatan_status?->value, self::WORKSHOP_STATUSES, true)) {
-            throw (new ModelNotFoundException())->setModel(Order::class, [$order->getKey()]);
+            throw (new ModelNotFoundException)->setModel(Order::class, [$order->getKey()]);
         }
     }
 
@@ -53,8 +54,8 @@ final class WorkshopWorkPackageService
 
         $archived = $order->bengkelTasks->contains(fn ($task): bool => $task->archived_at !== null);
         if (in_array($order->orderWorkshop?->progress_status, [
-            \App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL,
-            \App\Models\OrderWorkshop::PROGRESS_DONE,
+            OrderWorkshop::PROGRESS_QUALITY_CONTROL,
+            OrderWorkshop::PROGRESS_DONE,
         ], true) || $order->qualityControlReports->isNotEmpty() || $order->workshopHandover !== null || $archived) {
             throw ValidationException::withMessages([
                 'work_package' => 'Pembagian pekerjaan tidak dapat diubah karena proses Quality Control atau Serah Terima telah dimulai.',
@@ -67,7 +68,7 @@ final class WorkshopWorkPackageService
         $package->loadMissing(['order.orderWorkshop', 'order.qualityControlReports', 'order.workshopHandover', 'order.bengkelTasks']);
 
         if (! $package->order instanceof Order) {
-            throw (new ModelNotFoundException())->setModel(WorkshopWorkPackage::class, [$package->getKey()]);
+            throw (new ModelNotFoundException)->setModel(WorkshopWorkPackage::class, [$package->getKey()]);
         }
 
         $this->assertWorkshopOrder($package->order);
@@ -80,7 +81,7 @@ final class WorkshopWorkPackageService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function create(Order $order, array $data, ?int $userId = null): WorkshopWorkPackage
     {
@@ -88,44 +89,45 @@ final class WorkshopWorkPackageService
     }
 
     /** @param array<int, array<string, mixed>> $rows */
-    public function createBatch(Order $order, array $rows, ?int $userId = null): \Illuminate\Support\Collection
+    public function createBatch(Order $order, array $rows, ?int $userId = null): Collection
     {
         $this->assertOrderPackagesMutable($order);
 
         try {
             return DB::transaction(function () use ($order, $rows, $userId) {
-            $workshop = $order->orderWorkshop()->lockForUpdate()->first();
-            if ($workshop === null) {
-                $this->assertOrderPackagesMutable($order);
-            }
-            $lockedOrder = $order->fresh(['orderWorkshop', 'qualityControlReports', 'workshopHandover', 'bengkelTasks']) ?: $order;
-            $this->assertOrderPackagesMutable($lockedOrder);
-            $existingCount = WorkshopWorkPackage::query()->where('order_id', $order->getKey())->count();
-            if ($existingCount + count($rows) > 99) {
-                throw ValidationException::withMessages(['packages' => 'Jumlah paket dalam satu order tidak boleh melebihi 99.']);
-            }
+                $workshop = $order->orderWorkshop()->lockForUpdate()->first();
+                if ($workshop === null) {
+                    $this->assertOrderPackagesMutable($order);
+                }
+                $lockedOrder = $order->fresh(['orderWorkshop', 'qualityControlReports', 'workshopHandover', 'bengkelTasks']) ?: $order;
+                $this->assertOrderPackagesMutable($lockedOrder);
+                $existingCount = WorkshopWorkPackage::query()->where('order_id', $order->getKey())->count();
+                if ($existingCount + count($rows) > 99) {
+                    throw ValidationException::withMessages(['packages' => 'Jumlah paket dalam satu order tidak boleh melebihi 99.']);
+                }
 
-            $sequence = (int) WorkshopWorkPackage::query()->where('order_id', $order->getKey())->max('sequence');
-            $created = collect();
-            foreach ($rows as $data) {
-                $sequence++;
-                $package = WorkshopWorkPackage::create([
-                    'order_id' => $order->getKey(),
-                    'sequence' => $sequence,
-                    'display_no' => $this->displayNumber($order, $sequence),
-                    'job_name' => trim((string) ($data['job_name'] ?? '')),
-                    'description' => filled($data['description'] ?? null) ? trim((string) $data['description']) : null,
-                    'target_date' => $data['target_date'] ?? $order->target_selesai,
-                    'status' => WorkshopWorkPackage::STATUS_NOT_STARTED,
-                    'pending_reason' => null,
-                    'completed_at' => null,
-                    'created_by' => $userId,
-                    'updated_by' => $userId,
-                ]);
-                $this->syncAssignments($package, $data['assignments'] ?? []);
-                $created->push($package->load('assignments'));
-            }
-            return $created;
+                $sequence = (int) WorkshopWorkPackage::query()->where('order_id', $order->getKey())->max('sequence');
+                $created = collect();
+                foreach ($rows as $data) {
+                    $sequence++;
+                    $package = WorkshopWorkPackage::create([
+                        'order_id' => $order->getKey(),
+                        'sequence' => $sequence,
+                        'display_no' => $this->displayNumber($order, $sequence),
+                        'job_name' => trim((string) ($data['job_name'] ?? '')),
+                        'description' => filled($data['description'] ?? null) ? trim((string) $data['description']) : null,
+                        'target_date' => $data['target_date'] ?? $order->target_selesai,
+                        'status' => WorkshopWorkPackage::STATUS_NOT_STARTED,
+                        'pending_reason' => null,
+                        'completed_at' => null,
+                        'created_by' => $userId,
+                        'updated_by' => $userId,
+                    ]);
+                    $this->syncAssignments($package, $data['assignments'] ?? []);
+                    $created->push($package->load('assignments'));
+                }
+
+                return $created;
             });
         } catch (QueryException $exception) {
             if ((string) $exception->getCode() === '23000') {
@@ -139,7 +141,7 @@ final class WorkshopWorkPackageService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function update(WorkshopWorkPackage $package, array $data, ?int $userId = null): WorkshopWorkPackage
     {
@@ -174,6 +176,7 @@ final class WorkshopWorkPackageService
         }
 
         $this->assertPackageMutable($package);
+
         return DB::transaction(function () use ($package, $status, $pendingReason, $userId): WorkshopWorkPackage {
             $locked = $this->lockPackageParent($package)->load('assignments');
             $this->assertPackageMutable($locked);
@@ -191,6 +194,7 @@ final class WorkshopWorkPackageService
                 : null;
             $locked->updated_by = $userId;
             $locked->save();
+
             return $locked;
         });
     }
@@ -210,7 +214,6 @@ final class WorkshopWorkPackageService
         return $order->nomor_order.'-'.str_pad((string) $sequence, 2, '0', STR_PAD_LEFT);
     }
 
-    /** @param mixed $assignments */
     private function syncAssignments(WorkshopWorkPackage $package, mixed $assignments): void
     {
         $rows = is_array($assignments) ? array_values($assignments) : [];
@@ -265,7 +268,8 @@ final class WorkshopWorkPackageService
     private function assignmentsComplete(WorkshopWorkPackage $package): bool
     {
         return $package->assignments->isNotEmpty() && $package->assignments->every(static function ($assignment): bool {
-            return filled($assignment->pic_name_snapshot)
+            return (int) $assignment->bengkel_pic_id > 0
+                && filled($assignment->pic_name_snapshot)
                 && collect($assignment->work_descriptions ?? [])->filter(static fn ($value): bool => filled($value))->isNotEmpty();
         });
     }
@@ -280,6 +284,7 @@ final class WorkshopWorkPackageService
         }
         $locked = WorkshopWorkPackage::query()->findOrFail($package->getKey());
         $locked->setRelation('order', $order->fresh(['orderWorkshop', 'qualityControlReports', 'workshopHandover', 'bengkelTasks']));
+
         return $locked;
     }
 }

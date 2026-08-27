@@ -174,6 +174,7 @@ class OrderWorkshopController extends Controller
         }
 
         $validated = $request->validated();
+
         return DB::transaction(function () use ($order, $validated): JsonResponse {
             // order_workshops is the InnoDB mutex; orders may be MyISAM in production.
             $workshop = $order->orderWorkshop()->lockForUpdate()->firstOrNew();

@@ -20,7 +20,7 @@ class WorkshopHandoverSignatureController extends Controller
     {
         $handover = $this->resolveByToken($token);
         $this->authorizeRecipient($request, $handover);
-        $handover->loadMissing(['order', 'admin', 'recipient']);
+        $handover->loadMissing(['order.workPackages.assignments', 'admin', 'recipient']);
 
         $photoUrls = collect($handover->photo_paths ?? [])
             ->keys()

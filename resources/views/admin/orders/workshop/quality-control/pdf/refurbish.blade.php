@@ -206,6 +206,8 @@
         @endif
     </table>
 
+    @include('admin.orders.workshop.quality-control.pdf._work-packages-summary', ['workPackages' => $workPackages ?? []])
+
     <table class="signature" style="margin-top: 8px;">
         <tr class="signature-label">
             <td>Pembuat QC</td>

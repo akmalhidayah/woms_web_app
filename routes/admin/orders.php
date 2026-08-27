@@ -27,6 +27,7 @@ Route::prefix('admin/orders')
         Route::post('/workshop/{order}/work-packages/batch', [WorkshopWorkPackageController::class, 'batch'])->middleware('admin_menu:order_bengkel')->name('workshop.work-packages.batch');
         Route::patch('/workshop/{order}/work-packages/{workPackage}', [WorkshopWorkPackageController::class, 'update'])->middleware('admin_menu:order_bengkel')->name('workshop.work-packages.update');
         Route::delete('/workshop/{order}/work-packages/{workPackage}', [WorkshopWorkPackageController::class, 'destroy'])->middleware('admin_menu:order_bengkel')->name('workshop.work-packages.destroy');
+        Route::patch('/workshop/{order}/work-packages/{workPackage}/status', [WorkshopWorkPackageController::class, 'updateStatusForOrder'])->middleware('admin_menu:order_bengkel')->name('workshop.work-packages.status.update');
         Route::patch('/work-packages/{workPackage}/status', [WorkshopWorkPackageController::class, 'updateStatus'])->middleware('admin_menu:display_pekerjaan_bengkel')->name('work-packages.status.update');
         Route::get('/workshop/{order}/quality-control/create', [OrderWorkshopQualityControlController::class, 'create'])->middleware('admin_menu:quality_control_bengkel')->name('workshop.quality-control.create');
         Route::post('/workshop/{order}/quality-control', [OrderWorkshopQualityControlController::class, 'store'])->middleware('admin_menu:quality_control_bengkel')->name('workshop.quality-control.store');

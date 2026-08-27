@@ -173,66 +173,69 @@ class OrderWorkshopController extends Controller
             ], 422);
         }
 
-        $workshop = $order->orderWorkshop()->firstOrNew();
         $validated = $request->validated();
+        return DB::transaction(function () use ($order, $validated): JsonResponse {
+            // order_workshops is the InnoDB mutex; orders may be MyISAM in production.
+            $workshop = $order->orderWorkshop()->lockForUpdate()->firstOrNew();
+            $lockedOrder = $order->fresh(['orderWorkshop', 'workPackages', 'qualityControlReports.signatures']) ?: $order;
+            $requestedProgress = (string) ($validated['progress_status'] ?? $workshop->progress_status ?? '');
 
-        $requestedProgress = (string) ($validated['progress_status'] ?? $workshop->progress_status ?? '');
-        if (in_array($requestedProgress, [OrderWorkshop::PROGRESS_QUALITY_CONTROL, OrderWorkshop::PROGRESS_DONE], true)) {
-            $this->workPackageService->assertParentMayAdvance($order);
-        }
-        $candidate = clone $workshop;
-        $candidate->fill(collect($validated)->map(fn ($value) => $value === '' ? null : $value)->all());
+            if (in_array($requestedProgress, [OrderWorkshop::PROGRESS_QUALITY_CONTROL, OrderWorkshop::PROGRESS_DONE], true)) {
+                $this->workPackageService->assertParentMayAdvance($lockedOrder);
+            }
+            $candidate = clone $workshop;
+            $candidate->fill(collect($validated)->map(fn ($value) => $value === '' ? null : $value)->all());
 
-        if (array_key_exists('progress_status', $validated)
-            && $this->workshopReadiness->requiresReadiness($requestedProgress)
-            && ! $this->workshopReadiness->canAdvance($candidate)) {
-            throw ValidationException::withMessages([
-                'progress_status' => 'Konfirmasi anggaran dan status material harus dilengkapi melalui menu Order Pekerjaan Bengkel sebelum progress dapat dilanjutkan.',
+            if (array_key_exists('progress_status', $validated)
+                && $this->workshopReadiness->requiresReadiness($requestedProgress)
+                && ! $this->workshopReadiness->canAdvance($candidate)) {
+                throw ValidationException::withMessages([
+                    'progress_status' => 'Konfirmasi anggaran dan status material harus dilengkapi melalui menu Order Pekerjaan Bengkel sebelum progress dapat dilanjutkan.',
+                ]);
+            }
+
+            if ($requestedProgress === OrderWorkshop::PROGRESS_DONE
+                && $lockedOrder->qualityControlReports->isNotEmpty()
+                && ! $lockedOrder->qualityControlReports->contains(fn (QualityControlReport $report): bool => $report->approvalCompleted())) {
+                throw ValidationException::withMessages([
+                    'progress_status' => 'Proses Quality Control harus diselesaikan sebelum pekerjaan dapat ditandai selesai.',
+                ]);
+            }
+
+            foreach ($validated as $field => $value) {
+                $workshop->{$field} = $value === '' ? null : $value;
+            }
+
+            if (($workshop->konfirmasi_anggaran ?? null) === OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY) {
+                $workshop->status_material = null;
+                $workshop->keterangan_material = null;
+                $workshop->nomor_e_korin = null;
+                $workshop->status_e_korin = null;
+            } elseif (($workshop->konfirmasi_anggaran ?? null) === OrderWorkshop::KONFIRMASI_MATERIAL_READY) {
+                $workshop->status_anggaran = null;
+                $workshop->keterangan_anggaran = null;
+                $workshop->nomor_e_korin = null;
+                $workshop->status_e_korin = null;
+            } else {
+                $workshop->status_anggaran = null;
+                $workshop->keterangan_anggaran = null;
+                $workshop->status_material = null;
+                $workshop->keterangan_material = null;
+                $workshop->progress_status = null;
+                $workshop->keterangan_progress = null;
+                $workshop->nomor_e_korin = null;
+                $workshop->status_e_korin = null;
+            }
+
+            $order->orderWorkshop()->save($workshop);
+            $this->workshopOrderTaskSyncer->syncOrder($order->fresh('orderWorkshop'), $workshop->fresh());
+            $this->syncBengkelTaskProgress($order, $workshop);
+
+            return response()->json([
+                'message' => 'Status order bengkel berhasil diperbarui.',
+                'updated' => $workshop->fresh()->toArray(),
             ]);
-        }
-
-        if ($requestedProgress === OrderWorkshop::PROGRESS_DONE
-            && $order->qualityControlReports()->exists()
-            && ! $order->qualityControlReports()->with('signatures')->get()
-                ->contains(fn (QualityControlReport $report): bool => $report->approvalCompleted())) {
-            throw ValidationException::withMessages([
-                'progress_status' => 'Proses Quality Control harus diselesaikan sebelum pekerjaan dapat ditandai selesai.',
-            ]);
-        }
-
-        foreach ($validated as $field => $value) {
-            $workshop->{$field} = $value === '' ? null : $value;
-        }
-
-        if (($workshop->konfirmasi_anggaran ?? null) === OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY) {
-            $workshop->status_material = null;
-            $workshop->keterangan_material = null;
-            $workshop->nomor_e_korin = null;
-            $workshop->status_e_korin = null;
-        } elseif (($workshop->konfirmasi_anggaran ?? null) === OrderWorkshop::KONFIRMASI_MATERIAL_READY) {
-            $workshop->status_anggaran = null;
-            $workshop->keterangan_anggaran = null;
-            $workshop->nomor_e_korin = null;
-            $workshop->status_e_korin = null;
-        } else {
-            $workshop->status_anggaran = null;
-            $workshop->keterangan_anggaran = null;
-            $workshop->status_material = null;
-            $workshop->keterangan_material = null;
-            $workshop->progress_status = null;
-            $workshop->keterangan_progress = null;
-            $workshop->nomor_e_korin = null;
-            $workshop->status_e_korin = null;
-        }
-
-        $order->orderWorkshop()->save($workshop);
-        $this->workshopOrderTaskSyncer->syncOrder($order->fresh('orderWorkshop'), $workshop->fresh());
-        $this->syncBengkelTaskProgress($order, $workshop);
-
-        return response()->json([
-            'message' => 'Status order bengkel berhasil diperbarui.',
-            'updated' => $workshop->fresh()->toArray(),
-        ]);
+        });
     }
 
     private function syncBengkelTaskProgress(Order $order, OrderWorkshop $workshop): void

@@ -61,7 +61,13 @@ class BengkelTaskController extends Controller
         }
 
         $query = BengkelTask::query()
-            ->with('order.orderWorkshop', 'order.workPackages.assignments')
+            ->with([
+                'order.orderWorkshop',
+                'order.qualityControlReports',
+                'order.workshopHandover',
+                'order.bengkelTasks',
+                'order.workPackages.assignments',
+            ])
             ->whereNull('archived_at')
             ->where(function ($builder): void {
                 $builder
@@ -82,7 +88,8 @@ class BengkelTaskController extends Controller
                     ->orWhereHas('order.workPackages', function ($package) use ($q): void {
                         $package->where('display_no', 'like', "%{$q}%")
                             ->orWhere('job_name', 'like', "%{$q}%")
-                            ->orWhereHas('assignments', fn ($assignment) => $assignment->where('pic_name_snapshot', 'like', "%{$q}%"));
+                            ->orWhereHas('assignments', fn ($assignment) => $assignment->where('pic_name_snapshot', 'like', "%{$q}%"))
+                            ->orWhereHas('assignments', fn ($assignment) => $assignment->where('work_descriptions', 'like', "%{$q}%"));
                     });
             });
         }

@@ -148,6 +148,8 @@
     <div class="section-title">Catatan</div>
     <div class="notes">{{ $payload['notes'] ?? '' }}</div>
 
+    @include('admin.orders.workshop.quality-control.pdf._work-packages-summary', ['workPackages' => $workPackages ?? []])
+
     <table class="signature" style="margin-top: 12px;">
         <tr class="signature-label">
             <td>Pembuat QC</td>

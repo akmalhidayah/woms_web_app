@@ -18,6 +18,13 @@
             </div>
         </section>
 
+        @if ($handover->order?->workPackages?->isNotEmpty())
+            <section class="rounded-2xl border border-blue-100 bg-blue-50/40 p-4 shadow-sm">
+                <h2 class="text-sm font-bold">Pembagian Pekerjaan</h2>
+                <div class="mt-3 space-y-2">@foreach($handover->order->workPackages as $package)<div class="rounded-xl border border-slate-200 bg-white p-3 text-xs"><div class="font-semibold text-blue-700">{{ $package->display_no }} — {{ $package->job_name }}</div><div class="mt-1 text-slate-600">@foreach($package->assignments as $assignment){{ $assignment->pic_name_snapshot }}: {{ implode('; ', (array) ($assignment->work_descriptions ?? [])) }}@if(!$loop->last)<br>@endif @endforeach</div><div class="mt-1 text-slate-500">Status: {{ $package->statusLabel() }}@if($package->completed_at) · {{ $package->completed_at->format('d/m/Y H:i') }}@endif</div></div>@endforeach</div>
+            </section>
+        @endif
+
         @if (session('status'))
             <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">{{ session('status') }}</div>
         @endif

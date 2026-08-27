@@ -13,6 +13,7 @@ use App\Models\QualityControlSignature;
 use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\QualityControl\QualityControlSignatureService;
 use App\Services\BengkelTasks\WorkshopWorkPackageService;
+use App\Services\BengkelTasks\WorkshopWorkPackagePresenter;
 use App\Support\SignatureImageStorage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
@@ -31,6 +32,7 @@ class OrderWorkshopQualityControlController extends Controller
         private readonly QualityControlSignatureService $signatureService,
         private readonly ApprovalNotificationService $approvalNotificationService,
         private readonly WorkshopWorkPackageService $workPackageService,
+        private readonly WorkshopWorkPackagePresenter $workPackagePresenter,
     ) {}
 
     public function create(Order $order): View|RedirectResponse
@@ -42,6 +44,7 @@ class OrderWorkshopQualityControlController extends Controller
         }
 
         $type = $guard;
+        $order->loadMissing('workPackages.assignments');
         $payload = $this->defaultPayload($order, $type);
         $report = new QualityControlReport([
             'type' => $type,
@@ -55,6 +58,7 @@ class OrderWorkshopQualityControlController extends Controller
             'order' => $order,
             'report' => $report,
             'payload' => $payload,
+            'workPackages' => $order->workPackages,
         ]);
     }
 
@@ -88,12 +92,19 @@ class OrderWorkshopQualityControlController extends Controller
             }
 
             $result = DB::transaction(function () use ($order, $type, $validated, $request, $payload, $isSubmit, &$storedFilePaths): array {
-                $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->id);
+                $lockedOrder = Order::query()->findOrFail($order->id);
+                $workshop = $lockedOrder->orderWorkshop()->lockForUpdate()->first();
+                abort_unless($workshop !== null, Response::HTTP_NOT_FOUND);
+                $lockedOrder->load(['orderWorkshop', 'workPackages.assignments', 'qualityControlReports']);
 
                 if ($lockedOrder->qualityControlReports()->exists()) {
                     throw ValidationException::withMessages([
                         'quality_control' => 'Order ini sudah mempunyai laporan Quality Control aktif.',
                     ]);
+                }
+
+                if ($isSubmit) {
+                    $payload['work_packages_snapshot'] = $this->workPackagePresenter->snapshotForOrder($lockedOrder);
                 }
 
                 $report = QualityControlReport::create([
@@ -150,11 +161,13 @@ class OrderWorkshopQualityControlController extends Controller
 
         $type = $qualityControlReport->type;
         $qualityControlReport->load('files');
+        $order->loadMissing('workPackages.assignments');
 
         return view("admin.orders.workshop.quality-control.edit-{$type}", [
             'order' => $order,
             'report' => $qualityControlReport,
             'payload' => $qualityControlReport->payload ?: $this->defaultPayload($order, $type),
+            'workPackages' => $order->workPackages,
         ]);
     }
 
@@ -198,7 +211,12 @@ class OrderWorkshopQualityControlController extends Controller
                 $this->assertSubmissionReady($order, $type, $payload);
             }
 
-            $signatureResult = DB::transaction(function () use ($request, $type, $validated, $payload, $isSubmit, $qualityControlReport, &$storedFilePaths): array {
+            $signatureResult = DB::transaction(function () use ($request, $order, $type, $validated, $payload, $isSubmit, $qualityControlReport, &$storedFilePaths): array {
+                $order->orderWorkshop()->lockForUpdate()->firstOrFail();
+                $order->load(['workPackages.assignments']);
+                if ($isSubmit) {
+                    $payload['work_packages_snapshot'] = $this->workPackagePresenter->snapshotForOrder($order);
+                }
                 $qualityControlReport->update([
                     'report_no' => $this->reportNumberForExistingReport($qualityControlReport),
                     'report_date' => $validated['report_date'] ?? null,
@@ -245,6 +263,7 @@ class OrderWorkshopQualityControlController extends Controller
         }
 
         $qualityControlReport->load(['files', 'signatures']);
+        $order->loadMissing('workPackages.assignments');
         $type = $qualityControlReport->type;
         $paper = $type === QualityControlReport::TYPE_REFURBISH ? 'landscape' : 'portrait';
         $filename = 'qc-'.$type.'-'.$order->nomor_order.'.pdf';
@@ -254,6 +273,10 @@ class OrderWorkshopQualityControlController extends Controller
             'report' => $qualityControlReport,
             'payload' => $qualityControlReport->payload ?: $this->defaultPayload($order, $type),
             'filesByCategory' => $qualityControlReport->files->groupBy('category'),
+            'workPackages' => $qualityControlReport->status === QualityControlReport::STATUS_SUBMITTED
+                && ! empty($qualityControlReport->payload['work_packages_snapshot'] ?? null)
+                ? $qualityControlReport->payload['work_packages_snapshot']
+                : $this->workPackagePresenter->snapshotForOrder($order),
         ])->setPaper('a4', $paper)->stream($filename);
     }
 

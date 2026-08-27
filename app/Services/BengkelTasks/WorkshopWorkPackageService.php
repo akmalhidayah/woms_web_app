@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\WorkshopWorkPackage;
 use App\Models\WorkshopWorkPackageAssignment;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -83,42 +84,58 @@ final class WorkshopWorkPackageService
      */
     public function create(Order $order, array $data, ?int $userId = null): WorkshopWorkPackage
     {
+        return $this->createBatch($order, [$data], $userId)->first();
+    }
+
+    /** @param array<int, array<string, mixed>> $rows */
+    public function createBatch(Order $order, array $rows, ?int $userId = null): \Illuminate\Support\Collection
+    {
         $this->assertOrderPackagesMutable($order);
 
-        return DB::transaction(function () use ($order, $data, $userId): WorkshopWorkPackage {
+        try {
+            return DB::transaction(function () use ($order, $rows, $userId) {
             $workshop = $order->orderWorkshop()->lockForUpdate()->first();
             if ($workshop === null) {
                 $this->assertOrderPackagesMutable($order);
             }
-            $this->assertOrderPackagesMutable($order->fresh());
-
-            if (WorkshopWorkPackage::query()->where('order_id', $order->getKey())->count() >= 99) {
-                throw ValidationException::withMessages(['job_name' => 'Satu Order maksimal memiliki 99 paket pekerjaan.']);
+            $lockedOrder = $order->fresh(['orderWorkshop', 'qualityControlReports', 'workshopHandover', 'bengkelTasks']) ?: $order;
+            $this->assertOrderPackagesMutable($lockedOrder);
+            $existingCount = WorkshopWorkPackage::query()->where('order_id', $order->getKey())->count();
+            if ($existingCount + count($rows) > 99) {
+                throw ValidationException::withMessages(['packages' => 'Jumlah paket dalam satu order tidak boleh melebihi 99.']);
             }
 
-            $sequence = (int) (WorkshopWorkPackage::query()
-                ->where('order_id', $order->getKey())
-                ->lockForUpdate()
-                ->max('sequence')) + 1;
+            $sequence = (int) WorkshopWorkPackage::query()->where('order_id', $order->getKey())->max('sequence');
+            $created = collect();
+            foreach ($rows as $data) {
+                $sequence++;
+                $package = WorkshopWorkPackage::create([
+                    'order_id' => $order->getKey(),
+                    'sequence' => $sequence,
+                    'display_no' => $this->displayNumber($order, $sequence),
+                    'job_name' => trim((string) ($data['job_name'] ?? '')),
+                    'description' => filled($data['description'] ?? null) ? trim((string) $data['description']) : null,
+                    'target_date' => $data['target_date'] ?? $order->target_selesai,
+                    'status' => WorkshopWorkPackage::STATUS_NOT_STARTED,
+                    'pending_reason' => null,
+                    'completed_at' => null,
+                    'created_by' => $userId,
+                    'updated_by' => $userId,
+                ]);
+                $this->syncAssignments($package, $data['assignments'] ?? []);
+                $created->push($package->load('assignments'));
+            }
+            return $created;
+            });
+        } catch (QueryException $exception) {
+            if ((string) $exception->getCode() === '23000') {
+                throw ValidationException::withMessages([
+                    'packages' => 'Paket pekerjaan sudah dibuat oleh proses lain. Muat ulang halaman lalu coba lagi.',
+                ]);
+            }
 
-            $package = WorkshopWorkPackage::create([
-                'order_id' => $order->getKey(),
-                'sequence' => $sequence,
-                'display_no' => $this->displayNumber($order, $sequence),
-                'job_name' => trim((string) $data['job_name']),
-                'description' => filled($data['description'] ?? null) ? trim((string) $data['description']) : null,
-                'target_date' => $data['target_date'] ?? $order->target_selesai,
-                'status' => WorkshopWorkPackage::STATUS_NOT_STARTED,
-                'pending_reason' => null,
-                'completed_at' => null,
-                'created_by' => $userId,
-                'updated_by' => $userId,
-            ]);
-
-            $this->syncAssignments($package, $data['assignments'] ?? []);
-
-            return $package->load('assignments');
-        });
+            throw $exception;
+        }
     }
 
     /**
@@ -129,7 +146,7 @@ final class WorkshopWorkPackageService
         $this->assertPackageMutable($package);
 
         return DB::transaction(function () use ($package, $data, $userId): WorkshopWorkPackage {
-            $locked = WorkshopWorkPackage::query()->lockForUpdate()->findOrFail($package->getKey());
+            $locked = $this->lockPackageParent($package);
             $this->assertPackageMutable($locked);
             $locked->fill([
                 'job_name' => trim((string) ($data['job_name'] ?? $locked->job_name)),
@@ -158,7 +175,7 @@ final class WorkshopWorkPackageService
 
         $this->assertPackageMutable($package);
         return DB::transaction(function () use ($package, $status, $pendingReason, $userId): WorkshopWorkPackage {
-            $locked = WorkshopWorkPackage::query()->with('assignments')->lockForUpdate()->findOrFail($package->getKey());
+            $locked = $this->lockPackageParent($package)->load('assignments');
             $this->assertPackageMutable($locked);
             if ($status !== WorkshopWorkPackage::STATUS_NOT_STARTED && ! $this->assignmentsComplete($locked)) {
                 throw ValidationException::withMessages(['status' => 'PIC dan uraian pekerjaan wajib diisi sebelum status paket dilanjutkan.']);
@@ -182,7 +199,7 @@ final class WorkshopWorkPackageService
     {
         $this->assertPackageMutable($package);
         DB::transaction(function () use ($package): void {
-            $locked = WorkshopWorkPackage::query()->lockForUpdate()->findOrFail($package->getKey());
+            $locked = $this->lockPackageParent($package);
             $this->assertPackageMutable($locked);
             $locked->delete();
         });
@@ -251,5 +268,18 @@ final class WorkshopWorkPackageService
             return filled($assignment->pic_name_snapshot)
                 && collect($assignment->work_descriptions ?? [])->filter(static fn ($value): bool => filled($value))->isNotEmpty();
         });
+    }
+
+    private function lockPackageParent(WorkshopWorkPackage $package): WorkshopWorkPackage
+    {
+        $orderId = (int) $package->order_id;
+        $order = Order::query()->findOrFail($orderId);
+        $workshop = $order->orderWorkshop()->lockForUpdate()->first();
+        if ($workshop === null) {
+            $this->assertWorkshopOrder($order);
+        }
+        $locked = WorkshopWorkPackage::query()->findOrFail($package->getKey());
+        $locked->setRelation('order', $order->fresh(['orderWorkshop', 'qualityControlReports', 'workshopHandover', 'bengkelTasks']));
+        return $locked;
     }
 }

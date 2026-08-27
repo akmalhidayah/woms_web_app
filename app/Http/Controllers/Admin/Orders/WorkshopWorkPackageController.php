@@ -12,7 +12,6 @@ use App\Models\Order;
 use App\Models\WorkshopWorkPackage;
 use App\Services\BengkelTasks\WorkshopWorkPackageService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class WorkshopWorkPackageController extends Controller
@@ -47,11 +46,10 @@ class WorkshopWorkPackageController extends Controller
             return back()->withErrors(['packages' => 'Minimal satu paket pekerjaan harus diisi.']);
         }
 
-        DB::transaction(function () use ($packages, $order, $request): void {
-            foreach ($packages as $package) {
-                $this->service->create($order, is_array($package) ? $package : [], $request->user()?->id);
-            }
-        });
+        $this->service->createBatch($order, array_map(
+            static fn ($package): array => is_array($package) ? $package : [],
+            $packages,
+        ), $request->user()?->id);
 
         return back()->with('status', count($packages)." paket berhasil dibuat untuk Order {$order->nomor_order}.");
     }
@@ -66,6 +64,15 @@ class WorkshopWorkPackageController extends Controller
 
     public function updateStatus(UpdateWorkshopWorkPackageStatusRequest $request, WorkshopWorkPackage $workPackage): RedirectResponse
     {
+        $this->service->updateStatus($workPackage, $request->validated('status'), $request->validated('pending_reason'), $request->user()?->id);
+
+        return back()->with('status', 'Status paket pekerjaan berhasil diperbarui.');
+    }
+
+    public function updateStatusForOrder(UpdateWorkshopWorkPackageStatusRequest $request, Order $order, WorkshopWorkPackage $workPackage): RedirectResponse
+    {
+        abort_unless((int) $workPackage->order_id === (int) $order->getKey(), 404);
+        $this->service->assertWorkshopOrder($order);
         $this->service->updateStatus($workPackage, $request->validated('status'), $request->validated('pending_reason'), $request->user()?->id);
 
         return back()->with('status', 'Status paket pekerjaan berhasil diperbarui.');

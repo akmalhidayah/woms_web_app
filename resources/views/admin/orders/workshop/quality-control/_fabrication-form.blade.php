@@ -220,6 +220,8 @@
             ])
         </section>
 
+        @include('admin.orders.workshop.quality-control._work-packages-summary', ['workPackages' => $workPackages ?? collect()])
+
         @include('admin.orders.workshop.quality-control._signature-pad', [
             'payload' => $payload,
             'roleLabel' => 'Pembuat QC',

@@ -41,6 +41,7 @@ class WorkshopHandoverController extends Controller
             : 'waiting';
 
         $waitingQuery = $queue->query()
+            ->with('workPackages.assignments')
             ->when($search !== '', fn ($query) => $query->where(function ($query) use ($search): void {
                 $query->where('nomor_order', 'like', "%{$search}%")
                     ->orWhere('nama_pekerjaan', 'like', "%{$search}%")
@@ -58,7 +59,7 @@ class WorkshopHandoverController extends Controller
 
         $waiting = $waitingQuery->paginate(10, ['*'], 'waiting_page')->withQueryString();
         $history = WorkshopHandover::query()
-            ->with(['order', 'admin', 'recipient'])
+            ->with(['order.workPackages.assignments', 'admin', 'recipient'])
             ->where('status', WorkshopHandover::STATUS_COMPLETED)
             ->when($search !== '', fn ($query) => $query->where(function ($query) use ($search): void {
                 $query->where('order_no_snapshot', 'like', "%{$search}%")
@@ -108,9 +109,10 @@ class WorkshopHandoverController extends Controller
         try {
             $handover = DB::transaction(function () use ($request, $order, $queue, $recipientResolver, &$storedPaths, &$signaturePath): WorkshopHandover {
                 $lockedOrder = Order::query()
-                    ->with(['orderWorkshop', 'latestQualityControlReport.signatures'])
-                    ->lockForUpdate()
+                    ->with(['orderWorkshop', 'latestQualityControlReport.signatures', 'workPackages.assignments'])
                     ->findOrFail($order->id);
+                $lockedOrder->orderWorkshop()->lockForUpdate()->firstOrFail();
+                $lockedOrder->load(['orderWorkshop', 'latestQualityControlReport.signatures', 'workPackages.assignments']);
 
                 abort_unless($queue->isReady($lockedOrder), Response::HTTP_UNPROCESSABLE_ENTITY, 'Order belum memenuhi syarat Serah Terima.');
 
@@ -243,7 +245,7 @@ class WorkshopHandoverController extends Controller
 
     public function renderPdf(WorkshopHandover $workshopHandover): Response
     {
-        $workshopHandover->loadMissing(['order', 'admin', 'recipient']);
+        $workshopHandover->loadMissing(['order.workPackages.assignments', 'admin', 'recipient']);
 
         return response(Pdf::loadView('admin.workshop-handover.pdf', [
             'handover' => $workshopHandover,
@@ -254,6 +256,7 @@ class WorkshopHandoverController extends Controller
                 ->all(),
             'adminSignatureSource' => $this->privatePath($workshopHandover->admin_signature_path),
             'userSignatureSource' => $this->privatePath($workshopHandover->user_signature_path),
+            'workPackages' => $workshopHandover->order?->workPackages ?? collect(),
         ])->setPaper('a4', 'portrait')->output(), Response::HTTP_OK, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="'.$workshopHandover->document_no.'.pdf"',

@@ -83,6 +83,12 @@
                                     <p class="font-semibold text-slate-900">{{ $jobName }}</p>
                                     <p class="text-[10px] text-slate-500">Unit: {{ $unit ?: '-' }}</p>
                                     <p class="text-[10px] text-blue-600">Seksi: {{ $section ?: '-' }}</p>
+                                    @if ($order?->workPackages?->isNotEmpty())
+                                        <div class="mt-2 rounded-lg border border-blue-100 bg-blue-50/60 px-2 py-1.5 text-[10px] text-slate-700">
+                                            <span class="font-semibold text-blue-700">{{ $order->workPackages->count() }} paket pekerjaan</span>
+                                            <span class="ml-1">{{ $order->workPackages->where('status', \App\Models\WorkshopWorkPackage::STATUS_COMPLETED)->count() }}/{{ $order->workPackages->count() }} selesai</span>
+                                        </div>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 align-top">
                                     <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-700">{{ $isHistory ? $row->path : $queue->path($order) }}</span>

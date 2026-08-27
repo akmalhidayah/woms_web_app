@@ -24,7 +24,10 @@ return new class extends Migration
             $table->unsignedInteger('sort_order')->default(0);
             $table->timestamps();
 
-            $table->index(['work_package_id', 'sort_order']);
+            $table->index(
+                ['work_package_id', 'sort_order'],
+                'wwpa_package_sort_idx'
+            );
         });
     }
 

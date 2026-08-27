@@ -85,14 +85,124 @@
                 const pics = @json($bengkelPics->map(fn ($pic) => ['id' => $pic->id, 'name' => $pic->name])->values());
                 const optionHtml = (empty = 'PIC (opsional)') => `<option value="">${empty}</option>${pics.map((pic) => `<option value="${pic.id}">${String(pic.name).replaceAll('"', '&quot;')}</option>`).join('')}`;
                 const descriptionInput = (name) => `<input name="${name}" maxlength="1000" placeholder="Uraian pekerjaan" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">`;
-                const renumber = (row) => { row.querySelectorAll('.assignment-row').forEach((a, ai) => { a.dataset.assignmentIndex = ai; a.querySelectorAll('select,input').forEach((el) => { el.name = el.name.replace(/assignments\]\[\d+\]/, `assignments][${ai}]`); }); a.querySelectorAll('.description-rows input').forEach((el, di) => { el.name = el.name.replace(/descriptions\]\[\d+\]/, `descriptions][${di}]`); }); a.querySelector('.remove-assignment')?.classList.toggle('hidden', row.querySelectorAll('.assignment-row').length < 2); }); };
+
+                const renumberAssignments = (container, rowSelector, descriptionSelector, packageIndex = null) => {
+                    const rows = [...container.querySelectorAll(rowSelector)];
+                    const packagePrefix = packageIndex === null ? '' : `packages[${packageIndex}]`;
+
+                    rows.forEach((row, assignmentIndex) => {
+                        row.dataset.assignmentIndex = assignmentIndex;
+                        const assignmentPrefix = packagePrefix
+                            ? `${packagePrefix}[assignments][${assignmentIndex}]`
+                            : `assignments[${assignmentIndex}]`;
+                        row.querySelector('select').name = `${assignmentPrefix}[pic_id]`;
+                        row.querySelectorAll(`${descriptionSelector} input`).forEach((element, descriptionIndex) => {
+                            element.name = `${assignmentPrefix}[descriptions][${descriptionIndex}]`;
+                        });
+                        row.querySelector('.remove-assignment, .remove-edit-assignment')?.classList.toggle('hidden', rows.length < 2);
+                    });
+                };
+
+                const renumberBatch = (wrap) => {
+                    [...wrap.querySelectorAll('.package-batch-row')].forEach((row, packageIndex) => {
+                        row.dataset.packageIndex = packageIndex;
+                        row.querySelector('input[name$="[job_name]"]').name = `packages[${packageIndex}][job_name]`;
+                        row.querySelector('input[name$="[target_date]"]').name = `packages[${packageIndex}][target_date]`;
+                        row.querySelector('textarea[name$="[description]"]').name = `packages[${packageIndex}][description]`;
+                        renumberAssignments(row, '.assignment-row', '.description-rows', packageIndex);
+                        row.querySelector('.remove-package-row')?.classList.toggle('hidden', wrap.querySelectorAll('.package-batch-row').length < 3);
+                    });
+                };
+
+                const renumberEdit = (form) => {
+                    renumberAssignments(form.querySelector('.edit-assignment-rows'), '.edit-assignment-row', '.edit-description-rows');
+                };
+
                 const batch = document.getElementById('package-batch-form');
                 if (batch) {
                     const wrap = document.getElementById('package-batch-rows');
-                    document.getElementById('add-package-row')?.addEventListener('click', () => { const rows = wrap.querySelectorAll('.package-batch-row'); if (rows.length >= 99) return; const clone = rows[0].cloneNode(true); const i = rows.length; clone.dataset.packageIndex = i; clone.querySelectorAll('input,select').forEach((el) => { el.name = el.name.replace(/packages\[\d+\]/g, `packages[${i}]`); if (el.type !== 'date') el.value = ''; }); clone.querySelector('.remove-package-row')?.classList.remove('hidden'); wrap.appendChild(clone); });
-                    wrap.addEventListener('click', (event) => { const target = event.target; const row = target.closest('.package-batch-row'); if (!row) return; if (target.closest('.remove-package-row')) { row.remove(); return; } if (target.closest('.add-assignment')) { const list = row.querySelector('.assignment-rows'); const ai = list.querySelectorAll('.assignment-row').length; const pkg = row.dataset.packageIndex; const item = document.createElement('div'); item.className = 'assignment-row grid gap-2 rounded border border-slate-200 bg-slate-50 p-2 md:grid-cols-12'; item.innerHTML = `<select name="packages[${pkg}][assignments][${ai}][pic_id]" class="md:col-span-4 rounded-lg border border-slate-300 px-3 py-2 text-sm">${optionHtml()}</select><div class="description-rows space-y-2 md:col-span-7">${descriptionInput(`packages[${pkg}][assignments][${ai}][descriptions][0]`)}</div><div class="flex gap-1 md:col-span-1"><button type="button" class="add-description rounded border border-blue-200 px-2 text-xs text-blue-700">+ Uraian</button><button type="button" class="remove-assignment rounded border border-rose-200 px-2 text-xs text-rose-700">×</button></div>`; list.appendChild(item); renumber(row); } if (target.closest('.remove-assignment')) { target.closest('.assignment-row')?.remove(); renumber(row); } if (target.closest('.add-description')) { const a = target.closest('.assignment-row'); const pkg = row.dataset.packageIndex; const ai = [...row.querySelectorAll('.assignment-row')].indexOf(a); const di = a.querySelectorAll('.description-rows input').length; a.querySelector('.description-rows').insertAdjacentHTML('beforeend', descriptionInput(`packages[${pkg}][assignments][${ai}][descriptions][${di}]`)); } });
+                    renumberBatch(wrap);
+
+                    document.getElementById('add-package-row')?.addEventListener('click', () => {
+                        const rows = wrap.querySelectorAll('.package-batch-row');
+                        if (rows.length >= 99) return;
+
+                        const clone = rows[0].cloneNode(true);
+                        clone.querySelectorAll('input, select, textarea').forEach((element) => {
+                            if (element.type !== 'date') element.value = '';
+                        });
+                        clone.querySelector('.remove-package-row')?.classList.remove('hidden');
+                        wrap.appendChild(clone);
+                        renumberBatch(wrap);
+                    });
+
+                    wrap.addEventListener('click', (event) => {
+                        const target = event.target;
+                        const row = target.closest('.package-batch-row');
+                        if (!row) return;
+
+                        if (target.closest('.remove-package-row')) {
+                            row.remove();
+                            renumberBatch(wrap);
+                            return;
+                        }
+
+                        if (target.closest('.add-assignment')) {
+                            const list = row.querySelector('.assignment-rows');
+                            const item = document.createElement('div');
+                            item.className = 'assignment-row grid gap-2 rounded border border-slate-200 bg-slate-50 p-2 md:grid-cols-12';
+                            item.innerHTML = `<select class="md:col-span-4 rounded-lg border border-slate-300 px-3 py-2 text-sm">${optionHtml()}</select><div class="description-rows space-y-2 md:col-span-7">${descriptionInput('')}</div><div class="flex gap-1 md:col-span-1"><button type="button" class="add-description rounded border border-blue-200 px-2 text-xs text-blue-700">+ Uraian</button><button type="button" class="remove-assignment rounded border border-rose-200 px-2 text-xs text-rose-700">×</button></div>`;
+                            list.appendChild(item);
+                            renumberBatch(wrap);
+                            return;
+                        }
+
+                        if (target.closest('.remove-assignment')) {
+                            target.closest('.assignment-row')?.remove();
+                            renumberBatch(wrap);
+                            return;
+                        }
+
+                        if (target.closest('.add-description')) {
+                            target.closest('.assignment-row')?.querySelector('.description-rows')?.insertAdjacentHTML('beforeend', descriptionInput(''));
+                            renumberBatch(wrap);
+                        }
+                    });
                 }
-                document.querySelectorAll('.package-edit-form').forEach((form) => { form.addEventListener('click', (event) => { const target = event.target; const list = form.querySelector('.edit-assignment-rows'); if (target.closest('.remove-edit-assignment')) { target.closest('.edit-assignment-row')?.remove(); return; } if (target.closest('.remove-edit-description')) { target.closest('.remove-edit-description').parentElement?.remove(); return; } if (target.closest('.add-edit-assignment')) { const ai = list.querySelectorAll('.edit-assignment-row').length; const item = document.createElement('div'); item.className = 'edit-assignment-row rounded border border-slate-200 p-2'; item.dataset.assignmentIndex = ai; item.innerHTML = `<div class="flex gap-1"><select name="assignments[${ai}][pic_id]" class="min-w-0 flex-1 rounded border border-slate-300 px-2 py-1 text-xs">${optionHtml('Pilih PIC')}</select><button type="button" class="remove-edit-assignment rounded border border-rose-200 px-2 text-xs text-rose-700">×</button></div><div class="edit-description-rows mt-1">${descriptionInput(`assignments[${ai}][descriptions][0]`)}</div><button type="button" class="add-edit-description mt-1 rounded border border-blue-200 px-2 py-1 text-[11px] text-blue-700">+ Uraian</button>`; list.appendChild(item); } if (target.closest('.add-edit-description')) { const a = target.closest('.edit-assignment-row'); const ai = [...list.querySelectorAll('.edit-assignment-row')].indexOf(a); const di = a.querySelectorAll('.edit-description-rows input').length; a.querySelector('.edit-description-rows').insertAdjacentHTML('beforeend', descriptionInput(`assignments[${ai}][descriptions][${di}]`)); } }); });
+
+                document.querySelectorAll('.package-edit-form').forEach((form) => {
+                    renumberEdit(form);
+                    form.addEventListener('click', (event) => {
+                        const target = event.target;
+                        const list = form.querySelector('.edit-assignment-rows');
+
+                        if (target.closest('.remove-edit-assignment')) {
+                            target.closest('.edit-assignment-row')?.remove();
+                            renumberEdit(form);
+                            return;
+                        }
+
+                        if (target.closest('.remove-edit-description')) {
+                            target.closest('.remove-edit-description').parentElement?.remove();
+                            renumberEdit(form);
+                            return;
+                        }
+
+                        if (target.closest('.add-edit-assignment')) {
+                            const item = document.createElement('div');
+                            item.className = 'edit-assignment-row rounded border border-slate-200 p-2';
+                            item.innerHTML = `<div class="flex gap-1"><select class="min-w-0 flex-1 rounded border border-slate-300 px-2 py-1 text-xs">${optionHtml('Pilih PIC')}</select><button type="button" class="remove-edit-assignment rounded border border-rose-200 px-2 text-xs text-rose-700">×</button></div><div class="edit-description-rows mt-1">${descriptionInput('')}</div><button type="button" class="add-edit-description mt-1 rounded border border-blue-200 px-2 py-1 text-[11px] text-blue-700">+ Uraian</button>`;
+                            list.appendChild(item);
+                            renumberEdit(form);
+                            return;
+                        }
+
+                        if (target.closest('.add-edit-description')) {
+                            target.closest('.edit-assignment-row')?.querySelector('.edit-description-rows')?.insertAdjacentHTML('beforeend', descriptionInput(''));
+                            renumberEdit(form);
+                        }
+                    });
+                });
             })();
         </script>
     @endif

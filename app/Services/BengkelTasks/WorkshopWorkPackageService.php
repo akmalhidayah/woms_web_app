@@ -45,6 +45,22 @@ final class WorkshopWorkPackageService
         }
     }
 
+    public function assertOrderPackagesMutable(Order $order): void
+    {
+        $this->assertWorkshopOrder($order);
+        $order->loadMissing(['orderWorkshop', 'qualityControlReports', 'workshopHandover', 'bengkelTasks']);
+
+        $archived = $order->bengkelTasks->contains(fn ($task): bool => $task->archived_at !== null);
+        if (in_array($order->orderWorkshop?->progress_status, [
+            \App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL,
+            \App\Models\OrderWorkshop::PROGRESS_DONE,
+        ], true) || $order->qualityControlReports->isNotEmpty() || $order->workshopHandover !== null || $archived) {
+            throw ValidationException::withMessages([
+                'work_package' => 'Pembagian pekerjaan tidak dapat diubah karena proses Quality Control atau Serah Terima telah dimulai.',
+            ]);
+        }
+    }
+
     public function assertPackageMutable(WorkshopWorkPackage $package): void
     {
         $package->loadMissing(['order.orderWorkshop', 'order.qualityControlReports', 'order.workshopHandover', 'order.bengkelTasks']);
@@ -67,13 +83,14 @@ final class WorkshopWorkPackageService
      */
     public function create(Order $order, array $data, ?int $userId = null): WorkshopWorkPackage
     {
-        $this->assertWorkshopOrder($order);
+        $this->assertOrderPackagesMutable($order);
 
         return DB::transaction(function () use ($order, $data, $userId): WorkshopWorkPackage {
             $workshop = $order->orderWorkshop()->lockForUpdate()->first();
             if ($workshop === null) {
-                $this->assertWorkshopOrder($order);
+                $this->assertOrderPackagesMutable($order);
             }
+            $this->assertOrderPackagesMutable($order->fresh());
 
             if (WorkshopWorkPackage::query()->where('order_id', $order->getKey())->count() >= 99) {
                 throw ValidationException::withMessages(['job_name' => 'Satu Order maksimal memiliki 99 paket pekerjaan.']);
@@ -91,18 +108,12 @@ final class WorkshopWorkPackageService
                 'job_name' => trim((string) $data['job_name']),
                 'description' => filled($data['description'] ?? null) ? trim((string) $data['description']) : null,
                 'target_date' => $data['target_date'] ?? $order->target_selesai,
-                'status' => $data['status'] ?? WorkshopWorkPackage::STATUS_NOT_STARTED,
-                'pending_reason' => ($data['status'] ?? null) === WorkshopWorkPackage::STATUS_PENDING
-                    ? ($data['pending_reason'] ?? null)
-                    : null,
+                'status' => WorkshopWorkPackage::STATUS_NOT_STARTED,
+                'pending_reason' => null,
+                'completed_at' => null,
                 'created_by' => $userId,
                 'updated_by' => $userId,
             ]);
-
-            if (($data['status'] ?? WorkshopWorkPackage::STATUS_NOT_STARTED) === WorkshopWorkPackage::STATUS_PENDING
-                && blank($data['pending_reason'] ?? null)) {
-                throw ValidationException::withMessages(['pending_reason' => 'Alasan pending wajib diisi.']);
-            }
 
             $this->syncAssignments($package, $data['assignments'] ?? []);
 
@@ -120,18 +131,11 @@ final class WorkshopWorkPackageService
         return DB::transaction(function () use ($package, $data, $userId): WorkshopWorkPackage {
             $locked = WorkshopWorkPackage::query()->lockForUpdate()->findOrFail($package->getKey());
             $this->assertPackageMutable($locked);
-            $status = $data['status'] ?? $locked->status;
-
             $locked->fill([
                 'job_name' => trim((string) ($data['job_name'] ?? $locked->job_name)),
                 'description' => array_key_exists('description', $data) && filled($data['description'])
                     ? trim((string) $data['description']) : (array_key_exists('description', $data) ? null : $locked->description),
                 'target_date' => $data['target_date'] ?? $locked->target_date,
-                'status' => $status,
-                'pending_reason' => $status === WorkshopWorkPackage::STATUS_PENDING ? ($data['pending_reason'] ?? null) : null,
-                'completed_at' => $status === WorkshopWorkPackage::STATUS_COMPLETED
-                    ? ($locked->status === WorkshopWorkPackage::STATUS_COMPLETED ? $locked->completed_at : now())
-                    : null,
                 'updated_by' => $userId,
             ]);
             $locked->save();
@@ -140,10 +144,6 @@ final class WorkshopWorkPackageService
                 $this->syncAssignments($locked, $data['assignments']);
             } elseif ($locked->status !== WorkshopWorkPackage::STATUS_NOT_STARTED && ! $locked->hasAssignments()) {
                 throw ValidationException::withMessages(['assignments' => 'PIC wajib diisi sebelum paket dikerjakan.']);
-            }
-
-            if ($status === WorkshopWorkPackage::STATUS_PENDING && blank($data['pending_reason'] ?? null) && blank($locked->pending_reason)) {
-                throw ValidationException::withMessages(['pending_reason' => 'Alasan pending wajib diisi.']);
             }
 
             return $locked->load('assignments');
@@ -156,16 +156,36 @@ final class WorkshopWorkPackageService
             throw ValidationException::withMessages(['status' => 'Status paket tidak valid.']);
         }
 
-        return $this->update($package, [
-            'status' => $status,
-            'pending_reason' => $pendingReason,
-        ], $userId);
+        $this->assertPackageMutable($package);
+        return DB::transaction(function () use ($package, $status, $pendingReason, $userId): WorkshopWorkPackage {
+            $locked = WorkshopWorkPackage::query()->with('assignments')->lockForUpdate()->findOrFail($package->getKey());
+            $this->assertPackageMutable($locked);
+            if ($status !== WorkshopWorkPackage::STATUS_NOT_STARTED && ! $this->assignmentsComplete($locked)) {
+                throw ValidationException::withMessages(['status' => 'PIC dan uraian pekerjaan wajib diisi sebelum status paket dilanjutkan.']);
+            }
+            if ($status === WorkshopWorkPackage::STATUS_PENDING && blank($pendingReason)) {
+                throw ValidationException::withMessages(['pending_reason' => 'Alasan pending wajib diisi.']);
+            }
+            $wasCompleted = $locked->status === WorkshopWorkPackage::STATUS_COMPLETED;
+            $locked->status = $status;
+            $locked->pending_reason = $status === WorkshopWorkPackage::STATUS_PENDING ? trim((string) $pendingReason) : null;
+            $locked->completed_at = $status === WorkshopWorkPackage::STATUS_COMPLETED
+                ? ($wasCompleted && $locked->completed_at ? $locked->completed_at : now())
+                : null;
+            $locked->updated_by = $userId;
+            $locked->save();
+            return $locked;
+        });
     }
 
     public function delete(WorkshopWorkPackage $package): void
     {
         $this->assertPackageMutable($package);
-        DB::transaction(fn (): bool => (bool) $package->delete());
+        DB::transaction(function () use ($package): void {
+            $locked = WorkshopWorkPackage::query()->lockForUpdate()->findOrFail($package->getKey());
+            $this->assertPackageMutable($locked);
+            $locked->delete();
+        });
     }
 
     private function displayNumber(Order $order, int $sequence): string
@@ -182,6 +202,9 @@ final class WorkshopWorkPackageService
 
         foreach ($rows as $index => $assignment) {
             $picId = (int) ($assignment['pic_id'] ?? $assignment['bengkel_pic_id'] ?? 0);
+            if ($picId < 1 && blank(implode('', array_map('strval', (array) ($assignment['descriptions'] ?? $assignment['work_descriptions'] ?? []))))) {
+                continue;
+            }
             if ($picId < 1 || isset($seen[$picId])) {
                 throw ValidationException::withMessages(['assignments' => 'PIC paket wajib unik dan valid.']);
             }
@@ -220,5 +243,13 @@ final class WorkshopWorkPackageService
         foreach ($normalized as $row) {
             $package->assignments()->create($row);
         }
+    }
+
+    private function assignmentsComplete(WorkshopWorkPackage $package): bool
+    {
+        return $package->assignments->isNotEmpty() && $package->assignments->every(static function ($assignment): bool {
+            return filled($assignment->pic_name_snapshot)
+                && collect($assignment->work_descriptions ?? [])->filter(static fn ($value): bool => filled($value))->isNotEmpty();
+        });
     }
 }

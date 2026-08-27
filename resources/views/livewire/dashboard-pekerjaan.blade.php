@@ -119,6 +119,10 @@
 
     $progressBadge = function (?string $status, ?string $label = null): array {
         return match ($status) {
+            'waiting_handover' => [
+                'label' => 'Menunggu Serah Terima',
+                'class' => 'border-amber-200 bg-amber-100 text-amber-800',
+            ],
             \App\Models\OrderWorkshop::PROGRESS_DONE => [
                 'label' => 'Selesai',
                 'class' => 'border-emerald-200 bg-emerald-100 text-emerald-800',

@@ -96,7 +96,7 @@ class DashboardPekerjaan extends Component
             ->keyBy('avatar_path');
 
         $tasks = BengkelTask::query()
-            ->with('order.orderWorkshop', 'order.workPackages.assignments')
+            ->with('order.orderWorkshop', 'order.workPackages.assignments', 'order.workshopHandover', 'order.latestQualityControlReport.signatures')
             ->whereNull('archived_at')
             ->where(function ($builder): void {
                 $builder
@@ -124,7 +124,7 @@ class DashboardPekerjaan extends Component
             ->orderByDesc('created_at')
             ->get();
 
-        $taskRows = $tasks->map(static function (BengkelTask $task) use ($picDirectory, $picDirectoryByName, $picDirectoryByPath): array {
+        $taskRows = $tasks->map(function (BengkelTask $task) use ($picDirectory, $picDirectoryByName, $picDirectoryByPath): array {
             $names = collect(is_array($task->person_in_charge) ? $task->person_in_charge : [])
                 ->filter(fn ($name) => filled($name))
                 ->values();
@@ -182,7 +182,7 @@ class DashboardPekerjaan extends Component
             $isCompleted = $progressStatus === OrderWorkshop::PROGRESS_DONE || (bool) $task->is_completed;
 
             $packageRows = ($task->order?->isWorkshopOrder() ? $task->order?->workPackages : collect())
-                ?->map(static function ($package) use ($task, $picDirectory): array {
+                ?->map(function ($package) use ($task, $picDirectory): array {
                     $profiles = $package->assignments->map(static function ($assignment) use ($picDirectory): array {
                         $pic = $assignment->bengkel_pic_id ? $picDirectory->get((int) $assignment->bengkel_pic_id) : null;
 
@@ -202,6 +202,7 @@ class DashboardPekerjaan extends Component
                         \App\Models\WorkshopWorkPackage::STATUS_PENDING => OrderWorkshop::PROGRESS_PENDING,
                         default => OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
                     };
+                    $status = $this->resolvePackageDisplayStatus($task->order, $status);
 
                     return [
                         'id' => 'package-'.$package->id,
@@ -290,6 +291,38 @@ class DashboardPekerjaan extends Component
 
         $this->maxPages = max(1, $fabrikasiPages, $refurbishPages);
         $this->pageSlide = (int) ($this->pageSlide % $this->maxPages);
+    }
+
+    private function resolvePackageDisplayStatus(?Order $order, string $fallback): string
+    {
+        if ($order === null) {
+            return $fallback;
+        }
+
+        $handover = $order->workshopHandover;
+        if ($handover?->isCompleted()) {
+            return OrderWorkshop::PROGRESS_DONE;
+        }
+
+        if ($handover?->isWaitingUserSignature()) {
+            return 'waiting_handover';
+        }
+
+        $qualityControl = $order->latestQualityControlReport;
+        if ($qualityControl?->approvalCompleted()) {
+            return 'waiting_handover';
+        }
+
+        if (in_array($order->orderWorkshop?->progress_status, [
+            OrderWorkshop::PROGRESS_QUALITY_CONTROL,
+            OrderWorkshop::PROGRESS_DONE,
+        ], true)) {
+            return $order->orderWorkshop->progress_status === OrderWorkshop::PROGRESS_DONE
+                ? 'waiting_handover'
+                : OrderWorkshop::PROGRESS_QUALITY_CONTROL;
+        }
+
+        return $fallback;
     }
 
     private function loadOrderSummary(): void

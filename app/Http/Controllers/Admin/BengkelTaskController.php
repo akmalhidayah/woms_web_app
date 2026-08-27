@@ -78,7 +78,12 @@ class BengkelTaskController extends Controller
                     ->orWhere('unit_work', 'like', "%{$q}%")
                     ->orWhere('seksi', 'like', "%{$q}%")
                     ->orWhere('catatan', 'like', "%{$q}%")
-                    ->orWhere('pending_reason', 'like', "%{$q}%");
+                    ->orWhere('pending_reason', 'like', "%{$q}%")
+                    ->orWhereHas('order.workPackages', function ($package) use ($q): void {
+                        $package->where('display_no', 'like', "%{$q}%")
+                            ->orWhere('job_name', 'like', "%{$q}%")
+                            ->orWhereHas('assignments', fn ($assignment) => $assignment->where('pic_name_snapshot', 'like', "%{$q}%"));
+                    });
             });
         }
 

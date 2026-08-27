@@ -1,4 +1,10 @@
 <x-layouts.admin title="Pembagian Pekerjaan Bengkel">
+    @php
+        $orderLocked = $order->qualityControlReports->isNotEmpty()
+            || $order->workshopHandover !== null
+            || in_array($order->orderWorkshop?->progress_status, [\App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL, \App\Models\OrderWorkshop::PROGRESS_DONE], true)
+            || $order->bengkelTasks->contains(fn ($task) => $task->archived_at !== null);
+    @endphp
     <div class="space-y-4">
         <section class="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
             <div class="flex flex-wrap items-center justify-between gap-3">
@@ -11,54 +17,56 @@
             </div>
         </section>
 
-        @if (session('status'))
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-        @endif
-        @if ($errors->any())
-            <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ implode(' ', $errors->all()) }}</div>
-        @endif
+        @if (session('status')) <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div> @endif
+        @if ($errors->any()) <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ implode(' ', $errors->all()) }}</div> @endif
 
         <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div class="mb-4 flex items-center justify-between gap-3">
-                <div>
-                    <h2 class="font-semibold text-slate-900">Paket Pekerjaan</h2>
-                    <p class="text-xs text-slate-500">{{ $order->workPackageProgressLabel() }}</p>
-                </div>
-                <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">Nomor paket dibuat otomatis</span>
+            <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div><h2 class="font-semibold text-slate-900">Paket Pekerjaan</h2><p class="text-xs text-slate-500">{{ $order->workPackageProgressLabel() }}</p></div>
+                @if (! $orderLocked)<span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">Nomor paket dibuat otomatis</span>@else<span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Terkunci karena Quality Control/Serah Terima dimulai</span>@endif
             </div>
 
-            <form method="POST" action="{{ route('admin.orders.workshop.work-packages.store', $order) }}" class="grid gap-3 rounded-xl border border-blue-100 bg-blue-50/40 p-4 md:grid-cols-2">
-                @csrf
-                <input name="job_name" required maxlength="255" placeholder="Nama pekerjaan paket" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
-                <input name="target_date" type="date" value="{{ $order->target_selesai?->format('Y-m-d') }}" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
-                <textarea name="description" rows="2" placeholder="Deskripsi (opsional)" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm md:col-span-2"></textarea>
-                <button class="w-fit rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Tambah Paket</button>
-            </form>
+            @if (! $orderLocked && $workPackages->isEmpty())
+                <form method="POST" action="{{ route('admin.orders.workshop.work-packages.batch', $order) }}" class="space-y-3 rounded-xl border border-blue-100 bg-blue-50/40 p-4" id="package-batch-form">
+                    @csrf
+                    <div id="package-batch-rows" class="space-y-3">
+                        @for ($i = 0; $i < 2; $i++)
+                            <div class="package-batch-row grid gap-2 rounded-lg border border-blue-100 bg-white p-3 md:grid-cols-12">
+                                <input name="packages[{{ $i }}][job_name]" required maxlength="255" placeholder="Nama pekerjaan paket" class="md:col-span-4 rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                                <input name="packages[{{ $i }}][target_date]" type="date" value="{{ $order->target_selesai?->format('Y-m-d') }}" class="md:col-span-3 rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                                <input name="packages[{{ $i }}][description]" maxlength="5000" placeholder="Deskripsi (opsional)" class="md:col-span-4 rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                                <button type="button" class="remove-package-row hidden rounded-lg border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700 md:col-span-1">Hapus</button>
+                                <div class="md:col-span-12 grid gap-2 md:grid-cols-2"><select name="packages[{{ $i }}][assignments][0][pic_id]" class="rounded-lg border border-slate-300 px-3 py-2 text-sm"><option value="">PIC (opsional)</option>@foreach ($bengkelPics as $pic)<option value="{{ $pic->id }}">{{ $pic->name }}</option>@endforeach</select><input name="packages[{{ $i }}][assignments][0][descriptions][0]" maxlength="1000" placeholder="Uraian PIC (opsional)" class="rounded-lg border border-slate-300 px-3 py-2 text-sm"></div>
+                            </div>
+                        @endfor
+                    </div>
+                    <div class="flex flex-wrap gap-2"><button type="button" id="add-package-row" class="rounded-lg border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-700">Tambah Package</button><button class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Simpan Pembagian</button></div>
+                    <p class="text-xs text-slate-500">Minimal 2 dan maksimal 99 package. PIC dapat dilengkapi setelah package dibuat.</p>
+                </form>
+            @elseif ($orderLocked && $workPackages->isEmpty())
+                <p class="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">Belum ada paket pekerjaan. Pembagian tidak dapat ditambahkan karena proses lanjutan telah dimulai.</p>
+            @endif
 
-            <div class="mt-5 overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200 text-sm">
-                    <thead><tr class="text-left text-xs uppercase tracking-wide text-slate-500"><th class="px-3 py-2">Paket</th><th class="px-3 py-2">Target</th><th class="px-3 py-2">Status</th><th class="px-3 py-2">PIC</th><th class="px-3 py-2 text-right">Aksi</th></tr></thead>
-                    <tbody class="divide-y divide-slate-100">
-                        @forelse ($workPackages as $package)
-                            <tr>
-                                <td class="px-3 py-3"><div class="font-semibold text-slate-900">{{ $package->displayNumber() }}</div><div class="text-xs text-slate-600">{{ $package->job_name }}</div></td>
-                                <td class="px-3 py-3 text-slate-600">{{ $package->target_date?->format('d-m-Y') ?: '-' }}</td>
-                                <td class="px-3 py-3"><span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">{{ $package->statusLabel() }}</span></td>
-                                <td class="px-3 py-3 text-xs text-slate-600">{{ $package->assignments->pluck('pic_name_snapshot')->join(', ') ?: 'Belum ditentukan' }}</td>
-                                <td class="px-3 py-3 text-right">
-                                    @if (! $package->isLocked())
-                                        <form method="POST" action="{{ route('admin.orders.workshop.work-packages.destroy', [$order, $package]) }}" onsubmit="return confirm('Hapus paket ini?')">@csrf @method('DELETE')<button class="rounded-lg border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700">Hapus</button></form>
-                                    @else
-                                        <span class="text-xs text-slate-400">Terkunci</span>
-                                    @endif
-                                </td>
-                            </tr>
-                        @empty
-                            <tr><td colspan="5" class="px-3 py-8 text-center text-sm text-slate-500">Belum ada paket pekerjaan.</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+            @if (! $orderLocked && $workPackages->isNotEmpty())
+                <form method="POST" action="{{ route('admin.orders.workshop.work-packages.store', $order) }}" class="mb-5 grid gap-3 rounded-xl border border-blue-100 bg-blue-50/40 p-4 md:grid-cols-2">
+                    @csrf
+                    <input name="job_name" required maxlength="255" placeholder="Nama pekerjaan paket" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><input name="target_date" type="date" value="{{ $order->target_selesai?->format('Y-m-d') }}" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><textarea name="description" rows="2" placeholder="Deskripsi (opsional)" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm md:col-span-2"></textarea><button class="w-fit rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Tambah Paket</button>
+                </form>
+            @endif
+
+            <div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-200 text-sm"><thead><tr class="text-left text-xs uppercase tracking-wide text-slate-500"><th class="px-3 py-2">Paket</th><th class="px-3 py-2">Target</th><th class="px-3 py-2">Status</th><th class="px-3 py-2">PIC &amp; Uraian</th><th class="px-3 py-2 text-right">Aksi</th></tr></thead><tbody class="divide-y divide-slate-100">
+                @forelse ($workPackages as $package)
+                    <tr><td class="px-3 py-3 align-top"><div class="font-semibold text-slate-900">{{ $package->displayNumber() }}</div><div class="text-xs text-slate-600">{{ $package->job_name }}</div><div class="mt-1 text-xs text-slate-500">{{ $package->description ?: 'Tanpa deskripsi' }}</div></td><td class="px-3 py-3 align-top text-slate-600">{{ $package->target_date?->format('d-m-Y') ?: '-' }}<br>@if($package->completed_at)<span class="text-xs text-emerald-600">Selesai {{ $package->completed_at->format('d-m-Y H:i') }}</span>@endif</td><td class="px-3 py-3 align-top"><form method="POST" action="{{ route('admin.orders.work-packages.status.update', $package) }}" class="space-y-1">@csrf @method('PATCH')<select name="status" class="rounded-lg border border-slate-300 px-2 py-1 text-xs" @disabled($package->isLocked())>@foreach(\App\Models\WorkshopWorkPackage::statusOptions() as $value => $label)<option value="{{ $value }}" @selected($package->status === $value)>{{ $label }}</option>@endforeach</select><input name="pending_reason" value="{{ $package->pending_reason }}" placeholder="Alasan pending" class="w-full rounded-lg border border-slate-300 px-2 py-1 text-xs" @disabled($package->isLocked())>@if(! $package->isLocked())<button class="rounded bg-blue-600 px-2 py-1 text-[11px] font-semibold text-white">Simpan status</button>@endif</form></td><td class="px-3 py-3 align-top text-xs text-slate-600"><div class="space-y-2">@forelse($package->assignments as $assignment)<div class="rounded border border-slate-200 bg-slate-50 p-2"><div class="font-semibold text-slate-800">{{ $assignment->pic_name_snapshot }}</div><ul class="list-disc pl-4">@foreach($assignment->work_descriptions ?? [] as $description)<li>{{ $description }}</li>@endforeach</ul></div>@empty<span class="text-slate-400">Belum ditentukan</span>@endforelse</div></td><td class="px-3 py-3 text-right align-top"><div class="flex flex-col items-end gap-2">@if(! $package->isLocked())<details class="text-left"><summary class="cursor-pointer rounded-lg border border-blue-200 px-2 py-1 text-xs font-semibold text-blue-700">Edit</summary><form method="POST" action="{{ route('admin.orders.workshop.work-packages.update', [$order, $package]) }}" class="mt-2 w-64 space-y-2 rounded-lg border border-slate-200 bg-white p-2">@csrf @method('PATCH')<input name="job_name" required value="{{ $package->job_name }}" class="w-full rounded border border-slate-300 px-2 py-1 text-xs"><input name="target_date" type="date" required value="{{ $package->target_date?->format('Y-m-d') }}" class="w-full rounded border border-slate-300 px-2 py-1 text-xs"><textarea name="description" rows="2" class="w-full rounded border border-slate-300 px-2 py-1 text-xs">{{ $package->description }}</textarea>@foreach($package->assignments as $aIndex => $assignment)<select name="assignments[{{ $aIndex }}][pic_id]" class="w-full rounded border border-slate-300 px-2 py-1 text-xs"><option value="">Pilih PIC</option>@foreach($bengkelPics as $pic)<option value="{{ $pic->id }}" @selected((int)$assignment->bengkel_pic_id === (int)$pic->id)>{{ $pic->name }}</option>@endforeach</select>@foreach($assignment->work_descriptions ?? [] as $dIndex => $description)<input name="assignments[{{ $aIndex }}][descriptions][{{ $dIndex }}]" value="{{ $description }}" class="w-full rounded border border-slate-300 px-2 py-1 text-xs">@endforeach @endforeach<button class="rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white">Simpan perubahan</button></form></details><form method="POST" action="{{ route('admin.orders.workshop.work-packages.destroy', [$order, $package]) }}" onsubmit="return confirm('Hapus paket ini?')">@csrf @method('DELETE')<button class="rounded-lg border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700">Hapus</button></form>@else<span class="text-xs text-slate-400">Terkunci</span>@endif</div></td></tr>
+                @empty <tr><td colspan="5" class="px-3 py-8 text-center text-sm text-slate-500">Belum ada paket pekerjaan.</td></tr>@endforelse
+            </tbody></table></div>
+            @if ($workPackages->isNotEmpty() && $workPackages->every(fn ($package) => $package->isCompleted()) && ! $orderLocked && auth()->user() && \App\Support\AdminMenuRegistry::canAccess(auth()->user(), \App\Support\AdminMenuRegistry::MENU_ORDER_BENGKEL))
+                <a href="{{ route('admin.orders.workshop.index', ['search' => $order->nomor_order, 'progress' => \App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL]) }}" class="mt-4 inline-flex rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">Lanjutkan ke Quality Control</a>
+            @endif
         </section>
     </div>
+    @if (! $orderLocked && $workPackages->isEmpty())
+        <script>
+            (() => { const wrap = document.getElementById('package-batch-rows'); const add = document.getElementById('add-package-row'); if (!wrap || !add) return; add.addEventListener('click', () => { const rows = wrap.querySelectorAll('.package-batch-row'); if (rows.length >= 99) return; const i = rows.length; const row = rows[0].cloneNode(true); row.querySelectorAll('input,select').forEach((el) => { el.name = el.name.replace(/packages\[\d+\]/g, `packages[${i}]`); if (el.type !== 'date') el.value = ''; }); row.querySelector('.remove-package-row').classList.remove('hidden'); wrap.appendChild(row); }); wrap.addEventListener('click', (event) => { if (event.target.classList.contains('remove-package-row')) event.target.closest('.package-batch-row')?.remove(); }); })();
+        </script>
+    @endif
 </x-layouts.admin>

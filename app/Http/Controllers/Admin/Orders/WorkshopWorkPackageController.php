@@ -22,7 +22,7 @@ class WorkshopWorkPackageController extends Controller
     public function index(Order $order): View
     {
         $this->service->assertWorkshopOrder($order);
-        $order->load(['orderWorkshop', 'bengkelTasks', 'workPackages.assignments.pic']);
+        $order->load(['orderWorkshop', 'bengkelTasks', 'qualityControlReports', 'workshopHandover', 'workPackages.assignments.pic']);
         $order->workPackages->each(static fn (WorkshopWorkPackage $package): WorkshopWorkPackage => $package->setRelation('order', $order));
 
         return view('admin.orders.workshop.work-packages', [

@@ -523,13 +523,17 @@
 
                                     <div class="order-workshop-status-grid">
                                         <section class="order-workshop-status-block rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                                            <div class="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Konfirmasi Anggaran</div>
+                                            <div class="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Persiapan Order</div>
                                             <div class="space-y-2">
                                                 <div class="relative min-w-0">
                                                     <select name="konfirmasi_anggaran" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="konfirmasi_anggaran">
-                                                        <option value="">Pilih Status Konfirmasi</option>
+                                                        <option value="">Pilih Persiapan Order</option>
                                                         @foreach ($konfirmasiOptions as $value => $label)
-                                                            <option value="{{ $value }}" @selected(($workshop?->konfirmasi_anggaran ?? '') === $value)>{{ $label }}</option>
+                                                            <option value="{{ $value }}" @selected(($workshop?->konfirmasi_anggaran ?? '') === $value)>{{ match ($value) {
+                                                                \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_READY => 'Menunggu Material',
+                                                                \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY => 'Menunggu Anggaran',
+                                                                default => $label,
+                                                            } }}</option>
                                                         @endforeach
                                                     </select>
                                                     <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
@@ -540,7 +544,7 @@
                                                         <select name="status_anggaran" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="status_anggaran">
                                                             <option value="">Pilih status budget/transfer</option>
                                                             @foreach ($statusAnggaranOptions as $value => $label)
-                                                                <option value="{{ $value }}" @selected(($workshop?->status_anggaran ?? '') === $value)>{{ $label }}</option>
+                                                                <option value="{{ $value }}" @selected(($workshop?->status_anggaran ?? '') === $value)>{{ $value === \App\Models\OrderWorkshop::STATUS_ANGGARAN_WAITING_BUDGET ? 'Menunggu Budget' : $label }}</option>
                                                             @endforeach
                                                         </select>
                                                     </div>

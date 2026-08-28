@@ -191,21 +191,6 @@
                                         <span class="text-[9px] leading-4 text-slate-500">Harus dilengkapi admin Order Pekerjaan Bengkel.</span>
                                     @endif
                                 @endif
-                                @if ($workshop && $task->order?->isWorkshopOrder())
-                                    <form method="POST" action="{{ route('admin.bengkel-tasks.preparation.update', $task) }}" class="mt-1.5 flex max-w-[230px] items-center gap-1.5">
-                                        @csrf
-                                        @method('PATCH')
-                                        <select name="preparation_status" class="min-w-0 flex-1 rounded-md border border-blue-200 bg-white px-2 py-1 text-[10px] text-slate-700 focus:border-blue-500 focus:outline-none" @disabled($preparationLocked)>
-                                            <option value="">Pilih Persiapan Order</option>
-                                            @foreach (\App\Models\OrderWorkshop::preparationOptions() as $value => $label)
-                                                <option value="{{ $value }}" @selected($workshop->preparation_status === $value)>{{ $label }}</option>
-                                            @endforeach
-                                        </select>
-                                        @if (! $preparationLocked)
-                                            <button type="submit" class="rounded-md bg-blue-600 px-2 py-1 text-[9px] font-semibold text-white">Simpan</button>
-                                        @endif
-                                    </form>
-                                @endif
                             </div>
                         </td>
 
@@ -329,21 +314,6 @@
                                 @else
                                     <p class="mt-1.5 text-[10px] leading-4 text-slate-500">Harus dilengkapi admin Order Pekerjaan Bengkel.</p>
                                 @endif
-                            @endif
-                            @if ($workshop && $task->order?->isWorkshopOrder())
-                                <form method="POST" action="{{ route('admin.bengkel-tasks.preparation.update', $task) }}" class="mt-2 flex items-center gap-1.5">
-                                    @csrf
-                                    @method('PATCH')
-                                    <select name="preparation_status" class="min-w-0 flex-1 rounded-md border border-blue-200 bg-white px-2 py-1 text-[10px] text-slate-700 focus:border-blue-500 focus:outline-none" @disabled($preparationLocked)>
-                                        <option value="">Pilih Persiapan Order</option>
-                                        @foreach (\App\Models\OrderWorkshop::preparationOptions() as $value => $label)
-                                            <option value="{{ $value }}" @selected($workshop->preparation_status === $value)>{{ $label }}</option>
-                                        @endforeach
-                                    </select>
-                                    @if (! $preparationLocked)
-                                        <button type="submit" class="rounded-md bg-blue-600 px-2 py-1 text-[9px] font-semibold text-white">Simpan</button>
-                                    @endif
-                                </form>
                             @endif
                         </div>
 

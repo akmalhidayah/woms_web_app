@@ -24,7 +24,21 @@
         }
 
         .order-workshop-table thead {
-            display: none;
+            display: block;
+            border-top: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f1f5f9;
+        }
+
+        .order-workshop-table thead tr {
+            display: grid;
+            grid-template-columns: minmax(150px, 0.9fr) minmax(220px, 1.25fr) minmax(360px, 2fr);
+        }
+
+        .order-workshop-table thead th {
+            min-width: 0;
+            padding: 0.65rem 0.9rem !important;
+            text-align: left;
         }
 
         .order-workshop-table tbody {
@@ -96,6 +110,10 @@
         }
 
         @media (max-width: 1279px) {
+            .order-workshop-table thead tr {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
             .order-workshop-table tbody tr.order-workshop-card {
                 grid-template-columns: minmax(0, 1fr);
             }
@@ -107,6 +125,15 @@
         }
 
         @media (max-width: 767px) {
+            .order-workshop-table thead tr {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .order-workshop-table thead th {
+                padding: 0.55rem 0.65rem !important;
+                font-size: 9px !important;
+            }
+
             .order-workshop-table tbody {
                 padding: 0.5rem;
             }

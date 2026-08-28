@@ -14,6 +14,113 @@
         <div id="flash-error" data-message="{{ implode(' | ', $errors->all()) }}" class="hidden"></div>
     @endif
 
+    <style>
+        /* The order list keeps each parent row as a card while preserving the
+           existing row selectors used by auto-save and modal scripts. */
+        .order-workshop-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .order-workshop-table thead {
+            display: none;
+        }
+
+        .order-workshop-table tbody {
+            display: grid;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: #f8fafc;
+        }
+
+        .order-workshop-table tbody tr.order-workshop-card {
+            display: grid;
+            grid-template-columns: minmax(150px, 0.9fr) minmax(220px, 1.25fr) minmax(360px, 2fr);
+            min-width: 0;
+            overflow: hidden;
+            border: 1px solid #dbe4f0;
+            border-radius: 0.9rem;
+            background: #fff;
+            box-shadow: 0 1px 2px rgb(15 23 42 / 0.05);
+            transition: border-color 150ms ease, box-shadow 150ms ease;
+        }
+
+        .order-workshop-table tbody tr.order-workshop-card:hover {
+            border-color: #bfdbfe;
+            box-shadow: 0 4px 12px rgb(30 64 175 / 0.08);
+        }
+
+        .order-workshop-table tbody tr.order-workshop-card > td {
+            min-width: 0;
+            border: 0 !important;
+            padding: 0.9rem !important;
+            vertical-align: top;
+        }
+
+        .order-workshop-table tbody tr.order-workshop-card > td + td {
+            border-left: 1px solid #e2e8f0 !important;
+        }
+
+        .order-workshop-table tbody tr.order-workshop-empty {
+            display: block;
+            border: 0;
+        }
+
+        .order-workshop-table .order-workshop-status-cell {
+            position: relative;
+        }
+
+        .order-workshop-table .order-workshop-status-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.55rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .order-workshop-table .order-workshop-status-block {
+            min-width: 0;
+        }
+
+        .order-workshop-table .order-workshop-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.4rem;
+            min-height: 2rem;
+        }
+
+        .order-workshop-table .order-workshop-actions .row-action-menu-panel {
+            z-index: 40;
+        }
+
+        @media (max-width: 1279px) {
+            .order-workshop-table tbody tr.order-workshop-card {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .order-workshop-table tbody tr.order-workshop-card > td + td {
+                border-top: 1px solid #e2e8f0 !important;
+                border-left: 0 !important;
+            }
+        }
+
+        @media (max-width: 767px) {
+            .order-workshop-table tbody {
+                padding: 0.5rem;
+            }
+
+            .order-workshop-table .order-workshop-status-grid {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .order-workshop-table .order-workshop-actions {
+                justify-content: flex-start;
+            }
+        }
+    </style>
+
     <div class="order-list-compact space-y-4">
         <section class="order-list-hero rounded-[1.35rem] border border-blue-100 px-5 py-4 shadow-sm" style="background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 48%, #e6f1ff 100%);">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -127,12 +234,8 @@
                     <thead class="border-y border-slate-200 bg-slate-200 text-slate-600">
                         <tr>
                             <th class="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-600">Nomor Order</th>
-                            <th class="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-600">Pekerjaan</th>
-                            <th class="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-600">Unit / Seksi</th>
-                            <th class="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-600">Konfirmasi Anggaran</th>
-                            <th class="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-600">Status Material</th>
-                            <th class="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-600">Progress Pekerjaan</th>
-                            <th class="px-3 py-3 text-right text-[10px] font-semibold uppercase tracking-wide text-slate-600">Aksi</th>
+                            <th class="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-600">Detail Pekerjaan</th>
+                            <th class="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-600">Status &amp; Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200 bg-white">
@@ -142,6 +245,11 @@
                                 $gambarDocument = $order->documents->firstWhere('jenis_dokumen.value', 'gambar_teknik');
                                 $workshop = $order->orderWorkshop;
                                 $workPackages = $order->workPackages;
+                                $workshopTypeLabel = match ($order->catatan) {
+                                    'Regu Fabrikasi' => 'Fabrikasi',
+                                    'Regu Bengkel (Refurbish)' => 'Refurbish',
+                                    default => null,
+                                };
                                 $konfirmasi = $workshop?->konfirmasi_anggaran;
                                 $showMaterial = $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_READY;
                                 $showProgress = in_array($konfirmasi, [
@@ -290,10 +398,17 @@
                                         || $qcUserSignature?->status === \App\Models\QualityControlSignature::STATUS_MISSING => 'Signer QC belum lengkap.',
                                     default => 'Approval QC belum aktif.',
                                 };
+                                $noteValues = [
+                                    'keterangan_konfirmasi' => trim((string) ($workshop?->keterangan_konfirmasi ?? '')),
+                                    'keterangan_material' => trim((string) ($workshop?->keterangan_material ?? '')),
+                                    'keterangan_progress' => trim((string) ($workshop?->keterangan_progress ?? '')),
+                                ];
                             @endphp
-                            <tr class="align-top odd:bg-white even:bg-slate-50/80 hover:bg-blue-50/70">
-                                <td class="px-3 py-3">
-                                    <div class="font-semibold text-slate-800">{{ $order->nomor_order }}</div>
+                            <tr class="order-workshop-card align-top">
+                                <td class="order-workshop-order-cell">
+                                    <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">Nomor Order</div>
+                                    <div class="mt-1 break-words text-sm font-bold text-slate-900">{{ $order->nomor_order }}</div>
+                                    <div class="mt-1 text-[10px] text-slate-500">Notif: {{ $order->notifikasi ?: '-' }}</div>
                                     @php
                                         $workshopPackagesLocked = $order->qualityControlReports->isNotEmpty()
                                             || $order->workshopHandover !== null
@@ -301,16 +416,23 @@
                                             || $order->bengkelTasks->contains(fn ($task) => $task->archived_at !== null);
                                     @endphp
                                     @if ($workPackages->isNotEmpty())
-                                        <div class="mt-1 text-[9px] font-semibold text-blue-700">Pembagian: {{ $workPackages->count() }} paket · {{ $order->workPackageProgressLabel() }}</div>
-                                        <a href="{{ route('admin.orders.workshop.work-packages.index', $order) }}" class="mt-1 inline-flex text-[9px] font-semibold {{ $workshopPackagesLocked ? 'text-slate-500' : 'text-blue-600' }} underline">Kelola Pembagian</a>
+                                        <div class="mt-2 text-[10px] font-semibold text-blue-700">Pembagian: {{ $workPackages->count() }} paket</div>
+                                        <div class="mt-0.5 text-[10px] text-slate-500">{{ $order->workPackageProgressLabel() }}</div>
+                                        <a href="{{ route('admin.orders.workshop.work-packages.index', $order) }}" class="mt-2 inline-flex items-center rounded-lg border px-2.5 py-1 text-[10px] font-semibold {{ $workshopPackagesLocked ? 'border-slate-200 text-slate-500' : 'border-blue-200 text-blue-600 hover:bg-blue-50' }}">Kelola Pembagian</a>
                                     @endif
-                                    <div class="mt-1 text-[9px] text-slate-400">Tanggal: {{ optional($order->tanggal_order)->format('d-m-Y') ?: '-' }}</div>
+                                    <div class="mt-2 text-[10px] text-slate-400">Tanggal order: {{ optional($order->tanggal_order)->format('d-m-Y') ?: '-' }}</div>
                                 </td>
-                                <td class="px-3 py-3">
-                                    <div class="font-semibold text-slate-800">{{ \Illuminate\Support\Str::limit($order->nama_pekerjaan, 180) }}</div>
+                                <td class="order-workshop-detail-cell">
+                                    <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">Detail Pekerjaan</div>
+                                    <div class="mt-1 break-words text-sm font-bold leading-5 text-slate-900">{{ \Illuminate\Support\Str::limit($order->nama_pekerjaan, 180) }}</div>
+                                    @if ($workshopTypeLabel)
+                                        <span class="mt-2 inline-flex w-fit items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-blue-700">{{ $workshopTypeLabel }}</span>
+                                    @endif
+                                    <div class="mt-2 text-[10px] font-medium text-slate-700">Unit: {{ $order->unit_kerja ?: '-' }}</div>
+                                    <div class="mt-0.5 text-[10px] text-slate-500">Seksi: {{ $order->seksi ?: '-' }}</div>
                                     <button
                                         type="button"
-                                        class="workshop-flow-trigger mt-2 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 {{ $workshopSummaryClasses }}"
+                                        class="workshop-flow-trigger mt-3 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 {{ $workshopSummaryClasses }}"
                                         data-title="{{ $order->nomor_order }}"
                                         data-summary="{{ $workshopSummary }}"
                                         data-next="{{ $workshopNextStep }}"
@@ -319,162 +441,174 @@
                                         {{ $workshopSummary }}
                                     </button>
                                 </td>
-                                <td class="px-3 py-3">
-                                    <div class="font-medium text-slate-800">{{ $order->unit_kerja }}</div>
-                                    <div class="mt-1 text-[9px] text-slate-400">{{ $order->seksi }}</div>
-                                </td>
-                                <td class="px-3 py-3">
+                                <td class="order-workshop-status-cell">
                                     <input type="hidden" class="workshop-order-key" value="{{ $order->getRouteKey() }}">
-                                    <div class="space-y-2">
-                                        <div class="relative">
-                                            <select name="konfirmasi_anggaran" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="konfirmasi_anggaran">
-                                                <option value="">Pilih Status Konfirmasi</option>
-                                                @foreach ($konfirmasiOptions as $value => $label)
-                                                    <option value="{{ $value }}" @selected(($workshop?->konfirmasi_anggaran ?? '') === $value)>{{ $label }}</option>
-                                                @endforeach
-                                            </select>
-                                            <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
-                                        </div>
-
-                                        <div class="flex items-start gap-2">
-                                            <textarea name="keterangan_konfirmasi" class="note-textarea h-10 flex-1 resize-none rounded-md border border-blue-900/25 bg-white px-2 py-1 text-[10px] text-slate-900 placeholder:text-slate-500 focus:border-blue-600 focus:outline-none" placeholder="Keterangan konfirmasi...">{{ $workshop?->keterangan_konfirmasi }}</textarea>
-                                            <button type="button" class="save-note-btn inline-flex h-7 w-7 items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 shadow-sm transition hover:bg-indigo-100" data-field="keterangan_konfirmasi">
-                                                <i data-lucide="save" class="h-3 w-3"></i>
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">Status &amp; Aksi</div>
+                                        <div class="order-workshop-actions">
+                                            <button
+                                                type="button"
+                                                title="Detail &amp; Dokumen"
+                                                aria-label="Detail order"
+                                                class="workshop-detail-trigger inline-flex h-8 w-8 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 shadow-sm transition hover:bg-blue-100"
+                                                data-title="{{ $order->nomor_order }}"
+                                                data-job="{{ $order->nama_pekerjaan }}"
+                                                data-unit="{{ $order->unit_kerja }}"
+                                                data-seksi="{{ $order->seksi }}"
+                                                data-catatan="{{ $workshop?->catatan ?: ($order->catatan ?: '-') }}"
+                                                data-documents-url="{{ route('admin.orders.documents.index', $order) }}"
+                                                data-documents='@json($detailDocuments)'
+                                                data-qc-flow-summary="{{ $qcFlowSummary }}"
+                                                data-qc-flow='@json($qcFlowItems)'
+                                            >
+                                                <i data-lucide="info" class="h-3.5 w-3.5"></i>
                                             </button>
+                                            <button
+                                                type="button"
+                                                title="Edit Order"
+                                                aria-label="Edit order"
+                                                class="edit-order-trigger inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:bg-emerald-100"
+                                                data-action="{{ route('admin.orders.update', $order) }}"
+                                                data-order-key="{{ $order->getRouteKey() }}"
+                                                data-nomor-order="{{ $order->nomor_order }}"
+                                                data-notifikasi="{{ $order->notifikasi }}"
+                                                data-nama-pekerjaan="{{ $order->nama_pekerjaan }}"
+                                                data-unit-kerja="{{ $order->unit_kerja }}"
+                                                data-prioritas="{{ $order->prioritas }}"
+                                                data-target-selesai="{{ optional($order->target_selesai)->format('Y-m-d') }}"
+                                                data-seksi="{{ $order->seksi }}"
+                                                data-catatan-status="{{ $order->catatan_status?->value ?? \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value }}"
+                                                data-catatan="{{ $order->catatan }}"
+                                                data-tanggal-order="{{ optional($order->tanggal_order)->format('Y-m-d') }}"
+                                            >
+                                                <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
+                                            </button>
+                                            <form method="POST" action="{{ route('admin.orders.destroy', $order) }}" class="delete-order-form">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" title="Hapus Order" aria-label="Hapus order" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600 shadow-sm transition hover:bg-rose-100">
+                                                    <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                                                </button>
+                                            </form>
                                         </div>
+                                    </div>
 
-                                        @if ($showBudgetTransfer)
-                                            <div class="rounded-md border border-slate-200 bg-slate-50 p-2.5 text-[9px] text-slate-700 shadow-sm">
-                                                <div class="mb-2 font-semibold text-slate-800">Budget / Transfer</div>
-                                                <div class="space-y-2">
-                                                    <select name="status_anggaran" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="status_anggaran">
-                                                        <option value="">Pilih status budget/transfer</option>
-                                                        @foreach ($statusAnggaranOptions as $value => $label)
-                                                            <option value="{{ $value }}" @selected(($workshop?->status_anggaran ?? '') === $value)>{{ $label }}</option>
+                                    <div class="order-workshop-status-grid">
+                                        <section class="order-workshop-status-block rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                                            <div class="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Konfirmasi Anggaran</div>
+                                            <div class="space-y-2">
+                                                <div class="relative">
+                                                    <select name="konfirmasi_anggaran" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="konfirmasi_anggaran">
+                                                        <option value="">Pilih Status Konfirmasi</option>
+                                                        @foreach ($konfirmasiOptions as $value => $label)
+                                                            <option value="{{ $value }}" @selected(($workshop?->konfirmasi_anggaran ?? '') === $value)>{{ $label }}</option>
                                                         @endforeach
                                                     </select>
+                                                    <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
                                                 </div>
+                                                <div data-note-group>
+                                                    <button type="button" data-note-toggle class="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-semibold text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">Catatan</button>
+                                                    @if ($noteValues['keterangan_konfirmasi'] !== '')
+                                                        <button type="button" data-note-summary class="mt-1 block max-w-full truncate text-left text-[9px] text-slate-500 hover:text-blue-700" title="{{ $noteValues['keterangan_konfirmasi'] }}">{{ \Illuminate\Support\Str::limit($noteValues['keterangan_konfirmasi'], 80) }}</button>
+                                                    @endif
+                                                    <div data-note-content class="{{ $noteValues['keterangan_konfirmasi'] === '' ? 'hidden' : '' }} mt-2 flex items-start gap-2">
+                                                        <textarea name="keterangan_konfirmasi" class="note-textarea h-10 flex-1 resize-none rounded-md border border-blue-900/25 bg-white px-2 py-1 text-[10px] text-slate-900 placeholder:text-slate-500 focus:border-blue-600 focus:outline-none" placeholder="Keterangan konfirmasi...">{{ $workshop?->keterangan_konfirmasi }}</textarea>
+                                                        <button type="button" class="save-note-btn inline-flex h-7 w-7 items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 shadow-sm transition hover:bg-indigo-100" data-field="keterangan_konfirmasi">
+                                                            <i data-lucide="save" class="h-3 w-3"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                @if ($showBudgetTransfer)
+                                                    <div class="rounded-md border border-slate-200 bg-white p-2 text-[9px] text-slate-700 shadow-sm">
+                                                        <div class="mb-1.5 font-semibold text-slate-800">Budget / Transfer</div>
+                                                        <select name="status_anggaran" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="status_anggaran">
+                                                            <option value="">Pilih status budget/transfer</option>
+                                                            @foreach ($statusAnggaranOptions as $value => $label)
+                                                                <option value="{{ $value }}" @selected(($workshop?->status_anggaran ?? '') === $value)>{{ $label }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                @endif
                                             </div>
-                                        @endif
-                                    </div>
-                                </td>
-                                <td class="px-3 py-3">
-                                    @if ($showMaterial)
-                                        <div class="space-y-2">
-                                            <div class="relative">
-                                                <select name="status_material" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="status_material">
-                                                    <option value="">Pilih status material</option>
-                                                    @foreach ($materialOptions as $value => $label)
-                                                        <option value="{{ $value }}" @selected(($workshop?->status_material ?? '') === $value)>{{ $label }}</option>
-                                                    @endforeach
-                                                </select>
-                                                <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
-                                            </div>
-                                            <div class="flex items-start gap-2">
-                                                <textarea name="keterangan_material" class="note-textarea h-10 flex-1 resize-none rounded-md border border-blue-900/25 bg-white px-2 py-1 text-[10px] text-slate-900 placeholder:text-slate-500 focus:border-blue-600 focus:outline-none" placeholder="Catatan material...">{{ $workshop?->keterangan_material }}</textarea>
-                                                <button type="button" class="save-note-btn inline-flex h-7 w-7 items-center justify-center rounded-md border border-cyan-200 bg-cyan-50 text-cyan-700 shadow-sm transition hover:bg-cyan-100" data-field="keterangan_material">
-                                                    <i data-lucide="save" class="h-3 w-3"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    @else
-                                        <div class="italic text-slate-400">-</div>
-                                    @endif
-                                </td>
-                                <td class="px-3 py-3">
-                                    @if ($showProgress)
-                                        <div class="space-y-2">
-                                            <div class="relative">
-                                                <select name="progress_status" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="progress_status">
-                                                    <option value="">Pilih progress</option>
-                                                    @foreach ($progressOptions as $value => $label)
-                                                        <option value="{{ $value }}" @selected(($workshop?->progress_status ?? '') === $value)>{{ $label }}</option>
-                                                    @endforeach
-                                                </select>
-                                                <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
-                                            </div>
-                                            <div class="flex items-start gap-2">
-                                                <textarea name="keterangan_progress" class="note-textarea h-10 flex-1 resize-none rounded-md border border-blue-900/25 bg-white px-2 py-1 text-[10px] text-slate-900 placeholder:text-slate-500 focus:border-blue-600 focus:outline-none" placeholder="Catatan progress...">{{ $workshop?->keterangan_progress }}</textarea>
-                                                <button type="button" class="save-note-btn inline-flex h-7 w-7 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:bg-emerald-100" data-field="keterangan_progress">
-                                                    <i data-lucide="save" class="h-3 w-3"></i>
-                                                </button>
-                                            </div>
-                                            @if ($showQcActions)
-                                                <div class="rounded-lg border border-violet-100 bg-violet-50 px-2.5 py-2 text-[10px] text-violet-700">
-                                                    <span class="font-semibold">{{ $qcFlowSummary }}</span>
-                                                    @if (\App\Support\AdminMenuRegistry::canAccess(auth()->user(), \App\Support\AdminMenuRegistry::MENU_QUALITY_CONTROL_BENGKEL))
-                                                        <a href="{{ route('admin.workshop-quality-control.index', ['search' => $order->nomor_order]) }}" class="ml-1 font-bold underline">Buka Quality Control</a>
-                                                    @else
-                                                        <span class="ml-1">Dikelola admin Quality Control.</span>
+                                        </section>
+
+                                        <section class="order-workshop-status-block rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                                            <div class="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Status Material</div>
+                                            @if ($showMaterial)
+                                                <div class="space-y-2">
+                                                    <div class="relative">
+                                                        <select name="status_material" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="status_material">
+                                                            <option value="">Pilih status material</option>
+                                                            @foreach ($materialOptions as $value => $label)
+                                                                <option value="{{ $value }}" @selected(($workshop?->status_material ?? '') === $value)>{{ $label }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
+                                                    </div>
+                                                    <div data-note-group>
+                                                        <button type="button" data-note-toggle class="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-semibold text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">Catatan</button>
+                                                        @if ($noteValues['keterangan_material'] !== '')
+                                                            <button type="button" data-note-summary class="mt-1 block max-w-full truncate text-left text-[9px] text-slate-500 hover:text-blue-700" title="{{ $noteValues['keterangan_material'] }}">{{ \Illuminate\Support\Str::limit($noteValues['keterangan_material'], 80) }}</button>
+                                                        @endif
+                                                        <div data-note-content class="{{ $noteValues['keterangan_material'] === '' ? 'hidden' : '' }} mt-2 flex items-start gap-2">
+                                                            <textarea name="keterangan_material" class="note-textarea h-10 flex-1 resize-none rounded-md border border-blue-900/25 bg-white px-2 py-1 text-[10px] text-slate-900 placeholder:text-slate-500 focus:border-blue-600 focus:outline-none" placeholder="Catatan material...">{{ $workshop?->keterangan_material }}</textarea>
+                                                            <button type="button" class="save-note-btn inline-flex h-7 w-7 items-center justify-center rounded-md border border-cyan-200 bg-cyan-50 text-cyan-700 shadow-sm transition hover:bg-cyan-100" data-field="keterangan_material">
+                                                                <i data-lucide="save" class="h-3 w-3"></i>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @else
+                                                <div class="italic text-slate-400">-</div>
+                                            @endif
+                                        </section>
+
+                                        <section class="order-workshop-status-block rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                                            <div class="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Progress Pekerjaan</div>
+                                            @if ($showProgress)
+                                                <div class="space-y-2">
+                                                    <div class="relative">
+                                                        <select name="progress_status" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="progress_status">
+                                                            <option value="">Pilih progress</option>
+                                                            @foreach ($progressOptions as $value => $label)
+                                                                <option value="{{ $value }}" @selected(($workshop?->progress_status ?? '') === $value)>{{ $label }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
+                                                    </div>
+                                                    <div data-note-group>
+                                                        <button type="button" data-note-toggle class="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-semibold text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">Catatan</button>
+                                                        @if ($noteValues['keterangan_progress'] !== '')
+                                                            <button type="button" data-note-summary class="mt-1 block max-w-full truncate text-left text-[9px] text-slate-500 hover:text-blue-700" title="{{ $noteValues['keterangan_progress'] }}">{{ \Illuminate\Support\Str::limit($noteValues['keterangan_progress'], 80) }}</button>
+                                                        @endif
+                                                        <div data-note-content class="{{ $noteValues['keterangan_progress'] === '' ? 'hidden' : '' }} mt-2 flex items-start gap-2">
+                                                            <textarea name="keterangan_progress" class="note-textarea h-10 flex-1 resize-none rounded-md border border-blue-900/25 bg-white px-2 py-1 text-[10px] text-slate-900 placeholder:text-slate-500 focus:border-blue-600 focus:outline-none" placeholder="Catatan progress...">{{ $workshop?->keterangan_progress }}</textarea>
+                                                            <button type="button" class="save-note-btn inline-flex h-7 w-7 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:bg-emerald-100" data-field="keterangan_progress">
+                                                                <i data-lucide="save" class="h-3 w-3"></i>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    @if ($showQcActions)
+                                                        <div class="rounded-lg border border-violet-100 bg-violet-50 px-2.5 py-2 text-[10px] text-violet-700">
+                                                            <span class="font-semibold">{{ $qcFlowSummary }}</span>
+                                                            @if (\App\Support\AdminMenuRegistry::canAccess(auth()->user(), \App\Support\AdminMenuRegistry::MENU_QUALITY_CONTROL_BENGKEL))
+                                                                <a href="{{ route('admin.workshop-quality-control.index', ['search' => $order->nomor_order]) }}" class="ml-1 font-bold underline">Buka Quality Control</a>
+                                                            @else
+                                                                <span class="ml-1">Dikelola admin Quality Control.</span>
+                                                            @endif
+                                                        </div>
                                                     @endif
                                                 </div>
+                                            @else
+                                                <div class="italic text-slate-400">-</div>
                                             @endif
-                                        </div>
-                                    @else
-                                        <div class="italic text-slate-400">-</div>
-                                    @endif
-                                </td>
-                                <td class="whitespace-nowrap px-3 py-3 text-right">
-                                    <div class="flex items-center justify-end gap-1.5">
-                                        <button
-                                            type="button"
-                                            title="Detail"
-                                            aria-label="Detail order"
-                                            class="workshop-detail-trigger inline-flex h-8 w-8 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 shadow-sm transition hover:bg-blue-100"
-                                            data-title="{{ $order->nomor_order }}"
-                                            data-job="{{ $order->nama_pekerjaan }}"
-                                            data-unit="{{ $order->unit_kerja }}"
-                                            data-seksi="{{ $order->seksi }}"
-                                            data-catatan="{{ $workshop?->catatan ?: ($order->catatan ?: '-') }}"
-                                            data-documents='@json($detailDocuments)'
-                                            data-qc-flow-summary="{{ $qcFlowSummary }}"
-                                            data-qc-flow='@json($qcFlowItems)'
-                                        >
-                                            <i data-lucide="info" class="h-3.5 w-3.5"></i>
-                                        </button>
-                                        <a href="{{ route('admin.orders.documents.index', $order) }}" title="Lengkapi dokumen" aria-label="Lengkapi dokumen" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-700 shadow-sm transition hover:bg-sky-100">
-                                            <i data-lucide="file-plus-2" class="h-3.5 w-3.5"></i>
-                                        </a>
-                                        <div class="row-action-menu relative">
-                                            <button type="button" class="row-action-menu-trigger inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50" title="Menu lainnya" aria-label="Menu lainnya">
-                                                <i data-lucide="more-vertical" class="h-3.5 w-3.5"></i>
-                                            </button>
-                                            <div class="row-action-menu-panel absolute right-0 z-30 mt-2 hidden w-44 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 text-left shadow-lg">
-                                                <button
-                                                    type="button"
-                                                    class="edit-order-trigger flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50"
-                                                    data-action="{{ route('admin.orders.update', $order) }}"
-                                                    data-order-key="{{ $order->getRouteKey() }}"
-                                                    data-nomor-order="{{ $order->nomor_order }}"
-                                                    data-notifikasi="{{ $order->notifikasi }}"
-                                                    data-nama-pekerjaan="{{ $order->nama_pekerjaan }}"
-                                                    data-unit-kerja="{{ $order->unit_kerja }}"
-                                                    data-prioritas="{{ $order->prioritas }}"
-                                                    data-target-selesai="{{ optional($order->target_selesai)->format('Y-m-d') }}"
-                                                    data-seksi="{{ $order->seksi }}"
-                                                    data-catatan-status="{{ $order->catatan_status?->value ?? \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value }}"
-                                                    data-catatan="{{ $order->catatan }}"
-                                                    data-tanggal-order="{{ optional($order->tanggal_order)->format('Y-m-d') }}"
-                                                >
-                                                    <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
-                                                    Edit Order
-                                                </button>
-                                                <form method="POST" action="{{ route('admin.orders.destroy', $order) }}" class="delete-order-form">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[11px] font-semibold text-rose-600 transition hover:bg-rose-50">
-                                                        <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
-                                                        Hapus Order
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </div>
+                                        </section>
                                     </div>
                                 </td>
                             </tr>
                         @empty
-                            <tr>
-                                <td colspan="7" class="px-3 py-8 text-center text-sm text-slate-500">{{ $activeTab === 'history' ? 'Belum ada riwayat pekerjaan bengkel yang selesai.' : 'Tidak ada order bengkel yang perlu tindakan.' }}</td>
+                            <tr class="order-workshop-empty">
+                                <td colspan="3" class="px-3 py-8 text-center text-sm text-slate-500">{{ $activeTab === 'history' ? 'Belum ada riwayat pekerjaan bengkel yang selesai.' : 'Tidak ada order bengkel yang perlu tindakan.' }}</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -767,7 +901,13 @@
                     </div>
 
                     <div class="rounded-xl border border-slate-200 p-3">
-                        <div class="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Dokumen</div>
+                        <div class="mb-2 flex items-center justify-between gap-3">
+                            <div class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Dokumen</div>
+                            <a id="workshopDetailDocumentsManage" href="#" class="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-[9px] font-semibold text-sky-700 transition hover:bg-sky-100">
+                                <i data-lucide="file-plus-2" class="h-3 w-3"></i>
+                                Lengkapi Dokumen
+                            </a>
+                        </div>
                         <div id="workshopDetailDocuments" class="grid gap-2"></div>
                     </div>
                 </div>
@@ -1282,6 +1422,20 @@
                 });
             });
 
+            document.querySelectorAll('[data-note-toggle], [data-note-summary]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const group = button.closest('[data-note-group]');
+                    const content = group?.querySelector('[data-note-content]');
+
+                    if (button.hasAttribute('data-note-summary')) {
+                        content?.classList.remove('hidden');
+                    } else {
+                        content?.classList.toggle('hidden');
+                    }
+                    content?.querySelector('textarea')?.focus();
+                });
+            });
+
             document.querySelectorAll('.workshop-detail-trigger').forEach((button) => {
                 button.addEventListener('click', () => {
                     const documents = JSON.parse(button.dataset.documents || '[]');
@@ -1293,6 +1447,10 @@
                     document.getElementById('workshopDetailUnit').textContent = button.dataset.unit || '-';
                     document.getElementById('workshopDetailSeksi').textContent = button.dataset.seksi || '-';
                     document.getElementById('workshopDetailCatatan').textContent = button.dataset.catatan || '-';
+                    const manageDocumentsLink = document.getElementById('workshopDetailDocumentsManage');
+                    if (manageDocumentsLink) {
+                        manageDocumentsLink.href = button.dataset.documentsUrl || '#';
+                    }
                     document.getElementById('workshopDetailQcSummary').textContent = button.dataset.qcFlowSummary || 'QC belum dibuat.';
                     document.getElementById('workshopDetailQcCount').textContent = `${signedCount}/${qcFlow.length || 3}`;
                     document.getElementById('workshopDetailDocuments').innerHTML = documents.length

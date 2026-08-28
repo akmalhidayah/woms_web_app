@@ -159,7 +159,7 @@
                         <i data-lucide="factory" class="h-5 w-5"></i>
                     </span>
                     <div>
-                        <h1 class="text-base font-bold leading-none tracking-tight text-slate-900">Order Pekerjaan Bengkel</h1>
+                        <h1 class="text-sm font-bold leading-none tracking-tight text-slate-900">Order Pekerjaan Bengkel</h1>
                     </div>
                 </div>
 
@@ -205,7 +205,7 @@
                     <input type="hidden" id="reguToggleInput" name="regu" value="{{ $selectedRegu }}">
 
                     <div class="flex flex-col gap-2.5 md:flex-row md:items-end">
-                        <div class="grid min-w-0 flex-1 gap-2.5 {{ $activeTab === 'action' ? 'md:grid-cols-[minmax(0,1.2fr)_minmax(190px,0.7fr)]' : '' }}">
+                        <div class="grid min-w-0 flex-1 gap-2.5 {{ $activeTab === 'action' ? 'md:grid-cols-2' : '' }}">
                             <div class="flex flex-col">
                                 <label for="search" class="mb-1.5 text-[10px] font-semibold text-slate-700">Pencarian</label>
                                 <input id="search" name="search" type="text" value="{{ $search }}" placeholder="Cari nomor / pekerjaan / unit..." class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-[13px] text-slate-900 placeholder:text-slate-500 shadow-sm focus:border-blue-500 focus:outline-none">

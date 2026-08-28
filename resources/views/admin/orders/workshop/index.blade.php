@@ -305,6 +305,9 @@
                                         <a href="{{ route('admin.orders.workshop.work-packages.index', $order) }}" class="mt-1 inline-flex text-[9px] font-semibold {{ $workshopPackagesLocked ? 'text-slate-500' : 'text-blue-600' }} underline">Kelola Pembagian</a>
                                     @endif
                                     <div class="mt-1 text-[9px] text-slate-400">Tanggal: {{ optional($order->tanggal_order)->format('d-m-Y') ?: '-' }}</div>
+                                </td>
+                                <td class="px-3 py-3">
+                                    <div class="font-semibold text-slate-800">{{ \Illuminate\Support\Str::limit($order->nama_pekerjaan, 180) }}</div>
                                     <button
                                         type="button"
                                         class="workshop-flow-trigger mt-2 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 {{ $workshopSummaryClasses }}"
@@ -315,9 +318,6 @@
                                     >
                                         {{ $workshopSummary }}
                                     </button>
-                                </td>
-                                <td class="px-3 py-3">
-                                    <div class="font-semibold text-slate-800">{{ \Illuminate\Support\Str::limit($order->nama_pekerjaan, 180) }}</div>
                                 </td>
                                 <td class="px-3 py-3">
                                     <div class="font-medium text-slate-800">{{ $order->unit_kerja }}</div>

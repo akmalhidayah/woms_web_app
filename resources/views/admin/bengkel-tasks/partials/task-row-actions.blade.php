@@ -3,6 +3,7 @@
     $isMobile = (bool) ($mobile ?? false);
     $badge = $badge ?? null;
     $readiness = is_array($readiness ?? null) ? $readiness : null;
+    $displayPackage = $task->getAttribute('display_work_package');
     $canAdvance = (bool) ($readiness['can_advance'] ?? false);
     $progressActions = [
         \App\Models\OrderWorkshop::PROGRESS_IN_PROGRESS => ['label' => 'Mulai Proses', 'icon' => 'play'],
@@ -21,7 +22,7 @@
     @endif
 
     <div class="flex flex-wrap items-center gap-1.5 {{ $isMobile ? 'justify-start' : 'justify-end' }}">
-        @if (! $isCompleted)
+        @if (! $displayPackage && ! $isCompleted)
             <details class="relative">
                 <summary class="inline-flex h-8 cursor-pointer list-none items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 text-[10px] font-semibold text-blue-700 transition hover:bg-blue-100 [&::-webkit-details-marker]:hidden" title="Ubah progress pekerjaan">
                     <i data-lucide="chevrons-up" class="h-3.5 w-3.5"></i>

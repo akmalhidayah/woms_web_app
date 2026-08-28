@@ -45,7 +45,52 @@
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-                @forelse ($tasks as $task)
+            @php
+                $displayTasks = $tasks->getCollection()->flatMap(function ($task) {
+                    $packages = $task->order?->isWorkshopOrder()
+                        ? $task->order->workPackages
+                        : collect();
+
+                    if ($packages->isEmpty()) {
+                        return [$task];
+                    }
+
+                    return $packages->map(function ($package) use ($task) {
+                        $packageTask = clone $task;
+                        $assignments = $package->assignments;
+                        $profiles = $assignments
+                            ->filter(fn ($assignment) => filled($assignment->pic_name_snapshot))
+                            ->map(fn ($assignment) => [
+                                'id' => $assignment->bengkel_pic_id,
+                                'name' => $assignment->pic_name_snapshot,
+                                'avatar_path' => null,
+                                'avatar_url' => null,
+                                'avatar_position_x' => 50,
+                                'avatar_position_y' => 50,
+                                'work_descriptions' => (array) ($assignment->work_descriptions ?? []),
+                            ])
+                            ->values();
+
+                        $packageTask->setAttribute('job_name', $package->job_name ?: $task->job_name);
+                        $packageTask->setAttribute('notification_number', $package->displayNumber());
+                    $packageTask->setAttribute('person_in_charge', $profiles->pluck('name')->all());
+                    $packageTask->setAttribute('person_in_charge_profiles', $profiles->all());
+                    $packageTask->setAttribute('usage_plan_date', data_get($package, 'target_date') ?: data_get($package, 'target_selesai') ?: $task->usage_plan_date);
+                    $packageTask->setAttribute('progress_status', match ($package->status) {
+                            \App\Models\WorkshopWorkPackage::STATUS_COMPLETED => \App\Models\OrderWorkshop::PROGRESS_DONE,
+                            \App\Models\WorkshopWorkPackage::STATUS_IN_PROGRESS => \App\Models\OrderWorkshop::PROGRESS_IN_PROGRESS,
+                            \App\Models\WorkshopWorkPackage::STATUS_PENDING => \App\Models\OrderWorkshop::PROGRESS_PENDING,
+                            default => \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
+                        });
+                        $packageTask->setAttribute('is_completed', $package->isCompleted());
+                        $packageTask->setAttribute('pending_reason', $package->pending_reason);
+                        $packageTask->setAttribute('display_work_package', $package);
+
+                        return $packageTask;
+                    })->all();
+                })->values();
+            @endphp
+            @forelse ($displayTasks as $task)
                     @php
                         $badge = $reguBadge($task->catatan ?? null);
                         $jobName = mb_strtoupper((string) $task->job_name);
@@ -81,6 +126,25 @@
                                 <div class="truncate">{{ $task->unit_work ?: '-' }}</div>
                                 <div class="truncate text-[10px] text-slate-500">Seksi: {{ $task->seksi ?: '-' }}</div>
                             </div>
+                            @if ($task->order?->isWorkshopOrder() && $task->order->workPackages->isNotEmpty())
+                                <div class="mt-2 rounded-lg border border-blue-100 bg-blue-50/60 px-2 py-1.5 text-left">
+                                    <div class="text-[9px] font-bold uppercase tracking-wide text-blue-700">Pembagian Pekerjaan ({{ $task->order->workPackages->count() }} paket)</div>
+                                    <div class="mt-1 space-y-0.5 text-[10px] text-slate-700">
+                                        @foreach ($task->order->workPackages as $package)
+                                            <div class="rounded border border-blue-100 bg-white px-2 py-1.5">
+                                                <div class="flex flex-wrap items-center justify-between gap-2"><span><span class="font-semibold text-blue-700">{{ $package->displayNumber() }}</span> — {{ $package->job_name }}</span>
+                                                    <form method="POST" action="{{ route('admin.orders.work-packages.status.update', $package) }}" class="inline-flex items-center gap-1">@csrf @method('PATCH')<select name="status" class="rounded border border-slate-200 px-1 py-0.5 text-[10px]" @disabled($package->isLocked())>@foreach(\App\Models\WorkshopWorkPackage::statusOptions() as $value => $label)<option value="{{ $value }}" @selected($package->status === $value)>{{ $label }}</option>@endforeach</select><input name="pending_reason" value="{{ $package->pending_reason }}" placeholder="Alasan pending" class="w-28 rounded border border-slate-200 px-1 py-0.5 text-[10px]" @disabled($package->isLocked())>@if(! $package->isLocked())<button class="rounded bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">Simpan</button>@endif</form>
+                                                </div>
+                                                <div class="mt-1 text-[10px] text-slate-500">PIC: {{ $package->assignments->pluck('pic_name_snapshot')->join(', ') ?: 'Belum ada PIC' }} @if($package->isPending() && filled($package->pending_reason)) · {{ $package->pending_reason }} @endif</div>
+                                                <div class="mt-1 text-[10px] text-slate-500">Uraian: {{ $package->assignments->flatMap(fn ($assignment) => (array) ($assignment->work_descriptions ?? []))->join('; ') ?: '-' }}</div>
+                                                @if(auth()->user() && \App\Support\AdminMenuRegistry::canAccess(auth()->user(), \App\Support\AdminMenuRegistry::MENU_ORDER_BENGKEL) && $task->order)
+                                                    <a href="{{ route('admin.orders.workshop.work-packages.index', $task->order) }}" class="mt-1 inline-flex text-[10px] font-semibold text-blue-700 underline">Kelola PIC &amp; Uraian</a>
+                                                @endif
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
                         </td>
 
                         <td class="px-3 py-2.5">
@@ -114,6 +178,22 @@
                                     <div class="max-w-[220px] rounded-lg border border-orange-100 bg-orange-50 px-2.5 py-1.5 text-left text-[10px] leading-snug text-orange-800">
                                         <span class="font-bold">Alasan:</span> {{ \Illuminate\Support\Str::limit($task->pending_reason, 120) }}
                                     </div>
+                                @endif
+                                @if ($task->getAttribute('display_work_package'))
+                                    @php($package = $task->getAttribute('display_work_package'))
+                                    <form method="POST" action="{{ route('admin.orders.work-packages.status.update', $package) }}" class="mt-1 flex max-w-[230px] items-center gap-1">
+                                        @csrf
+                                        @method('PATCH')
+                                        <select name="status" class="min-w-0 flex-1 rounded border border-slate-200 px-1.5 py-1 text-[10px]" @disabled($package->isLocked())>
+                                            @foreach (\App\Models\WorkshopWorkPackage::statusOptions() as $value => $label)
+                                                <option value="{{ $value }}" @selected($package->status === $value)>{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                        <input name="pending_reason" value="{{ $package->pending_reason }}" placeholder="Alasan" class="w-20 rounded border border-slate-200 px-1.5 py-1 text-[9px]" @disabled($package->isLocked())>
+                                        @if (! $package->isLocked())
+                                            <button type="submit" class="rounded bg-blue-600 px-2 py-1 text-[9px] font-semibold text-white">Simpan</button>
+                                        @endif
+                                    </form>
                                 @endif
                             </div>
                         </td>
@@ -173,7 +253,54 @@
     </div>
 
     <div class="divide-y divide-slate-100 lg:hidden">
-        @forelse ($tasks as $task)
+        @if (! isset($displayTasks))
+            @php
+                $displayTasks = $tasks->getCollection()->flatMap(function ($task) {
+                    $packages = $task->order?->isWorkshopOrder()
+                        ? $task->order->workPackages
+                        : collect();
+
+                    if ($packages->isEmpty()) {
+                        return [$task];
+                    }
+
+                    return $packages->map(function ($package) use ($task) {
+                        $packageTask = clone $task;
+                        $assignments = $package->assignments;
+                        $profiles = $assignments
+                            ->filter(fn ($assignment) => filled($assignment->pic_name_snapshot))
+                            ->map(fn ($assignment) => [
+                                'id' => $assignment->bengkel_pic_id,
+                                'name' => $assignment->pic_name_snapshot,
+                                'avatar_path' => null,
+                                'avatar_url' => null,
+                                'avatar_position_x' => 50,
+                                'avatar_position_y' => 50,
+                                'work_descriptions' => (array) ($assignment->work_descriptions ?? []),
+                            ])
+                            ->values();
+
+                        $packageTask->setAttribute('job_name', $package->job_name ?: $task->job_name);
+                        $packageTask->setAttribute('notification_number', $package->displayNumber());
+                        $packageTask->setAttribute('person_in_charge', $profiles->pluck('name')->all());
+                        $packageTask->setAttribute('person_in_charge_profiles', $profiles->all());
+                        $packageTask->setAttribute('usage_plan_date', data_get($package, 'target_date') ?: data_get($package, 'target_selesai') ?: $task->usage_plan_date);
+                        $packageTask->setAttribute('progress_status', match ($package->status) {
+                            \App\Models\WorkshopWorkPackage::STATUS_COMPLETED => \App\Models\OrderWorkshop::PROGRESS_DONE,
+                            \App\Models\WorkshopWorkPackage::STATUS_IN_PROGRESS => \App\Models\OrderWorkshop::PROGRESS_IN_PROGRESS,
+                            \App\Models\WorkshopWorkPackage::STATUS_PENDING => \App\Models\OrderWorkshop::PROGRESS_PENDING,
+                            default => \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
+                        });
+                        $packageTask->setAttribute('is_completed', $package->isCompleted());
+                        $packageTask->setAttribute('pending_reason', $package->pending_reason);
+                        $packageTask->setAttribute('display_work_package', $package);
+
+                        return $packageTask;
+                    })->all();
+                })->values();
+            @endphp
+        @endif
+        @forelse ($displayTasks as $task)
             @php
                 $badge = $reguBadge($task->catatan ?? null);
                 $jobName = mb_strtoupper((string) $task->job_name);
@@ -211,6 +338,17 @@
                                     <div>{{ $task->unit_work ?: '-' }}</div>
                                     <div class="text-slate-500">Seksi: {{ $task->seksi ?: '-' }}</div>
                                 </div>
+                                @if ($task->order?->isWorkshopOrder() && $task->order->workPackages->isNotEmpty())
+                                    <div class="mt-2 rounded-lg border border-blue-100 bg-blue-50/60 px-2.5 py-2 text-[10px] text-slate-700">
+                                        <div class="font-bold uppercase tracking-wide text-blue-700">Pembagian Pekerjaan</div>
+                                        @foreach ($task->order->workPackages as $package)
+                                            <div class="mt-1 rounded border border-blue-100 bg-white px-2 py-1.5"><div class="flex items-center justify-between gap-2"><span><span class="font-semibold text-blue-700">{{ $package->displayNumber() }}</span> — {{ $package->job_name }}</span><form method="POST" action="{{ route('admin.orders.work-packages.status.update', $package) }}" class="inline-flex gap-1">@csrf @method('PATCH')<select name="status" class="max-w-[90px] rounded border border-slate-200 px-1 py-0.5 text-[9px]" @disabled($package->isLocked())>@foreach(\App\Models\WorkshopWorkPackage::statusOptions() as $value => $label)<option value="{{ $value }}" @selected($package->status === $value)>{{ $label }}</option>@endforeach</select><input name="pending_reason" value="{{ $package->pending_reason }}" placeholder="Alasan" class="w-16 rounded border border-slate-200 px-1 py-0.5 text-[9px]" @disabled($package->isLocked())>@if(! $package->isLocked())<button class="rounded bg-blue-600 px-1 py-0.5 text-[9px] text-white">OK</button>@endif</form></div><div class="text-[9px] text-slate-500">PIC: {{ $package->assignments->pluck('pic_name_snapshot')->join(', ') ?: 'Belum ada PIC' }}</div><div class="text-[9px] text-slate-500">Uraian: {{ $package->assignments->flatMap(fn ($assignment) => (array) ($assignment->work_descriptions ?? []))->join('; ') ?: '-' }}</div></div>
+                                            @if(auth()->user() && \App\Support\AdminMenuRegistry::canAccess(auth()->user(), \App\Support\AdminMenuRegistry::MENU_ORDER_BENGKEL) && $task->order)
+                                                <a href="{{ route('admin.orders.workshop.work-packages.index', $task->order) }}" class="mt-1 inline-flex text-[9px] font-semibold text-blue-700 underline">Kelola PIC &amp; Uraian</a>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                @endif
                             </div>
                         </div>
 
@@ -231,6 +369,22 @@
                                         <div class="mt-1 rounded-lg border border-orange-100 bg-orange-50 px-2 py-1 text-[10px] leading-snug text-orange-800">
                                             <span class="font-bold">Alasan:</span> {{ \Illuminate\Support\Str::limit($task->pending_reason, 100) }}
                                         </div>
+                                    @endif
+                                    @if ($task->getAttribute('display_work_package'))
+                                        @php($package = $task->getAttribute('display_work_package'))
+                                        <form method="POST" action="{{ route('admin.orders.work-packages.status.update', $package) }}" class="mt-1 flex items-center gap-1">
+                                            @csrf
+                                            @method('PATCH')
+                                            <select name="status" class="min-w-0 flex-1 rounded border border-slate-200 px-1.5 py-1 text-[10px]" @disabled($package->isLocked())>
+                                                @foreach (\App\Models\WorkshopWorkPackage::statusOptions() as $value => $label)
+                                                    <option value="{{ $value }}" @selected($package->status === $value)>{{ $label }}</option>
+                                                @endforeach
+                                            </select>
+                                            <input name="pending_reason" value="{{ $package->pending_reason }}" placeholder="Alasan" class="w-20 rounded border border-slate-200 px-1.5 py-1 text-[9px]" @disabled($package->isLocked())>
+                                            @if (! $package->isLocked())
+                                                <button type="submit" class="rounded bg-blue-600 px-2 py-1 text-[9px] font-semibold text-white">Simpan</button>
+                                            @endif
+                                        </form>
                                     @endif
                                 </div>
                             </div>

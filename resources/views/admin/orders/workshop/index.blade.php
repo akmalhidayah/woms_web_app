@@ -109,6 +109,10 @@
         }
 
         @media (max-width: 1279px) {
+            .order-workshop-table thead {
+                display: none;
+            }
+
             .order-workshop-table thead tr {
                 grid-template-columns: repeat(3, minmax(0, 1fr));
             }
@@ -351,7 +355,8 @@
                                     ?->firstWhere('role_key', \App\Models\QualityControlSignature::ROLE_USER_MANAGER);
                                 $qcSignaturePayload = collect($qcReport?->payload['signature'] ?? []);
                                 $qcMakerName = trim((string) $qcSignaturePayload->get('signer_name', ''));
-                                $qcMakerDate = trim((string) $qcSignaturePayload->get('signed_at', ''));
+                                $qcMakerSigned = $qcReport?->hasValidMakerSignature() ?? false;
+                                $qcMakerDate = $qcMakerSigned ? trim((string) $qcSignaturePayload->get('signed_at', '')) : '';
                                 $qcFlowItems = $qcReport ? collect([
                                     [
                                         'step' => 1,
@@ -359,8 +364,8 @@
                                         'name' => $qcMakerName !== '' ? $qcMakerName : '-',
                                         'position' => 'Inspector / Pengisi Form QC',
                                         'scope' => 'Form Quality Control',
-                                        'status' => $qcMakerName !== '' ? 'signed' : 'missing',
-                                        'status_label' => $qcMakerName !== '' ? 'Sudah TTD' : 'Belum TTD',
+                                        'status' => $qcMakerSigned ? 'signed' : 'missing',
+                                        'status_label' => $qcMakerSigned ? 'Sudah TTD' : 'Belum TTD',
                                         'signed_at' => $qcMakerDate,
                                         'is_active' => false,
                                     ],
@@ -430,7 +435,7 @@
                                     <div class="mt-1 break-words text-[13px] font-bold text-slate-900">{{ $order->nomor_order }}</div>
                                     <div class="mt-1 text-[9px] text-slate-500">Notif: {{ $order->notifikasi ?: '-' }}</div>
                                     @php
-                                        $workshopPackagesLocked = $order->qualityControlReports->isNotEmpty()
+                                        $workshopPackagesLocked = $qcReport !== null
                                             || $order->workshopHandover !== null
                                             || in_array($order->orderWorkshop?->progress_status, [\App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL, \App\Models\OrderWorkshop::PROGRESS_DONE], true)
                                             || $order->bengkelTasks->contains(fn ($task) => $task->archived_at !== null);
@@ -1395,11 +1400,11 @@
                     const orderKey = select.closest('tr')?.querySelector('.workshop-order-key')?.value;
                     if (!orderKey) return;
 
-                    await sendPatch(buildUrl(orderKey), {
+                    const result = await sendPatch(buildUrl(orderKey), {
                         [select.dataset.field || select.name]: select.value,
                     }, select);
 
-                    if (select.name === 'konfirmasi_anggaran' || select.name === 'progress_status') {
+                    if (result && (select.name === 'konfirmasi_anggaran' || select.name === 'progress_status')) {
                         setTimeout(() => window.location.reload(), 500);
                     }
                 });

@@ -81,25 +81,6 @@
                                 <div class="truncate">{{ $task->unit_work ?: '-' }}</div>
                                 <div class="truncate text-[10px] text-slate-500">Seksi: {{ $task->seksi ?: '-' }}</div>
                             </div>
-                            @if ($task->order?->isWorkshopOrder() && $task->order->workPackages->isNotEmpty())
-                                <div class="mt-2 rounded-lg border border-blue-100 bg-blue-50/60 px-2 py-1.5 text-left">
-                                    <div class="text-[9px] font-bold uppercase tracking-wide text-blue-700">Pembagian Pekerjaan ({{ $task->order->workPackages->count() }} paket)</div>
-                                    <div class="mt-1 space-y-0.5 text-[10px] text-slate-700">
-                                        @foreach ($task->order->workPackages as $package)
-                                            <div class="rounded border border-blue-100 bg-white px-2 py-1.5">
-                                                <div class="flex flex-wrap items-center justify-between gap-2"><span><span class="font-semibold text-blue-700">{{ $package->displayNumber() }}</span> — {{ $package->job_name }}</span>
-                                                    <form method="POST" action="{{ route('admin.orders.work-packages.status.update', $package) }}" class="inline-flex items-center gap-1">@csrf @method('PATCH')<select name="status" class="rounded border border-slate-200 px-1 py-0.5 text-[10px]" @disabled($package->isLocked())>@foreach(\App\Models\WorkshopWorkPackage::statusOptions() as $value => $label)<option value="{{ $value }}" @selected($package->status === $value)>{{ $label }}</option>@endforeach</select><input name="pending_reason" value="{{ $package->pending_reason }}" placeholder="Alasan pending" class="w-28 rounded border border-slate-200 px-1 py-0.5 text-[10px]" @disabled($package->isLocked())>@if(! $package->isLocked())<button class="rounded bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">Simpan</button>@endif</form>
-                                                </div>
-                                                <div class="mt-1 text-[10px] text-slate-500">PIC: {{ $package->assignments->pluck('pic_name_snapshot')->join(', ') ?: 'Belum ada PIC' }} @if($package->isPending() && filled($package->pending_reason)) · {{ $package->pending_reason }} @endif</div>
-                                                <div class="mt-1 text-[10px] text-slate-500">Uraian: {{ $package->assignments->flatMap(fn ($assignment) => (array) ($assignment->work_descriptions ?? []))->join('; ') ?: '-' }}</div>
-                                                @if(auth()->user() && \App\Support\AdminMenuRegistry::canAccess(auth()->user(), \App\Support\AdminMenuRegistry::MENU_ORDER_BENGKEL) && $task->order)
-                                                    <a href="{{ route('admin.orders.workshop.work-packages.index', $task->order) }}" class="mt-1 inline-flex text-[10px] font-semibold text-blue-700 underline">Kelola PIC &amp; Uraian</a>
-                                                @endif
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            @endif
                         </td>
 
                         <td class="px-3 py-2.5">
@@ -230,17 +211,6 @@
                                     <div>{{ $task->unit_work ?: '-' }}</div>
                                     <div class="text-slate-500">Seksi: {{ $task->seksi ?: '-' }}</div>
                                 </div>
-                                @if ($task->order?->isWorkshopOrder() && $task->order->workPackages->isNotEmpty())
-                                    <div class="mt-2 rounded-lg border border-blue-100 bg-blue-50/60 px-2.5 py-2 text-[10px] text-slate-700">
-                                        <div class="font-bold uppercase tracking-wide text-blue-700">Pembagian Pekerjaan</div>
-                                        @foreach ($task->order->workPackages as $package)
-                                            <div class="mt-1 rounded border border-blue-100 bg-white px-2 py-1.5"><div class="flex items-center justify-between gap-2"><span><span class="font-semibold text-blue-700">{{ $package->displayNumber() }}</span> — {{ $package->job_name }}</span><form method="POST" action="{{ route('admin.orders.work-packages.status.update', $package) }}" class="inline-flex gap-1">@csrf @method('PATCH')<select name="status" class="max-w-[90px] rounded border border-slate-200 px-1 py-0.5 text-[9px]" @disabled($package->isLocked())>@foreach(\App\Models\WorkshopWorkPackage::statusOptions() as $value => $label)<option value="{{ $value }}" @selected($package->status === $value)>{{ $label }}</option>@endforeach</select><input name="pending_reason" value="{{ $package->pending_reason }}" placeholder="Alasan" class="w-16 rounded border border-slate-200 px-1 py-0.5 text-[9px]" @disabled($package->isLocked())>@if(! $package->isLocked())<button class="rounded bg-blue-600 px-1 py-0.5 text-[9px] text-white">OK</button>@endif</form></div><div class="text-[9px] text-slate-500">PIC: {{ $package->assignments->pluck('pic_name_snapshot')->join(', ') ?: 'Belum ada PIC' }}</div><div class="text-[9px] text-slate-500">Uraian: {{ $package->assignments->flatMap(fn ($assignment) => (array) ($assignment->work_descriptions ?? []))->join('; ') ?: '-' }}</div></div>
-                                            @if(auth()->user() && \App\Support\AdminMenuRegistry::canAccess(auth()->user(), \App\Support\AdminMenuRegistry::MENU_ORDER_BENGKEL) && $task->order)
-                                                <a href="{{ route('admin.orders.workshop.work-packages.index', $task->order) }}" class="mt-1 inline-flex text-[9px] font-semibold text-blue-700 underline">Kelola PIC &amp; Uraian</a>
-                                            @endif
-                                        @endforeach
-                                    </div>
-                                @endif
                             </div>
                         </div>
 

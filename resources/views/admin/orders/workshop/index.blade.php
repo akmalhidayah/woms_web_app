@@ -171,7 +171,7 @@
             </div>
         </section>
 
-        <section class="order-list-panel overflow-hidden rounded-[1.5rem] border border-blue-900/20 bg-white shadow-sm">
+        <section class="order-list-panel overflow-visible">
             <div class="border-b border-slate-200 bg-white px-5 py-4">
                 @php
                     $reguToggleOptions = [
@@ -433,9 +433,8 @@
                             @endphp
                             <tr class="order-workshop-card align-top">
                                 <td class="order-workshop-order-cell">
-                                    <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">Nomor Order</div>
-                                    <div class="mt-1 break-words text-sm font-bold text-slate-900">{{ $order->nomor_order }}</div>
-                                    <div class="mt-1 text-[10px] text-slate-500">Notif: {{ $order->notifikasi ?: '-' }}</div>
+                                    <div class="mt-1 break-words text-[13px] font-bold text-slate-900">{{ $order->nomor_order }}</div>
+                                    <div class="mt-1 text-[9px] text-slate-500">Notif: {{ $order->notifikasi ?: '-' }}</div>
                                     @php
                                         $workshopPackagesLocked = $order->qualityControlReports->isNotEmpty()
                                             || $order->workshopHandover !== null
@@ -443,23 +442,30 @@
                                             || $order->bengkelTasks->contains(fn ($task) => $task->archived_at !== null);
                                     @endphp
                                     @if ($workPackages->isNotEmpty())
-                                        <div class="mt-2 text-[10px] font-semibold text-blue-700">Pembagian: {{ $workPackages->count() }} paket</div>
-                                        <div class="mt-0.5 text-[10px] text-slate-500">{{ $order->workPackageProgressLabel() }}</div>
-                                        <a href="{{ route('admin.orders.workshop.work-packages.index', $order) }}" class="mt-2 inline-flex items-center rounded-lg border px-2.5 py-1 text-[10px] font-semibold {{ $workshopPackagesLocked ? 'border-slate-200 text-slate-500' : 'border-blue-200 text-blue-600 hover:bg-blue-50' }}">Kelola Pembagian</a>
+                                        <div class="mt-2 text-[9px] font-semibold text-blue-700">Pembagian: {{ $workPackages->count() }} paket</div>
+                                        <div class="mt-0.5 text-[9px] text-slate-500">{{ $order->workPackageProgressLabel() }}</div>
+                                        <a href="{{ route('admin.orders.workshop.work-packages.index', $order) }}" class="mt-2 inline-flex items-center rounded-lg border px-2.5 py-1 text-[9px] font-semibold {{ $workshopPackagesLocked ? 'border-slate-200 text-slate-500' : 'border-blue-200 text-blue-600 hover:bg-blue-50' }}">Kelola Pembagian</a>
                                     @endif
-                                    <div class="mt-2 text-[10px] text-slate-400">Tanggal order: {{ optional($order->tanggal_order)->format('d-m-Y') ?: '-' }}</div>
+                                    <div class="mt-2 text-[9px] text-slate-400">Tanggal order: {{ optional($order->tanggal_order)->format('d-m-Y') ?: '-' }}</div>
                                 </td>
                                 <td class="order-workshop-detail-cell">
-                                    <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">Detail Pekerjaan</div>
-                                    <div class="mt-1 break-words text-sm font-bold leading-5 text-slate-900">{{ \Illuminate\Support\Str::limit($order->nama_pekerjaan, 180) }}</div>
+                                    <div class="mt-1 break-words text-[13px] font-bold leading-5 text-slate-900">{{ \Illuminate\Support\Str::limit($order->nama_pekerjaan, 180) }}</div>
                                     @if ($workshopTypeLabel)
                                         <span class="mt-2 inline-flex w-fit items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-blue-700">{{ $workshopTypeLabel }}</span>
                                     @endif
-                                    <div class="mt-2 text-[10px] font-medium text-slate-700">Unit: {{ $order->unit_kerja ?: '-' }}</div>
-                                    <div class="mt-0.5 text-[10px] text-slate-500">Seksi: {{ $order->seksi ?: '-' }}</div>
+                                    <div class="mt-2 grid grid-cols-2 gap-3">
+                                        <div class="min-w-0">
+                                            <div class="text-[8px] font-semibold uppercase tracking-[0.1em] text-slate-400">Unit Kerja</div>
+                                            <div class="mt-0.5 break-words text-[9px] font-medium text-slate-700">{{ $order->unit_kerja ?: '-' }}</div>
+                                        </div>
+                                        <div class="min-w-0">
+                                            <div class="text-[8px] font-semibold uppercase tracking-[0.1em] text-slate-400">Seksi</div>
+                                            <div class="mt-0.5 break-words text-[9px] text-slate-500">{{ $order->seksi ?: '-' }}</div>
+                                        </div>
+                                    </div>
                                     <button
                                         type="button"
-                                        class="workshop-flow-trigger mt-3 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 {{ $workshopSummaryClasses }}"
+                                        class="workshop-flow-trigger mt-3 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[9px] font-semibold transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 {{ $workshopSummaryClasses }}"
                                         data-title="{{ $order->nomor_order }}"
                                         data-summary="{{ $workshopSummary }}"
                                         data-next="{{ $workshopNextStep }}"
@@ -470,8 +476,7 @@
                                 </td>
                                 <td class="order-workshop-status-cell">
                                     <input type="hidden" class="workshop-order-key" value="{{ $order->getRouteKey() }}">
-                                    <div class="flex items-center justify-between gap-2">
-                                        <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">Status &amp; Aksi</div>
+                                    <div class="flex items-center justify-end gap-2">
                                         <div class="order-workshop-actions">
                                             <button
                                                 type="button"

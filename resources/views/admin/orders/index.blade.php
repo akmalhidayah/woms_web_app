@@ -1,4 +1,4 @@
-<x-layouts.admin title="Order">
+<x-layouts.admin title="Order Pekerjaan Jasa">
     <style>
         .orders-index-filter {
             display: grid;
@@ -119,7 +119,7 @@
                             <i data-lucide="inbox" class="h-5 w-5"></i>
                         </span>
                         <div>
-                            <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Order</h1>
+                            <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Order Pekerjaan Jasa</h1>
                         </div>
                     </div>
 

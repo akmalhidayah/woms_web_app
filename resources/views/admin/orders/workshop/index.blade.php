@@ -548,17 +548,13 @@
                                             </div>
                                         </section>
 
-                                        <section class="order-workshop-status-block rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                                            <div data-note-group>
-                                                <div class="flex items-center justify-between gap-2">
-                                                    <div class="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Catatan Konfirmasi</div>
-                                                    <button type="button" data-note-toggle title="Catatan" aria-label="Buka catatan konfirmasi" class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
-                                                        <i data-lucide="message-square" class="h-3 w-3"></i>
-                                                    </button>
+                                        <section class="order-workshop-status-block overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-0">
+                                            <div data-note-group class="flex h-full min-h-[92px] flex-col">
+                                                <div data-note-content class="flex flex-1 items-stretch">
+                                                    <textarea name="keterangan_konfirmasi" class="note-textarea min-h-[66px] w-full flex-1 resize-none border-0 bg-transparent px-2.5 py-2 text-[10px] leading-4 text-slate-900 placeholder:text-slate-500 focus:outline-none" placeholder="Keterangan konfirmasi...">{{ $workshop?->keterangan_konfirmasi }}</textarea>
                                                 </div>
-                                                <div data-note-content class="hidden mt-2 flex items-start gap-1.5">
-                                                    <textarea name="keterangan_konfirmasi" class="note-textarea h-10 min-w-0 flex-1 resize-none rounded-md border border-blue-900/25 bg-white px-2 py-1 text-[10px] text-slate-900 placeholder:text-slate-500 focus:border-blue-600 focus:outline-none" placeholder="Keterangan konfirmasi...">{{ $workshop?->keterangan_konfirmasi }}</textarea>
-                                                    <button type="button" class="save-note-btn inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 shadow-sm transition hover:bg-indigo-100" data-field="keterangan_konfirmasi">
+                                                <div class="flex justify-end rounded-b-lg border-t border-slate-200 bg-slate-100/80 px-2 py-1.5">
+                                                    <button type="button" class="save-note-btn inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 shadow-sm transition hover:bg-indigo-100" data-field="keterangan_konfirmasi" title="Simpan catatan konfirmasi" aria-label="Simpan catatan konfirmasi">
                                                         <i data-lucide="save" class="h-2.5 w-2.5"></i>
                                                     </button>
                                                 </div>

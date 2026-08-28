@@ -54,7 +54,7 @@
         .order-workshop-table tbody tr.order-workshop-card > td {
             min-width: 0;
             border: 0 !important;
-            padding: 0.9rem !important;
+            padding: 0.75rem !important;
             vertical-align: top;
         }
 
@@ -74,8 +74,8 @@
         .order-workshop-table .order-workshop-status-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 0.55rem;
-            padding-top: 0.75rem;
+            gap: 0.5rem;
+            padding-top: 0.6rem;
             border-top: 1px solid #e2e8f0;
         }
 
@@ -125,11 +125,11 @@
         <section class="order-list-hero rounded-[1.35rem] border border-blue-100 px-5 py-4 shadow-sm" style="background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 48%, #e6f1ff 100%);">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex items-center gap-4">
-                    <span class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm ring-1 ring-blue-200">
+                    <span class="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm ring-1 ring-blue-200">
                         <i data-lucide="factory" class="h-5 w-5"></i>
                     </span>
                     <div>
-                        <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Order Pekerjaan Bengkel</h1>
+                        <h1 class="text-[1.1rem] font-bold leading-none tracking-tight text-slate-900">Order Pekerjaan Bengkel</h1>
                     </div>
                 </div>
 
@@ -497,17 +497,21 @@
                                         <section class="order-workshop-status-block rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                                             <div class="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Konfirmasi Anggaran</div>
                                             <div class="space-y-2">
-                                                <div class="relative">
-                                                    <select name="konfirmasi_anggaran" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="konfirmasi_anggaran">
-                                                        <option value="">Pilih Status Konfirmasi</option>
-                                                        @foreach ($konfirmasiOptions as $value => $label)
-                                                            <option value="{{ $value }}" @selected(($workshop?->konfirmasi_anggaran ?? '') === $value)>{{ $label }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
-                                                </div>
                                                 <div data-note-group>
-                                                    <button type="button" data-note-toggle class="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-semibold text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">Catatan</button>
+                                                    <div class="flex items-center gap-1.5">
+                                                        <div class="relative min-w-0 flex-1">
+                                                            <select name="konfirmasi_anggaran" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="konfirmasi_anggaran">
+                                                                <option value="">Pilih Status Konfirmasi</option>
+                                                                @foreach ($konfirmasiOptions as $value => $label)
+                                                                    <option value="{{ $value }}" @selected(($workshop?->konfirmasi_anggaran ?? '') === $value)>{{ $label }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                            <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
+                                                        </div>
+                                                        <button type="button" data-note-toggle title="Catatan" aria-label="Buka catatan konfirmasi" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
+                                                            <i data-lucide="message-square" class="h-3.5 w-3.5"></i>
+                                                        </button>
+                                                    </div>
                                                     @if ($noteValues['keterangan_konfirmasi'] !== '')
                                                         <button type="button" data-note-summary class="mt-1 block max-w-full truncate text-left text-[9px] text-slate-500 hover:text-blue-700" title="{{ $noteValues['keterangan_konfirmasi'] }}">{{ \Illuminate\Support\Str::limit($noteValues['keterangan_konfirmasi'], 80) }}</button>
                                                     @endif
@@ -536,17 +540,21 @@
                                             <div class="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Status Material</div>
                                             @if ($showMaterial)
                                                 <div class="space-y-2">
-                                                    <div class="relative">
-                                                        <select name="status_material" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="status_material">
-                                                            <option value="">Pilih status material</option>
-                                                            @foreach ($materialOptions as $value => $label)
-                                                                <option value="{{ $value }}" @selected(($workshop?->status_material ?? '') === $value)>{{ $label }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                        <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
-                                                    </div>
                                                     <div data-note-group>
-                                                        <button type="button" data-note-toggle class="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-semibold text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">Catatan</button>
+                                                        <div class="flex items-center gap-1.5">
+                                                            <div class="relative min-w-0 flex-1">
+                                                                <select name="status_material" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="status_material">
+                                                                    <option value="">Pilih status material</option>
+                                                                    @foreach ($materialOptions as $value => $label)
+                                                                        <option value="{{ $value }}" @selected(($workshop?->status_material ?? '') === $value)>{{ $label }}</option>
+                                                                    @endforeach
+                                                                </select>
+                                                                <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
+                                                            </div>
+                                                            <button type="button" data-note-toggle title="Catatan" aria-label="Buka catatan material" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
+                                                                <i data-lucide="message-square" class="h-3.5 w-3.5"></i>
+                                                            </button>
+                                                        </div>
                                                         @if ($noteValues['keterangan_material'] !== '')
                                                             <button type="button" data-note-summary class="mt-1 block max-w-full truncate text-left text-[9px] text-slate-500 hover:text-blue-700" title="{{ $noteValues['keterangan_material'] }}">{{ \Illuminate\Support\Str::limit($noteValues['keterangan_material'], 80) }}</button>
                                                         @endif
@@ -567,17 +575,21 @@
                                             <div class="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Progress Pekerjaan</div>
                                             @if ($showProgress)
                                                 <div class="space-y-2">
-                                                    <div class="relative">
-                                                        <select name="progress_status" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="progress_status">
-                                                            <option value="">Pilih progress</option>
-                                                            @foreach ($progressOptions as $value => $label)
-                                                                <option value="{{ $value }}" @selected(($workshop?->progress_status ?? '') === $value)>{{ $label }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                        <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
-                                                    </div>
                                                     <div data-note-group>
-                                                        <button type="button" data-note-toggle class="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-semibold text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">Catatan</button>
+                                                        <div class="flex items-center gap-1.5">
+                                                            <div class="relative min-w-0 flex-1">
+                                                                <select name="progress_status" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="progress_status">
+                                                                    <option value="">Pilih progress</option>
+                                                                    @foreach ($progressOptions as $value => $label)
+                                                                        <option value="{{ $value }}" @selected(($workshop?->progress_status ?? '') === $value)>{{ $label }}</option>
+                                                                    @endforeach
+                                                                </select>
+                                                                <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
+                                                            </div>
+                                                            <button type="button" data-note-toggle title="Catatan" aria-label="Buka catatan progress" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
+                                                                <i data-lucide="message-square" class="h-3.5 w-3.5"></i>
+                                                            </button>
+                                                        </div>
                                                         @if ($noteValues['keterangan_progress'] !== '')
                                                             <button type="button" data-note-summary class="mt-1 block max-w-full truncate text-left text-[9px] text-slate-500 hover:text-blue-700" title="{{ $noteValues['keterangan_progress'] }}">{{ \Illuminate\Support\Str::limit($noteValues['keterangan_progress'], 80) }}</button>
                                                         @endif

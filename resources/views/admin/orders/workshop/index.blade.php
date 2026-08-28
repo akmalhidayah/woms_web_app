@@ -300,9 +300,7 @@
                                             || in_array($order->orderWorkshop?->progress_status, [\App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL, \App\Models\OrderWorkshop::PROGRESS_DONE], true)
                                             || $order->bengkelTasks->contains(fn ($task) => $task->archived_at !== null);
                                     @endphp
-                                    @if ($workPackages->isEmpty())
-                                        <div class="mt-1 text-[9px] font-semibold text-slate-500">Pembagian: Tidak dibagi</div>
-                                    @else
+                                    @if ($workPackages->isNotEmpty())
                                         <div class="mt-1 text-[9px] font-semibold text-blue-700">Pembagian: {{ $workPackages->count() }} paket · {{ $order->workPackageProgressLabel() }}</div>
                                         <a href="{{ route('admin.orders.workshop.work-packages.index', $order) }}" class="mt-1 inline-flex text-[9px] font-semibold {{ $workshopPackagesLocked ? 'text-slate-500' : 'text-blue-600' }} underline">Kelola Pembagian</a>
                                     @endif

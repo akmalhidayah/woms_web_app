@@ -424,11 +424,6 @@
                                         || $qcUserSignature?->status === \App\Models\QualityControlSignature::STATUS_MISSING => 'Signer QC belum lengkap.',
                                     default => 'Approval QC belum aktif.',
                                 };
-                                $noteValues = [
-                                    'keterangan_konfirmasi' => trim((string) ($workshop?->keterangan_konfirmasi ?? '')),
-                                    'keterangan_material' => trim((string) ($workshop?->keterangan_material ?? '')),
-                                    'keterangan_progress' => trim((string) ($workshop?->keterangan_progress ?? '')),
-                                ];
                             @endphp
                             <tr class="order-workshop-card align-top">
                                 <td class="order-workshop-order-cell">
@@ -462,20 +457,20 @@
                                             <div class="mt-0.5 break-words text-[9px] text-slate-500">{{ $order->seksi ?: '-' }}</div>
                                         </div>
                                     </div>
-                                    <button
-                                        type="button"
-                                        class="workshop-flow-trigger mt-3 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[9px] font-semibold transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 {{ $workshopSummaryClasses }}"
-                                        data-title="{{ $order->nomor_order }}"
-                                        data-summary="{{ $workshopSummary }}"
-                                        data-next="{{ $workshopNextStep }}"
-                                        data-checklist='@json($workshopFlowChecklist)'
-                                    >
-                                        {{ $workshopSummary }}
-                                    </button>
                                 </td>
                                 <td class="order-workshop-status-cell">
                                     <input type="hidden" class="workshop-order-key" value="{{ $order->getRouteKey() }}">
-                                    <div class="flex items-center justify-end gap-2">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <button
+                                            type="button"
+                                            class="workshop-flow-trigger inline-flex min-w-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[9px] font-semibold transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 {{ $workshopSummaryClasses }}"
+                                            data-title="{{ $order->nomor_order }}"
+                                            data-summary="{{ $workshopSummary }}"
+                                            data-next="{{ $workshopNextStep }}"
+                                            data-checklist='@json($workshopFlowChecklist)'
+                                        >
+                                            <span class="truncate">{{ $workshopSummary }}</span>
+                                        </button>
                                         <div class="order-workshop-actions">
                                             <button
                                                 type="button"
@@ -543,10 +538,7 @@
                                                             <i data-lucide="message-square" class="h-3.5 w-3.5"></i>
                                                         </button>
                                                     </div>
-                                                    @if ($noteValues['keterangan_konfirmasi'] !== '')
-                                                        <button type="button" data-note-summary class="mt-1 block max-w-full truncate text-left text-[9px] text-slate-500 hover:text-blue-700" title="{{ $noteValues['keterangan_konfirmasi'] }}">{{ \Illuminate\Support\Str::limit($noteValues['keterangan_konfirmasi'], 80) }}</button>
-                                                    @endif
-                                                    <div data-note-content class="{{ $noteValues['keterangan_konfirmasi'] === '' ? 'hidden' : '' }} mt-2 flex items-start gap-2">
+                                                    <div data-note-content class="hidden mt-2 flex items-start gap-2">
                                                         <textarea name="keterangan_konfirmasi" class="note-textarea h-10 flex-1 resize-none rounded-md border border-blue-900/25 bg-white px-2 py-1 text-[10px] text-slate-900 placeholder:text-slate-500 focus:border-blue-600 focus:outline-none" placeholder="Keterangan konfirmasi...">{{ $workshop?->keterangan_konfirmasi }}</textarea>
                                                         <button type="button" class="save-note-btn inline-flex h-7 w-7 items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 shadow-sm transition hover:bg-indigo-100" data-field="keterangan_konfirmasi">
                                                             <i data-lucide="save" class="h-3 w-3"></i>
@@ -586,10 +578,7 @@
                                                                 <i data-lucide="message-square" class="h-3.5 w-3.5"></i>
                                                             </button>
                                                         </div>
-                                                        @if ($noteValues['keterangan_material'] !== '')
-                                                            <button type="button" data-note-summary class="mt-1 block max-w-full truncate text-left text-[9px] text-slate-500 hover:text-blue-700" title="{{ $noteValues['keterangan_material'] }}">{{ \Illuminate\Support\Str::limit($noteValues['keterangan_material'], 80) }}</button>
-                                                        @endif
-                                                        <div data-note-content class="{{ $noteValues['keterangan_material'] === '' ? 'hidden' : '' }} mt-2 flex items-start gap-2">
+                                                        <div data-note-content class="hidden mt-2 flex items-start gap-2">
                                                             <textarea name="keterangan_material" class="note-textarea h-10 flex-1 resize-none rounded-md border border-blue-900/25 bg-white px-2 py-1 text-[10px] text-slate-900 placeholder:text-slate-500 focus:border-blue-600 focus:outline-none" placeholder="Catatan material...">{{ $workshop?->keterangan_material }}</textarea>
                                                             <button type="button" class="save-note-btn inline-flex h-7 w-7 items-center justify-center rounded-md border border-cyan-200 bg-cyan-50 text-cyan-700 shadow-sm transition hover:bg-cyan-100" data-field="keterangan_material">
                                                                 <i data-lucide="save" class="h-3 w-3"></i>
@@ -621,10 +610,7 @@
                                                                 <i data-lucide="message-square" class="h-3.5 w-3.5"></i>
                                                             </button>
                                                         </div>
-                                                        @if ($noteValues['keterangan_progress'] !== '')
-                                                            <button type="button" data-note-summary class="mt-1 block max-w-full truncate text-left text-[9px] text-slate-500 hover:text-blue-700" title="{{ $noteValues['keterangan_progress'] }}">{{ \Illuminate\Support\Str::limit($noteValues['keterangan_progress'], 80) }}</button>
-                                                        @endif
-                                                        <div data-note-content class="{{ $noteValues['keterangan_progress'] === '' ? 'hidden' : '' }} mt-2 flex items-start gap-2">
+                                                        <div data-note-content class="hidden mt-2 flex items-start gap-2">
                                                             <textarea name="keterangan_progress" class="note-textarea h-10 flex-1 resize-none rounded-md border border-blue-900/25 bg-white px-2 py-1 text-[10px] text-slate-900 placeholder:text-slate-500 focus:border-blue-600 focus:outline-none" placeholder="Catatan progress...">{{ $workshop?->keterangan_progress }}</textarea>
                                                             <button type="button" class="save-note-btn inline-flex h-7 w-7 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:bg-emerald-100" data-field="keterangan_progress">
                                                                 <i data-lucide="save" class="h-3 w-3"></i>

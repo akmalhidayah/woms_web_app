@@ -159,7 +159,7 @@
                         <i data-lucide="factory" class="h-5 w-5"></i>
                     </span>
                     <div>
-                        <h1 class="text-[1.1rem] font-bold leading-none tracking-tight text-slate-900">Order Pekerjaan Bengkel</h1>
+                        <h1 class="text-base font-bold leading-none tracking-tight text-slate-900">Order Pekerjaan Bengkel</h1>
                     </div>
                 </div>
 
@@ -205,19 +205,12 @@
                     <input type="hidden" id="reguToggleInput" name="regu" value="{{ $selectedRegu }}">
 
                     <div class="flex flex-col gap-2.5 md:flex-row md:items-end">
-                        <div class="grid flex-1 gap-2.5 {{ $activeTab === 'action' ? 'md:grid-cols-[minmax(0,1.2fr)_minmax(190px,0.7fr)_minmax(190px,0.7fr)]' : '' }}">
+                        <div class="grid min-w-0 flex-1 gap-2.5 {{ $activeTab === 'action' ? 'md:grid-cols-[minmax(0,1.2fr)_minmax(190px,0.7fr)]' : '' }}">
                             <div class="flex flex-col">
                                 <label for="search" class="mb-1.5 text-[10px] font-semibold text-slate-700">Pencarian</label>
                                 <input id="search" name="search" type="text" value="{{ $search }}" placeholder="Cari nomor / pekerjaan / unit..." class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-[13px] text-slate-900 placeholder:text-slate-500 shadow-sm focus:border-blue-500 focus:outline-none">
                             </div>
                             @if ($activeTab === 'action')
-                                <div class="flex flex-col">
-                                    <label for="readiness" class="mb-1.5 text-[10px] font-semibold text-slate-700">Kelengkapan</label>
-                                    <select id="readiness" name="readiness" class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-[13px] font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none">
-                                        <option value="">Semua Data</option>
-                                        <option value="incomplete" @selected($selectedReadiness === 'incomplete')>Perlu Dilengkapi</option>
-                                    </select>
-                                </div>
                                 <div class="flex flex-col">
                                     <label for="progress" class="mb-1.5 text-[10px] font-semibold text-slate-700">Progress</label>
                                     <select id="progress" name="progress" class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-[13px] font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none">
@@ -232,7 +225,18 @@
                             @endif
                         </div>
 
-                        <div class="flex items-center gap-1.5">
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <div class="inline-flex w-full rounded-xl border border-slate-200 bg-slate-50 p-1 shadow-sm sm:w-auto">
+                                @foreach ($reguToggleOptions as $value => $label)
+                                    <button
+                                        type="button"
+                                        data-regu-toggle="{{ $value }}"
+                                        class="inline-flex flex-1 items-center justify-center rounded-lg px-3 py-1.5 text-[11px] font-semibold transition sm:flex-none {{ $selectedRegu === $value ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-white hover:text-blue-700' }}"
+                                    >
+                                        {{ $label }}
+                                    </button>
+                                @endforeach
+                            </div>
                             <button type="submit" class="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 text-[11px] font-semibold text-white shadow-sm transition hover:bg-blue-500" title="Cari dan filter">
                                 <i data-lucide="search" class="h-[13px] w-[13px]"></i>
                                 Cari
@@ -240,20 +244,6 @@
                             <a href="{{ route('admin.orders.workshop.index', ['tab' => $activeTab]) }}" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50" title="Reset">
                                 <i data-lucide="rotate-ccw" class="h-[13px] w-[13px]"></i>
                             </a>
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end border-t border-slate-100 pt-2.5">
-                        <div class="inline-flex w-full rounded-xl border border-slate-200 bg-slate-50 p-1 shadow-sm sm:w-auto">
-                            @foreach ($reguToggleOptions as $value => $label)
-                                <button
-                                    type="button"
-                                    data-regu-toggle="{{ $value }}"
-                                    class="inline-flex flex-1 items-center justify-center rounded-lg px-3 py-1.5 text-[11px] font-semibold transition sm:flex-none {{ $selectedRegu === $value ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-white hover:text-blue-700' }}"
-                                >
-                                    {{ $label }}
-                                </button>
-                            @endforeach
                         </div>
                     </div>
                 </form>

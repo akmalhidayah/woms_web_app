@@ -293,7 +293,7 @@
                 </section>
                 </article>
 
-                <article class="monthly-realization-panel flex min-h-[330px] flex-col rounded-xl bg-blue-100 p-3">
+                <article class="monthly-realization-panel flex min-w-0 min-h-[330px] flex-col overflow-hidden rounded-xl bg-blue-100 p-3">
                     <div class="flex flex-col gap-3 border-b border-slate-100 pb-3">
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <h3 class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-600">Realisasi Per Bulan</h3>
@@ -316,8 +316,8 @@
 
                     </div>
 
-                    <div id="monthlyRealizationChartContainer" class="relative mt-3 min-h-[230px] flex-1">
-                        <canvas id="monthlyRealizationChart" class="h-full w-full" role="img" aria-label="Grafik garis Realisasi Per Bulan"></canvas>
+                    <div id="monthlyRealizationChartContainer" class="relative mt-3 h-[230px] min-w-0 w-full flex-none overflow-hidden">
+                        <canvas id="monthlyRealizationChart" class="h-full w-full max-w-full" role="img" aria-label="Grafik garis Realisasi Per Bulan"></canvas>
                     </div>
                     <div id="monthlyRealizationEmptyState" class="mt-3 hidden min-h-[230px] items-center justify-center px-4 text-center text-[10px] text-slate-500">
                         Tidak ada data realisasi pada periode ini.
@@ -353,7 +353,7 @@
 
                         <section class="mt-3 flex-1 border-t border-slate-300 px-1 pt-3">
                             <h3 class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">Outstanding Biaya</h3>
-                            <div class="relative mt-3 min-h-[190px] min-w-0 flex-1">
+                            <div class="relative mt-3 h-[190px] min-w-0 w-full flex-none overflow-hidden">
                                 <canvas
                                     id="{{ $costPanel['canvas'] }}"
                                     class="h-full w-full"
@@ -382,7 +382,7 @@
                             <span class="h-2.5 w-2.5 rounded-sm bg-blue-600"></span>
                             GENERAL
                         </div>
-                        <div id="topTenGeneralCostChartContainer" class="relative mt-2 min-h-[320px] flex-1">
+                        <div id="topTenGeneralCostChartContainer" class="relative mt-2 h-[320px] min-w-0 w-full flex-none overflow-hidden">
                             <canvas
                                 id="topTenGeneralCostChart"
                                 class="h-full w-full"
@@ -400,7 +400,7 @@
                             <span class="h-2.5 w-2.5 rounded-sm bg-emerald-500"></span>
                             PEMELIHARAAN
                         </div>
-                        <div id="topTenMaintenanceCostChartContainer" class="relative mt-2 min-h-[320px] flex-1">
+                        <div id="topTenMaintenanceCostChartContainer" class="relative mt-2 h-[320px] min-w-0 w-full flex-none overflow-hidden">
                             <canvas
                                 id="topTenMaintenanceCostChart"
                                 class="h-full w-full"
@@ -421,7 +421,7 @@
                     <h2 class="text-[11px] font-bold tracking-[0.08em] text-slate-800">PROGNOSA OVERHAUL</h2>
                 </div>
 
-                <div class="relative min-h-[220px] flex-1">
+                <div class="relative h-[220px] min-w-0 w-full flex-none overflow-hidden">
                     <canvas
                         id="overhaulPrognosisChart"
                         class="h-full w-full"
@@ -986,6 +986,48 @@
                 capexOutstandingCanvas,
                 'capexOutstandingChartInstance',
             );
+
+            const dashboardChartResizeState = window.__womsDashboardChartResizeState || {
+                timeoutId: null,
+                listenersRegistered: false,
+            };
+            window.__womsDashboardChartResizeState = dashboardChartResizeState;
+
+            const scheduleDashboardChartResize = () => {
+                if (dashboardChartResizeState.timeoutId !== null) {
+                    window.clearTimeout(dashboardChartResizeState.timeoutId);
+                }
+
+                dashboardChartResizeState.timeoutId = window.setTimeout(() => {
+                    dashboardChartResizeState.timeoutId = null;
+
+                    [
+                        window.realisasiBiayaChart,
+                        window.nonMaintenanceOutstandingChartInstance,
+                        window.capexOutstandingChartInstance,
+                        window.topTenGeneralCostChartInstance,
+                        window.topTenMaintenanceCostChartInstance,
+                        window.overhaulPrognosisChartInstance,
+                    ].forEach(chart => {
+                        if (chart && typeof chart.resize === 'function') {
+                            chart.resize();
+                        }
+                    });
+                }, 330);
+            };
+
+            if (!dashboardChartResizeState.listenersRegistered) {
+                window.addEventListener('resize', scheduleDashboardChartResize, { passive: true });
+                window.addEventListener('orientationchange', scheduleDashboardChartResize, { passive: true });
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible') {
+                        scheduleDashboardChartResize();
+                    }
+                });
+                dashboardChartResizeState.listenersRegistered = true;
+            }
+
+            scheduleDashboardChartResize();
 
             [globalAgreementSelect, globalYearSelect].forEach(select => {
                 select?.addEventListener('change', () => globalFilterForm?.submit());

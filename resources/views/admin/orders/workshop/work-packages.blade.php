@@ -112,7 +112,7 @@
                         row.dataset.packageIndex = packageIndex;
                         row.querySelector('input[name$="[job_name]"]').name = `packages[${packageIndex}][job_name]`;
                         row.querySelector('input[name$="[target_date]"]').name = `packages[${packageIndex}][target_date]`;
-                        row.querySelector('textarea[name$="[description]"]').name = `packages[${packageIndex}][description]`;
+                        row.querySelector('[name$="[description]"]').name = `packages[${packageIndex}][description]`;
                         renumberAssignments(row, '.assignment-row', '.description-rows', packageIndex);
                         row.querySelector('.remove-package-row')?.classList.toggle('hidden', wrap.querySelectorAll('.package-batch-row').length < 3);
                     });

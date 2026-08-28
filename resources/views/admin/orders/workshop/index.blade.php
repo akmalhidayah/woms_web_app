@@ -276,6 +276,31 @@
                                             ->all(),
                                     ])->values()->all(),
                                 ])->values()->all();
+                                if ($displayWorkPackages === []) {
+                                    $displayTask = $order->bengkelTasks->first(fn ($task) => $task->archived_at === null);
+                                    $displayProfiles = collect($displayTask?->person_in_charge_profiles ?? []);
+                                    if ($displayProfiles->isEmpty()) {
+                                        $displayProfiles = collect($displayTask?->person_in_charge ?? [])
+                                            ->filter(fn ($name) => filled($name))
+                                            ->map(fn ($name) => ['name' => $name, 'work_descriptions' => []]);
+                                    }
+
+                                    $displayWorkPackages = $displayTask ? [[
+                                        'display_no' => $displayTask->notification_number ?: '-',
+                                        'job_name' => $displayTask->job_name ?: ($order->nama_pekerjaan ?: '-'),
+                                        'assignments' => $displayProfiles
+                                            ->filter(fn ($profile) => is_array($profile) && filled($profile['name'] ?? null))
+                                            ->map(fn ($profile) => [
+                                                'name' => $profile['name'],
+                                                'descriptions' => collect($profile['work_descriptions'] ?? [])
+                                                    ->filter(fn ($description) => filled($description))
+                                                    ->values()
+                                                    ->all(),
+                                            ])
+                                            ->values()
+                                            ->all(),
+                                    ]] : [];
+                                }
                                 $workshopTypeLabel = match ($order->catatan) {
                                     'Regu Fabrikasi' => 'Fabrikasi',
                                     'Regu Bengkel (Refurbish)' => 'Refurbish',

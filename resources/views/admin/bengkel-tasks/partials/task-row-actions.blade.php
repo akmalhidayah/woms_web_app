@@ -41,14 +41,14 @@
                                 </button>
                             </form>
                         @else
-                            <button type="button" disabled class="flex w-full cursor-not-allowed items-center gap-2 rounded-lg px-2.5 py-2 text-[10px] font-semibold text-slate-300" title="Lengkapi konfirmasi anggaran dan status material terlebih dahulu">
+                            <button type="button" disabled class="flex w-full cursor-not-allowed items-center gap-2 rounded-lg px-2.5 py-2 text-[10px] font-semibold text-slate-300" title="Selesaikan Persiapan Order terlebih dahulu">
                                 <i data-lucide="{{ $action['icon'] }}" class="h-3.5 w-3.5"></i>
                                 {{ $action['label'] }}
                             </button>
                         @endif
                     @endforeach
                     @if (! $canAdvance)
-                        <p class="border-t border-slate-100 px-2.5 pt-2 text-[9px] leading-4 text-amber-700">Lengkapi data Order Bengkel terlebih dahulu.</p>
+                        <p class="border-t border-slate-100 px-2.5 pt-2 text-[9px] leading-4 text-amber-700">Selesaikan Persiapan Order terlebih dahulu.</p>
                     @endif
                 </div>
             </details>

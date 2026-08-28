@@ -10,19 +10,22 @@ class OrderWorkshop extends Model
 {
     use HasFactory;
 
-    public const KONFIRMASI_MATERIAL_READY = 'Material Ready';
-    public const KONFIRMASI_MATERIAL_NOT_READY = 'Material Not Ready';
+    public const PREPARATION_WAITING_BUDGET_CONFIRMATION = 'waiting_budget_confirmation';
 
-    public const STATUS_ANGGARAN_WAITING_BUDGET = 'Waiting Budget';
-    public const STATUS_ANGGARAN_COMPLETE_TRANSFER = 'Complete Transfer';
+    public const PREPARATION_WAITING_MATERIAL = 'waiting_material';
 
-    public const STATUS_MATERIAL_GOOD_ISSUE = 'Good Issue';
-    public const STATUS_MATERIAL_TRANSPORT = 'Transport Material';
+    public const PREPARATION_WAITING_BUDGET_TRANSFER = 'waiting_budget_transfer';
+
+    public const PREPARATION_COMPLETED = 'completed';
 
     public const PROGRESS_MENUNGGU_JADWAL = 'menunggu_jadwal';
+
     public const PROGRESS_IN_PROGRESS = 'in_progress';
+
     public const PROGRESS_QUALITY_CONTROL = 'quality_control';
+
     public const PROGRESS_PENDING = 'pending';
+
     public const PROGRESS_DONE = 'done';
 
     /**
@@ -30,41 +33,37 @@ class OrderWorkshop extends Model
      */
     protected $fillable = [
         'order_id',
-        'konfirmasi_anggaran',
-        'keterangan_konfirmasi',
-        'status_anggaran',
-        'keterangan_anggaran',
-        'status_material',
-        'keterangan_material',
+        'preparation_status',
+        'preparation_note',
         'progress_status',
         'keterangan_progress',
         'catatan',
-        'nomor_e_korin',
-        'status_e_korin',
     ];
 
-    public static function konfirmasiAnggaranOptions(): array
+    public static function preparationOptions(): array
     {
         return [
-            self::KONFIRMASI_MATERIAL_READY => 'Material Ready',
-            self::KONFIRMASI_MATERIAL_NOT_READY => 'Material Not Ready',
+            self::PREPARATION_WAITING_BUDGET_CONFIRMATION => 'Menunggu Konfirmasi Anggaran',
+            self::PREPARATION_WAITING_MATERIAL => 'Menunggu Material',
+            self::PREPARATION_WAITING_BUDGET_TRANSFER => 'Menunggu Transfer Budget',
+            self::PREPARATION_COMPLETED => 'Set Selesai',
         ];
     }
 
-    public static function statusAnggaranOptions(): array
+    public function preparationLabel(): string
     {
-        return [
-            self::STATUS_ANGGARAN_WAITING_BUDGET => 'Waiting Budget',
-            self::STATUS_ANGGARAN_COMPLETE_TRANSFER => 'Complete Transfer',
-        ];
+        return match ($this->preparation_status) {
+            self::PREPARATION_WAITING_BUDGET_CONFIRMATION => 'Menunggu Konfirmasi Anggaran',
+            self::PREPARATION_WAITING_MATERIAL => 'Menunggu Material',
+            self::PREPARATION_WAITING_BUDGET_TRANSFER => 'Menunggu Transfer Budget',
+            self::PREPARATION_COMPLETED => 'Persiapan Selesai',
+            default => 'Belum Memilih Persiapan',
+        };
     }
 
-    public static function materialOptions(): array
+    public function preparationCompleted(): bool
     {
-        return [
-            self::STATUS_MATERIAL_GOOD_ISSUE => 'Good Issue',
-            self::STATUS_MATERIAL_TRANSPORT => 'Transport Material',
-        ];
+        return $this->preparation_status === self::PREPARATION_COMPLETED;
     }
 
     public static function progressOptions(): array

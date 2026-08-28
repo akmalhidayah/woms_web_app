@@ -348,8 +348,7 @@ class BengkelDisplayManagementTest extends TestCase
         $this->assertDatabaseHas('order_workshops', [
             'order_id' => $order->id,
             'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
-            'konfirmasi_anggaran' => null,
-            'status_material' => null,
+            'preparation_status' => null,
         ]);
     }
 
@@ -447,8 +446,7 @@ class BengkelDisplayManagementTest extends TestCase
         ]);
         $order = $this->linkTaskToWorkshopOrder($task, $user, 'ORDER-READINESS-002');
         $order->orderWorkshop()->update([
-            'konfirmasi_anggaran' => OrderWorkshop::KONFIRMASI_MATERIAL_READY,
-            'status_material' => OrderWorkshop::STATUS_MATERIAL_GOOD_ISSUE,
+            'preparation_status' => OrderWorkshop::PREPARATION_COMPLETED,
         ]);
 
         $this->actingAs($user)

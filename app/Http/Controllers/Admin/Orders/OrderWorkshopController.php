@@ -117,9 +117,7 @@ class OrderWorkshopController extends Controller
             'selectedRegu' => $regu,
             'selectedReadiness' => $readiness,
             'progressOptions' => OrderWorkshop::progressOptions(),
-            'materialOptions' => OrderWorkshop::materialOptions(),
-            'konfirmasiOptions' => OrderWorkshop::konfirmasiAnggaranOptions(),
-            'statusAnggaranOptions' => OrderWorkshop::statusAnggaranOptions(),
+            'preparationOptions' => OrderWorkshop::preparationOptions(),
             'reguOptions' => [
                 'Regu Fabrikasi',
                 'Regu Bengkel (Refurbish)',
@@ -180,8 +178,24 @@ class OrderWorkshopController extends Controller
         return DB::transaction(function () use ($order, $validated): JsonResponse {
             // order_workshops is the InnoDB mutex; orders may be MyISAM in production.
             $workshop = $order->orderWorkshop()->lockForUpdate()->firstOrNew();
-            $lockedOrder = $order->fresh(['orderWorkshop', 'workPackages', 'qualityControlReports.signatures']) ?: $order;
+            $lockedOrder = $order->fresh([
+                'orderWorkshop',
+                'workPackages',
+                'qualityControlReports.signatures',
+                'workshopHandover',
+            ]) ?: $order;
             $requestedProgress = (string) ($validated['progress_status'] ?? $workshop->progress_status ?? '');
+
+            if ((array_key_exists('preparation_status', $validated) || array_key_exists('preparation_note', $validated))
+                && $this->workshopReadiness->preparationLocked(
+                    $lockedOrder->orderWorkshop,
+                    $lockedOrder->qualityControlReports->isNotEmpty(),
+                    $lockedOrder->workshopHandover !== null,
+                )) {
+                throw ValidationException::withMessages([
+                    'preparation_status' => 'Persiapan Order terkunci karena proses Quality Control, Selesai, atau Serah Terima sudah dimulai.',
+                ]);
+            }
 
             if (in_array($requestedProgress, [OrderWorkshop::PROGRESS_QUALITY_CONTROL, OrderWorkshop::PROGRESS_DONE], true)) {
                 $this->workPackageService->assertParentMayAdvance($lockedOrder);
@@ -191,9 +205,10 @@ class OrderWorkshopController extends Controller
 
             if (array_key_exists('progress_status', $validated)
                 && $this->workshopReadiness->requiresReadiness($requestedProgress)
-                && ! $this->workshopReadiness->canAdvance($candidate)) {
+                && $workshop->progress_status !== OrderWorkshop::PROGRESS_DONE
+                && ! $this->workshopReadiness->canAdvance($this->readinessCandidate($candidate))) {
                 throw ValidationException::withMessages([
-                    'progress_status' => 'Konfirmasi anggaran dan status material harus dilengkapi melalui menu Order Pekerjaan Bengkel sebelum progress dapat dilanjutkan.',
+                    'progress_status' => 'Persiapan Order harus diselesaikan sebelum progress dapat dilanjutkan ke Quality Control atau Selesai.',
                 ]);
             }
 
@@ -207,27 +222,6 @@ class OrderWorkshopController extends Controller
 
             foreach ($validated as $field => $value) {
                 $workshop->{$field} = $value === '' ? null : $value;
-            }
-
-            if (($workshop->konfirmasi_anggaran ?? null) === OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY) {
-                $workshop->status_material = null;
-                $workshop->keterangan_material = null;
-                $workshop->nomor_e_korin = null;
-                $workshop->status_e_korin = null;
-            } elseif (($workshop->konfirmasi_anggaran ?? null) === OrderWorkshop::KONFIRMASI_MATERIAL_READY) {
-                $workshop->status_anggaran = null;
-                $workshop->keterangan_anggaran = null;
-                $workshop->nomor_e_korin = null;
-                $workshop->status_e_korin = null;
-            } else {
-                $workshop->status_anggaran = null;
-                $workshop->keterangan_anggaran = null;
-                $workshop->status_material = null;
-                $workshop->keterangan_material = null;
-                $workshop->progress_status = null;
-                $workshop->keterangan_progress = null;
-                $workshop->nomor_e_korin = null;
-                $workshop->status_e_korin = null;
             }
 
             $order->orderWorkshop()->save($workshop);
@@ -258,5 +252,13 @@ class OrderWorkshopController extends Controller
                     ? $workshop->keterangan_progress
                     : null,
             ]);
+    }
+
+    private function readinessCandidate(OrderWorkshop $workshop): OrderWorkshop
+    {
+        $candidate = clone $workshop;
+        $candidate->progress_status = null;
+
+        return $candidate;
     }
 }

@@ -62,8 +62,7 @@ class WorkshopFlowIntegrationTest extends TestCase
             ->assertSessionDoesntHaveErrors();
 
         $order->orderWorkshop()->update([
-            'konfirmasi_anggaran' => OrderWorkshop::KONFIRMASI_MATERIAL_READY,
-            'status_material' => OrderWorkshop::STATUS_MATERIAL_GOOD_ISSUE,
+            'preparation_status' => OrderWorkshop::PREPARATION_COMPLETED,
         ]);
 
         $this->assertDatabaseHas('order_workshops', [
@@ -72,33 +71,31 @@ class WorkshopFlowIntegrationTest extends TestCase
         ]);
     }
 
-    public function test_readiness_fields_can_be_saved_incrementally_for_legacy_advanced_progress(): void
+    public function test_preparation_status_can_be_saved_incrementally(): void
     {
         $admin = $this->superAdmin();
         [$order] = $this->workshopOrder($admin, OrderWorkshop::PROGRESS_IN_PROGRESS);
 
         $this->actingAs($admin)
             ->patchJson(route('admin.orders.workshop.update', $order), [
-                'konfirmasi_anggaran' => OrderWorkshop::KONFIRMASI_MATERIAL_READY,
+                'preparation_status' => OrderWorkshop::PREPARATION_WAITING_MATERIAL,
             ])
             ->assertOk();
 
         $this->assertDatabaseHas('order_workshops', [
             'order_id' => $order->id,
-            'konfirmasi_anggaran' => OrderWorkshop::KONFIRMASI_MATERIAL_READY,
-            'status_material' => null,
+            'preparation_status' => OrderWorkshop::PREPARATION_WAITING_MATERIAL,
         ]);
 
         $this->actingAs($admin)
             ->patchJson(route('admin.orders.workshop.update', $order), [
-                'status_material' => OrderWorkshop::STATUS_MATERIAL_GOOD_ISSUE,
+                'preparation_status' => OrderWorkshop::PREPARATION_COMPLETED,
             ])
             ->assertOk();
 
         $this->assertDatabaseHas('order_workshops', [
             'order_id' => $order->id,
-            'konfirmasi_anggaran' => OrderWorkshop::KONFIRMASI_MATERIAL_READY,
-            'status_material' => OrderWorkshop::STATUS_MATERIAL_GOOD_ISSUE,
+            'preparation_status' => OrderWorkshop::PREPARATION_COMPLETED,
             'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
         ]);
     }
@@ -263,8 +260,7 @@ class WorkshopFlowIntegrationTest extends TestCase
         ]);
         $order->orderWorkshop()->create([
             'progress_status' => $progress,
-            'konfirmasi_anggaran' => $ready ? OrderWorkshop::KONFIRMASI_MATERIAL_READY : null,
-            'status_material' => $ready ? OrderWorkshop::STATUS_MATERIAL_GOOD_ISSUE : null,
+            'preparation_status' => $ready ? OrderWorkshop::PREPARATION_COMPLETED : null,
         ]);
         $task = BengkelTask::query()->create([
             'order_id' => $order->id,

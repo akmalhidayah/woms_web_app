@@ -214,7 +214,7 @@ class BengkelTaskController extends Controller
 
             if (! $this->workshopReadiness->canAdvance($linkedWorkshop)) {
                 throw ValidationException::withMessages([
-                    'progress_status' => 'Konfirmasi anggaran dan status material harus dilengkapi melalui menu Order Pekerjaan Bengkel sebelum progress dapat dilanjutkan.',
+                    'progress_status' => 'Persiapan Order harus diselesaikan sebelum progress dapat dilanjutkan ke Quality Control atau Selesai.',
                 ]);
             }
         }
@@ -411,6 +411,52 @@ class BengkelTaskController extends Controller
         return redirect()
             ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
             ->with('status', 'Status pekerjaan bengkel diperbarui.');
+    }
+
+    public function updatePreparation(Request $request, BengkelTask $bengkel_task): RedirectResponse
+    {
+        $validated = $request->validate([
+            'preparation_status' => ['nullable', 'string', 'in:'.implode(',', array_keys(OrderWorkshop::preparationOptions()))],
+        ]);
+
+        DB::transaction(function () use ($validated, $bengkel_task): void {
+            $task = BengkelTask::query()
+                ->with('order')
+                ->lockForUpdate()
+                ->findOrFail($bengkel_task->id);
+            $order = $task->order;
+
+            if (! $order || ! $order->isWorkshopOrder()) {
+                throw ValidationException::withMessages([
+                    'preparation_status' => 'Pekerjaan ini belum terhubung dengan Order Pekerjaan Bengkel yang sesuai.',
+                ]);
+            }
+
+            $workshop = OrderWorkshop::query()
+                ->where('order_id', $order->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $workshop) {
+                throw ValidationException::withMessages([
+                    'preparation_status' => 'Order Pekerjaan Bengkel belum memiliki Persiapan Order.',
+                ]);
+            }
+
+            $hasQualityControl = $order->latestQualityControlReport()->exists();
+            $hasHandover = $order->workshopHandover()->exists();
+
+            if ($this->workshopReadiness->preparationLocked($workshop, $hasQualityControl, $hasHandover)) {
+                abort(Response::HTTP_UNPROCESSABLE_ENTITY, 'Persiapan Order terkunci karena proses Quality Control, Selesai, atau Serah Terima sudah dimulai.');
+            }
+
+            $workshop->preparation_status = ($validated['preparation_status'] ?? '') ?: null;
+            $workshop->save();
+        });
+
+        return redirect()
+            ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
+            ->with('status', 'Persiapan Order berhasil diperbarui.');
     }
 
     public function bulkDestroy(Request $request): RedirectResponse
@@ -869,9 +915,10 @@ class BengkelTaskController extends Controller
         }
 
         if ($this->workshopReadiness->requiresReadiness($progressStatus)
-            && ! $this->workshopReadiness->canAdvance($workshop)) {
+            && $workshop?->progress_status !== OrderWorkshop::PROGRESS_DONE
+            && ! $this->workshopReadiness->canAdvance($this->readinessCandidate($workshop))) {
             throw ValidationException::withMessages([
-                'progress_status' => 'Konfirmasi anggaran dan status material harus dilengkapi melalui menu Order Pekerjaan Bengkel sebelum progress dapat dilanjutkan.',
+                'progress_status' => 'Persiapan Order harus diselesaikan sebelum progress dapat dilanjutkan ke Quality Control atau Selesai.',
             ]);
         }
 
@@ -1002,6 +1049,18 @@ class BengkelTaskController extends Controller
             $workshop->keterangan_progress = $task->pending_reason;
         }
         $workshop->save();
+    }
+
+    private function readinessCandidate(?OrderWorkshop $workshop): ?OrderWorkshop
+    {
+        if (! $workshop) {
+            return null;
+        }
+
+        $candidate = clone $workshop;
+        $candidate->progress_status = null;
+
+        return $candidate;
     }
 
     private function syncTaskCompletionFromWorkshop(BengkelTask $task): void

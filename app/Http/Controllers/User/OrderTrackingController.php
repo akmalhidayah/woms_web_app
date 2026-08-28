@@ -812,12 +812,9 @@ class OrderTrackingController extends Controller
                 'task_name' => $workshopTask?->job_name ?: $order->nama_pekerjaan,
                 'regu' => $workshopTask?->catatan ?: $order->catatan,
                 'pics' => $this->resolveBengkelTaskPicAssignments($workshopTask),
-                'konfirmasi_anggaran' => $order->orderWorkshop?->konfirmasi_anggaran,
-                'status_anggaran' => $order->orderWorkshop?->status_anggaran,
-                'status_material' => $order->orderWorkshop?->status_material,
-                'keterangan_konfirmasi' => $order->orderWorkshop?->keterangan_konfirmasi,
-                'keterangan_anggaran' => $order->orderWorkshop?->keterangan_anggaran,
-                'keterangan_material' => $order->orderWorkshop?->keterangan_material,
+                'preparation_status' => $order->orderWorkshop?->preparation_status,
+                'preparation_label' => $order->orderWorkshop?->preparationLabel() ?? 'Belum Memilih Persiapan',
+                'preparation_note' => $order->orderWorkshop?->preparation_note,
                 'keterangan_progress' => $order->orderWorkshop?->keterangan_progress,
                 'catatan' => $order->orderWorkshop?->catatan ?: $order->catatan,
             ],
@@ -1182,56 +1179,48 @@ class OrderTrackingController extends Controller
     private function buildWorkshopTimelineInfoPayload(Order $order, ?BengkelTask $workshopTask): array
     {
         $workshop = $order->orderWorkshop;
-        $konfirmasi = $workshop?->konfirmasi_anggaran;
-        $isMaterialReady = $konfirmasi === OrderWorkshop::KONFIRMASI_MATERIAL_READY;
-        $isMaterialNotReady = $konfirmasi === OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY;
-
-        $budgetTransferStatus = match (true) {
-            $isMaterialNotReady => $workshop?->status_anggaran ?: 'Belum dipilih',
-            $isMaterialReady => 'Tidak berlaku',
-            default => 'Menunggu konfirmasi material',
-        };
-        $materialStatus = match (true) {
-            $isMaterialReady => $workshop?->status_material ?: 'Belum diisi',
-            $isMaterialNotReady => 'Tidak berlaku karena material belum ready',
-            default => 'Menunggu konfirmasi material',
-        };
+        $preparationLabel = $workshop?->preparationLabel() ?? 'Belum Memilih Persiapan';
 
         $progressLabel = $this->resolveWorkshopTimelineValue($order);
         $summary = match (true) {
             $workshop?->progress_status === OrderWorkshop::PROGRESS_DONE => 'Pekerjaan bengkel sudah selesai dan siap masuk tahap berikutnya.',
-            $isMaterialNotReady && $workshop?->status_anggaran === OrderWorkshop::STATUS_ANGGARAN_COMPLETE_TRANSFER => 'Material belum ready, tetapi proses transfer sudah selesai.',
-            $isMaterialNotReady && $workshop?->status_anggaran === OrderWorkshop::STATUS_ANGGARAN_WAITING_BUDGET => 'Material belum ready dan masih menunggu budget.',
-            $isMaterialReady => 'Material sudah ready untuk diproses bengkel.',
-            default => 'Status bengkel masih menunggu update dari admin workshop.',
+            $workshop?->preparationCompleted() => 'Persiapan Order selesai; status pekerjaan mengikuti progress bengkel.',
+            default => $preparationLabel,
         };
 
         $workers = $this->resolveBengkelTaskPicAssignments($workshopTask);
 
         return [
             ...$this->buildTimelineInfoPayload('Pekerjaan Bengkel', [
-                ['label' => 'Konfirmasi Anggaran', 'value' => $konfirmasi ?: 'Belum dikonfirmasi'],
-                ['label' => 'Budget / Transfer', 'value' => $budgetTransferStatus],
-                ['label' => 'Status Material', 'value' => $materialStatus],
+                ['label' => 'Persiapan Order', 'value' => $preparationLabel],
                 ['label' => 'Progress Pekerjaan', 'value' => $progressLabel],
                 ['label' => 'Regu', 'value' => $workshopTask?->catatan ?: $order->catatan ?: '-'],
                 ['label' => 'Dikerjakan Oleh', 'value' => $workers !== [] ? count($workers).' PIC' : 'Belum ada PIC'],
-                ['label' => 'Catatan Konfirmasi', 'value' => $workshop?->keterangan_konfirmasi ?: '-'],
-                ['label' => 'Catatan Material', 'value' => $workshop?->keterangan_material ?: '-'],
+                ['label' => 'Catatan Persiapan', 'value' => $workshop?->preparation_note ?: '-'],
                 ['label' => 'Catatan Progress', 'value' => $workshop?->keterangan_progress ?: '-'],
             ], $this->resolveWorkshopTimelineTone($order)),
             'headline' => $progressLabel,
             'summary' => $summary,
-            'badge' => $konfirmasi ?: 'Belum dikonfirmasi',
+            'badge' => $preparationLabel,
             'workers' => $workers,
         ];
     }
 
     private function resolveWorkshopTimelineValue(Order $order): string
     {
-        return $order->orderWorkshop?->progress_status
+        $workshop = $order->orderWorkshop;
+
+        if ($workshop?->progress_status === OrderWorkshop::PROGRESS_DONE) {
+            return $this->resolveWorkshopPhase($order);
+        }
+
+        if (! $workshop?->preparationCompleted()) {
+            return $workshop?->preparationLabel() ?? 'Belum Memilih Persiapan';
+        }
+
+        return $workshop->progress_status
             ? $this->resolveWorkshopPhase($order)
-            : 'Pending';
+            : $workshop->preparationLabel();
     }
 
     private function resolveWorkshopTimelineTone(Order $order): string
@@ -1482,7 +1471,7 @@ class OrderTrackingController extends Controller
             return OrderWorkshop::progressOptions()[$progressStatus] ?? ucfirst(str_replace('_', ' ', $progressStatus));
         }
 
-        return 'Pekerjaan bengkel diproses';
+        return $order->orderWorkshop?->preparationLabel() ?? 'Belum Memilih Persiapan';
     }
 
     private function resolveWorkshopPhaseTone(Order $order): string

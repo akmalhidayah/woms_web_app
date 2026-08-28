@@ -8,6 +8,7 @@ use App\Models\BengkelPic;
 use App\Models\BengkelTask;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
+use App\Models\WorkshopWorkPackage;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
@@ -180,9 +181,11 @@ class DashboardPekerjaan extends Component
 
             $progressStatus = $task->effectiveProgressStatus() ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
             $isCompleted = $progressStatus === OrderWorkshop::PROGRESS_DONE || (bool) $task->is_completed;
+            $preparationStatus = $task->order?->orderWorkshop?->preparation_status;
+            $preparationLabel = $task->order?->orderWorkshop?->preparationLabel() ?? 'Belum Memilih Persiapan';
 
             $packageRows = ($task->order?->isWorkshopOrder() ? $task->order?->workPackages : collect())
-                ?->map(function ($package) use ($task, $picDirectory): array {
+                ?->map(function ($package) use ($task, $picDirectory, $preparationStatus, $preparationLabel): array {
                     $profiles = $package->assignments->map(static function ($assignment) use ($picDirectory): array {
                         $pic = $assignment->bengkel_pic_id ? $picDirectory->get((int) $assignment->bengkel_pic_id) : null;
 
@@ -197,9 +200,9 @@ class DashboardPekerjaan extends Component
                         ];
                     })->values()->all();
                     $status = match ($package->status) {
-                        \App\Models\WorkshopWorkPackage::STATUS_COMPLETED => OrderWorkshop::PROGRESS_DONE,
-                        \App\Models\WorkshopWorkPackage::STATUS_IN_PROGRESS => OrderWorkshop::PROGRESS_IN_PROGRESS,
-                        \App\Models\WorkshopWorkPackage::STATUS_PENDING => OrderWorkshop::PROGRESS_PENDING,
+                        WorkshopWorkPackage::STATUS_COMPLETED => OrderWorkshop::PROGRESS_DONE,
+                        WorkshopWorkPackage::STATUS_IN_PROGRESS => OrderWorkshop::PROGRESS_IN_PROGRESS,
+                        WorkshopWorkPackage::STATUS_PENDING => OrderWorkshop::PROGRESS_PENDING,
                         default => OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
                     };
                     $status = $this->resolvePackageDisplayStatus($task->order, $status);
@@ -220,6 +223,8 @@ class DashboardPekerjaan extends Component
                         'is_completed' => $package->isCompleted(),
                         'progress_status' => $status,
                         'progress_label' => $package->statusLabel(),
+                        'preparation_status' => $preparationStatus,
+                        'preparation_label' => $preparationLabel,
                         'pending_reason' => $package->pending_reason,
                     ];
                 })->values()->all() ?? [];
@@ -239,6 +244,8 @@ class DashboardPekerjaan extends Component
                 'is_completed' => $isCompleted,
                 'progress_status' => $progressStatus,
                 'progress_label' => OrderWorkshop::progressOptions()[$progressStatus] ?? 'Menunggu Jadwal',
+                'preparation_status' => $preparationStatus,
+                'preparation_label' => $preparationLabel,
                 'work_packages' => $packageRows,
             ];
         })->all();
@@ -329,7 +336,7 @@ class DashboardPekerjaan extends Component
     {
         $orders = Order::query()
             ->with([
-                'orderWorkshop:id,order_id,progress_status',
+                'orderWorkshop:id,order_id,preparation_status,progress_status',
                 'purchaseOrder:id,order_id,progress_pekerjaan',
                 'initialWork:id,order_id,progress_pekerjaan',
             ])

@@ -8,29 +8,29 @@ use PHPUnit\Framework\TestCase;
 
 class WorkshopReadinessTest extends TestCase
 {
-    public function test_readiness_rules_follow_budget_and_material_state(): void
+    public function test_readiness_rules_follow_preparation_status(): void
     {
         $readiness = new WorkshopReadiness;
 
-        $this->assertSame('Menunggu Konfirmasi', $readiness->resolve(null)['label']);
+        $this->assertSame('Belum Memilih Persiapan', $readiness->resolve(null)['label']);
 
-        $notReady = new OrderWorkshop(['konfirmasi_anggaran' => OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY]);
-        $this->assertSame('Menunggu Anggaran', $readiness->resolve($notReady)['label']);
-        $this->assertFalse($readiness->canAdvance($notReady));
+        foreach ([
+            OrderWorkshop::PREPARATION_WAITING_BUDGET_CONFIRMATION => 'Menunggu Konfirmasi Anggaran',
+            OrderWorkshop::PREPARATION_WAITING_MATERIAL => 'Menunggu Material',
+            OrderWorkshop::PREPARATION_WAITING_BUDGET_TRANSFER => 'Menunggu Transfer Budget',
+        ] as $status => $label) {
+            $workshop = new OrderWorkshop(['preparation_status' => $status]);
+            $this->assertSame($label, $readiness->resolve($workshop)['label']);
+            $this->assertFalse($readiness->canAdvance($workshop));
+        }
 
-        $notReady->status_anggaran = OrderWorkshop::STATUS_ANGGARAN_COMPLETE_TRANSFER;
-        $this->assertTrue($readiness->canAdvance($notReady));
+        $completed = new OrderWorkshop(['preparation_status' => OrderWorkshop::PREPARATION_COMPLETED]);
+        $this->assertSame('Persiapan Selesai', $readiness->resolve($completed)['label']);
+        $this->assertTrue($readiness->canAdvance($completed));
 
-        $materialReady = new OrderWorkshop(['konfirmasi_anggaran' => OrderWorkshop::KONFIRMASI_MATERIAL_READY]);
-        $this->assertSame('Menunggu Status Material', $readiness->resolve($materialReady)['label']);
-
-        $materialReady->status_material = OrderWorkshop::STATUS_MATERIAL_GOOD_ISSUE;
-        $this->assertSame('Siap Diproses', $readiness->resolve($materialReady)['label']);
-        $this->assertTrue($readiness->canAdvance($materialReady));
-
-        $completedLegacy = new OrderWorkshop(['progress_status' => OrderWorkshop::PROGRESS_DONE]);
-        $this->assertSame(WorkshopReadiness::COMPLETED, $readiness->resolve($completedLegacy)['code']);
-        $this->assertSame('Selesai', $readiness->resolve($completedLegacy)['label']);
-        $this->assertTrue($readiness->canAdvance($completedLegacy));
+        $completedProgress = new OrderWorkshop(['progress_status' => OrderWorkshop::PROGRESS_DONE]);
+        $this->assertSame(WorkshopReadiness::COMPLETED, $readiness->resolve($completedProgress)['code']);
+        $this->assertSame('Selesai', $readiness->resolve($completedProgress)['label']);
+        $this->assertTrue($readiness->canAdvance($completedProgress));
     }
 }

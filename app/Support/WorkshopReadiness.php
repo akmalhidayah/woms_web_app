@@ -9,13 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 final class WorkshopReadiness
 {
-    public const WAITING_CONFIRMATION = 'waiting_confirmation';
-
-    public const WAITING_BUDGET = 'waiting_budget';
-
-    public const WAITING_MATERIAL_STATUS = 'waiting_material_status';
-
-    public const READY = 'ready';
+    public const WAITING_PREPARATION = 'waiting_preparation';
 
     public const COMPLETED = 'completed';
 
@@ -26,23 +20,29 @@ final class WorkshopReadiness
             return $this->state(self::COMPLETED, 'Selesai', true);
         }
 
-        if (! $workshop || blank($workshop->konfirmasi_anggaran)) {
-            return $this->state(self::WAITING_CONFIRMATION, 'Menunggu Konfirmasi', false);
-        }
-
-        if ($workshop->konfirmasi_anggaran === OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY) {
-            return $workshop->status_anggaran === OrderWorkshop::STATUS_ANGGARAN_COMPLETE_TRANSFER
-                ? $this->state(self::READY, 'Siap Diproses', true)
-                : $this->state(self::WAITING_BUDGET, 'Menunggu Anggaran', false);
-        }
-
-        if ($workshop->konfirmasi_anggaran === OrderWorkshop::KONFIRMASI_MATERIAL_READY) {
-            return filled($workshop->status_material)
-                ? $this->state(self::READY, 'Siap Diproses', true)
-                : $this->state(self::WAITING_MATERIAL_STATUS, 'Menunggu Status Material', false);
-        }
-
-        return $this->state(self::WAITING_CONFIRMATION, 'Menunggu Konfirmasi', false);
+        return match ($workshop?->preparation_status) {
+            OrderWorkshop::PREPARATION_WAITING_BUDGET_CONFIRMATION => $this->state(
+                OrderWorkshop::PREPARATION_WAITING_BUDGET_CONFIRMATION,
+                'Menunggu Konfirmasi Anggaran',
+                false,
+            ),
+            OrderWorkshop::PREPARATION_WAITING_MATERIAL => $this->state(
+                OrderWorkshop::PREPARATION_WAITING_MATERIAL,
+                'Menunggu Material',
+                false,
+            ),
+            OrderWorkshop::PREPARATION_WAITING_BUDGET_TRANSFER => $this->state(
+                OrderWorkshop::PREPARATION_WAITING_BUDGET_TRANSFER,
+                'Menunggu Transfer Budget',
+                false,
+            ),
+            OrderWorkshop::PREPARATION_COMPLETED => $this->state(
+                OrderWorkshop::PREPARATION_COMPLETED,
+                'Persiapan Selesai',
+                true,
+            ),
+            default => $this->state(self::WAITING_PREPARATION, 'Belum Memilih Persiapan', false),
+        };
     }
 
     public function canAdvance(?OrderWorkshop $workshop): bool
@@ -72,28 +72,22 @@ final class WorkshopReadiness
                         })
                         ->where(function (Builder $incomplete): void {
                             $incomplete
-                                ->whereNull('konfirmasi_anggaran')
-                                ->orWhereRaw("TRIM(konfirmasi_anggaran) = ''")
-                                ->orWhere(function (Builder $notReady): void {
-                                    $notReady
-                                        ->where('konfirmasi_anggaran', OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY)
-                                        ->where(function (Builder $status): void {
-                                            $status
-                                                ->whereNull('status_anggaran')
-                                                ->orWhereRaw("TRIM(status_anggaran) = ''")
-                                                ->orWhere('status_anggaran', OrderWorkshop::STATUS_ANGGARAN_WAITING_BUDGET);
-                                        });
-                                })
-                                ->orWhere(function (Builder $ready): void {
-                                    $ready
-                                        ->where('konfirmasi_anggaran', OrderWorkshop::KONFIRMASI_MATERIAL_READY)
-                                        ->where(function (Builder $status): void {
-                                            $status->whereNull('status_material')->orWhereRaw("TRIM(status_material) = ''");
-                                        });
-                                });
+                                ->whereNull('preparation_status')
+                                ->orWhereRaw("TRIM(preparation_status) = ''")
+                                ->orWhere('preparation_status', '!=', OrderWorkshop::PREPARATION_COMPLETED);
                         });
                 });
         });
+    }
+
+    public function preparationLocked(?OrderWorkshop $workshop, bool $hasQualityControl = false, bool $hasHandover = false): bool
+    {
+        return $hasQualityControl
+            || $hasHandover
+            || in_array($workshop?->progress_status, [
+                OrderWorkshop::PROGRESS_QUALITY_CONTROL,
+                OrderWorkshop::PROGRESS_DONE,
+            ], true);
     }
 
     /** @return array{code: string, label: string, can_advance: bool} */

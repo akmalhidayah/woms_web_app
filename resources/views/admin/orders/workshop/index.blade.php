@@ -306,18 +306,11 @@
                                     'Regu Bengkel (Refurbish)' => 'Refurbish',
                                     default => null,
                                 };
-                                $konfirmasi = $workshop?->konfirmasi_anggaran;
-                                $showMaterial = $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_READY;
-                                $showProgress = in_array($konfirmasi, [
-                                    \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_READY,
-                                    \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY,
-                                ], true);
-                                $showBudgetTransfer = $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY;
+                                $preparationStatus = $workshop?->preparation_status;
+                                $preparationLabel = $workshop?->preparationLabel() ?? 'Belum Memilih Persiapan';
                                 $workshopSummary = match (true) {
                                     filled($workshop?->progress_status) => $progressOptions[$workshop?->progress_status] ?? 'Progress Bengkel',
-                                    $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_READY => 'Material Ready',
-                                    $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY => $workshop?->status_anggaran ?: 'Material Not Ready',
-                                    default => 'Belum Konfirmasi',
+                                    default => $preparationLabel,
                                 };
                                 $workshopSummaryClasses = match (true) {
                                     $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_DONE => 'border-emerald-200 bg-emerald-50 text-emerald-700',
@@ -325,22 +318,20 @@
                                     $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_IN_PROGRESS => 'border-blue-200 bg-blue-50 text-blue-700',
                                     $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_PENDING => 'border-orange-200 bg-orange-50 text-orange-700',
                                     $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL => 'border-amber-200 bg-amber-50 text-amber-700',
-                                    $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_READY => 'border-sky-200 bg-sky-50 text-sky-700',
-                                    $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY => 'border-amber-200 bg-amber-50 text-amber-700',
+                                    $preparationStatus === \App\Models\OrderWorkshop::PREPARATION_COMPLETED => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+                                    filled($preparationStatus) => 'border-amber-200 bg-amber-50 text-amber-700',
                                     default => 'border-slate-200 bg-slate-50 text-slate-500',
                                 };
                                 $workshopNextStep = match (true) {
-                                    blank($konfirmasi) => 'Pilih konfirmasi anggaran/material.',
-                                    $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_READY && blank($workshop?->status_material) => 'Isi status material.',
-                                    $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY && blank($workshop?->status_anggaran) => 'Pilih Waiting Budget atau Complete Transfer.',
-                                    $showProgress && blank($workshop?->progress_status) => 'Update progress bengkel.',
-                                    $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_DONE => 'Pekerjaan bengkel selesai.',
-                                    default => 'Pantau catatan dan progress bengkel.',
+                                    blank($preparationStatus) => 'Pilih Persiapan Order.',
+                                    ! $workshop?->preparationCompleted() => 'Selesaikan Persiapan Order.',
+                                    $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL => 'Pantau Quality Control.',
+                                    $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_DONE => 'Pekerjaan selesai.',
+                                    blank($workshop?->progress_status) => 'Pilih Progress Pekerjaan.',
+                                    default => 'Pantau progress pekerjaan.',
                                 };
                                 $workshopFlowChecklist = [
-                                    ['label' => 'Konfirmasi', 'value' => $konfirmasi ?: '-', 'ready' => filled($konfirmasi)],
-                                    ['label' => 'Budget / Transfer', 'value' => $workshop?->status_anggaran ?: ($showBudgetTransfer ? '-' : 'N/A'), 'ready' => ! $showBudgetTransfer || filled($workshop?->status_anggaran)],
-                                    ['label' => 'Status Material', 'value' => $workshop?->status_material ?: ($showMaterial ? '-' : 'N/A'), 'ready' => ! $showMaterial || filled($workshop?->status_material)],
+                                    ['label' => 'Persiapan Order', 'value' => $preparationLabel, 'ready' => $workshop?->preparationCompleted() ?? false],
                                     ['label' => 'Progress', 'value' => $progressOptions[$workshop?->progress_status] ?? '-', 'ready' => filled($workshop?->progress_status)],
                                 ];
                                 $detailDocuments = collect([
@@ -358,12 +349,11 @@
                                     ] : null,
                                 ])->filter()->values();
                                 $qcReport = $order->latestQualityControlReport;
-                                if ($qcReport) {
-                                    $detailDocuments->push([
-                                        'label' => 'PDF Quality Control',
-                                        'url' => route('admin.orders.workshop.quality-control.pdf', [$order, $qcReport]),
-                                    ]);
-                                }
+                                $preparationLocked = app(\App\Support\WorkshopReadiness::class)->preparationLocked(
+                                    $workshop,
+                                    $qcReport !== null,
+                                    $order->workshopHandover !== null,
+                                );
                                 $showQcActions = $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL;
                                 $activeQcSignature = $qcReport?->signatures
                                     ?->firstWhere('status', \App\Models\QualityControlSignature::STATUS_PENDING);
@@ -487,38 +477,21 @@
                                     <div class="order-workshop-status-grid">
                                         <section class="order-workshop-status-block rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                                             <div class="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Persiapan Order</div>
-                                            <div class="space-y-2">
-                                                <div class="relative min-w-0">
-                                                    <select name="konfirmasi_anggaran" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="konfirmasi_anggaran">
-                                                        <option value="">Pilih Persiapan Order</option>
-                                                        @foreach ($konfirmasiOptions as $value => $label)
-                                                            <option value="{{ $value }}" @selected(($workshop?->konfirmasi_anggaran ?? '') === $value)>{{ match ($value) {
-                                                                \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_READY => 'Menunggu Material',
-                                                                \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY => 'Menunggu Anggaran',
-                                                                default => $label,
-                                                            } }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
-                                                </div>
-                                                @if ($showBudgetTransfer)
-                                                    <div class="rounded-md border border-slate-200 bg-white p-2 text-[9px] text-slate-700 shadow-sm">
-                                                        <div class="mb-1.5 font-semibold text-slate-800">Budget / Transfer</div>
-                                                        <select name="status_anggaran" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="status_anggaran">
-                                                            <option value="">Pilih status budget/transfer</option>
-                                                            @foreach ($statusAnggaranOptions as $value => $label)
-                                                                <option value="{{ $value }}" @selected(($workshop?->status_anggaran ?? '') === $value)>{{ $value === \App\Models\OrderWorkshop::STATUS_ANGGARAN_WAITING_BUDGET ? 'Menunggu Budget' : $label }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                    </div>
-                                                @endif
+                                            <div class="relative min-w-0">
+                                                <select name="preparation_status" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="preparation_status" @disabled($preparationLocked)>
+                                                    <option value="">Pilih Persiapan Order</option>
+                                                    @foreach ($preparationOptions as $value => $label)
+                                                        <option value="{{ $value }}" @selected($preparationStatus === $value)>{{ $label }}</option>
+                                                    @endforeach
+                                                </select>
+                                                <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
                                             </div>
                                         </section>
 
                                         <section class="order-workshop-status-block overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-0">
                                             <div data-note-group class="relative h-full min-h-[92px]">
-                                                <textarea name="keterangan_konfirmasi" class="note-textarea h-full min-h-[92px] w-full resize-none border-0 bg-transparent px-2.5 py-2 pb-8 text-[10px] leading-4 text-slate-900 placeholder:text-slate-500 focus:outline-none" placeholder="Keterangan konfirmasi...">{{ $workshop?->keterangan_konfirmasi }}</textarea>
-                                                <button type="button" class="save-note-btn absolute bottom-1.5 right-1.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 shadow-sm transition hover:bg-indigo-100" data-field="keterangan_konfirmasi" title="Simpan catatan konfirmasi" aria-label="Simpan catatan konfirmasi">
+                                                <textarea name="preparation_note" class="note-textarea h-full min-h-[92px] w-full resize-none border-0 bg-transparent px-2.5 py-2 pb-8 text-[10px] leading-4 text-slate-900 placeholder:text-slate-500 focus:outline-none" placeholder="Catatan persiapan..." @disabled($preparationLocked)>{{ $workshop?->preparation_note }}</textarea>
+                                                <button type="button" class="save-note-btn absolute bottom-1.5 right-1.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 shadow-sm transition hover:bg-indigo-100" data-field="preparation_note" title="Simpan catatan persiapan" aria-label="Simpan catatan persiapan" @disabled($preparationLocked)>
                                                     <i data-lucide="save" class="h-2.5 w-2.5"></i>
                                                 </button>
                                             </div>
@@ -526,8 +499,7 @@
 
                                         <section class="order-workshop-status-block rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                                             <div class="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Progress Pekerjaan</div>
-                                            @if ($showProgress)
-                                                <div class="space-y-2">
+                                            <div class="space-y-2">
                                                     <div data-note-group>
                                                         <div class="flex items-center gap-1.5">
                                                             <div class="relative min-w-0 flex-1">
@@ -560,10 +532,7 @@
                                                             @endif
                                                         </div>
                                                     @endif
-                                                </div>
-                                            @else
-                                                <div class="italic text-slate-400">-</div>
-                                            @endif
+                                            </div>
                                         </section>
                                     </div>
                                 </td>
@@ -1356,7 +1325,7 @@
                         [select.dataset.field || select.name]: select.value,
                     }, select);
 
-                    if (result && (select.name === 'konfirmasi_anggaran' || select.name === 'progress_status')) {
+                    if (result && (select.name === 'preparation_status' || select.name === 'progress_status')) {
                         setTimeout(() => window.location.reload(), 500);
                     }
                 });

@@ -439,6 +439,8 @@
                                         <div class="mt-2 text-[9px] font-semibold text-blue-700">Pembagian: {{ $workPackages->count() }} paket</div>
                                         <div class="mt-0.5 text-[9px] text-slate-500">{{ $order->workPackageProgressLabel() }}</div>
                                         <a href="{{ route('admin.orders.workshop.work-packages.index', $order) }}" class="mt-2 inline-flex items-center rounded-lg border px-2.5 py-1 text-[9px] font-semibold {{ $workshopPackagesLocked ? 'border-slate-200 text-slate-500' : 'border-blue-200 text-blue-600 hover:bg-blue-50' }}">Kelola Pembagian</a>
+                                    @elseif (! $workshopPackagesLocked)
+                                        <a href="{{ route('admin.orders.workshop.work-packages.index', $order) }}" class="mt-2 inline-flex items-center rounded-lg border border-blue-200 px-2.5 py-1 text-[9px] font-semibold text-blue-600 hover:bg-blue-50">Buat Pembagian</a>
                                     @endif
                                     <div class="mt-2 text-[9px] text-slate-400">Tanggal order: {{ optional($order->tanggal_order)->format('d-m-Y') ?: '-' }}</div>
                                 </td>

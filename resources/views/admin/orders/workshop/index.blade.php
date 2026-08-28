@@ -265,6 +265,17 @@
                                 $gambarDocument = $order->documents->firstWhere('jenis_dokumen.value', 'gambar_teknik');
                                 $workshop = $order->orderWorkshop;
                                 $workPackages = $order->workPackages;
+                                $displayWorkPackages = $workPackages->map(fn ($package) => [
+                                    'display_no' => $package->display_no ?: '-',
+                                    'job_name' => $package->job_name ?: '-',
+                                    'assignments' => $package->assignments->map(fn ($assignment) => [
+                                        'name' => $assignment->pic_name_snapshot ?: '-',
+                                        'descriptions' => collect($assignment->work_descriptions ?? [])
+                                            ->filter(fn ($description) => filled($description))
+                                            ->values()
+                                            ->all(),
+                                    ])->values()->all(),
+                                ])->values()->all();
                                 $workshopTypeLabel = match ($order->catatan) {
                                     'Regu Fabrikasi' => 'Fabrikasi',
                                     'Regu Bengkel (Refurbish)' => 'Refurbish',
@@ -343,73 +354,6 @@
                                     ?->firstWhere('role_key', \App\Models\QualityControlSignature::ROLE_WORKSHOP_MANAGER);
                                 $qcUserSignature = $qcReport?->signatures
                                     ?->firstWhere('role_key', \App\Models\QualityControlSignature::ROLE_USER_MANAGER);
-                                $qcSignaturePayload = collect($qcReport?->payload['signature'] ?? []);
-                                $qcMakerName = trim((string) $qcSignaturePayload->get('signer_name', ''));
-                                $qcMakerSigned = $qcReport?->hasValidMakerSignature() ?? false;
-                                $qcMakerDate = $qcMakerSigned ? trim((string) $qcSignaturePayload->get('signed_at', '')) : '';
-                                $qcFlowItems = $qcReport ? collect([
-                                    [
-                                        'step' => 1,
-                                        'role' => 'Pembuat QC',
-                                        'name' => $qcMakerName !== '' ? $qcMakerName : '-',
-                                        'position' => 'Inspector / Pengisi Form QC',
-                                        'scope' => 'Form Quality Control',
-                                        'status' => $qcMakerSigned ? 'signed' : 'missing',
-                                        'status_label' => $qcMakerSigned ? 'Sudah TTD' : 'Belum TTD',
-                                        'signed_at' => $qcMakerDate,
-                                        'is_active' => false,
-                                    ],
-                                    [
-                                        'step' => 2,
-                                        'role' => $qcWorkshopSignature?->displayRoleLabel() ?: 'Manager Bengkel',
-                                        'original_role' => $qcWorkshopSignature?->role_label ?: 'Manager Bengkel',
-                                        'name' => $qcWorkshopSignature?->signer_name ?: '-',
-                                        'signer_user_id' => $qcWorkshopSignature?->signer_user_id,
-                                        'position' => $qcWorkshopSignature?->signer_position ?: $qcWorkshopSignature?->role_label ?: 'Manager Bengkel',
-                                        'scope' => trim(collect([$qcWorkshopSignature?->source_unit, $qcWorkshopSignature?->source_section])->filter()->implode(' / ')),
-                                        'status' => $qcWorkshopSignature?->status ?: 'missing',
-                                        'status_label' => match ($qcWorkshopSignature?->status) {
-                                            \App\Models\QualityControlSignature::STATUS_SIGNED => 'Sudah TTD',
-                                            \App\Models\QualityControlSignature::STATUS_PENDING => 'Menunggu TTD',
-                                            \App\Models\QualityControlSignature::STATUS_LOCKED => 'Belum aktif',
-                                            \App\Models\QualityControlSignature::STATUS_MISSING => 'Signer belum lengkap',
-                                            default => 'Belum dibuat',
-                                        },
-                                        'delegated_from_name' => $qcWorkshopSignature?->delegated_from_name ?: '',
-                                        'delegation_reason' => $qcWorkshopSignature?->delegation_reason ?: '',
-                                        'can_reassign' => $qcWorkshopSignature && ! in_array($qcWorkshopSignature->status, [\App\Models\QualityControlSignature::STATUS_SIGNED], true),
-                                        'reassign_url' => $qcWorkshopSignature ? route('admin.orders.approval-signatures.quality-control.reassign', $qcWorkshopSignature) : '',
-                                        'signed_at' => $qcWorkshopSignature?->signed_at?->format('d/m/Y H:i') ?: '',
-                                        'is_active' => $qcWorkshopSignature
-                                            ? ($activeQcSignature?->is($qcWorkshopSignature) ?? false)
-                                            : false,
-                                    ],
-                                    [
-                                        'step' => 3,
-                                        'role' => $qcUserSignature?->displayRoleLabel() ?: 'Manager Unit Terkait',
-                                        'original_role' => $qcUserSignature?->role_label ?: 'Manager Unit Terkait',
-                                        'name' => $qcUserSignature?->signer_name ?: '-',
-                                        'signer_user_id' => $qcUserSignature?->signer_user_id,
-                                        'position' => $qcUserSignature?->signer_position ?: $qcUserSignature?->role_label ?: 'Manager Unit Terkait',
-                                        'scope' => trim(collect([$qcUserSignature?->source_unit, $qcUserSignature?->source_section])->filter()->implode(' / ')),
-                                        'status' => $qcUserSignature?->status ?: 'missing',
-                                        'status_label' => match ($qcUserSignature?->status) {
-                                            \App\Models\QualityControlSignature::STATUS_SIGNED => 'Sudah TTD',
-                                            \App\Models\QualityControlSignature::STATUS_PENDING => 'Menunggu TTD',
-                                            \App\Models\QualityControlSignature::STATUS_LOCKED => 'Belum aktif',
-                                            \App\Models\QualityControlSignature::STATUS_MISSING => 'Signer belum lengkap',
-                                            default => 'Belum dibuat',
-                                        },
-                                        'delegated_from_name' => $qcUserSignature?->delegated_from_name ?: '',
-                                        'delegation_reason' => $qcUserSignature?->delegation_reason ?: '',
-                                        'can_reassign' => $qcUserSignature && ! in_array($qcUserSignature->status, [\App\Models\QualityControlSignature::STATUS_SIGNED], true),
-                                        'reassign_url' => $qcUserSignature ? route('admin.orders.approval-signatures.quality-control.reassign', $qcUserSignature) : '',
-                                        'signed_at' => $qcUserSignature?->signed_at?->format('d/m/Y H:i') ?: '',
-                                        'is_active' => $qcUserSignature
-                                            ? ($activeQcSignature?->is($qcUserSignature) ?? false)
-                                            : false,
-                                    ],
-                                ])->values() : collect();
                                 $qcFlowSummary = match (true) {
                                     ! $qcReport => 'QC belum dibuat.',
                                     $qcWorkshopSignature?->isSigned() && $qcUserSignature?->isSigned() => 'Approval QC selesai.',
@@ -481,8 +425,7 @@
                                                 data-catatan="{{ $workshop?->catatan ?: ($order->catatan ?: '-') }}"
                                                 data-documents-url="{{ route('admin.orders.documents.index', $order) }}"
                                                 data-documents='@json($detailDocuments)'
-                                                data-qc-flow-summary="{{ $qcFlowSummary }}"
-                                                data-qc-flow='@json($qcFlowItems)'
+                                                data-display-work-packages='@json($displayWorkPackages)'
                                             >
                                                 <i data-lucide="info" class="h-3.5 w-3.5"></i>
                                             </button>
@@ -907,14 +850,8 @@
                 </div>
 
                 <div class="rounded-xl border border-blue-100 bg-blue-50/40 p-3">
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <div class="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-500">Flow Approval QC</div>
-                            <div id="workshopDetailQcSummary" class="mt-1 text-[11px] font-semibold text-slate-600">-</div>
-                        </div>
-                        <span id="workshopDetailQcCount" class="inline-flex rounded-full bg-white px-2 py-0.5 text-[9px] font-bold text-blue-700 ring-1 ring-blue-100">0/3</span>
-                    </div>
-                    <div id="workshopDetailQcFlow" class="mt-3 space-y-2"></div>
+                    <div class="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-500">PIC Display &amp; Uraian Pekerjaan</div>
+                    <div id="workshopDetailDisplayWorkPackages" class="mt-3 space-y-2"></div>
                 </div>
             </div>
         </div>
@@ -1433,8 +1370,7 @@
             document.querySelectorAll('.workshop-detail-trigger').forEach((button) => {
                 button.addEventListener('click', () => {
                     const documents = JSON.parse(button.dataset.documents || '[]');
-                    const qcFlow = JSON.parse(button.dataset.qcFlow || '[]');
-                    const signedCount = qcFlow.filter((item) => item.status === 'signed').length;
+                    const displayWorkPackages = JSON.parse(button.dataset.displayWorkPackages || '[]');
 
                     document.getElementById('workshopDetailTitle').textContent = button.dataset.title || 'Order';
                     document.getElementById('workshopDetailJob').textContent = button.dataset.job || '-';
@@ -1445,8 +1381,6 @@
                     if (manageDocumentsLink) {
                         manageDocumentsLink.href = button.dataset.documentsUrl || '#';
                     }
-                    document.getElementById('workshopDetailQcSummary').textContent = button.dataset.qcFlowSummary || 'QC belum dibuat.';
-                    document.getElementById('workshopDetailQcCount').textContent = `${signedCount}/${qcFlow.length || 3}`;
                     document.getElementById('workshopDetailDocuments').innerHTML = documents.length
                         ? documents.map((document) => `
                             <a href="${escapeHtml(document.url || '#')}" target="_blank" rel="noopener" class="inline-flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
@@ -1455,42 +1389,35 @@
                             </a>
                         `).join('')
                         : '<div class="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-[11px] text-slate-500 sm:col-span-2">Belum ada dokumen.</div>';
-                    document.getElementById('workshopDetailQcFlow').innerHTML = qcFlow.length
-                        ? qcFlow.map((item) => {
-                            const tone = item.status === 'signed'
-                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                : item.status === 'pending'
-                                    ? 'border-blue-200 bg-blue-50 text-blue-700'
-                                    : item.status === 'missing'
-                                        ? 'border-amber-200 bg-amber-50 text-amber-700'
-                                        : 'border-slate-200 bg-white text-slate-500';
-                            const dot = item.status === 'signed'
-                                ? 'bg-emerald-500'
-                                : item.status === 'pending'
-                                    ? 'bg-blue-500'
-                                    : item.status === 'missing'
-                                        ? 'bg-amber-500'
-                                        : 'bg-slate-300';
+                    document.getElementById('workshopDetailDisplayWorkPackages').innerHTML = displayWorkPackages.length
+                        ? displayWorkPackages.map((workPackage) => {
+                            const assignments = Array.isArray(workPackage.assignments) ? workPackage.assignments : [];
+                            const assignmentHtml = assignments.length
+                                ? assignments.map((assignment) => {
+                                    const descriptions = Array.isArray(assignment.descriptions)
+                                        ? assignment.descriptions.filter((description) => description)
+                                        : [];
+
+                                    return `
+                                        <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                                            <div class="text-[11px] font-bold text-slate-900">${escapeHtml(assignment.name || '-')}</div>
+                                            ${descriptions.length
+                                                ? `<ul class="mt-1 list-disc space-y-0.5 pl-4 text-[10px] leading-4 text-slate-600">${descriptions.map((description) => `<li>${escapeHtml(description)}</li>`).join('')}</ul>`
+                                                : '<div class="mt-1 text-[10px] text-slate-400">Uraian pekerjaan belum diisi.</div>'}
+                                        </div>
+                                    `;
+                                }).join('')
+                                : '<div class="rounded-lg border border-dashed border-slate-200 bg-white px-3 py-2 text-[10px] text-slate-400">PIC belum ditentukan.</div>';
 
                             return `
-                                <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                                    <div class="flex items-start gap-2">
-                                        <span class="mt-1 inline-flex h-2.5 w-2.5 shrink-0 rounded-full ${dot}"></span>
-                                        <div class="min-w-0 flex-1">
-                                            <div class="flex flex-wrap items-center justify-between gap-2">
-                                                <div class="text-[11px] font-bold text-slate-900">Step ${escapeHtml(item.step || '-')} - ${escapeHtml(item.role || '-')}</div>
-                                                <span class="inline-flex rounded-full border px-2 py-0.5 text-[9px] font-bold ${tone}">${escapeHtml(item.status_label || '-')}</span>
-                                            </div>
-                                            <div class="mt-1 text-[11px] font-semibold text-slate-700">${escapeHtml(item.name || '-')}</div>
-                                            <div class="mt-0.5 text-[10px] leading-4 text-slate-500">${escapeHtml(item.position || '-')}</div>
-                                            ${item.scope ? `<div class="mt-0.5 text-[10px] leading-4 text-slate-400">${escapeHtml(item.scope)}</div>` : ''}
-                                            ${item.signed_at ? `<div class="mt-1 text-[10px] font-semibold text-emerald-700">TTD: ${escapeHtml(item.signed_at)}</div>` : ''}
-                                        </div>
-                                    </div>
+                                <div class="rounded-lg border border-blue-100 bg-white/70 p-2">
+                                    <div class="text-[10px] font-bold text-blue-700">${escapeHtml(workPackage.display_no || 'Paket')}</div>
+                                    <div class="mt-0.5 text-[10px] font-semibold text-slate-600">${escapeHtml(workPackage.job_name || '-')}</div>
+                                    <div class="mt-2 space-y-1.5">${assignmentHtml}</div>
                                 </div>
                             `;
                         }).join('')
-                        : '<div class="rounded-xl border border-dashed border-blue-100 bg-white px-3 py-4 text-center text-[11px] text-slate-500">QC belum dibuat atau flow approval belum tersedia.</div>';
+                        : '<div class="rounded-xl border border-dashed border-blue-100 bg-white px-3 py-4 text-center text-[11px] text-slate-500">Belum ada PIC atau uraian pekerjaan pada Display.</div>';
 
                     window.lucide?.createIcons();
                     openWorkshopDetail();

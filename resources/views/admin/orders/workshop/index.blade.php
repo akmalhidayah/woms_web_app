@@ -302,9 +302,6 @@
                                     @endphp
                                     @if ($workPackages->isEmpty())
                                         <div class="mt-1 text-[9px] font-semibold text-slate-500">Pembagian: Tidak dibagi</div>
-                                        @if (! $workshopPackagesLocked)
-                                            <a href="{{ route('admin.orders.workshop.work-packages.index', $order) }}" class="mt-1 inline-flex text-[9px] font-semibold text-blue-600 underline">Buat Pembagian</a>
-                                        @endif
                                     @else
                                         <div class="mt-1 text-[9px] font-semibold text-blue-700">Pembagian: {{ $workPackages->count() }} paket · {{ $order->workPackageProgressLabel() }}</div>
                                         <a href="{{ route('admin.orders.workshop.work-packages.index', $order) }}" class="mt-1 inline-flex text-[9px] font-semibold {{ $workshopPackagesLocked ? 'text-slate-500' : 'text-blue-600' }} underline">Kelola Pembagian</a>

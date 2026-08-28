@@ -172,7 +172,6 @@
                                                 <option value="{{ $value }}" @selected($package->status === $value)>{{ $label }}</option>
                                             @endforeach
                                         </select>
-                                        <input name="pending_reason" value="{{ $package->pending_reason }}" placeholder="Alasan" class="w-20 rounded border border-slate-200 px-1.5 py-1 text-[9px]" @disabled($package->isLocked())>
                                         @if (! $package->isLocked())
                                             <button type="submit" class="rounded bg-blue-600 px-2 py-1 text-[9px] font-semibold text-white">Simpan</button>
                                         @endif
@@ -307,7 +306,6 @@
                                                     <option value="{{ $value }}" @selected($package->status === $value)>{{ $label }}</option>
                                                 @endforeach
                                             </select>
-                                            <input name="pending_reason" value="{{ $package->pending_reason }}" placeholder="Alasan" class="w-20 rounded border border-slate-200 px-1.5 py-1 text-[9px]" @disabled($package->isLocked())>
                                             @if (! $package->isLocked())
                                                 <button type="submit" class="rounded bg-blue-600 px-2 py-1 text-[9px] font-semibold text-white">Simpan</button>
                                             @endif

@@ -90,7 +90,6 @@
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 0.5rem;
             padding-top: 0.6rem;
-            border-top: 1px solid #e2e8f0;
         }
 
         .order-workshop-table .order-workshop-status-block {

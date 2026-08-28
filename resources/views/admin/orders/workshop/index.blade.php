@@ -562,38 +562,6 @@
                                         </section>
 
                                         <section class="order-workshop-status-block rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                                            <div class="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Status Material</div>
-                                            @if ($showMaterial)
-                                                <div class="space-y-2">
-                                                    <div data-note-group>
-                                                        <div class="flex items-center gap-1.5">
-                                                            <div class="relative min-w-0 flex-1">
-                                                                <select name="status_material" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="status_material">
-                                                                    <option value="">Pilih status material</option>
-                                                                    @foreach ($materialOptions as $value => $label)
-                                                                        <option value="{{ $value }}" @selected(($workshop?->status_material ?? '') === $value)>{{ $label }}</option>
-                                                                    @endforeach
-                                                                </select>
-                                                                <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
-                                                            </div>
-                                                            <button type="button" data-note-toggle title="Catatan" aria-label="Buka catatan material" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
-                                                                <i data-lucide="message-square" class="h-3.5 w-3.5"></i>
-                                                            </button>
-                                                        </div>
-                                                        <div data-note-content class="hidden mt-2 flex items-start gap-2">
-                                                            <textarea name="keterangan_material" class="note-textarea h-10 flex-1 resize-none rounded-md border border-blue-900/25 bg-white px-2 py-1 text-[10px] text-slate-900 placeholder:text-slate-500 focus:border-blue-600 focus:outline-none" placeholder="Catatan material...">{{ $workshop?->keterangan_material }}</textarea>
-                                                            <button type="button" class="save-note-btn inline-flex h-7 w-7 items-center justify-center rounded-md border border-cyan-200 bg-cyan-50 text-cyan-700 shadow-sm transition hover:bg-cyan-100" data-field="keterangan_material">
-                                                                <i data-lucide="save" class="h-3 w-3"></i>
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            @else
-                                                <div class="italic text-slate-400">-</div>
-                                            @endif
-                                        </section>
-
-                                        <section class="order-workshop-status-block rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                                             <div class="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Progress Pekerjaan</div>
                                             @if ($showProgress)
                                                 <div class="space-y-2">

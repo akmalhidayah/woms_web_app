@@ -46,6 +46,26 @@ class HppApprovalMarkUiTest extends TestCase
             ->assertDontSee('Simpan Paraf');
     }
 
+    public function test_hpp_signature_pad_uses_pointer_events_without_waiting_for_pdf_preview(): void
+    {
+        $user = User::factory()->create();
+        $token = 'stable-signature-pad';
+        $this->createApproval($user, 'workshop_manager_pengendali', $token);
+
+        $this->actingAs($user)
+            ->get(route('approval.hpp.show', $token))
+            ->assertOk()
+            ->assertSee('touch-none', false)
+            ->assertSee('initializeSignaturePad();', false)
+            ->assertSee("canvas.addEventListener('pointerdown', startDrawing);", false)
+            ->assertSee("canvas.addEventListener('pointercancel', stopDrawing);", false)
+            ->assertSee('canvas.setPointerCapture?.(event.pointerId);', false)
+            ->assertSee('const minimumStrokePoints = 8;', false)
+            ->assertSee('const minimumStrokeDistance = 40;', false)
+            ->assertDontSee("canvas.addEventListener('touchstart', startDrawing", false)
+            ->assertDontSee("canvas.addEventListener('mousedown', startDrawing", false);
+    }
+
     private function createApproval(User $user, string $roleKey, string $token): HppSignature
     {
         $order = Order::query()->create([

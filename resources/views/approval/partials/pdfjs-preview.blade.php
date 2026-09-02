@@ -119,7 +119,7 @@
 
         <iframe
             id="activePreviewFrame"
-            src="{{ $viewerUrl ?: 'about:blank' }}"
+            src="about:blank"
             class="hidden h-[28rem] w-full bg-white sm:h-[36rem] xl:h-[42rem]"
             title="{{ $viewerTitle }}"
         ></iframe>
@@ -127,7 +127,7 @@
 </div>
 
 @once
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const root = document.getElementById('approvalPdfPreview');

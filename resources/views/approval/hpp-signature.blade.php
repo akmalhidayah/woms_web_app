@@ -18,6 +18,9 @@
         $saveLabel = $isInitialApproval ? 'Simpan Paraf' : 'Simpan Tanda Tangan';
         $canSign = $signature?->isPending() && ! $isExpired && ! $isRejected && ! $isDirops;
         $noteGroupLabel = $signature?->noteGroupLabel() ?? 'Catatan Approval';
+        $signatureIdentity = $signature
+            ? app(\App\Support\HppSignatureIdentityResolver::class)->resolve($signature)
+            : ['name' => 'N/A', 'position' => '-'];
         $statusLabel = match (true) {
             ! $signature => 'Token Tidak Valid',
             $isRejected => 'Dokumen Ditolak',
@@ -101,8 +104,8 @@
                         <div class="grid gap-3 lg:grid-cols-2 xl:grid-cols-5">
                             <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
                                 <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Penanda Tangan</div>
-                                <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $signature->signer_name_snapshot }}</div>
-                                <div class="mt-1 text-sm leading-5 text-slate-600">{{ $signature->acting_as_label ?: $signature->signer_position_snapshot }}</div>
+                                <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $signatureIdentity['name'] }}</div>
+                                <div class="mt-1 text-sm leading-5 text-slate-600">{{ $signatureIdentity['position'] }}</div>
                                 <span class="mt-3 inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ring-1 {{ $statusClasses }}">
                                     {{ $statusLabel }}
                                 </span>
@@ -216,7 +219,7 @@
                                             <div class="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left">
                                                 <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">{{ $noteGroupLabel }}</div>
                                                 <div class="mt-2 text-sm leading-6 text-slate-700">{{ $signature->approval_note }}</div>
-                                                <div class="mt-2 text-xs text-slate-500">oleh {{ $signature->signer_name_snapshot }}</div>
+                                                <div class="mt-2 text-xs text-slate-500">oleh {{ $signatureIdentity['name'] }}</div>
                                             </div>
                                         @endif
                                     </div>
@@ -235,7 +238,7 @@
                                             <div class="mt-4 w-full rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-left">
                                                 <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-500">{{ $noteGroupLabel }}</div>
                                                 <div class="mt-2 text-sm leading-6 text-slate-700">{{ $signature->approval_note }}</div>
-                                                <div class="mt-2 text-xs text-slate-500">oleh {{ $signature->signer_name_snapshot }}</div>
+                                                <div class="mt-2 text-xs text-slate-500">oleh {{ $signatureIdentity['name'] }}</div>
                                             </div>
                                         @endif
                                     </div>

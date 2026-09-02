@@ -10,6 +10,7 @@ use App\Models\Hpp;
 use App\Models\HppSignature;
 use App\Support\HppApprovalMarkResolver;
 use App\Support\HppApprovalSignatureBuilder;
+use App\Support\HppSignatureIdentityResolver;
 use App\Support\RecentApprovalSignatureResolver;
 use App\Support\SignatureImageStorage;
 use Illuminate\Http\RedirectResponse;
@@ -26,6 +27,7 @@ class HppSignatureController extends Controller
         private readonly HppApprovalSignatureBuilder $signatureBuilder,
         private readonly RecentApprovalSignatureResolver $recentSignatureResolver,
         private readonly HppApprovalMarkResolver $approvalMarkResolver,
+        private readonly HppSignatureIdentityResolver $identityResolver,
     ) {}
 
     public function show(Request $request, string $token): View
@@ -245,6 +247,7 @@ class HppSignatureController extends Controller
 
                 $lockedSignature->update([
                     'status' => HppSignature::STATUS_SIGNED,
+                    ...$this->identityResolver->snapshotAttributes($lockedSignature),
                     'opened_at' => $lockedSignature->opened_at ?: now(),
                     'signed_at' => now(),
                     'signature_data' => $signaturePath,

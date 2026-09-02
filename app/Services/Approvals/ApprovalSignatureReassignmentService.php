@@ -43,7 +43,7 @@ class ApprovalSignatureReassignmentService
                 'signer_user_id' => $newSigner->id,
                 ...$this->signerSnapshotAttributes($lockedSignature, $newSigner, $actingAsLabel),
                 'delegated_from_user_id' => $previousSigner?->id,
-                'delegated_from_name' => $this->signatureSignerName($lockedSignature) ?: $previousSigner?->name,
+                'delegated_from_name' => $previousSigner?->name ?: $this->signatureSignerName($lockedSignature),
                 'delegated_by_user_id' => $delegatedBy->id,
                 'delegated_at' => now(),
                 'delegation_reason' => $reason,
@@ -114,6 +114,16 @@ class ApprovalSignatureReassignmentService
             return [
                 'signer_name' => $newSigner->name,
                 'signer_position' => $actingAsLabel,
+            ];
+        }
+
+        if ($signature instanceof HppSignature) {
+            return [
+                'signer_name_snapshot' => '',
+                'signer_position_snapshot' => '',
+                'signer_department_snapshot' => null,
+                'signer_unit_snapshot' => null,
+                'signer_section_snapshot' => null,
             ];
         }
 

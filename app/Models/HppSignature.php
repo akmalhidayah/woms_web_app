@@ -153,6 +153,17 @@ class HppSignature extends Model
         return (string) ($this->acting_as_label ?: $this->role_label);
     }
 
+    public function displaySignerName(): string
+    {
+        if ($this->isSigned()) {
+            return trim((string) $this->signer_name_snapshot) ?: 'N/A';
+        }
+
+        $this->loadMissing('signer');
+
+        return trim((string) $this->signer?->name) ?: 'N/A';
+    }
+
     public function isDelegated(): bool
     {
         return filled($this->acting_as_label) || filled($this->delegated_from_user_id);

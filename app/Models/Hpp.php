@@ -288,7 +288,7 @@ class Hpp extends Model
 
     public function currentApprovalSignerName(): ?string
     {
-        return $this->currentActiveSignature()?->signer_name_snapshot;
+        return $this->currentActiveSignature()?->displaySignerName();
     }
 
     public function approvalCompleted(): bool

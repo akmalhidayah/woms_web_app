@@ -142,7 +142,7 @@
                                     return [
                                         'label' => $signature->displayRoleLabel(),
                                         'original_label' => $signature->role_label,
-                                        'name' => $signature->signer_name_snapshot ?: '-',
+                                        'name' => $signature->displaySignerName(),
                                         'signer_user_id' => $signature->signer_user_id,
                                         'status' => $signature->status,
                                         'delegated_from_name' => $signature->delegated_from_name ?: '',
@@ -161,7 +161,7 @@
                                     'resend_url' => $activeApprovalLink && ! $isDiropsPending ? route('admin.hpp.approval.resend.by-id', $row) : '',
                                     'regenerate_url' => $canRegenerateActiveApproval ? route('admin.hpp.approval-token.regenerate.by-id', $row) : '',
                                     'role_label' => $activeSignature?->displayRoleLabel() ?: '',
-                                    'signer_name' => $activeSignature?->signer_name_snapshot ?: '',
+                                    'signer_name' => $activeSignature?->displaySignerName() ?: '',
                                 ];
                             @endphp
                             <tr class="align-top hover:bg-slate-50">
@@ -211,7 +211,7 @@
                                                     data-total-steps="{{ $totalSteps }}"
                                                     data-caption="Approval ditolak"
                                                     data-summary="{{ $rejectedSignature?->displayRoleLabel() ?: 'Approver menolak HPP' }}"
-                                                    data-current-name="{{ $rejectedSignature?->signer_name_snapshot ?: '-' }}"
+                                                    data-current-name="{{ $rejectedSignature?->displaySignerName() ?: '-' }}"
                                                     data-checklist='@json($approvalChecklist)'
                                                     data-actions='@json([])'
                                                     title="Detail approval"

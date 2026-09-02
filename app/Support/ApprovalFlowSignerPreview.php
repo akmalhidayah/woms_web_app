@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Hpp;
+use App\Models\HppSignature;
 use App\Models\LhppBast;
 use App\Models\Order;
 use App\Models\OutlineAgreement;
@@ -168,7 +169,9 @@ class ApprovalFlowSignerPreview
             return $document->signatures
                 ->sortBy('step_order')
                 ->values()
-                ->map(fn (mixed $signature): string => trim((string) $signature->signer_name_snapshot) ?: '-')
+                ->map(fn (mixed $signature): string => $signature instanceof HppSignature
+                    ? $signature->displaySignerName()
+                    : (trim((string) $signature->signer_name_snapshot) ?: '-'))
                 ->all();
         } catch (Throwable) {
             return [];

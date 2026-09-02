@@ -468,6 +468,13 @@
         : $hpp->signatures()->with('signer:id,name,inisial')->get();
     $hppSignaturesCollection->loadMissing('signer:id,name,inisial');
     $hppSignatures = $hppSignaturesCollection->keyBy('role_key');
+    $signatureIdentityResolver = app(\App\Support\HppSignatureIdentityResolver::class);
+    $signatureIdentities = $hppSignaturesCollection->mapWithKeys(
+        fn ($signature): array => [$signature->getKey() => $signatureIdentityResolver->resolve($signature)]
+    );
+    $signatureIdentity = fn ($signature): array => $signature
+        ? ($signatureIdentities->get($signature->getKey()) ?? $signatureIdentityResolver->resolve($signature))
+        : ['name' => 'N/A', 'position' => '', 'department' => null, 'unit' => null, 'section' => null];
     $signatureInitialsByUserId = User::query()
         ->whereIn('id', $hppSignaturesCollection->pluck('signer_user_id')->filter()->unique()->values())
         ->pluck('inisial', 'id');
@@ -492,33 +499,36 @@
             return (string) $signature->signed_at;
         }
     };
-    $signatureName = fn ($signature): string => $signature?->signer_name_snapshot ?: 'N/A';
-    $signatureTitle = fn ($signature, string $fallback): string => $signature?->acting_as_label ?: ($signature?->signer_position_snapshot ?: $fallback);
+    $signatureName = fn ($signature): string => $signatureIdentity($signature)['name'];
+    $signatureTitle = fn ($signature, string $fallback): string => $signature
+        ? ($signatureIdentity($signature)['position'] ?: $fallback)
+        : $fallback;
     $approvalRoleClass = fn (?string $title): string => mb_strlen(trim((string) $title)) > 28
         ? 'approval-role approval-role-compact'
         : 'approval-role';
-    $noteContextLabel = function ($signature): ?string {
+    $noteContextLabel = function ($signature) use ($signatureIdentity): ?string {
         if (! $signature) {
             return null;
         }
 
         $roleKey = (string) $signature->role_key;
+        $identity = $signatureIdentity($signature);
 
         if (str_contains($roleKey, 'gm')) {
-            return $signature->signer_department_snapshot
-                ?: $signature->signer_unit_snapshot
-                ?: $signature->signer_section_snapshot;
+            return $identity['department']
+                ?: $identity['unit']
+                ?: $identity['section'];
         }
 
         if (str_contains($roleKey, 'sm') || str_contains($roleKey, 'planner')) {
-            return $signature->signer_unit_snapshot
-                ?: $signature->signer_department_snapshot
-                ?: $signature->signer_section_snapshot;
+            return $identity['unit']
+                ?: $identity['department']
+                ?: $identity['section'];
         }
 
-        return $signature->signer_section_snapshot
-            ?: $signature->signer_unit_snapshot
-            ?: $signature->signer_department_snapshot;
+        return $identity['section']
+            ?: $identity['unit']
+            ?: $identity['department'];
     };
     $requesterNoteRoles = [
         'manager_peminta',
@@ -532,7 +542,7 @@
         ->map(fn ($signature): array => [
             'role_key' => $signature->role_key,
             'text' => trim((string) $signature->approval_note),
-            'author' => $signature->signer_name_snapshot ?: 'N/A',
+            'author' => $signatureName($signature),
             'context' => $noteContextLabel($signature),
         ])
         ->values();
@@ -574,10 +584,11 @@
         $signatureImage,
         $signatureDate,
         $signatureInitialsByUserId,
+        $signatureName,
         $initials,
     ): array {
         $signature = $signatureFor($roleKey);
-        $name = $signature?->signer_name_snapshot;
+        $name = $signatureName($signature);
         $userInitial = trim((string) ($signature?->signer_user_id
             ? $signatureInitialsByUserId->get($signature->signer_user_id)
             : null));
@@ -585,7 +596,7 @@
         return [
             'label' => $signature?->displayRoleLabel() ?: $fallbackLabel,
             'signature' => $signatureImage($signature),
-            'value' => $userInitial !== '' ? mb_strtoupper($userInitial) : ($name ? $initials($name) : $fallbackValue),
+            'value' => $userInitial !== '' ? mb_strtoupper($userInitial) : ($name !== 'N/A' ? $initials($name) : $fallbackValue),
             'date' => $signatureDate($signature),
             'signed' => (bool) $signature?->isSigned(),
         ];

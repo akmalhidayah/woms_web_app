@@ -48,12 +48,17 @@ class ApprovalSignatureRollbackTest extends TestCase
         $this->assertNull($rolledBack->signature_data);
         $this->assertNull($rolledBack->signed_at);
         $this->assertNull($rolledBack->signed_ip);
+        $this->assertSame('', $rolledBack->signer_name_snapshot);
+        $this->assertSame('', $rolledBack->signer_position_snapshot);
+        $this->assertSame($signer->name, $rolledBack->displaySignerName());
 
         $afterTarget->refresh();
         $this->assertSame(HppSignature::STATUS_LOCKED, $afterTarget->status);
         $this->assertNull($afterTarget->token_hash);
         $this->assertNull($afterTarget->signature_data);
         $this->assertNull($afterTarget->signed_at);
+        $this->assertSame('', $afterTarget->signer_name_snapshot);
+        $this->assertSame('', $afterTarget->signer_position_snapshot);
 
         $this->assertSame(Hpp::STATUS_IN_REVIEW, $hpp->fresh()->status);
         $this->assertDatabaseHas('approval_signature_rollbacks', [
@@ -65,6 +70,7 @@ class ApprovalSignatureRollbackTest extends TestCase
 
         $audit = ApprovalSignatureRollback::query()->firstOrFail();
         $this->assertSame([$target->id, $afterTarget->id], $audit->affected_signature_ids);
+        $this->assertSame('Approver Step 2', $audit->previous_payload[0]['signer_position_snapshot']);
     }
 
     public function test_admin_can_rollback_bast_signature_step(): void

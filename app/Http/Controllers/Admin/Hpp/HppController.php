@@ -19,6 +19,7 @@ use App\Support\HppApprovalFlow;
 use App\Support\HppApprovalSignatureBuilder;
 use App\Support\HppDocumentNumberGenerator;
 use App\Support\HppIndexTabs;
+use App\Support\HppSignatureIdentityResolver;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,6 +38,7 @@ class HppController extends Controller
         private readonly ApprovalSignatureRollbackService $rollbackService,
         private readonly HppDocumentNumberGenerator $documentNumberGenerator,
         private readonly BulkApprovalNotificationService $bulkNotificationService,
+        private readonly HppSignatureIdentityResolver $identityResolver,
     ) {}
 
     public function index(Request $request): View
@@ -209,6 +211,7 @@ class HppController extends Controller
 
                 $lockedSignature->update([
                     'status' => HppSignature::STATUS_SIGNED,
+                    ...$this->identityResolver->snapshotAttributes($lockedSignature),
                     'opened_at' => $lockedSignature->opened_at ?: now(),
                     'signed_at' => now(),
                     'signed_document_path' => $storedPath,

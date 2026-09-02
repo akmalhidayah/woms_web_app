@@ -103,7 +103,7 @@
                                 $approvalChecklist = $row->signatures
                                     ->map(fn (\App\Models\HppSignature $signature): array => [
                                         'label' => $signature->displayRoleLabel(),
-                                        'name' => $signature->signer_name_snapshot ?: '-',
+                                        'name' => $signature->displaySignerName(),
                                         'status' => $signature->status,
                                         'delegated_from_name' => $signature->delegated_from_name ?: '',
                                         'delegation_reason' => $signature->delegation_reason ?: '',

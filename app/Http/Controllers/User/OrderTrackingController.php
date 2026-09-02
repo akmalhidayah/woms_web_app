@@ -1244,12 +1244,14 @@ class OrderTrackingController extends Controller
         $roleLabel = method_exists($signature, 'displayRoleLabel')
             ? $signature->displayRoleLabel()
             : (string) ($signature->role_label ?? '-');
-        $signerName = (string) (
-            $signature->signer_name_snapshot
-            ?? $signature->signer_name
-            ?? $signature->signer?->name
-            ?? '-'
-        );
+        $signerName = $signature instanceof HppSignature
+            ? $signature->displaySignerName()
+            : (string) (
+                $signature->signer_name_snapshot
+                ?? $signature->signer_name
+                ?? $signature->signer?->name
+                ?? '-'
+            );
 
         return [
             'step' => ((int) ($signature->step_order ?? 0)) + $stepOffset,

@@ -54,6 +54,15 @@ class ApprovalSignatureReassignmentTest extends TestCase
             $this->assertNotNull($reassigned->token_hash);
             $this->assertNotSame($originalTokenHash, $reassigned->token_hash);
             $this->assertNotNull($reassigned->token_expires_at);
+
+            if ($reassigned instanceof HppSignature) {
+                $this->assertSame('', $reassigned->signer_name_snapshot);
+                $this->assertSame('', $reassigned->signer_position_snapshot);
+                $this->assertNull($reassigned->signer_department_snapshot);
+                $this->assertNull($reassigned->signer_unit_snapshot);
+                $this->assertNull($reassigned->signer_section_snapshot);
+                $this->assertSame('Pejabat PLT', $reassigned->displaySignerName());
+            }
         }
     }
 

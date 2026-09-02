@@ -497,6 +497,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('user/orders/{order}/quality-control/pdf', [OrderTrackingController::class, 'qualityControlPdf'])
         ->middleware('role:user,approver,pkm')
         ->name('user.orders.quality-control.pdf');
+    Route::get('user/orders/{order}/workshop-handover/pdf', [OrderTrackingController::class, 'workshopHandoverPdf'])
+        ->middleware('role:user,approver,pkm')
+        ->name('user.orders.workshop-handover.pdf');
     Route::get('user/orders/{order}/{termin}/bast/pdf', [OrderTrackingController::class, 'bastPdf'])
         ->middleware('role:user,approver,pkm')
         ->where('termin', 'termin-1|termin-2')

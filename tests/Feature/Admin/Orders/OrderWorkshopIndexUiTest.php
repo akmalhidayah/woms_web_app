@@ -90,6 +90,28 @@ class OrderWorkshopIndexUiTest extends TestCase
         ]);
     }
 
+    public function test_workshop_document_page_returns_to_workshop_index_and_preserves_its_context_after_upload(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+        $order = $this->makeWorkshopOrder($admin, 'WORKSHOP-DOCUMENT-001', Order::WORKSHOP_REGU_FABRIKASI);
+        $order->orderWorkshop()->create([
+            'progress_status' => OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
+        ]);
+        $workshopIndexUrl = route('admin.orders.workshop.index', ['search' => $order->nomor_order]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.orders.documents.index', $order))
+            ->assertOk()
+            ->assertSee($workshopIndexUrl, false);
+
+        $this->actingAs($admin)
+            ->post(route('admin.orders.documents.store', $order))
+            ->assertRedirect(route('admin.orders.documents.index', $order));
+    }
+
     private function makeWorkshopOrder(User $admin, string $nomorOrder, string $regu): Order
     {
         return Order::query()->create([

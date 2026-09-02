@@ -23,7 +23,7 @@ class OrderDocumentController extends Controller
      */
     public function index(Order $order): View
     {
-        $order->load(['creator', 'documents.uploader', 'scopeOfWork.creator']);
+        $order->load(['creator', 'documents.uploader', 'scopeOfWork.creator', 'orderWorkshop']);
 
         $documentMap = $order->documents
             ->filter(fn ($document) => in_array($document->jenis_dokumen->value, ['abnormalitas', 'gambar_teknik'], true))
@@ -33,6 +33,7 @@ class OrderDocumentController extends Controller
             'order' => $order,
             'documentMap' => $documentMap,
             'scopeOfWork' => $order->scopeOfWork,
+            'returnUrl' => $this->returnUrl($order),
             'recentSignatureDataUrl' => app(RecentApprovalSignatureResolver::class)
                 ->latestFullSignatureForUser(request()->user()),
         ]);
@@ -72,7 +73,7 @@ class OrderDocumentController extends Controller
         }
 
         return redirect()
-            ->route('admin.orders.show', $order)
+            ->to($this->documentPageUrl($order))
             ->with('status', 'Dokumen order berhasil diperbarui.');
     }
 
@@ -106,7 +107,25 @@ class OrderDocumentController extends Controller
         $this->documentService->delete($document);
 
         return redirect()
-            ->route('admin.orders.show', $order)
+            ->to($this->documentPageUrl($order))
             ->with('status', 'Dokumen order berhasil dihapus.');
+    }
+
+    private function returnUrl(Order $order): string
+    {
+        if ($order->isWorkshopOrder()) {
+            return route('admin.orders.workshop.index', ['search' => $order->nomor_order]);
+        }
+
+        return route('admin.orders.index');
+    }
+
+    private function documentPageUrl(Order $order): string
+    {
+        if ($order->loadMissing('orderWorkshop')->isWorkshopOrder()) {
+            return route('admin.orders.documents.index', $order);
+        }
+
+        return route('admin.orders.show', $order);
     }
 }

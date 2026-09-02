@@ -30,6 +30,7 @@ class BastDeletionService
 
                 return array_merge(
                     $document->images->pluck('file_path')->all(),
+                    [$document->attachment_pdf_path],
                     $document->signatures->flatMap(fn ($signature): array => [
                         $signature->signature_data,
                         $signature->signed_document_path,

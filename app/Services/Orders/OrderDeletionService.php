@@ -109,13 +109,14 @@ final class OrderDeletionService
             ->where('order_id', $orderId)
             ->when($hppIds !== [], fn ($query) => $query->orWhereIn('hpp_id', $hppIds))
             ->when($purchaseOrderIds !== [], fn ($query) => $query->orWhereIn('purchase_order_id', $purchaseOrderIds))
-            ->get(['id', 'parent_lhpp_bast_id']);
+            ->get(['id', 'parent_lhpp_bast_id', 'attachment_pdf_path']);
         $bastIds = $basts->pluck('id')->all();
 
         if ($bastIds !== []) {
             $paths = array_merge(
                 $paths,
                 LhppBastImage::query()->whereIn('lhpp_bast_id', $bastIds)->pluck('file_path')->all(),
+                $basts->pluck('attachment_pdf_path')->filter()->all(),
                 LhppBastSignature::query()->whereIn('lhpp_bast_id', $bastIds)->pluck('signed_document_path')->all(),
             );
 

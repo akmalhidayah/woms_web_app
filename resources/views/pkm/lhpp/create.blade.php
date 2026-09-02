@@ -32,6 +32,7 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
             $approvalFlowMatrix = $approvalFlowMatrix ?? [];
             $selectedApprovalFlow = array_values((array) old('approval_flow', $selectedApprovalFlow ?? []));
             $existingImages = collect($existingImages ?? []);
+            $existingAttachment = $existingAttachment ?? null;
             $materialRows = collect($initialMaterialRows ?? [
                 ['jenis_item' => '', 'kategori_item' => '', 'name' => '', 'volume' => '', 'unit' => '', 'unit_price' => '', 'amount' => '0.00', 'amount_display' => '0'],
             ]);
@@ -530,6 +531,28 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                                             </a>
                                         @endforeach
                                     </div>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        <div class="border-b border-slate-200 px-4 py-3">
+                            <div class="text-[13px] font-bold text-slate-900">Lampiran PDF BAST</div>
+                            <p class="mt-1 text-[11px] text-slate-500">PDF opsional, maksimal 10 MB. File akan ikut sebagai halaman setelah BAST {{ $terminLabel }} saat PDF dibuka.</p>
+                        </div>
+                        <div class="space-y-3 p-4">
+                            <input type="file" name="attachment_pdf" accept="application/pdf,.pdf" class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-[#ca642f] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-[#b85b2b]">
+                            @error('attachment_pdf')
+                                <p class="text-sm text-rose-600">{{ $message }}</p>
+                            @enderror
+
+                            @if ($existingAttachment)
+                                <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-700">
+                                    <div class="font-semibold">Lampiran tersimpan: {{ $existingAttachment['name'] }}</div>
+                                    @if (filled($existingAttachment['size']))
+                                        <div class="mt-1 text-slate-500">{{ number_format($existingAttachment['size'] / 1024 / 1024, 2, ',', '.') }} MB</div>
+                                    @endif
                                 </div>
                             @endif
                         </div>

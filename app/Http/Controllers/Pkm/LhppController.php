@@ -17,6 +17,7 @@ use App\Models\VendorWorkTypeSection;
 use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\Pkm\BastDeletionService;
 use App\Services\Pkm\BastItemSnapshotService;
+use App\Services\Pkm\BastPdfAttachmentService;
 use App\Support\ApprovalFlowSignerPreview;
 use App\Support\BastApprovalFlow;
 use App\Support\BastApprovalSignatureBuilder;
@@ -52,6 +53,7 @@ class LhppController extends Controller
         private readonly BastEffectiveApprovalFlowResolver $effectiveFlowResolver,
         private readonly BastIndexTabs $indexTabs,
         private readonly BastItemSnapshotService $bastItemSnapshotService,
+        private readonly BastPdfAttachmentService $bastPdfAttachmentService,
     ) {}
 
     public function index(Request $request): View
@@ -294,6 +296,9 @@ class LhppController extends Controller
     {
         $terminType = $this->normalizeTerminType($request->string('termin_type')->toString());
         $stagedImages = [];
+        $stagedAttachment = null;
+        $replacedAttachmentPath = null;
+        $attachmentPersisted = false;
 
         try {
             [$order, $parentLhpp] = $this->resolveStoreContext(
@@ -350,6 +355,8 @@ class LhppController extends Controller
                 $this->makeApprovalContext($order, $approvedHpp, $terminType, $tipePekerjaan),
             );
             $stagedImages = $this->stageUploadedImages($request, (string) $order->nomor_order, $terminType);
+            $stagedAttachment = $this->stageUploadedAttachment($request, (string) $order->nomor_order, $terminType);
+            $attachmentAttributes = $this->attachmentAttributes($stagedAttachment);
 
             $lhpp = DB::transaction(function () use (
                 $order,
@@ -366,13 +373,33 @@ class LhppController extends Controller
                 $qualityControlStatus,
                 $itemSource,
                 $stagedImages,
+                $stagedAttachment,
+                $attachmentAttributes,
+                &$replacedAttachmentPath,
             ): LhppBast {
+                if ($stagedAttachment !== null) {
+                    $existingLhpp = LhppBast::query()
+                        ->with('signatures')
+                        ->where('order_id', $order->id)
+                        ->where('termin_type', $terminType)
+                        ->lockForUpdate()
+                        ->first();
+
+                    abort_if(
+                        $existingLhpp?->isApprovalLocked(),
+                        Response::HTTP_FORBIDDEN,
+                        'Lampiran PDF BAST tidak dapat diubah setelah proses tanda tangan dimulai.'
+                    );
+
+                    $replacedAttachmentPath = $existingLhpp?->attachment_pdf_path;
+                }
+
                 $lhpp = LhppBast::query()->updateOrCreate(
                     [
                         'order_id' => $order->id,
                         'termin_type' => $terminType,
                     ],
-                    [
+                    array_merge([
                         'item_source' => $itemSource,
                         'parent_lhpp_bast_id' => $terminType === 'termin_2' ? $parentLhpp?->id : null,
                         'hpp_id' => $approvedHpp->id,
@@ -403,7 +430,7 @@ class LhppController extends Controller
                         'quality_control_status' => $qualityControlStatus,
                         'updated_by' => $request->user()?->id,
                         'created_by' => $request->user()?->id,
-                    ]
+                    ], $attachmentAttributes)
                 );
 
                 $this->syncParentTipePekerjaanIfMissing($terminType, $parentLhpp, $tipePekerjaan);
@@ -426,6 +453,11 @@ class LhppController extends Controller
                 return $lhpp->refresh();
             });
 
+            $attachmentPersisted = $stagedAttachment !== null;
+            if ($attachmentPersisted && $replacedAttachmentPath !== $stagedAttachment['attachment_pdf_path']) {
+                $this->deleteStoredAttachment($replacedAttachmentPath);
+            }
+
             $lhpp->loadMissing(['garansi', 'parentLhppBast.garansi']);
             $garansiMonths = $terminType === 'termin_2'
                 ? $lhpp->parentLhppBast?->garansi?->garansi_months
@@ -445,12 +477,18 @@ class LhppController extends Controller
                 ));
         } catch (ValidationException $exception) {
             Storage::disk('public')->delete(collect($stagedImages)->pluck('file_path')->all());
+            if (! $attachmentPersisted) {
+                $this->deleteStoredAttachment($stagedAttachment['attachment_pdf_path'] ?? null);
+            }
 
             return back()
                 ->withInput()
                 ->withErrors($exception->errors());
         } catch (Throwable $exception) {
             Storage::disk('public')->delete(collect($stagedImages)->pluck('file_path')->all());
+            if (! $attachmentPersisted) {
+                $this->deleteStoredAttachment($stagedAttachment['attachment_pdf_path'] ?? null);
+            }
             $this->rethrowExpectedException($exception);
             Log::error('Failed to store PKM LHPP form.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
@@ -472,6 +510,9 @@ class LhppController extends Controller
     public function update(StoreLhppBastRequest $request, string $nomorOrder, string $termin): RedirectResponse
     {
         $terminType = $this->normalizeTerminType($termin);
+        $stagedAttachment = null;
+        $replacedAttachmentPath = null;
+        $attachmentPersisted = false;
 
         try {
             $lhpp = $this->resolveLhppByOrderAndTermin($nomorOrder, $terminType);
@@ -560,6 +601,8 @@ class LhppController extends Controller
                 $isWithoutWarranty,
                 $this->makeApprovalContext($order, $approvedHpp, $terminType, $tipePekerjaan),
             );
+            $stagedAttachment = $this->stageUploadedAttachment($request, (string) $order->nomor_order, $terminType);
+            $attachmentAttributes = $this->attachmentAttributes($stagedAttachment);
             $lhpp = DB::transaction(function () use (
                 $lhpp,
                 $order,
@@ -574,6 +617,9 @@ class LhppController extends Controller
                 $approvalPayload,
                 $calculation,
                 $itemSource,
+                $stagedAttachment,
+                $attachmentAttributes,
+                &$replacedAttachmentPath,
             ): LhppBast {
                 $lhpp = LhppBast::query()
                     ->with('signatures')
@@ -597,7 +643,11 @@ class LhppController extends Controller
 
                 $approvalStarted = $lhpp->hasApprovalStarted();
 
-                $lhpp->fill([
+                if ($stagedAttachment !== null) {
+                    $replacedAttachmentPath = $lhpp->attachment_pdf_path;
+                }
+
+                $lhpp->fill(array_merge([
                     'order_id' => $order->id,
                     'termin_type' => $terminType,
                     'item_source' => $itemSource,
@@ -631,7 +681,7 @@ class LhppController extends Controller
                         ? 'approved'
                         : $lhpp->quality_control_status,
                     'updated_by' => $request->user()?->id,
-                ]);
+                ], $attachmentAttributes));
 
                 $lhpp->save();
                 $this->syncParentTipePekerjaanIfMissing($terminType, $parentLhpp, $tipePekerjaan);
@@ -649,6 +699,11 @@ class LhppController extends Controller
 
                 return $lhpp->refresh();
             });
+
+            $attachmentPersisted = $stagedAttachment !== null;
+            if ($attachmentPersisted && $replacedAttachmentPath !== $stagedAttachment['attachment_pdf_path']) {
+                $this->deleteStoredAttachment($replacedAttachmentPath);
+            }
 
             $this->storeUploadedImages($request, $lhpp);
             $lhpp->loadMissing(['garansi', 'parentLhppBast.garansi']);
@@ -668,10 +723,18 @@ class LhppController extends Controller
                     $lhpp->nomor_order,
                 ));
         } catch (ValidationException $exception) {
+            if (! $attachmentPersisted) {
+                $this->deleteStoredAttachment($stagedAttachment['attachment_pdf_path'] ?? null);
+            }
+
             return back()
                 ->withInput()
                 ->withErrors($exception->errors());
         } catch (Throwable $exception) {
+            if (! $attachmentPersisted) {
+                $this->deleteStoredAttachment($stagedAttachment['attachment_pdf_path'] ?? null);
+            }
+
             if ($exception instanceof HttpExceptionInterface) {
                 throw $exception;
             }
@@ -824,9 +887,11 @@ class LhppController extends Controller
                 'materialItems' => collect($lhpp->material_items ?? []),
                 'serviceItems' => collect($lhpp->service_items ?? []),
             ])->setPaper('a4', 'portrait')->output();
+            $attachmentPdf = $this->bastPdfAttachmentService->pdfOutput($lhpp);
 
             $attachedHpp = $lhpp->hpp ?: $lhpp->order?->latestApprovedHpp;
             $terminOnePdf = null;
+            $terminOneAttachmentPdf = null;
 
             if ($terminType === 'termin_2' && $lhpp->parentLhppBast) {
                 $terminOnePdf = Pdf::loadView('pkm.lhpp.pdf', [
@@ -834,11 +899,18 @@ class LhppController extends Controller
                     'materialItems' => collect($lhpp->parentLhppBast->material_items ?? []),
                     'serviceItems' => collect($lhpp->parentLhppBast->service_items ?? []),
                 ])->setPaper('a4', 'portrait')->output();
+                $terminOneAttachmentPdf = $this->bastPdfAttachmentService->pdfOutput($lhpp->parentLhppBast);
             }
 
             if (! $attachedHpp) {
-                $pdfOutput = $terminOnePdf
-                    ? $this->mergePdfOutputs([$bastPdf, $terminOnePdf])
+                $pdfOutputs = array_filter([
+                    $bastPdf,
+                    $attachmentPdf,
+                    $terminOnePdf,
+                    $terminOneAttachmentPdf,
+                ]);
+                $pdfOutput = count($pdfOutputs) > 1
+                    ? $this->mergePdfOutputs($pdfOutputs)
                     : $bastPdf;
 
                 return response($pdfOutput, Response::HTTP_OK, $this->pdfInlineHeaders(
@@ -856,7 +928,13 @@ class LhppController extends Controller
                 'hpp' => $attachedHpp,
             ])->setPaper('a4', 'landscape')->output();
 
-            $mergedPdf = $this->mergePdfOutputs(array_filter([$bastPdf, $terminOnePdf, $hppPdf]));
+            $mergedPdf = $this->mergePdfOutputs(array_filter([
+                $bastPdf,
+                $attachmentPdf,
+                $terminOnePdf,
+                $terminOneAttachmentPdf,
+                $hppPdf,
+            ]));
 
             return response($mergedPdf, Response::HTTP_OK, $this->pdfInlineHeaders(
                 BastDisplayLabel::generatedBastPdfFilename(
@@ -1481,6 +1559,10 @@ class LhppController extends Controller
             'tanggalSelesaiPekerjaan' => old('tanggal_selesai_pekerjaan', optional($lhpp?->tanggal_selesai_pekerjaan)->format('Y-m-d') ?? optional($parentLhpp?->tanggal_selesai_pekerjaan)->format('Y-m-d')),
             'useFixedWorkDates' => (bool) ($lhpp || $parentLhpp),
             'existingImages' => $this->buildExistingImageList($lhpp, $parentLhpp, $isWithoutWarranty)->all(),
+            'existingAttachment' => filled($lhpp?->attachment_pdf_path) ? [
+                'name' => $lhpp->attachment_pdf_original_name ?: basename((string) $lhpp->attachment_pdf_path),
+                'size' => $lhpp->attachment_pdf_size,
+            ] : null,
             'initialMaterialRows' => $calculation['material_rows'],
             'initialServiceRows' => $calculation['service_rows'],
             'initialCalculation' => $calculation['totals'],
@@ -1884,6 +1966,67 @@ class LhppController extends Controller
         } catch (Throwable $exception) {
             Storage::disk('public')->delete(collect($staged)->pluck('file_path')->all());
             throw $exception;
+        }
+    }
+
+    /**
+     * @return array<string, int|string>|null
+     */
+    private function stageUploadedAttachment(
+        StoreLhppBastRequest $request,
+        string $nomorOrder,
+        string $terminType
+    ): ?array {
+        $file = $request->file('attachment_pdf');
+
+        if (! $file) {
+            return null;
+        }
+
+        try {
+            $this->bastPdfAttachmentService->assertReadable($file);
+        } catch (Throwable $exception) {
+            throw ValidationException::withMessages([
+                'attachment_pdf' => 'Lampiran BAST harus berupa PDF yang dapat dibuka dan digabungkan.',
+            ]);
+        }
+
+        $path = $file->storeAs(
+            "lhpp-basts/{$nomorOrder}/{$terminType}/attachments",
+            'lampiran-bast-'.now()->format('YmdHis').'-'.Str::uuid().'.pdf',
+            'public'
+        );
+
+        return [
+            'attachment_pdf_path' => $path,
+            'attachment_pdf_original_name' => $file->getClientOriginalName(),
+            'attachment_pdf_mime_type' => $file->getClientMimeType(),
+            'attachment_pdf_size' => $file->getSize(),
+        ];
+    }
+
+    /**
+     * @param  array<string, int|string>|null  $stagedAttachment
+     * @return array<string, int|string>
+     */
+    private function attachmentAttributes(?array $stagedAttachment): array
+    {
+        return $stagedAttachment ?? [];
+    }
+
+    private function deleteStoredAttachment(?string $path): void
+    {
+        if (blank($path)) {
+            return;
+        }
+
+        try {
+            Storage::disk('public')->delete(ltrim($path, '/'));
+        } catch (Throwable $exception) {
+            Log::warning('Failed to clean up BAST PDF attachment.', [
+                'path' => $path,
+                'error' => $exception->getMessage(),
+            ]);
         }
     }
 

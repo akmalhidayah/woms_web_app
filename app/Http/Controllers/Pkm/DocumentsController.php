@@ -8,6 +8,7 @@ use App\Models\Hpp;
 use App\Models\LhppBast;
 use App\Models\Order;
 use App\Services\Orders\OrderDocumentService;
+use App\Services\Pkm\BastPdfAttachmentService;
 use App\Services\Pkm\PkmDocumentQueryService;
 use App\Support\PdfMergeService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -26,6 +27,7 @@ class DocumentsController extends Controller
     public function __construct(
         private readonly OrderDocumentService $documentService,
         private readonly PkmDocumentQueryService $documentQueryService,
+        private readonly BastPdfAttachmentService $bastPdfAttachmentService,
     ) {}
 
     public function index(Request $request): View
@@ -337,11 +339,16 @@ class DocumentsController extends Controller
             return Storage::disk('public')->get($finalDocumentSignature->signed_document_path) ?: '';
         }
 
-        return Pdf::loadView('pkm.lhpp.pdf', [
+        $bastPdf = Pdf::loadView('pkm.lhpp.pdf', [
             'lhpp' => $lhpp,
             'materialItems' => collect($lhpp->material_items ?? []),
             'serviceItems' => collect($lhpp->service_items ?? []),
         ])->setPaper('a4', 'portrait')->output();
+        $attachmentPdf = $this->bastPdfAttachmentService->pdfOutput($lhpp);
+
+        return $attachmentPdf
+            ? $this->mergePdfOutputs([$bastPdf, $attachmentPdf])
+            : $bastPdf;
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Services\Maintenance\Evaluators;
 use App\Models\AdminInformationFile;
 use App\Models\HppSignature;
 use App\Models\InitialWorkSignature;
+use App\Models\LhppBast;
 use App\Models\LhppBastSignature;
 use App\Models\OrderDocument;
 use App\Models\PurchaseOrder;
@@ -113,6 +114,7 @@ class FileStorageHealthEvaluator implements MaintenanceEvaluator
             [PurchaseOrder::class, 'po_document_path', 'Purchase Order'],
             [AdminInformationFile::class, 'file_path', 'Informasi'],
             [HppSignature::class, 'signed_document_path', 'HPP'],
+            [LhppBast::class, 'attachment_pdf_path', 'Lampiran BAST'],
             [LhppBastSignature::class, 'signed_document_path', 'BAST'],
             [InitialWorkSignature::class, 'signature_path', 'Initial Work'],
         ];

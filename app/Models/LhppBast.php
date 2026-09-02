@@ -74,6 +74,10 @@ class LhppBast extends Model
         'approval_status',
         'approval_case',
         'approval_flow',
+        'attachment_pdf_path',
+        'attachment_pdf_original_name',
+        'attachment_pdf_mime_type',
+        'attachment_pdf_size',
         'created_by',
         'updated_by',
     ];
@@ -93,6 +97,7 @@ class LhppBast extends Model
             'material_items' => 'array',
             'service_items' => 'array',
             'approval_flow' => 'array',
+            'attachment_pdf_size' => 'integer',
             'subtotal_material' => 'decimal:2',
             'subtotal_jasa' => 'decimal:2',
             'total_aktual_biaya' => 'decimal:2',

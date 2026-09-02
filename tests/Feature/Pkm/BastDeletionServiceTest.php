@@ -25,7 +25,7 @@ class BastDeletionServiceTest extends TestCase
             'deskripsi' => 'Test', 'prioritas' => Order::PRIORITY_MEDIUM, 'tanggal_order' => now(),
             'target_selesai' => now()->addDays(7), 'created_by' => $user->id,
         ]);
-        $parent = $this->bast($order, $user, 'termin_1');
+        $parent = $this->bast($order, $user, 'termin_1', null, 'bast/lampiran.pdf');
         $child = $this->bast($order, $user, 'termin_2', $parent->id);
         $parent->images()->create(['file_path' => 'bast/parent.jpg', 'created_by' => $user->id]);
         $child->signatures()->create([
@@ -38,7 +38,7 @@ class BastDeletionServiceTest extends TestCase
             'order_id' => $order->id, 'lhpp_bast_id' => $parent->id, 'garansi_months' => 3,
             'start_date' => now(), 'end_date' => now()->addMonths(3),
         ]);
-        foreach (['bast/parent.jpg', 'bast/signature.png', 'bast/final.pdf', 'bast/lpj.pdf'] as $path) {
+        foreach (['bast/parent.jpg', 'bast/lampiran.pdf', 'bast/signature.png', 'bast/final.pdf', 'bast/lpj.pdf'] as $path) {
             Storage::disk('public')->put($path, 'file');
         }
 
@@ -47,17 +47,23 @@ class BastDeletionServiceTest extends TestCase
         $this->assertDatabaseMissing('lhpp_basts', ['id' => $parent->id]);
         $this->assertDatabaseMissing('lhpp_basts', ['id' => $child->id]);
         $this->assertDatabaseHas('garansis', ['id' => $garansi->id, 'order_id' => $order->id, 'lhpp_bast_id' => null]);
-        foreach (['bast/parent.jpg', 'bast/signature.png', 'bast/final.pdf', 'bast/lpj.pdf'] as $path) {
+        foreach (['bast/parent.jpg', 'bast/lampiran.pdf', 'bast/signature.png', 'bast/final.pdf', 'bast/lpj.pdf'] as $path) {
             Storage::disk('public')->assertMissing($path);
         }
     }
 
-    private function bast(Order $order, User $user, string $termin, ?int $parentId = null): LhppBast
-    {
+    private function bast(
+        Order $order,
+        User $user,
+        string $termin,
+        ?int $parentId = null,
+        ?string $attachmentPdfPath = null,
+    ): LhppBast {
         return LhppBast::query()->create([
             'order_id' => $order->id, 'parent_lhpp_bast_id' => $parentId, 'termin_type' => $termin,
             'nomor_order' => $order->nomor_order, 'deskripsi_pekerjaan' => 'Test', 'unit_kerja' => 'Unit',
             'seksi' => 'Seksi', 'tanggal_bast' => now(), 'approval_status' => LhppBast::APPROVAL_IN_REVIEW,
+            'attachment_pdf_path' => $attachmentPdfPath,
             'created_by' => $user->id,
         ]);
     }

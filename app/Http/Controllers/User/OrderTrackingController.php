@@ -18,6 +18,7 @@ use App\Models\OrderWorkshop;
 use App\Models\QualityControlReport;
 use App\Models\QualityControlSignature;
 use App\Services\Orders\OrderDocumentService;
+use App\Services\Pkm\BastPdfAttachmentService;
 use App\Support\ApprovalWhatsappLink;
 use App\Support\BastDisplayLabel;
 use App\Support\PdfMergeService;
@@ -36,6 +37,7 @@ class OrderTrackingController extends Controller
 {
     public function __construct(
         private readonly OrderDocumentService $orderDocumentService,
+        private readonly BastPdfAttachmentService $bastPdfAttachmentService,
     ) {}
 
     public function index(Request $request): View
@@ -276,8 +278,10 @@ class OrderTrackingController extends Controller
             ->where('termin_type', $terminType)
             ->with([
                 'images',
+                'garansi',
                 'signatures',
                 'parentLhppBast.images',
+                'parentLhppBast.garansi',
                 'parentLhppBast.signatures',
                 'parentLhppBast.purchaseOrder:id,order_id,purchase_order_number',
                 'parentLhppBast.order.purchaseOrder:id,order_id,purchase_order_number',
@@ -313,14 +317,18 @@ class OrderTrackingController extends Controller
             'materialItems' => collect($lhpp->material_items ?? []),
             'serviceItems' => collect($lhpp->service_items ?? []),
         ])->setPaper('a4', 'portrait')->output();
+        $attachmentPdf = $this->bastPdfAttachmentService->pdfOutput($lhpp);
 
         $attachedHpp = $lhpp->hpp ?: $order->latestHpp;
         $generatedFilename = BastDisplayLabel::generatedBastPdfFilename(
             $order->nomor_order,
             $terminType,
-            $terminOne?->garansi?->garansi_months,
+            $terminType === 'termin_2'
+                ? $lhpp->parentLhppBast?->garansi?->garansi_months
+                : $lhpp->garansi?->garansi_months,
         );
         $terminOnePdf = null;
+        $terminOneAttachmentPdf = null;
 
         if ($terminType === 'termin_2' && $lhpp->parentLhppBast) {
             $terminOnePdf = Pdf::loadView('pkm.lhpp.pdf', [
@@ -328,11 +336,18 @@ class OrderTrackingController extends Controller
                 'materialItems' => collect($lhpp->parentLhppBast->material_items ?? []),
                 'serviceItems' => collect($lhpp->parentLhppBast->service_items ?? []),
             ])->setPaper('a4', 'portrait')->output();
+            $terminOneAttachmentPdf = $this->bastPdfAttachmentService->pdfOutput($lhpp->parentLhppBast);
         }
 
         if (! $attachedHpp) {
-            $pdfOutput = $terminOnePdf
-                ? $this->mergePdfOutputs([$bastPdf, $terminOnePdf])
+            $pdfOutputs = array_filter([
+                $bastPdf,
+                $attachmentPdf,
+                $terminOnePdf,
+                $terminOneAttachmentPdf,
+            ]);
+            $pdfOutput = count($pdfOutputs) > 1
+                ? $this->mergePdfOutputs($pdfOutputs)
                 : $bastPdf;
 
             return response($pdfOutput, Response::HTTP_OK, [
@@ -345,7 +360,13 @@ class OrderTrackingController extends Controller
             'hpp' => $attachedHpp,
         ])->setPaper('a4', 'landscape')->output();
 
-        $mergedPdf = $this->mergePdfOutputs(array_filter([$bastPdf, $terminOnePdf, $hppPdf]));
+        $mergedPdf = $this->mergePdfOutputs(array_filter([
+            $bastPdf,
+            $attachmentPdf,
+            $terminOnePdf,
+            $terminOneAttachmentPdf,
+            $hppPdf,
+        ]));
 
         return response($mergedPdf, Response::HTTP_OK, [
             'Content-Type' => 'application/pdf',

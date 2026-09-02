@@ -74,6 +74,7 @@ class StoreLhppBastRequest extends FormRequest
             'service_rows.*.unit_price' => $validatesManualItems ? ['nullable', 'string', 'max:50'] : ['nullable'],
             'gambar' => ['nullable', 'array'],
             'gambar.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'attachment_pdf' => ['nullable', 'file', 'mimes:pdf', 'mimetypes:application/pdf', 'max:10240'],
         ];
     }
 
@@ -82,6 +83,7 @@ class StoreLhppBastRequest extends FormRequest
         return [
             'material_rows.*.volume.regex' => 'Volume material harus berupa angka positif dengan maksimal 3 angka desimal (gunakan titik).',
             'service_rows.*.volume.regex' => 'Volume jasa harus berupa angka positif dengan maksimal 3 angka desimal (gunakan titik).',
+            'attachment_pdf.max' => 'Lampiran PDF BAST maksimal berukuran 10 MB.',
         ];
     }
 }

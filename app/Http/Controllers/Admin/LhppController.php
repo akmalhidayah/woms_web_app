@@ -10,6 +10,7 @@ use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\Approvals\ApprovalSignatureRollbackService;
 use App\Services\Approvals\BulkApprovalNotificationService;
 use App\Services\Pkm\BastDeletionService;
+use App\Services\Pkm\BastPdfAttachmentService;
 use App\Support\BastApprovalSignatureBuilder;
 use App\Support\BastDisplayLabel;
 use App\Support\BastEffectiveApprovalFlowResolver;
@@ -22,6 +23,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class LhppController extends Controller
@@ -34,6 +36,7 @@ class LhppController extends Controller
         private readonly BastEffectiveApprovalFlowResolver $effectiveFlowResolver,
         private readonly BastIndexTabs $indexTabs,
         private readonly BulkApprovalNotificationService $bulkNotificationService,
+        private readonly BastPdfAttachmentService $bastPdfAttachmentService,
     ) {}
 
     public function destroy(Request $request, LhppBast $lhppBast): RedirectResponse
@@ -375,6 +378,7 @@ class LhppController extends Controller
                 'materialItems' => collect($lhpp->material_items ?? []),
                 'serviceItems' => collect($lhpp->service_items ?? []),
             ])->setPaper('a4', 'portrait')->output();
+            $attachmentPdf = $this->bastPdfAttachmentService->pdfOutput($lhpp);
 
             $generatedFilename = BastDisplayLabel::generatedBastPdfFilename(
                 $lhpp->nomor_order,
@@ -386,6 +390,7 @@ class LhppController extends Controller
 
             $attachedHpp = $lhpp->hpp ?: $lhpp->order?->latestApprovedHpp;
             $terminOnePdf = null;
+            $terminOneAttachmentPdf = null;
 
             if ($lhpp->termin_type === 'termin_2' && $lhpp->parentLhppBast) {
                 $terminOnePdf = Pdf::loadView('pkm.lhpp.pdf', [
@@ -393,11 +398,18 @@ class LhppController extends Controller
                     'materialItems' => collect($lhpp->parentLhppBast->material_items ?? []),
                     'serviceItems' => collect($lhpp->parentLhppBast->service_items ?? []),
                 ])->setPaper('a4', 'portrait')->output();
+                $terminOneAttachmentPdf = $this->bastPdfAttachmentService->pdfOutput($lhpp->parentLhppBast);
             }
 
             if (! $attachedHpp) {
-                $pdfOutput = $terminOnePdf
-                    ? $this->mergePdfOutputs([$bastPdf, $terminOnePdf])
+                $pdfOutputs = array_filter([
+                    $bastPdf,
+                    $attachmentPdf,
+                    $terminOnePdf,
+                    $terminOneAttachmentPdf,
+                ]);
+                $pdfOutput = count($pdfOutputs) > 1
+                    ? $this->mergePdfOutputs($pdfOutputs)
                     : $bastPdf;
 
                 return response($pdfOutput, Response::HTTP_OK, $this->pdfInlineHeaders(
@@ -409,7 +421,13 @@ class LhppController extends Controller
                 'hpp' => $attachedHpp,
             ])->setPaper('a4', 'landscape')->output();
 
-            $mergedPdf = $this->mergePdfOutputs(array_filter([$bastPdf, $terminOnePdf, $hppPdf]));
+            $mergedPdf = $this->mergePdfOutputs(array_filter([
+                $bastPdf,
+                $attachmentPdf,
+                $terminOnePdf,
+                $terminOneAttachmentPdf,
+                $hppPdf,
+            ]));
 
             Log::info('Admin BAST PDF merged successfully.', [
                 'user_id' => $request->user()?->id,
@@ -426,6 +444,10 @@ class LhppController extends Controller
                 $generatedFilename
             ));
         } catch (Throwable $exception) {
+            if ($exception instanceof HttpExceptionInterface) {
+                throw $exception;
+            }
+
             Log::error('Failed to generate admin BAST PDF.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'user_id' => $request->user()?->id,

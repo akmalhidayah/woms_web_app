@@ -15,8 +15,11 @@ use App\Support\BastIndexTabs;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use ReflectionMethod;
+use setasign\Fpdi\Fpdi;
 use Tests\TestCase;
 
 class BastFormRegressionTest extends TestCase
@@ -97,6 +100,86 @@ class BastFormRegressionTest extends TestCase
         $this->assertStringContainsString(':key="row._key"', $html);
         $this->assertStringContainsString('removeMaterialRow(index)', $html);
         $this->assertStringContainsString('removeServiceRow(index)', $html);
+        $this->assertSame(1, $xpath->query('//*[@id="pkm-lhpp-create-form"]//input[@name="attachment_pdf" and @type="file"]')->length);
+        $this->assertStringContainsString('Lampiran PDF BAST', $html);
+        $this->assertStringContainsString('maksimal 10 MB', $html);
+    }
+
+    public function test_bast_can_store_a_readable_pdf_attachment(): void
+    {
+        Storage::fake('public');
+
+        $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $order = $this->makeBastEligibleOrder($admin, 'BAST-PDF-ATTACHMENT', Hpp::STATUS_APPROVED);
+        $contractItem = $this->makeContractItem('1000000.00');
+        $attachment = $this->pdfUpload('lampiran-bast.pdf', 2);
+
+        try {
+            $this->actingAs($pkm)
+                ->post(route('pkm.lhpp.store'), $this->bastPayload($order, $contractItem, [
+                    'attachment_pdf' => $attachment,
+                ]))
+                ->assertRedirect(route('pkm.lhpp.index'));
+        } finally {
+            @unlink($attachment->getPathname());
+        }
+
+        $lhpp = LhppBast::query()
+            ->where('order_id', $order->id)
+            ->where('termin_type', 'termin_1')
+            ->firstOrFail();
+
+        $this->assertSame('lampiran-bast.pdf', $lhpp->attachment_pdf_original_name);
+        $this->assertSame('application/pdf', $lhpp->attachment_pdf_mime_type);
+        $this->assertNotNull($lhpp->attachment_pdf_size);
+        Storage::disk('public')->assertExists($lhpp->attachment_pdf_path);
+    }
+
+    public function test_pkm_bast_pdf_appends_the_stored_pdf_attachment(): void
+    {
+        Storage::fake('public');
+
+        $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $order = $this->makeOrder($admin, 'BAST-PDF-BUNDLE');
+        $lhpp = LhppBast::query()->create([
+            'order_id' => $order->id,
+            'termin_type' => 'termin_1',
+            'nomor_order' => $order->nomor_order,
+            'deskripsi_pekerjaan' => $order->nama_pekerjaan,
+            'unit_kerja' => $order->unit_kerja,
+            'seksi' => $order->seksi,
+            'tanggal_bast' => '2026-07-04',
+            'approval_threshold' => 'under_250',
+            'created_by' => $admin->id,
+        ]);
+
+        $baseline = $this->actingAs($pkm)
+            ->get(route('pkm.lhpp.pdf', ['nomorOrder' => $order->nomor_order, 'termin' => 'termin-1']))
+            ->assertOk()
+            ->getContent();
+
+        $attachmentPdf = $this->pdfOutput('Lampiran BAST', 2);
+        $attachmentPath = 'lhpp-basts/'.$order->nomor_order.'/termin_1/attachments/lampiran.pdf';
+        Storage::disk('public')->put($attachmentPath, $attachmentPdf);
+        $lhpp->update([
+            'attachment_pdf_path' => $attachmentPath,
+            'attachment_pdf_original_name' => 'lampiran.pdf',
+            'attachment_pdf_mime_type' => 'application/pdf',
+            'attachment_pdf_size' => strlen($attachmentPdf),
+        ]);
+
+        $withAttachment = $this->actingAs($pkm)
+            ->get(route('pkm.lhpp.pdf', ['nomorOrder' => $order->nomor_order, 'termin' => 'termin-1']))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->getContent();
+
+        $this->assertSame(
+            $this->pdfPageCount($baseline) + 2,
+            $this->pdfPageCount($withAttachment)
+        );
     }
 
     public function test_hpp_preview_supports_legacy_item_snapshot_keys(): void
@@ -711,5 +794,39 @@ class BastFormRegressionTest extends TestCase
                 'volume' => '1',
             ]],
         ], $overrides);
+    }
+
+    private function pdfUpload(string $filename, int $pages): UploadedFile
+    {
+        $path = tempnam(sys_get_temp_dir(), 'woms-bast-');
+        file_put_contents($path, $this->pdfOutput('Lampiran BAST', $pages));
+
+        return new UploadedFile($path, $filename, 'application/pdf', null, true);
+    }
+
+    private function pdfOutput(string $text, int $pages): string
+    {
+        $pdf = new \FPDF;
+        $pdf->SetCompression(false);
+
+        for ($page = 1; $page <= $pages; $page++) {
+            $pdf->AddPage();
+            $pdf->SetFont('Arial', '', 12);
+            $pdf->Cell(0, 10, $text.' '.$page);
+        }
+
+        return $pdf->Output('S');
+    }
+
+    private function pdfPageCount(string $contents): int
+    {
+        $path = tempnam(sys_get_temp_dir(), 'woms-bast-pages-');
+        file_put_contents($path, $contents);
+
+        try {
+            return (new Fpdi)->setSourceFile($path);
+        } finally {
+            @unlink($path);
+        }
     }
 }

@@ -9,7 +9,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Hpp;
 use App\Models\LhppBast;
 use App\Models\LhppBastSignature;
+use App\Services\Pkm\BastPdfAttachmentService;
 use App\Support\BastApprovalSignatureBuilder;
+use App\Support\PdfMergeService;
 use App\Support\RecentApprovalSignatureResolver;
 use App\Support\SignatureImageStorage;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -26,6 +28,7 @@ class BastSignatureController extends Controller
     public function __construct(
         private readonly BastApprovalSignatureBuilder $signatureBuilder,
         private readonly RecentApprovalSignatureResolver $recentSignatureResolver,
+        private readonly BastPdfAttachmentService $bastPdfAttachmentService,
     ) {}
 
     public function show(Request $request, string $token): View
@@ -109,8 +112,13 @@ class BastSignatureController extends Controller
             'materialItems' => collect($lhpp->material_items ?? []),
             'serviceItems' => collect($lhpp->service_items ?? []),
         ])->setPaper('a4', 'portrait')->output();
+        $attachmentPdf = $this->bastPdfAttachmentService->pdfOutput($lhpp);
+        $pdfOutputs = array_filter([$pdf, $attachmentPdf]);
+        $pdfOutput = count($pdfOutputs) > 1
+            ? app(PdfMergeService::class)->merge($pdfOutputs, context: ['controller' => static::class])
+            : $pdf;
 
-        return response($pdf, Response::HTTP_OK, [
+        return response($pdfOutput, Response::HTTP_OK, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => sprintf(
                 'inline; filename="bast-%s-%s.pdf"',
@@ -199,8 +207,13 @@ class BastSignatureController extends Controller
             'materialItems' => collect($terminOne->material_items ?? []),
             'serviceItems' => collect($terminOne->service_items ?? []),
         ])->setPaper('a4', 'portrait')->output();
+        $attachmentPdf = $this->bastPdfAttachmentService->pdfOutput($terminOne);
+        $pdfOutputs = array_filter([$pdf, $attachmentPdf]);
+        $pdfOutput = count($pdfOutputs) > 1
+            ? app(PdfMergeService::class)->merge($pdfOutputs, context: ['controller' => static::class])
+            : $pdf;
 
-        return response($pdf, Response::HTTP_OK, [
+        return response($pdfOutput, Response::HTTP_OK, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => sprintf('inline; filename="bast-termin-1-%s.pdf"', $terminOne->nomor_order),
             'Cache-Control' => 'private, no-store, max-age=0',

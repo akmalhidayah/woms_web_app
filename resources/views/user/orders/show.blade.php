@@ -26,9 +26,6 @@
             ->filter(fn (array $item) => filled($item['url'] ?? null))
             ->values();
         $activeDocumentPreview = $availableDocumentPreviewItems->first();
-        $workshop = $order['workshop'] ?? [];
-        $workshopPackages = collect($workshop['packages'] ?? []);
-        $workshopPics = collect($workshop['pics'] ?? []);
         $targetDateLabel = $order['progress']['target'] ?: $order['target_selesai_order'] ?: '-';
         $targetRangeLabel = null;
 
@@ -130,98 +127,6 @@
                 </div>
             </div>
         </section>
-
-        @if ($order['is_workshop_routed'] ?? false)
-            <section class="rounded-[18px] border border-stone-200 bg-white p-3.5 shadow-sm sm:p-4">
-                <div class="flex items-center gap-2">
-                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#7f1017] text-white" aria-hidden="true">
-                        <i data-lucide="hard-hat" class="h-4 w-4"></i>
-                    </span>
-                    <h2 class="text-lg font-black text-slate-900">Informasi Pekerjaan Bengkel</h2>
-                </div>
-
-                <div class="mt-3 grid gap-2.5 sm:grid-cols-3">
-                    <div class="rounded-xl border border-stone-200 bg-stone-50/70 p-3">
-                        <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Regu</div>
-                        <div class="mt-1 text-sm font-black leading-5 text-slate-900">{{ $workshop['regu'] ?: '-' }}</div>
-                    </div>
-                    <div class="rounded-xl border border-stone-200 bg-stone-50/70 p-3">
-                        <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Persiapan Order</div>
-                        <div class="mt-1 text-sm font-black leading-5 text-slate-900">{{ $workshop['preparation_label'] ?: 'Belum Memilih Persiapan' }}</div>
-                    </div>
-                    <div class="rounded-xl border border-stone-200 bg-stone-50/70 p-3">
-                        <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Progress Pekerjaan</div>
-                        <div class="mt-1 text-sm font-black leading-5 text-slate-900">{{ $workshop['status'] ?: '-' }}</div>
-                    </div>
-                    <div class="rounded-xl border border-stone-200 bg-stone-50/70 p-3 sm:col-span-3">
-                        <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Catatan Persiapan</div>
-                        <div class="mt-1 text-sm font-semibold leading-5 text-slate-700">{{ $workshop['preparation_note'] ?: '-' }}</div>
-                    </div>
-                    <div class="rounded-xl border border-stone-200 bg-stone-50/70 p-3 sm:col-span-3">
-                        <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Catatan Progress</div>
-                        <div class="mt-1 text-sm font-semibold leading-5 text-slate-700">{{ $workshop['keterangan_progress'] ?: '-' }}</div>
-                    </div>
-                </div>
-
-                @if ($workshopPackages->isEmpty())
-                    <div class="mt-3 rounded-xl border border-stone-200 bg-white p-3">
-                        <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">PIC Pekerjaan</div>
-                        <div class="mt-2 flex flex-wrap gap-2.5">
-                            @forelse ($workshopPics as $pic)
-                                <div class="flex items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-2.5 py-2">
-                                    @if ($pic['avatar_url'])
-                                        <img src="{{ $pic['avatar_url'] }}" alt="{{ $pic['name'] }}" class="h-8 w-8 rounded-full object-cover ring-1 ring-stone-200" style="object-position: {{ $pic['avatar_position'] }};" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
-                                        <span style="display:none" class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-600 ring-1 ring-stone-200">{{ $pic['initials'] }}</span>
-                                    @else
-                                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-600 ring-1 ring-stone-200">{{ $pic['initials'] }}</span>
-                                    @endif
-                                    <span class="text-sm font-bold text-slate-800">{{ $pic['name'] }}</span>
-                                </div>
-                            @empty
-                                <span class="text-sm font-semibold text-slate-500">Belum ada PIC.</span>
-                            @endforelse
-                        </div>
-                    </div>
-                @endif
-            </section>
-
-            @if ($workshopPackages->isNotEmpty())
-                <section class="rounded-[18px] border border-stone-200 bg-white p-3.5 shadow-sm sm:p-4">
-                    <div class="flex items-center gap-2">
-                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#7f1017] text-white" aria-hidden="true">
-                            <i data-lucide="boxes" class="h-4 w-4"></i>
-                        </span>
-                        <h2 class="text-lg font-black text-slate-900">Pekerjaan Paket</h2>
-                    </div>
-
-                    <div class="mt-3 grid gap-2.5 lg:grid-cols-2">
-                        @foreach ($workshopPackages as $package)
-                            <article class="rounded-xl border border-stone-200 bg-stone-50/70 p-3">
-                                <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Nama Pekerjaan Paket</div>
-                                <div class="mt-1 text-sm font-black leading-5 text-slate-900">{{ $package['name'] }}</div>
-
-                                <div class="mt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">PIC</div>
-                                <div class="mt-2 flex flex-wrap gap-2">
-                                    @forelse ($package['pics'] as $pic)
-                                        <div class="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-2.5 py-2">
-                                            @if ($pic['avatar_url'])
-                                                <img src="{{ $pic['avatar_url'] }}" alt="{{ $pic['name'] }}" class="h-8 w-8 rounded-full object-cover ring-1 ring-stone-200" style="object-position: {{ $pic['avatar_position'] }};" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
-                                                <span style="display:none" class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-600 ring-1 ring-stone-200">{{ $pic['initials'] }}</span>
-                                            @else
-                                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-600 ring-1 ring-stone-200">{{ $pic['initials'] }}</span>
-                                            @endif
-                                            <span class="text-sm font-bold text-slate-800">{{ $pic['name'] }}</span>
-                                        </div>
-                                    @empty
-                                        <span class="text-sm font-semibold text-slate-500">Belum ada PIC.</span>
-                                    @endforelse
-                                </div>
-                            </article>
-                        @endforeach
-                    </div>
-                </section>
-            @endif
-        @endif
 
         <section class="rounded-[18px] border border-stone-200 bg-white p-3.5 shadow-sm sm:p-4">
             <div class="flex items-center gap-2">

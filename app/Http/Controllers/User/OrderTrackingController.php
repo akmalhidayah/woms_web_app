@@ -1256,29 +1256,36 @@ class OrderTrackingController extends Controller
     {
         $workshop = $order->orderWorkshop;
         $preparationLabel = $workshop?->preparationLabel() ?? 'Belum Memilih Persiapan';
-
         $progressLabel = $this->resolveWorkshopTimelineValue($order);
+        $packages = $this->mapWorkshopPackages($order);
         $summary = match (true) {
             $workshop?->progress_status === OrderWorkshop::PROGRESS_DONE => 'Pekerjaan bengkel sudah selesai dan siap masuk tahap berikutnya.',
             $workshop?->preparationCompleted() => 'Persiapan Order selesai; status pekerjaan mengikuti progress bengkel.',
             default => $preparationLabel,
         };
+        $workers = $packages === [] ? $this->resolveBengkelTaskPicAssignments($workshopTask) : [];
+        $rows = [
+            ['label' => 'Persiapan Order', 'value' => $preparationLabel],
+            ['label' => 'Progress Pekerjaan', 'value' => $progressLabel],
+            ['label' => 'Regu', 'value' => $workshopTask?->catatan ?: $order->catatan ?: '-'],
+            ['label' => 'Catatan Persiapan', 'value' => $workshop?->preparation_note ?: '-'],
+            ['label' => 'Catatan Progress', 'value' => $workshop?->keterangan_progress ?: '-'],
+        ];
 
-        $workers = $this->resolveBengkelTaskPicAssignments($workshopTask);
+        if ($packages === []) {
+            array_splice($rows, 3, 0, [[
+                'label' => 'Dikerjakan Oleh',
+                'value' => $workers !== [] ? count($workers).' PIC' : 'Belum ada PIC',
+            ]]);
+        }
 
         return [
-            ...$this->buildTimelineInfoPayload('Pekerjaan Bengkel', [
-                ['label' => 'Persiapan Order', 'value' => $preparationLabel],
-                ['label' => 'Progress Pekerjaan', 'value' => $progressLabel],
-                ['label' => 'Regu', 'value' => $workshopTask?->catatan ?: $order->catatan ?: '-'],
-                ['label' => 'Dikerjakan Oleh', 'value' => $workers !== [] ? count($workers).' PIC' : 'Belum ada PIC'],
-                ['label' => 'Catatan Persiapan', 'value' => $workshop?->preparation_note ?: '-'],
-                ['label' => 'Catatan Progress', 'value' => $workshop?->keterangan_progress ?: '-'],
-            ], $this->resolveWorkshopTimelineTone($order)),
+            ...$this->buildTimelineInfoPayload('Pekerjaan Bengkel', $rows, $this->resolveWorkshopTimelineTone($order)),
             'headline' => $progressLabel,
             'summary' => $summary,
             'badge' => $preparationLabel,
             'workers' => $workers,
+            'packages' => $packages,
         ];
     }
 

@@ -93,7 +93,6 @@ class WorkshopOrderTrackingDetailTest extends TestCase
         $this->actingAs($user)
             ->get(route('user.orders.show', $order))
             ->assertOk()
-            ->assertSee('Informasi Pekerjaan Bengkel')
             ->assertSee('Persiapan Selesai')
             ->assertSee('Pekerjaan Selesai')
             ->assertSee('Pekerjaan Paket')

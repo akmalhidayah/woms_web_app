@@ -2,11 +2,14 @@
 
 namespace Tests\Feature\Admin\Hpp;
 
+use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Models\BudgetVerification;
 use App\Models\Hpp;
 use App\Models\HppSignature;
 use App\Models\LhppBast;
 use App\Models\Order;
+use App\Models\OrderDocument;
+use App\Models\OrderScopeOfWork;
 use App\Models\PurchaseOrder;
 use App\Models\User;
 use App\Support\HppIndexTabs;
@@ -125,6 +128,35 @@ class HppIndexTabsTest extends TestCase
 
         $this->assertCount(10, $response->viewData('rows')->items());
         $this->assertSame(11, $response->viewData('rows')->total());
+    }
+
+    public function test_admin_index_shows_document_availability_below_job_detail(): void
+    {
+        $admin = $this->admin();
+        $hpp = $this->hpp($admin, Hpp::STATUS_DRAFT, 'DOCUMENT-INDICATORS');
+
+        OrderScopeOfWork::query()->create([
+            'order_id' => $hpp->order_id,
+            'nama_penginput' => $admin->name,
+            'tanggal_dokumen' => '2026-07-01',
+            'scope_items' => [['item' => 'Scope pekerjaan']],
+            'created_by' => $admin->id,
+        ]);
+        OrderDocument::query()->create([
+            'order_id' => $hpp->order_id,
+            'jenis_dokumen' => OrderDocumentType::Abnormalitas->value,
+            'nama_file_asli' => 'abnormalitas.pdf',
+            'path_file' => 'testing/abnormalitas.pdf',
+            'uploaded_by' => $admin->id,
+            'uploaded_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.hpp.index'))
+            ->assertOk()
+            ->assertSee('title="Scope of Work tersedia"', false)
+            ->assertSee('title="Abnormalitas tersedia"', false)
+            ->assertSee('title="Gambar Teknik belum tersedia"', false);
     }
 
     public function test_latest_hpp_activity_is_ordered_by_updated_at_then_id(): void

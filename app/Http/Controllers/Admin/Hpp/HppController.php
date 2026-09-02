@@ -52,6 +52,8 @@ class HppController extends Controller
         $rowsQuery = Hpp::query()
             ->with([
                 'order:id,seksi,unit_kerja,notifikasi',
+                'order.documents:id,order_id,jenis_dokumen',
+                'order.scopeOfWork:id,order_id',
                 'creator:id,name,role',
                 'outlineAgreement:id,nomor_oa',
                 'unitWork:id,name',

@@ -163,6 +163,27 @@
                                     'role_label' => $activeSignature?->displayRoleLabel() ?: '',
                                     'signer_name' => $activeSignature?->displaySignerName() ?: '',
                                 ];
+                                $documentIndicators = [
+                                    [
+                                        'label' => 'SOW',
+                                        'title' => 'Scope of Work',
+                                        'ready' => $row->order?->scopeOfWork !== null,
+                                    ],
+                                    [
+                                        'label' => 'Abnormalitas',
+                                        'title' => 'Abnormalitas',
+                                        'ready' => (bool) $row->order?->documents?->contains(
+                                            fn (\App\Models\OrderDocument $document): bool => $document->jenis_dokumen === \App\Domain\Orders\Enums\OrderDocumentType::Abnormalitas
+                                        ),
+                                    ],
+                                    [
+                                        'label' => 'Gambar Teknik',
+                                        'title' => 'Gambar Teknik',
+                                        'ready' => (bool) $row->order?->documents?->contains(
+                                            fn (\App\Models\OrderDocument $document): bool => $document->jenis_dokumen === \App\Domain\Orders\Enums\OrderDocumentType::GambarTeknik
+                                        ),
+                                    ],
+                                ];
                             @endphp
                             <tr class="align-top hover:bg-slate-50">
                                 <td class="px-5 py-3 text-[10px] text-slate-800">
@@ -182,6 +203,17 @@
                                         <span class="text-slate-500">Unit: <strong class="font-semibold text-slate-700">{{ $row->unit_kerja }}</strong></span>
                                         <span class="text-slate-300">|</span>
                                         <span class="text-blue-500">Seksi: <strong class="font-semibold text-blue-700">{{ $row->order?->seksi ?: '-' }}</strong></span>
+                                    </div>
+                                    <div class="mt-1.5 flex flex-wrap items-center gap-1">
+                                        @foreach ($documentIndicators as $documentIndicator)
+                                            <span
+                                                class="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px] font-semibold {{ $documentIndicator['ready'] ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-400' }}"
+                                                title="{{ $documentIndicator['title'] }} {{ $documentIndicator['ready'] ? 'tersedia' : 'belum tersedia' }}"
+                                            >
+                                                <i data-lucide="{{ $documentIndicator['ready'] ? 'check' : 'minus' }}" class="h-2.5 w-2.5"></i>
+                                                {{ $documentIndicator['label'] }}
+                                            </span>
+                                        @endforeach
                                     </div>
                                 </td>
                                 <td class="px-5 py-3">

@@ -167,7 +167,7 @@
                                             Clear
                                         </button>
                                     </div>
-                                    <canvas id="signatureCanvas" width="620" height="260" class="relative z-10 h-48 w-full rounded-xl bg-transparent sm:h-56 xl:h-60"></canvas>
+                                    <canvas id="signatureCanvas" width="620" height="260" class="relative z-10 h-48 w-full touch-none rounded-xl bg-transparent sm:h-56 xl:h-60"></canvas>
                                     <div id="signaturePadPlaceholder" class="pointer-events-none absolute inset-3 z-0 flex items-center justify-center rounded-xl text-center">
                                         <div class="px-4 text-slate-400">
                                             <i data-lucide="pen-line" class="mx-auto h-8 w-8 opacity-70"></i>
@@ -195,7 +195,7 @@
     @include('approval.partials.signature-pad-visuals')
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
+        (() => {
             const canvas = document.getElementById('signatureCanvas');
             const form = document.getElementById('signatureForm');
             const signatureFile = document.getElementById('signatureFile');
@@ -215,6 +215,9 @@
             let lastPoint = null;
             let strokePointCount = 0;
             let strokeDistance = 0;
+            let activePointerId = null;
+            let resizeTimer = null;
+            let resizePending = false;
 
             const minimumStrokePoints = 8;
             const minimumStrokeDistance = 40;
@@ -222,9 +225,23 @@
             const resizeCanvas = () => {
                 const rect = canvas.getBoundingClientRect();
                 const ratio = window.devicePixelRatio || 1;
-                const snapshot = touched ? canvas.toDataURL('image/png') : null;
-                canvas.width = Math.max(1, Math.floor(rect.width * ratio));
-                canvas.height = Math.max(1, Math.floor(rect.height * ratio));
+                const targetWidth = Math.max(1, Math.floor(rect.width * ratio));
+                const targetHeight = Math.max(1, Math.floor(rect.height * ratio));
+
+                if (canvas.width === targetWidth && canvas.height === targetHeight) {
+                    return;
+                }
+
+                const snapshot = touched ? document.createElement('canvas') : null;
+
+                if (snapshot) {
+                    snapshot.width = canvas.width;
+                    snapshot.height = canvas.height;
+                    snapshot.getContext('2d')?.drawImage(canvas, 0, 0);
+                }
+
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
                 ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
                 ctx.lineWidth = 2.4;
                 ctx.lineCap = 'round';
@@ -232,10 +249,31 @@
                 ctx.strokeStyle = '#0f172a';
 
                 if (snapshot) {
-                    const image = new Image();
-                    image.onload = () => ctx.drawImage(image, 0, 0, rect.width, rect.height);
-                    image.src = snapshot;
+                    ctx.drawImage(
+                        snapshot,
+                        0,
+                        0,
+                        snapshot.width,
+                        snapshot.height,
+                        0,
+                        0,
+                        rect.width,
+                        rect.height,
+                    );
                 }
+            };
+
+            const scheduleCanvasResize = () => {
+                resizePending = true;
+                window.clearTimeout(resizeTimer);
+                resizeTimer = window.setTimeout(() => {
+                    if (drawing) {
+                        return;
+                    }
+
+                    resizePending = false;
+                    resizeCanvas();
+                }, 200);
             };
 
             const applyCanvasStyle = () => {
@@ -288,18 +326,23 @@
             };
 
             const point = (event) => {
-                const source = event.touches ? event.touches[0] : event;
                 const rect = canvas.getBoundingClientRect();
 
                 return {
-                    x: source.clientX - rect.left,
-                    y: source.clientY - rect.top,
+                    x: event.clientX - rect.left,
+                    y: event.clientY - rect.top,
                 };
             };
 
             const start = (event) => {
+                if (activePointerId !== null || (event.pointerType === 'mouse' && event.button !== 0)) {
+                    return;
+                }
+
                 event.preventDefault();
                 drawing = true;
+                activePointerId = event.pointerId;
+                canvas.setPointerCapture?.(event.pointerId);
                 signatureVisuals?.active();
                 const p = point(event);
                 lastPoint = p;
@@ -308,35 +351,54 @@
             };
 
             const move = (event) => {
-                if (!drawing) return;
-                event.preventDefault();
-                const p = point(event);
-                if (lastPoint) {
-                    strokeDistance += Math.hypot(p.x - lastPoint.x, p.y - lastPoint.y);
+                if (!drawing || event.pointerId !== activePointerId) {
+                    return;
                 }
-                strokePointCount++;
-                lastPoint = p;
-                ctx.lineTo(p.x, p.y);
-                ctx.stroke();
-                touched = true;
+
+                event.preventDefault();
+                const coalescedEvents = event.getCoalescedEvents?.();
+                const pointerEvents = coalescedEvents?.length ? coalescedEvents : [event];
+
+                pointerEvents.forEach((pointerEvent) => {
+                    const p = point(pointerEvent);
+
+                    if (lastPoint) {
+                        strokeDistance += Math.hypot(p.x - lastPoint.x, p.y - lastPoint.y);
+                    }
+
+                    strokePointCount++;
+                    lastPoint = p;
+                    ctx.lineTo(p.x, p.y);
+                    ctx.stroke();
+                    touched = true;
+                });
             };
 
-            const stop = () => {
+            const stop = (event) => {
+                if (!drawing || event.pointerId !== activePointerId) {
+                    return;
+                }
+
                 drawing = false;
+                activePointerId = null;
                 lastPoint = null;
 
                 if (touched) {
                     signatureVisuals?.completed();
                 }
+
+                if (resizePending) {
+                    scheduleCanvasResize();
+                }
             };
 
-            canvas.addEventListener('mousedown', start);
-            canvas.addEventListener('mousemove', move);
-            window.addEventListener('mouseup', stop);
-            canvas.addEventListener('touchstart', start, { passive: false });
-            canvas.addEventListener('touchmove', move, { passive: false });
-            canvas.addEventListener('touchend', stop);
-            window.addEventListener('resize', resizeCanvas);
+            canvas.addEventListener('pointerdown', start);
+            canvas.addEventListener('pointermove', move);
+            canvas.addEventListener('pointerup', stop);
+            canvas.addEventListener('pointercancel', stop);
+            canvas.addEventListener('lostpointercapture', stop);
+            window.addEventListener('resize', scheduleCanvasResize);
+            window.addEventListener('orientationchange', scheduleCanvasResize);
 
             clearButton?.addEventListener('click', () => {
                 clearCanvas();
@@ -387,7 +449,7 @@
             });
 
             resizeCanvas();
-        });
+        })();
     </script>
 </body>
 </html>

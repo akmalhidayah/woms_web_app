@@ -69,23 +69,92 @@
     </main>
     @if ($canSign)
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
+        (() => {
             const canvas = document.getElementById('workshop-handover-user-signature');
             const form = document.getElementById('workshop-handover-sign-form');
             const input = document.getElementById('workshop-handover-user-signature-data');
             const clear = document.getElementById('workshop-handover-user-clear');
             const error = document.getElementById('workshop-handover-user-error');
             if (!canvas || !form || !input) return;
-            const ctx = canvas.getContext('2d'); let drawing = false; let stroke = false;
-            const resize = () => { const r = canvas.getBoundingClientRect(), d = window.devicePixelRatio || 1; canvas.width = r.width*d; canvas.height = r.height*d; ctx.setTransform(d,0,0,d,0,0); ctx.lineWidth=2; ctx.lineCap='round'; ctx.strokeStyle='#0f172a'; };
-            const point = e => { const r=canvas.getBoundingClientRect(); return [e.clientX-r.left,e.clientY-r.top]; };
-            canvas.addEventListener('pointerdown', e => { drawing=true; canvas.setPointerCapture?.(e.pointerId); const [x,y]=point(e); ctx.beginPath(); ctx.moveTo(x,y); });
-            canvas.addEventListener('pointermove', e => { if(!drawing)return; const [x,y]=point(e); ctx.lineTo(x,y); ctx.stroke(); stroke=true; });
-            ['pointerup','pointercancel'].forEach(n=>canvas.addEventListener(n,()=>drawing=false));
-            clear?.addEventListener('click',()=>{ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight); input.value=''; stroke=false;});
-            form.addEventListener('submit', e => { if(!stroke){e.preventDefault(); error?.classList.remove('hidden'); return;} input.value=canvas.toDataURL('image/png'); });
-            requestAnimationFrame(resize); window.addEventListener('resize', resize);
-        });
+            const ctx = canvas.getContext('2d');
+            let drawing = false;
+            let stroke = false;
+            let activePointerId = null;
+            let resizeTimer = null;
+            let resizePending = false;
+            const applyCanvasStyle = () => { ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#0f172a'; };
+            const resize = () => {
+                const rect = canvas.getBoundingClientRect();
+                const ratio = window.devicePixelRatio || 1;
+                const targetWidth = Math.max(1, Math.floor(rect.width * ratio));
+                const targetHeight = Math.max(1, Math.floor(rect.height * ratio));
+
+                if (canvas.width === targetWidth && canvas.height === targetHeight) return;
+
+                const snapshot = stroke ? document.createElement('canvas') : null;
+
+                if (snapshot) {
+                    snapshot.width = canvas.width;
+                    snapshot.height = canvas.height;
+                    snapshot.getContext('2d')?.drawImage(canvas, 0, 0);
+                }
+
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
+                ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+                applyCanvasStyle();
+
+                if (snapshot) {
+                    ctx.drawImage(snapshot, 0, 0, snapshot.width, snapshot.height, 0, 0, rect.width, rect.height);
+                }
+            };
+            const scheduleResize = () => {
+                resizePending = true;
+                window.clearTimeout(resizeTimer);
+                resizeTimer = window.setTimeout(() => {
+                    if (drawing) return;
+                    resizePending = false;
+                    resize();
+                }, 200);
+            };
+            const point = event => {
+                const rect = canvas.getBoundingClientRect();
+                return [event.clientX - rect.left, event.clientY - rect.top];
+            };
+            const stopDrawing = event => {
+                if (!drawing || event.pointerId !== activePointerId) return;
+                drawing = false;
+                activePointerId = null;
+                if (resizePending) scheduleResize();
+            };
+            canvas.addEventListener('pointerdown', event => {
+                if (activePointerId !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
+                event.preventDefault();
+                drawing = true;
+                activePointerId = event.pointerId;
+                canvas.setPointerCapture?.(event.pointerId);
+                const [x, y] = point(event);
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+            });
+            canvas.addEventListener('pointermove', event => {
+                if (!drawing || event.pointerId !== activePointerId) return;
+                event.preventDefault();
+                const pointerEvents = event.getCoalescedEvents?.();
+                (pointerEvents?.length ? pointerEvents : [event]).forEach((pointerEvent) => {
+                    const [x, y] = point(pointerEvent);
+                    ctx.lineTo(x, y);
+                    ctx.stroke();
+                    stroke = true;
+                });
+            });
+            ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((name) => canvas.addEventListener(name, stopDrawing));
+            clear?.addEventListener('click', () => { ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight); input.value = ''; stroke = false; });
+            form.addEventListener('submit', event => { if (!stroke) { event.preventDefault(); error?.classList.remove('hidden'); return; } input.value = canvas.toDataURL('image/png'); });
+            resize();
+            window.addEventListener('resize', scheduleResize);
+            window.addEventListener('orientationchange', scheduleResize);
+        })();
     </script>
     @endif
 </body>

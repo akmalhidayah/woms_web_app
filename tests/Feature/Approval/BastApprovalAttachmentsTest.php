@@ -110,6 +110,26 @@ class BastApprovalAttachmentsTest extends TestCase
             ->assertSee('disabled', false);
     }
 
+    public function test_bast_signature_pad_uses_pointer_events_without_waiting_for_pdf_preview(): void
+    {
+        [$signer, $order, $hpp] = $this->approvalContext('BAST-STABLE-PAD');
+        $bast = $this->bast($order, $signer, 'termin_1', hppId: $hpp->id);
+        $token = $this->signature($bast, $signer, 'bast-stable-pad-token');
+
+        $this->actingAs($signer)
+            ->get(route('approval.bast.show', $token))
+            ->assertOk()
+            ->assertSee('touch-none', false)
+            ->assertSee('initializeSignaturePad();', false)
+            ->assertSee("canvas.addEventListener('pointerdown', start);", false)
+            ->assertSee("canvas.addEventListener('pointercancel', stop);", false)
+            ->assertSee('canvas.setPointerCapture?.(event.pointerId);', false)
+            ->assertSee('const minimumStrokePoints = 8;', false)
+            ->assertSee('const minimumStrokeDistance = 40;', false)
+            ->assertDontSee("canvas.addEventListener('touchstart', start", false)
+            ->assertDontSee("canvas.addEventListener('mousedown', start", false);
+    }
+
     /**
      * @return array{User, Order, Hpp}
      */

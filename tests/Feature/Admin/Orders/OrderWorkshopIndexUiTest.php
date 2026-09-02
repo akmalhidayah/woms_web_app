@@ -4,6 +4,7 @@ namespace Tests\Feature\Admin\Orders;
 
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\Order;
+use App\Models\OrderWorkshop;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -43,5 +44,66 @@ class OrderWorkshopIndexUiTest extends TestCase
             ->assertSee('Semua Regu')
             ->assertDontSee('Per Halaman')
             ->assertDontSee('Pilih regu untuk langsung memfilter tabel.');
+    }
+
+    public function test_estimator_regu_is_available_in_workshop_orders_and_cannot_enter_quality_control(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+        $estimatorOrder = $this->makeWorkshopOrder($admin, 'WORKSHOP-ESTIMATOR-001', Order::WORKSHOP_REGU_ESTIMATOR);
+        $fabrikasiOrder = $this->makeWorkshopOrder($admin, 'WORKSHOP-FABRIKASI-001', Order::WORKSHOP_REGU_FABRIKASI);
+        $estimatorOrder->orderWorkshop()->create([
+            'preparation_status' => OrderWorkshop::PREPARATION_COMPLETED,
+            'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.orders.workshop.index', ['regu' => Order::WORKSHOP_REGU_ESTIMATOR]))
+            ->assertOk()
+            ->assertSee('Regu Estimator')
+            ->assertSee($estimatorOrder->nomor_order)
+            ->assertDontSee($fabrikasiOrder->nomor_order);
+
+        $this->actingAs($admin)
+            ->patchJson(route('admin.orders.workshop.update', $estimatorOrder), [
+                'progress_status' => OrderWorkshop::PROGRESS_QUALITY_CONTROL,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('progress_status');
+
+        $this->assertDatabaseHas('order_workshops', [
+            'order_id' => $estimatorOrder->id,
+            'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson(route('admin.orders.workshop.update', $estimatorOrder), [
+                'progress_status' => OrderWorkshop::PROGRESS_DONE,
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('order_workshops', [
+            'order_id' => $estimatorOrder->id,
+            'progress_status' => OrderWorkshop::PROGRESS_DONE,
+        ]);
+    }
+
+    private function makeWorkshopOrder(User $admin, string $nomorOrder, string $regu): Order
+    {
+        return Order::query()->create([
+            'nomor_order' => $nomorOrder,
+            'nama_pekerjaan' => 'Pekerjaan Bengkel '.$nomorOrder,
+            'unit_kerja' => 'Unit Test',
+            'seksi' => 'Seksi Test',
+            'deskripsi' => 'Detail pekerjaan bengkel',
+            'prioritas' => Order::PRIORITY_MEDIUM,
+            'catatan_status' => OrderUserNoteStatus::ApprovedWorkshop,
+            'catatan' => $regu,
+            'tanggal_order' => '2026-06-01',
+            'target_selesai' => '2026-06-10',
+            'created_by' => $admin->id,
+        ]);
     }
 }

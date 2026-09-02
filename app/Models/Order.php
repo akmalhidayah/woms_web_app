@@ -8,17 +8,26 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Order extends Model
 {
     use HasFactory;
 
     public const PRIORITY_LOW = 'medium_gt_10_hari';
+
     public const PRIORITY_MEDIUM = 'high_gt_7_sd_10_hari';
+
     public const PRIORITY_HIGH = 'emergency_lte_7_hari';
+
     public const PRIORITY_URGENT = 'emergency_unplan_overhaul';
+
+    public const WORKSHOP_REGU_FABRIKASI = 'Regu Fabrikasi';
+
+    public const WORKSHOP_REGU_REFURBISH = 'Regu Bengkel (Refurbish)';
+
+    public const WORKSHOP_REGU_ESTIMATOR = 'Regu Estimator';
 
     /**
      * The attributes that are mass assignable.
@@ -174,18 +183,31 @@ class Order extends Model
                 'Jasa Konstruksi',
                 'Jasa Pengerjaan Mesin',
             ],
-            OrderUserNoteStatus::ApprovedWorkshop->value => [
-                'Regu Fabrikasi',
-                'Regu Bengkel (Refurbish)',
-            ],
+            OrderUserNoteStatus::ApprovedWorkshop->value => self::workshopReguOptions(),
             OrderUserNoteStatus::ApprovedWorkshopJasa->value => [
                 'Jasa Fabrikasi',
                 'Jasa Konstruksi',
                 'Jasa Pengerjaan Mesin',
-                'Regu Fabrikasi',
-                'Regu Bengkel (Refurbish)',
+                ...self::workshopReguOptions(),
             ],
         ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function workshopReguOptions(): array
+    {
+        return [
+            self::WORKSHOP_REGU_FABRIKASI,
+            self::WORKSHOP_REGU_REFURBISH,
+            self::WORKSHOP_REGU_ESTIMATOR,
+        ];
+    }
+
+    public function isEstimatorWorkshopRegu(): bool
+    {
+        return trim((string) $this->catatan) === self::WORKSHOP_REGU_ESTIMATOR;
     }
 
     /**

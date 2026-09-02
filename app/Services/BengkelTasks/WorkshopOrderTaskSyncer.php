@@ -113,15 +113,12 @@ class WorkshopOrderTaskSyncer
     {
         $regu = trim((string) $order->catatan);
 
-        if (in_array($regu, [
-            'Regu Fabrikasi',
-            'Regu Bengkel (Refurbish)',
-        ], true)) {
+        if (in_array($regu, Order::workshopReguOptions(), true)) {
             return $regu;
         }
 
         $existingRegu = trim((string) $task->catatan);
 
-        return $existingRegu !== '' ? $existingRegu : 'Regu Fabrikasi';
+        return $existingRegu !== '' ? $existingRegu : Order::WORKSHOP_REGU_FABRIKASI;
     }
 }

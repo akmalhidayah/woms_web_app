@@ -118,10 +118,7 @@ class OrderWorkshopController extends Controller
             'selectedReadiness' => $readiness,
             'progressOptions' => OrderWorkshop::progressOptions(),
             'preparationOptions' => OrderWorkshop::preparationOptions(),
-            'reguOptions' => [
-                'Regu Fabrikasi',
-                'Regu Bengkel (Refurbish)',
-            ],
+            'reguOptions' => Order::workshopReguOptions(),
             'structureUnitOptions' => UnitWork::query()
                 ->with(['sections:id,unit_work_id,name'])
                 ->orderBy('name')
@@ -194,6 +191,14 @@ class OrderWorkshopController extends Controller
                 )) {
                 throw ValidationException::withMessages([
                     'preparation_status' => 'Persiapan Order terkunci karena proses Quality Control, Selesai, atau Serah Terima sudah dimulai.',
+                ]);
+            }
+
+            if (array_key_exists('progress_status', $validated)
+                && $requestedProgress === OrderWorkshop::PROGRESS_QUALITY_CONTROL
+                && $lockedOrder->isEstimatorWorkshopRegu()) {
+                throw ValidationException::withMessages([
+                    'progress_status' => 'Regu Estimator merupakan pekerjaan non-critical dan tidak menggunakan Quality Control.',
                 ]);
             }
 

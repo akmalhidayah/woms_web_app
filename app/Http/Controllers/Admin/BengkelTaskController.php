@@ -35,11 +35,6 @@ class BengkelTaskController extends Controller
 
     private const ARCHIVE_DISPLAY_DESCRIPTION = 'Arsip dari Display Pekerjaan Bengkel.';
 
-    private const CATATAN_REGU_ALLOWED = [
-        'Regu Fabrikasi',
-        'Regu Bengkel (Refurbish)',
-    ];
-
     public function __construct(
         private readonly WorkshopOrderTaskSyncer $workshopOrderTaskSyncer,
         private readonly WorkshopReadiness $workshopReadiness,
@@ -189,7 +184,7 @@ class BengkelTaskController extends Controller
     public function create(): View
     {
         $picOptions = BengkelPic::query()->orderBy('name')->get();
-        $catatanOptions = self::CATATAN_REGU_ALLOWED;
+        $catatanOptions = Order::workshopReguOptions();
         $units = UnitWork::with('sections')->orderBy('name')->get();
         $progressOptions = OrderWorkshop::progressOptions();
 
@@ -206,11 +201,17 @@ class BengkelTaskController extends Controller
         $data = $this->validateData($request);
         $nomorOrder = trim((string) ($data['nomor_order'] ?? ''));
         unset($data['nomor_order']);
+        $linkedOrder = ! empty($data['order_id'])
+            ? Order::query()->find($data['order_id'])
+            : null;
+        $this->assertEstimatorReguDoesNotEnterQualityControl(
+            $linkedOrder,
+            $data['catatan'] ?? null,
+            (string) $data['progress_status'],
+        );
 
         if ($this->workshopReadiness->requiresReadiness((string) $data['progress_status'])) {
-            $linkedWorkshop = ! empty($data['order_id'])
-                ? Order::query()->with('orderWorkshop')->find($data['order_id'])?->orderWorkshop
-                : null;
+            $linkedWorkshop = $linkedOrder?->loadMissing('orderWorkshop')->orderWorkshop;
 
             if (! $this->workshopReadiness->canAdvance($linkedWorkshop)) {
                 throw ValidationException::withMessages([
@@ -249,7 +250,7 @@ class BengkelTaskController extends Controller
         $bengkel_task->refresh()->loadMissing('order');
 
         $picOptions = BengkelPic::query()->orderBy('name')->get();
-        $catatanOptions = self::CATATAN_REGU_ALLOWED;
+        $catatanOptions = Order::workshopReguOptions();
         $units = UnitWork::with('sections')->orderBy('name')->get();
         $progressOptions = OrderWorkshop::progressOptions();
 
@@ -331,7 +332,7 @@ class BengkelTaskController extends Controller
         $hasPicInput = $request->exists('pic_assignments') || $request->exists('pic_ids');
         $data = $this->validateData($request);
         unset($data['nomor_order']);
-        $this->guardProgressChange($bengkel_task, (string) $data['progress_status']);
+        $this->guardProgressChange($bengkel_task, (string) $data['progress_status'], $data['catatan'] ?? null);
 
         if (! empty($data['order_id']) && in_array((int) $data['order_id'], $this->unavailableWorkshopOrderIds($bengkel_task->order_id), true)) {
             return back()
@@ -811,7 +812,7 @@ class BengkelTaskController extends Controller
             'unit_work' => ['nullable', 'string', 'max:255'],
             'seksi' => ['nullable', 'string', 'max:255'],
             'usage_plan_date' => ['nullable', 'date'],
-            'catatan' => ['nullable', 'string', 'in:'.implode(',', self::CATATAN_REGU_ALLOWED)],
+            'catatan' => ['nullable', 'string', 'in:'.implode(',', Order::workshopReguOptions())],
             'progress_status' => ['nullable', 'string', 'in:'.implode(',', array_keys(OrderWorkshop::progressOptions()))],
             'pending_reason' => ['required_if:progress_status,'.OrderWorkshop::PROGRESS_PENDING, 'nullable', 'string', 'max:1000'],
             'pic_ids' => ['nullable', 'array'],
@@ -904,10 +905,16 @@ class BengkelTaskController extends Controller
         return $validated;
     }
 
-    private function guardProgressChange(BengkelTask $task, string $progressStatus): void
+    private function guardProgressChange(BengkelTask $task, string $progressStatus, ?string $requestedRegu = null): void
     {
         $task->loadMissing('order.orderWorkshop');
         $workshop = $task->order?->orderWorkshop;
+
+        $this->assertEstimatorReguDoesNotEnterQualityControl(
+            $task->order,
+            $requestedRegu ?? $task->catatan,
+            $progressStatus,
+        );
 
         if (in_array($progressStatus, [OrderWorkshop::PROGRESS_QUALITY_CONTROL, OrderWorkshop::PROGRESS_DONE], true)
             && $task->order?->isWorkshopOrder()) {
@@ -930,6 +937,19 @@ class BengkelTaskController extends Controller
                 'progress_status' => 'Proses Quality Control harus diselesaikan sebelum pekerjaan dapat ditandai selesai.',
             ]);
         }
+    }
+
+    private function assertEstimatorReguDoesNotEnterQualityControl(?Order $order, ?string $regu, string $progressStatus): void
+    {
+        if ($progressStatus !== OrderWorkshop::PROGRESS_QUALITY_CONTROL
+            || (! $order?->isEstimatorWorkshopRegu()
+                && trim((string) $regu) !== Order::WORKSHOP_REGU_ESTIMATOR)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'progress_status' => 'Regu Estimator merupakan pekerjaan non-critical dan tidak menggunakan Quality Control.',
+        ]);
     }
 
     /**

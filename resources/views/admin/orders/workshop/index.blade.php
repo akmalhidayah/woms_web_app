@@ -179,8 +179,9 @@
                 @php
                     $reguToggleOptions = [
                         '' => 'Semua Regu',
-                        'Regu Fabrikasi' => 'Regu Fabrikasi',
-                        'Regu Bengkel (Refurbish)' => 'Refurbish',
+                        \App\Models\Order::WORKSHOP_REGU_FABRIKASI => 'Regu Fabrikasi',
+                        \App\Models\Order::WORKSHOP_REGU_REFURBISH => 'Refurbish',
+                        \App\Models\Order::WORKSHOP_REGU_ESTIMATOR => 'Estimator',
                     ];
                 @endphp
                 <nav class="mb-3 flex gap-2 overflow-x-auto pb-1" aria-label="Status order pekerjaan bengkel">
@@ -302,8 +303,9 @@
                                     ]] : [];
                                 }
                                 $workshopTypeLabel = match ($order->catatan) {
-                                    'Regu Fabrikasi' => 'Fabrikasi',
-                                    'Regu Bengkel (Refurbish)' => 'Refurbish',
+                                    \App\Models\Order::WORKSHOP_REGU_FABRIKASI => 'Fabrikasi',
+                                    \App\Models\Order::WORKSHOP_REGU_REFURBISH => 'Refurbish',
+                                    \App\Models\Order::WORKSHOP_REGU_ESTIMATOR => 'Estimator',
                                     default => null,
                                 };
                                 $preparationStatus = $workshop?->preparation_status;
@@ -506,6 +508,7 @@
                                                                 <select name="progress_status" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="progress_status">
                                                                     <option value="">Pilih progress</option>
                                                                     @foreach ($progressOptions as $value => $label)
+                                                                        @continue($value === \App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL && $order->isEstimatorWorkshopRegu())
                                                                         <option value="{{ $value }}" @selected(($workshop?->progress_status ?? '') === $value)>{{ $label }}</option>
                                                                     @endforeach
                                                                 </select>

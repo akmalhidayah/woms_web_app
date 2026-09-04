@@ -8,7 +8,6 @@
             </span>
             <div>
                 <h2 class="text-xs font-bold uppercase tracking-[0.1em] text-slate-800">Penyelesaian Order</h2>
-                <p class="mt-0.5 text-[10px] text-slate-500">Selesai ketika masuk Serah Terima atau ditandai sebagai data legacy</p>
             </div>
         </div>
 
@@ -34,7 +33,6 @@
             </span>
             <div>
                 <h2 class="text-xs font-bold uppercase tracking-[0.1em] text-slate-800">Trend Penyelesaian Order</h2>
-                <p class="mt-0.5 text-[10px] text-slate-500">Kumulatif berdasarkan tanggal order dan waktu penyelesaian</p>
             </div>
         </div>
         <span class="text-[10px] font-bold text-blue-700">Target {{ $workshopSummary['completion_target'] }}%</span>
@@ -58,7 +56,6 @@
         </span>
         <div>
             <h2 class="text-xs font-bold uppercase tracking-[0.1em] text-slate-800">Biaya Order Bengkel Per Bulan</h2>
-            <p class="mt-0.5 text-[10px] text-slate-500">Nilai berasal dari field Biaya pada Order Pekerjaan Bengkel</p>
         </div>
     </div>
 

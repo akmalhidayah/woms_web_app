@@ -1,9 +1,11 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const summary = @json($workshopDashboard['summary']);
+        const reguSummary = @json($workshopDashboard['regu']);
         const trend = @json($workshopDashboard['trend']);
         const monthlyCosts = @json($workshopDashboard['monthly_costs']);
         const completionCanvas = document.getElementById('workshopCompletionChart');
+        const reguCompletionCanvas = document.getElementById('workshopReguCompletionChart');
         const trendCanvas = document.getElementById('workshopCompletionTrendChart');
         const monthlyCostCanvas = document.getElementById('workshopMonthlyCostChart');
 
@@ -81,6 +83,53 @@
                     },
                 },
                 plugins: [completionCenterText],
+            });
+        }
+
+        if (reguCompletionCanvas) {
+            destroyChart('workshopReguCompletionChartInstance');
+            window.workshopReguCompletionChartInstance = new Chart(reguCompletionCanvas, {
+                type: 'bar',
+                data: {
+                    labels: reguSummary.map(item => String(item.name || '').replace(/^Regu /i, '')),
+                    datasets: [{
+                        data: reguSummary.map(item => Number(item.completion_percentage || 0)),
+                        backgroundColor: ['#2563eb', '#f59e0b', '#4f46e5'],
+                        borderRadius: 5,
+                        barThickness: 13,
+                    }],
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            max: 100,
+                            border: { display: false },
+                            grid: { color: 'rgba(100, 116, 139, 0.15)' },
+                            ticks: {
+                                callback: value => `${value}%`,
+                                color: '#64748b',
+                                font: { size: 8, weight: '600' },
+                            },
+                        },
+                        y: {
+                            border: { display: false },
+                            grid: { display: false },
+                            ticks: { color: '#334155', font: { size: 8, weight: '700' } },
+                        },
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: context => `Penyelesaian: ${Number(context.raw || 0).toLocaleString('id-ID')}%`,
+                            },
+                        },
+                    },
+                },
             });
         }
 
@@ -203,6 +252,7 @@
                 resizeState.timeoutId = null;
                 [
                     window.workshopCompletionChartInstance,
+                    window.workshopReguCompletionChartInstance,
                     window.workshopCompletionTrendChartInstance,
                     window.workshopMonthlyCostChartInstance,
                 ].forEach(chart => {

@@ -50,4 +50,10 @@
             </section>
         @endforeach
     </div>
+
+    @if ($workshopDashboard['has_orders'])
+        <div class="relative mt-3 h-[110px] min-w-0 w-full overflow-hidden">
+            <canvas id="workshopReguCompletionChart" class="h-full w-full max-w-full" role="img" aria-label="Grafik penyelesaian per regu"></canvas>
+        </div>
+    @endif
 </article>

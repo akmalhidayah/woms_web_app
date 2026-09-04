@@ -6,8 +6,10 @@ namespace Tests\Feature\Admin;
 
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\BengkelTask;
+use App\Models\Hpp;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
+use App\Models\PurchaseOrder;
 use App\Models\QualityControlReport;
 use App\Models\QualityControlSignature;
 use App\Models\User;
@@ -97,6 +99,32 @@ class WorkshopDashboardServiceTest extends TestCase
         $fullYear = app(WorkshopDashboardService::class)->resolve(2026, 'all');
         $this->assertCount(12, $fullYear['monthly_costs']);
         $this->assertSame(500, collect($fullYear['monthly_costs'])->sum('amount'));
+    }
+
+    public function test_estimator_summary_adds_service_orders_after_they_enter_job_waiting(): void
+    {
+        Carbon::setTestNow('2026-09-04 10:00:00');
+        $user = User::factory()->create();
+        $this->workshopOrder(
+            $user,
+            'WD-ESTIMATOR',
+            '2026-09-01',
+            Order::WORKSHOP_REGU_ESTIMATOR,
+            OrderWorkshop::PROGRESS_DONE,
+        );
+        $this->jobWaitingServiceOrder($user, 'JW-NOT-STARTED', 0);
+        $this->jobWaitingServiceOrder($user, 'JW-IN-PROGRESS', 50);
+        $this->jobWaitingServiceOrder($user, 'JW-COMPLETED', 100);
+        $this->jobWaitingServiceOrder($user, 'JW-NOT-ELIGIBLE', 50, false);
+
+        $dashboard = app(WorkshopDashboardService::class)->resolve(2026, 9);
+        $estimator = collect($dashboard['regu'])->firstWhere('name', Order::WORKSHOP_REGU_ESTIMATOR);
+
+        $this->assertSame(1, $dashboard['summary']['total']);
+        $this->assertSame(4, $estimator['total']);
+        $this->assertSame(1, $estimator['in_progress']);
+        $this->assertSame(2, $estimator['completed']);
+        $this->assertSame(2, $estimator['incomplete']);
     }
 
     public function test_cumulative_trend_uses_progress_and_final_qc_signature_times_and_omits_future_months(): void
@@ -209,5 +237,48 @@ class WorkshopDashboardServiceTest extends TestCase
         ]);
 
         return $report;
+    }
+
+    private function jobWaitingServiceOrder(
+        User $user,
+        string $number,
+        int $progress,
+        bool $eligible = true,
+    ): Order {
+        $order = Order::query()->create([
+            'nomor_order' => $number,
+            'nama_pekerjaan' => 'Pekerjaan '.$number,
+            'unit_kerja' => 'Unit Jasa',
+            'seksi' => 'Seksi Jasa',
+            'deskripsi' => 'Pekerjaan jasa untuk estimator',
+            'prioritas' => Order::PRIORITY_LOW,
+            'catatan_status' => OrderUserNoteStatus::ApprovedJasa->value,
+            'tanggal_order' => '2026-09-02',
+            'target_selesai' => '2026-09-30',
+            'catatan' => 'Jasa Fabrikasi',
+            'created_by' => $user->id,
+        ]);
+        $hpp = Hpp::query()->create([
+            'order_id' => $order->id,
+            'nomor_order' => $number,
+            'nama_pekerjaan' => $order->nama_pekerjaan,
+            'unit_kerja' => $order->unit_kerja,
+            'kategori_pekerjaan' => 'Fabrikasi',
+            'area_pekerjaan' => 'Workshop',
+            'nilai_hpp_bucket' => 'under',
+            'total_keseluruhan' => 1000000,
+            'status' => Hpp::STATUS_APPROVED,
+            'created_by' => $user->id,
+        ]);
+        PurchaseOrder::query()->create([
+            'order_id' => $order->id,
+            'hpp_id' => $hpp->id,
+            'purchase_order_number' => $eligible ? 'PO-'.$number : null,
+            'approve_manager' => $eligible,
+            'progress_pekerjaan' => $progress,
+            'created_by' => $user->id,
+        ]);
+
+        return $order;
     }
 }

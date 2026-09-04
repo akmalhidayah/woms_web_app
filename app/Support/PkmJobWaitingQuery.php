@@ -15,6 +15,20 @@ final class PkmJobWaitingQuery
 
     public static function apply(Builder $query): Builder
     {
+        return self::applyEntryEligibility($query)
+            ->whereDoesntHave('lhppBasts', function (Builder $bastQuery): void {
+                $bastQuery
+                    ->where('termin_type', 'termin_1')
+                    ->where(function (Builder $approvalQuery): void {
+                        $approvalQuery
+                            ->approvalStarted()
+                            ->orWhere('quality_control_status', 'approved');
+                    });
+            });
+    }
+
+    public static function applyEntryEligibility(Builder $query): Builder
+    {
         return $query
             ->whereIn('catatan_status', [
                 OrderUserNoteStatus::ApprovedJasa->value,
@@ -35,15 +49,6 @@ final class PkmJobWaitingQuery
                                 Order::PRIORITY_HIGH,
                             ])
                             ->has('initialWork');
-                    });
-            })
-            ->whereDoesntHave('lhppBasts', function (Builder $bastQuery): void {
-                $bastQuery
-                    ->where('termin_type', 'termin_1')
-                    ->where(function (Builder $approvalQuery): void {
-                        $approvalQuery
-                            ->approvalStarted()
-                            ->orWhere('quality_control_status', 'approved');
                     });
             });
     }

@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\OrderWorkshop;
 use App\Models\QualityControlReport;
 use App\Models\QualityControlSignature;
+use App\Support\PkmJobWaitingQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Carbon;
@@ -34,7 +35,7 @@ final class WorkshopDashboardService
             ->when($month !== null, fn (Builder $query): Builder => $query
                 ->whereMonth('orders.tanggal_order', $month));
         $summary = $this->aggregate(clone $periodQuery);
-        $reguRows = $this->reguSummary(clone $periodQuery);
+        $reguRows = $this->reguSummary(clone $periodQuery, $year, $month);
         $trend = $this->completionTrend($year, $month);
 
         return [
@@ -142,10 +143,17 @@ final class WorkshopDashboardService
     /**
      * @return array{items: list<array<string, int|float|string|bool>>, unknown_count: int}
      */
-    private function reguSummary(Builder $query): array
+    private function reguSummary(Builder $query, int $year, ?int $month): array
     {
         $reguExpression = "TRIM(COALESCE(orders.catatan, ''))";
         $completedExpression = $this->completedExpression();
+        $estimatorWorkshopOrderIds = (clone $query)
+            ->whereRaw("{$reguExpression} = ?", [Order::WORKSHOP_REGU_ESTIMATOR])
+            ->distinct()
+            ->pluck('orders.id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+        $jobWaitingEstimator = $this->jobWaitingEstimatorMetric($year, $month, $estimatorWorkshopOrderIds);
         $rows = $query
             ->selectRaw("{$reguExpression} as regu")
             ->selectRaw('COUNT(orders.id) as total_order')
@@ -164,13 +172,22 @@ final class WorkshopDashboardService
             ->keyBy(fn (Order $row): string => trim((string) $row->getAttribute('regu')));
         $officialRegu = Order::workshopReguOptions();
         $items = collect($officialRegu)
-            ->map(function (string $regu) use ($rows): array {
+            ->map(function (string $regu) use ($rows, $jobWaitingEstimator): array {
                 $row = $rows->get($regu);
+                $total = (int) ($row?->getAttribute('total_order') ?? 0);
+                $inProgress = (int) ($row?->getAttribute('in_progress_order') ?? 0);
+                $completed = (int) ($row?->getAttribute('completed_order') ?? 0);
+
+                if ($regu === Order::WORKSHOP_REGU_ESTIMATOR) {
+                    $total += $jobWaitingEstimator['total'];
+                    $inProgress += $jobWaitingEstimator['in_progress'];
+                    $completed += $jobWaitingEstimator['completed'];
+                }
 
                 return ['name' => $regu] + $this->metric(
-                    (int) ($row?->getAttribute('total_order') ?? 0),
-                    (int) ($row?->getAttribute('in_progress_order') ?? 0),
-                    (int) ($row?->getAttribute('completed_order') ?? 0),
+                    $total,
+                    $inProgress,
+                    $completed,
                     0,
                 );
             })
@@ -184,6 +201,63 @@ final class WorkshopDashboardService
             'items' => $items,
             'unknown_count' => (int) $unknownCount,
         ];
+    }
+
+    /**
+     * @param  list<int>  $excludedOrderIds
+     * @return array{total: int, in_progress: int, completed: int}
+     */
+    private function jobWaitingEstimatorMetric(int $year, ?int $month, array $excludedOrderIds): array
+    {
+        $orders = PkmJobWaitingQuery::applyEntryEligibility(Order::query())
+            ->with([
+                'latestPurchaseOrder' => fn ($query) => $query->select([
+                    'purchase_orders.id',
+                    'purchase_orders.order_id',
+                    'purchase_orders.approve_manager',
+                    'purchase_orders.purchase_order_number',
+                    'purchase_orders.progress_pekerjaan',
+                ]),
+                'initialWork' => fn ($query) => $query->select([
+                    'initial_works.id',
+                    'initial_works.order_id',
+                    'initial_works.progress_pekerjaan',
+                ]),
+            ])
+            ->whereYear('orders.tanggal_order', $year)
+            ->when($month !== null, fn (Builder $query): Builder => $query
+                ->whereMonth('orders.tanggal_order', $month))
+            ->when($excludedOrderIds !== [], fn (Builder $query): Builder => $query
+                ->whereNotIn('orders.id', $excludedOrderIds))
+            ->get(['orders.id', 'orders.prioritas']);
+        $progressValues = $orders->map(fn (Order $order): int => $this->jobWaitingProgress($order));
+
+        return [
+            'total' => $orders->count(),
+            'in_progress' => $progressValues
+                ->filter(fn (int $progress): bool => $progress >= 11 && $progress < 100)
+                ->count(),
+            'completed' => $progressValues
+                ->filter(fn (int $progress): bool => $progress >= 100)
+                ->count(),
+        ];
+    }
+
+    private function jobWaitingProgress(Order $order): int
+    {
+        $purchaseOrder = $order->latestPurchaseOrder;
+        $initialWork = $order->initialWork;
+        $hasValidPurchaseOrder = $purchaseOrder !== null
+            && $purchaseOrder->approve_manager
+            && filled($purchaseOrder->purchase_order_number);
+        $usesInitialWork = ! $hasValidPurchaseOrder
+            && in_array($order->prioritas, [Order::PRIORITY_URGENT, Order::PRIORITY_HIGH], true)
+            && $initialWork !== null;
+        $progress = $hasValidPurchaseOrder
+            ? (int) $purchaseOrder->progress_pekerjaan
+            : ($usesInitialWork ? (int) $initialWork->progress_pekerjaan : 0);
+
+        return max(0, min(100, $progress));
     }
 
     /**

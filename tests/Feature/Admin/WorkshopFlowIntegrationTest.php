@@ -245,6 +245,13 @@ class WorkshopFlowIntegrationTest extends TestCase
         $this->assertFalse($queue->query()->whereKey($order->id)->exists());
         $this->assertFalse($queue->isReady($order));
         $this->assertDatabaseMissing('workshop_handovers', ['order_id' => $order->id]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop-handover.index', ['tab' => 'history']))
+            ->assertOk()
+            ->assertSee($order->nomor_order)
+            ->assertSee('Selesai (Data Legacy)')
+            ->assertSee('Tanpa dokumen');
     }
 
     private function superAdmin(): User

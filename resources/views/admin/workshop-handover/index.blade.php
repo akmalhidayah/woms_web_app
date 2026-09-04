@@ -63,12 +63,13 @@
                     <tbody class="divide-y divide-slate-200">
                         @forelse ($rows as $row)
                             @php
-                                $order = $isHistory ? $row->order : $row;
-                                $number = $isHistory ? $row->order_no_snapshot : $order->nomor_order;
-                                $jobName = $isHistory ? $row->job_name_snapshot : $order->nama_pekerjaan;
-                                $unit = $isHistory ? $row->unit_snapshot : $order->unit_kerja;
-                                $section = $isHistory ? $row->section_snapshot : $order->seksi;
-                                $handover = ! $isHistory ? $order->workshopHandover : $row;
+                                $order = $row;
+                                $handover = $order->workshopHandover;
+                                $isLegacyHistory = $isHistory && $handover === null && $order->orderWorkshop?->legacyCompleted();
+                                $number = $isHistory && $handover ? $handover->order_no_snapshot : $order->nomor_order;
+                                $jobName = $isHistory && $handover ? $handover->job_name_snapshot : $order->nama_pekerjaan;
+                                $unit = $isHistory && $handover ? $handover->unit_snapshot : $order->unit_kerja;
+                                $section = $isHistory && $handover ? $handover->section_snapshot : $order->seksi;
                                 $recipientPreview = ! $isHistory ? ($recipientPreviews[$order->id] ?? null) : null;
                                 $recipient = $recipientPreview['user'] ?? null;
                                 $canProcess = $recipient !== null;
@@ -77,7 +78,7 @@
                             <tr class="hover:bg-slate-50">
                                 <td class="px-4 py-3 align-top">
                                     <p class="font-bold text-slate-900">{{ $number }}</p>
-                                    <p class="text-[10px] text-blue-600">Notif: {{ $isHistory ? ($row->order?->notifikasi ?: '-') : ($order->notifikasi ?: '-') }}</p>
+                                    <p class="text-[10px] text-blue-600">Notif: {{ $order->notifikasi ?: '-' }}</p>
                                 </td>
                                 <td class="px-4 py-3 align-top">
                                     <p class="font-semibold text-slate-900">{{ $jobName }}</p>
@@ -91,13 +92,15 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 align-top">
-                                    <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-700">{{ $isHistory ? $row->path : $queue->path($order) }}</span>
+                                    <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-700">{{ $handover?->path ?? $queue->path($order) }}</span>
                                 </td>
                                 <td class="px-4 py-3 align-top">
-                                    <span class="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">{{ $isHistory ? '2/2' : ($handover?->progress() ?? '0/2') }}</span>
+                                    <span class="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">{{ $isLegacyHistory ? 'Legacy' : ($isHistory ? '2/2' : ($handover?->progress() ?? '0/2')) }}</span>
                                 </td>
                                 <td class="px-4 py-3 align-top">
-                                    @if ($isHistory)
+                                    @if ($isLegacyHistory)
+                                        <span class="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-200">Selesai (Data Legacy)</span>
+                                    @elseif ($isHistory)
                                         <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">Selesai</span>
                                     @elseif ($handover)
                                         <span class="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">Menunggu TTD User</span>
@@ -106,7 +109,9 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 align-top">
-                                    @if ($isHistory)
+                                    @if ($isLegacyHistory)
+                                        <span class="inline-flex items-center rounded-lg bg-slate-100 px-2.5 py-1.5 text-[10px] font-semibold text-slate-500">Tanpa dokumen</span>
+                                    @elseif ($isHistory)
                                         <div class="flex flex-wrap gap-1.5">
                                             @if ($photoPath)
                                                 <a href="{{ route('admin.workshop-handover.photo', [$handover, 0]) }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 rounded-lg bg-slate-600 px-2.5 py-1.5 text-[10px] font-semibold text-white hover:bg-slate-700">Lihat</a>

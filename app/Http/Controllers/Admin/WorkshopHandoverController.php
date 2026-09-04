@@ -58,17 +58,51 @@ class WorkshopHandoverController extends Controller
             ->latest('id');
 
         $waiting = $waitingQuery->paginate(10, ['*'], 'waiting_page')->withQueryString();
-        $history = WorkshopHandover::query()
-            ->with(['order.workPackages.assignments', 'admin', 'recipient'])
-            ->where('status', WorkshopHandover::STATUS_COMPLETED)
+        $historyQuery = Order::query()
+            ->select('orders.*')
+            ->leftJoin('order_workshops as history_workshops', 'history_workshops.order_id', '=', 'orders.id')
+            ->leftJoin('workshop_handovers as history_handovers', 'history_handovers.order_id', '=', 'orders.id')
+            ->with([
+                'orderWorkshop',
+                'latestQualityControlReport',
+                'workPackages.assignments',
+                'workshopHandover.admin',
+                'workshopHandover.recipient',
+            ])
+            ->where(function ($query): void {
+                $query->where('history_handovers.status', WorkshopHandover::STATUS_COMPLETED)
+                    ->orWhere(function ($legacy): void {
+                        $legacy->whereNull('history_handovers.id')
+                            ->whereNotNull('history_workshops.legacy_completed_at');
+                    });
+            });
+        $historyCount = (clone $historyQuery)->count('orders.id');
+        $history = $historyQuery
             ->when($search !== '', fn ($query) => $query->where(function ($query) use ($search): void {
-                $query->where('order_no_snapshot', 'like', "%{$search}%")
-                    ->orWhere('job_name_snapshot', 'like', "%{$search}%")
-                    ->orWhere('unit_snapshot', 'like', "%{$search}%")
-                    ->orWhere('section_snapshot', 'like', "%{$search}%");
+                $query->where('orders.nomor_order', 'like', "%{$search}%")
+                    ->orWhere('orders.nama_pekerjaan', 'like', "%{$search}%")
+                    ->orWhere('orders.unit_kerja', 'like', "%{$search}%")
+                    ->orWhere('orders.seksi', 'like', "%{$search}%")
+                    ->orWhere('history_handovers.order_no_snapshot', 'like', "%{$search}%")
+                    ->orWhere('history_handovers.job_name_snapshot', 'like', "%{$search}%")
+                    ->orWhere('history_handovers.unit_snapshot', 'like', "%{$search}%")
+                    ->orWhere('history_handovers.section_snapshot', 'like', "%{$search}%");
             }))
-            ->when($path !== '', fn ($query) => $query->where('path', $path))
-            ->latest('id')
+            ->when($path !== '', fn ($query) => $query->where(function ($query) use ($path): void {
+                $query->where('history_handovers.path', $path)
+                    ->orWhere(function ($legacy) use ($path): void {
+                        $legacy->whereNull('history_handovers.id')
+                            ->whereNotNull('history_workshops.legacy_completed_at');
+
+                        if ($path === WorkshopHandover::PATH_CRITICAL) {
+                            $legacy->whereHas('qualityControlReports');
+                        } else {
+                            $legacy->whereDoesntHave('qualityControlReports');
+                        }
+                    });
+            }))
+            ->orderByRaw('COALESCE(history_handovers.handed_over_at, history_workshops.legacy_completed_at) DESC')
+            ->orderByDesc('orders.id')
             ->paginate(10, ['*'], 'history_page')
             ->withQueryString();
 
@@ -81,7 +115,7 @@ class WorkshopHandoverController extends Controller
             'waiting' => $waiting,
             'history' => $history,
             'waitingCount' => $queue->count(),
-            'historyCount' => WorkshopHandover::query()->where('status', WorkshopHandover::STATUS_COMPLETED)->count(),
+            'historyCount' => $historyCount,
             'recipientPreviews' => $recipientPreviews,
             'search' => $search,
             'path' => $path,

@@ -95,7 +95,7 @@
             const values = [
                 Number(regu.in_progress || 0),
                 Number(regu.completed || 0),
-                Number(regu.incomplete || 0),
+                Number(regu.total || 0),
             ];
             const valueLabels = {
                 id: `workshopReguValueLabels${index}`,
@@ -118,7 +118,7 @@
             return new Chart(canvas, {
                 type: 'bar',
                 data: {
-                    labels: [['ORDER', 'PROSES'], ['ORDER', 'SELESAI'], ['ORDER BELUM', 'SELESAI']],
+                    labels: [['ORDER', 'PROSES'], ['ORDER', 'SELESAI'], ['TOTAL', 'ORDER']],
                     datasets: [{
                         data: values,
                         backgroundColor: ['#22c55e', '#facc15', '#2563eb'],

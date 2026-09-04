@@ -24,13 +24,7 @@
         @foreach ($workshopDashboard['regu'] as $regu)
             @php($style = $reguStyles[$loop->index] ?? $reguStyles[0])
             <section class="flex min-h-[190px] min-w-0 flex-col rounded-lg p-3 {{ $style['card'] }}">
-                <div class="flex items-start justify-between gap-2">
-                    <h3 class="break-words text-[10px] font-extrabold uppercase tracking-[0.08em]">{{ $regu['name'] }}</h3>
-                    <p class="shrink-0 text-right">
-                        <span class="block text-[7px] font-bold uppercase tracking-[0.08em] text-slate-500">Total Order</span>
-                        <span class="text-base font-extrabold leading-none">{{ number_format($regu['total'], 0, ',', '.') }}</span>
-                    </p>
-                </div>
+                <h3 class="break-words text-[10px] font-extrabold uppercase tracking-[0.08em]">{{ $regu['name'] }}</h3>
                 <div class="relative mt-2 min-h-[150px] min-w-0 w-full flex-1 overflow-hidden">
                     <canvas
                         data-workshop-regu-chart="{{ $loop->index }}"

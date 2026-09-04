@@ -120,7 +120,11 @@ class WorkshopDashboardServiceTest extends TestCase
         $dashboard = app(WorkshopDashboardService::class)->resolve(2026, 9);
         $estimator = collect($dashboard['regu'])->firstWhere('name', Order::WORKSHOP_REGU_ESTIMATOR);
 
-        $this->assertSame(1, $dashboard['summary']['total']);
+        $this->assertSame(4, $dashboard['summary']['total']);
+        $this->assertSame(1, $dashboard['summary']['in_progress']);
+        $this->assertSame(2, $dashboard['summary']['completed']);
+        $this->assertSame(2, $dashboard['summary']['incomplete']);
+        $this->assertSame(3, $dashboard['summary']['outsourced']);
         $this->assertSame(4, $estimator['total']);
         $this->assertSame(1, $estimator['in_progress']);
         $this->assertSame(2, $estimator['completed']);
@@ -165,6 +169,7 @@ class WorkshopDashboardServiceTest extends TestCase
             ->assertViewHas('workshopDashboard', fn (array $data): bool => $data['summary']['total'] === 1)
             ->assertViewMissing('financialSummary')
             ->assertSee('DASHBOARD PEKERJAAN BENGKEL')
+            ->assertSee('Order Dijasakan')
             ->assertSee('Biaya Order Bengkel Per Bulan')
             ->assertDontSee('GENERAL BIAYA JASA');
     }

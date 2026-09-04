@@ -34,8 +34,13 @@ final class WorkshopDashboardService
             ->whereYear('orders.tanggal_order', $year)
             ->when($month !== null, fn (Builder $query): Builder => $query
                 ->whereMonth('orders.tanggal_order', $month));
-        $summary = $this->aggregate(clone $periodQuery);
-        $reguRows = $this->reguSummary(clone $periodQuery, $year, $month);
+        $estimatorWorkshopOrderIds = $this->estimatorWorkshopOrderIds(clone $periodQuery);
+        $jobWaitingEstimator = $this->jobWaitingEstimatorMetric($year, $month, $estimatorWorkshopOrderIds);
+        $summary = $this->combinedSummary(
+            $this->aggregate(clone $periodQuery),
+            $jobWaitingEstimator,
+        );
+        $reguRows = $this->reguSummary(clone $periodQuery, $jobWaitingEstimator);
         $trend = $this->completionTrend($year, $month);
 
         return [
@@ -58,13 +63,23 @@ final class WorkshopDashboardService
     public function availableYears(): array
     {
         $yearExpression = $this->datePartExpression('year', 'orders.tanggal_order');
-        $years = $this->baseQuery()
+        $workshopYears = $this->baseQuery()
             ->selectRaw("{$yearExpression} as dashboard_year")
             ->whereNotNull('orders.tanggal_order')
             ->distinct()
             ->pluck('dashboard_year')
             ->map(fn ($year): int => (int) $year)
-            ->filter(fn (int $year): bool => $year > 0)
+            ->filter(fn (int $year): bool => $year > 0);
+        $jobWaitingYears = PkmJobWaitingQuery::applyEntryEligibility(Order::query())
+            ->selectRaw("{$yearExpression} as dashboard_year")
+            ->whereNotNull('orders.tanggal_order')
+            ->distinct()
+            ->pluck('dashboard_year')
+            ->map(fn ($year): int => (int) $year)
+            ->filter(fn (int $year): bool => $year > 0);
+
+        $years = $workshopYears
+            ->merge($jobWaitingYears)
             ->push((int) Carbon::now()->year)
             ->unique()
             ->sortDesc()
@@ -143,17 +158,10 @@ final class WorkshopDashboardService
     /**
      * @return array{items: list<array<string, int|float|string|bool>>, unknown_count: int}
      */
-    private function reguSummary(Builder $query, int $year, ?int $month): array
+    private function reguSummary(Builder $query, array $jobWaitingEstimator): array
     {
         $reguExpression = "TRIM(COALESCE(orders.catatan, ''))";
         $completedExpression = $this->completedExpression();
-        $estimatorWorkshopOrderIds = (clone $query)
-            ->whereRaw("{$reguExpression} = ?", [Order::WORKSHOP_REGU_ESTIMATOR])
-            ->distinct()
-            ->pluck('orders.id')
-            ->map(fn ($id): int => (int) $id)
-            ->all();
-        $jobWaitingEstimator = $this->jobWaitingEstimatorMetric($year, $month, $estimatorWorkshopOrderIds);
         $rows = $query
             ->selectRaw("{$reguExpression} as regu")
             ->selectRaw('COUNT(orders.id) as total_order')
@@ -200,6 +208,36 @@ final class WorkshopDashboardService
         return [
             'items' => $items,
             'unknown_count' => (int) $unknownCount,
+        ];
+    }
+
+    /** @return list<int> */
+    private function estimatorWorkshopOrderIds(Builder $query): array
+    {
+        $reguExpression = "TRIM(COALESCE(orders.catatan, ''))";
+
+        return $query
+            ->whereRaw("{$reguExpression} = ?", [Order::WORKSHOP_REGU_ESTIMATOR])
+            ->distinct()
+            ->pluck('orders.id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+    }
+
+    /**
+     * @param  array<string, int|float|bool>  $workshopSummary
+     * @param  array{total: int, in_progress: int, completed: int}  $jobWaitingEstimator
+     * @return array<string, int|float|bool>
+     */
+    private function combinedSummary(array $workshopSummary, array $jobWaitingEstimator): array
+    {
+        return $this->metric(
+            (int) $workshopSummary['total'] + $jobWaitingEstimator['total'],
+            (int) $workshopSummary['in_progress'] + $jobWaitingEstimator['in_progress'],
+            (int) $workshopSummary['completed'] + $jobWaitingEstimator['completed'],
+            (int) $workshopSummary['total_cost'],
+        ) + [
+            'outsourced' => $jobWaitingEstimator['total'],
         ];
     }
 

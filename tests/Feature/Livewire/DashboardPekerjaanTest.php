@@ -86,6 +86,7 @@ class DashboardPekerjaanTest extends TestCase
         $component = Livewire::test(DashboardPekerjaan::class, ['mode' => 'display']);
 
         $this->assertSame(3, substr_count($component->html(), 'data-testid="display-pic-row"'));
+        $component->assertSeeHtml('tv-pic-list tv-pic-count-3');
         $component
             ->assertSee('Uraian satu')
             ->assertSee('Uraian dua')

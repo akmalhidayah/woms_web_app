@@ -457,6 +457,7 @@
                     @php
                         $profiles = collect($task['person_in_charge_profiles'] ?? []);
                         $visibleProfiles = $profiles->take(3);
+                        $visibleProfileCount = $visibleProfiles->count();
                         $extraProfiles = max(0, $profiles->count() - 3);
                         $targetMeta = $targetStatus($task['usage_plan_date'] ?? null);
                         $isCompleted = (bool) ($task['is_completed'] ?? false);
@@ -474,7 +475,7 @@
                         <div class="tv-card-meta"><div><strong>Seksi</strong><span>{{ $task['seksi'] ?: '-' }}</span></div><div><strong>Target</strong><span>{{ $task['usage_plan_date'] ?: '-' }}</span></div></div>
                         <div class="tv-pic-section"><div class="tv-pic-section-label">PIC &amp; URAIAN PEKERJAAN @if ($extraProfiles > 0)<span class="tv-extra-pic">+{{ $extraProfiles }} PIC lainnya</span>@endif</div>
                             @if ($visibleProfiles->isNotEmpty())
-                                <div class="tv-pic-list">
+                                <div class="tv-pic-list {{ $visibleProfileCount === 3 ? 'tv-pic-count-3' : '' }}">
                                     @foreach ($visibleProfiles as $profile)
                                         @php
                                             $name = is_array($profile) ? (string) ($profile['name'] ?? '') : '';

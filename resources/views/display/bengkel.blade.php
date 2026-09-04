@@ -570,6 +570,13 @@
         .tv-display-shell .tv-pic-avatar img, .tv-display-shell .tv-pic-fallback { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; object-fit: cover; color: #334155; font-size: 0.9rem; font-weight: 900; }
         .tv-display-shell .tv-pic-identity { min-width: 0; overflow: hidden; border-right: 1px solid #e2e8f0; padding-right: 10px; color: #0f172a; font-size: 14px; font-weight: 800; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
         .tv-display-shell .tv-pic-description { min-width: 0; color: #475569; font-size: 14px; font-weight: 700; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .tv-display-shell .tv-pic-list.tv-pic-count-3 { gap: 0.2rem; margin-top: 0.25rem; }
+        .tv-display-shell .tv-pic-list.tv-pic-count-3 .tv-pic-row { grid-template-columns: 46px 88px minmax(0, 1fr); gap: 6px; min-height: 56px; padding: 4px 6px; }
+        .tv-display-shell .tv-pic-list.tv-pic-count-3 .tv-pic-avatar { width: 46px; height: 46px; border-radius: 8px; }
+        .tv-display-shell .tv-pic-list.tv-pic-count-3 .tv-pic-avatar img,
+        .tv-display-shell .tv-pic-list.tv-pic-count-3 .tv-pic-fallback { font-size: 0.72rem; }
+        .tv-display-shell .tv-pic-list.tv-pic-count-3 .tv-pic-identity { padding-right: 6px; font-size: 12px; }
+        .tv-display-shell .tv-pic-list.tv-pic-count-3 .tv-pic-description { font-size: 12px; line-height: 1.2; -webkit-line-clamp: 1; }
         .tv-display-shell .tv-empty-pic, .tv-display-shell .tv-display-empty { display: flex; align-items: center; justify-content: center; color: #64748b; font-size: clamp(0.65rem, 0.75vw, 0.85rem); font-weight: 700; text-align: center; }
         .tv-display-shell .tv-empty-pic { min-height: 3rem; border: 1px dashed #cbd5e1; border-radius: 0.5rem; background: #f8fafc; }
         .tv-display-shell .tv-display-empty { grid-column: 1 / -1; min-height: 0; border: 1px dashed #cbd5e1; border-radius: 0.8rem; background: #fff; }

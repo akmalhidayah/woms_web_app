@@ -112,4 +112,36 @@ class WorkshopOrderTrackingDetailTest extends TestCase
             ->get(route('user.orders.workshop-handover.pdf', $order))
             ->assertForbidden();
     }
+
+    public function test_workshop_detail_identifies_legacy_completion_without_a_handover_document(): void
+    {
+        $user = User::factory()->create(['role' => User::ROLE_USER]);
+        $order = Order::query()->create([
+            'nomor_order' => 'TRACK-WORKSHOP-LEGACY',
+            'nama_pekerjaan' => 'Pekerjaan Bengkel Legacy',
+            'unit_kerja' => 'Unit Workshop',
+            'seksi' => 'Seksi Workshop',
+            'deskripsi' => 'Pekerjaan selesai sebelum flow Serah Terima aplikasi.',
+            'prioritas' => Order::PRIORITY_LOW,
+            'tanggal_order' => '2026-08-01',
+            'target_selesai' => '2026-08-02',
+            'catatan_status' => OrderUserNoteStatus::ApprovedWorkshop->value,
+            'catatan' => Order::WORKSHOP_REGU_FABRIKASI,
+            'created_by' => $user->id,
+        ]);
+        $workshop = $order->orderWorkshop()->create([
+            'preparation_status' => OrderWorkshop::PREPARATION_COMPLETED,
+            'progress_status' => OrderWorkshop::PROGRESS_DONE,
+        ]);
+        $workshop->forceFill(['legacy_completed_at' => '2026-09-04 10:15:00'])->save();
+
+        $this->actingAs($user)
+            ->get(route('user.orders.show', $order))
+            ->assertOk()
+            ->assertSee('Selesai (Data Legacy)')
+            ->assertSee('Tanggal Penandaan Legacy')
+            ->assertDontSee('Menunggu Serah Terima');
+
+        $this->assertDatabaseMissing('workshop_handovers', ['order_id' => $order->id]);
+    }
 }

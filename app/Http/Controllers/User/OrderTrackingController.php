@@ -593,13 +593,15 @@ class OrderTrackingController extends Controller
         $qualityControlApproval = $this->resolveQualityControlApprovalShareInfo($order->latestQualityControlReport);
         $workshopInfo = $this->buildWorkshopTimelineInfoPayload($order, $workshopTask);
         $workshopHandover = $order->workshopHandover;
+        $legacyWorkshopCompleted = $order->orderWorkshop?->legacyCompleted() ?? false;
         $workshopHandoverPdfUrl = $workshopHandover !== null
             && (int) auth()->id() === (int) $workshopHandover->recipient_user_id
             ? route('user.orders.workshop-handover.pdf', $order)
             : null;
-        $workshopHandoverLabel = match ($workshopHandover?->status) {
-            WorkshopHandover::STATUS_COMPLETED => 'Serah Terima Selesai',
-            WorkshopHandover::STATUS_WAITING_USER_SIGNATURE => 'Menunggu Tanda Tangan Manager User',
+        $workshopHandoverLabel = match (true) {
+            $workshopHandover?->status === WorkshopHandover::STATUS_COMPLETED => 'Serah Terima Selesai',
+            $workshopHandover?->status === WorkshopHandover::STATUS_WAITING_USER_SIGNATURE => 'Menunggu Tanda Tangan Manager User',
+            $legacyWorkshopCompleted => 'Selesai (Data Legacy)',
             default => $order->orderWorkshop?->progress_status === OrderWorkshop::PROGRESS_DONE
                 ? 'Menunggu Serah Terima'
                 : 'Belum siap Serah Terima',
@@ -608,8 +610,10 @@ class OrderTrackingController extends Controller
             ['label' => 'Status', 'value' => $workshopHandoverLabel],
             ['label' => 'Nomor Dokumen', 'value' => $workshopHandover?->document_no ?: '-'],
             ['label' => 'Manager User', 'value' => $workshopHandover?->recipient_name_snapshot ?: '-'],
-            ['label' => 'Tanggal Serah Terima', 'value' => $workshopHandover?->handed_over_at?->format('d/m/Y H:i') ?: '-'],
-        ], $workshopHandover?->isCompleted() ? 'done' : 'waiting');
+            ['label' => $legacyWorkshopCompleted ? 'Tanggal Penandaan Legacy' : 'Tanggal Serah Terima', 'value' => $workshopHandover?->handed_over_at?->format('d/m/Y H:i')
+                ?: $order->orderWorkshop?->legacy_completed_at?->format('d/m/Y H:i')
+                ?: '-'],
+        ], $workshopHandover?->isCompleted() || $legacyWorkshopCompleted ? 'done' : 'waiting');
         $workshopTimelineItem = [
             'label' => 'Pekerjaan Bengkel',
             'value' => $this->resolveWorkshopTimelineValue($order),
@@ -805,7 +809,7 @@ class OrderTrackingController extends Controller
                 [
                     'label' => 'Serah Terima',
                     'value' => $workshopHandoverLabel,
-                    'tone' => $workshopHandover?->isCompleted() ? 'done' : 'waiting',
+                    'tone' => $workshopHandover?->isCompleted() || $legacyWorkshopCompleted ? 'done' : 'waiting',
                     'info' => $workshopHandoverInfo,
                 ],
             ]

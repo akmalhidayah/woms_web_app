@@ -48,6 +48,7 @@ class OrderWorkshop extends Model
     {
         return [
             'started_at' => 'datetime',
+            'legacy_completed_at' => 'datetime',
         ];
     }
 
@@ -75,6 +76,11 @@ class OrderWorkshop extends Model
     public function preparationCompleted(): bool
     {
         return $this->preparation_status === self::PREPARATION_COMPLETED;
+    }
+
+    public function legacyCompleted(): bool
+    {
+        return $this->legacy_completed_at !== null;
     }
 
     public static function progressOptions(): array

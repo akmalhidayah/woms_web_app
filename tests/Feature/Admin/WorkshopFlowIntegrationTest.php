@@ -232,6 +232,21 @@ class WorkshopFlowIntegrationTest extends TestCase
             ->assertDontSee($activeOrder->nomor_order);
     }
 
+    public function test_marked_legacy_order_leaves_handover_queue_without_creating_handover(): void
+    {
+        $admin = $this->superAdmin();
+        [$order] = $this->workshopOrder($admin, OrderWorkshop::PROGRESS_DONE);
+
+        $order->orderWorkshop->forceFill(['legacy_completed_at' => now()])->save();
+        $order->refresh()->load('orderWorkshop');
+
+        $queue = app(WorkshopHandoverQueue::class);
+
+        $this->assertFalse($queue->query()->whereKey($order->id)->exists());
+        $this->assertFalse($queue->isReady($order));
+        $this->assertDatabaseMissing('workshop_handovers', ['order_id' => $order->id]);
+    }
+
     private function superAdmin(): User
     {
         return User::factory()->create([

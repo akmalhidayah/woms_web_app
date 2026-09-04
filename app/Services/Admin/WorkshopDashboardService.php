@@ -96,13 +96,14 @@ final class WorkshopDashboardService
      */
     private function aggregate(Builder $query): array
     {
+        $completedExpression = $this->completedExpression();
         $row = $query
             ->selectRaw('COUNT(orders.id) as total_order')
             ->selectRaw(
-                'COALESCE(SUM(CASE WHEN workshop_handovers.id IS NOT NULL THEN 1 ELSE 0 END), 0) as completed_order',
+                "COALESCE(SUM(CASE WHEN {$completedExpression} THEN 1 ELSE 0 END), 0) as completed_order",
             )
             ->selectRaw(
-                'COALESCE(SUM(CASE WHEN order_workshops.progress_status IN (?, ?) AND workshop_handovers.id IS NULL THEN 1 ELSE 0 END), 0) as in_progress_order',
+                "COALESCE(SUM(CASE WHEN order_workshops.progress_status IN (?, ?) AND NOT {$completedExpression} THEN 1 ELSE 0 END), 0) as in_progress_order",
                 [
                     OrderWorkshop::PROGRESS_IN_PROGRESS,
                     OrderWorkshop::PROGRESS_QUALITY_CONTROL,
@@ -125,14 +126,15 @@ final class WorkshopDashboardService
     private function reguSummary(Builder $query): array
     {
         $reguExpression = "TRIM(COALESCE(orders.catatan, ''))";
+        $completedExpression = $this->completedExpression();
         $rows = $query
             ->selectRaw("{$reguExpression} as regu")
             ->selectRaw('COUNT(orders.id) as total_order')
             ->selectRaw(
-                'COALESCE(SUM(CASE WHEN workshop_handovers.id IS NOT NULL THEN 1 ELSE 0 END), 0) as completed_order',
+                "COALESCE(SUM(CASE WHEN {$completedExpression} THEN 1 ELSE 0 END), 0) as completed_order",
             )
             ->selectRaw(
-                'COALESCE(SUM(CASE WHEN order_workshops.progress_status IN (?, ?) AND workshop_handovers.id IS NULL THEN 1 ELSE 0 END), 0) as in_progress_order',
+                "COALESCE(SUM(CASE WHEN order_workshops.progress_status IN (?, ?) AND NOT {$completedExpression} THEN 1 ELSE 0 END), 0) as in_progress_order",
                 [
                     OrderWorkshop::PROGRESS_IN_PROGRESS,
                     OrderWorkshop::PROGRESS_QUALITY_CONTROL,
@@ -172,8 +174,9 @@ final class WorkshopDashboardService
     {
         $lastMonth = $this->lastTrendMonth($year, $selectedMonth);
         $orderMonthExpression = $this->datePartExpression('month', 'orders.tanggal_order');
-        $completionYearExpression = $this->datePartExpression('year', 'workshop_handovers.handed_over_at');
-        $completionMonthExpression = $this->datePartExpression('month', 'workshop_handovers.handed_over_at');
+        $completionTimestampExpression = $this->completionTimestampExpression();
+        $completionYearExpression = $this->datePartExpression('year', $completionTimestampExpression);
+        $completionMonthExpression = $this->datePartExpression('month', $completionTimestampExpression);
         $trendEnd = Carbon::create($year, $lastMonth, 1)->endOfMonth();
         $monthlyOrders = $this->baseQuery()
             ->whereYear('orders.tanggal_order', $year)
@@ -185,9 +188,8 @@ final class WorkshopDashboardService
         $completionGroups = $this->baseQuery()
             ->whereYear('orders.tanggal_order', $year)
             ->whereMonth('orders.tanggal_order', '<=', $lastMonth)
-            ->whereNotNull('workshop_handovers.id')
-            ->whereNotNull('workshop_handovers.handed_over_at')
-            ->where('workshop_handovers.handed_over_at', '<=', $trendEnd)
+            ->whereRaw("{$completionTimestampExpression} IS NOT NULL")
+            ->whereRaw("{$completionTimestampExpression} <= ?", [$trendEnd])
             ->selectRaw("{$orderMonthExpression} as order_month")
             ->selectRaw("{$completionYearExpression} as completion_year")
             ->selectRaw("{$completionMonthExpression} as completion_month")
@@ -325,6 +327,16 @@ final class WorkshopDashboardService
         }
 
         return strtoupper($part)."({$column})";
+    }
+
+    private function completedExpression(): string
+    {
+        return '(workshop_handovers.id IS NOT NULL OR order_workshops.legacy_completed_at IS NOT NULL)';
+    }
+
+    private function completionTimestampExpression(): string
+    {
+        return 'COALESCE(workshop_handovers.handed_over_at, order_workshops.legacy_completed_at)';
     }
 
     private function monthLabel(int $month): string

@@ -32,7 +32,8 @@ class WorkshopDashboardServiceTest extends TestCase
         $user = User::factory()->create();
         $inProgress = $this->workshopOrder($user, 'WD-001', '2026-09-01', Order::WORKSHOP_REGU_FABRIKASI, OrderWorkshop::PROGRESS_IN_PROGRESS, 100);
         $this->workshopOrder($user, 'WD-002', '2026-09-02', Order::WORKSHOP_REGU_REFURBISH, OrderWorkshop::PROGRESS_QUALITY_CONTROL);
-        $this->workshopOrder($user, 'WD-003', '2026-09-03', Order::WORKSHOP_REGU_ESTIMATOR, OrderWorkshop::PROGRESS_DONE, 200);
+        $legacyCompleted = $this->workshopOrder($user, 'WD-003', '2026-09-03', Order::WORKSHOP_REGU_ESTIMATOR, OrderWorkshop::PROGRESS_DONE, 200);
+        $legacyCompleted->orderWorkshop->forceFill(['legacy_completed_at' => '2026-09-04 08:00:00'])->save();
         $completed = $this->workshopOrder($user, 'WD-004', '2026-09-03', Order::WORKSHOP_REGU_FABRIKASI, OrderWorkshop::PROGRESS_QUALITY_CONTROL, 300);
         $this->handover($completed, $user, WorkshopHandover::STATUS_WAITING_USER_SIGNATURE, '2026-09-04 09:00:00');
         $this->workshopOrder($user, 'WD-005', '2026-09-04', null, OrderWorkshop::PROGRESS_MENUNGGU_JADWAL);
@@ -49,9 +50,9 @@ class WorkshopDashboardServiceTest extends TestCase
 
         $this->assertSame(5, $dashboard['summary']['total']);
         $this->assertSame(2, $dashboard['summary']['in_progress']);
-        $this->assertSame(1, $dashboard['summary']['completed']);
-        $this->assertSame(4, $dashboard['summary']['incomplete']);
-        $this->assertSame(20.0, $dashboard['summary']['completion_percentage']);
+        $this->assertSame(2, $dashboard['summary']['completed']);
+        $this->assertSame(3, $dashboard['summary']['incomplete']);
+        $this->assertSame(40.0, $dashboard['summary']['completion_percentage']);
         $this->assertSame(600, $dashboard['summary']['total_cost']);
         $this->assertSame(1, $dashboard['unknown_regu_count']);
         $this->assertSame(WorkshopDashboardService::COMPLETION_TARGET, $dashboard['summary']['completion_target']);
@@ -60,6 +61,9 @@ class WorkshopDashboardServiceTest extends TestCase
         $this->assertSame(2, $fabrikasi['total']);
         $this->assertSame(1, $fabrikasi['in_progress']);
         $this->assertSame(1, $fabrikasi['completed']);
+
+        $estimator = collect($dashboard['regu'])->firstWhere('name', Order::WORKSHOP_REGU_ESTIMATOR);
+        $this->assertSame(1, $estimator['completed']);
     }
 
     public function test_year_and_month_filters_use_order_date_consistently(): void
@@ -95,7 +99,8 @@ class WorkshopDashboardServiceTest extends TestCase
         $user = User::factory()->create();
         $january = $this->workshopOrder($user, 'WD-TREND-JAN', '2026-01-10', Order::WORKSHOP_REGU_FABRIKASI, OrderWorkshop::PROGRESS_DONE);
         $this->handover($january, $user, WorkshopHandover::STATUS_WAITING_USER_SIGNATURE, '2026-03-05 08:00:00');
-        $this->workshopOrder($user, 'WD-TREND-FEB', '2026-02-10', Order::WORKSHOP_REGU_REFURBISH, OrderWorkshop::PROGRESS_DONE);
+        $legacyFebruary = $this->workshopOrder($user, 'WD-TREND-FEB', '2026-02-10', Order::WORKSHOP_REGU_REFURBISH, OrderWorkshop::PROGRESS_DONE);
+        $legacyFebruary->orderWorkshop->forceFill(['legacy_completed_at' => '2026-02-20 08:00:00'])->save();
         $april = $this->workshopOrder($user, 'WD-TREND-APR', '2026-04-10', Order::WORKSHOP_REGU_ESTIMATOR, OrderWorkshop::PROGRESS_DONE);
         $this->handover($april, $user, WorkshopHandover::STATUS_WAITING_USER_SIGNATURE, '2026-10-01 08:00:00');
 
@@ -104,9 +109,10 @@ class WorkshopDashboardServiceTest extends TestCase
 
         $this->assertCount(9, $dashboard['trend']);
         $this->assertSame(0.0, $trend[1]['percentage']);
-        $this->assertSame(50.0, $trend[3]['percentage']);
-        $this->assertSame(33.33, $trend[4]['percentage']);
-        $this->assertSame(1, $trend[9]['completed']);
+        $this->assertSame(50.0, $trend[2]['percentage']);
+        $this->assertSame(100.0, $trend[3]['percentage']);
+        $this->assertSame(66.67, $trend[4]['percentage']);
+        $this->assertSame(2, $trend[9]['completed']);
 
         $throughJuly = app(WorkshopDashboardService::class)->resolve(2026, 7);
         $this->assertCount(7, $throughJuly['trend']);

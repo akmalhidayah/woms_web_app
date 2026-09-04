@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\OrderWorkshop;
 use App\Models\QualityControlSignature;
 use App\Models\WorkshopHandover;
+use App\Models\WorkshopWorkPackage;
 use Illuminate\Database\Eloquent\Builder;
 
 final class WorkshopHandoverQueue
@@ -21,6 +22,8 @@ final class WorkshopHandoverQueue
                 OrderUserNoteStatus::ApprovedWorkshop->value,
                 OrderUserNoteStatus::ApprovedWorkshopJasa->value,
             ])
+            ->whereDoesntHave('orderWorkshop', fn (Builder $workshop) => $workshop
+                ->whereNotNull('legacy_completed_at'))
             ->where(function (Builder $query): void {
                 $this->readyQuery($query);
             })
@@ -36,7 +39,7 @@ final class WorkshopHandoverQueue
     {
         return $query
             ->whereDoesntHave('workPackages', fn (Builder $package) => $package
-                ->where('status', '!=', \App\Models\WorkshopWorkPackage::STATUS_COMPLETED))
+                ->where('status', '!=', WorkshopWorkPackage::STATUS_COMPLETED))
             ->where(function (Builder $query): void {
                 $query
                     ->where(function (Builder $critical): void {
@@ -88,6 +91,10 @@ final class WorkshopHandoverQueue
     public function isReady(Order $order): bool
     {
         $order->loadMissing(['orderWorkshop', 'latestQualityControlReport.signatures', 'workPackages']);
+
+        if ($order->orderWorkshop?->legacyCompleted()) {
+            return false;
+        }
 
         if ($order->isWorkshopOrder() && $order->workPackages->isNotEmpty() && ! $order->allWorkPackagesCompleted()) {
             return false;

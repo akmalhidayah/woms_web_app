@@ -205,7 +205,7 @@
                             beginAtZero: true,
                             max: 100,
                             border: { display: false },
-                            grid: { color: 'rgba(148, 163, 184, 0.18)' },
+                            grid: { display: false },
                             ticks: { callback: value => `${value}%` },
                         },
                     },

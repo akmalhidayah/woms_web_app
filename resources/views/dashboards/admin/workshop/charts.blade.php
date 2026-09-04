@@ -25,47 +25,49 @@
     @include('dashboards.admin.workshop.regu-summary')
 </section>
 
-<section class="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-        <div class="flex items-center gap-2">
-            <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                <i data-lucide="chart-spline" class="h-4 w-4"></i>
+<div class="grid min-w-0 gap-3 md:grid-cols-2">
+    <section class="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div class="flex items-center gap-2">
+                <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                    <i data-lucide="chart-spline" class="h-4 w-4"></i>
+                </span>
+                <div>
+                    <h2 class="text-xs font-bold uppercase tracking-[0.1em] text-slate-800">Grafik Penyelesaian Pekerjaan Bengkel</h2>
+                </div>
+            </div>
+            <span class="text-[10px] font-bold text-blue-700">Target {{ $workshopSummary['completion_target'] }}%</span>
+        </div>
+
+        @if ($workshopDashboard['trend_has_orders'])
+            <div class="relative mt-3 h-[300px] min-w-0 w-full overflow-hidden">
+                <canvas id="workshopCompletionTrendChart" class="h-full w-full max-w-full" role="img" aria-label="Grafik penyelesaian Pekerjaan Bengkel"></canvas>
+            </div>
+        @else
+            <div class="mt-3 flex h-[220px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-xs text-slate-500">
+                Belum ada data penyelesaian Pekerjaan Bengkel pada tahun ini.
+            </div>
+        @endif
+    </section>
+
+    <section class="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="flex items-center gap-2 border-b border-slate-100 pb-3">
+            <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                <i data-lucide="chart-column-big" class="h-4 w-4"></i>
             </span>
             <div>
-                <h2 class="text-xs font-bold uppercase tracking-[0.1em] text-slate-800">Grafik Penyelesaian Pekerjaan Bengkel</h2>
+                <h2 class="text-xs font-bold uppercase tracking-[0.1em] text-slate-800">Biaya Order Bengkel Per Bulan</h2>
             </div>
         </div>
-        <span class="text-[10px] font-bold text-blue-700">Target {{ $workshopSummary['completion_target'] }}%</span>
-    </div>
 
-    @if ($workshopDashboard['trend_has_orders'])
-        <div class="relative mt-3 h-[300px] min-w-0 w-full overflow-hidden">
-            <canvas id="workshopCompletionTrendChart" class="h-full w-full max-w-full" role="img" aria-label="Grafik penyelesaian Pekerjaan Bengkel"></canvas>
-        </div>
-    @else
-        <div class="mt-3 flex h-[220px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-xs text-slate-500">
-            Belum ada data penyelesaian Pekerjaan Bengkel pada tahun ini.
-        </div>
-    @endif
-</section>
-
-<section class="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-    <div class="flex items-center gap-2 border-b border-slate-100 pb-3">
-        <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-            <i data-lucide="chart-column-big" class="h-4 w-4"></i>
-        </span>
-        <div>
-            <h2 class="text-xs font-bold uppercase tracking-[0.1em] text-slate-800">Biaya Order Bengkel Per Bulan</h2>
-        </div>
-    </div>
-
-    @if ($workshopDashboard['has_orders'])
-        <div class="relative mt-3 h-[300px] min-w-0 w-full overflow-hidden">
-            <canvas id="workshopMonthlyCostChart" class="h-full w-full max-w-full" role="img" aria-label="Grafik Biaya Order Bengkel per bulan"></canvas>
-        </div>
-    @else
-        <div class="mt-3 flex h-[220px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-xs text-slate-500">
-            Belum ada data Biaya Order Bengkel pada periode ini.
-        </div>
-    @endif
-</section>
+        @if ($workshopDashboard['has_orders'])
+            <div class="relative mt-3 h-[300px] min-w-0 w-full overflow-hidden">
+                <canvas id="workshopMonthlyCostChart" class="h-full w-full max-w-full" role="img" aria-label="Grafik Biaya Order Bengkel per bulan"></canvas>
+            </div>
+        @else
+            <div class="mt-3 flex h-[220px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-xs text-slate-500">
+                Belum ada data Biaya Order Bengkel pada periode ini.
+            </div>
+        @endif
+    </section>
+</div>

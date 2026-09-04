@@ -10,6 +10,7 @@ use App\Models\OrderWorkshop;
 use App\Models\QualityControlReport;
 use App\Models\QualityControlSignature;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -86,6 +87,13 @@ final class WorkshopDashboardService
                 'orders.id',
             )
             ->leftJoin('quality_control_reports as dashboard_qc', 'dashboard_qc.id', '=', 'dashboard_latest_qc.report_id')
+            ->leftJoinSub(
+                $this->qualityControlSignatureSummaryQuery(),
+                'dashboard_qc_signatures',
+                'dashboard_qc_signatures.quality_control_report_id',
+                '=',
+                'dashboard_qc.id',
+            )
             ->whereIn('orders.catatan_status', [
                 OrderUserNoteStatus::ApprovedWorkshop->value,
                 OrderUserNoteStatus::ApprovedWorkshopJasa->value,
@@ -357,9 +365,7 @@ final class WorkshopDashboardService
         return "(CASE
             WHEN order_workshops.legacy_completed_at IS NOT NULL THEN order_workshops.legacy_completed_at
             WHEN {$qualityControlCompleted} THEN COALESCE(
-                (SELECT MAX(dashboard_qc_signed.signed_at)
-                    FROM quality_control_signatures AS dashboard_qc_signed
-                    WHERE dashboard_qc_signed.quality_control_report_id = dashboard_qc.id),
+                dashboard_qc_signatures.last_signed_at,
                 dashboard_qc.updated_at
             )
             WHEN {$nonCriticalCompleted} THEN order_workshops.updated_at
@@ -376,26 +382,30 @@ final class WorkshopDashboardService
     {
         $makerSignature = $this->qualityControlMakerSignatureExpression();
         $submitted = QualityControlReport::STATUS_SUBMITTED;
-        $signed = QualityControlSignature::STATUS_SIGNED;
-        $workshopManager = QualityControlSignature::ROLE_WORKSHOP_MANAGER;
-        $userManager = QualityControlSignature::ROLE_USER_MANAGER;
 
         return "(dashboard_qc.id IS NOT NULL
             AND dashboard_qc.status = '{$submitted}'
             AND {$makerSignature} <> ''
-            AND (SELECT COUNT(*)
-                FROM quality_control_signatures AS dashboard_qc_all_signatures
-                WHERE dashboard_qc_all_signatures.quality_control_report_id = dashboard_qc.id) = 2
-            AND (SELECT COUNT(*)
-                FROM quality_control_signatures AS dashboard_qc_workshop_signature
-                WHERE dashboard_qc_workshop_signature.quality_control_report_id = dashboard_qc.id
-                    AND dashboard_qc_workshop_signature.role_key = '{$workshopManager}'
-                    AND dashboard_qc_workshop_signature.status = '{$signed}') = 1
-            AND (SELECT COUNT(*)
-                FROM quality_control_signatures AS dashboard_qc_user_signature
-                WHERE dashboard_qc_user_signature.quality_control_report_id = dashboard_qc.id
-                    AND dashboard_qc_user_signature.role_key = '{$userManager}'
-                    AND dashboard_qc_user_signature.status = '{$signed}') = 1)";
+            AND COALESCE(dashboard_qc_signatures.signature_count, 0) = 2
+            AND COALESCE(dashboard_qc_signatures.workshop_signed_count, 0) = 1
+            AND COALESCE(dashboard_qc_signatures.user_signed_count, 0) = 1)";
+    }
+
+    private function qualityControlSignatureSummaryQuery(): QueryBuilder
+    {
+        return DB::table('quality_control_signatures')
+            ->select('quality_control_report_id')
+            ->selectRaw('COUNT(*) AS signature_count')
+            ->selectRaw(
+                'SUM(CASE WHEN role_key = ? AND status = ? THEN 1 ELSE 0 END) AS workshop_signed_count',
+                [QualityControlSignature::ROLE_WORKSHOP_MANAGER, QualityControlSignature::STATUS_SIGNED],
+            )
+            ->selectRaw(
+                'SUM(CASE WHEN role_key = ? AND status = ? THEN 1 ELSE 0 END) AS user_signed_count',
+                [QualityControlSignature::ROLE_USER_MANAGER, QualityControlSignature::STATUS_SIGNED],
+            )
+            ->selectRaw('MAX(signed_at) AS last_signed_at')
+            ->groupBy('quality_control_report_id');
     }
 
     private function qualityControlMakerSignatureExpression(): string

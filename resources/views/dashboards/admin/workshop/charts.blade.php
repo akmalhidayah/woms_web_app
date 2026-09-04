@@ -7,7 +7,7 @@
                 <i data-lucide="chart-no-axes-combined" class="h-4 w-4"></i>
             </span>
             <div>
-                <h2 class="text-xs font-bold uppercase tracking-[0.1em] text-slate-800">Penyelesaian Order</h2>
+                <h2 class="text-xs font-bold uppercase tracking-[0.1em] text-slate-800">Persentase Penyelesaian Order per Seksi</h2>
             </div>
         </div>
 

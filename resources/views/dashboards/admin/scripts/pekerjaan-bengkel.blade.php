@@ -38,10 +38,10 @@
                 ctx.textBaseline = 'middle';
                 ctx.fillStyle = '#64748b';
                 ctx.font = '700 9px sans-serif';
-                ctx.fillText('TOTAL ORDER', center.x, center.y - 10);
+                ctx.fillText('PENYELESAIAN', center.x, center.y - 10);
                 ctx.fillStyle = '#0f172a';
                 ctx.font = '800 22px sans-serif';
-                ctx.fillText(Number(summary.total || 0).toLocaleString('id-ID'), center.x, center.y + 12);
+                ctx.fillText(`${Number(summary.completion_percentage || 0).toLocaleString('id-ID')}%`, center.x, center.y + 12);
                 ctx.restore();
             },
         };

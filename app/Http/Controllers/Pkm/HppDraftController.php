@@ -37,6 +37,8 @@ class HppDraftController extends Controller
         $rowsQuery = Hpp::query()
             ->with([
                 'order:id,notifikasi,seksi,unit_kerja',
+                'order.documents:id,order_id,jenis_dokumen',
+                'order.scopeOfWork:id,order_id',
                 'creator:id,name,role',
                 'signatures.signer:id,name,nomor_hp',
                 'activeSignature.signer:id,name,nomor_hp',

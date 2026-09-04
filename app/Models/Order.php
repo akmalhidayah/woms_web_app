@@ -45,6 +45,7 @@ class Order extends Model
         'catatan_status',
         'tanggal_order',
         'target_selesai',
+        'biaya',
         'catatan',
         'created_by',
     ];
@@ -60,6 +61,7 @@ class Order extends Model
             'catatan_status' => OrderUserNoteStatus::class,
             'tanggal_order' => 'date',
             'target_selesai' => 'date',
+            'biaya' => 'decimal:2',
         ];
     }
 

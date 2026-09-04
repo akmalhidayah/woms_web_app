@@ -152,13 +152,13 @@
                     <label for="dashboardTypeSelector" class="sr-only">Pilih dashboard</label>
                     <select
                         id="dashboardTypeSelector"
-                        class="w-auto max-w-full appearance-none rounded-lg border border-transparent bg-transparent py-0.5 pl-1 pr-8 text-2xl font-bold tracking-[0.08em] text-slate-900 outline-none transition hover:border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 sm:text-3xl"
+                        class="min-h-14 w-auto max-w-full appearance-none rounded-xl border border-transparent bg-transparent py-2 pl-3 pr-11 text-3xl font-extrabold tracking-[0.08em] text-slate-900 outline-none transition hover:border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 sm:text-4xl"
                         aria-label="Pilih dashboard"
                     >
                         <option value="jasa" selected>DASHBOARD BIAYA JASA</option>
                         <option value="bengkel">DASHBOARD PEKERJAAN BENGKEL</option>
                     </select>
-                    <i data-lucide="chevron-down" class="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"></i>
+                    <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500"></i>
                 </div>
             </div>
 

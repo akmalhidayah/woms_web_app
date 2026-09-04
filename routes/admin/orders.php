@@ -21,6 +21,7 @@ Route::prefix('admin/orders')
         Route::post('/', [OrderController::class, 'store'])->middleware('admin_menu:order_jasa')->name('store');
         Route::patch('/{order}/priority', [OrderController::class, 'updatePriority'])->middleware('admin_order_menu')->name('priority.update');
         Route::patch('/{order}/user-note', [OrderController::class, 'updateUserNote'])->middleware('admin_order_menu')->name('user-note.update');
+        Route::patch('/workshop/{order}/start', [OrderWorkshopController::class, 'start'])->middleware('admin_menu:order_bengkel')->name('workshop.start');
         Route::patch('/workshop/{order}', [OrderWorkshopController::class, 'update'])->middleware('admin_menu:order_bengkel')->name('workshop.update');
         Route::get('/workshop/{order}/work-packages', [WorkshopWorkPackageController::class, 'index'])->middleware('admin_menu:order_bengkel')->name('workshop.work-packages.index');
         Route::post('/workshop/{order}/work-packages', [WorkshopWorkPackageController::class, 'store'])->middleware('admin_menu:order_bengkel')->name('workshop.work-packages.store');

@@ -134,15 +134,19 @@ class OrderWorkshopController extends Controller
 
     public function store(StoreOrderRequest $request): RedirectResponse
     {
-        $order = DB::transaction(function () use ($request): Order {
+        $validated = $request->validated();
+
+        $order = DB::transaction(function () use ($request, $validated): Order {
             $order = Order::create([
-                ...$request->validated(),
+                ...$validated,
+                'biaya' => $validated['biaya'] ?? null,
                 'catatan_status' => OrderUserNoteStatus::ApprovedWorkshop->value,
                 'created_by' => $request->user()?->id,
             ]);
 
             $workshop = $order->orderWorkshop()->create([
                 'progress_status' => OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
+                'started_at' => null,
                 'catatan' => $order->catatan,
             ]);
             $this->workshopOrderTaskSyncer->syncOrder($order, $workshop);
@@ -182,6 +186,10 @@ class OrderWorkshopController extends Controller
                 'workshopHandover',
             ]) ?: $order;
             $requestedProgress = (string) ($validated['progress_status'] ?? $workshop->progress_status ?? '');
+
+            if (array_key_exists('progress_status', $validated)) {
+                $this->assertProgressStartInvariant($workshop, $requestedProgress);
+            }
 
             if ((array_key_exists('preparation_status', $validated) || array_key_exists('preparation_note', $validated))
                 && $this->workshopReadiness->preparationLocked(
@@ -240,6 +248,56 @@ class OrderWorkshopController extends Controller
         });
     }
 
+    public function start(Order $order): JsonResponse
+    {
+        return DB::transaction(function () use ($order): JsonResponse {
+            if (! in_array($order->catatan_status?->value, [
+                OrderUserNoteStatus::ApprovedWorkshop->value,
+                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+            ], true)) {
+                throw ValidationException::withMessages([
+                    'progress_status' => 'Order ini tidak termasuk Order Pekerjaan Bengkel.',
+                ]);
+            }
+
+            $workshop = OrderWorkshop::query()
+                ->where('order_id', $order->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $workshop) {
+                throw ValidationException::withMessages([
+                    'progress_status' => 'Data Order Pekerjaan Bengkel tidak ditemukan.',
+                ]);
+            }
+
+            if ($workshop->started_at !== null) {
+                return response()->json([
+                    'message' => 'Pekerjaan sudah dimulai.',
+                    'updated' => $workshop->toArray(),
+                ]);
+            }
+
+            if ($workshop->progress_status !== OrderWorkshop::PROGRESS_MENUNGGU_JADWAL) {
+                throw ValidationException::withMessages([
+                    'progress_status' => 'Pekerjaan legacy sudah berjalan, tetapi waktu mulai belum tercatat.',
+                ]);
+            }
+
+            $workshop->started_at = now();
+            $workshop->progress_status = OrderWorkshop::PROGRESS_IN_PROGRESS;
+            $workshop->save();
+
+            $this->workshopOrderTaskSyncer->syncOrder($order->fresh('orderWorkshop') ?: $order, $workshop);
+            $this->syncBengkelTaskProgress($order, $workshop);
+
+            return response()->json([
+                'message' => 'Pekerjaan berhasil dimulai.',
+                'updated' => $workshop->fresh()->toArray(),
+            ]);
+        });
+    }
+
     private function syncBengkelTaskProgress(Order $order, OrderWorkshop $workshop): void
     {
         $progressStatus = $workshop->progress_status;
@@ -257,6 +315,26 @@ class OrderWorkshopController extends Controller
                     ? $workshop->keterangan_progress
                     : null,
             ]);
+    }
+
+    private function assertProgressStartInvariant(OrderWorkshop $workshop, string $requestedProgress): void
+    {
+        $currentProgress = $workshop->progress_status ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
+
+        if ($currentProgress === OrderWorkshop::PROGRESS_MENUNGGU_JADWAL
+            && $workshop->started_at === null
+            && $requestedProgress !== OrderWorkshop::PROGRESS_MENUNGGU_JADWAL) {
+            throw ValidationException::withMessages([
+                'progress_status' => 'Klik Start Pekerjaan sebelum mengubah Progress Pekerjaan.',
+            ]);
+        }
+
+        if ($currentProgress !== OrderWorkshop::PROGRESS_MENUNGGU_JADWAL
+            && $requestedProgress === OrderWorkshop::PROGRESS_MENUNGGU_JADWAL) {
+            throw ValidationException::withMessages([
+                'progress_status' => 'Progress pekerjaan yang sudah berjalan tidak dapat dikembalikan ke Menunggu Jadwal.',
+            ]);
+        }
     }
 
     private function readinessCandidate(OrderWorkshop $workshop): OrderWorkshop

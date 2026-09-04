@@ -204,6 +204,8 @@ class BengkelTaskController extends Controller
         $linkedOrder = ! empty($data['order_id'])
             ? Order::query()->find($data['order_id'])
             : null;
+        $linkedWorkshop = $linkedOrder?->loadMissing('orderWorkshop')->orderWorkshop;
+        $this->assertTaskProgressStartInvariant($linkedWorkshop, (string) $data['progress_status']);
         $this->assertEstimatorReguDoesNotEnterQualityControl(
             $linkedOrder,
             $data['catatan'] ?? null,
@@ -552,8 +554,10 @@ class BengkelTaskController extends Controller
                 $lockedTask->forceFill(['order_id' => $order->id])->save();
             }
 
+            $initialProgress = $lockedTask->progress_status ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
             $order->orderWorkshop()->firstOrCreate([], [
-                'progress_status' => OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
+                'progress_status' => $initialProgress,
+                'started_at' => $initialProgress === OrderWorkshop::PROGRESS_MENUNGGU_JADWAL ? null : now(),
                 'catatan' => $this->archiveRegu($lockedTask),
             ]);
 
@@ -614,7 +618,9 @@ class BengkelTaskController extends Controller
             // Archiving a display task must not overwrite an existing workshop
             // lifecycle state. Only initialize progress for a new record.
             if (! $workshop->exists) {
-                $workshop->progress_status = $lockedTask->progress_status ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
+                $initialProgress = $lockedTask->progress_status ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
+                $workshop->progress_status = $initialProgress;
+                $workshop->started_at = $initialProgress === OrderWorkshop::PROGRESS_MENUNGGU_JADWAL ? null : now();
             }
 
             $workshop->catatan = $this->archiveRegu($lockedTask);
@@ -910,6 +916,8 @@ class BengkelTaskController extends Controller
         $task->loadMissing('order.orderWorkshop');
         $workshop = $task->order?->orderWorkshop;
 
+        $this->assertTaskProgressStartInvariant($workshop, $progressStatus);
+
         $this->assertEstimatorReguDoesNotEnterQualityControl(
             $task->order,
             $requestedRegu ?? $task->catatan,
@@ -1058,17 +1066,60 @@ class BengkelTaskController extends Controller
             $task->is_completed ? OrderWorkshop::PROGRESS_DONE : OrderWorkshop::PROGRESS_MENUNGGU_JADWAL
         );
 
-        $workshop = $task->order?->orderWorkshop ?: $task->order?->orderWorkshop()->firstOrNew();
+        DB::transaction(function () use ($task, $progressStatus): void {
+            $workshop = OrderWorkshop::query()
+                ->where('order_id', $task->order_id)
+                ->lockForUpdate()
+                ->first();
 
+            if (! $workshop) {
+                $workshop = new OrderWorkshop([
+                    'order_id' => $task->order_id,
+                    'started_at' => $progressStatus === OrderWorkshop::PROGRESS_MENUNGGU_JADWAL ? null : now(),
+                ]);
+            } else {
+                $this->assertTaskProgressStartInvariant($workshop, $progressStatus);
+
+                if (($workshop->progress_status ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL) === OrderWorkshop::PROGRESS_MENUNGGU_JADWAL
+                    && $workshop->started_at === null
+                    && $progressStatus === OrderWorkshop::PROGRESS_IN_PROGRESS) {
+                    $workshop->started_at = now();
+                }
+            }
+
+            $workshop->progress_status = $progressStatus;
+            if ($progressStatus === OrderWorkshop::PROGRESS_PENDING) {
+                $workshop->keterangan_progress = $task->pending_reason;
+            }
+            $workshop->save();
+        });
+    }
+
+    private function assertTaskProgressStartInvariant(?OrderWorkshop $workshop, string $requestedProgress): void
+    {
         if (! $workshop) {
             return;
         }
 
-        $workshop->progress_status = $progressStatus;
-        if ($progressStatus === OrderWorkshop::PROGRESS_PENDING) {
-            $workshop->keterangan_progress = $task->pending_reason;
+        $currentProgress = $workshop->progress_status ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
+
+        if ($currentProgress === OrderWorkshop::PROGRESS_MENUNGGU_JADWAL
+            && $workshop->started_at === null
+            && ! in_array($requestedProgress, [
+                OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
+                OrderWorkshop::PROGRESS_IN_PROGRESS,
+            ], true)) {
+            throw ValidationException::withMessages([
+                'progress_status' => 'Mulai pekerjaan terlebih dahulu sebelum memilih progress berikutnya.',
+            ]);
         }
-        $workshop->save();
+
+        if ($currentProgress !== OrderWorkshop::PROGRESS_MENUNGGU_JADWAL
+            && $requestedProgress === OrderWorkshop::PROGRESS_MENUNGGU_JADWAL) {
+            throw ValidationException::withMessages([
+                'progress_status' => 'Progress pekerjaan yang sudah berjalan tidak dapat dikembalikan ke Menunggu Jadwal.',
+            ]);
+        }
     }
 
     private function readinessCandidate(?OrderWorkshop $workshop): ?OrderWorkshop

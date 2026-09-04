@@ -36,9 +36,20 @@ class OrderWorkshop extends Model
         'preparation_status',
         'preparation_note',
         'progress_status',
+        'started_at',
         'keterangan_progress',
         'catatan',
     ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'started_at' => 'datetime',
+        ];
+    }
 
     public static function preparationOptions(): array
     {

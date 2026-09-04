@@ -310,6 +310,12 @@
                                 };
                                 $preparationStatus = $workshop?->preparation_status;
                                 $preparationLabel = $workshop?->preparationLabel() ?? 'Belum Memilih Persiapan';
+                                $waitingForStart = $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL
+                                    && $workshop?->started_at === null;
+                                $legacyStarted = $workshop?->started_at === null
+                                    && filled($workshop?->progress_status)
+                                    && $workshop?->progress_status !== \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
+                                $progressHasBegun = $workshop?->started_at !== null || $legacyStarted;
                                 $workshopSummary = match (true) {
                                     filled($workshop?->progress_status) => $progressOptions[$workshop?->progress_status] ?? 'Progress Bengkel',
                                     default => $preparationLabel,
@@ -459,6 +465,7 @@
                                                 data-unit-kerja="{{ $order->unit_kerja }}"
                                                 data-prioritas="{{ $order->prioritas }}"
                                                 data-target-selesai="{{ optional($order->target_selesai)->format('Y-m-d') }}"
+                                                data-biaya="{{ $order->biaya === null ? '' : \Illuminate\Support\Str::before((string) $order->biaya, '.') }}"
                                                 data-seksi="{{ $order->seksi }}"
                                                 data-catatan-status="{{ $order->catatan_status?->value ?? \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value }}"
                                                 data-catatan="{{ $order->catatan }}"
@@ -502,15 +509,34 @@
                                         <section class="order-workshop-status-block rounded-lg border border-slate-200 bg-slate-50 p-2.5">
                                             <div class="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Progress Pekerjaan</div>
                                             <div class="space-y-2">
+                                                    @if ($waitingForStart)
+                                                        <button type="button" class="start-workshop-button inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-blue-600 px-2.5 py-2 text-[10px] font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-wait disabled:opacity-60" data-start-url="{{ route('admin.orders.workshop.start', $order) }}">
+                                                            <i data-lucide="play" class="h-3.5 w-3.5"></i>
+                                                            Start Pekerjaan
+                                                        </button>
+                                                    @elseif ($workshop?->started_at !== null)
+                                                        <div class="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[9px] font-semibold text-emerald-700">
+                                                            Mulai: {{ $workshop->started_at->format('d-m-Y H:i') }}
+                                                        </div>
+                                                    @elseif ($legacyStarted)
+                                                        <div class="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[9px] font-semibold text-amber-700">
+                                                            Waktu mulai belum tercatat
+                                                        </div>
+                                                    @endif
                                                     <div data-note-group>
                                                         <div class="flex items-center gap-1.5">
                                                             <div class="relative min-w-0 flex-1">
-                                                                <select name="progress_status" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="progress_status">
-                                                                    <option value="">Pilih progress</option>
-                                                                    @foreach ($progressOptions as $value => $label)
-                                                                        @continue($value === \App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL && $order->isEstimatorWorkshopRegu())
-                                                                        <option value="{{ $value }}" @selected(($workshop?->progress_status ?? '') === $value)>{{ $label }}</option>
-                                                                    @endforeach
+                                                                <select name="progress_status" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" data-field="progress_status" @disabled($waitingForStart)>
+                                                                    @if ($waitingForStart)
+                                                                        <option value="{{ \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL }}" selected>Menunggu Jadwal</option>
+                                                                    @else
+                                                                        <option value="" disabled>Pilih progress</option>
+                                                                        @foreach ($progressOptions as $value => $label)
+                                                                            @continue($progressHasBegun && $value === \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL)
+                                                                            @continue($value === \App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL && $order->isEstimatorWorkshopRegu())
+                                                                            <option value="{{ $value }}" @selected(($workshop?->progress_status ?? '') === $value)>{{ $label }}</option>
+                                                                        @endforeach
+                                                                    @endif
                                                                 </select>
                                                                 <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
                                                             </div>
@@ -666,6 +692,19 @@
                         <input id="createTargetSelesai" name="target_selesai" type="date" value="{{ old('form_context') === 'create' ? old('target_selesai', $today) : $today }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
                     </div>
                     <div class="md:col-span-2">
+                        <label for="createBiayaDisplay" class="mb-2 block text-sm text-slate-700">Biaya <span class="text-slate-400">(Opsional)</span></label>
+                        <div class="relative">
+                            <span class="pointer-events-none absolute inset-y-0 left-4 flex items-center text-sm font-medium text-slate-500">Rp</span>
+                            <input id="createBiayaDisplay" type="text" inputmode="numeric" autocomplete="off" placeholder="Masukkan nominal" class="w-full rounded-lg border border-slate-400 py-3 pl-12 pr-4 text-sm focus:border-blue-500 focus:outline-none">
+                            <input id="createBiaya" name="biaya" type="hidden" value="{{ old('form_context') === 'create' ? old('biaya') : '' }}">
+                        </div>
+                        @if (old('form_context') === 'create')
+                            @error('biaya')
+                                <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                            @enderror
+                        @endif
+                    </div>
+                    <div class="md:col-span-2">
                         <label class="mb-2 block text-sm text-slate-700">Detail Catatan</label>
                         <div class="space-y-2">
                             <select id="createCatatanSelect" class="hidden w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none"></select>
@@ -791,6 +830,19 @@
                         <input id="editTargetSelesai" name="target_selesai" type="date" value="{{ old('form_context') === 'edit' ? old('target_selesai') : '' }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
                     </div>
                     <div class="md:col-span-2">
+                        <label for="editBiayaDisplay" class="mb-2 block text-sm text-slate-700">Biaya <span class="text-slate-400">(Opsional)</span></label>
+                        <div class="relative">
+                            <span class="pointer-events-none absolute inset-y-0 left-4 flex items-center text-sm font-medium text-slate-500">Rp</span>
+                            <input id="editBiayaDisplay" type="text" inputmode="numeric" autocomplete="off" placeholder="Masukkan nominal" class="w-full rounded-lg border border-slate-400 py-3 pl-12 pr-4 text-sm focus:border-blue-500 focus:outline-none">
+                            <input id="editBiaya" name="biaya" type="hidden" value="{{ old('form_context') === 'edit' ? old('biaya') : '' }}">
+                        </div>
+                        @if (old('form_context') === 'edit')
+                            @error('biaya')
+                                <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                            @enderror
+                        @endif
+                    </div>
+                    <div class="md:col-span-2">
                         <label class="mb-2 block text-sm text-slate-700">Detail Catatan</label>
                         <div class="space-y-2">
                             <select id="editCatatanSelect" class="hidden w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none"></select>
@@ -897,9 +949,13 @@
             const createPrioritasPrimary = document.getElementById('createPrioritasPrimary');
             const createPrioritasEmergency = document.getElementById('createPrioritasEmergency');
             const createCatatanStatus = document.getElementById('createCatatanStatus');
+            const createBiayaDisplay = document.getElementById('createBiayaDisplay');
+            const createBiaya = document.getElementById('createBiaya');
             const editUnitKerja = document.getElementById('editUnitKerja');
             const editSeksi = document.getElementById('editSeksi');
             const editCatatanStatus = document.getElementById('editCatatanStatus');
+            const editBiayaDisplay = document.getElementById('editBiayaDisplay');
+            const editBiaya = document.getElementById('editBiaya');
             const oldFormContext = @json(old('form_context'));
             const oldEditOrderKey = @json(old('edit_original_order'));
             const userNoteDetailOptions = @json($userNoteDetailOptions);
@@ -928,6 +984,28 @@
                 .replaceAll('>', '&gt;')
                 .replaceAll('"', '&quot;')
                 .replaceAll("'", '&#039;');
+
+            const normalizeBiayaDigits = (value) => String(value ?? '')
+                .replace(/\D/g, '')
+                .replace(/^0+(?=\d)/, '');
+
+            const formatBiayaDigits = (value) => value.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+            const setBiayaFieldValue = (displayInput, hiddenInput, value = '') => {
+                if (!displayInput || !hiddenInput) {
+                    return;
+                }
+
+                const digits = normalizeBiayaDigits(value);
+                hiddenInput.value = digits;
+                displayInput.value = digits ? formatBiayaDigits(digits) : '';
+            };
+
+            const bindBiayaField = (displayInput, hiddenInput) => {
+                displayInput?.addEventListener('input', () => {
+                    setBiayaFieldValue(displayInput, hiddenInput, displayInput.value);
+                });
+            };
 
             const syncModalNoteField = (context, selectedStatus = defaultWorkshopStatus, currentNote = '') => {
                 const detailSelect = document.getElementById(`${context}CatatanSelect`);
@@ -1206,6 +1284,8 @@
             bindModalNoteField('edit');
             bindPriorityField('create');
             bindPriorityField('edit');
+            bindBiayaField(createBiayaDisplay, createBiaya);
+            bindBiayaField(editBiayaDisplay, editBiaya);
 
             document.querySelectorAll('[data-regu-toggle]').forEach((button) => {
                 button.addEventListener('click', () => {
@@ -1229,6 +1309,7 @@
                 document.getElementById('createTanggalOrder').value = '{{ $today }}';
                 document.getElementById('createDeskripsi').value = 'Order pekerjaan bengkel';
                 document.getElementById('createCatatan').value = '';
+                setBiayaFieldValue(createBiayaDisplay, createBiaya);
                 syncModalNoteField('create', defaultWorkshopStatus, '');
                 openCreateOrderModal();
             });
@@ -1270,6 +1351,7 @@
                     document.getElementById('editTargetSelesai').value = button.dataset.targetSelesai || '{{ $today }}';
                     document.getElementById('editTanggalOrder').value = button.dataset.tanggalOrder || button.dataset.targetSelesai || '{{ $today }}';
                     document.getElementById('editCatatan').value = button.dataset.catatan || '';
+                    setBiayaFieldValue(editBiayaDisplay, editBiaya, button.dataset.biaya || '');
                     document.getElementById('editDeskripsi').value = 'Order pekerjaan bengkel';
                     editStructurePair?.setValues(
                         button.dataset.unitKerja || '',
@@ -1290,6 +1372,7 @@
                     { allowLegacy: false }
                 );
                 syncPriorityField('create', @json(old('prioritas', \App\Models\Order::PRIORITY_LOW)));
+                setBiayaFieldValue(createBiayaDisplay, createBiaya, @json(old('biaya')));
                 syncModalNoteField('create', @json(old('catatan_status', \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value)), @json(old('catatan', '')));
                 openCreateOrderModal();
             } else {
@@ -1309,6 +1392,7 @@
                     document.getElementById('editDeskripsi').value = @json(old('deskripsi', 'Order pekerjaan bengkel'));
                     editCatatanStatus.value = @json(old('catatan_status', \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value));
                     syncPriorityField('edit', @json(old('prioritas', \App\Models\Order::PRIORITY_LOW)));
+                    setBiayaFieldValue(editBiayaDisplay, editBiaya, @json(old('biaya')));
                     editStructurePair?.setValues(
                         @json(old('unit_kerja')),
                         @json(old('seksi')),
@@ -1330,6 +1414,34 @@
 
                     if (result && (select.name === 'preparation_status' || select.name === 'progress_status')) {
                         setTimeout(() => window.location.reload(), 500);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.start-workshop-button').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    const confirmation = swal
+                        ? await swal.fire({
+                            icon: 'question',
+                            title: 'Start Pekerjaan?',
+                            text: 'Waktu mulai aktual akan dicatat dan progress berubah menjadi Sementara Proses.',
+                            showCancelButton: true,
+                            confirmButtonText: 'Ya, mulai',
+                            cancelButtonText: 'Batal',
+                            confirmButtonColor: '#2563eb',
+                        })
+                        : { isConfirmed: confirm('Mulai pekerjaan sekarang?') };
+
+                    if (!confirmation.isConfirmed) {
+                        return;
+                    }
+
+                    button.disabled = true;
+                    const result = await sendPatch(button.dataset.startUrl || '', {});
+                    if (result) {
+                        setTimeout(() => window.location.reload(), 500);
+                    } else {
+                        button.disabled = false;
                     }
                 });
             });

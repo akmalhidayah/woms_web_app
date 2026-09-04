@@ -10,7 +10,6 @@ use App\Models\OrderWorkshop;
 use App\Models\QualityControlReport;
 use App\Models\QualityControlSignature;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -77,11 +76,16 @@ final class WorkshopDashboardService
     {
         return Order::query()
             ->join('order_workshops', 'order_workshops.order_id', '=', 'orders.id')
-            ->leftJoin('quality_control_reports as dashboard_qc', function (JoinClause $join): void {
-                $join
-                    ->on('dashboard_qc.order_id', '=', 'orders.id')
-                    ->whereRaw('dashboard_qc.id = (SELECT MAX(dashboard_qc_latest.id) FROM quality_control_reports AS dashboard_qc_latest WHERE dashboard_qc_latest.order_id = orders.id)');
-            })
+            ->leftJoinSub(
+                DB::table('quality_control_reports')
+                    ->selectRaw('order_id, MAX(id) AS report_id')
+                    ->groupBy('order_id'),
+                'dashboard_latest_qc',
+                'dashboard_latest_qc.order_id',
+                '=',
+                'orders.id',
+            )
+            ->leftJoin('quality_control_reports as dashboard_qc', 'dashboard_qc.id', '=', 'dashboard_latest_qc.report_id')
             ->whereIn('orders.catatan_status', [
                 OrderUserNoteStatus::ApprovedWorkshop->value,
                 OrderUserNoteStatus::ApprovedWorkshopJasa->value,

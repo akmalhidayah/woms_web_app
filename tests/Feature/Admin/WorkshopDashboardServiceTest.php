@@ -85,8 +85,8 @@ class WorkshopDashboardServiceTest extends TestCase
         $this->assertSame(300, $september['monthly_costs'][0]['amount']);
 
         $defaultPeriod = app(WorkshopDashboardService::class)->resolve();
-        $this->assertSame(['year' => 2026, 'month' => 9], $defaultPeriod['filters']);
-        $this->assertSame(1, $defaultPeriod['summary']['total']);
+        $this->assertSame(['year' => 2026, 'month' => null], $defaultPeriod['filters']);
+        $this->assertSame(2, $defaultPeriod['summary']['total']);
 
         $fullYear = app(WorkshopDashboardService::class)->resolve(2026, 'all');
         $this->assertCount(12, $fullYear['monthly_costs']);

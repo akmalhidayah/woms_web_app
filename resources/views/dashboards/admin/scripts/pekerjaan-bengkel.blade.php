@@ -23,6 +23,26 @@
             if (number >= 1000) return `Rp ${(number / 1000).toLocaleString('id-ID')} rb`;
             return formatRupiah(number);
         };
+        const completionCenterText = {
+            id: 'workshopCompletionCenterText',
+            afterDraw(chart) {
+                const center = chart.getDatasetMeta(0)?.data?.[0];
+
+                if (!center) return;
+
+                const { ctx } = chart;
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#64748b';
+                ctx.font = '700 9px sans-serif';
+                ctx.fillText('TOTAL ORDER', center.x, center.y - 10);
+                ctx.fillStyle = '#0f172a';
+                ctx.font = '800 22px sans-serif';
+                ctx.fillText(Number(summary.total || 0).toLocaleString('id-ID'), center.x, center.y + 12);
+                ctx.restore();
+            },
+        };
 
         if (completionCanvas) {
             destroyChart('workshopCompletionChartInstance');
@@ -60,6 +80,7 @@
                         },
                     },
                 },
+                plugins: [completionCenterText],
             });
         }
 

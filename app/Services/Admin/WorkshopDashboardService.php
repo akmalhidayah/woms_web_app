@@ -286,7 +286,7 @@ final class WorkshopDashboardService
 
     private function normalizeMonth(int|string|null $month): ?int
     {
-        if ($month === 'all') {
+        if ($month === null || $month === '' || $month === 'all') {
             return null;
         }
 

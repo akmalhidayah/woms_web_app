@@ -26,7 +26,7 @@ class WorkshopDashboardServiceTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_metrics_use_completed_handover_and_ignore_display_archive_state(): void
+    public function test_metrics_use_handover_entry_and_ignore_display_archive_state(): void
     {
         Carbon::setTestNow('2026-09-04 10:00:00');
         $user = User::factory()->create();
@@ -34,7 +34,7 @@ class WorkshopDashboardServiceTest extends TestCase
         $this->workshopOrder($user, 'WD-002', '2026-09-02', Order::WORKSHOP_REGU_REFURBISH, OrderWorkshop::PROGRESS_QUALITY_CONTROL);
         $this->workshopOrder($user, 'WD-003', '2026-09-03', Order::WORKSHOP_REGU_ESTIMATOR, OrderWorkshop::PROGRESS_DONE, 200);
         $completed = $this->workshopOrder($user, 'WD-004', '2026-09-03', Order::WORKSHOP_REGU_FABRIKASI, OrderWorkshop::PROGRESS_QUALITY_CONTROL, 300);
-        $this->handover($completed, $user, WorkshopHandover::STATUS_COMPLETED, '2026-09-04 09:00:00');
+        $this->handover($completed, $user, WorkshopHandover::STATUS_WAITING_USER_SIGNATURE, '2026-09-04 09:00:00');
         $this->workshopOrder($user, 'WD-005', '2026-09-04', null, OrderWorkshop::PROGRESS_MENUNGGU_JADWAL);
         $excluded = $this->workshopOrder($user, 'WD-006', '2026-09-04', Order::WORKSHOP_REGU_FABRIKASI, OrderWorkshop::PROGRESS_IN_PROGRESS);
         $excluded->update(['catatan_status' => OrderUserNoteStatus::ApprovedJasa->value]);
@@ -89,16 +89,15 @@ class WorkshopDashboardServiceTest extends TestCase
         $this->assertSame(500, collect($fullYear['monthly_costs'])->sum('amount'));
     }
 
-    public function test_cumulative_trend_uses_user_signature_time_and_omits_future_months(): void
+    public function test_cumulative_trend_uses_handover_entry_time_and_omits_future_months(): void
     {
         Carbon::setTestNow('2026-09-04 10:00:00');
         $user = User::factory()->create();
         $january = $this->workshopOrder($user, 'WD-TREND-JAN', '2026-01-10', Order::WORKSHOP_REGU_FABRIKASI, OrderWorkshop::PROGRESS_DONE);
-        $this->handover($january, $user, WorkshopHandover::STATUS_COMPLETED, '2026-03-05 08:00:00');
-        $february = $this->workshopOrder($user, 'WD-TREND-FEB', '2026-02-10', Order::WORKSHOP_REGU_REFURBISH, OrderWorkshop::PROGRESS_DONE);
-        $this->handover($february, $user, WorkshopHandover::STATUS_COMPLETED, null);
+        $this->handover($january, $user, WorkshopHandover::STATUS_WAITING_USER_SIGNATURE, '2026-03-05 08:00:00');
+        $this->workshopOrder($user, 'WD-TREND-FEB', '2026-02-10', Order::WORKSHOP_REGU_REFURBISH, OrderWorkshop::PROGRESS_DONE);
         $april = $this->workshopOrder($user, 'WD-TREND-APR', '2026-04-10', Order::WORKSHOP_REGU_ESTIMATOR, OrderWorkshop::PROGRESS_DONE);
-        $this->handover($april, $user, WorkshopHandover::STATUS_COMPLETED, '2026-10-01 08:00:00');
+        $this->handover($april, $user, WorkshopHandover::STATUS_WAITING_USER_SIGNATURE, '2026-10-01 08:00:00');
 
         $dashboard = app(WorkshopDashboardService::class)->resolve(2026, 'all');
         $trend = collect($dashboard['trend'])->keyBy('month');
@@ -160,14 +159,14 @@ class WorkshopDashboardServiceTest extends TestCase
         return $order;
     }
 
-    private function handover(Order $order, User $user, string $status, ?string $signedAt): WorkshopHandover
+    private function handover(Order $order, User $user, string $status, string $handedOverAt): WorkshopHandover
     {
         return WorkshopHandover::query()->create([
             'order_id' => $order->id,
             'document_no' => 'STB-'.$order->nomor_order,
             'path' => WorkshopHandover::PATH_NON_CRITICAL,
             'status' => $status,
-            'handed_over_at' => $signedAt ?? '2026-09-01 08:00:00',
+            'handed_over_at' => $handedOverAt,
             'order_no_snapshot' => $order->nomor_order,
             'job_name_snapshot' => $order->nama_pekerjaan,
             'unit_snapshot' => $order->unit_kerja,
@@ -180,8 +179,8 @@ class WorkshopDashboardServiceTest extends TestCase
             'recipient_user_id' => $user->id,
             'recipient_name_snapshot' => $user->name,
             'recipient_position_snapshot' => 'Manager User',
-            'user_signature_path' => $signedAt === null ? null : 'signatures/user.png',
-            'user_signed_at' => $signedAt,
+            'user_signature_path' => null,
+            'user_signed_at' => null,
             'photo_paths' => [],
         ]);
     }

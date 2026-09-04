@@ -7,7 +7,6 @@ namespace App\Services\Admin;
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
-use App\Models\WorkshopHandover;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -100,15 +99,13 @@ final class WorkshopDashboardService
         $row = $query
             ->selectRaw('COUNT(orders.id) as total_order')
             ->selectRaw(
-                'COALESCE(SUM(CASE WHEN workshop_handovers.status = ? THEN 1 ELSE 0 END), 0) as completed_order',
-                [WorkshopHandover::STATUS_COMPLETED],
+                'COALESCE(SUM(CASE WHEN workshop_handovers.id IS NOT NULL THEN 1 ELSE 0 END), 0) as completed_order',
             )
             ->selectRaw(
-                'COALESCE(SUM(CASE WHEN order_workshops.progress_status IN (?, ?) AND (workshop_handovers.status IS NULL OR workshop_handovers.status <> ?) THEN 1 ELSE 0 END), 0) as in_progress_order',
+                'COALESCE(SUM(CASE WHEN order_workshops.progress_status IN (?, ?) AND workshop_handovers.id IS NULL THEN 1 ELSE 0 END), 0) as in_progress_order',
                 [
                     OrderWorkshop::PROGRESS_IN_PROGRESS,
                     OrderWorkshop::PROGRESS_QUALITY_CONTROL,
-                    WorkshopHandover::STATUS_COMPLETED,
                 ],
             )
             ->selectRaw('COALESCE(SUM(orders.biaya), 0) as total_cost')
@@ -132,15 +129,13 @@ final class WorkshopDashboardService
             ->selectRaw("{$reguExpression} as regu")
             ->selectRaw('COUNT(orders.id) as total_order')
             ->selectRaw(
-                'COALESCE(SUM(CASE WHEN workshop_handovers.status = ? THEN 1 ELSE 0 END), 0) as completed_order',
-                [WorkshopHandover::STATUS_COMPLETED],
+                'COALESCE(SUM(CASE WHEN workshop_handovers.id IS NOT NULL THEN 1 ELSE 0 END), 0) as completed_order',
             )
             ->selectRaw(
-                'COALESCE(SUM(CASE WHEN order_workshops.progress_status IN (?, ?) AND (workshop_handovers.status IS NULL OR workshop_handovers.status <> ?) THEN 1 ELSE 0 END), 0) as in_progress_order',
+                'COALESCE(SUM(CASE WHEN order_workshops.progress_status IN (?, ?) AND workshop_handovers.id IS NULL THEN 1 ELSE 0 END), 0) as in_progress_order',
                 [
                     OrderWorkshop::PROGRESS_IN_PROGRESS,
                     OrderWorkshop::PROGRESS_QUALITY_CONTROL,
-                    WorkshopHandover::STATUS_COMPLETED,
                 ],
             )
             ->groupByRaw($reguExpression)
@@ -177,8 +172,8 @@ final class WorkshopDashboardService
     {
         $lastMonth = $this->lastTrendMonth($year, $selectedMonth);
         $orderMonthExpression = $this->datePartExpression('month', 'orders.tanggal_order');
-        $completionYearExpression = $this->datePartExpression('year', 'workshop_handovers.user_signed_at');
-        $completionMonthExpression = $this->datePartExpression('month', 'workshop_handovers.user_signed_at');
+        $completionYearExpression = $this->datePartExpression('year', 'workshop_handovers.handed_over_at');
+        $completionMonthExpression = $this->datePartExpression('month', 'workshop_handovers.handed_over_at');
         $trendEnd = Carbon::create($year, $lastMonth, 1)->endOfMonth();
         $monthlyOrders = $this->baseQuery()
             ->whereYear('orders.tanggal_order', $year)
@@ -190,9 +185,9 @@ final class WorkshopDashboardService
         $completionGroups = $this->baseQuery()
             ->whereYear('orders.tanggal_order', $year)
             ->whereMonth('orders.tanggal_order', '<=', $lastMonth)
-            ->where('workshop_handovers.status', WorkshopHandover::STATUS_COMPLETED)
-            ->whereNotNull('workshop_handovers.user_signed_at')
-            ->where('workshop_handovers.user_signed_at', '<=', $trendEnd)
+            ->whereNotNull('workshop_handovers.id')
+            ->whereNotNull('workshop_handovers.handed_over_at')
+            ->where('workshop_handovers.handed_over_at', '<=', $trendEnd)
             ->selectRaw("{$orderMonthExpression} as order_month")
             ->selectRaw("{$completionYearExpression} as completion_year")
             ->selectRaw("{$completionMonthExpression} as completion_month")

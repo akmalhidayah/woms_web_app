@@ -32,7 +32,7 @@
                 <i data-lucide="chart-spline" class="h-4 w-4"></i>
             </span>
             <div>
-                <h2 class="text-xs font-bold uppercase tracking-[0.1em] text-slate-800">Trend Penyelesaian Order</h2>
+                <h2 class="text-xs font-bold uppercase tracking-[0.1em] text-slate-800">Grafik Penyelesaian Pekerjaan Bengkel</h2>
             </div>
         </div>
         <span class="text-[10px] font-bold text-blue-700">Target {{ $workshopSummary['completion_target'] }}%</span>
@@ -40,11 +40,11 @@
 
     @if ($workshopDashboard['trend_has_orders'])
         <div class="relative mt-3 h-[300px] min-w-0 w-full overflow-hidden">
-            <canvas id="workshopCompletionTrendChart" class="h-full w-full max-w-full" role="img" aria-label="Grafik trend penyelesaian Order Pekerjaan Bengkel"></canvas>
+            <canvas id="workshopCompletionTrendChart" class="h-full w-full max-w-full" role="img" aria-label="Grafik penyelesaian Pekerjaan Bengkel"></canvas>
         </div>
     @else
         <div class="mt-3 flex h-[220px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-xs text-slate-500">
-            Belum ada data trend penyelesaian pada tahun ini.
+            Belum ada data penyelesaian Pekerjaan Bengkel pada tahun ini.
         </div>
     @endif
 </section>

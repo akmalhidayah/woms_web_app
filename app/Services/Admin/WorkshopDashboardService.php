@@ -194,8 +194,6 @@ final class WorkshopDashboardService
         $lastMonth = $this->lastTrendMonth($year, $selectedMonth);
         $orderMonthExpression = $this->datePartExpression('month', 'orders.tanggal_order');
         $completionTimestampExpression = $this->completionTimestampExpression();
-        $completionYearExpression = $this->datePartExpression('year', $completionTimestampExpression);
-        $completionMonthExpression = $this->datePartExpression('month', $completionTimestampExpression);
         $trendEnd = Carbon::create($year, $lastMonth, 1)->endOfMonth();
         $monthlyOrders = $this->baseQuery()
             ->whereYear('orders.tanggal_order', $year)
@@ -204,31 +202,39 @@ final class WorkshopDashboardService
             ->groupByRaw($orderMonthExpression)
             ->pluck('total_order', 'order_month')
             ->map(fn ($total): int => (int) $total);
-        $completionGroups = $this->baseQuery()
+        $completionRows = $this->baseQuery()
             ->whereYear('orders.tanggal_order', $year)
             ->whereMonth('orders.tanggal_order', '<=', $lastMonth)
-            ->whereRaw("{$completionTimestampExpression} IS NOT NULL")
-            ->whereRaw("{$completionTimestampExpression} <= ?", [$trendEnd])
+            ->selectRaw('orders.id as order_id')
             ->selectRaw("{$orderMonthExpression} as order_month")
+            ->selectRaw("{$completionTimestampExpression} as completion_at");
+        $completionYearExpression = $this->datePartExpression('year', 'dashboard_completion_rows.completion_at');
+        $completionMonthExpression = $this->datePartExpression('month', 'dashboard_completion_rows.completion_at');
+        $completionGroups = DB::query()
+            ->fromSub($completionRows, 'dashboard_completion_rows')
+            ->whereNotNull('dashboard_completion_rows.completion_at')
+            ->where('dashboard_completion_rows.completion_at', '<=', $trendEnd)
+            ->select('dashboard_completion_rows.order_month')
             ->selectRaw("{$completionYearExpression} as completion_year")
             ->selectRaw("{$completionMonthExpression} as completion_month")
-            ->selectRaw('COUNT(orders.id) as total_order')
-            ->groupByRaw("{$orderMonthExpression}, {$completionYearExpression}, {$completionMonthExpression}")
+            ->selectRaw('COUNT(*) as total_order')
+            ->groupBy('dashboard_completion_rows.order_month')
+            ->groupByRaw("{$completionYearExpression}, {$completionMonthExpression}")
             ->get();
         $cumulativeTotal = 0;
 
         return collect(range(1, $lastMonth))
             ->map(function (int $month) use ($year, $monthlyOrders, $completionGroups, &$cumulativeTotal): array {
                 $cumulativeTotal += (int) $monthlyOrders->get($month, 0);
-                $completed = $completionGroups->sum(function (Order $row) use ($year, $month): int {
-                    $orderMonth = (int) $row->getAttribute('order_month');
-                    $completionYear = (int) $row->getAttribute('completion_year');
-                    $completionMonth = (int) $row->getAttribute('completion_month');
+                $completed = $completionGroups->sum(function (object $row) use ($year, $month): int {
+                    $orderMonth = (int) $row->order_month;
+                    $completionYear = (int) $row->completion_year;
+                    $completionMonth = (int) $row->completion_month;
                     $completedByMonth = $completionYear < $year
                         || ($completionYear === $year && $completionMonth <= $month);
 
                     return $orderMonth <= $month && $completedByMonth
-                        ? (int) $row->getAttribute('total_order')
+                        ? (int) $row->total_order
                         : 0;
                 });
                 $percentage = $this->percentageHundredths((int) $completed, $cumulativeTotal) / 100.0;

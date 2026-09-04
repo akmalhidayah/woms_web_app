@@ -10,7 +10,7 @@ class DashboardAdditionalGridUiTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_dashboard_defaults_to_service_cost_and_provides_workshop_placeholder(): void
+    public function test_dashboard_defaults_to_service_cost_and_loads_workshop_on_demand(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
 
@@ -19,12 +19,24 @@ class DashboardAdditionalGridUiTest extends TestCase
         $response->assertOk()
             ->assertSee('id="dashboardTypeSelector"', false)
             ->assertSee('<option value="jasa" selected>DASHBOARD BIAYA JASA</option>', false)
-            ->assertSee('<option value="bengkel">DASHBOARD PEKERJAAN BENGKEL</option>', false)
+            ->assertSee('value="bengkel"', false)
+            ->assertSee('DASHBOARD PEKERJAAN BENGKEL')
             ->assertSee('id="dashboardJasaContent"', false)
-            ->assertSee('id="dashboardBengkelContent" class="hidden"', false)
-            ->assertSee('Canvas dashboard pekerjaan bengkel siap dikembangkan.')
-            ->assertSee("dashboardTypeSelector.value = 'jasa'", false)
-            ->assertSee("showDashboard(dashboardTypeSelector.value)", false);
+            ->assertDontSee('id="dashboardBengkelContent"', false)
+            ->assertDontSee('Canvas dashboard pekerjaan bengkel siap dikembangkan.');
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard', ['dashboard' => 'bengkel']))
+            ->assertOk()
+            ->assertSee('value="bengkel" selected', false)
+            ->assertSee('id="dashboardBengkelContent"', false)
+            ->assertSee('id="dashboardWorkshopYear"', false)
+            ->assertSee('id="dashboardWorkshopMonth"', false)
+            ->assertSee('Penyelesaian Order')
+            ->assertSee('Ringkasan Per Regu')
+            ->assertSee('Trend Penyelesaian Order')
+            ->assertSee('Biaya Order Bengkel Per Bulan')
+            ->assertDontSee('id="dashboardJasaContent"', false);
     }
 
     public function test_dashboard_displays_overhaul_prognosis_and_top_ten_cost_grids(): void

@@ -10,6 +10,7 @@ use App\Models\OutlineAgreementMonthlyRealization;
 use App\Models\OutlineAgreementTarget;
 use App\Services\Admin\DashboardFinancialSummaryService;
 use App\Services\Admin\DashboardTopTenHppCostService;
+use App\Services\Admin\WorkshopDashboardService;
 use App\Support\AdminActionCenter;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,11 +25,34 @@ class DashboardController extends Controller
     public function __construct(
         private readonly DashboardFinancialSummaryService $financialSummaryService,
         private readonly DashboardTopTenHppCostService $topTenHppCostService,
+        private readonly WorkshopDashboardService $workshopDashboardService,
         private readonly AdminActionCenter $actionCenter,
     ) {}
 
     public function __invoke(Request $request): View
     {
+        $activeDashboard = $request->string('dashboard')->toString() === 'bengkel' ? 'bengkel' : 'jasa';
+        $pendingActionCount = $this->actionCenter->pendingActionCount($request->user());
+        $showActionSummaryBanner = (bool) $request->session()->pull(
+            'show_admin_action_summary_banner',
+            false,
+        ) && $pendingActionCount > 0;
+        $commonViewData = [
+            'activeDashboard' => $activeDashboard,
+            'showActionSummaryBanner' => $showActionSummaryBanner,
+            'adminActionSummaryCount' => $pendingActionCount,
+            'adminActionSummary' => $this->actionCenter->summary($request->user()),
+        ];
+
+        if ($activeDashboard === 'bengkel') {
+            return view('dashboards.admin', $commonViewData + [
+                'workshopDashboard' => $this->workshopDashboardService->resolve(
+                    $request->integer('workshop_year') ?: null,
+                    $request->query('workshop_month'),
+                ),
+            ]);
+        }
+
         $context = $this->resolveDashboardContext($request);
         $agreementId = $context['outline_agreement_id'];
         $year = $context['year'];
@@ -43,13 +67,8 @@ class DashboardController extends Controller
         $totalOutstandingBiaya = $financialSummary['outstanding'];
         $totalPrognosaBiaya = $financialSummary['prognosis'];
         $totalAnggaranTersedia = $financialSummary['available_budget'];
-        $pendingActionCount = $this->actionCenter->pendingActionCount($request->user());
-        $showActionSummaryBanner = (bool) $request->session()->pull(
-            'show_admin_action_summary_banner',
-            false,
-        ) && $pendingActionCount > 0;
 
-        return view('dashboards.admin', [
+        return view('dashboards.admin', $commonViewData + [
             'totalPaguKontrak' => $totalPaguKontrak,
             'totalRealisasiSistem' => $totalRealisasiSistem,
             'totalRealisasiManual' => $totalRealisasiManual,
@@ -94,9 +113,6 @@ class DashboardController extends Controller
             'overhaulPrognosis' => $this->overhaulPrognosis($context['outline_agreement'], $year),
             'topTenCostSections' => $this->resolveTopTenCostSections($context['outline_agreement'], $year),
             'topTenMaintenanceCostSections' => $this->resolveTopTenCostSections($context['outline_agreement'], $year, 'pemeliharaan'),
-            'showActionSummaryBanner' => $showActionSummaryBanner,
-            'adminActionSummaryCount' => $pendingActionCount,
-            'adminActionSummary' => $this->actionCenter->summary($request->user()),
         ]);
     }
 

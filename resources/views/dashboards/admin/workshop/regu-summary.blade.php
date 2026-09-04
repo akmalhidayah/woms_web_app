@@ -24,7 +24,12 @@
         @foreach ($workshopDashboard['regu'] as $regu)
             @php($style = $reguStyles[$loop->index] ?? $reguStyles[0])
             <section class="flex min-h-[190px] min-w-0 flex-col rounded-lg p-3 {{ $style['card'] }}">
-                <h3 class="break-words text-[10px] font-extrabold uppercase tracking-[0.08em]">{{ $regu['name'] }}</h3>
+                <div class="flex items-start justify-between gap-2">
+                    <h3 class="break-words text-[10px] font-extrabold uppercase tracking-[0.08em]">{{ $regu['name'] }}</h3>
+                    <span class="shrink-0 text-[10px] font-extrabold text-slate-700">
+                        {{ number_format($regu['completion_percentage'], 2, ',', '.') }}%
+                    </span>
+                </div>
                 <div class="relative mt-2 min-h-[150px] min-w-0 w-full flex-1 overflow-hidden">
                     <canvas
                         data-workshop-regu-chart="{{ $loop->index }}"

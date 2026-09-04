@@ -148,12 +148,21 @@
                 <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                     <i data-lucide="layout-dashboard" class="h-5 w-5"></i>
                 </span>
-                <div class="min-w-0">
-                    <h1 class="text-2xl font-bold tracking-[0.08em] text-slate-900 sm:text-3xl">DASHBOARD BIAYA JASA</h1>
+                <div class="relative min-w-0 w-full max-w-[410px]">
+                    <label for="dashboardTypeSelector" class="sr-only">Pilih dashboard</label>
+                    <select
+                        id="dashboardTypeSelector"
+                        class="w-full max-w-[410px] appearance-none rounded-lg border border-transparent bg-transparent py-1 pr-9 text-lg font-bold tracking-[0.08em] text-slate-900 outline-none transition hover:border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 sm:text-2xl"
+                        aria-label="Pilih dashboard"
+                    >
+                        <option value="jasa" selected>DASHBOARD BIAYA JASA</option>
+                        <option value="bengkel">DASHBOARD PEKERJAAN BENGKEL</option>
+                    </select>
+                    <i data-lucide="chevron-down" class="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"></i>
                 </div>
             </div>
 
-            <div class="grid min-w-0 gap-x-3 gap-y-2 sm:grid-cols-2 xl:grid-cols-[minmax(220px,320px)_110px_minmax(210px,auto)] xl:items-center">
+            <div id="dashboardJasaHeaderControls" class="grid min-w-0 gap-x-3 gap-y-2 sm:grid-cols-2 xl:grid-cols-[minmax(220px,320px)_110px_minmax(210px,auto)] xl:items-center">
                 <form id="dashboardGlobalFilter" method="GET" action="{{ route('admin.dashboard') }}" class="contents">
                     <label class="min-w-0">
                         <span class="block text-[8px] font-bold uppercase tracking-[0.14em] text-slate-500">Outline Agreement</span>
@@ -191,6 +200,7 @@
             </div>
         </header>
 
+        <div id="dashboardJasaContent" class="space-y-3">
         <section class="general-cost-section rounded-xl bg-blue-100 px-3 py-2.5">
             <div class="mb-3 flex items-center gap-2 border-b border-slate-300 pb-2.5">
                 <i data-lucide="wallet-cards" class="h-4 w-4 text-blue-600"></i>
@@ -431,11 +441,28 @@
                 </div>
             </article>
         </section>
+        </div>
+
+        <div id="dashboardBengkelContent" class="hidden" aria-hidden="true">
+            <section class="flex min-h-[560px] items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
+                <div class="max-w-md">
+                    <span class="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                        <i data-lucide="factory" class="h-6 w-6"></i>
+                    </span>
+                    <h2 class="mt-4 text-lg font-bold tracking-[0.08em] text-slate-900">DASHBOARD PEKERJAAN BENGKEL</h2>
+                    <p class="mt-2 text-sm text-slate-500">Canvas dashboard pekerjaan bengkel siap dikembangkan.</p>
+                </div>
+            </section>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            const dashboardTypeSelector = document.getElementById('dashboardTypeSelector');
+            const dashboardJasaHeaderControls = document.getElementById('dashboardJasaHeaderControls');
+            const dashboardJasaContent = document.getElementById('dashboardJasaContent');
+            const dashboardBengkelContent = document.getElementById('dashboardBengkelContent');
             const globalFilterForm = document.getElementById('dashboardGlobalFilter');
             const globalAgreementSelect = document.getElementById('dashboardOutlineAgreement');
             const globalYearSelect = document.getElementById('dashboardYear');
@@ -1028,6 +1055,28 @@
             }
 
             scheduleDashboardChartResize();
+
+            const showDashboard = (dashboardType) => {
+                const showJasa = dashboardType !== 'bengkel';
+
+                dashboardJasaHeaderControls?.classList.toggle('hidden', !showJasa);
+                dashboardJasaContent?.classList.toggle('hidden', !showJasa);
+                dashboardJasaContent?.setAttribute('aria-hidden', showJasa ? 'false' : 'true');
+                dashboardBengkelContent?.classList.toggle('hidden', showJasa);
+                dashboardBengkelContent?.setAttribute('aria-hidden', showJasa ? 'true' : 'false');
+
+                if (showJasa) {
+                    scheduleDashboardChartResize();
+                }
+            };
+
+            if (dashboardTypeSelector) {
+                dashboardTypeSelector.value = 'jasa';
+                showDashboard('jasa');
+                dashboardTypeSelector.addEventListener('change', () => {
+                    showDashboard(dashboardTypeSelector.value);
+                });
+            }
 
             [globalAgreementSelect, globalYearSelect].forEach(select => {
                 select?.addEventListener('change', () => globalFilterForm?.submit());

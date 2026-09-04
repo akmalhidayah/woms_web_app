@@ -10,6 +10,23 @@ class DashboardAdditionalGridUiTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_dashboard_defaults_to_service_cost_and_provides_workshop_placeholder(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+
+        $response = $this->actingAs($admin)->get(route('admin.dashboard'));
+
+        $response->assertOk()
+            ->assertSee('id="dashboardTypeSelector"', false)
+            ->assertSee('<option value="jasa" selected>DASHBOARD BIAYA JASA</option>', false)
+            ->assertSee('<option value="bengkel">DASHBOARD PEKERJAAN BENGKEL</option>', false)
+            ->assertSee('id="dashboardJasaContent"', false)
+            ->assertSee('id="dashboardBengkelContent" class="hidden"', false)
+            ->assertSee('Canvas dashboard pekerjaan bengkel siap dikembangkan.')
+            ->assertSee("dashboardTypeSelector.value = 'jasa'", false)
+            ->assertSee("showDashboard(dashboardTypeSelector.value)", false);
+    }
+
     public function test_dashboard_displays_overhaul_prognosis_and_top_ten_cost_grids(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
@@ -41,7 +58,7 @@ class DashboardAdditionalGridUiTest extends TestCase
             ->assertSee('display: true', false)
             ->assertSee('grid min-w-0 gap-3 xl:col-span-8', false)
             ->assertSee('maintenance-panel flex min-w-0 flex-col rounded-xl bg-emerald-100 p-3', false)
-            ->assertSee('monthly-realization-panel flex min-h-[330px] flex-col rounded-xl bg-blue-100 p-3', false)
+            ->assertSee('monthly-realization-panel flex min-w-0 min-h-[330px] flex-col overflow-hidden rounded-xl bg-blue-100 p-3', false)
             ->assertSee('top-ten-panel flex min-w-0 flex-col rounded-xl bg-blue-100 p-3 xl:col-span-8', false)
             ->assertSee('overhaul-panel flex min-w-0 flex-col rounded-xl bg-amber-100 p-3 xl:col-span-4', false)
             ->assertDontSee('id="topTenCombinedCostChart"', false)

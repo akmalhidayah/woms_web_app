@@ -3,6 +3,8 @@
 namespace Tests\Feature\Admin;
 
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
+use App\Livewire\DashboardPekerjaan;
+use App\Models\AdminRoleMenuAccess;
 use App\Models\BengkelTask;
 use App\Models\Department;
 use App\Models\Order;
@@ -10,9 +12,11 @@ use App\Models\OrderWorkshop;
 use App\Models\UnitWork;
 use App\Models\UnitWorkSection;
 use App\Models\User;
+use App\Support\AdminMenuRegistry;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class WorkshopStartFlowTest extends TestCase
@@ -135,7 +139,7 @@ class WorkshopStartFlowTest extends TestCase
         $this->assertSame(OrderWorkshop::PROGRESS_IN_PROGRESS, $workshop->refresh()->progress_status);
     }
 
-    public function test_display_start_records_timestamp_and_blocks_other_pre_start_progress(): void
+    public function test_display_uses_shared_start_action_and_blocks_progress_bypass(): void
     {
         [$order, $workshop, $task] = $this->workshopOrder();
         Carbon::setTestNow('2026-09-04 10:15:00');
@@ -153,14 +157,45 @@ class WorkshopStartFlowTest extends TestCase
             ->patch(route('admin.bengkel-tasks.progress.update', $task), [
                 'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
             ])
-            ->assertSessionDoesntHaveErrors();
+            ->assertSessionHasErrors('progress_status');
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.bengkel-tasks.index'))
+            ->assertOk()
+            ->assertSee('Progress &amp; Waktu', false)
+            ->assertSee('Target &amp; Persiapan', false)
+            ->assertSee('Belum dimulai')
+            ->assertSee('action="'.route('admin.bengkel-tasks.start', $task).'"', false)
+            ->assertDontSee('action="'.route('admin.bengkel-tasks.progress.update', $task).'"', false);
+
+        $this->actingAs($this->admin)
+            ->patch(route('admin.bengkel-tasks.start', $task))
+            ->assertRedirect(route('admin.bengkel-tasks.index'))
+            ->assertSessionHas('status', 'Pekerjaan berhasil dimulai.');
 
         $workshop->refresh();
         $this->assertSame(OrderWorkshop::PROGRESS_IN_PROGRESS, $workshop->progress_status);
         $this->assertSame('2026-09-04 10:15:00', $workshop->started_at?->format('Y-m-d H:i:s'));
+        $this->assertSame(OrderWorkshop::PROGRESS_IN_PROGRESS, $task->refresh()->progress_status);
+
+        Carbon::setTestNow('2026-09-04 12:00:00');
+
+        $this->actingAs($this->admin)
+            ->patch(route('admin.bengkel-tasks.start', $task))
+            ->assertRedirect(route('admin.bengkel-tasks.index'))
+            ->assertSessionHas('status', 'Pekerjaan sudah dimulai.');
+
+        $this->assertSame('2026-09-04 10:15:00', $workshop->refresh()->started_at?->format('Y-m-d H:i:s'));
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.bengkel-tasks.index'))
+            ->assertOk()
+            ->assertSee('04-09-2026 10:15')
+            ->assertSee('Ubah Progress')
+            ->assertDontSee('action="'.route('admin.bengkel-tasks.start', $task).'"', false);
     }
 
-    public function test_new_manual_display_progress_gets_timestamp_but_legacy_progress_stays_null(): void
+    public function test_new_manual_display_must_wait_for_start_but_legacy_progress_stays_null(): void
     {
         Carbon::setTestNow('2026-09-04 11:20:00');
 
@@ -171,10 +206,22 @@ class WorkshopStartFlowTest extends TestCase
                 'progress_status' => OrderWorkshop::PROGRESS_PENDING,
                 'pending_reason' => 'Menunggu alat',
             ])
+            ->assertSessionHasErrors('progress_status');
+
+        $this->assertDatabaseMissing('orders', [
+            'nomor_order' => 'WORKSHOP-DISPLAY-START-001',
+        ]);
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.bengkel-tasks.store'), [
+                'nomor_order' => 'WORKSHOP-DISPLAY-START-001',
+                'job_name' => 'Pekerjaan Display Berjalan',
+                'progress_status' => OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
+            ])
             ->assertRedirect();
 
         $manualOrder = Order::query()->where('nomor_order', 'WORKSHOP-DISPLAY-START-001')->firstOrFail();
-        $this->assertSame('2026-09-04 11:20:00', $manualOrder->orderWorkshop?->started_at?->format('Y-m-d H:i:s'));
+        $this->assertNull($manualOrder->orderWorkshop?->started_at);
 
         [$legacyOrder, $legacyWorkshop] = $this->workshopOrder(
             OrderWorkshop::PROGRESS_IN_PROGRESS,
@@ -209,6 +256,76 @@ class WorkshopStartFlowTest extends TestCase
             ->assertUnprocessable();
 
         $this->assertNull($legacyWorkshop->refresh()->started_at);
+    }
+
+    public function test_display_only_admin_can_start_without_order_menu_access(): void
+    {
+        [$order, $workshop, $task] = $this->workshopOrder();
+        $displayAdmin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_ADMIN,
+        ]);
+        AdminRoleMenuAccess::query()->create([
+            'admin_role' => User::ADMIN_ROLE_ADMIN,
+            'menu_key' => AdminMenuRegistry::MENU_DISPLAY_PEKERJAAN_BENGKEL,
+        ]);
+
+        $this->actingAs($displayAdmin)
+            ->get(route('admin.bengkel-tasks.index'))
+            ->assertOk()
+            ->assertSee('Harus dilengkapi admin Order Pekerjaan Bengkel.')
+            ->assertDontSee('Buka Persiapan');
+
+        $this->actingAs($displayAdmin)
+            ->patch(route('admin.bengkel-tasks.start', $task))
+            ->assertRedirect(route('admin.bengkel-tasks.index'));
+
+        $this->assertNotNull($workshop->refresh()->started_at);
+        $this->assertSame(OrderWorkshop::PROGRESS_IN_PROGRESS, $workshop->progress_status);
+
+        $this->actingAs($displayAdmin)
+            ->patchJson(route('admin.orders.workshop.start', $order))
+            ->assertForbidden();
+    }
+
+    public function test_done_task_stays_visible_until_archived(): void
+    {
+        [$order, $workshop, $task] = $this->workshopOrder(
+            OrderWorkshop::PROGRESS_IN_PROGRESS,
+            '2026-09-04 08:47:00',
+            'WORKSHOP-START-DONE-001',
+        );
+        $workshop->update(['preparation_status' => OrderWorkshop::PREPARATION_COMPLETED]);
+
+        $this->actingAs($this->admin)
+            ->patch(route('admin.bengkel-tasks.progress.update', $task), [
+                'progress_status' => OrderWorkshop::PROGRESS_DONE,
+            ])
+            ->assertRedirect(route('admin.bengkel-tasks.index'));
+
+        $this->assertNull($task->refresh()->archived_at);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.bengkel-tasks.index'))
+            ->assertOk()
+            ->assertSee('PEKERJAAN START BENGKEL')
+            ->assertSee('Selesai');
+
+        Livewire::test(DashboardPekerjaan::class, ['mode' => 'display'])
+            ->assertSee('PEKERJAAN START BENGKEL')
+            ->assertSee('Selesai');
+
+        $this->actingAs($this->admin)
+            ->patch(route('admin.bengkel-tasks.archive', $task))
+            ->assertRedirect(route('admin.bengkel-tasks.index'));
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.bengkel-tasks.index'))
+            ->assertOk()
+            ->assertDontSee('PEKERJAAN START BENGKEL');
+
+        Livewire::test(DashboardPekerjaan::class, ['mode' => 'display'])
+            ->assertDontSee('PEKERJAAN START BENGKEL');
     }
 
     public function test_start_rejects_non_workshop_order_and_missing_workshop_data(): void

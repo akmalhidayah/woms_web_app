@@ -56,9 +56,7 @@ class WorkshopFlowIntegrationTest extends TestCase
         [$order, $task] = $this->workshopOrder($admin, OrderWorkshop::PROGRESS_MENUNGGU_JADWAL);
 
         $this->actingAs($admin)
-            ->patch(route('admin.bengkel-tasks.progress.update', $task), [
-                'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
-            ])
+            ->patch(route('admin.bengkel-tasks.start', $task))
             ->assertSessionDoesntHaveErrors();
 
         $order->orderWorkshop()->update([

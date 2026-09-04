@@ -100,7 +100,7 @@ class AdminMenuRegistry
                 'badge_key' => 'order_bengkel_incomplete',
                 'group' => 'workshop',
                 'route_name' => 'admin.orders.workshop.index',
-                'active_patterns' => ['admin.orders.workshop.index', 'admin.orders.workshop.store', 'admin.orders.workshop.update'],
+                'active_patterns' => ['admin.orders.workshop.index', 'admin.orders.workshop.store', 'admin.orders.workshop.start', 'admin.orders.workshop.update'],
             ],
             self::MENU_CREATE_HPP => [
                 'key' => self::MENU_CREATE_HPP,

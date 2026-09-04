@@ -6,13 +6,13 @@ use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Orders\StoreOrderRequest;
 use App\Http\Requests\Admin\Orders\UpdateOrderWorkshopRequest;
-use App\Models\BengkelTask;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
 use App\Models\QualityControlReport;
 use App\Models\UnitWork;
 use App\Models\User;
 use App\Services\BengkelTasks\WorkshopOrderTaskSyncer;
+use App\Services\BengkelTasks\WorkshopStartService;
 use App\Services\BengkelTasks\WorkshopWorkPackageService;
 use App\Support\WorkshopReadiness;
 use Illuminate\Http\JsonResponse;
@@ -26,6 +26,7 @@ class OrderWorkshopController extends Controller
 {
     public function __construct(
         private readonly WorkshopOrderTaskSyncer $workshopOrderTaskSyncer,
+        private readonly WorkshopStartService $workshopStartService,
         private readonly WorkshopReadiness $workshopReadiness,
         private readonly WorkshopWorkPackageService $workPackageService,
     ) {}
@@ -188,7 +189,7 @@ class OrderWorkshopController extends Controller
             $requestedProgress = (string) ($validated['progress_status'] ?? $workshop->progress_status ?? '');
 
             if (array_key_exists('progress_status', $validated)) {
-                $this->assertProgressStartInvariant($workshop, $requestedProgress);
+                $this->workshopStartService->assertProgressTransitionAllowed($workshop, $requestedProgress);
             }
 
             if ((array_key_exists('preparation_status', $validated) || array_key_exists('preparation_note', $validated))
@@ -238,8 +239,7 @@ class OrderWorkshopController extends Controller
             }
 
             $order->orderWorkshop()->save($workshop);
-            $this->workshopOrderTaskSyncer->syncOrder($order->fresh('orderWorkshop'), $workshop->fresh());
-            $this->syncBengkelTaskProgress($order, $workshop);
+            $this->workshopOrderTaskSyncer->syncProgress($order, $workshop);
 
             return response()->json([
                 'message' => 'Status order bengkel berhasil diperbarui.',
@@ -250,91 +250,12 @@ class OrderWorkshopController extends Controller
 
     public function start(Order $order): JsonResponse
     {
-        return DB::transaction(function () use ($order): JsonResponse {
-            if (! in_array($order->catatan_status?->value, [
-                OrderUserNoteStatus::ApprovedWorkshop->value,
-                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
-            ], true)) {
-                throw ValidationException::withMessages([
-                    'progress_status' => 'Order ini tidak termasuk Order Pekerjaan Bengkel.',
-                ]);
-            }
+        $result = $this->workshopStartService->start($order);
 
-            $workshop = OrderWorkshop::query()
-                ->where('order_id', $order->id)
-                ->lockForUpdate()
-                ->first();
-
-            if (! $workshop) {
-                throw ValidationException::withMessages([
-                    'progress_status' => 'Data Order Pekerjaan Bengkel tidak ditemukan.',
-                ]);
-            }
-
-            if ($workshop->started_at !== null) {
-                return response()->json([
-                    'message' => 'Pekerjaan sudah dimulai.',
-                    'updated' => $workshop->toArray(),
-                ]);
-            }
-
-            if ($workshop->progress_status !== OrderWorkshop::PROGRESS_MENUNGGU_JADWAL) {
-                throw ValidationException::withMessages([
-                    'progress_status' => 'Pekerjaan legacy sudah berjalan, tetapi waktu mulai belum tercatat.',
-                ]);
-            }
-
-            $workshop->started_at = now();
-            $workshop->progress_status = OrderWorkshop::PROGRESS_IN_PROGRESS;
-            $workshop->save();
-
-            $this->workshopOrderTaskSyncer->syncOrder($order->fresh('orderWorkshop') ?: $order, $workshop);
-            $this->syncBengkelTaskProgress($order, $workshop);
-
-            return response()->json([
-                'message' => 'Pekerjaan berhasil dimulai.',
-                'updated' => $workshop->fresh()->toArray(),
-            ]);
-        });
-    }
-
-    private function syncBengkelTaskProgress(Order $order, OrderWorkshop $workshop): void
-    {
-        $progressStatus = $workshop->progress_status;
-
-        if (! $progressStatus) {
-            return;
-        }
-
-        BengkelTask::query()
-            ->where('order_id', $order->id)
-            ->update([
-                'progress_status' => $progressStatus,
-                'is_completed' => $progressStatus === OrderWorkshop::PROGRESS_DONE,
-                'pending_reason' => $progressStatus === OrderWorkshop::PROGRESS_PENDING
-                    ? $workshop->keterangan_progress
-                    : null,
-            ]);
-    }
-
-    private function assertProgressStartInvariant(OrderWorkshop $workshop, string $requestedProgress): void
-    {
-        $currentProgress = $workshop->progress_status ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
-
-        if ($currentProgress === OrderWorkshop::PROGRESS_MENUNGGU_JADWAL
-            && $workshop->started_at === null
-            && $requestedProgress !== OrderWorkshop::PROGRESS_MENUNGGU_JADWAL) {
-            throw ValidationException::withMessages([
-                'progress_status' => 'Klik Start Pekerjaan sebelum mengubah Progress Pekerjaan.',
-            ]);
-        }
-
-        if ($currentProgress !== OrderWorkshop::PROGRESS_MENUNGGU_JADWAL
-            && $requestedProgress === OrderWorkshop::PROGRESS_MENUNGGU_JADWAL) {
-            throw ValidationException::withMessages([
-                'progress_status' => 'Progress pekerjaan yang sudah berjalan tidak dapat dikembalikan ke Menunggu Jadwal.',
-            ]);
-        }
+        return response()->json([
+            'message' => $result['started'] ? 'Pekerjaan berhasil dimulai.' : 'Pekerjaan sudah dimulai.',
+            'updated' => $result['workshop']->toArray(),
+        ]);
     }
 
     private function readinessCandidate(OrderWorkshop $workshop): OrderWorkshop

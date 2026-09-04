@@ -13,6 +13,7 @@ use App\Models\OrderWorkshop;
 use App\Models\QualityControlReport;
 use App\Models\UnitWork;
 use App\Services\BengkelTasks\WorkshopOrderTaskSyncer;
+use App\Services\BengkelTasks\WorkshopStartService;
 use App\Services\BengkelTasks\WorkshopWorkPackageService;
 use App\Support\WorkshopReadiness;
 use Illuminate\Http\RedirectResponse;
@@ -37,6 +38,7 @@ class BengkelTaskController extends Controller
 
     public function __construct(
         private readonly WorkshopOrderTaskSyncer $workshopOrderTaskSyncer,
+        private readonly WorkshopStartService $workshopStartService,
         private readonly WorkshopReadiness $workshopReadiness,
         private readonly WorkshopWorkPackageService $workPackageService,
     ) {}
@@ -205,7 +207,13 @@ class BengkelTaskController extends Controller
             ? Order::query()->find($data['order_id'])
             : null;
         $linkedWorkshop = $linkedOrder?->loadMissing('orderWorkshop')->orderWorkshop;
-        $this->assertTaskProgressStartInvariant($linkedWorkshop, (string) $data['progress_status']);
+        $this->workshopStartService->assertProgressTransitionAllowed($linkedWorkshop, (string) $data['progress_status']);
+
+        if (! $linkedWorkshop && $data['progress_status'] !== OrderWorkshop::PROGRESS_MENUNGGU_JADWAL) {
+            throw ValidationException::withMessages([
+                'progress_status' => 'Pekerjaan baru harus dibuat dengan status Menunggu Jadwal, lalu dimulai melalui Start Pekerjaan.',
+            ]);
+        }
         $this->assertEstimatorReguDoesNotEnterQualityControl(
             $linkedOrder,
             $data['catatan'] ?? null,
@@ -416,6 +424,24 @@ class BengkelTaskController extends Controller
             ->with('status', 'Status pekerjaan bengkel diperbarui.');
     }
 
+    public function start(Request $request, BengkelTask $bengkel_task): RedirectResponse
+    {
+        $bengkel_task->loadMissing('order.orderWorkshop');
+        $order = $bengkel_task->order;
+
+        if ($bengkel_task->archived_at || ! $order || ! $order->isWorkshopOrder()) {
+            throw ValidationException::withMessages([
+                'progress_status' => 'Pekerjaan ini belum terhubung dengan Order Pekerjaan Bengkel yang sesuai.',
+            ]);
+        }
+
+        $result = $this->workshopStartService->start($order);
+
+        return redirect()
+            ->route('admin.bengkel-tasks.index', $this->indexQuery($request))
+            ->with('status', $result['started'] ? 'Pekerjaan berhasil dimulai.' : 'Pekerjaan sudah dimulai.');
+    }
+
     public function updatePreparation(Request $request, BengkelTask $bengkel_task): RedirectResponse
     {
         $validated = $request->validate([
@@ -557,7 +583,7 @@ class BengkelTaskController extends Controller
             $initialProgress = $lockedTask->progress_status ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
             $order->orderWorkshop()->firstOrCreate([], [
                 'progress_status' => $initialProgress,
-                'started_at' => $initialProgress === OrderWorkshop::PROGRESS_MENUNGGU_JADWAL ? null : now(),
+                'started_at' => null,
                 'catatan' => $this->archiveRegu($lockedTask),
             ]);
 
@@ -620,7 +646,7 @@ class BengkelTaskController extends Controller
             if (! $workshop->exists) {
                 $initialProgress = $lockedTask->progress_status ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
                 $workshop->progress_status = $initialProgress;
-                $workshop->started_at = $initialProgress === OrderWorkshop::PROGRESS_MENUNGGU_JADWAL ? null : now();
+                $workshop->started_at = null;
             }
 
             $workshop->catatan = $this->archiveRegu($lockedTask);
@@ -916,7 +942,7 @@ class BengkelTaskController extends Controller
         $task->loadMissing('order.orderWorkshop');
         $workshop = $task->order?->orderWorkshop;
 
-        $this->assertTaskProgressStartInvariant($workshop, $progressStatus);
+        $this->workshopStartService->assertProgressTransitionAllowed($workshop, $progressStatus);
 
         $this->assertEstimatorReguDoesNotEnterQualityControl(
             $task->order,
@@ -1075,16 +1101,10 @@ class BengkelTaskController extends Controller
             if (! $workshop) {
                 $workshop = new OrderWorkshop([
                     'order_id' => $task->order_id,
-                    'started_at' => $progressStatus === OrderWorkshop::PROGRESS_MENUNGGU_JADWAL ? null : now(),
+                    'started_at' => null,
                 ]);
             } else {
-                $this->assertTaskProgressStartInvariant($workshop, $progressStatus);
-
-                if (($workshop->progress_status ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL) === OrderWorkshop::PROGRESS_MENUNGGU_JADWAL
-                    && $workshop->started_at === null
-                    && $progressStatus === OrderWorkshop::PROGRESS_IN_PROGRESS) {
-                    $workshop->started_at = now();
-                }
+                $this->workshopStartService->assertProgressTransitionAllowed($workshop, $progressStatus);
             }
 
             $workshop->progress_status = $progressStatus;
@@ -1093,33 +1113,6 @@ class BengkelTaskController extends Controller
             }
             $workshop->save();
         });
-    }
-
-    private function assertTaskProgressStartInvariant(?OrderWorkshop $workshop, string $requestedProgress): void
-    {
-        if (! $workshop) {
-            return;
-        }
-
-        $currentProgress = $workshop->progress_status ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
-
-        if ($currentProgress === OrderWorkshop::PROGRESS_MENUNGGU_JADWAL
-            && $workshop->started_at === null
-            && ! in_array($requestedProgress, [
-                OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
-                OrderWorkshop::PROGRESS_IN_PROGRESS,
-            ], true)) {
-            throw ValidationException::withMessages([
-                'progress_status' => 'Mulai pekerjaan terlebih dahulu sebelum memilih progress berikutnya.',
-            ]);
-        }
-
-        if ($currentProgress !== OrderWorkshop::PROGRESS_MENUNGGU_JADWAL
-            && $requestedProgress === OrderWorkshop::PROGRESS_MENUNGGU_JADWAL) {
-            throw ValidationException::withMessages([
-                'progress_status' => 'Progress pekerjaan yang sudah berjalan tidak dapat dikembalikan ke Menunggu Jadwal.',
-            ]);
-        }
     }
 
     private function readinessCandidate(?OrderWorkshop $workshop): ?OrderWorkshop

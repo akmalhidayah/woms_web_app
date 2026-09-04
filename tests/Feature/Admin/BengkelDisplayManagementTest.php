@@ -287,7 +287,7 @@ class BengkelDisplayManagementTest extends TestCase
             ->assertOk();
     }
 
-    public function test_bengkel_task_can_store_pending_status_with_reason_visible_on_admin_index(): void
+    public function test_bengkel_task_can_set_pending_status_after_start_with_reason_visible_on_admin_index(): void
     {
         $user = $this->adminUser();
 
@@ -300,12 +300,24 @@ class BengkelDisplayManagementTest extends TestCase
                 'seksi' => 'Line 4/5 RM Machine Maint',
                 'usage_plan_date' => '2026-05-26',
                 'catatan' => 'Regu Fabrikasi',
-                'progress_status' => OrderWorkshop::PROGRESS_PENDING,
-                'pending_reason' => 'Menunggu spare part dari gudang.',
+                'progress_status' => OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
                 'pic_ids' => [],
             ])
             ->assertRedirect(route('admin.bengkel-tasks.index'))
             ->assertSessionHas('status', 'Pekerjaan bengkel ditambahkan.');
+
+        $task = BengkelTask::query()->where('job_name', 'REPAIR CONVEYOR')->firstOrFail();
+
+        $this->actingAs($user)
+            ->patch(route('admin.bengkel-tasks.start', $task))
+            ->assertRedirect(route('admin.bengkel-tasks.index'));
+
+        $this->actingAs($user)
+            ->patch(route('admin.bengkel-tasks.progress.update', $task), [
+                'progress_status' => OrderWorkshop::PROGRESS_PENDING,
+                'pending_reason' => 'Menunggu spare part dari gudang.',
+            ])
+            ->assertRedirect(route('admin.bengkel-tasks.index'));
 
         $this->assertDatabaseHas('bengkel_tasks', [
             'job_name' => 'REPAIR CONVEYOR',
@@ -320,7 +332,7 @@ class BengkelDisplayManagementTest extends TestCase
             ->assertSee('Menunggu spare part dari gudang.');
     }
 
-    public function test_bengkel_task_can_store_sementara_proses_without_workshop_readiness(): void
+    public function test_bengkel_task_can_start_sementara_proses_without_workshop_readiness(): void
     {
         $user = $this->adminUser();
 
@@ -333,13 +345,18 @@ class BengkelDisplayManagementTest extends TestCase
                 'seksi' => 'Line 4/5 RM Machine Maint',
                 'usage_plan_date' => '2026-05-26',
                 'catatan' => 'Regu Fabrikasi',
-                'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
+                'progress_status' => OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
                 'pic_ids' => [],
             ])
             ->assertRedirect(route('admin.bengkel-tasks.index'))
             ->assertSessionHas('status', 'Pekerjaan bengkel ditambahkan.');
 
         $order = Order::query()->where('nomor_order', 'ORDER-SEMENTARA-001')->firstOrFail();
+        $task = $order->bengkelTasks()->firstOrFail();
+
+        $this->actingAs($user)
+            ->patch(route('admin.bengkel-tasks.start', $task))
+            ->assertRedirect(route('admin.bengkel-tasks.index'));
 
         $this->assertDatabaseHas('bengkel_tasks', [
             'order_id' => $order->id,

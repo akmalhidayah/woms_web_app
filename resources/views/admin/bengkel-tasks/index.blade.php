@@ -242,6 +242,30 @@
                 });
             });
 
+            document.querySelectorAll('.start-bengkel-task-form').forEach((form) => {
+                form.addEventListener('submit', (event) => {
+                    if (! window.Swal) {
+                        return;
+                    }
+
+                    event.preventDefault();
+
+                    window.Swal.fire({
+                        icon: 'question',
+                        title: 'Start pekerjaan?',
+                        text: 'Waktu mulai akan dicatat dan progress berubah menjadi Sementara Proses.',
+                        showCancelButton: true,
+                        confirmButtonText: 'Ya, mulai',
+                        cancelButtonText: 'Batal',
+                        confirmButtonColor: '#2563eb',
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            form.submit();
+                        }
+                    });
+                });
+            });
+
             document.querySelectorAll('.quick-progress-form').forEach((form) => {
                 form.addEventListener('submit', (event) => {
                     if (! window.Swal) {

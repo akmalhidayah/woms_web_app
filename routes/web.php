@@ -322,6 +322,10 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
         ->whereNumber('bengkel_task')
         ->name('admin.bengkel-tasks.progress.update');
+    Route::patch('admin/display-pekerjaan-bengkel/{bengkel_task}/start', [BengkelTaskController::class, 'start'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->whereNumber('bengkel_task')
+        ->name('admin.bengkel-tasks.start');
     Route::patch('admin/display-pekerjaan-bengkel/{bengkel_task}/preparation', [BengkelTaskController::class, 'updatePreparation'])
         ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
         ->whereNumber('bengkel_task')

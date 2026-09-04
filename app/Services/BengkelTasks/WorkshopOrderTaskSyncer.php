@@ -74,6 +74,22 @@ class WorkshopOrderTaskSyncer
         return $task;
     }
 
+    public function syncProgress(Order $order, OrderWorkshop $workshop): void
+    {
+        $this->syncOrder($order->fresh('orderWorkshop') ?: $order, $workshop);
+
+        BengkelTask::query()
+            ->where('order_id', $order->id)
+            ->whereNull('archived_at')
+            ->update([
+                'progress_status' => $workshop->progress_status,
+                'is_completed' => $workshop->progress_status === OrderWorkshop::PROGRESS_DONE,
+                'pending_reason' => $workshop->progress_status === OrderWorkshop::PROGRESS_PENDING
+                    ? $workshop->keterangan_progress
+                    : null,
+            ]);
+    }
+
     private function resolveTask(Order $order): BengkelTask
     {
         $activeTask = BengkelTask::query()

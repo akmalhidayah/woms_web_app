@@ -39,8 +39,8 @@
                     <th class="px-3 py-2.5 text-left font-semibold">Pekerjaan</th>
                     <th class="px-3 py-2.5 text-left font-semibold">Nomor Order</th>
                     <th class="px-3 py-2.5 text-left font-semibold">Penanggung Jawab</th>
-                    <th class="px-3 py-2.5 text-left font-semibold">Progress</th>
-                    <th class="px-3 py-2.5 text-left font-semibold">Target &amp; Kelengkapan</th>
+                    <th class="px-3 py-2.5 text-left font-semibold">Progress &amp; Waktu</th>
+                    <th class="px-3 py-2.5 text-left font-semibold">Target &amp; Persiapan</th>
                     <th class="px-3 py-2.5 text-right font-semibold">Regu &amp; Aksi</th>
                 </tr>
             </thead>
@@ -101,13 +101,6 @@
                         $isCompleted = (bool) $task->is_completed || $progressStatus === \App\Models\OrderWorkshop::PROGRESS_DONE;
                         $readiness = $task->getAttribute('workshop_readiness');
                         $workshop = $task->order?->orderWorkshop;
-                        $preparationLocked = $workshop
-                            ? app(\App\Support\WorkshopReadiness::class)->preparationLocked(
-                                $workshop,
-                                $task->order?->qualityControlReports?->isNotEmpty() ?? false,
-                                $task->order?->workshopHandover !== null,
-                            )
-                            : false;
                         $attachmentPayload = $task->attachment_url ? [
                             'url' => $task->attachment_url,
                             'name' => $task->attachment_display_name,
@@ -177,6 +170,13 @@
                                         @endif
                                     </form>
                                 @endif
+                                @include('admin.bengkel-tasks.partials.task-progress-actions', [
+                                    'task' => $task,
+                                    'indexQuery' => $indexQuery,
+                                    'isCompleted' => $isCompleted,
+                                    'progressStatus' => $progressStatus,
+                                    'readiness' => $readiness,
+                                ])
                             </div>
                         </td>
 
@@ -186,7 +186,7 @@
                                 @if (is_array($readiness))
                                     <span class="inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold ring-1 ring-inset {{ $readiness['can_advance'] ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-amber-200' }}">{{ $readiness['label'] }}</span>
                                     @if (! $readiness['can_advance'] && auth()->user() && \App\Support\AdminMenuRegistry::canAccess(auth()->user(), \App\Support\AdminMenuRegistry::MENU_ORDER_BENGKEL) && $task->order)
-                                        <a href="{{ route('admin.orders.workshop.index', ['search' => $task->order->nomor_order, 'readiness' => 'incomplete']) }}" class="text-[9px] font-semibold leading-4 text-blue-700 underline decoration-blue-300 underline-offset-2">Lengkapi di Order Pekerjaan Bengkel</a>
+                                        <a href="{{ route('admin.orders.workshop.index', ['search' => $task->order->nomor_order, 'readiness' => 'incomplete']) }}" class="text-[9px] font-semibold leading-4 text-blue-700 underline decoration-blue-300 underline-offset-2">Buka Persiapan</a>
                                     @elseif (! $readiness['can_advance'])
                                         <span class="text-[9px] leading-4 text-slate-500">Harus dilengkapi admin Order Pekerjaan Bengkel.</span>
                                     @endif
@@ -231,13 +231,6 @@
                 $isCompleted = (bool) $task->is_completed || $progressStatus === \App\Models\OrderWorkshop::PROGRESS_DONE;
                 $readiness = $task->getAttribute('workshop_readiness');
                 $workshop = $task->order?->orderWorkshop;
-                $preparationLocked = $workshop
-                    ? app(\App\Support\WorkshopReadiness::class)->preparationLocked(
-                        $workshop,
-                        $task->order?->qualityControlReports?->isNotEmpty() ?? false,
-                        $task->order?->workshopHandover !== null,
-                    )
-                    : false;
                 $attachmentPayload = $task->attachment_url ? [
                     'url' => $task->attachment_url,
                     'name' => $task->attachment_display_name,
@@ -267,7 +260,7 @@
                                 <div class="mt-1 font-bold text-slate-900">{{ $task->order?->nomor_order ?: '-' }}</div>
                             </div>
                             <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                                <div class="font-semibold uppercase tracking-[0.12em] text-slate-400">Progress</div>
+                                <div class="font-semibold uppercase tracking-[0.12em] text-slate-400">Progress &amp; Waktu</div>
                                 <div class="mt-1 flex flex-col items-start gap-1.5">
                                     @include('admin.bengkel-tasks.partials.task-status-badge', [
                                         'isCompleted' => $isCompleted,
@@ -296,12 +289,19 @@
                                             @endif
                                         </form>
                                     @endif
+                                    @include('admin.bengkel-tasks.partials.task-progress-actions', [
+                                        'task' => $task,
+                                        'indexQuery' => $indexQuery,
+                                        'isCompleted' => $isCompleted,
+                                        'progressStatus' => $progressStatus,
+                                        'readiness' => $readiness,
+                                    ])
                                 </div>
                             </div>
                         </div>
 
                         <div class="mt-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px]">
-                            <div class="font-semibold uppercase tracking-[0.12em] text-slate-400">Target &amp; Kelengkapan</div>
+                            <div class="font-semibold uppercase tracking-[0.12em] text-slate-400">Target &amp; Persiapan</div>
                             <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
                                 <span class="font-bold text-slate-900">{{ optional($task->usage_plan_date)->format('d-m-Y') ?: '-' }}</span>
                                 @if (is_array($readiness))
@@ -310,7 +310,7 @@
                             </div>
                             @if (is_array($readiness) && ! $readiness['can_advance'])
                                 @if (auth()->user() && \App\Support\AdminMenuRegistry::canAccess(auth()->user(), \App\Support\AdminMenuRegistry::MENU_ORDER_BENGKEL) && $task->order)
-                                    <a href="{{ route('admin.orders.workshop.index', ['search' => $task->order->nomor_order, 'readiness' => 'incomplete']) }}" class="mt-1.5 inline-flex text-[10px] font-semibold text-blue-700 underline decoration-blue-300 underline-offset-2">Lengkapi di Order Pekerjaan Bengkel</a>
+                                    <a href="{{ route('admin.orders.workshop.index', ['search' => $task->order->nomor_order, 'readiness' => 'incomplete']) }}" class="mt-1.5 inline-flex text-[10px] font-semibold text-blue-700 underline decoration-blue-300 underline-offset-2">Buka Persiapan</a>
                                 @else
                                     <p class="mt-1.5 text-[10px] leading-4 text-slate-500">Harus dilengkapi admin Order Pekerjaan Bengkel.</p>
                                 @endif

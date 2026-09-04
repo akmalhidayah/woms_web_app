@@ -91,7 +91,7 @@
         }
         window.workshopReguChartInstances = Array.from(reguCanvases).map((canvas, index) => {
             const regu = reguSummary[index] || {};
-            const chartTextColor = index === 1 ? '#422006' : '#ffffff';
+            const chartTextColor = '#475569';
             const values = [
                 Number(regu.in_progress || 0),
                 Number(regu.completed || 0),

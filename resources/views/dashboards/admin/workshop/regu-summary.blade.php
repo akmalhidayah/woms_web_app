@@ -1,12 +1,12 @@
 @php
     $reguStyles = [
-        ['card' => 'bg-blue-700 text-white'],
-        ['card' => 'bg-amber-500 text-slate-950'],
-        ['card' => 'bg-indigo-700 text-white'],
+        ['card' => 'border border-blue-200 bg-blue-50 text-slate-800'],
+        ['card' => 'border border-amber-200 bg-amber-50 text-slate-800'],
+        ['card' => 'border border-indigo-200 bg-indigo-50 text-slate-800'],
     ];
 @endphp
 
-<article class="min-w-0 rounded-xl bg-indigo-100 p-3 lg:col-span-3">
+<article class="flex min-w-0 flex-col rounded-xl bg-indigo-50 p-3 lg:col-span-3">
     <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-300 pb-2.5">
         <div class="flex items-center gap-2">
             <i data-lucide="users-round" class="h-4 w-4 text-indigo-600"></i>
@@ -20,12 +20,18 @@
         @endif
     </div>
 
-    <div class="mt-3 grid min-w-0 gap-3 sm:grid-cols-3">
+    <div class="mt-3 grid min-h-0 min-w-0 flex-1 gap-3 sm:grid-cols-3">
         @foreach ($workshopDashboard['regu'] as $regu)
             @php($style = $reguStyles[$loop->index] ?? $reguStyles[0])
-            <section class="min-w-0 rounded-lg p-3 {{ $style['card'] }}">
-                <h3 class="break-words text-[10px] font-extrabold uppercase tracking-[0.08em]">{{ $regu['name'] }}</h3>
-                <div class="relative mt-2 h-[150px] min-w-0 w-full overflow-hidden">
+            <section class="flex min-h-[190px] min-w-0 flex-col rounded-lg p-3 {{ $style['card'] }}">
+                <div class="flex items-start justify-between gap-2">
+                    <h3 class="break-words text-[10px] font-extrabold uppercase tracking-[0.08em]">{{ $regu['name'] }}</h3>
+                    <p class="shrink-0 text-right">
+                        <span class="block text-[7px] font-bold uppercase tracking-[0.08em] text-slate-500">Total Order</span>
+                        <span class="text-base font-extrabold leading-none">{{ number_format($regu['total'], 0, ',', '.') }}</span>
+                    </p>
+                </div>
+                <div class="relative mt-2 min-h-[150px] min-w-0 w-full flex-1 overflow-hidden">
                     <canvas
                         data-workshop-regu-chart="{{ $loop->index }}"
                         class="h-full w-full max-w-full"

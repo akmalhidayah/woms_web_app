@@ -97,6 +97,7 @@
                             $canUpdate = (bool) ($notification['can_update'] ?? true);
                             $isInitialWorkFlow = (bool) ($notification['is_initial_work_flow'] ?? false);
                             $isTargetPenyelesaianLocked = (bool) ($notification['target_penyelesaian_locked'] ?? false);
+                            $startBlockedMessage = trim((string) ($notification['start_blocked_message'] ?? ''));
                         @endphp
 
                         <article class="pkm-jobwaiting-card flex h-full flex-col overflow-hidden rounded-[1.1rem] border border-slate-200 bg-white shadow-sm">
@@ -181,17 +182,28 @@
                                     </div>
                                 @else
                                     <div class="mb-2.5">
-                                        <form method="POST" action="{{ route('pkm.jobwaiting.update', ['order' => $notification['nomor_order']]) }}">
-                                            @csrf
-                                            @method('PATCH')
-                                            <input type="hidden" name="start_progress" value="1">
-                                            <input type="hidden" name="_filter_priority" value="{{ $selectedPriority }}">
-                                            <input type="hidden" name="_filter_search" value="{{ $search }}">
-                                            <input type="hidden" name="_filter_page" value="{{ $notifications->currentPage() }}">
-                                            <button type="submit" class="inline-flex h-8 w-full items-center justify-center rounded-lg bg-amber-500 px-3 text-[10px] font-bold text-white transition hover:bg-amber-600 {{ ! $canUpdate ? 'opacity-50' : '' }}" @disabled(! $canUpdate)>
+                                        @if ($canUpdate && $startBlockedMessage === '')
+                                            <form method="POST" action="{{ route('pkm.jobwaiting.update', ['order' => $notification['nomor_order']]) }}">
+                                                @csrf
+                                                @method('PATCH')
+                                                <input type="hidden" name="start_progress" value="1">
+                                                <input type="hidden" name="_filter_priority" value="{{ $selectedPriority }}">
+                                                <input type="hidden" name="_filter_search" value="{{ $search }}">
+                                                <input type="hidden" name="_filter_page" value="{{ $notifications->currentPage() }}">
+                                                <button type="submit" class="inline-flex h-8 w-full items-center justify-center rounded-lg bg-amber-500 px-3 text-[10px] font-bold text-white transition hover:bg-amber-600">
+                                                    Start
+                                                </button>
+                                            </form>
+                                        @else
+                                            <button
+                                                type="button"
+                                                class="pkm-start-blocked inline-flex h-8 w-full items-center justify-center rounded-lg bg-amber-500 px-3 text-[10px] font-bold text-white transition hover:bg-amber-600 {{ ! $canUpdate ? 'cursor-not-allowed opacity-50' : '' }}"
+                                                data-message="{{ $startBlockedMessage }}"
+                                                @disabled(! $canUpdate)
+                                            >
                                                 {{ $canUpdate ? 'Start' : 'Initial Work' }}
                                             </button>
-                                        </form>
+                                        @endif
                                     </div>
                                 @endif
 
@@ -302,6 +314,24 @@
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
         <script>
             document.addEventListener('click', function (event) {
+                const blockedStartButton = event.target.closest('.pkm-start-blocked');
+
+                if (blockedStartButton?.dataset.message) {
+                    if (window.Swal) {
+                        window.Swal.fire({
+                            icon: 'warning',
+                            title: 'Pekerjaan belum dapat dimulai',
+                            text: blockedStartButton.dataset.message,
+                            confirmButtonText: 'Mengerti',
+                            confirmButtonColor: '#ca642f',
+                        });
+                    } else {
+                        window.alert(blockedStartButton.dataset.message);
+                    }
+
+                    return;
+                }
+
                 const toggleButton = event.target.closest('.pkm-jobwaiting-toggle');
 
                 if (! toggleButton) {

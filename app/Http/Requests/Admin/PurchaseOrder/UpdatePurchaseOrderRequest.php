@@ -20,7 +20,7 @@ class UpdatePurchaseOrderRequest extends FormRequest
     {
         return [
             'purchase_order_number' => ['nullable', 'string', 'max:100'],
-            'target_penyelesaian' => ['nullable', 'date'],
+            'target_penyelesaian' => ['nullable', 'date', 'required_if:approval_target,setuju'],
             'approval_target' => ['nullable', 'string', Rule::in(array_keys(PurchaseOrder::approvalTargetOptions()))],
             'approve_manager' => ['nullable', 'boolean'],
             'approve_senior_manager' => ['nullable', 'boolean'],

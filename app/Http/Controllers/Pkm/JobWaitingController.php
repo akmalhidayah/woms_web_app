@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Pkm\UpdateJobWaitingRequest;
 use App\Models\Hpp;
 use App\Models\Order;
+use App\Models\PurchaseOrder;
 use App\Services\Orders\OrderDocumentService;
 use App\Support\PdfMergeService;
 use App\Support\PkmJobWaitingQuery;
@@ -196,8 +197,19 @@ class JobWaitingController extends Controller
 
             $currentProgress = (int) ($jobSource->progress_pekerjaan ?? 0);
             $nextProgress = $currentProgress;
+            $isStartRequest = $request->boolean('start_progress');
 
-            if ($request->boolean('start_progress')) {
+            if ($isStartRequest) {
+                if (! $usesInitialWorkFlow && $currentProgress < 11) {
+                    $startBlockedMessage = $this->startBlockedMessage($purchaseOrder);
+
+                    if ($startBlockedMessage !== null) {
+                        throw ValidationException::withMessages([
+                            'start_progress' => $startBlockedMessage,
+                        ]);
+                    }
+                }
+
                 $nextProgress = max($currentProgress, 11);
             } elseif ($request->filled('progress_pekerjaan') && $currentProgress >= 11) {
                 $requestedProgress = $request->integer('progress_pekerjaan');
@@ -212,13 +224,14 @@ class JobWaitingController extends Controller
             $isTargetPenyelesaianLocked = ! $usesInitialWorkFlow
                 && $purchaseOrder?->approval_target === 'setuju';
 
-            $payload = [
-                'progress_pekerjaan' => $nextProgress,
-                'target_penyelesaian' => $isTargetPenyelesaianLocked
+            $payload = ['progress_pekerjaan' => $nextProgress];
+
+            if (! $isStartRequest) {
+                $payload['target_penyelesaian'] = $isTargetPenyelesaianLocked
                     ? $jobSource->target_penyelesaian
-                    : $this->normalizeNullableString($request->input('target_penyelesaian')),
-                'vendor_note' => $this->normalizeNullableString($request->input('catatan')),
-            ];
+                    : $this->normalizeNullableString($request->input('target_penyelesaian'));
+                $payload['vendor_note'] = $this->normalizeNullableString($request->input('catatan'));
+            }
 
             if ($nextProgress >= 11 && ! $jobSource->tanggal_mulai_pekerjaan) {
                 $payload['tanggal_mulai_pekerjaan'] = now()->toDateString();
@@ -390,9 +403,11 @@ class JobWaitingController extends Controller
             'unit' => $order->unit_kerja,
             'progress' => $progress,
             'target_penyelesaian' => $latestPurchaseOrder?->target_penyelesaian?->format('Y-m-d')
-                ?: $jobSource?->target_penyelesaian?->format('Y-m-d')
-                ?: $order->target_selesai?->format('Y-m-d'),
+                ?: $jobSource?->target_penyelesaian?->format('Y-m-d'),
             'approval_target' => $latestPurchaseOrder?->approval_target,
+            'start_blocked_message' => $isEmergencyInitialWorkFlow
+                ? null
+                : $this->startBlockedMessage($latestPurchaseOrder),
             'target_penyelesaian_locked' => $canUpdateByPurchaseOrder
                 && $latestPurchaseOrder?->approval_target === 'setuju',
             'catatan' => $jobSource?->vendor_note ?: ($order->catatan ?: ''),
@@ -434,6 +449,26 @@ class JobWaitingController extends Controller
                 ]] : []),
             ],
         ];
+    }
+
+    private function startBlockedMessage(?PurchaseOrder $purchaseOrder): ?string
+    {
+        $hasTarget = $purchaseOrder?->target_penyelesaian !== null;
+        $isApproved = $purchaseOrder?->approval_target === 'setuju';
+
+        if (! $hasTarget && ! $isApproved) {
+            return 'Estimasi penyelesaian belum diisi dan belum disetujui oleh Admin Bengkel.';
+        }
+
+        if (! $hasTarget) {
+            return 'Estimasi penyelesaian wajib diisi sebelum pekerjaan dimulai.';
+        }
+
+        if (! $isApproved) {
+            return 'Estimasi penyelesaian belum disetujui oleh Admin Bengkel.';
+        }
+
+        return null;
     }
 
     private function findDocument(Order $order, OrderDocumentType $type): mixed

@@ -1,8 +1,8 @@
 @php
     $reguStyles = [
-        ['card' => 'bg-blue-700 text-white', 'muted' => 'text-blue-100', 'divider' => 'border-blue-500'],
-        ['card' => 'bg-amber-500 text-slate-950', 'muted' => 'text-amber-950', 'divider' => 'border-amber-700/40'],
-        ['card' => 'bg-indigo-700 text-white', 'muted' => 'text-indigo-100', 'divider' => 'border-indigo-500'],
+        ['card' => 'bg-blue-700 text-white'],
+        ['card' => 'bg-amber-500 text-slate-950'],
+        ['card' => 'bg-indigo-700 text-white'],
     ];
 @endphp
 
@@ -25,35 +25,15 @@
             @php($style = $reguStyles[$loop->index] ?? $reguStyles[0])
             <section class="min-w-0 rounded-lg p-3 {{ $style['card'] }}">
                 <h3 class="break-words text-[10px] font-extrabold uppercase tracking-[0.08em]">{{ $regu['name'] }}</h3>
-                <div class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
-                    <div>
-                        <div class="text-[8px] font-bold uppercase tracking-[0.1em] {{ $style['muted'] }}">Total</div>
-                        <div class="mt-0.5 text-sm font-bold">{{ $regu['total'] }}</div>
-                    </div>
-                    <div>
-                        <div class="text-[8px] font-bold uppercase tracking-[0.1em] {{ $style['muted'] }}">Proses</div>
-                        <div class="mt-0.5 text-sm font-bold">{{ $regu['in_progress'] }}</div>
-                    </div>
-                    <div>
-                        <div class="text-[8px] font-bold uppercase tracking-[0.1em] {{ $style['muted'] }}">Selesai</div>
-                        <div class="mt-0.5 text-sm font-bold">{{ $regu['completed'] }}</div>
-                    </div>
-                    <div>
-                        <div class="text-[8px] font-bold uppercase tracking-[0.1em] {{ $style['muted'] }}">Belum</div>
-                        <div class="mt-0.5 text-sm font-bold">{{ $regu['incomplete'] }}</div>
-                    </div>
-                </div>
-                <div class="mt-3 border-t pt-2 {{ $style['divider'] }}">
-                    <span class="text-[9px] font-semibold {{ $style['muted'] }}">Penyelesaian</span>
-                    <span class="float-right text-[10px] font-extrabold">{{ number_format($regu['completion_percentage'], 2, ',', '.') }}%</span>
+                <div class="relative mt-2 h-[150px] min-w-0 w-full overflow-hidden rounded-lg bg-white/95 p-1">
+                    <canvas
+                        data-workshop-regu-chart="{{ $loop->index }}"
+                        class="h-full w-full max-w-full"
+                        role="img"
+                        aria-label="Grafik {{ $regu['name'] }}"
+                    ></canvas>
                 </div>
             </section>
         @endforeach
     </div>
-
-    @if ($workshopDashboard['has_orders'])
-        <div class="relative mt-3 h-[110px] min-w-0 w-full overflow-hidden">
-            <canvas id="workshopReguCompletionChart" class="h-full w-full max-w-full" role="img" aria-label="Grafik penyelesaian per regu"></canvas>
-        </div>
-    @endif
 </article>

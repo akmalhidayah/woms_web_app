@@ -5,7 +5,7 @@
         const trend = @json($workshopDashboard['trend']);
         const monthlyCosts = @json($workshopDashboard['monthly_costs']);
         const completionCanvas = document.getElementById('workshopCompletionChart');
-        const reguCompletionCanvas = document.getElementById('workshopReguCompletionChart');
+        const reguCanvases = document.querySelectorAll('[data-workshop-regu-chart]');
         const trendCanvas = document.getElementById('workshopCompletionTrendChart');
         const monthlyCostCanvas = document.getElementById('workshopMonthlyCostChart');
 
@@ -86,52 +86,79 @@
             });
         }
 
-        if (reguCompletionCanvas) {
-            destroyChart('workshopReguCompletionChartInstance');
-            window.workshopReguCompletionChartInstance = new Chart(reguCompletionCanvas, {
+        if (Array.isArray(window.workshopReguChartInstances)) {
+            window.workshopReguChartInstances.forEach(chart => chart?.destroy());
+        }
+        window.workshopReguChartInstances = Array.from(reguCanvases).map((canvas, index) => {
+            const regu = reguSummary[index] || {};
+            const values = [
+                Number(regu.in_progress || 0),
+                Number(regu.completed || 0),
+                Number(regu.incomplete || 0),
+            ];
+            const valueLabels = {
+                id: `workshopReguValueLabels${index}`,
+                afterDatasetsDraw(chart) {
+                    const { ctx, chartArea } = chart;
+                    const bars = chart.getDatasetMeta(0)?.data || [];
+
+                    ctx.save();
+                    ctx.fillStyle = '#0f172a';
+                    ctx.font = '700 10px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    bars.forEach((bar, barIndex) => {
+                        ctx.fillText(values[barIndex].toLocaleString('id-ID'), bar.x, Math.max(bar.y - 4, chartArea.top + 10));
+                    });
+                    ctx.restore();
+                },
+            };
+
+            return new Chart(canvas, {
                 type: 'bar',
                 data: {
-                    labels: reguSummary.map(item => String(item.name || '').replace(/^Regu /i, '')),
+                    labels: [['ORDER', 'PROSES'], ['ORDER', 'SELESAI'], ['ORDER BELUM', 'SELESAI']],
                     datasets: [{
-                        data: reguSummary.map(item => Number(item.completion_percentage || 0)),
-                        backgroundColor: ['#2563eb', '#f59e0b', '#4f46e5'],
-                        borderRadius: 5,
-                        barThickness: 13,
+                        data: values,
+                        backgroundColor: ['#22c55e', '#facc15', '#2563eb'],
+                        borderRadius: 3,
+                        barPercentage: 0.72,
+                        categoryPercentage: 0.8,
                     }],
                 },
                 options: {
-                    indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: { padding: { top: 12 } },
                     scales: {
                         x: {
-                            beginAtZero: true,
-                            max: 100,
                             border: { display: false },
-                            grid: { color: 'rgba(100, 116, 139, 0.15)' },
+                            grid: { display: false },
                             ticks: {
-                                callback: value => `${value}%`,
                                 color: '#64748b',
-                                font: { size: 8, weight: '600' },
+                                font: { size: 7, weight: '700' },
+                                maxRotation: 0,
+                                minRotation: 0,
                             },
                         },
                         y: {
-                            border: { display: false },
-                            grid: { display: false },
-                            ticks: { color: '#334155', font: { size: 8, weight: '700' } },
+                            beginAtZero: true,
+                            grace: '20%',
+                            display: false,
                         },
                     },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                label: context => `Penyelesaian: ${Number(context.raw || 0).toLocaleString('id-ID')}%`,
+                                label: context => `${Number(context.raw || 0).toLocaleString('id-ID')} order`,
                             },
                         },
                     },
                 },
+                plugins: [valueLabels],
             });
-        }
+        });
 
         if (trendCanvas) {
             destroyChart('workshopCompletionTrendChartInstance');
@@ -252,7 +279,7 @@
                 resizeState.timeoutId = null;
                 [
                     window.workshopCompletionChartInstance,
-                    window.workshopReguCompletionChartInstance,
+                    ...(window.workshopReguChartInstances || []),
                     window.workshopCompletionTrendChartInstance,
                     window.workshopMonthlyCostChartInstance,
                 ].forEach(chart => {

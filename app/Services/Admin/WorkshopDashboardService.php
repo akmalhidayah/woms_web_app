@@ -7,7 +7,10 @@ namespace App\Services\Admin;
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
+use App\Models\QualityControlReport;
+use App\Models\QualityControlSignature;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -74,7 +77,11 @@ final class WorkshopDashboardService
     {
         return Order::query()
             ->join('order_workshops', 'order_workshops.order_id', '=', 'orders.id')
-            ->leftJoin('workshop_handovers', 'workshop_handovers.order_id', '=', 'orders.id')
+            ->leftJoin('quality_control_reports as dashboard_qc', function (JoinClause $join): void {
+                $join
+                    ->on('dashboard_qc.order_id', '=', 'orders.id')
+                    ->whereRaw('dashboard_qc.id = (SELECT MAX(dashboard_qc_latest.id) FROM quality_control_reports AS dashboard_qc_latest WHERE dashboard_qc_latest.order_id = orders.id)');
+            })
             ->whereIn('orders.catatan_status', [
                 OrderUserNoteStatus::ApprovedWorkshop->value,
                 OrderUserNoteStatus::ApprovedWorkshopJasa->value,
@@ -331,12 +338,69 @@ final class WorkshopDashboardService
 
     private function completedExpression(): string
     {
-        return '(workshop_handovers.id IS NOT NULL OR order_workshops.legacy_completed_at IS NOT NULL)';
+        return sprintf(
+            '(order_workshops.legacy_completed_at IS NOT NULL OR %s OR %s)',
+            $this->nonCriticalCompletedExpression(),
+            $this->qualityControlCompletedExpression(),
+        );
     }
 
     private function completionTimestampExpression(): string
     {
-        return 'COALESCE(workshop_handovers.handed_over_at, order_workshops.legacy_completed_at)';
+        $qualityControlCompleted = $this->qualityControlCompletedExpression();
+        $nonCriticalCompleted = $this->nonCriticalCompletedExpression();
+
+        return "(CASE
+            WHEN order_workshops.legacy_completed_at IS NOT NULL THEN order_workshops.legacy_completed_at
+            WHEN {$qualityControlCompleted} THEN COALESCE(
+                (SELECT MAX(dashboard_qc_signed.signed_at)
+                    FROM quality_control_signatures AS dashboard_qc_signed
+                    WHERE dashboard_qc_signed.quality_control_report_id = dashboard_qc.id),
+                dashboard_qc.updated_at
+            )
+            WHEN {$nonCriticalCompleted} THEN order_workshops.updated_at
+            ELSE NULL
+        END)";
+    }
+
+    private function nonCriticalCompletedExpression(): string
+    {
+        return "(dashboard_qc.id IS NULL AND order_workshops.progress_status = '".OrderWorkshop::PROGRESS_DONE."')";
+    }
+
+    private function qualityControlCompletedExpression(): string
+    {
+        $makerSignature = $this->qualityControlMakerSignatureExpression();
+        $submitted = QualityControlReport::STATUS_SUBMITTED;
+        $signed = QualityControlSignature::STATUS_SIGNED;
+        $workshopManager = QualityControlSignature::ROLE_WORKSHOP_MANAGER;
+        $userManager = QualityControlSignature::ROLE_USER_MANAGER;
+
+        return "(dashboard_qc.id IS NOT NULL
+            AND dashboard_qc.status = '{$submitted}'
+            AND {$makerSignature} <> ''
+            AND (SELECT COUNT(*)
+                FROM quality_control_signatures AS dashboard_qc_all_signatures
+                WHERE dashboard_qc_all_signatures.quality_control_report_id = dashboard_qc.id) = 2
+            AND (SELECT COUNT(*)
+                FROM quality_control_signatures AS dashboard_qc_workshop_signature
+                WHERE dashboard_qc_workshop_signature.quality_control_report_id = dashboard_qc.id
+                    AND dashboard_qc_workshop_signature.role_key = '{$workshopManager}'
+                    AND dashboard_qc_workshop_signature.status = '{$signed}') = 1
+            AND (SELECT COUNT(*)
+                FROM quality_control_signatures AS dashboard_qc_user_signature
+                WHERE dashboard_qc_user_signature.quality_control_report_id = dashboard_qc.id
+                    AND dashboard_qc_user_signature.role_key = '{$userManager}'
+                    AND dashboard_qc_user_signature.status = '{$signed}') = 1)";
+    }
+
+    private function qualityControlMakerSignatureExpression(): string
+    {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return "TRIM(COALESCE(json_extract(dashboard_qc.payload, '$.signature.signature_data'), ''))";
+        }
+
+        return "TRIM(COALESCE(JSON_UNQUOTE(JSON_EXTRACT(dashboard_qc.payload, '$.signature.signature_data')), ''))";
     }
 
     private function monthLabel(int $month): string

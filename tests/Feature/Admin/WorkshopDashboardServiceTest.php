@@ -8,8 +8,9 @@ use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\BengkelTask;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
+use App\Models\QualityControlReport;
+use App\Models\QualityControlSignature;
 use App\Models\User;
-use App\Models\WorkshopHandover;
 use App\Services\Admin\WorkshopDashboardService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -26,18 +27,23 @@ class WorkshopDashboardServiceTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_metrics_use_handover_entry_and_ignore_display_archive_state(): void
+    public function test_metrics_use_done_for_non_critical_and_complete_approval_for_critical_orders(): void
     {
         Carbon::setTestNow('2026-09-04 10:00:00');
         $user = User::factory()->create();
         $inProgress = $this->workshopOrder($user, 'WD-001', '2026-09-01', Order::WORKSHOP_REGU_FABRIKASI, OrderWorkshop::PROGRESS_IN_PROGRESS, 100);
-        $this->workshopOrder($user, 'WD-002', '2026-09-02', Order::WORKSHOP_REGU_REFURBISH, OrderWorkshop::PROGRESS_QUALITY_CONTROL);
+        $criticalIncomplete = $this->workshopOrder($user, 'WD-002', '2026-09-02', Order::WORKSHOP_REGU_REFURBISH, OrderWorkshop::PROGRESS_QUALITY_CONTROL);
+        $incompleteReport = $this->completeQualityControl($criticalIncomplete, $user, '2026-09-04 07:00:00');
+        $incompleteReport->signatures()
+            ->where('role_key', QualityControlSignature::ROLE_USER_MANAGER)
+            ->update(['status' => QualityControlSignature::STATUS_PENDING, 'signed_at' => null]);
         $legacyCompleted = $this->workshopOrder($user, 'WD-003', '2026-09-03', Order::WORKSHOP_REGU_ESTIMATOR, OrderWorkshop::PROGRESS_DONE, 200);
         $legacyCompleted->orderWorkshop->forceFill(['legacy_completed_at' => '2026-09-04 08:00:00'])->save();
-        $completed = $this->workshopOrder($user, 'WD-004', '2026-09-03', Order::WORKSHOP_REGU_FABRIKASI, OrderWorkshop::PROGRESS_QUALITY_CONTROL, 300);
-        $this->handover($completed, $user, WorkshopHandover::STATUS_WAITING_USER_SIGNATURE, '2026-09-04 09:00:00');
-        $this->workshopOrder($user, 'WD-005', '2026-09-04', null, OrderWorkshop::PROGRESS_MENUNGGU_JADWAL);
-        $excluded = $this->workshopOrder($user, 'WD-006', '2026-09-04', Order::WORKSHOP_REGU_FABRIKASI, OrderWorkshop::PROGRESS_IN_PROGRESS);
+        $this->workshopOrder($user, 'WD-004', '2026-09-03', Order::WORKSHOP_REGU_ESTIMATOR, OrderWorkshop::PROGRESS_DONE, 300);
+        $criticalCompleted = $this->workshopOrder($user, 'WD-005', '2026-09-03', Order::WORKSHOP_REGU_FABRIKASI, OrderWorkshop::PROGRESS_QUALITY_CONTROL, 400);
+        $this->completeQualityControl($criticalCompleted, $user, '2026-09-04 09:00:00');
+        $this->workshopOrder($user, 'WD-006', '2026-09-04', null, OrderWorkshop::PROGRESS_MENUNGGU_JADWAL);
+        $excluded = $this->workshopOrder($user, 'WD-007', '2026-09-04', Order::WORKSHOP_REGU_FABRIKASI, OrderWorkshop::PROGRESS_IN_PROGRESS);
         $excluded->update(['catatan_status' => OrderUserNoteStatus::ApprovedJasa->value]);
         BengkelTask::query()->create([
             'order_id' => $inProgress->id,
@@ -48,12 +54,12 @@ class WorkshopDashboardServiceTest extends TestCase
 
         $dashboard = app(WorkshopDashboardService::class)->resolve(2026, 'all');
 
-        $this->assertSame(5, $dashboard['summary']['total']);
+        $this->assertSame(6, $dashboard['summary']['total']);
         $this->assertSame(2, $dashboard['summary']['in_progress']);
-        $this->assertSame(2, $dashboard['summary']['completed']);
+        $this->assertSame(3, $dashboard['summary']['completed']);
         $this->assertSame(3, $dashboard['summary']['incomplete']);
-        $this->assertSame(40.0, $dashboard['summary']['completion_percentage']);
-        $this->assertSame(600, $dashboard['summary']['total_cost']);
+        $this->assertSame(50.0, $dashboard['summary']['completion_percentage']);
+        $this->assertSame(1000, $dashboard['summary']['total_cost']);
         $this->assertSame(1, $dashboard['unknown_regu_count']);
         $this->assertSame(WorkshopDashboardService::COMPLETION_TARGET, $dashboard['summary']['completion_target']);
 
@@ -63,7 +69,7 @@ class WorkshopDashboardServiceTest extends TestCase
         $this->assertSame(1, $fabrikasi['completed']);
 
         $estimator = collect($dashboard['regu'])->firstWhere('name', Order::WORKSHOP_REGU_ESTIMATOR);
-        $this->assertSame(1, $estimator['completed']);
+        $this->assertSame(2, $estimator['completed']);
     }
 
     public function test_year_and_month_filters_use_order_date_consistently(): void
@@ -93,16 +99,16 @@ class WorkshopDashboardServiceTest extends TestCase
         $this->assertSame(500, collect($fullYear['monthly_costs'])->sum('amount'));
     }
 
-    public function test_cumulative_trend_uses_handover_entry_time_and_omits_future_months(): void
+    public function test_cumulative_trend_uses_progress_and_final_qc_signature_times_and_omits_future_months(): void
     {
         Carbon::setTestNow('2026-09-04 10:00:00');
         $user = User::factory()->create();
         $january = $this->workshopOrder($user, 'WD-TREND-JAN', '2026-01-10', Order::WORKSHOP_REGU_FABRIKASI, OrderWorkshop::PROGRESS_DONE);
-        $this->handover($january, $user, WorkshopHandover::STATUS_WAITING_USER_SIGNATURE, '2026-03-05 08:00:00');
+        $january->orderWorkshop->forceFill(['updated_at' => '2026-03-05 08:00:00'])->saveQuietly();
         $legacyFebruary = $this->workshopOrder($user, 'WD-TREND-FEB', '2026-02-10', Order::WORKSHOP_REGU_REFURBISH, OrderWorkshop::PROGRESS_DONE);
         $legacyFebruary->orderWorkshop->forceFill(['legacy_completed_at' => '2026-02-20 08:00:00'])->save();
-        $april = $this->workshopOrder($user, 'WD-TREND-APR', '2026-04-10', Order::WORKSHOP_REGU_ESTIMATOR, OrderWorkshop::PROGRESS_DONE);
-        $this->handover($april, $user, WorkshopHandover::STATUS_WAITING_USER_SIGNATURE, '2026-10-01 08:00:00');
+        $april = $this->workshopOrder($user, 'WD-TREND-APR', '2026-04-10', Order::WORKSHOP_REGU_FABRIKASI, OrderWorkshop::PROGRESS_QUALITY_CONTROL);
+        $this->completeQualityControl($april, $user, '2026-10-01 08:00:00');
 
         $dashboard = app(WorkshopDashboardService::class)->resolve(2026, 'all');
         $trend = collect($dashboard['trend'])->keyBy('month');
@@ -165,29 +171,43 @@ class WorkshopDashboardServiceTest extends TestCase
         return $order;
     }
 
-    private function handover(Order $order, User $user, string $status, string $handedOverAt): WorkshopHandover
+    private function completeQualityControl(Order $order, User $user, string $completedAt): QualityControlReport
     {
-        return WorkshopHandover::query()->create([
+        $report = QualityControlReport::query()->create([
             'order_id' => $order->id,
-            'document_no' => 'STB-'.$order->nomor_order,
-            'path' => WorkshopHandover::PATH_NON_CRITICAL,
-            'status' => $status,
-            'handed_over_at' => $handedOverAt,
-            'order_no_snapshot' => $order->nomor_order,
-            'job_name_snapshot' => $order->nama_pekerjaan,
-            'unit_snapshot' => $order->unit_kerja,
-            'section_snapshot' => $order->seksi,
-            'admin_user_id' => $user->id,
-            'admin_name_snapshot' => $user->name,
-            'admin_position_snapshot' => 'Admin Workshop',
-            'admin_signature_path' => 'signatures/admin.png',
-            'admin_signed_at' => '2026-09-01 08:00:00',
-            'recipient_user_id' => $user->id,
-            'recipient_name_snapshot' => $user->name,
-            'recipient_position_snapshot' => 'Manager User',
-            'user_signature_path' => null,
-            'user_signed_at' => null,
-            'photo_paths' => [],
+            'type' => QualityControlReport::TYPE_FABRICATION,
+            'status' => QualityControlReport::STATUS_SUBMITTED,
+            'payload' => [
+                'signature' => [
+                    'signature_data' => 'data:image/png;base64,maker-signature',
+                ],
+            ],
+            'created_by' => $user->id,
         ]);
+
+        $report->signatures()->createMany([
+            [
+                'step_order' => 1,
+                'role_key' => QualityControlSignature::ROLE_WORKSHOP_MANAGER,
+                'role_label' => 'Manager Workshop',
+                'signer_user_id' => $user->id,
+                'signer_name' => $user->name,
+                'status' => QualityControlSignature::STATUS_SIGNED,
+                'signature_data' => 'signatures/workshop-manager.png',
+                'signed_at' => Carbon::parse($completedAt)->subMinute(),
+            ],
+            [
+                'step_order' => 2,
+                'role_key' => QualityControlSignature::ROLE_USER_MANAGER,
+                'role_label' => 'Manager User',
+                'signer_user_id' => $user->id,
+                'signer_name' => $user->name,
+                'status' => QualityControlSignature::STATUS_SIGNED,
+                'signature_data' => 'signatures/user-manager.png',
+                'signed_at' => $completedAt,
+            ],
+        ]);
+
+        return $report;
     }
 }

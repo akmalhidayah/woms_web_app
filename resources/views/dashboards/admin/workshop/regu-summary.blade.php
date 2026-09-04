@@ -25,7 +25,7 @@
             @php($style = $reguStyles[$loop->index] ?? $reguStyles[0])
             <section class="min-w-0 rounded-lg p-3 {{ $style['card'] }}">
                 <h3 class="break-words text-[10px] font-extrabold uppercase tracking-[0.08em]">{{ $regu['name'] }}</h3>
-                <div class="relative mt-2 h-[150px] min-w-0 w-full overflow-hidden rounded-lg bg-white/95 p-1">
+                <div class="relative mt-2 h-[150px] min-w-0 w-full overflow-hidden">
                     <canvas
                         data-workshop-regu-chart="{{ $loop->index }}"
                         class="h-full w-full max-w-full"

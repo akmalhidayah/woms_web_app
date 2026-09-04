@@ -91,6 +91,7 @@
         }
         window.workshopReguChartInstances = Array.from(reguCanvases).map((canvas, index) => {
             const regu = reguSummary[index] || {};
+            const chartTextColor = index === 1 ? '#422006' : '#ffffff';
             const values = [
                 Number(regu.in_progress || 0),
                 Number(regu.completed || 0),
@@ -103,7 +104,7 @@
                     const bars = chart.getDatasetMeta(0)?.data || [];
 
                     ctx.save();
-                    ctx.fillStyle = '#0f172a';
+                    ctx.fillStyle = chartTextColor;
                     ctx.font = '700 10px sans-serif';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'bottom';
@@ -135,7 +136,7 @@
                             border: { display: false },
                             grid: { display: false },
                             ticks: {
-                                color: '#64748b',
+                                color: chartTextColor,
                                 font: { size: 7, weight: '700' },
                                 maxRotation: 0,
                                 minRotation: 0,

@@ -378,7 +378,7 @@ class WorkshopStartFlowTest extends TestCase
             ->assertDontSee('PEKERJAAN START BENGKEL');
     }
 
-    public function test_start_rejects_non_workshop_order_and_missing_workshop_data(): void
+    public function test_start_rejects_non_workshop_order_and_initializes_missing_workshop_data(): void
     {
         [$nonWorkshopOrder] = $this->workshopOrder();
         $nonWorkshopOrder->update(['catatan_status' => OrderUserNoteStatus::ApprovedJasa->value]);
@@ -390,8 +390,20 @@ class WorkshopStartFlowTest extends TestCase
         $missingWorkshopOrder = $this->baseOrder('WORKSHOP-START-MISSING-001');
 
         $this->actingAs($this->admin)
+            ->get(route('admin.orders.workshop.index', ['search' => $missingWorkshopOrder->nomor_order]))
+            ->assertOk()
+            ->assertSee('data-start-url="'.route('admin.orders.workshop.start', $missingWorkshopOrder).'"', false);
+
+        $this->actingAs($this->admin)
             ->patchJson(route('admin.orders.workshop.start', $missingWorkshopOrder))
-            ->assertUnprocessable();
+            ->assertOk()
+            ->assertJsonPath('message', 'Pekerjaan berhasil dimulai.');
+
+        $this->assertDatabaseHas('order_workshops', [
+            'order_id' => $missingWorkshopOrder->id,
+            'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
+        ]);
+        $this->assertNotNull($missingWorkshopOrder->fresh('orderWorkshop')->orderWorkshop?->started_at);
     }
 
     /**

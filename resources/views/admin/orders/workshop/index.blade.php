@@ -265,6 +265,7 @@
                                 $abnormalDocument = $order->documents->firstWhere('jenis_dokumen.value', 'abnormalitas');
                                 $gambarDocument = $order->documents->firstWhere('jenis_dokumen.value', 'gambar_teknik');
                                 $workshop = $order->orderWorkshop;
+                                $activeBengkelTask = $order->bengkelTasks->first(fn ($task) => $task->archived_at === null);
                                 $workPackages = $order->workPackages;
                                 $displayWorkPackages = $workPackages->map(fn ($package) => [
                                     'display_no' => $package->display_no ?: '-',
@@ -278,7 +279,7 @@
                                     ])->values()->all(),
                                 ])->values()->all();
                                 if ($displayWorkPackages === []) {
-                                    $displayTask = $order->bengkelTasks->first(fn ($task) => $task->archived_at === null);
+                                    $displayTask = $activeBengkelTask;
                                     $displayProfiles = collect($displayTask?->person_in_charge_profiles ?? []);
                                     if ($displayProfiles->isEmpty()) {
                                         $displayProfiles = collect($displayTask?->person_in_charge ?? [])
@@ -310,11 +311,15 @@
                                 };
                                 $preparationStatus = $workshop?->preparation_status;
                                 $preparationLabel = $workshop?->preparationLabel() ?? 'Belum Memilih Persiapan';
-                                $waitingForStart = $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL
-                                    && $workshop?->started_at === null;
+                                $effectiveProgressStatus = filled($workshop?->progress_status)
+                                    ? $workshop->progress_status
+                                    : $activeBengkelTask?->progress_status;
+                                $waitingForStart = $workshop?->started_at === null
+                                    && (blank($effectiveProgressStatus)
+                                        || $effectiveProgressStatus === \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL);
                                 $legacyStarted = $workshop?->started_at === null
-                                    && filled($workshop?->progress_status)
-                                    && $workshop?->progress_status !== \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
+                                    && filled($effectiveProgressStatus)
+                                    && $effectiveProgressStatus !== \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
                                 $progressHasBegun = $workshop?->started_at !== null || $legacyStarted;
                                 $workshopSummary = match (true) {
                                     filled($workshop?->progress_status) => $progressOptions[$workshop?->progress_status] ?? 'Progress Bengkel',

@@ -38,20 +38,40 @@ class WorkshopStartService
                 ->lockForUpdate()
                 ->first();
 
-            if (! $workshop) {
-                throw ValidationException::withMessages([
-                    'progress_status' => 'Data Order Pekerjaan Bengkel tidak ditemukan.',
-                ]);
-            }
-
-            if ($workshop->started_at !== null) {
+            if ($workshop?->started_at !== null) {
                 return ['workshop' => $workshop, 'started' => false];
             }
 
-            if ($workshop->progress_status !== OrderWorkshop::PROGRESS_MENUNGGU_JADWAL) {
+            $taskProgress = null;
+
+            if (! $workshop || blank($workshop->progress_status)) {
+                $taskProgress = $order->bengkelTasks()
+                    ->whereNull('archived_at')
+                    ->latest('id')
+                    ->value('progress_status');
+            }
+
+            $currentProgress = $workshop?->progress_status
+                ?: $taskProgress
+                ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
+
+            if ($currentProgress !== OrderWorkshop::PROGRESS_MENUNGGU_JADWAL) {
                 throw ValidationException::withMessages([
                     'progress_status' => 'Pekerjaan legacy sudah berjalan, tetapi waktu mulai belum tercatat.',
                 ]);
+            }
+
+            if (! $workshop) {
+                $workshop = $this->workshopOrderTaskSyncer->ensureWorkshopLifecycle($order);
+                $workshop = $workshop
+                    ? OrderWorkshop::query()->whereKey($workshop->id)->lockForUpdate()->first()
+                    : null;
+
+                if (! $workshop) {
+                    throw ValidationException::withMessages([
+                        'progress_status' => 'Data Order Pekerjaan Bengkel tidak dapat disiapkan.',
+                    ]);
+                }
             }
 
             $workshop->forceFill([

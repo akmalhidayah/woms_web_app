@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Admin;
 
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
+use App\Models\Hpp;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
 use App\Models\QualityControlReport;
@@ -45,6 +46,7 @@ final class WorkshopDashboardService
         ];
         $reguRows = $this->reguSummary($periodWorkloads, $periodStart, $periodEnd);
         $trend = $this->completionTrend($workloads, $year, $month);
+        $monthlyWorkValues = $this->monthlyWorkValues($workloads, $year, $month);
 
         return [
             'filters' => [
@@ -58,7 +60,10 @@ final class WorkshopDashboardService
             'has_orders' => $summary['total'] > 0,
             'trend_has_orders' => collect($trend)->contains(fn (array $row): bool => $row['total'] > 0),
             'trend' => $trend,
-            'monthly_costs' => $this->monthlyCosts($year, $month),
+            'monthly_work_values' => $monthlyWorkValues,
+            'work_values_has_data' => collect($monthlyWorkValues)->contains(
+                fn (array $row): bool => collect($row['regu'])->contains(fn (float $value): bool => $value > 0),
+            ),
         ];
     }
 
@@ -143,6 +148,7 @@ final class WorkshopDashboardService
                         ? $this->asCarbon($row->getAttribute('dashboard_completed_at'))
                         : null,
                     'cost' => $this->moneyInt($row->getAttribute('dashboard_cost')),
+                    'work_value_minor' => $this->moneyMinor($row->getAttribute('dashboard_cost')),
                 ];
             })
             ->filter()
@@ -160,6 +166,7 @@ final class WorkshopDashboardService
                 'latestPurchaseOrder' => fn ($query) => $query->select([
                     'purchase_orders.id',
                     'purchase_orders.order_id',
+                    'purchase_orders.hpp_id',
                     'purchase_orders.approve_manager',
                     'purchase_orders.purchase_order_number',
                     'purchase_orders.progress_pekerjaan',
@@ -168,6 +175,11 @@ final class WorkshopDashboardService
                     'purchase_orders.created_at',
                     'purchase_orders.updated_at',
                 ]),
+                'latestPurchaseOrder.hpp' => fn ($query) => $query
+                    ->select(['hpps.id', 'hpps.total_keseluruhan'])
+                    ->where('hpps.status', Hpp::STATUS_APPROVED),
+                'latestApprovedHpp' => fn ($query) => $query
+                    ->select(['hpps.id', 'hpps.order_id', 'hpps.total_keseluruhan']),
                 'initialWork' => fn ($query) => $query->select([
                     'initial_works.id',
                     'initial_works.order_id',
@@ -214,6 +226,11 @@ final class WorkshopDashboardService
                 }
 
                 $progress = max(0, min(100, (int) $jobSource->progress_pekerjaan));
+                // PO has no nominal of its own; use its approved HPP. Initial
+                // Work without a valid PO can only use an existing approved HPP.
+                $valueHpp = $hasValidPurchaseOrder
+                    ? $purchaseOrder->hpp
+                    : $order->latestApprovedHpp;
 
                 return [
                     'order_id' => (int) $order->id,
@@ -225,6 +242,7 @@ final class WorkshopDashboardService
                         ? $this->asCarbon($jobSource->tanggal_selesai_pekerjaan)
                         : null,
                     'cost' => 0,
+                    'work_value_minor' => $this->moneyMinor($valueHpp?->total_keseluruhan),
                 ];
             })
             ->filter()
@@ -435,29 +453,43 @@ final class WorkshopDashboardService
     }
 
     /**
-     * @return list<array{month: int, label: string, amount: int}>
+     * @param  Collection<int, array<string, mixed>>  $workloads
+     * @return list<array<string, mixed>>
      */
-    private function monthlyCosts(int $year, ?int $selectedMonth): array
+    private function monthlyWorkValues(Collection $workloads, int $year, ?int $selectedMonth): array
     {
         $firstMonth = $selectedMonth ?? 1;
-        $lastMonth = $selectedMonth ?? 12;
-        $monthExpression = $this->datePartExpression('month', 'orders.tanggal_order');
-        $totals = $this->baseQuery()
-            ->whereYear('orders.tanggal_order', $year)
-            ->when($selectedMonth !== null, fn (Builder $query): Builder => $query
-                ->whereMonth('orders.tanggal_order', $selectedMonth))
-            ->selectRaw("{$monthExpression} as order_month, COALESCE(SUM(orders.biaya), 0) as total_cost")
-            ->groupByRaw($monthExpression)
-            ->get()
-            ->mapWithKeys(fn (Order $row): array => [
-                (int) $row->getAttribute('order_month') => $this->moneyInt($row->getAttribute('total_cost')),
-            ]);
+        $lastMonth = $this->lastTrendMonth($year, $selectedMonth);
+
+        if ($firstMonth > $lastMonth) {
+            return [];
+        }
+
+        [$periodStart, $periodEnd] = $this->periodBounds($year, $selectedMonth);
+        $reguValues = array_fill_keys(Order::workshopReguOptions(), 0);
+        $totals = array_fill_keys(range($firstMonth, $lastMonth), $reguValues);
+
+        // Value is booked once at workload entry, never again for carry-over
+        // or completion. Sum integer minor units before formatting for charts.
+        foreach ($workloads as $workload) {
+            $entryAt = $workload['entry_at'];
+            $regu = $workload['regu'];
+
+            if (! array_key_exists($regu, $reguValues)
+                || ! $entryAt->betweenIncluded($periodStart, $periodEnd)) {
+                continue;
+            }
+
+            $totals[(int) $entryAt->month][$regu] += $workload['work_value_minor'];
+        }
 
         return collect(range($firstMonth, $lastMonth))
             ->map(fn (int $month): array => [
                 'month' => $month,
+                'year' => $year,
                 'label' => $this->monthLabel($month),
-                'amount' => (int) $totals->get($month, 0),
+                'period_label' => $this->monthFullLabel($month).' '.$year,
+                'regu' => array_map(fn (int $value): float => $value / 100.0, $totals[$month]),
             ])
             ->all();
     }
@@ -526,15 +558,14 @@ final class WorkshopDashboardService
         return is_numeric($value) ? (int) round((float) $value) : 0;
     }
 
-    private function datePartExpression(string $part, string $column): string
+    private function moneyMinor(mixed $value): int
     {
-        if (DB::connection()->getDriverName() === 'sqlite') {
-            $format = $part === 'year' ? '%Y' : '%m';
+        // Both source columns are DECIMAL(..., 2), not formatted Rupiah input.
+        [$whole, $fraction] = array_pad(explode('.', (string) ($value ?? '0'), 2), 2, '');
+        $negative = str_starts_with($whole, '-');
+        $minor = ((int) ltrim($whole, '-') * 100) + (int) substr(str_pad($fraction, 2, '0'), 0, 2);
 
-            return "CAST(strftime('{$format}', {$column}) AS INTEGER)";
-        }
-
-        return strtoupper($part)."({$column})";
+        return $negative ? -$minor : $minor;
     }
 
     private function completedExpression(): string

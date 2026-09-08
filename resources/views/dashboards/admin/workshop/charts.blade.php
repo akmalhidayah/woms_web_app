@@ -53,20 +53,20 @@
     <section class="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div class="flex items-center gap-2 border-b border-slate-100 pb-3">
             <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                <i data-lucide="chart-column-big" class="h-4 w-4"></i>
+                <i data-lucide="chart-spline" class="h-4 w-4"></i>
             </span>
             <div>
-                <h2 class="text-xs font-bold uppercase tracking-[0.1em] text-slate-800">Biaya Order Bengkel Per Bulan</h2>
+                <h2 class="text-xs font-bold uppercase tracking-[0.1em] text-slate-800">Nilai Pekerjaan Per Regu</h2>
             </div>
         </div>
 
-        @if ($workshopDashboard['has_orders'])
+        @if ($workshopDashboard['work_values_has_data'])
             <div class="relative mt-3 h-[300px] min-w-0 w-full overflow-hidden">
-                <canvas id="workshopMonthlyCostChart" class="h-full w-full max-w-full" role="img" aria-label="Grafik Biaya Order Bengkel per bulan"></canvas>
+                <canvas id="workshopWorkValueChart" class="h-full w-full max-w-full" role="img" aria-label="Grafik Nilai Pekerjaan Per Regu"></canvas>
             </div>
         @else
             <div class="mt-3 flex h-[220px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-xs text-slate-500">
-                Belum ada data Biaya Order Bengkel pada periode ini.
+                Belum ada data nilai pekerjaan pada periode ini.
             </div>
         @endif
     </section>

@@ -7,6 +7,7 @@ namespace Tests\Feature\Admin;
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\BengkelTask;
 use App\Models\Hpp;
+use App\Models\InitialWork;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
 use App\Models\PurchaseOrder;
@@ -96,9 +97,13 @@ class WorkshopDashboardServiceTest extends TestCase
         $this->assertSame(25.0, $september['summary']['completion_percentage']);
         $this->assertSame(400, $september['summary']['total_cost']);
         $this->assertSame([2026, 2025], $september['available_years']);
-        $this->assertCount(1, $september['monthly_costs']);
-        $this->assertSame(9, $september['monthly_costs'][0]['month']);
-        $this->assertSame(400, $september['monthly_costs'][0]['amount']);
+        $this->assertCount(1, $september['monthly_work_values']);
+        $this->assertSame(9, $september['monthly_work_values'][0]['month']);
+        $this->assertSame([
+            Order::WORKSHOP_REGU_FABRIKASI => 0.0,
+            Order::WORKSHOP_REGU_REFURBISH => 0.0,
+            Order::WORKSHOP_REGU_ESTIMATOR => 400.0,
+        ], $september['monthly_work_values'][0]['regu']);
 
         $defaultPeriod = app(WorkshopDashboardService::class)->resolve();
         $this->assertSame(['year' => 2026, 'month' => null], $defaultPeriod['filters']);
@@ -106,8 +111,12 @@ class WorkshopDashboardServiceTest extends TestCase
         $this->assertSame(2, $defaultPeriod['summary']['completed']);
 
         $fullYear = app(WorkshopDashboardService::class)->resolve(2026, 'all');
-        $this->assertCount(12, $fullYear['monthly_costs']);
-        $this->assertSame(1150, collect($fullYear['monthly_costs'])->sum('amount'));
+        $this->assertCount(9, $fullYear['monthly_work_values']);
+        $this->assertSame(1150.0, collect($fullYear['monthly_work_values'])->sum(fn (array $row): float => array_sum($row['regu'])));
+
+        $historicalYear = app(WorkshopDashboardService::class)->resolve(2025, 'all');
+        $this->assertCount(12, $historicalYear['monthly_work_values']);
+        $this->assertSame(100.0, $historicalYear['monthly_work_values'][8]['regu'][Order::WORKSHOP_REGU_FABRIKASI]);
     }
 
     public function test_dashboard_counts_eligible_pure_service_orders_without_double_counting_hybrid(): void
@@ -225,6 +234,150 @@ class WorkshopDashboardServiceTest extends TestCase
         $this->assertSame(1, $september['summary']['outsourced']);
         $this->assertSame(0, $october['summary']['total']);
         $this->assertSame(0, $october['summary']['outsourced']);
+        $this->assertFalse($july['work_values_has_data']);
+        $this->assertTrue($august['work_values_has_data']);
+        $this->assertSame(1000000.0, $august['monthly_work_values'][0]['regu'][Order::WORKSHOP_REGU_ESTIMATOR]);
+        $this->assertFalse($september['work_values_has_data']);
+        $this->assertFalse($october['work_values_has_data']);
+    }
+
+    public function test_work_values_use_entry_month_and_exclude_hybrid_service_nominals(): void
+    {
+        Carbon::setTestNow('2026-09-30 10:00:00');
+        $user = User::factory()->create();
+        $workshop = $this->workshopOrder($user, 'VALUE-AUG', '2026-08-10', Order::WORKSHOP_REGU_FABRIKASI, OrderWorkshop::PROGRESS_DONE, 20000000);
+        $this->setWorkshopCompletionAt($workshop, '2026-09-15 08:00:00');
+
+        foreach ([
+            Order::WORKSHOP_REGU_FABRIKASI => 10000000,
+            Order::WORKSHOP_REGU_REFURBISH => 30000000,
+            Order::WORKSHOP_REGU_ESTIMATOR => 25000000,
+        ] as $regu => $cost) {
+            $hybrid = $this->jobWaitingServiceOrder($user, 'VALUE-HYBRID-'.$cost, 100, value: '200000000.00');
+            $hybrid->update([
+                'catatan_status' => OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+                'catatan' => $regu,
+                'biaya' => $cost,
+            ]);
+            OrderWorkshop::query()->create([
+                'order_id' => $hybrid->id,
+                'progress_status' => OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
+            ]);
+        }
+
+        $this->jobWaitingServiceOrder($user, 'VALUE-JASA', 0, orderDate: '2026-07-01', value: '150000000.35');
+        $this->jobWaitingServiceOrder($user, 'VALUE-JASA-CENTS', 50, value: '0.25');
+        $this->jobWaitingServiceOrder($user, 'VALUE-INELIGIBLE', 0, false, value: '999000000.00');
+        $this->workshopOrder($user, 'VALUE-NULL', '2026-09-02', Order::WORKSHOP_REGU_REFURBISH, OrderWorkshop::PROGRESS_MENUNGGU_JADWAL);
+
+        $dashboard = app(WorkshopDashboardService::class)->resolve(2026, 'all');
+        $values = collect($dashboard['monthly_work_values'])->keyBy('month');
+
+        $this->assertTrue($dashboard['work_values_has_data']);
+        $this->assertSame(0.0, $values[7]['regu'][Order::WORKSHOP_REGU_ESTIMATOR]);
+        $this->assertSame(20000000.0, $values[8]['regu'][Order::WORKSHOP_REGU_FABRIKASI]);
+        $this->assertSame('September 2026', $values[9]['period_label']);
+        $this->assertSame([
+            Order::WORKSHOP_REGU_FABRIKASI => 10000000.0,
+            Order::WORKSHOP_REGU_REFURBISH => 30000000.0,
+            Order::WORKSHOP_REGU_ESTIMATOR => 175000000.6,
+        ], $values[9]['regu']);
+        $this->assertSame(7, $dashboard['summary']['total']);
+        $this->assertSame(2, $dashboard['summary']['outsourced']);
+        $this->assertSame(85000000, $dashboard['summary']['total_cost']);
+    }
+
+    public function test_initial_work_value_uses_approved_hpp_and_retains_its_entry_month_after_po(): void
+    {
+        Carbon::setTestNow('2026-09-30 10:00:00');
+        $user = User::factory()->create();
+        $order = Order::query()->create([
+            'nomor_order' => 'VALUE-IW',
+            'nama_pekerjaan' => 'Pekerjaan Initial Work',
+            'unit_kerja' => 'Unit Jasa',
+            'seksi' => 'Seksi Jasa',
+            'deskripsi' => 'Emergency untuk estimator',
+            'prioritas' => Order::PRIORITY_URGENT,
+            'catatan_status' => OrderUserNoteStatus::ApprovedJasa->value,
+            'tanggal_order' => '2026-07-01',
+            'target_selesai' => '2026-09-30',
+            'created_by' => $user->id,
+        ]);
+        $initialWork = InitialWork::query()->create([
+            'order_id' => $order->id,
+            'nomor_initial_work' => 'IW-VALUE',
+            'nomor_order' => $order->nomor_order,
+            'nama_pekerjaan' => $order->nama_pekerjaan,
+            'unit_kerja' => $order->unit_kerja,
+            'seksi' => $order->seksi,
+            'perihal' => 'Emergency',
+            'tanggal_initial_work' => '2026-08-10',
+            'target_penyelesaian' => '2026-09-30',
+            'functional_location' => ['FL-VALUE'],
+            'scope_pekerjaan' => ['Pekerjaan emergency'],
+            'qty' => [1],
+            'stn' => ['Lot'],
+            'created_by' => $user->id,
+        ]);
+        $initialWork->timestamps = false;
+        $initialWork->forceFill(['created_at' => Carbon::parse('2026-08-10 08:00:00')])->saveQuietly();
+        $withoutHpp = app(WorkshopDashboardService::class)->resolve(2026, 8);
+        $this->assertSame(1, $withoutHpp['summary']['total']);
+        $this->assertFalse($withoutHpp['work_values_has_data']);
+
+        $hpp = Hpp::query()->create([
+            'order_id' => $order->id,
+            'nomor_order' => $order->nomor_order,
+            'nama_pekerjaan' => $order->nama_pekerjaan,
+            'unit_kerja' => $order->unit_kerja,
+            'kategori_pekerjaan' => 'Fabrikasi',
+            'area_pekerjaan' => 'Workshop',
+            'nilai_hpp_bucket' => 'under',
+            'total_keseluruhan' => '75000000.45',
+            'status' => Hpp::STATUS_DRAFT,
+            'created_by' => $user->id,
+        ]);
+        $this->assertFalse(app(WorkshopDashboardService::class)->resolve(2026, 8)['work_values_has_data']);
+
+        $hpp->update(['status' => Hpp::STATUS_APPROVED]);
+        $approved = app(WorkshopDashboardService::class)->resolve(2026, 8);
+        $this->assertTrue($approved['work_values_has_data']);
+        $this->assertSame(75000000.45, $approved['monthly_work_values'][0]['regu'][Order::WORKSHOP_REGU_ESTIMATOR]);
+
+        PurchaseOrder::query()->create([
+            'order_id' => $order->id,
+            'hpp_id' => $hpp->id,
+            'purchase_order_number' => 'PO-VALUE-IW',
+            'approve_manager' => true,
+            'created_by' => $user->id,
+        ]);
+        $afterPo = app(WorkshopDashboardService::class)->resolve(2026, 'all');
+        $this->assertSame(1, $afterPo['summary']['total']);
+        $this->assertSame(75000000.45, $afterPo['monthly_work_values'][7]['regu'][Order::WORKSHOP_REGU_ESTIMATOR]);
+        $this->assertSame(0.0, $afterPo['monthly_work_values'][8]['regu'][Order::WORKSHOP_REGU_ESTIMATOR]);
+    }
+
+    public function test_work_value_empty_state_depends_on_value_not_order_count(): void
+    {
+        Carbon::setTestNow('2026-09-04 10:00:00');
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $this->workshopOrder($admin, 'VALUE-EMPTY', '2026-09-02', Order::WORKSHOP_REGU_FABRIKASI, OrderWorkshop::PROGRESS_MENUNGGU_JADWAL);
+        $this->workshopOrder($admin, 'VALUE-ZERO', '2026-09-02', Order::WORKSHOP_REGU_REFURBISH, OrderWorkshop::PROGRESS_MENUNGGU_JADWAL, 0);
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard', ['dashboard' => 'bengkel']))
+            ->assertOk()
+            ->assertViewHas('workshopDashboard', fn (array $data): bool => $data['summary']['total'] === 2 && ! $data['work_values_has_data'])
+            ->assertSee('Belum ada data nilai pekerjaan pada periode ini.')
+            ->assertDontSee('<canvas id="workshopWorkValueChart"', false);
+
+        $this->jobWaitingServiceOrder($admin, 'VALUE-ONLY-JASA', 0);
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard', ['dashboard' => 'bengkel']))
+            ->assertOk()
+            ->assertViewHas('workshopDashboard', fn (array $data): bool => $data['summary']['total'] === 3 && $data['work_values_has_data'])
+            ->assertSee('<canvas id="workshopWorkValueChart"', false)
+            ->assertDontSee('Belum ada data nilai pekerjaan pada periode ini.');
     }
 
     public function test_workshop_dashboard_route_loads_workshop_data_without_financial_payload(): void
@@ -241,7 +394,7 @@ class WorkshopDashboardServiceTest extends TestCase
             ->assertViewMissing('financialSummary')
             ->assertSee('DASHBOARD PEKERJAAN BENGKEL')
             ->assertSee('Order Dijasakan')
-            ->assertSee('Biaya Order Bengkel Per Bulan')
+            ->assertSee('Nilai Pekerjaan Per Regu')
             ->assertDontSee('GENERAL BIAYA JASA');
     }
 
@@ -334,6 +487,7 @@ class WorkshopDashboardServiceTest extends TestCase
         string $entryAt = '2026-09-02 08:00:00',
         ?string $startedAt = null,
         ?string $completedAt = null,
+        string $value = '1000000.00',
     ): Order {
         $startedAt ??= $progress >= 11 ? Carbon::parse($entryAt)->toDateString() : null;
         $completedAt ??= $progress >= 100 ? Carbon::parse($entryAt)->addDays(2)->toDateString() : null;
@@ -358,7 +512,7 @@ class WorkshopDashboardServiceTest extends TestCase
             'kategori_pekerjaan' => 'Fabrikasi',
             'area_pekerjaan' => 'Workshop',
             'nilai_hpp_bucket' => 'under',
-            'total_keseluruhan' => 1000000,
+            'total_keseluruhan' => $value,
             'status' => Hpp::STATUS_APPROVED,
             'created_by' => $user->id,
         ]);

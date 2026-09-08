@@ -35,7 +35,8 @@ class DashboardAdditionalGridUiTest extends TestCase
             ->assertSee('Penyelesaian Order')
             ->assertSee('Ringkasan Per Regu')
             ->assertSee('Trend Penyelesaian Order')
-            ->assertSee('Biaya Order Bengkel Per Bulan')
+            ->assertSee('Nilai Pekerjaan Per Regu')
+            ->assertSee('Belum ada data nilai pekerjaan pada periode ini.')
             ->assertDontSee('id="dashboardJasaContent"', false);
     }
 

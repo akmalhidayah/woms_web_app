@@ -3,11 +3,11 @@
         const summary = @json($workshopDashboard['summary']);
         const reguSummary = @json($workshopDashboard['regu']);
         const trend = @json($workshopDashboard['trend']);
-        const monthlyCosts = @json($workshopDashboard['monthly_costs']);
+        const monthlyWorkValues = @json($workshopDashboard['monthly_work_values']);
         const completionCanvas = document.getElementById('workshopCompletionChart');
         const reguCanvases = document.querySelectorAll('[data-workshop-regu-chart]');
         const trendCanvas = document.getElementById('workshopCompletionTrendChart');
-        const monthlyCostCanvas = document.getElementById('workshopMonthlyCostChart');
+        const workValueCanvas = document.getElementById('workshopWorkValueChart');
 
         const destroyChart = (instanceKey) => {
             if (window[instanceKey]) {
@@ -246,23 +246,31 @@
             });
         }
 
-        if (monthlyCostCanvas) {
-            destroyChart('workshopMonthlyCostChartInstance');
-            window.workshopMonthlyCostChartInstance = new Chart(monthlyCostCanvas, {
-                type: 'bar',
+        if (workValueCanvas) {
+            destroyChart('workshopWorkValueChartInstance');
+            const valueColors = ['#2563eb', '#f59e0b', '#4f46e5'];
+            window.workshopWorkValueChartInstance = new Chart(workValueCanvas, {
+                type: 'line',
                 data: {
-                    labels: monthlyCosts.map(item => item.label),
-                    datasets: [{
-                        label: 'Biaya Order Bengkel',
-                        data: monthlyCosts.map(item => Number(item.amount || 0)),
-                        backgroundColor: '#4f46e5',
-                        borderRadius: 7,
-                        maxBarThickness: 54,
-                    }],
+                    labels: monthlyWorkValues.map(item => item.label),
+                    datasets: reguSummary.map((regu, index) => ({
+                        label: regu.name,
+                        data: monthlyWorkValues.map(item => Number(item.regu?.[regu.name] || 0)),
+                        borderColor: valueColors[index] || valueColors[0],
+                        backgroundColor: valueColors[index] || valueColors[0],
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: false,
+                    })),
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: { mode: 'nearest', intersect: false },
                     scales: {
                         x: {
                             grid: { display: false },
@@ -277,9 +285,18 @@
                         },
                     },
                     plugins: {
-                        legend: { display: false },
+                        legend: {
+                            position: 'top',
+                            labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true, font: { size: 10 } },
+                        },
                         tooltip: {
-                            callbacks: { label: context => `Biaya Order Bengkel: ${formatRupiah(context.raw)}` },
+                            callbacks: {
+                                title: items => monthlyWorkValues[items[0]?.dataIndex]?.period_label || '',
+                                label: context => [
+                                    context.dataset.label,
+                                    `Nilai Pekerjaan: ${formatRupiah(context.raw)}`,
+                                ],
+                            },
                         },
                     },
                 },
@@ -303,7 +320,7 @@
                     window.workshopCompletionChartInstance,
                     ...(window.workshopReguChartInstances || []),
                     window.workshopCompletionTrendChartInstance,
-                    window.workshopMonthlyCostChartInstance,
+                    window.workshopWorkValueChartInstance,
                 ].forEach(chart => {
                     if (chart && typeof chart.resize === 'function') {
                         chart.resize();

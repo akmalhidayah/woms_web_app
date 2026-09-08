@@ -163,38 +163,43 @@
 
         if (trendCanvas) {
             destroyChart('workshopCompletionTrendChartInstance');
+            const trendColors = ['#2563eb', '#f59e0b', '#4f46e5'];
+            const reguTrendDatasets = reguSummary.map((regu, index) => ({
+                label: regu.name,
+                data: trend.map(item => Number(item.regu?.[regu.name]?.completion_percentage || 0)),
+                borderColor: trendColors[index] || trendColors[0],
+                backgroundColor: trendColors[index] || trendColors[0],
+                pointBackgroundColor: trendColors[index] || trendColors[0],
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 2,
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                borderWidth: 2,
+                tension: 0.3,
+                fill: false,
+            }));
             window.workshopCompletionTrendChartInstance = new Chart(trendCanvas, {
                 type: 'line',
                 data: {
                     labels: trend.map(item => item.label),
                     datasets: [
-                        {
-                            label: 'Penyelesaian',
-                            data: trend.map(item => Number(item.percentage || 0)),
-                            borderColor: '#2563eb',
-                            backgroundColor: 'rgba(37, 99, 235, 0.12)',
-                            pointBackgroundColor: '#2563eb',
-                            pointBorderColor: '#ffffff',
-                            pointBorderWidth: 2,
-                            pointRadius: 4,
-                            tension: 0.3,
-                            fill: true,
-                        },
+                        ...reguTrendDatasets,
                         {
                             label: `Target ${Number(summary.completion_target || 0)}%`,
                             data: trend.map(() => Number(summary.completion_target || 0)),
-                            borderColor: '#f59e0b',
+                            borderColor: '#ef4444',
                             borderDash: [7, 5],
                             borderWidth: 2,
                             pointRadius: 0,
                             tension: 0,
+                            workshopTarget: true,
                         },
                     ],
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
+                    interaction: { mode: 'nearest', intersect: false },
                     scales: {
                         x: {
                             grid: { display: false },
@@ -215,9 +220,25 @@
                         },
                         tooltip: {
                             callbacks: {
-                                label: context => context.datasetIndex === 0
-                                    ? `Penyelesaian: ${Number(context.raw || 0).toLocaleString('id-ID')}%`
-                                    : `Target: ${Number(context.raw || 0).toLocaleString('id-ID')}%`,
+                                title: items => trend[items[0]?.dataIndex]?.period_label || '',
+                                label: context => {
+                                    const point = trend[context.dataIndex] || {};
+
+                                    if (context.dataset.workshopTarget) {
+                                        return `Target: ${Number(point.target || summary.completion_target || 0).toLocaleString('id-ID')}%`;
+                                    }
+
+                                    const metric = point.regu?.[context.dataset.label] || {};
+
+                                    return [
+                                        context.dataset.label,
+                                        `Total Beban : ${Number(metric.total || 0).toLocaleString('id-ID')}`,
+                                        `Selesai : ${Number(metric.completed || 0).toLocaleString('id-ID')}`,
+                                        `Belum Selesai : ${Number(metric.incomplete || 0).toLocaleString('id-ID')}`,
+                                        `Penyelesaian : ${Number(metric.completion_percentage || 0).toLocaleString('id-ID')}%`,
+                                        `Target : ${Number(point.target || summary.completion_target || 0).toLocaleString('id-ID')}%`,
+                                    ];
+                                },
                             },
                         },
                     },

@@ -13,34 +13,38 @@ use App\Support\PkmJobWaitingQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 final class WorkshopDashboardService
 {
     public const COMPLETION_TARGET = 90;
 
+    private const SOURCE_WORKSHOP = 'workshop';
+
+    private const SOURCE_OUTSOURCED = 'outsourced';
+
     /**
      * @return array<string, mixed>
      */
     public function resolve(?int $requestedYear = null, int|string|null $requestedMonth = null): array
     {
-        $availableYears = $this->availableYears();
+        $workloads = $this->workloadRecords();
+        $availableYears = $this->availableYearsFrom($workloads);
         $currentYear = (int) Carbon::now()->year;
         $year = $requestedYear !== null && in_array($requestedYear, $availableYears, true)
             ? $requestedYear
             : $currentYear;
         $month = $this->normalizeMonth($requestedMonth);
-        $periodQuery = $this->baseQuery()
-            ->whereYear('orders.tanggal_order', $year)
-            ->when($month !== null, fn (Builder $query): Builder => $query
-                ->whereMonth('orders.tanggal_order', $month));
-        $jobWaitingEstimator = $this->jobWaitingEstimatorMetric($year, $month);
-        $summary = $this->combinedSummary(
-            $this->aggregate(clone $periodQuery),
-            $jobWaitingEstimator,
-        );
-        $reguRows = $this->reguSummary(clone $periodQuery, $jobWaitingEstimator);
-        $trend = $this->completionTrend($year, $month);
+        [$periodStart, $periodEnd] = $this->periodBounds($year, $month);
+        $periodWorkloads = $this->workloadsForPeriod($workloads, $periodStart, $periodEnd);
+        $summary = $this->aggregate($periodWorkloads, $periodStart, $periodEnd) + [
+            'outsourced' => $periodWorkloads
+                ->where('source', self::SOURCE_OUTSOURCED)
+                ->count(),
+        ];
+        $reguRows = $this->reguSummary($periodWorkloads, $periodStart, $periodEnd);
+        $trend = $this->completionTrend($workloads, $year, $month);
 
         return [
             'filters' => [
@@ -61,32 +65,7 @@ final class WorkshopDashboardService
     /** @return list<int> */
     public function availableYears(): array
     {
-        $yearExpression = $this->datePartExpression('year', 'orders.tanggal_order');
-        $workshopYears = $this->baseQuery()
-            ->selectRaw("{$yearExpression} as dashboard_year")
-            ->whereNotNull('orders.tanggal_order')
-            ->distinct()
-            ->pluck('dashboard_year')
-            ->map(fn ($year): int => (int) $year)
-            ->filter(fn (int $year): bool => $year > 0);
-        $jobWaitingYears = PkmJobWaitingQuery::applyEntryEligibility(Order::query())
-            ->where('orders.catatan_status', OrderUserNoteStatus::ApprovedJasa->value)
-            ->selectRaw("{$yearExpression} as dashboard_year")
-            ->whereNotNull('orders.tanggal_order')
-            ->distinct()
-            ->pluck('dashboard_year')
-            ->map(fn ($year): int => (int) $year)
-            ->filter(fn (int $year): bool => $year > 0);
-
-        $years = $workshopYears
-            ->merge($jobWaitingYears)
-            ->push((int) Carbon::now()->year)
-            ->unique()
-            ->sortDesc()
-            ->values()
-            ->all();
-
-        return $years;
+        return $this->availableYearsFrom($this->workloadRecords());
     }
 
     private function baseQuery(): Builder
@@ -117,121 +96,65 @@ final class WorkshopDashboardService
     }
 
     /**
-     * @return array{
-     *     total: int,
-     *     in_progress: int,
-     *     completed: int,
-     *     incomplete: int,
-     *     completion_percentage: float,
-     *     completion_percentage_hundredths: int,
-     *     completion_target: int,
-     *     target_met: bool,
-     *     total_cost: int
-     * }
+     * @return Collection<int, array<string, mixed>>
      */
-    private function aggregate(Builder $query): array
+    private function workloadRecords(): Collection
     {
-        $completedExpression = $this->completedExpression();
-        $row = $query
-            ->selectRaw('COUNT(orders.id) as total_order')
-            ->selectRaw(
-                "COALESCE(SUM(CASE WHEN {$completedExpression} THEN 1 ELSE 0 END), 0) as completed_order",
-            )
-            ->selectRaw(
-                "COALESCE(SUM(CASE WHEN order_workshops.progress_status IN (?, ?) AND NOT {$completedExpression} THEN 1 ELSE 0 END), 0) as in_progress_order",
-                [
-                    OrderWorkshop::PROGRESS_IN_PROGRESS,
-                    OrderWorkshop::PROGRESS_QUALITY_CONTROL,
-                ],
-            )
-            ->selectRaw('COALESCE(SUM(orders.biaya), 0) as total_cost')
-            ->first();
-
-        return $this->metric(
-            (int) ($row?->getAttribute('total_order') ?? 0),
-            (int) ($row?->getAttribute('in_progress_order') ?? 0),
-            (int) ($row?->getAttribute('completed_order') ?? 0),
-            $this->moneyInt($row?->getAttribute('total_cost')),
-        );
+        return $this->workshopWorkloads()
+            ->concat($this->jobWaitingEstimatorWorkloads())
+            ->unique('order_id')
+            ->values();
     }
 
     /**
-     * @return array{items: list<array<string, int|float|string|bool>>, unknown_count: int}
+     * @return Collection<int, array<string, mixed>>
      */
-    private function reguSummary(Builder $query, array $jobWaitingEstimator): array
+    private function workshopWorkloads(): Collection
     {
-        $reguExpression = "TRIM(COALESCE(orders.catatan, ''))";
         $completedExpression = $this->completedExpression();
-        $rows = $query
-            ->selectRaw("{$reguExpression} as regu")
-            ->selectRaw('COUNT(orders.id) as total_order')
-            ->selectRaw(
-                "COALESCE(SUM(CASE WHEN {$completedExpression} THEN 1 ELSE 0 END), 0) as completed_order",
-            )
-            ->selectRaw(
-                "COALESCE(SUM(CASE WHEN order_workshops.progress_status IN (?, ?) AND NOT {$completedExpression} THEN 1 ELSE 0 END), 0) as in_progress_order",
-                [
-                    OrderWorkshop::PROGRESS_IN_PROGRESS,
-                    OrderWorkshop::PROGRESS_QUALITY_CONTROL,
-                ],
-            )
-            ->groupByRaw($reguExpression)
-            ->get()
-            ->keyBy(fn (Order $row): string => trim((string) $row->getAttribute('regu')));
-        $officialRegu = Order::workshopReguOptions();
-        $items = collect($officialRegu)
-            ->map(function (string $regu) use ($rows, $jobWaitingEstimator): array {
-                $row = $rows->get($regu);
-                $total = (int) ($row?->getAttribute('total_order') ?? 0);
-                $inProgress = (int) ($row?->getAttribute('in_progress_order') ?? 0);
-                $completed = (int) ($row?->getAttribute('completed_order') ?? 0);
+        $completionTimestampExpression = $this->completionTimestampExpression();
 
-                if ($regu === Order::WORKSHOP_REGU_ESTIMATOR) {
-                    $total += $jobWaitingEstimator['total'];
-                    $inProgress += $jobWaitingEstimator['in_progress'];
-                    $completed += $jobWaitingEstimator['completed'];
+        return $this->baseQuery()
+            ->whereNotNull('orders.tanggal_order')
+            ->select([
+                'orders.id as dashboard_order_id',
+                'orders.tanggal_order as dashboard_entry_at',
+                'orders.catatan as dashboard_regu',
+                'orders.biaya as dashboard_cost',
+                'order_workshops.started_at as dashboard_started_at',
+            ])
+            ->selectRaw("CASE WHEN {$completedExpression} THEN 1 ELSE 0 END as dashboard_completed")
+            ->selectRaw("{$completionTimestampExpression} as dashboard_completed_at")
+            ->get()
+            ->map(function (Order $row): ?array {
+                $entryAt = $this->asCarbon($row->getAttribute('dashboard_entry_at'));
+
+                if (! $entryAt) {
+                    return null;
                 }
 
-                return ['name' => $regu] + $this->metric(
-                    $total,
-                    $inProgress,
-                    $completed,
-                    0,
-                );
+                return [
+                    'order_id' => (int) $row->getAttribute('dashboard_order_id'),
+                    'source' => self::SOURCE_WORKSHOP,
+                    'regu' => trim((string) $row->getAttribute('dashboard_regu')),
+                    'entry_at' => $entryAt,
+                    'started_at' => $this->asCarbon($row->getAttribute('dashboard_started_at')),
+                    'completed_at' => (bool) $row->getAttribute('dashboard_completed')
+                        ? $this->asCarbon($row->getAttribute('dashboard_completed_at'))
+                        : null,
+                    'cost' => $this->moneyInt($row->getAttribute('dashboard_cost')),
+                ];
             })
-            ->values()
-            ->all();
-        $unknownCount = $rows
-            ->reject(fn (Order $row, string $regu): bool => in_array($regu, $officialRegu, true))
-            ->sum(fn (Order $row): int => (int) $row->getAttribute('total_order'));
-
-        return [
-            'items' => $items,
-            'unknown_count' => (int) $unknownCount,
-        ];
+            ->filter()
+            ->values();
     }
 
     /**
-     * @param  array<string, int|float|bool>  $workshopSummary
-     * @param  array{total: int, in_progress: int, completed: int}  $jobWaitingEstimator
-     * @return array<string, int|float|bool>
+     * @return Collection<int, array<string, mixed>>
      */
-    private function combinedSummary(array $workshopSummary, array $jobWaitingEstimator): array
+    private function jobWaitingEstimatorWorkloads(): Collection
     {
-        return $this->metric(
-            (int) $workshopSummary['total'] + $jobWaitingEstimator['total'],
-            (int) $workshopSummary['in_progress'] + $jobWaitingEstimator['in_progress'],
-            (int) $workshopSummary['completed'] + $jobWaitingEstimator['completed'],
-            (int) $workshopSummary['total_cost'],
-        ) + [
-            'outsourced' => $jobWaitingEstimator['total'],
-        ];
-    }
-
-    /** @return array{total: int, in_progress: int, completed: int} */
-    private function jobWaitingEstimatorMetric(int $year, ?int $month): array
-    {
-        $orders = PkmJobWaitingQuery::applyEntryEligibility(Order::query())
+        return PkmJobWaitingQuery::applyEntryEligibility(Order::query())
             ->where('orders.catatan_status', OrderUserNoteStatus::ApprovedJasa->value)
             ->with([
                 'latestPurchaseOrder' => fn ($query) => $query->select([
@@ -240,106 +163,271 @@ final class WorkshopDashboardService
                     'purchase_orders.approve_manager',
                     'purchase_orders.purchase_order_number',
                     'purchase_orders.progress_pekerjaan',
+                    'purchase_orders.tanggal_mulai_pekerjaan',
+                    'purchase_orders.tanggal_selesai_pekerjaan',
+                    'purchase_orders.created_at',
+                    'purchase_orders.updated_at',
                 ]),
                 'initialWork' => fn ($query) => $query->select([
                     'initial_works.id',
                     'initial_works.order_id',
+                    'initial_works.tanggal_initial_work',
                     'initial_works.progress_pekerjaan',
+                    'initial_works.tanggal_mulai_pekerjaan',
+                    'initial_works.tanggal_selesai_pekerjaan',
+                    'initial_works.created_at',
                 ]),
             ])
-            ->whereYear('orders.tanggal_order', $year)
-            ->when($month !== null, fn (Builder $query): Builder => $query
-                ->whereMonth('orders.tanggal_order', $month))
-            ->get(['orders.id', 'orders.prioritas']);
-        $progressValues = $orders->map(fn (Order $order): int => $this->jobWaitingProgress($order));
+            ->get(['orders.id', 'orders.prioritas'])
+            ->map(function (Order $order): ?array {
+                $purchaseOrder = $order->latestPurchaseOrder;
+                $initialWork = $order->initialWork;
+                $hasValidPurchaseOrder = $purchaseOrder !== null
+                    && $purchaseOrder->approve_manager
+                    && filled($purchaseOrder->purchase_order_number);
+                $hasInitialWorkEligibility = in_array(
+                    $order->prioritas,
+                    [Order::PRIORITY_URGENT, Order::PRIORITY_HIGH],
+                    true,
+                ) && $initialWork !== null;
+                $jobSource = $hasValidPurchaseOrder
+                    ? $purchaseOrder
+                    : ($hasInitialWorkEligibility ? $initialWork : null);
 
-        return [
-            'total' => $orders->count(),
-            'in_progress' => $progressValues
-                ->filter(fn (int $progress): bool => $progress >= 11 && $progress < 100)
-                ->count(),
-            'completed' => $progressValues
-                ->filter(fn (int $progress): bool => $progress >= 100)
-                ->count(),
-        ];
-    }
+                if (! $jobSource) {
+                    return null;
+                }
 
-    private function jobWaitingProgress(Order $order): int
-    {
-        $purchaseOrder = $order->latestPurchaseOrder;
-        $initialWork = $order->initialWork;
-        $hasValidPurchaseOrder = $purchaseOrder !== null
-            && $purchaseOrder->approve_manager
-            && filled($purchaseOrder->purchase_order_number);
-        $usesInitialWork = ! $hasValidPurchaseOrder
-            && in_array($order->prioritas, [Order::PRIORITY_URGENT, Order::PRIORITY_HIGH], true)
-            && $initialWork !== null;
-        $progress = $hasValidPurchaseOrder
-            ? (int) $purchaseOrder->progress_pekerjaan
-            : ($usesInitialWork ? (int) $initialWork->progress_pekerjaan : 0);
+                // There is no dedicated Job Waiting entry timestamp. Use the
+                // source creation time because progress updates mutate updated_at.
+                $entryAt = $this->earliestDate([
+                    $hasValidPurchaseOrder
+                        ? $this->asCarbon($purchaseOrder->created_at ?: $purchaseOrder->updated_at)
+                        : null,
+                    $hasInitialWorkEligibility
+                        ? $this->asCarbon($initialWork->created_at ?: $initialWork->tanggal_initial_work)
+                        : null,
+                ]);
 
-        return max(0, min(100, $progress));
+                if (! $entryAt) {
+                    return null;
+                }
+
+                $progress = max(0, min(100, (int) $jobSource->progress_pekerjaan));
+
+                return [
+                    'order_id' => (int) $order->id,
+                    'source' => self::SOURCE_OUTSOURCED,
+                    'regu' => Order::WORKSHOP_REGU_ESTIMATOR,
+                    'entry_at' => $entryAt,
+                    'started_at' => $this->asCarbon($jobSource->tanggal_mulai_pekerjaan),
+                    'completed_at' => $progress >= 100
+                        ? $this->asCarbon($jobSource->tanggal_selesai_pekerjaan)
+                        : null,
+                    'cost' => 0,
+                ];
+            })
+            ->filter()
+            ->values();
     }
 
     /**
-     * @return list<array{month: int, label: string, total: int, completed: int, percentage: float, target: int}>
+     * @param  Collection<int, array<string, mixed>>  $workloads
+     * @return list<int>
      */
-    private function completionTrend(int $year, ?int $selectedMonth): array
+    private function availableYearsFrom(Collection $workloads): array
+    {
+        $currentYear = (int) Carbon::now()->year;
+        $years = collect([$currentYear]);
+
+        foreach ($workloads as $workload) {
+            $entryYear = (int) $workload['entry_at']->year;
+            $completionYear = $workload['completed_at']
+                ? (int) $workload['completed_at']->year
+                : max($entryYear, $currentYear);
+
+            if ($entryYear <= $completionYear) {
+                $years = $years->merge(range($entryYear, $completionYear));
+            } else {
+                $years->push($entryYear);
+            }
+        }
+
+        return $years
+            ->filter(fn (int $year): bool => $year > 0)
+            ->unique()
+            ->sortDesc()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array{Carbon, Carbon}
+     */
+    private function periodBounds(int $year, ?int $month): array
+    {
+        $periodStart = Carbon::create($year, $month ?? 1, 1)->startOfDay();
+        $periodEnd = $month !== null
+            ? $periodStart->copy()->endOfMonth()
+            : $periodStart->copy()->endOfYear();
+        $now = Carbon::now();
+
+        if ($year === (int) $now->year && $periodEnd->greaterThan($now)) {
+            $periodEnd = $now->copy()->endOfDay();
+        }
+
+        return [$periodStart, $periodEnd];
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $workloads
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function workloadsForPeriod(Collection $workloads, Carbon $periodStart, Carbon $periodEnd): Collection
+    {
+        if ($periodStart->greaterThan($periodEnd)) {
+            return collect();
+        }
+
+        return $workloads
+            ->filter(function (array $workload) use ($periodStart, $periodEnd): bool {
+                $completedAt = $workload['completed_at'];
+
+                return $workload['entry_at']->lessThanOrEqualTo($periodEnd)
+                    && ($completedAt === null || $completedAt->greaterThanOrEqualTo($periodStart));
+            })
+            ->values();
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $workloads
+     * @return array<string, int|float|bool>
+     */
+    private function aggregate(Collection $workloads, Carbon $periodStart, Carbon $periodEnd): array
+    {
+        $completed = $workloads
+            ->filter(fn (array $workload): bool => $this->completedWithin(
+                $workload['completed_at'],
+                $periodStart,
+                $periodEnd,
+            ))
+            ->count();
+        $inProgress = $workloads
+            ->filter(fn (array $workload): bool => $this->inProgressAtEnd($workload, $periodEnd))
+            ->count();
+        $totalCost = $workloads
+            ->filter(fn (array $workload): bool => $workload['source'] === self::SOURCE_WORKSHOP
+                && $workload['entry_at']->greaterThanOrEqualTo($periodStart)
+                && $workload['entry_at']->lessThanOrEqualTo($periodEnd))
+            ->sum(fn (array $workload): int => (int) $workload['cost']);
+
+        return $this->metric($workloads->count(), $inProgress, $completed, (int) $totalCost);
+    }
+
+    private function completedWithin(?Carbon $completedAt, Carbon $periodStart, Carbon $periodEnd): bool
+    {
+        return $completedAt !== null
+            && $completedAt->greaterThanOrEqualTo($periodStart)
+            && $completedAt->lessThanOrEqualTo($periodEnd);
+    }
+
+    /**
+     * @param  array<string, mixed>  $workload
+     */
+    private function inProgressAtEnd(array $workload, Carbon $periodEnd): bool
+    {
+        $startedAt = $workload['started_at'];
+        $completedAt = $workload['completed_at'];
+
+        return $startedAt !== null
+            && $startedAt->lessThanOrEqualTo($periodEnd)
+            && ($completedAt === null || $completedAt->greaterThan($periodEnd));
+    }
+
+    /**
+     * @param  list<?Carbon>  $dates
+     */
+    private function earliestDate(array $dates): ?Carbon
+    {
+        $earliest = collect($dates)
+            ->filter(fn (?Carbon $date): bool => $date !== null)
+            ->sortBy(fn (Carbon $date): int => $date->getTimestamp())
+            ->first();
+
+        return $earliest?->copy();
+    }
+
+    private function asCarbon(mixed $value): ?Carbon
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return $value instanceof Carbon
+            ? $value->copy()
+            : Carbon::parse($value);
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $workloads
+     * @return array{items: list<array<string, int|float|string|bool>>, unknown_count: int}
+     */
+    private function reguSummary(Collection $workloads, Carbon $periodStart, Carbon $periodEnd): array
+    {
+        $officialRegu = Order::workshopReguOptions();
+        $items = collect($officialRegu)
+            ->map(function (string $regu) use ($workloads, $periodStart, $periodEnd): array {
+                return ['name' => $regu] + $this->aggregate(
+                    $workloads->where('regu', $regu)->values(),
+                    $periodStart,
+                    $periodEnd,
+                );
+            })
+            ->values()
+            ->all();
+        $unknownCount = $workloads
+            ->reject(fn (array $workload): bool => in_array($workload['regu'], $officialRegu, true))
+            ->count();
+
+        return [
+            'items' => $items,
+            'unknown_count' => $unknownCount,
+        ];
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $workloads
+     * @return list<array<string, mixed>>
+     */
+    private function completionTrend(Collection $workloads, int $year, ?int $selectedMonth): array
     {
         $lastMonth = $this->lastTrendMonth($year, $selectedMonth);
-        $orderMonthExpression = $this->datePartExpression('month', 'orders.tanggal_order');
-        $completionTimestampExpression = $this->completionTimestampExpression();
-        $trendEnd = Carbon::create($year, $lastMonth, 1)->endOfMonth();
-        $monthlyOrders = $this->baseQuery()
-            ->whereYear('orders.tanggal_order', $year)
-            ->whereMonth('orders.tanggal_order', '<=', $lastMonth)
-            ->selectRaw("{$orderMonthExpression} as order_month, COUNT(orders.id) as total_order")
-            ->groupByRaw($orderMonthExpression)
-            ->pluck('total_order', 'order_month')
-            ->map(fn ($total): int => (int) $total);
-        $completionRows = $this->baseQuery()
-            ->whereYear('orders.tanggal_order', $year)
-            ->whereMonth('orders.tanggal_order', '<=', $lastMonth)
-            ->selectRaw('orders.id as order_id')
-            ->selectRaw("{$orderMonthExpression} as order_month")
-            ->selectRaw("{$completionTimestampExpression} as completion_at");
-        $completionYearExpression = $this->datePartExpression('year', 'dashboard_completion_rows.completion_at');
-        $completionMonthExpression = $this->datePartExpression('month', 'dashboard_completion_rows.completion_at');
-        $completionGroups = DB::query()
-            ->fromSub($completionRows, 'dashboard_completion_rows')
-            ->whereNotNull('dashboard_completion_rows.completion_at')
-            ->where('dashboard_completion_rows.completion_at', '<=', $trendEnd)
-            ->select('dashboard_completion_rows.order_month')
-            ->selectRaw("{$completionYearExpression} as completion_year")
-            ->selectRaw("{$completionMonthExpression} as completion_month")
-            ->selectRaw('COUNT(*) as total_order')
-            ->groupBy('dashboard_completion_rows.order_month')
-            ->groupByRaw("{$completionYearExpression}, {$completionMonthExpression}")
-            ->get();
-        $cumulativeTotal = 0;
 
         return collect(range(1, $lastMonth))
-            ->map(function (int $month) use ($year, $monthlyOrders, $completionGroups, &$cumulativeTotal): array {
-                $cumulativeTotal += (int) $monthlyOrders->get($month, 0);
-                $completed = $completionGroups->sum(function (object $row) use ($year, $month): int {
-                    $orderMonth = (int) $row->order_month;
-                    $completionYear = (int) $row->completion_year;
-                    $completionMonth = (int) $row->completion_month;
-                    $completedByMonth = $completionYear < $year
-                        || ($completionYear === $year && $completionMonth <= $month);
-
-                    return $orderMonth <= $month && $completedByMonth
-                        ? (int) $row->total_order
-                        : 0;
-                });
-                $percentage = $this->percentageHundredths((int) $completed, $cumulativeTotal) / 100.0;
+            ->map(function (int $month) use ($workloads, $year): array {
+                [$periodStart, $periodEnd] = $this->periodBounds($year, $month);
+                $monthlyWorkloads = $this->workloadsForPeriod($workloads, $periodStart, $periodEnd);
+                $monthlySummary = $this->aggregate($monthlyWorkloads, $periodStart, $periodEnd);
+                $regu = collect(Order::workshopReguOptions())
+                    ->mapWithKeys(fn (string $regu): array => [
+                        $regu => $this->aggregate(
+                            $monthlyWorkloads->where('regu', $regu)->values(),
+                            $periodStart,
+                            $periodEnd,
+                        ),
+                    ])
+                    ->all();
 
                 return [
                     'month' => $month,
+                    'year' => $year,
                     'label' => $this->monthLabel($month),
-                    'total' => $cumulativeTotal,
-                    'completed' => (int) $completed,
-                    'percentage' => $percentage,
+                    'period_label' => $this->monthFullLabel($month).' '.$year,
+                    'total' => $monthlySummary['total'],
+                    'completed' => $monthlySummary['completed'],
+                    'incomplete' => $monthlySummary['incomplete'],
+                    'percentage' => $monthlySummary['completion_percentage'],
+                    'regu' => $regu,
                     'target' => self::COMPLETION_TARGET,
                 ];
             })
@@ -533,6 +621,24 @@ final class WorkshopDashboardService
             10 => 'Okt',
             11 => 'Nov',
             12 => 'Des',
+        ][$month];
+    }
+
+    private function monthFullLabel(int $month): string
+    {
+        return [
+            1 => 'Januari',
+            2 => 'Februari',
+            3 => 'Maret',
+            4 => 'April',
+            5 => 'Mei',
+            6 => 'Juni',
+            7 => 'Juli',
+            8 => 'Agustus',
+            9 => 'September',
+            10 => 'Oktober',
+            11 => 'November',
+            12 => 'Desember',
         ][$month];
     }
 }

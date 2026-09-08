@@ -74,31 +74,40 @@ class WorkshopDashboardServiceTest extends TestCase
         $this->assertSame(2, $estimator['completed']);
     }
 
-    public function test_year_and_month_filters_use_order_date_consistently(): void
+    public function test_period_filters_include_carry_over_and_use_actual_completion_month(): void
     {
-        Carbon::setTestNow('2026-09-04 10:00:00');
+        Carbon::setTestNow('2026-09-30 10:00:00');
         $user = User::factory()->create();
         $this->workshopOrder($user, 'WD-FILTER-2025', '2025-09-10', Order::WORKSHOP_REGU_FABRIKASI, OrderWorkshop::PROGRESS_IN_PROGRESS, 100);
         $this->workshopOrder($user, 'WD-FILTER-AUG', '2026-08-10', Order::WORKSHOP_REGU_REFURBISH, OrderWorkshop::PROGRESS_IN_PROGRESS, 200);
-        $this->workshopOrder($user, 'WD-FILTER-SEP', '2026-09-10', Order::WORKSHOP_REGU_ESTIMATOR, OrderWorkshop::PROGRESS_DONE, 300);
+        $augustCompleted = $this->workshopOrder($user, 'WD-FILTER-AUG-DONE', '2026-08-12', Order::WORKSHOP_REGU_REFURBISH, OrderWorkshop::PROGRESS_DONE, 250);
+        $this->setWorkshopCompletionAt($augustCompleted, '2026-08-20 08:00:00');
+        $septemberCompleted = $this->workshopOrder($user, 'WD-FILTER-SEP-DONE', '2026-07-10', Order::WORKSHOP_REGU_FABRIKASI, OrderWorkshop::PROGRESS_DONE, 300);
+        $this->setWorkshopCompletionAt($septemberCompleted, '2026-09-18 08:00:00');
+        $this->workshopOrder($user, 'WD-FILTER-SEP', '2026-09-10', Order::WORKSHOP_REGU_ESTIMATOR, OrderWorkshop::PROGRESS_IN_PROGRESS, 400);
 
         $september = app(WorkshopDashboardService::class)->resolve(2026, 9);
 
         $this->assertSame(['year' => 2026, 'month' => 9], $september['filters']);
-        $this->assertSame(1, $september['summary']['total']);
-        $this->assertSame(300, $september['summary']['total_cost']);
+        $this->assertSame(4, $september['summary']['total']);
+        $this->assertSame(1, $september['summary']['completed']);
+        $this->assertSame(3, $september['summary']['in_progress']);
+        $this->assertSame(3, $september['summary']['incomplete']);
+        $this->assertSame(25.0, $september['summary']['completion_percentage']);
+        $this->assertSame(400, $september['summary']['total_cost']);
         $this->assertSame([2026, 2025], $september['available_years']);
         $this->assertCount(1, $september['monthly_costs']);
         $this->assertSame(9, $september['monthly_costs'][0]['month']);
-        $this->assertSame(300, $september['monthly_costs'][0]['amount']);
+        $this->assertSame(400, $september['monthly_costs'][0]['amount']);
 
         $defaultPeriod = app(WorkshopDashboardService::class)->resolve();
         $this->assertSame(['year' => 2026, 'month' => null], $defaultPeriod['filters']);
-        $this->assertSame(2, $defaultPeriod['summary']['total']);
+        $this->assertSame(5, $defaultPeriod['summary']['total']);
+        $this->assertSame(2, $defaultPeriod['summary']['completed']);
 
         $fullYear = app(WorkshopDashboardService::class)->resolve(2026, 'all');
         $this->assertCount(12, $fullYear['monthly_costs']);
-        $this->assertSame(500, collect($fullYear['monthly_costs'])->sum('amount'));
+        $this->assertSame(1150, collect($fullYear['monthly_costs'])->sum('amount'));
     }
 
     public function test_dashboard_counts_eligible_pure_service_orders_without_double_counting_hybrid(): void
@@ -120,6 +129,7 @@ class WorkshopDashboardServiceTest extends TestCase
         OrderWorkshop::query()->create([
             'order_id' => $hybrid->id,
             'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
+            'started_at' => '2026-09-03 08:00:00',
         ]);
         $this->jobWaitingServiceOrder($user, 'JW-NOT-STARTED', 0);
         $this->jobWaitingServiceOrder($user, 'JW-IN-PROGRESS', 50);
@@ -149,12 +159,12 @@ class WorkshopDashboardServiceTest extends TestCase
         );
     }
 
-    public function test_cumulative_trend_uses_progress_and_final_qc_signature_times_and_omits_future_months(): void
+    public function test_monthly_regu_trend_uses_workload_and_completion_timestamps_and_omits_future_months(): void
     {
         Carbon::setTestNow('2026-09-04 10:00:00');
         $user = User::factory()->create();
         $january = $this->workshopOrder($user, 'WD-TREND-JAN', '2026-01-10', Order::WORKSHOP_REGU_FABRIKASI, OrderWorkshop::PROGRESS_DONE);
-        $january->orderWorkshop->forceFill(['updated_at' => '2026-03-05 08:00:00'])->saveQuietly();
+        $this->setWorkshopCompletionAt($january, '2026-03-05 08:00:00');
         $legacyFebruary = $this->workshopOrder($user, 'WD-TREND-FEB', '2026-02-10', Order::WORKSHOP_REGU_REFURBISH, OrderWorkshop::PROGRESS_DONE);
         $legacyFebruary->orderWorkshop->forceFill(['legacy_completed_at' => '2026-02-20 08:00:00'])->save();
         $april = $this->workshopOrder($user, 'WD-TREND-APR', '2026-04-10', Order::WORKSHOP_REGU_FABRIKASI, OrderWorkshop::PROGRESS_QUALITY_CONTROL);
@@ -167,11 +177,54 @@ class WorkshopDashboardServiceTest extends TestCase
         $this->assertSame(0.0, $trend[1]['percentage']);
         $this->assertSame(50.0, $trend[2]['percentage']);
         $this->assertSame(100.0, $trend[3]['percentage']);
-        $this->assertSame(66.67, $trend[4]['percentage']);
-        $this->assertSame(2, $trend[9]['completed']);
+        $this->assertSame(0.0, $trend[4]['percentage']);
+        $this->assertSame(0, $trend[9]['completed']);
+        $this->assertSame('September 2026', $trend[9]['period_label']);
+        $this->assertSame(1, $trend[2]['regu'][Order::WORKSHOP_REGU_FABRIKASI]['total']);
+        $this->assertSame(0, $trend[2]['regu'][Order::WORKSHOP_REGU_FABRIKASI]['completed']);
+        $this->assertSame(100.0, $trend[2]['regu'][Order::WORKSHOP_REGU_REFURBISH]['completion_percentage']);
+        $this->assertSame(100.0, $trend[3]['regu'][Order::WORKSHOP_REGU_FABRIKASI]['completion_percentage']);
 
         $throughJuly = app(WorkshopDashboardService::class)->resolve(2026, 7);
         $this->assertCount(7, $throughJuly['trend']);
+        $julyFabrikasi = collect($throughJuly['regu'])->firstWhere('name', Order::WORKSHOP_REGU_FABRIKASI);
+        $this->assertSame(
+            $julyFabrikasi['completion_percentage'],
+            collect($throughJuly['trend'])->firstWhere('month', 7)['regu'][Order::WORKSHOP_REGU_FABRIKASI]['completion_percentage'],
+        );
+    }
+
+    public function test_pure_service_workload_starts_at_job_waiting_entry_and_carries_until_service_completion(): void
+    {
+        Carbon::setTestNow('2026-10-31 10:00:00');
+        $user = User::factory()->create();
+        $this->jobWaitingServiceOrder(
+            $user,
+            'JW-CARRY-OVER',
+            100,
+            true,
+            '2026-07-01',
+            '2026-08-10 08:00:00',
+            '2026-08-15',
+            '2026-09-20',
+        );
+
+        $july = app(WorkshopDashboardService::class)->resolve(2026, 7);
+        $august = app(WorkshopDashboardService::class)->resolve(2026, 8);
+        $september = app(WorkshopDashboardService::class)->resolve(2026, 9);
+        $october = app(WorkshopDashboardService::class)->resolve(2026, 10);
+
+        $this->assertSame(0, $july['summary']['total']);
+        $this->assertSame(1, $august['summary']['total']);
+        $this->assertSame(1, $august['summary']['in_progress']);
+        $this->assertSame(0, $august['summary']['completed']);
+        $this->assertSame(1, $august['summary']['outsourced']);
+        $this->assertSame(1, $september['summary']['total']);
+        $this->assertSame(1, $september['summary']['completed']);
+        $this->assertSame(0, $september['summary']['incomplete']);
+        $this->assertSame(1, $september['summary']['outsourced']);
+        $this->assertSame(0, $october['summary']['total']);
+        $this->assertSame(0, $october['summary']['outsourced']);
     }
 
     public function test_workshop_dashboard_route_loads_workshop_data_without_financial_payload(): void
@@ -217,6 +270,9 @@ class WorkshopDashboardServiceTest extends TestCase
         OrderWorkshop::query()->create([
             'order_id' => $order->id,
             'progress_status' => $progress,
+            'started_at' => $progress === OrderWorkshop::PROGRESS_MENUNGGU_JADWAL
+                ? null
+                : Carbon::parse($orderDate)->startOfDay(),
         ]);
 
         return $order;
@@ -262,12 +318,25 @@ class WorkshopDashboardServiceTest extends TestCase
         return $report;
     }
 
+    private function setWorkshopCompletionAt(Order $order, string $completedAt): void
+    {
+        $workshop = $order->orderWorkshop;
+        $workshop->timestamps = false;
+        $workshop->forceFill(['updated_at' => Carbon::parse($completedAt)])->saveQuietly();
+    }
+
     private function jobWaitingServiceOrder(
         User $user,
         string $number,
         int $progress,
         bool $eligible = true,
+        string $orderDate = '2026-09-02',
+        string $entryAt = '2026-09-02 08:00:00',
+        ?string $startedAt = null,
+        ?string $completedAt = null,
     ): Order {
+        $startedAt ??= $progress >= 11 ? Carbon::parse($entryAt)->toDateString() : null;
+        $completedAt ??= $progress >= 100 ? Carbon::parse($entryAt)->addDays(2)->toDateString() : null;
         $order = Order::query()->create([
             'nomor_order' => $number,
             'nama_pekerjaan' => 'Pekerjaan '.$number,
@@ -276,7 +345,7 @@ class WorkshopDashboardServiceTest extends TestCase
             'deskripsi' => 'Pekerjaan jasa untuk estimator',
             'prioritas' => Order::PRIORITY_LOW,
             'catatan_status' => OrderUserNoteStatus::ApprovedJasa->value,
-            'tanggal_order' => '2026-09-02',
+            'tanggal_order' => $orderDate,
             'target_selesai' => '2026-09-30',
             'catatan' => 'Jasa Fabrikasi',
             'created_by' => $user->id,
@@ -293,14 +362,21 @@ class WorkshopDashboardServiceTest extends TestCase
             'status' => Hpp::STATUS_APPROVED,
             'created_by' => $user->id,
         ]);
-        PurchaseOrder::query()->create([
+        $purchaseOrder = PurchaseOrder::query()->create([
             'order_id' => $order->id,
             'hpp_id' => $hpp->id,
             'purchase_order_number' => $eligible ? 'PO-'.$number : null,
             'approve_manager' => $eligible,
             'progress_pekerjaan' => $progress,
+            'tanggal_mulai_pekerjaan' => $startedAt,
+            'tanggal_selesai_pekerjaan' => $completedAt,
             'created_by' => $user->id,
         ]);
+        $purchaseOrder->timestamps = false;
+        $purchaseOrder->forceFill([
+            'created_at' => Carbon::parse($entryAt),
+            'updated_at' => Carbon::parse($entryAt),
+        ])->saveQuietly();
 
         return $order;
     }

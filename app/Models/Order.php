@@ -186,12 +186,7 @@ class Order extends Model
                 'Jasa Pengerjaan Mesin',
             ],
             OrderUserNoteStatus::ApprovedWorkshop->value => self::workshopReguOptions(),
-            OrderUserNoteStatus::ApprovedWorkshopJasa->value => [
-                'Jasa Fabrikasi',
-                'Jasa Konstruksi',
-                'Jasa Pengerjaan Mesin',
-                ...self::workshopReguOptions(),
-            ],
+            OrderUserNoteStatus::ApprovedWorkshopJasa->value => self::workshopReguOptions(),
         ];
     }
 

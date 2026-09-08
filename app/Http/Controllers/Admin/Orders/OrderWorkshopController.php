@@ -124,7 +124,10 @@ class OrderWorkshopController extends Controller
                 ->with(['sections:id,unit_work_id,name'])
                 ->orderBy('name')
                 ->get(['id', 'name']),
-            'userNoteStatusOptions' => OrderUserNoteStatus::options(),
+            'userNoteStatusOptions' => [
+                OrderUserNoteStatus::ApprovedWorkshop->value => OrderUserNoteStatus::ApprovedWorkshop->selectLabel(),
+                OrderUserNoteStatus::ApprovedWorkshopJasa->value => OrderUserNoteStatus::ApprovedWorkshopJasa->selectLabel(),
+            ],
             'userNoteDetailOptions' => Order::userNoteDetailOptions(),
             'approvalReassignmentUsers' => User::query()
                 ->orderBy('name')
@@ -141,16 +144,10 @@ class OrderWorkshopController extends Controller
             $order = Order::create([
                 ...$validated,
                 'biaya' => $validated['biaya'] ?? null,
-                'catatan_status' => OrderUserNoteStatus::ApprovedWorkshop->value,
                 'created_by' => $request->user()?->id,
             ]);
 
-            $workshop = $order->orderWorkshop()->create([
-                'progress_status' => OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
-                'started_at' => null,
-                'catatan' => $order->catatan,
-            ]);
-            $this->workshopOrderTaskSyncer->syncOrder($order, $workshop);
+            $this->workshopOrderTaskSyncer->ensureWorkshopLifecycle($order);
 
             return $order;
         });

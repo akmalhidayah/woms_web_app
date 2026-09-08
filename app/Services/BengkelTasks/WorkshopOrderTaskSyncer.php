@@ -9,6 +9,30 @@ use App\Models\OrderWorkshop;
 
 class WorkshopOrderTaskSyncer
 {
+    public function ensureWorkshopLifecycle(Order $order): ?OrderWorkshop
+    {
+        $status = $order->catatan_status instanceof OrderUserNoteStatus
+            ? $order->catatan_status->value
+            : (string) $order->catatan_status;
+
+        if (! in_array($status, [
+            OrderUserNoteStatus::ApprovedWorkshop->value,
+            OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+        ], true)) {
+            return null;
+        }
+
+        $workshop = $order->orderWorkshop()->firstOrCreate([], [
+            'progress_status' => OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
+            'started_at' => null,
+            'catatan' => $order->catatan,
+        ]);
+
+        $this->syncOrder($order->fresh('orderWorkshop') ?: $order, $workshop);
+
+        return $workshop;
+    }
+
     public function syncOpenWorkshopOrders(): void
     {
         Order::query()

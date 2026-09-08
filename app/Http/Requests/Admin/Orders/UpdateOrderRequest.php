@@ -32,10 +32,16 @@ class UpdateOrderRequest extends FormRequest
     {
         /** @var Order $order */
         $order = $this->route('order');
-        $isWorkshopOrder = in_array($order->catatan_status?->value, [
+        $status = (string) $this->input('catatan_status');
+        $usesWorkshopRegu = in_array($status, [
             OrderUserNoteStatus::ApprovedWorkshop->value,
             OrderUserNoteStatus::ApprovedWorkshopJasa->value,
         ], true);
+        $isWorkshopOrder = $usesWorkshopRegu || in_array($order->catatan_status?->value, [
+            OrderUserNoteStatus::ApprovedWorkshop->value,
+            OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+        ], true);
+        $detailOptions = Order::userNoteDetailOptions()[$status] ?? null;
 
         return [
             'nomor_order' => ['required', 'string', 'max:100', Rule::unique('orders', 'nomor_order')->ignore($order->id)],
@@ -51,7 +57,9 @@ class UpdateOrderRequest extends FormRequest
                 ? ['nullable', 'integer', 'min:0', 'max:'.self::MAX_BIAYA]
                 : ['prohibited'],
             'catatan_status' => ['required', Rule::in(array_keys(OrderUserNoteStatus::options()))],
-            'catatan' => ['nullable', 'string'],
+            'catatan' => $detailOptions !== null
+                ? [$usesWorkshopRegu ? 'required' : 'nullable', 'string', Rule::in($detailOptions)]
+                : ['nullable', 'string'],
         ];
     }
 
@@ -93,6 +101,8 @@ class UpdateOrderRequest extends FormRequest
             'biaya.integer' => 'Biaya harus berupa nominal Rupiah tanpa pecahan.',
             'biaya.min' => 'Biaya tidak boleh bernilai negatif.',
             'biaya.max' => 'Biaya melebihi batas nominal yang dapat disimpan.',
+            'catatan.required' => 'Regu Bengkel wajib dipilih untuk Order Pekerjaan Bengkel.',
+            'catatan.in' => 'Regu Bengkel yang dipilih tidak valid.',
         ];
     }
 

@@ -34,8 +34,7 @@ final class WorkshopDashboardService
             ->whereYear('orders.tanggal_order', $year)
             ->when($month !== null, fn (Builder $query): Builder => $query
                 ->whereMonth('orders.tanggal_order', $month));
-        $estimatorWorkshopOrderIds = $this->estimatorWorkshopOrderIds(clone $periodQuery);
-        $jobWaitingEstimator = $this->jobWaitingEstimatorMetric($year, $month, $estimatorWorkshopOrderIds);
+        $jobWaitingEstimator = $this->jobWaitingEstimatorMetric($year, $month);
         $summary = $this->combinedSummary(
             $this->aggregate(clone $periodQuery),
             $jobWaitingEstimator,
@@ -71,6 +70,7 @@ final class WorkshopDashboardService
             ->map(fn ($year): int => (int) $year)
             ->filter(fn (int $year): bool => $year > 0);
         $jobWaitingYears = PkmJobWaitingQuery::applyEntryEligibility(Order::query())
+            ->where('orders.catatan_status', OrderUserNoteStatus::ApprovedJasa->value)
             ->selectRaw("{$yearExpression} as dashboard_year")
             ->whereNotNull('orders.tanggal_order')
             ->distinct()
@@ -211,19 +211,6 @@ final class WorkshopDashboardService
         ];
     }
 
-    /** @return list<int> */
-    private function estimatorWorkshopOrderIds(Builder $query): array
-    {
-        $reguExpression = "TRIM(COALESCE(orders.catatan, ''))";
-
-        return $query
-            ->whereRaw("{$reguExpression} = ?", [Order::WORKSHOP_REGU_ESTIMATOR])
-            ->distinct()
-            ->pluck('orders.id')
-            ->map(fn ($id): int => (int) $id)
-            ->all();
-    }
-
     /**
      * @param  array<string, int|float|bool>  $workshopSummary
      * @param  array{total: int, in_progress: int, completed: int}  $jobWaitingEstimator
@@ -241,13 +228,11 @@ final class WorkshopDashboardService
         ];
     }
 
-    /**
-     * @param  list<int>  $excludedOrderIds
-     * @return array{total: int, in_progress: int, completed: int}
-     */
-    private function jobWaitingEstimatorMetric(int $year, ?int $month, array $excludedOrderIds): array
+    /** @return array{total: int, in_progress: int, completed: int} */
+    private function jobWaitingEstimatorMetric(int $year, ?int $month): array
     {
         $orders = PkmJobWaitingQuery::applyEntryEligibility(Order::query())
+            ->where('orders.catatan_status', OrderUserNoteStatus::ApprovedJasa->value)
             ->with([
                 'latestPurchaseOrder' => fn ($query) => $query->select([
                     'purchase_orders.id',
@@ -265,8 +250,6 @@ final class WorkshopDashboardService
             ->whereYear('orders.tanggal_order', $year)
             ->when($month !== null, fn (Builder $query): Builder => $query
                 ->whereMonth('orders.tanggal_order', $month))
-            ->when($excludedOrderIds !== [], fn (Builder $query): Builder => $query
-                ->whereNotIn('orders.id', $excludedOrderIds))
             ->get(['orders.id', 'orders.prioritas']);
         $progressValues = $orders->map(fn (Order $order): int => $this->jobWaitingProgress($order));
 

@@ -111,6 +111,56 @@ class WorkshopStartFlowTest extends TestCase
             ->assertDontSee('data-start-url="'.route('admin.orders.workshop.start', $order).'"', false);
     }
 
+    public function test_hybrid_approval_initializes_workshop_lifecycle_and_can_start(): void
+    {
+        $order = $this->baseOrder('WORKSHOP-HYBRID-START-001');
+        $order->update([
+            'catatan_status' => OrderUserNoteStatus::ApprovedJasa->value,
+            'catatan' => 'Jasa Fabrikasi',
+        ]);
+
+        $this->actingAs($this->admin)
+            ->patchJson(route('admin.orders.user-note.update', $order), [
+                'catatan_status' => OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+                'catatan' => Order::WORKSHOP_REGU_ESTIMATOR,
+            ])
+            ->assertOk();
+
+        $workshop = $order->fresh('orderWorkshop')->orderWorkshop;
+
+        $this->assertNotNull($workshop);
+        $this->assertSame(OrderWorkshop::PROGRESS_MENUNGGU_JADWAL, $workshop->progress_status);
+        $this->assertNull($workshop->started_at);
+        $this->assertDatabaseHas('bengkel_tasks', [
+            'order_id' => $order->id,
+            'catatan' => Order::WORKSHOP_REGU_ESTIMATOR,
+            'progress_status' => OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->patchJson(route('admin.orders.workshop.start', $order))
+            ->assertOk();
+
+        $this->assertNotNull($workshop->refresh()->started_at);
+        $this->assertSame(OrderWorkshop::PROGRESS_IN_PROGRESS, $workshop->progress_status);
+
+        $firstStartedAt = $workshop->started_at?->toDateTimeString();
+        $this->actingAs($this->admin)
+            ->patchJson(route('admin.orders.user-note.update', $order), [
+                'catatan_status' => OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+                'catatan' => Order::WORKSHOP_REGU_FABRIKASI,
+            ])
+            ->assertOk();
+
+        $this->assertSame(OrderWorkshop::PROGRESS_IN_PROGRESS, $workshop->refresh()->progress_status);
+        $this->assertSame($firstStartedAt, $workshop->started_at?->toDateTimeString());
+        $this->assertDatabaseHas('bengkel_tasks', [
+            'order_id' => $order->id,
+            'catatan' => Order::WORKSHOP_REGU_FABRIKASI,
+            'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
+        ]);
+    }
+
     public function test_regular_order_progress_update_cannot_bypass_or_reverse_start(): void
     {
         [$order, $workshop] = $this->workshopOrder();

@@ -30,6 +30,19 @@ class StoreOrderRequest extends FormRequest
      */
     public function rules(): array
     {
+        $status = (string) $this->input('catatan_status');
+        $usesWorkshopRegu = in_array($status, [
+            OrderUserNoteStatus::ApprovedWorkshop->value,
+            OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+        ], true);
+        $detailOptions = Order::userNoteDetailOptions()[$status] ?? null;
+        $statusOptions = $this->routeIs('admin.orders.workshop.store')
+            ? [
+                OrderUserNoteStatus::ApprovedWorkshop->value,
+                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+            ]
+            : OrderUserNoteStatus::values();
+
         return [
             'nomor_order' => ['required', 'string', 'max:100', 'unique:orders,nomor_order'],
             'notifikasi' => ['nullable', 'string', 'max:255', 'unique:orders,notifikasi'],
@@ -43,8 +56,10 @@ class StoreOrderRequest extends FormRequest
             'biaya' => $this->routeIs('admin.orders.workshop.store')
                 ? ['nullable', 'integer', 'min:0', 'max:'.self::MAX_BIAYA]
                 : ['prohibited'],
-            'catatan_status' => ['required', Rule::in(array_keys(OrderUserNoteStatus::options()))],
-            'catatan' => ['nullable', 'string'],
+            'catatan_status' => ['required', Rule::in($statusOptions)],
+            'catatan' => $detailOptions !== null
+                ? [$usesWorkshopRegu ? 'required' : 'nullable', 'string', Rule::in($detailOptions)]
+                : ['nullable', 'string'],
         ];
     }
 
@@ -79,6 +94,8 @@ class StoreOrderRequest extends FormRequest
             'biaya.integer' => 'Biaya harus berupa nominal Rupiah tanpa pecahan.',
             'biaya.min' => 'Biaya tidak boleh bernilai negatif.',
             'biaya.max' => 'Biaya melebihi batas nominal yang dapat disimpan.',
+            'catatan.required' => 'Regu Bengkel wajib dipilih untuk Order Pekerjaan Bengkel.',
+            'catatan.in' => 'Regu Bengkel yang dipilih tidak valid.',
         ];
     }
 

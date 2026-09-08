@@ -101,7 +101,7 @@ class WorkshopDashboardServiceTest extends TestCase
         $this->assertSame(500, collect($fullYear['monthly_costs'])->sum('amount'));
     }
 
-    public function test_estimator_summary_adds_service_orders_after_they_enter_job_waiting(): void
+    public function test_dashboard_counts_eligible_pure_service_orders_without_double_counting_hybrid(): void
     {
         Carbon::setTestNow('2026-09-04 10:00:00');
         $user = User::factory()->create();
@@ -112,6 +112,15 @@ class WorkshopDashboardServiceTest extends TestCase
             Order::WORKSHOP_REGU_ESTIMATOR,
             OrderWorkshop::PROGRESS_DONE,
         );
+        $hybrid = $this->jobWaitingServiceOrder($user, 'JW-HYBRID', 100);
+        $hybrid->update([
+            'catatan_status' => OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+            'catatan' => Order::WORKSHOP_REGU_REFURBISH,
+        ]);
+        OrderWorkshop::query()->create([
+            'order_id' => $hybrid->id,
+            'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
+        ]);
         $this->jobWaitingServiceOrder($user, 'JW-NOT-STARTED', 0);
         $this->jobWaitingServiceOrder($user, 'JW-IN-PROGRESS', 50);
         $this->jobWaitingServiceOrder($user, 'JW-COMPLETED', 100);
@@ -119,16 +128,25 @@ class WorkshopDashboardServiceTest extends TestCase
 
         $dashboard = app(WorkshopDashboardService::class)->resolve(2026, 9);
         $estimator = collect($dashboard['regu'])->firstWhere('name', Order::WORKSHOP_REGU_ESTIMATOR);
+        $refurbish = collect($dashboard['regu'])->firstWhere('name', Order::WORKSHOP_REGU_REFURBISH);
 
-        $this->assertSame(4, $dashboard['summary']['total']);
-        $this->assertSame(1, $dashboard['summary']['in_progress']);
+        $this->assertSame(5, $dashboard['summary']['total']);
+        $this->assertSame(2, $dashboard['summary']['in_progress']);
         $this->assertSame(2, $dashboard['summary']['completed']);
-        $this->assertSame(2, $dashboard['summary']['incomplete']);
+        $this->assertSame(3, $dashboard['summary']['incomplete']);
+        $this->assertSame(40.0, $dashboard['summary']['completion_percentage']);
         $this->assertSame(3, $dashboard['summary']['outsourced']);
         $this->assertSame(4, $estimator['total']);
         $this->assertSame(1, $estimator['in_progress']);
         $this->assertSame(2, $estimator['completed']);
         $this->assertSame(2, $estimator['incomplete']);
+        $this->assertSame(1, $refurbish['total']);
+        $this->assertSame(1, $refurbish['in_progress']);
+        $this->assertSame(0, $refurbish['completed']);
+        $this->assertSame(
+            $dashboard['summary']['total'],
+            collect($dashboard['regu'])->sum('total') + $dashboard['unknown_regu_count'],
+        );
     }
 
     public function test_cumulative_trend_uses_progress_and_final_qc_signature_times_and_omits_future_months(): void

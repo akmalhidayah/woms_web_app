@@ -1024,8 +1024,8 @@
                 if (useSelect) {
                     const placeholder = document.createElement('option');
                     placeholder.value = '';
-                    placeholder.textContent = selectedStatus === 'approved_workshop'
-                        ? '- Pilih regu workshop (opsional) -'
+                    placeholder.textContent = ['approved_workshop', 'approved_workshop_jasa'].includes(selectedStatus)
+                        ? '- Pilih regu workshop -'
                         : selectedStatus === 'approved_jasa'
                             ? '- Pilih jenis jasa (opsional) -'
                             : '- Pilih (opsional) -';

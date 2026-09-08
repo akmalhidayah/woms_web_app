@@ -12,18 +12,21 @@ use App\Models\Order;
 use App\Models\OutlineAgreement;
 use App\Models\UnitWork;
 use App\Models\User;
+use App\Services\BengkelTasks\WorkshopOrderTaskSyncer;
 use App\Services\Orders\OrderDeletionService;
 use App\Support\RecentApprovalSignatureResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class OrderController extends Controller
 {
     public function __construct(
         private readonly OrderDeletionService $orderDeletionService,
+        private readonly WorkshopOrderTaskSyncer $workshopOrderTaskSyncer,
     ) {}
 
     /**
@@ -105,10 +108,16 @@ class OrderController extends Controller
      */
     public function store(StoreOrderRequest $request): RedirectResponse
     {
-        $order = Order::create([
-            ...$request->validated(),
-            'created_by' => $request->user()?->id,
-        ]);
+        $order = DB::transaction(function () use ($request): Order {
+            $order = Order::create([
+                ...$request->validated(),
+                'created_by' => $request->user()?->id,
+            ]);
+
+            $this->workshopOrderTaskSyncer->ensureWorkshopLifecycle($order);
+
+            return $order;
+        });
 
         return redirect()
             ->route('admin.orders.show', $order)
@@ -148,7 +157,10 @@ class OrderController extends Controller
      */
     public function update(UpdateOrderRequest $request, Order $order): RedirectResponse
     {
-        $order->update($request->validated());
+        DB::transaction(function () use ($request, $order): void {
+            $order->update($request->validated());
+            $this->workshopOrderTaskSyncer->ensureWorkshopLifecycle($order->fresh() ?: $order);
+        });
 
         return redirect()
             ->route('admin.orders.show', $order)
@@ -179,10 +191,14 @@ class OrderController extends Controller
      */
     public function updateUserNote(UpdateOrderUserNoteRequest $request, Order $order): JsonResponse
     {
-        $order->update([
-            'catatan_status' => $request->validated('catatan_status'),
-            'catatan' => $request->validated('catatan'),
-        ]);
+        DB::transaction(function () use ($request, $order): void {
+            $order->update([
+                'catatan_status' => $request->validated('catatan_status'),
+                'catatan' => $request->validated('catatan'),
+            ]);
+
+            $this->workshopOrderTaskSyncer->ensureWorkshopLifecycle($order->fresh() ?: $order);
+        });
 
         $order->refresh();
 

@@ -20,8 +20,9 @@ class GoogleOAuthService
 
     private const TOKEN_PATH = 'appsheet/google/oauth-tokens.enc';
 
-    public function authorizationUrl(string $state): string
+    public function authorizationUrl(string $state, bool $canReplaceConnection = false): string
     {
+        $this->withTokenLock(fn () => $this->ensureCanReplaceConnection($canReplaceConnection));
         $credentials = $this->credentials();
 
         return 'https://accounts.google.com/o/oauth2/v2/auth?'.http_build_query([
@@ -35,9 +36,11 @@ class GoogleOAuthService
         ], '', '&', PHP_QUERY_RFC3986);
     }
 
-    public function exchangeCode(#[SensitiveParameter] string $code): void
+    public function exchangeCode(#[SensitiveParameter] string $code, bool $canReplaceConnection = false): void
     {
-        $this->withTokenLock(function () use ($code): void {
+        $this->withTokenLock(function () use ($code, $canReplaceConnection): void {
+            // Periksa kembali di dalam lock: koneksi dapat berubah sejak OAuth dimulai.
+            $this->ensureCanReplaceConnection($canReplaceConnection);
             $response = $this->requestTokens([
                 ...$this->credentials(),
                 'grant_type' => 'authorization_code',
@@ -47,6 +50,13 @@ class GoogleOAuthService
             // Koneksi baru dapat berasal dari akun Google lain: gunakan hanya token grant baru.
             $this->storeTokens($this->tokenPayload($response));
         });
+    }
+
+    private function ensureCanReplaceConnection(bool $canReplaceConnection): void
+    {
+        if (! $canReplaceConnection && Storage::disk('local')->exists(self::TOKEN_PATH)) {
+            throw new GoogleOAuthException('Hanya Super Admin yang dapat mengganti koneksi Google AppSheet.');
+        }
     }
 
     public function isConnected(): bool

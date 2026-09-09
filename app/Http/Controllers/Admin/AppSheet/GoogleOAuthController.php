@@ -24,10 +24,12 @@ class GoogleOAuthController extends Controller
 
         try {
             $state = Str::random(64);
-            $authorizationUrl = $google->authorizationUrl($state);
+            $canReplaceConnection = $request->user()->isSuperAdmin();
+            $authorizationUrl = $google->authorizationUrl($state, $canReplaceConnection);
             $stored = Cache::store('file')->put($this->stateKey($state), [
                 'binding' => $this->sessionBinding($request),
                 'return_route' => $returnRoute,
+                'can_replace_connection' => $canReplaceConnection,
             ], 600);
 
             if (! $stored) {
@@ -83,7 +85,9 @@ class GoogleOAuthController extends Controller
                 throw new GoogleOAuthException('Kode otorisasi Google tidak tersedia. Silakan hubungkan Google kembali.');
             }
 
-            $google->exchangeCode($code);
+            // Hak penggantian berasal dari Admin login, bukan query OAuth/browser.
+            $google->exchangeCode($code, $request->user()->isSuperAdmin()
+                && ($pending['can_replace_connection'] ?? false) === true);
 
             return $this->backToPage($returnRoute, 'appsheet_google_success', 'Google berhasil terhubung.');
         } catch (GoogleOAuthException $exception) {

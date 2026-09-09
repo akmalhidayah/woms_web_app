@@ -502,18 +502,6 @@ $initialWorkFlowSummary = match (true) {
 
                                                     <button
                                                         type="button"
-                                                        class="order-flow-trigger inline-flex h-7 w-7 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100"
-                                                        data-title="{{ $order->nomor_order }}"
-                                                        data-route="{{ $routeLabel }}"
-                                                        data-next="{{ $flowNextStep }}"
-                                                        data-checklist='@json($flowChecklist)'
-                                                        title="Detail alur"
-                                                    >
-                                                        <i data-lucide="info" class="h-3 w-3"></i>
-                                                    </button>
-
-                                                    <button
-                                                        type="button"
                                                         class="edit-order-trigger inline-flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm transition hover:bg-emerald-700"
                                                         data-action="{{ route('admin.orders.update', $order) }}"
                                                         data-order-key="{{ $order->getRouteKey() }}"

@@ -16,7 +16,7 @@
             }
         };
 
-        const formatRupiah = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
+        const formatRupiah = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 })}`;
         const compactRupiah = (value) => {
             const number = Number(value || 0);
             if (number >= 1000000000000) return `Rp ${(number / 1000000000000).toLocaleString('id-ID')} T`;
@@ -232,11 +232,10 @@
 
                                     return [
                                         context.dataset.label,
-                                        `Total Beban : ${Number(metric.total || 0).toLocaleString('id-ID')}`,
+                                        `Total Order : ${Number(metric.total || 0).toLocaleString('id-ID')}`,
                                         `Selesai : ${Number(metric.completed || 0).toLocaleString('id-ID')}`,
                                         `Belum Selesai : ${Number(metric.incomplete || 0).toLocaleString('id-ID')}`,
                                         `Penyelesaian : ${Number(metric.completion_percentage || 0).toLocaleString('id-ID')}%`,
-                                        `Target : ${Number(point.target || summary.completion_target || 0).toLocaleString('id-ID')}%`,
                                     ];
                                 },
                             },

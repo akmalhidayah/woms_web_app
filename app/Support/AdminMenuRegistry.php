@@ -10,8 +10,6 @@ class AdminMenuRegistry
 {
     public const MENU_DASHBOARD = 'dashboard';
 
-    public const MENU_INVENTORY = 'inventory';
-
     public const MENU_ORDERS = 'orders';
 
     public const MENU_ORDER_JASA = 'order_jasa';
@@ -65,24 +63,6 @@ class AdminMenuRegistry
                 'active_patterns' => ['admin.dashboard'],
                 'always_visible' => true,
                 'configurable' => false,
-            ],
-            self::MENU_INVENTORY => [
-                'key' => self::MENU_INVENTORY,
-                'label' => 'Inventory',
-                'icon' => 'warehouse',
-                'group' => 'inventory',
-                'route_name' => 'admin.inventory.dashboard',
-                'active_patterns' => ['admin.inventory.*'],
-                'badge_count' => 0,
-                'children' => [
-                    ['key' => self::MENU_INVENTORY, 'label' => 'Dashboard Gudang', 'route_name' => 'admin.inventory.dashboard', 'active_patterns' => ['admin.inventory.dashboard'], 'badge_count' => 0],
-                    ['key' => self::MENU_INVENTORY, 'label' => 'Master Barang', 'route_name' => 'admin.inventory.items.index', 'active_patterns' => ['admin.inventory.items.*'], 'badge_count' => 0],
-                    ['key' => self::MENU_INVENTORY, 'label' => 'Stok Masuk', 'route_name' => 'admin.inventory.stock-in.index', 'active_patterns' => ['admin.inventory.stock-in.*'], 'badge_count' => 0],
-                    ['key' => self::MENU_INVENTORY, 'label' => 'Koreksi Stok', 'route_name' => 'admin.inventory.adjustments.index', 'active_patterns' => ['admin.inventory.adjustments.*'], 'badge_count' => 0],
-                    ['key' => self::MENU_INVENTORY, 'label' => 'Riwayat Transaksi', 'route_name' => 'admin.inventory.transactions.index', 'active_patterns' => ['admin.inventory.transactions.*'], 'badge_count' => 0],
-                    ['key' => self::MENU_INVENTORY, 'label' => 'User Aplikasi', 'route_name' => 'admin.inventory.users.index', 'active_patterns' => ['admin.inventory.users.*'], 'badge_count' => 0],
-                    ['key' => self::MENU_INVENTORY, 'label' => 'Master Data', 'route_name' => 'admin.inventory.master-data.index', 'active_patterns' => ['admin.inventory.master-data.*'], 'badge_count' => 0],
-                ],
             ],
             self::MENU_ORDER_JASA => [
                 'key' => self::MENU_ORDER_JASA,
@@ -350,7 +330,6 @@ class AdminMenuRegistry
 
         return [
             'dashboard' => $items[self::MENU_DASHBOARD] ?? null,
-            'inventory' => $items[self::MENU_INVENTORY] ?? null,
             'orders' => null,
             'main' => array_values(array_filter(
                 $items,

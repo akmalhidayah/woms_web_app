@@ -8,7 +8,6 @@ use App\Http\Middleware\EnsureAdminMenuAccess;
 use App\Http\Middleware\EnsureAdminOrderMenuAccess;
 use App\Http\Middleware\EnsurePkmPanelAccess;
 use App\Http\Middleware\EnsureUserHasRole;
-use App\Http\Middleware\Inventory\HandleInventoryApiExceptions;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -45,11 +44,5 @@ return Application::configure(basePath: dirname(__DIR__))
         });
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        $exceptions->render(function (Throwable $exception, Request $request) {
-            if (! $request->is('api/v1/inventory*')) {
-                return null;
-            }
-
-            return app(HandleInventoryApiExceptions::class)->renderException($request, $exception);
-        });
+        //
     })->create();

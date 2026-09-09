@@ -9,12 +9,11 @@
             'dashboard' => 'Dashboard',
             'main' => 'Pekerjaan Jasa',
             'workshop' => 'Pekerjaan Bengkel',
-            'inventory' => 'Menu Pendukung',
             'support' => 'Menu Pendukung',
             'other' => 'Lainnya',
         ];
         $menusByGroup = collect($menuOptions ?? [])->groupBy(fn (array $menu) => $menu['group'] ?? 'other');
-        $groupedMenus = collect(['dashboard', 'main', 'workshop', 'inventory', 'support', 'other'])
+        $groupedMenus = collect(['dashboard', 'main', 'workshop', 'support', 'other'])
             ->mapWithKeys(fn (string $group): array => [$group => $menusByGroup->get($group, collect())])
             ->filter(fn ($menus): bool => $menus->isNotEmpty());
     @endphp

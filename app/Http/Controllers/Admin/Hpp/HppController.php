@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Hpp;
 
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\Hpp\ReplaceDiropsSignedDocumentRequest;
 use App\Http\Requests\Admin\Hpp\StoreHppRequest;
 use App\Http\Requests\Admin\Hpp\UploadDiropsSignedDocumentRequest;
 use App\Models\Hpp;
@@ -24,6 +25,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -249,6 +251,84 @@ class HppController extends Controller
             ->route('admin.hpp.index')
             ->with('status', sprintf(
                 'Dokumen tanda tangan DIROPS untuk order %s berhasil diunggah dan approval selesai.',
+                $hpp->nomor_order,
+            ));
+    }
+
+    public function replaceDiropsSignedDocument(ReplaceDiropsSignedDocumentRequest $request, Hpp $hpp): RedirectResponse
+    {
+        abort_unless($request->user()?->isSuperAdmin(), Response::HTTP_FORBIDDEN);
+
+        $file = $request->file('signed_document');
+        $directory = 'hpp/dirops-signed/'.$hpp->nomor_order;
+        $filename = 'dirops-signed-'.now()->format('YmdHis').'-'.Str::uuid().'.pdf';
+        $storedPath = $directory.'/'.$filename;
+
+        try {
+            $oldPath = DB::transaction(function () use ($hpp, $file, $directory, $filename, $storedPath): string {
+                $lockedHpp = Hpp::query()
+                    ->whereKey($hpp->getKey())
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                $lockedSignature = HppSignature::query()
+                    ->where('hpp_id', $lockedHpp->getKey())
+                    ->where('role_key', 'dirops')
+                    ->orderBy('step_order')
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($lockedHpp->status !== Hpp::STATUS_APPROVED
+                    || ! $lockedSignature?->isSigned()
+                    || ! $lockedSignature->hasUploadedSignedDocument()) {
+                    throw ValidationException::withMessages([
+                        'signed_document' => 'Penggantian hanya tersedia untuk HPP approved dengan dokumen final DIROPS yang sudah signed.',
+                    ])->errorBag('replaceDiropsDocument');
+                }
+
+                $oldPath = $lockedSignature->signed_document_path;
+
+                if ($file->storeAs($directory, $filename, 'public') !== $storedPath
+                    || ! Storage::disk('public')->exists($storedPath)) {
+                    throw new \RuntimeException('Dokumen final DIROPS pengganti gagal disimpan.');
+                }
+
+                if (! $lockedSignature->update([
+                    'signed_document_path' => $storedPath,
+                    'signed_document_original_name' => $file->getClientOriginalName(),
+                    'signed_document_mime_type' => $file->getMimeType(),
+                    'signed_document_uploaded_at' => now(),
+                ])) {
+                    throw new \RuntimeException('Metadata dokumen final DIROPS pengganti gagal disimpan.');
+                }
+
+                return $oldPath;
+            });
+        } catch (\Throwable $exception) {
+            $this->deleteDiropsSignedDocumentFile($storedPath, $hpp->getKey());
+
+            throw $exception;
+        }
+
+        $cleanupSucceeded = true;
+
+        // Hapus file lama setelah commit, di luar penanganan kegagalan penyimpanan file baru.
+        DB::afterCommit(function () use ($oldPath, $hpp, &$cleanupSucceeded): void {
+            $cleanupSucceeded = $this->deleteDiropsSignedDocumentFile($oldPath, $hpp->getKey());
+        });
+
+        if (! $cleanupSucceeded) {
+            return redirect()
+                ->route('admin.hpp.index')
+                ->with('warning', sprintf(
+                    'Dokumen final DIROPS untuk order %s berhasil diganti, tetapi file lama gagal dihapus dari storage. Pembersihan file lama perlu ditindaklanjuti.',
+                    $hpp->nomor_order,
+                ));
+        }
+
+        return redirect()
+            ->route('admin.hpp.index')
+            ->with('status', sprintf(
+                'Dokumen final DIROPS untuk order %s berhasil diganti.',
                 $hpp->nomor_order,
             ));
     }
@@ -639,6 +719,33 @@ class HppController extends Controller
         ksort($rightCounts);
 
         return $leftCounts === $rightCounts;
+    }
+
+    private function deleteDiropsSignedDocumentFile(string $path, int $hppId): bool
+    {
+        $failureType = 'delete_returned_false';
+
+        try {
+            if (str_starts_with($path, '/') || str_contains($path, '..')
+                || str_contains($path, '://') || str_starts_with($path, 'data:')) {
+                throw new \RuntimeException('Path dokumen final DIROPS tidak valid untuk dihapus.');
+            }
+
+            $disk = Storage::disk('public');
+
+            if (! $disk->exists($path) || $disk->delete($path)) {
+                return true;
+            }
+        } catch (\Throwable $exception) {
+            $failureType = $exception::class;
+        }
+
+        Log::error('Failed to clean up HPP DIROPS signed document.', [
+            'hpp_id' => $hppId,
+            'failure_type' => $failureType,
+        ]);
+
+        return false;
     }
 
     private function resolvePendingDiropsSignature(Hpp $hpp): ?HppSignature

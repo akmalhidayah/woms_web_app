@@ -894,11 +894,12 @@ class LhppController extends Controller
             $terminOneAttachmentPdf = null;
 
             if ($terminType === 'termin_2' && $lhpp->parentLhppBast) {
-                $terminOnePdf = Pdf::loadView('pkm.lhpp.pdf', [
-                    'lhpp' => $lhpp->parentLhppBast,
-                    'materialItems' => collect($lhpp->parentLhppBast->material_items ?? []),
-                    'serviceItems' => collect($lhpp->parentLhppBast->service_items ?? []),
-                ])->setPaper('a4', 'portrait')->output();
+                $terminOnePdf = $this->finalSignedPdfOutput($lhpp->parentLhppBast)
+                    ?? Pdf::loadView('pkm.lhpp.pdf', [
+                        'lhpp' => $lhpp->parentLhppBast,
+                        'materialItems' => collect($lhpp->parentLhppBast->material_items ?? []),
+                        'serviceItems' => collect($lhpp->parentLhppBast->service_items ?? []),
+                    ])->setPaper('a4', 'portrait')->output();
                 $terminOneAttachmentPdf = $this->bastPdfAttachmentService->pdfOutput($lhpp->parentLhppBast);
             }
 
@@ -924,9 +925,10 @@ class LhppController extends Controller
                 ));
             }
 
-            $hppPdf = Pdf::loadView('admin.hpp.hpppdf', [
-                'hpp' => $attachedHpp,
-            ])->setPaper('a4', 'landscape')->output();
+            $hppPdf = $this->finalSignedPdfOutput($attachedHpp)
+                ?? Pdf::loadView('admin.hpp.hpppdf', [
+                    'hpp' => $attachedHpp,
+                ])->setPaper('a4', 'landscape')->output();
 
             $mergedPdf = $this->mergePdfOutputs(array_filter([
                 $bastPdf,
@@ -1109,6 +1111,33 @@ class LhppController extends Controller
             'Link approval BAST/LHPP berhasil dikirim ulang ke %s.',
             $signature->signer?->email ?: 'email approver',
         ));
+    }
+
+    private function finalSignedPdfOutput(Hpp|LhppBast $document): ?string
+    {
+        $finalDocumentSignature = $document->finalSignedDocumentSignature();
+
+        if (! $finalDocumentSignature?->hasUploadedSignedDocument()) {
+            return null;
+        }
+
+        $disk = Storage::disk('public');
+
+        if (! $disk->exists($finalDocumentSignature->signed_document_path)) {
+            return null;
+        }
+
+        $path = $disk->path($finalDocumentSignature->signed_document_path);
+        $mime = $disk->mimeType($finalDocumentSignature->signed_document_path);
+
+        abort_unless(
+            str_contains(strtolower((string) $mime), 'pdf')
+                || strtolower(pathinfo($path, PATHINFO_EXTENSION)) === 'pdf',
+            Response::HTTP_UNPROCESSABLE_ENTITY,
+            'Dokumen final harus berupa PDF.'
+        );
+
+        return $disk->get($finalDocumentSignature->signed_document_path) ?: null;
     }
 
     /**

@@ -697,6 +697,9 @@ Route::prefix('admin/hpp')
                 Route::get('/pdf', [HppController::class, 'pdf'])->name('pdf.by-id');
                 Route::get('/dirops-signed-document', [HppController::class, 'diropsSignedDocument'])->name('dirops-document.show.by-id');
                 Route::post('/dirops-signed-document', [HppController::class, 'uploadDiropsSignedDocument'])->name('dirops-document.upload.by-id');
+                Route::patch('/dirops-signed-document', [HppController::class, 'replaceDiropsSignedDocument'])
+                    ->middleware('admin_role:super_admin')
+                    ->name('dirops-document.replace.by-id');
                 Route::post('/regenerate-active-approval-token', [HppController::class, 'regenerateActiveApprovalToken'])->name('approval-token.regenerate.by-id');
                 Route::post('/resend-active-approval', [HppController::class, 'resendActiveApproval'])->name('approval.resend.by-id');
                 Route::post('/signatures/{signature}/rollback', [HppController::class, 'rollbackSignature'])
@@ -707,6 +710,9 @@ Route::prefix('admin/hpp')
         Route::get('/{hpp:nomor_order}/pdf', [HppController::class, 'pdf'])->name('pdf');
         Route::get('/{hpp:nomor_order}/dirops-signed-document', [HppController::class, 'diropsSignedDocument'])->name('dirops-document.show');
         Route::post('/{hpp:nomor_order}/dirops-signed-document', [HppController::class, 'uploadDiropsSignedDocument'])->name('dirops-document.upload');
+        Route::patch('/{hpp:nomor_order}/dirops-signed-document', [HppController::class, 'replaceDiropsSignedDocument'])
+            ->middleware('admin_role:super_admin')
+            ->name('dirops-document.replace');
         Route::post('/{hpp:nomor_order}/regenerate-active-approval-token', [HppController::class, 'regenerateActiveApprovalToken'])->name('approval-token.regenerate');
         Route::post('/{hpp:nomor_order}/resend-active-approval', [HppController::class, 'resendActiveApproval'])->name('approval.resend');
         Route::post('/{hpp:nomor_order}/signatures/{signature}/rollback', [HppController::class, 'rollbackSignature'])

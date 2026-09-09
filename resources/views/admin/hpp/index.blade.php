@@ -25,6 +25,10 @@
         <div id="hpp-status-alert" data-message="{{ session('status') }}" class="hidden"></div>
     @endif
 
+    @if (session('warning'))
+        <div role="alert" class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] text-amber-800">{{ session('warning') }}</div>
+    @endif
+
     <div class="order-list-compact space-y-4">
         <section class="order-list-hero rounded-[1.35rem] border border-blue-100 bg-blue-50 px-5 py-4 shadow-sm">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -127,6 +131,10 @@
                                 $diropsSignedDocumentUrl = $diropsSignedDocumentSignature
                                     ? route('admin.hpp.dirops-document.show.by-id', $row)
                                     : null;
+                                $canReplaceDiropsDocument = auth()->user()?->isSuperAdmin()
+                                    && $row->status === \App\Models\Hpp::STATUS_APPROVED
+                                    && $diropsSignedDocumentSignature?->isSigned()
+                                    && $diropsSignedDocumentSignature->hasUploadedSignedDocument();
                                 $currentSignerName = $row->currentApprovalSignerName();
                                 $currentSignerLabel = $row->currentApprovalSignerLabel();
                                 $isApprovalComplete = $row->approvalCompleted();
@@ -348,6 +356,18 @@
                                                                 <i data-lucide="file-check-2" class="h-2.5 w-2.5"></i>
                                                                 Dokumen Final
                                                             </a>
+                                                            @if ($canReplaceDiropsDocument)
+                                                                <button
+                                                                    type="button"
+                                                                    class="dirops-replace-trigger inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-1 text-[8px] font-semibold text-slate-600 transition hover:bg-slate-100"
+                                                                    title="Ganti dokumen final DIROPS"
+                                                                    data-hpp-id="{{ $row->id }}"
+                                                                    data-order="{{ $row->nomor_order }}"
+                                                                    data-replace-action="{{ route('admin.hpp.dirops-document.replace.by-id', $row) }}"
+                                                                >
+                                                                    Ganti
+                                                                </button>
+                                                            @endif
                                                         @endif
                                                     </div>
                                                 </div>
@@ -575,6 +595,55 @@
         </div>
     </div>
 
+    @if (auth()->user()?->isSuperAdmin())
+        <div id="diropsReplaceModal" class="fixed inset-0 z-[125] hidden overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="diropsReplaceModalLabel" aria-hidden="true">
+            <div class="absolute inset-0 bg-slate-900/45"></div>
+            <div class="relative flex min-h-full items-start justify-center px-4 pb-6 pt-24 sm:pb-8 sm:pt-28">
+                <div data-dirops-replace-panel class="my-2 w-full max-w-sm overflow-hidden rounded-[1.15rem] border border-slate-200 bg-white shadow-2xl">
+                    <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
+                        <div>
+                            <div id="diropsReplaceModalLabel" class="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-600">Ganti Dokumen Final DIROPS</div>
+                            <h2 id="diropsReplaceModalTitle" class="mt-1 text-[1.05rem] font-bold leading-tight text-slate-900">-</h2>
+                            <p class="mt-1.5 text-[11px] leading-5 text-slate-500">Upload PDF pengganti yang sudah ditandatangani DIROPS.</p>
+                        </div>
+                        <button type="button" id="diropsReplaceModalClose" class="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="Tutup penggantian dokumen DIROPS">
+                            <i data-lucide="x" class="h-3.5 w-3.5"></i>
+                        </button>
+                    </div>
+
+                    <form id="diropsReplaceForm" method="POST" action="#" enctype="multipart/form-data" class="space-y-3 px-4 py-3.5">
+                        @csrf
+                        @method('PATCH')
+                        <input type="hidden" name="replace_hpp_id" id="diropsReplaceHppId" value="{{ old('replace_hpp_id') }}">
+                        <input type="hidden" name="replace_hpp_order" id="diropsReplaceOrder" value="{{ old('replace_hpp_order') }}">
+
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] leading-5 text-slate-600">
+                            Gunakan file PDF maksimal 10 MB. File final lama akan diganti setelah upload berhasil.
+                        </div>
+
+                        <div>
+                            <label for="diropsReplaceDocument" class="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">PDF Pengganti</label>
+                            <input id="diropsReplaceDocument" name="signed_document" type="file" accept=".pdf,application/pdf" required class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[11px] text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-50 file:px-2.5 file:py-1.5 file:text-[11px] file:font-semibold file:text-emerald-700 focus:border-emerald-500 focus:outline-none">
+                        </div>
+
+                        @if ($errors->getBag('replaceDiropsDocument')->any())
+                            <div id="diropsReplaceErrors" role="alert" class="space-y-1 text-[10px] font-medium text-rose-600">
+                                @foreach ($errors->getBag('replaceDiropsDocument')->all() as $message)
+                                    <div>{{ $message }}</div>
+                                @endforeach
+                            </div>
+                        @endif
+
+                        <div class="flex items-center justify-end gap-2 pt-1">
+                            <button type="button" id="diropsReplaceCancel" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50">Batal</button>
+                            <button type="submit" id="diropsReplaceSubmit" class="inline-flex items-center rounded-lg bg-emerald-600 px-3 py-2 text-[11px] font-semibold text-white transition hover:bg-emerald-700">Ganti Dokumen</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const statusAlert = document.getElementById('hpp-status-alert');
@@ -608,6 +677,18 @@
             const diropsUploadForm = document.getElementById('diropsUploadForm');
             const diropsUploadOrder = document.getElementById('diropsUploadOrder');
             const diropsUploadRouteTemplate = @json(route('admin.hpp.dirops-document.upload', ['hpp' => '__ORDER__']));
+            const diropsReplaceModal = document.getElementById('diropsReplaceModal');
+            const diropsReplaceModalTitle = document.getElementById('diropsReplaceModalTitle');
+            const diropsReplaceModalClose = document.getElementById('diropsReplaceModalClose');
+            const diropsReplaceCancel = document.getElementById('diropsReplaceCancel');
+            const diropsReplaceForm = document.getElementById('diropsReplaceForm');
+            const diropsReplaceHppId = document.getElementById('diropsReplaceHppId');
+            const diropsReplaceOrder = document.getElementById('diropsReplaceOrder');
+            const diropsReplaceDocument = document.getElementById('diropsReplaceDocument');
+            const diropsReplaceSubmit = document.getElementById('diropsReplaceSubmit');
+            const diropsReplaceErrors = document.getElementById('diropsReplaceErrors');
+            const diropsReplaceRouteTemplate = @json(route('admin.hpp.dirops-document.replace.by-id', ['hpp' => '__HPP__']));
+            const hasDiropsReplaceErrors = @json($errors->getBag('replaceDiropsDocument')->any());
             const reassignmentUsers = @json($approvalReassignmentUserOptions);
 
             if (statusAlert?.dataset.message && window.Swal) {
@@ -671,7 +752,7 @@
             };
 
             const syncBodyScrollLock = () => {
-                const shouldLock = [approvalFlowModal, approvalReassignmentModal, approvalRollbackModal, diropsUploadModal].some((modal) => modal && !modal.classList.contains('hidden'));
+                const shouldLock = [approvalFlowModal, approvalReassignmentModal, approvalRollbackModal, diropsUploadModal, diropsReplaceModal].some((modal) => modal && !modal.classList.contains('hidden'));
                 document.body.classList.toggle('overflow-hidden', shouldLock);
             };
 
@@ -981,6 +1062,38 @@
                 syncBodyScrollLock();
             };
 
+            const openDiropsReplaceModal = (hppId, order, action = '', preserveErrors = false) => {
+                if (!diropsReplaceModal || !diropsReplaceForm || !/^\d+$/.test(String(hppId))) {
+                    return;
+                }
+
+                diropsReplaceForm.reset();
+                diropsReplaceForm.action = action || diropsReplaceRouteTemplate.replace('__HPP__', hppId);
+                diropsReplaceForm.dataset.uploading = '';
+                diropsReplaceHppId.value = hppId;
+                diropsReplaceOrder.value = order || '';
+                diropsReplaceModalTitle.textContent = order || `HPP #${hppId}`;
+                diropsReplaceSubmit.disabled = false;
+                diropsReplaceSubmit.textContent = 'Ganti Dokumen';
+                if (diropsReplaceErrors) {
+                    diropsReplaceErrors.hidden = !preserveErrors;
+                }
+                diropsReplaceModal.classList.remove('hidden');
+                diropsReplaceModal.setAttribute('aria-hidden', 'false');
+                syncBodyScrollLock();
+                diropsReplaceDocument.focus();
+            };
+
+            const closeDiropsReplaceModal = () => {
+                if (!diropsReplaceModal || diropsReplaceForm?.dataset.uploading === 'true') {
+                    return;
+                }
+
+                diropsReplaceModal.classList.add('hidden');
+                diropsReplaceModal.setAttribute('aria-hidden', 'true');
+                syncBodyScrollLock();
+            };
+
             document.querySelectorAll('.hpp-approval-flow-trigger').forEach((button) => {
                 button.addEventListener('click', () => openApprovalFlowModal(button));
             });
@@ -1021,6 +1134,30 @@
                 }
             });
 
+            document.querySelectorAll('.dirops-replace-trigger').forEach((button) => {
+                button.addEventListener('click', () => {
+                    openDiropsReplaceModal(button.dataset.hppId || '', button.dataset.order || '', button.dataset.replaceAction || '');
+                });
+            });
+
+            diropsReplaceModalClose?.addEventListener('click', closeDiropsReplaceModal);
+            diropsReplaceCancel?.addEventListener('click', closeDiropsReplaceModal);
+            diropsReplaceModal?.addEventListener('click', (event) => {
+                if (!event.target.closest('[data-dirops-replace-panel]')) {
+                    closeDiropsReplaceModal();
+                }
+            });
+            diropsReplaceForm?.addEventListener('submit', (event) => {
+                if (diropsReplaceForm.dataset.uploading === 'true') {
+                    event.preventDefault();
+                    return;
+                }
+
+                diropsReplaceForm.dataset.uploading = 'true';
+                diropsReplaceSubmit.disabled = true;
+                diropsReplaceSubmit.textContent = 'Mengupload...';
+            });
+
             document.addEventListener('keydown', (event) => {
                 if (event.key === 'Escape' && approvalFlowModal && !approvalFlowModal.classList.contains('hidden')) {
                     closeApprovalFlowModal();
@@ -1032,6 +1169,10 @@
 
                 if (event.key === 'Escape' && diropsUploadModal && !diropsUploadModal.classList.contains('hidden')) {
                     closeDiropsUploadModal();
+                }
+
+                if (event.key === 'Escape' && diropsReplaceModal && !diropsReplaceModal.classList.contains('hidden')) {
+                    closeDiropsReplaceModal();
                 }
             });
 
@@ -1066,6 +1207,10 @@
                     diropsUploadOrder.value,
                     diropsUploadRouteTemplate.replace('__ORDER__', encodeURIComponent(diropsUploadOrder.value))
                 );
+            }
+
+            if (hasDiropsReplaceErrors && diropsReplaceHppId?.value) {
+                openDiropsReplaceModal(diropsReplaceHppId.value, diropsReplaceOrder?.value || '', '', true);
             }
         });
     </script>

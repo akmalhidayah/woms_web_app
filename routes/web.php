@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AccessControlController;
 use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\ApprovalSignatureReassignmentController;
+use App\Http\Controllers\Admin\AppSheet\AppSheetController;
 use App\Http\Controllers\Admin\BengkelPicController;
 use App\Http\Controllers\Admin\BengkelTaskController;
 use App\Http\Controllers\Admin\BudgetVerificationController;
@@ -149,6 +150,16 @@ Route::middleware(['auth'])->group(function () {
     Route::get('admin/notifications/action-feed', [AdminNotificationController::class, 'actionFeed'])
         ->middleware('role:admin')
         ->name('admin.notifications.action-feed');
+
+    Route::prefix('admin/appsheet')
+        ->name('admin.appsheet.')
+        ->middleware(['role:admin', 'admin_menu:appsheet'])
+        ->group(function () {
+            Route::get('history-consumable', [AppSheetController::class, 'historyConsumable'])
+                ->name('history-consumable.index');
+            Route::get('stock-consumable', [AppSheetController::class, 'stockConsumable'])
+                ->name('stock-consumable.index');
+        });
 
     Route::get('admin/access-control', [AccessControlController::class, 'index'])
         ->middleware(['role:admin', 'admin_role:super_admin'])

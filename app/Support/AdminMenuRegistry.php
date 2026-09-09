@@ -34,6 +34,12 @@ class AdminMenuRegistry
 
     public const MENU_SERAH_TERIMA_BENGKEL = 'serah_terima_bengkel';
 
+    public const MENU_APPSHEET = 'appsheet';
+
+    public const MENU_APPSHEET_HISTORY_CONSUMABLE = 'appsheet_history_consumable';
+
+    public const MENU_APPSHEET_STOCK_CONSUMABLE = 'appsheet_stock_consumable';
+
     public const MENU_ACCESS_CONTROL = 'access_control';
 
     public const MENU_KUOTA_ANGGARAN_OA = 'kuota_anggaran_oa';
@@ -178,6 +184,30 @@ class AdminMenuRegistry
                 'route_name' => 'admin.workshop-handover.index',
                 'active_patterns' => ['admin.workshop-handover.*'],
             ],
+            self::MENU_APPSHEET => [
+                'key' => self::MENU_APPSHEET,
+                'label' => 'AppSheet',
+                'icon' => 'table-2',
+                'group' => 'support',
+                'route_name' => 'admin.appsheet.history-consumable.index',
+                'active_patterns' => ['admin.appsheet.*'],
+                'children' => [
+                    [
+                        'key' => self::MENU_APPSHEET_HISTORY_CONSUMABLE,
+                        'permission_key' => self::MENU_APPSHEET,
+                        'label' => 'History Consumable',
+                        'route_name' => 'admin.appsheet.history-consumable.index',
+                        'active_patterns' => ['admin.appsheet.history-consumable.*'],
+                    ],
+                    [
+                        'key' => self::MENU_APPSHEET_STOCK_CONSUMABLE,
+                        'permission_key' => self::MENU_APPSHEET,
+                        'label' => 'Stock Consumable',
+                        'route_name' => 'admin.appsheet.stock-consumable.index',
+                        'active_patterns' => ['admin.appsheet.stock-consumable.*'],
+                    ],
+                ],
+            ],
             self::MENU_ACCESS_CONTROL => [
                 'key' => self::MENU_ACCESS_CONTROL,
                 'label' => 'Access Control',
@@ -299,7 +329,7 @@ class AdminMenuRegistry
             $resolvedChildren = [];
 
             foreach ($item['children'] ?? [] as $child) {
-                $childKey = $child['key'] ?? null;
+                $childKey = $child['permission_key'] ?? $child['key'] ?? null;
 
                 if ($childKey && ! static::canAccess($user, $childKey)) {
                     continue;

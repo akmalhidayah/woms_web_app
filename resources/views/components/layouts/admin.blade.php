@@ -1016,15 +1016,52 @@
 
                         @foreach ($supportMenus as $supportMenu)
                             @php($supportActive = $supportMenu['active'] ?? false)
-                            <a
-                                href="{{ $supportMenu['href'] }}"
-                                class="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ $supportActive ? 'bg-white text-blue-900 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
-                            >
-                                <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition {{ $supportActive ? 'bg-blue-100 text-blue-900' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
-                                    <i data-lucide="{{ $supportMenu['icon'] }}" class="h-4 w-4"></i>
-                                </span>
-                                <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="font-medium">{{ $supportMenu['label'] }}</span>
-                            </a>
+                            @if (! empty($supportMenu['children']))
+                                <div x-data="{ supportOpen: {{ $supportActive ? 'true' : 'false' }} }" class="rounded-xl">
+                                    <button
+                                        type="button"
+                                        @click="supportOpen = !supportOpen"
+                                        :aria-expanded="supportOpen && sidebarOpen"
+                                        aria-controls="support-submenus-{{ $supportMenu['key'] }}"
+                                        class="group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ $supportActive ? 'bg-white text-blue-900 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
+                                    >
+                                        <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition {{ $supportActive ? 'bg-blue-100 text-blue-900' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
+                                            <i data-lucide="{{ $supportMenu['icon'] }}" class="h-4 w-4"></i>
+                                        </span>
+                                        <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 text-left font-medium">{{ $supportMenu['label'] }}</span>
+                                        <i
+                                            data-lucide="chevron-down"
+                                            class="h-4 w-4 transition"
+                                            :class="supportOpen ? 'rotate-180' : ''"
+                                            x-show="sidebarOpen"
+                                            x-transition.opacity.duration.200ms
+                                            aria-hidden="true"
+                                        ></i>
+                                    </button>
+
+                                    <div id="support-submenus-{{ $supportMenu['key'] }}" x-show="supportOpen && sidebarOpen" x-transition.opacity.duration.200ms x-cloak class="mt-0.5 space-y-0.5 pl-9">
+                                        @foreach ($supportMenu['children'] as $menu)
+                                            <a
+                                                href="{{ $menu['href'] }}"
+                                                @if ($menu['active']) aria-current="page" @endif
+                                                class="block rounded-md px-2.5 py-1.5 transition {{ $menu['active'] ? 'bg-white text-blue-900' : 'text-white/80 hover:bg-white/10 hover:text-white' }}"
+                                            >
+                                                {{ $menu['label'] }}
+                                            </a>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @else
+                                <a
+                                    href="{{ $supportMenu['href'] }}"
+                                    class="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ $supportActive ? 'bg-white text-blue-900 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
+                                >
+                                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition {{ $supportActive ? 'bg-blue-100 text-blue-900' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
+                                        <i data-lucide="{{ $supportMenu['icon'] }}" class="h-4 w-4"></i>
+                                    </span>
+                                    <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="font-medium">{{ $supportMenu['label'] }}</span>
+                                </a>
+                            @endif
                         @endforeach
 
                         @if ($otherMenus !== [])

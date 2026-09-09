@@ -360,6 +360,7 @@ class AdminMenuRegistry
 
         return [
             'dashboard' => $items[self::MENU_DASHBOARD] ?? null,
+            'appsheet' => $items[self::MENU_APPSHEET] ?? null,
             'orders' => null,
             'main' => array_values(array_filter(
                 $items,
@@ -373,7 +374,8 @@ class AdminMenuRegistry
             )),
             'support' => array_values(array_filter(
                 $items,
-                fn (array $item) => $item['group'] === 'support',
+                fn (array $item) => $item['group'] === 'support'
+                    && $item['key'] !== self::MENU_APPSHEET,
             )),
             'other' => array_values(array_filter(
                 $items,

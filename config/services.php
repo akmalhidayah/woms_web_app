@@ -14,6 +14,15 @@ return [
     |
     */
 
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect_uri' => env('GOOGLE_REDIRECT_URI'),
+        'spreadsheet_id' => env('GOOGLE_SHEETS_SPREADSHEET_ID'),
+        'history_consumable_sheet' => env('GOOGLE_SHEETS_HISTORY_CONSUMABLE_SHEET'),
+        'stock_consumable_sheet' => env('GOOGLE_SHEETS_STOCK_CONSUMABLE_SHEET'),
+    ],
+
     'postmark' => [
         'token' => env('POSTMARK_TOKEN'),
     ],

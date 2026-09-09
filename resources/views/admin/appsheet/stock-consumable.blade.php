@@ -1,7 +1,7 @@
 <x-layouts.admin title="Stock Consumable">
     <div class="min-w-0 space-y-4">
         <section class="rounded-[1.35rem] border border-blue-100 bg-blue-50 px-5 py-4 shadow-sm">
-            <div class="flex items-center gap-4">
+            <div class="flex flex-wrap items-center gap-4">
                 <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm ring-1 ring-blue-200">
                     <i data-lucide="package" class="h-5 w-5" aria-hidden="true"></i>
                 </span>
@@ -9,8 +9,11 @@
                     <h1 class="text-[1.3rem] font-bold leading-tight tracking-tight text-slate-900">Stock Consumable</h1>
                     <p class="mt-1 text-xs text-slate-500">Monitoring stok consumable dari AppSheet.</p>
                 </div>
+                @include('admin.appsheet.partials.google-connection', ['googleReturnTo' => 'stock'])
             </div>
         </section>
+
+        @include('admin.appsheet.partials.google-messages')
 
         <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Filter Stock Consumable">
             <fieldset disabled class="grid gap-3 md:grid-cols-3">

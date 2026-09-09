@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AccessControlController;
 use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\ApprovalSignatureReassignmentController;
 use App\Http\Controllers\Admin\AppSheet\AppSheetController;
+use App\Http\Controllers\Admin\AppSheet\GoogleOAuthController;
 use App\Http\Controllers\Admin\BengkelPicController;
 use App\Http\Controllers\Admin\BengkelTaskController;
 use App\Http\Controllers\Admin\BudgetVerificationController;
@@ -155,6 +156,10 @@ Route::middleware(['auth'])->group(function () {
         ->name('admin.appsheet.')
         ->middleware(['role:admin', 'admin_menu:appsheet'])
         ->group(function () {
+            Route::get('google/connect', [GoogleOAuthController::class, 'connect'])
+                ->name('google.connect');
+            Route::get('google/callback', [GoogleOAuthController::class, 'callback'])
+                ->name('google.callback');
             Route::get('history-consumable', [AppSheetController::class, 'historyConsumable'])
                 ->name('history-consumable.index');
             Route::get('stock-consumable', [AppSheetController::class, 'stockConsumable'])

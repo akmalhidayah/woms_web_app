@@ -222,10 +222,13 @@ class DashboardFinancialSummaryTest extends TestCase
         $this->verifyCategory($maintenance, $user, 'pemeliharaan');
         $this->verifyCategory($capex, $user, 'capex');
 
-        $summary = app(DashboardFinancialSummaryService::class)->resolveForCategory('pemeliharaan');
+        $summary = app(DashboardFinancialSummaryService::class)->resolveMaintenanceSummary(null);
+        $baseCategorySummary = app(DashboardFinancialSummaryService::class)->resolveForCategory('pemeliharaan');
         $general = app(DashboardFinancialSummaryService::class)->resolve();
 
         $this->assertSame(100, $summary['manual_realization']);
+        $this->assertSame(100, $summary['invoice_status_amount']);
+        $this->assertSame(0, $baseCategorySummary['invoice_status_amount']);
         $this->assertSame(500, $summary['outstanding']);
         $this->assertSame(600, $summary['prognosis']);
         $this->assertSame(2_000, $general['outstanding']);

@@ -142,6 +142,8 @@ final class DashboardFinancialSummaryService
     public function resolveMaintenanceSummary(?int $year, ?int $outlineAgreementId = null): array
     {
         $summary = $this->resolveForCategory('pemeliharaan', $outlineAgreementId, $year);
+        $maintenanceInvoiceStatusAmount = $summary['invoice_status_amount']
+            + $summary['manual_realization'];
         $annualTarget = $this->moneyInt(OutlineAgreementTarget::query()
             ->when($year !== null, fn (Builder $query): Builder => $query->where('tahun', $year))
             ->when(
@@ -151,6 +153,8 @@ final class DashboardFinancialSummaryService
                     ->where('status', OutlineAgreement::STATUS_ACTIVE)),
             )
             ->sum('nilai_target'));
+
+        $summary['invoice_status_amount'] = $maintenanceInvoiceStatusAmount;
 
         return $summary + [
             'target_year' => $year ?? 'Semua Tahun',

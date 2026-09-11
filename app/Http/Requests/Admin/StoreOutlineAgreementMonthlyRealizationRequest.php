@@ -33,6 +33,9 @@ class StoreOutlineAgreementMonthlyRealizationRequest extends FormRequest
     {
         $this->merge([
             'amount' => $this->normalizeRupiah($this->input('amount')),
+            'estimator_completed_orders' => $this->filled('estimator_completed_orders')
+                ? $this->input('estimator_completed_orders')
+                : 0,
             'unit_kerja' => trim((string) $this->input('unit_kerja')),
             'seksi' => trim((string) $this->input('seksi')),
         ]);
@@ -55,6 +58,7 @@ class StoreOutlineAgreementMonthlyRealizationRequest extends FormRequest
                 Rule::in(array_keys(BudgetVerification::kategoriBiayaOptions())),
             ],
             'amount' => ['required', 'integer', 'min:0', 'max:'.PHP_INT_MAX],
+            'estimator_completed_orders' => ['required', 'integer', 'min:0', 'max:4294967295'],
             'unit_kerja' => ['required', 'string', 'max:255'],
             'seksi' => ['required', 'string', 'max:255'],
         ];

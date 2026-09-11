@@ -309,6 +309,7 @@
         const monthlyMonth = document.getElementById('monthlyRealizationMonth');
         const monthlyCategory = document.getElementById('monthlyRealizationCategory');
         const monthlyAmount = document.getElementById('monthlyRealizationAmount');
+        const monthlyEstimatorCompletedOrders = document.getElementById('monthlyEstimatorCompletedOrders');
         const monthlyUnitWork = document.getElementById('monthlyRealizationUnitWork');
         const monthlySection = document.getElementById('monthlyRealizationSection');
         const monthlyRows = document.getElementById('monthlyRealizationRows');
@@ -351,7 +352,7 @@
         };
 
         const fillMonthlyForm = (realization = null) => {
-            if (!monthlyRealizationId || !monthlyYear || !monthlyMonth || !monthlyCategory || !monthlyAmount || !monthlyUnitWork) return;
+            if (!monthlyRealizationId || !monthlyYear || !monthlyMonth || !monthlyCategory || !monthlyAmount || !monthlyEstimatorCompletedOrders || !monthlyUnitWork) return;
 
             if (realization) {
                 monthlyRealizationId.value = realization.id ?? '';
@@ -362,6 +363,7 @@
                     ? realization.kategori_biaya
                     : '';
                 monthlyAmount.value = formatMonthlyAmount(realization.amount);
+                monthlyEstimatorCompletedOrders.value = realization.estimator_completed_orders ?? 0;
                 monthlyUnitWork.value = Array.from(monthlyUnitWork.options)
                     .some((option) => option.value === realization.unit_kerja)
                     ? realization.unit_kerja
@@ -376,6 +378,7 @@
             monthlyMonth.value = '';
             monthlyCategory.value = '';
             monthlyAmount.value = '0';
+            monthlyEstimatorCompletedOrders.value = '0';
             monthlyUnitWork.value = '';
             syncMonthlySections();
         };
@@ -420,6 +423,10 @@
                 const amountCell = document.createElement('td');
                 amountCell.className = 'whitespace-nowrap px-4 py-3 text-right';
                 amountCell.textContent = `Rp${formatMonthlyAmount(realization.amount)}`;
+
+                const completedOrdersCell = document.createElement('td');
+                completedOrdersCell.className = 'whitespace-nowrap px-4 py-3 text-right';
+                completedOrdersCell.textContent = formatMonthlyAmount(realization.estimator_completed_orders);
 
                 const actionCell = document.createElement('td');
                 actionCell.className = 'whitespace-nowrap px-4 py-3 text-right';
@@ -468,7 +475,7 @@
 
                 actionWrap.append(editButton, deleteForm);
                 actionCell.appendChild(actionWrap);
-                row.append(periodCell, categoryCell, structureCell, amountCell, actionCell);
+                row.append(periodCell, categoryCell, structureCell, amountCell, completedOrdersCell, actionCell);
                 monthlyRows.appendChild(row);
             });
         };

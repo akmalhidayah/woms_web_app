@@ -21,6 +21,7 @@ class OutlineAgreementMonthlyRealization extends Model
         'unit_kerja',
         'seksi',
         'amount',
+        'estimator_completed_orders',
     ];
 
     protected function casts(): array
@@ -29,6 +30,7 @@ class OutlineAgreementMonthlyRealization extends Model
             'year' => 'integer',
             'month' => 'integer',
             'amount' => 'integer',
+            'estimator_completed_orders' => 'integer',
         ];
     }
 

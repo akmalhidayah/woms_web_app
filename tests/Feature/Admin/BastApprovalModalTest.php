@@ -118,6 +118,19 @@ class BastApprovalModalTest extends TestCase
             ->assertDontSee('rollback_url', false);
     }
 
+    public function test_pkm_in_progress_tab_shows_bulk_resend_in_approval_header(): void
+    {
+        $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+        $this->createPendingBastSignature($pkm, 'bast-pkm-bulk-token');
+
+        $this->actingAs($pkm)
+            ->get(route('pkm.lhpp.index', ['tab' => BastIndexTabs::TAB_IN_PROGRESS]))
+            ->assertOk()
+            ->assertSee('Status LHPP')
+            ->assertSee('Resend Semua')
+            ->assertSee(route('pkm.lhpp.approval.resend-all'), false);
+    }
+
     private function createPendingBastSignature(
         User $creator,
         string $token,

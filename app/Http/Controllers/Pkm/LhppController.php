@@ -15,6 +15,7 @@ use App\Models\Order;
 use App\Models\VendorWorkType;
 use App\Models\VendorWorkTypeSection;
 use App\Services\Approvals\ApprovalNotificationService;
+use App\Services\Approvals\BulkApprovalNotificationService;
 use App\Services\Pkm\BastDeletionService;
 use App\Services\Pkm\BastItemSnapshotService;
 use App\Services\Pkm\BastPdfAttachmentService;
@@ -54,6 +55,7 @@ class LhppController extends Controller
         private readonly BastIndexTabs $indexTabs,
         private readonly BastItemSnapshotService $bastItemSnapshotService,
         private readonly BastPdfAttachmentService $bastPdfAttachmentService,
+        private readonly BulkApprovalNotificationService $bulkNotificationService,
     ) {}
 
     public function index(Request $request): View
@@ -1111,6 +1113,13 @@ class LhppController extends Controller
             'Link approval BAST/LHPP berhasil dikirim ulang ke %s.',
             $signature->signer?->email ?: 'email approver',
         ));
+    }
+
+    public function resendAllActiveApprovals(): RedirectResponse
+    {
+        $result = $this->bulkNotificationService->resendActiveBastApprovals();
+
+        return back()->with('status', $this->bulkNotificationService->resultMessage('BAST/LHPP', $result));
     }
 
     private function finalSignedPdfOutput(Hpp|LhppBast $document): ?string

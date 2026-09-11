@@ -8,6 +8,7 @@ use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\Hpp;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
+use App\Models\OutlineAgreementMonthlyRealization;
 use App\Models\QualityControlReport;
 use App\Models\QualityControlSignature;
 use App\Support\PkmJobWaitingQuery;
@@ -31,7 +32,8 @@ final class WorkshopDashboardService
     public function resolve(?int $requestedYear = null, int|string|null $requestedMonth = null): array
     {
         $workloads = $this->workloadRecords();
-        $availableYears = $this->availableYearsFrom($workloads);
+        $manualEstimatorRealizations = $this->manualEstimatorRealizations();
+        $availableYears = $this->availableYearsFrom($workloads, $manualEstimatorRealizations);
         $currentYear = (int) Carbon::now()->year;
         $year = $requestedYear !== null && in_array($requestedYear, $availableYears, true)
             ? $requestedYear
@@ -39,14 +41,32 @@ final class WorkshopDashboardService
         $month = $this->normalizeMonth($requestedMonth);
         [$periodStart, $periodEnd] = $this->periodBounds($year, $month);
         $periodWorkloads = $this->workloadsForPeriod($workloads, $periodStart, $periodEnd);
-        $summary = $this->aggregate($periodWorkloads, $periodStart, $periodEnd) + [
-            'outsourced' => $periodWorkloads
-                ->where('source', self::SOURCE_OUTSOURCED)
-                ->count(),
-        ];
-        $reguRows = $this->reguSummary($periodWorkloads, $periodStart, $periodEnd);
-        $trend = $this->completionTrend($workloads, $year, $month);
-        $monthlyWorkValues = $this->monthlyWorkValues($workloads, $year, $month);
+        $periodManualRealizations = $this->manualRealizationsForPeriod(
+            $manualEstimatorRealizations,
+            $periodStart,
+            $periodEnd,
+        );
+        $manualCompletedOrders = $this->manualCompletedOrders($periodManualRealizations);
+        $summary = $this->addCompletedOrders(
+            $this->aggregate($periodWorkloads, $periodStart, $periodEnd),
+            $manualCompletedOrders,
+        );
+        $summary['outsourced'] = $periodWorkloads
+            ->where('source', self::SOURCE_OUTSOURCED)
+            ->count() + $manualCompletedOrders;
+        $reguRows = $this->reguSummary(
+            $periodWorkloads,
+            $periodStart,
+            $periodEnd,
+            $manualCompletedOrders,
+        );
+        $trend = $this->completionTrend($workloads, $manualEstimatorRealizations, $year, $month);
+        $monthlyWorkValues = $this->monthlyWorkValues(
+            $workloads,
+            $manualEstimatorRealizations,
+            $year,
+            $month,
+        );
 
         return [
             'filters' => [
@@ -70,7 +90,10 @@ final class WorkshopDashboardService
     /** @return list<int> */
     public function availableYears(): array
     {
-        return $this->availableYearsFrom($this->workloadRecords());
+        return $this->availableYearsFrom(
+            $this->workloadRecords(),
+            $this->manualEstimatorRealizations(),
+        );
     }
 
     private function baseQuery(): Builder
@@ -109,6 +132,19 @@ final class WorkshopDashboardService
             ->concat($this->jobWaitingEstimatorWorkloads())
             ->unique('order_id')
             ->values();
+    }
+
+    /**
+     * @return Collection<int, OutlineAgreementMonthlyRealization>
+     */
+    private function manualEstimatorRealizations(): Collection
+    {
+        // Dashboard Bengkel tidak memiliki filter OA, sehingga seluruh histori
+        // manual mengikuti filter periode dashboard tanpa membatasi status OA.
+        return OutlineAgreementMonthlyRealization::query()
+            ->where('year', '>', 0)
+            ->whereBetween('month', [1, 12])
+            ->get(['year', 'month', 'amount', 'estimator_completed_orders']);
     }
 
     /**
@@ -253,7 +289,7 @@ final class WorkshopDashboardService
      * @param  Collection<int, array<string, mixed>>  $workloads
      * @return list<int>
      */
-    private function availableYearsFrom(Collection $workloads): array
+    private function availableYearsFrom(Collection $workloads, Collection $manualEstimatorRealizations): array
     {
         $currentYear = (int) Carbon::now()->year;
         $years = collect([$currentYear]);
@@ -270,6 +306,10 @@ final class WorkshopDashboardService
                 $years->push($entryYear);
             }
         }
+
+        $years = $years->merge(
+            $manualEstimatorRealizations->pluck('year')->map(fn (mixed $year): int => (int) $year),
+        );
 
         return $years
             ->filter(fn (int $year): bool => $year > 0)
@@ -315,6 +355,41 @@ final class WorkshopDashboardService
                     && ($completedAt === null || $completedAt->greaterThanOrEqualTo($periodStart));
             })
             ->values();
+    }
+
+    /**
+     * @param  Collection<int, OutlineAgreementMonthlyRealization>  $manualRealizations
+     * @return Collection<int, OutlineAgreementMonthlyRealization>
+     */
+    private function manualRealizationsForPeriod(
+        Collection $manualRealizations,
+        Carbon $periodStart,
+        Carbon $periodEnd,
+    ): Collection {
+        if ($periodStart->greaterThan($periodEnd)) {
+            return collect();
+        }
+
+        return $manualRealizations
+            ->filter(function (OutlineAgreementMonthlyRealization $realization) use ($periodStart, $periodEnd): bool {
+                $period = Carbon::create($realization->year, $realization->month, 1)->startOfDay();
+
+                return $period->betweenIncluded($periodStart, $periodEnd);
+            })
+            ->values();
+    }
+
+    /**
+     * @param  Collection<int, OutlineAgreementMonthlyRealization>  $manualRealizations
+     */
+    private function manualCompletedOrders(Collection $manualRealizations): int
+    {
+        return (int) $manualRealizations->sum(
+            fn (OutlineAgreementMonthlyRealization $realization): int => max(
+                (int) $realization->estimator_completed_orders,
+                0,
+            ),
+        );
     }
 
     /**
@@ -390,16 +465,26 @@ final class WorkshopDashboardService
      * @param  Collection<int, array<string, mixed>>  $workloads
      * @return array{items: list<array<string, int|float|string|bool>>, unknown_count: int}
      */
-    private function reguSummary(Collection $workloads, Carbon $periodStart, Carbon $periodEnd): array
-    {
+    private function reguSummary(
+        Collection $workloads,
+        Carbon $periodStart,
+        Carbon $periodEnd,
+        int $manualCompletedOrders,
+    ): array {
         $officialRegu = Order::workshopReguOptions();
         $items = collect($officialRegu)
-            ->map(function (string $regu) use ($workloads, $periodStart, $periodEnd): array {
-                return ['name' => $regu] + $this->aggregate(
+            ->map(function (string $regu) use ($workloads, $periodStart, $periodEnd, $manualCompletedOrders): array {
+                $metric = $this->aggregate(
                     $workloads->where('regu', $regu)->values(),
                     $periodStart,
                     $periodEnd,
                 );
+
+                if ($regu === Order::WORKSHOP_REGU_ESTIMATOR) {
+                    $metric = $this->addCompletedOrders($metric, $manualCompletedOrders);
+                }
+
+                return ['name' => $regu] + $metric;
             })
             ->values()
             ->all();
@@ -415,23 +500,41 @@ final class WorkshopDashboardService
 
     /**
      * @param  Collection<int, array<string, mixed>>  $workloads
+     * @param  Collection<int, OutlineAgreementMonthlyRealization>  $manualEstimatorRealizations
      * @return list<array<string, mixed>>
      */
-    private function completionTrend(Collection $workloads, int $year, ?int $selectedMonth): array
-    {
+    private function completionTrend(
+        Collection $workloads,
+        Collection $manualEstimatorRealizations,
+        int $year,
+        ?int $selectedMonth,
+    ): array {
         $lastMonth = $this->lastTrendMonth($year, $selectedMonth);
 
         return collect(range(1, $lastMonth))
-            ->map(function (int $month) use ($workloads, $year): array {
+            ->map(function (int $month) use ($workloads, $manualEstimatorRealizations, $year): array {
                 [$periodStart, $periodEnd] = $this->periodBounds($year, $month);
                 $monthlyWorkloads = $this->workloadsForPeriod($workloads, $periodStart, $periodEnd);
-                $monthlySummary = $this->aggregate($monthlyWorkloads, $periodStart, $periodEnd);
+                $manualCompletedOrders = $this->manualCompletedOrders(
+                    $this->manualRealizationsForPeriod(
+                        $manualEstimatorRealizations,
+                        $periodStart,
+                        $periodEnd,
+                    ),
+                );
+                $monthlySummary = $this->addCompletedOrders(
+                    $this->aggregate($monthlyWorkloads, $periodStart, $periodEnd),
+                    $manualCompletedOrders,
+                );
                 $regu = collect(Order::workshopReguOptions())
                     ->mapWithKeys(fn (string $regu): array => [
-                        $regu => $this->aggregate(
-                            $monthlyWorkloads->where('regu', $regu)->values(),
-                            $periodStart,
-                            $periodEnd,
+                        $regu => $this->addCompletedOrders(
+                            $this->aggregate(
+                                $monthlyWorkloads->where('regu', $regu)->values(),
+                                $periodStart,
+                                $periodEnd,
+                            ),
+                            $regu === Order::WORKSHOP_REGU_ESTIMATOR ? $manualCompletedOrders : 0,
                         ),
                     ])
                     ->all();
@@ -454,10 +557,15 @@ final class WorkshopDashboardService
 
     /**
      * @param  Collection<int, array<string, mixed>>  $workloads
+     * @param  Collection<int, OutlineAgreementMonthlyRealization>  $manualEstimatorRealizations
      * @return list<array<string, mixed>>
      */
-    private function monthlyWorkValues(Collection $workloads, int $year, ?int $selectedMonth): array
-    {
+    private function monthlyWorkValues(
+        Collection $workloads,
+        Collection $manualEstimatorRealizations,
+        int $year,
+        ?int $selectedMonth,
+    ): array {
         $firstMonth = $selectedMonth ?? 1;
         $lastMonth = $this->lastTrendMonth($year, $selectedMonth);
 
@@ -481,6 +589,16 @@ final class WorkshopDashboardService
             }
 
             $totals[(int) $entryAt->month][$regu] += $workload['work_value_minor'];
+        }
+
+        $periodManualRealizations = $this->manualRealizationsForPeriod(
+            $manualEstimatorRealizations,
+            $periodStart,
+            $periodEnd,
+        );
+
+        foreach ($periodManualRealizations as $realization) {
+            $totals[$realization->month][Order::WORKSHOP_REGU_ESTIMATOR] += $this->moneyMinor($realization->amount);
         }
 
         return collect(range($firstMonth, $lastMonth))
@@ -522,6 +640,20 @@ final class WorkshopDashboardService
             'target_met' => $percentageHundredths >= (self::COMPLETION_TARGET * 100),
             'total_cost' => $totalCost,
         ];
+    }
+
+    /**
+     * @param  array<string, int|float|bool>  $metric
+     * @return array<string, int|float|bool>
+     */
+    private function addCompletedOrders(array $metric, int $completedOrders): array
+    {
+        return $this->metric(
+            (int) $metric['total'] + $completedOrders,
+            (int) $metric['in_progress'],
+            (int) $metric['completed'] + $completedOrders,
+            (int) $metric['total_cost'],
+        );
     }
 
     private function normalizeMonth(int|string|null $month): ?int

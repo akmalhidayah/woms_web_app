@@ -55,6 +55,11 @@
                         <input id="monthlyRealizationAmount" type="text" name="amount" inputmode="numeric" value="{{ old('amount', '0') }}" placeholder="0" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 focus:border-sky-500 focus:outline-none" required>
                     </div>
                     <div>
+                        <label for="monthlyEstimatorCompletedOrders" class="mb-2 block text-sm font-semibold text-slate-700">Total Order Selesai</label>
+                        <input id="monthlyEstimatorCompletedOrders" type="number" name="estimator_completed_orders" min="0" step="1" value="{{ old('estimator_completed_orders', 0) }}" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 focus:border-sky-500 focus:outline-none" required>
+                        <p class="mt-1.5 text-xs leading-5 text-slate-500">Digunakan sebagai historical completed order Regu Estimator pada Dashboard Pekerjaan Bengkel.</p>
+                    </div>
+                    <div>
                         <label for="monthlyRealizationUnitWork" class="mb-2 block text-sm font-semibold text-slate-700">Unit Kerja</label>
                         <select id="monthlyRealizationUnitWork" name="unit_kerja" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 focus:border-sky-500 focus:outline-none" required>
                             <option value="">Pilih unit kerja</option>
@@ -88,6 +93,7 @@
                                 <th class="px-4 py-3">Kategori Biaya</th>
                                 <th class="px-4 py-3">Seksi / Unit Kerja</th>
                                 <th class="px-4 py-3 text-right">Nilai Realisasi</th>
+                                <th class="px-4 py-3 text-right">Order Selesai</th>
                                 <th class="px-4 py-3 text-right">Aksi</th>
                             </tr>
                         </thead>

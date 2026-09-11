@@ -86,7 +86,20 @@
                                 <th class="px-3 py-2 text-left font-semibold">Detail Pekerjaan</th>
                                 <th class="px-3 py-2 text-left font-semibold">Tanggal Dibuat</th>
                                 <th class="px-3 py-2 text-right font-semibold">Total Biaya</th>
-                                <th class="px-3 py-2 text-left font-semibold">Status LHPP</th>
+                                <th class="px-3 py-2 text-left font-semibold">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span>Status LHPP</span>
+                                        @if ($activeTab === \App\Support\BastIndexTabs::TAB_IN_PROGRESS)
+                                            <form method="POST" action="{{ route('pkm.lhpp.approval.resend-all') }}" onsubmit="return confirm('Kirim ulang email kepada seluruh approver BAST/LHPP yang sedang aktif?')">
+                                                @csrf
+                                                <button type="submit" class="inline-flex items-center gap-1 rounded-md bg-[#ca642f] px-2 py-1 text-[8px] font-bold normal-case tracking-normal text-white shadow-sm transition hover:bg-[#b85b2b]">
+                                                    <i data-lucide="send" class="h-2.5 w-2.5"></i>
+                                                    Resend Semua
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
+                                </th>
                                 <th class="px-3 py-2 text-left font-semibold">Status Payment</th>
                                 <th class="px-3 py-2 text-center font-semibold w-32">Aksi</th>
                             </tr>

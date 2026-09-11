@@ -163,6 +163,7 @@
                                                         'kategori_biaya' => $realization->kategori_biaya,
                                                         'category_label' => $realization->categoryLabel(),
                                                         'amount' => $realization->amount,
+                                                        'estimator_completed_orders' => $realization->estimator_completed_orders,
                                                         'unit_kerja' => $realization->unit_kerja,
                                                         'seksi' => $realization->seksi,
                                                         'destroy_url' => route('admin.outline-agreements.monthly-realizations.destroy', [$agreement, $realization]),

@@ -29,6 +29,7 @@ class OutlineAgreementMonthlyRealizationTest extends TestCase
                 'unit_kerja' => 'Unit Monthly Realization',
                 'seksi' => 'Tidak ada seksi',
                 'amount' => 'Rp 100.000.000',
+                'estimator_completed_orders' => 10,
             ])
             ->assertRedirect(route('admin.outline-agreements.index'))
             ->assertSessionHasNoErrors();
@@ -39,7 +40,12 @@ class OutlineAgreementMonthlyRealizationTest extends TestCase
             'month' => 1,
             'kategori_biaya' => 'pemeliharaan',
             'amount' => 100000000,
+            'estimator_completed_orders' => 10,
         ]);
+        $this->assertSame(
+            10,
+            OutlineAgreementMonthlyRealization::query()->firstOrFail()->estimator_completed_orders,
+        );
 
         $this->actingAs($admin)
             ->post(route('admin.outline-agreements.monthly-realizations.store', $agreement), [
@@ -49,6 +55,7 @@ class OutlineAgreementMonthlyRealizationTest extends TestCase
                 'unit_kerja' => 'Unit Monthly Realization',
                 'seksi' => 'Tidak ada seksi',
                 'amount' => 125000000,
+                'estimator_completed_orders' => 12,
             ])
             ->assertSessionHasNoErrors();
 
@@ -59,6 +66,7 @@ class OutlineAgreementMonthlyRealizationTest extends TestCase
             'month' => 1,
             'kategori_biaya' => 'pemeliharaan',
             'amount' => 125000000,
+            'estimator_completed_orders' => 12,
         ]);
     }
 
@@ -108,6 +116,7 @@ class OutlineAgreementMonthlyRealizationTest extends TestCase
                 'unit_kerja' => 'Unit Monthly Realization',
                 'seksi' => 'Tidak ada seksi',
                 'amount' => '47.950.426.696',
+                'estimator_completed_orders' => '',
             ])
             ->assertSessionHasNoErrors();
 
@@ -115,6 +124,7 @@ class OutlineAgreementMonthlyRealizationTest extends TestCase
             'outline_agreement_id' => $agreement->id,
             'kategori_biaya' => 'capex',
             'amount' => 47950426696,
+            'estimator_completed_orders' => 0,
         ]);
     }
 
@@ -132,9 +142,10 @@ class OutlineAgreementMonthlyRealizationTest extends TestCase
                 'unit_kerja' => 'Unit Monthly Realization',
                 'seksi' => 'Tidak ada seksi',
                 'amount' => -1,
+                'estimator_completed_orders' => -1,
             ])
             ->assertRedirect(route('admin.outline-agreements.index'))
-            ->assertSessionHasErrors(['month', 'kategori_biaya', 'amount']);
+            ->assertSessionHasErrors(['month', 'kategori_biaya', 'amount', 'estimator_completed_orders']);
 
         $this->actingAs($admin)
             ->from(route('admin.outline-agreements.index'))
@@ -174,6 +185,7 @@ class OutlineAgreementMonthlyRealizationTest extends TestCase
                 'unit_kerja' => 'Unit Monthly Realization',
                 'seksi' => 'Tidak ada seksi',
                 'amount' => 2500,
+                'estimator_completed_orders' => 7,
             ])
             ->assertSessionHasNoErrors();
 
@@ -184,6 +196,7 @@ class OutlineAgreementMonthlyRealizationTest extends TestCase
             'month' => 4,
             'kategori_biaya' => 'capex',
             'amount' => 2500,
+            'estimator_completed_orders' => 7,
         ]);
     }
 
@@ -309,8 +322,11 @@ class OutlineAgreementMonthlyRealizationTest extends TestCase
         $response->assertOk()
             ->assertSee('Kategori Biaya')
             ->assertSee('Nilai Realisasi')
+            ->assertSee('Total Order Selesai')
+            ->assertSee('historical completed order Regu Estimator')
             ->assertSee('name="kategori_biaya"', false)
             ->assertSee('name="amount"', false)
+            ->assertSee('name="estimator_completed_orders"', false)
             ->assertSee('name="unit_kerja"', false)
             ->assertSee('name="seksi"', false)
             ->assertDontSee('name="pr_po_amount"', false)

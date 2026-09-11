@@ -6,13 +6,16 @@ namespace Tests\Feature\Admin;
 
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Models\BengkelTask;
+use App\Models\Department;
 use App\Models\Hpp;
 use App\Models\InitialWork;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
+use App\Models\OutlineAgreement;
 use App\Models\PurchaseOrder;
 use App\Models\QualityControlReport;
 use App\Models\QualityControlSignature;
+use App\Models\UnitWork;
 use App\Models\User;
 use App\Services\Admin\WorkshopDashboardService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -166,6 +169,66 @@ class WorkshopDashboardServiceTest extends TestCase
             $dashboard['summary']['total'],
             collect($dashboard['regu'])->sum('total') + $dashboard['unknown_regu_count'],
         );
+    }
+
+    public function test_manual_estimator_history_is_additive_to_woms_metrics_and_work_value(): void
+    {
+        Carbon::setTestNow('2026-09-04 10:00:00');
+        $user = User::factory()->create();
+        $agreement = $this->manualRealizationAgreement($user);
+        $agreement->monthlyRealizations()->create([
+            'year' => 2026,
+            'month' => 2,
+            'kategori_biaya' => 'pemeliharaan',
+            'unit_kerja' => 'Unit Historical Estimator',
+            'seksi' => 'Tidak ada seksi',
+            'amount' => 1_000_000_000,
+            'estimator_completed_orders' => 10,
+        ]);
+        $legacy = $agreement->monthlyRealizations()->create([
+            'year' => 2024,
+            'month' => 2,
+            'kategori_biaya' => 'capex',
+            'unit_kerja' => 'Unit Historical Estimator',
+            'seksi' => 'Tidak ada seksi',
+            'amount' => 0,
+        ]);
+        $this->jobWaitingServiceOrder(
+            $user,
+            'JW-MANUAL-ADDITIVE',
+            100,
+            true,
+            '2026-02-01',
+            '2026-02-10 08:00:00',
+            '2026-02-11',
+            '2026-02-15',
+            '250000000.00',
+        );
+
+        $dashboard = app(WorkshopDashboardService::class)->resolve(2026, 2);
+        $estimator = collect($dashboard['regu'])->firstWhere('name', Order::WORKSHOP_REGU_ESTIMATOR);
+        $februaryTrend = collect($dashboard['trend'])->firstWhere('month', 2);
+        $februaryValue = collect($dashboard['monthly_work_values'])->firstWhere('month', 2);
+
+        $this->assertSame(11, $dashboard['summary']['total']);
+        $this->assertSame(11, $dashboard['summary']['completed']);
+        $this->assertSame(0, $dashboard['summary']['in_progress']);
+        $this->assertSame(0, $dashboard['summary']['incomplete']);
+        $this->assertSame(100.0, $dashboard['summary']['completion_percentage']);
+        $this->assertSame(11, $dashboard['summary']['outsourced']);
+        $this->assertSame(11, $estimator['total']);
+        $this->assertSame(11, $estimator['completed']);
+        $this->assertSame(0, $estimator['in_progress']);
+        $this->assertSame(0, $estimator['incomplete']);
+        $this->assertSame(11, $februaryTrend['total']);
+        $this->assertSame(11, $februaryTrend['completed']);
+        $this->assertSame(11, $februaryTrend['regu'][Order::WORKSHOP_REGU_ESTIMATOR]['total']);
+        $this->assertSame(11, $februaryTrend['regu'][Order::WORKSHOP_REGU_ESTIMATOR]['completed']);
+        $this->assertSame(1_250_000_000.0, $februaryValue['regu'][Order::WORKSHOP_REGU_ESTIMATOR]);
+        $this->assertSame(0.0, $februaryValue['regu'][Order::WORKSHOP_REGU_FABRIKASI]);
+        $this->assertSame(0.0, $februaryValue['regu'][Order::WORKSHOP_REGU_REFURBISH]);
+        $this->assertContains(2024, $dashboard['available_years']);
+        $this->assertSame(0, $legacy->refresh()->estimator_completed_orders);
     }
 
     public function test_monthly_regu_trend_uses_workload_and_completion_timestamps_and_omits_future_months(): void
@@ -429,6 +492,31 @@ class WorkshopDashboardServiceTest extends TestCase
         ]);
 
         return $order;
+    }
+
+    private function manualRealizationAgreement(User $user): OutlineAgreement
+    {
+        $department = Department::query()->create(['name' => 'Departemen Historical Estimator']);
+        $unitWork = UnitWork::query()->create([
+            'department_id' => $department->id,
+            'name' => 'Unit Historical Estimator',
+        ]);
+
+        return OutlineAgreement::query()->create([
+            'nomor_oa' => 'OA-HISTORICAL-ESTIMATOR',
+            'unit_work_id' => $unitWork->id,
+            'jenis_kontrak' => 'Fabrikasi',
+            'nama_kontrak' => 'Historical Estimator',
+            'nilai_kontrak_awal' => '1000000000.00',
+            'periode_awal_start' => '2024-01-01',
+            'periode_awal_end' => '2026-12-31',
+            'current_total_nilai' => '1000000000.00',
+            'current_period_start' => '2024-01-01',
+            'current_period_end' => '2026-12-31',
+            'status' => OutlineAgreement::STATUS_ACTIVE,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
     }
 
     private function completeQualityControl(Order $order, User $user, string $completedAt): QualityControlReport

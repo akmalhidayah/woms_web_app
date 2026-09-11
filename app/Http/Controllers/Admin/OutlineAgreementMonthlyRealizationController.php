@@ -64,6 +64,7 @@ class OutlineAgreementMonthlyRealizationController extends Controller
                 $realization->update([
                     ...$identity,
                     'amount' => (int) $validated['amount'],
+                    'estimator_completed_orders' => (int) $validated['estimator_completed_orders'],
                 ]);
 
                 return true;
@@ -73,6 +74,7 @@ class OutlineAgreementMonthlyRealizationController extends Controller
                 $identity,
                 [
                     'amount' => (int) $validated['amount'],
+                    'estimator_completed_orders' => (int) $validated['estimator_completed_orders'],
                 ],
             );
 

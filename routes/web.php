@@ -666,6 +666,9 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('pkm_panel')
         ->whereNumber('lhppId')
         ->name('pkm.lhpp.approval.resend');
+    Route::post('pkm/lhpp/resend-all-active-approvals', [LhppController::class, 'resendAllActiveApprovals'])
+        ->middleware('pkm_panel')
+        ->name('pkm.lhpp.approval.resend-all');
     Route::get('pkm/lhpp/{nomorOrder}/{termin}/pdf', [LhppController::class, 'pdf'])
         ->middleware('pkm_panel')
         ->where('termin', 'termin-[12]')

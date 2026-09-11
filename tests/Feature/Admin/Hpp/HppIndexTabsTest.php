@@ -88,13 +88,16 @@ class HppIndexTabsTest extends TestCase
             ->get(route('pkm.hpp.index'))
             ->assertOk()
             ->assertSee($draft->nomor_order)
-            ->assertDontSee($inReview->nomor_order);
+            ->assertDontSee($inReview->nomor_order)
+            ->assertDontSee('Resend Semua');
 
         $this->actingAs($pkm)
             ->get(route('pkm.hpp.index', ['tab' => HppIndexTabs::IN_APPROVAL]))
             ->assertOk()
             ->assertSee($inReview->nomor_order)
-            ->assertDontSee($draft->nomor_order);
+            ->assertDontSee($draft->nomor_order)
+            ->assertSee('Resend Semua')
+            ->assertSee(route('pkm.hpp.approval.resend-all'), false);
     }
 
     public function test_search_only_filters_active_tab_and_invalid_tab_falls_back_to_action(): void

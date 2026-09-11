@@ -9,6 +9,7 @@ use App\Models\Hpp;
 use App\Models\HppSignature;
 use App\Models\Order;
 use App\Services\Approvals\ApprovalNotificationService;
+use App\Services\Approvals\BulkApprovalNotificationService;
 use App\Services\Pkm\HppDraftService;
 use App\Support\HppIndexTabs;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -25,6 +26,7 @@ class HppDraftController extends Controller
     public function __construct(
         private readonly HppDraftService $draftService,
         private readonly ApprovalNotificationService $approvalNotificationService,
+        private readonly BulkApprovalNotificationService $bulkNotificationService,
     ) {}
 
     public function index(Request $request): View
@@ -194,6 +196,13 @@ class HppDraftController extends Controller
             'Link approval HPP berhasil dikirim ulang ke %s.',
             $signature->signer?->email ?: 'email approver',
         ));
+    }
+
+    public function resendAllActiveApprovals(): RedirectResponse
+    {
+        $result = $this->bulkNotificationService->resendActiveHppApprovals();
+
+        return back()->with('status', $this->bulkNotificationService->resultMessage('HPP', $result));
     }
 
     private function eligibleOrders()

@@ -613,6 +613,8 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('pkm_panel')
         ->group(function (): void {
             Route::get('/', [HppDraftController::class, 'index'])->name('index');
+            Route::post('/resend-all-active-approvals', [HppDraftController::class, 'resendAllActiveApprovals'])
+                ->name('approval.resend-all');
             Route::get('/create', [HppDraftController::class, 'create'])->name('create');
             Route::post('/', [HppDraftController::class, 'store'])->name('store');
             Route::get('/{hpp}/edit', [HppDraftController::class, 'edit'])->whereNumber('hpp')->name('edit');

@@ -89,6 +89,23 @@ class BulkApprovalEmailNotificationTest extends TestCase
         Notification::assertSentTo($terminTwoApprover, ApprovalRequestedNotification::class);
     }
 
+    public function test_pkm_can_resend_all_valid_active_hpp_approvals(): void
+    {
+        Notification::fake();
+
+        $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+        $approver = User::factory()->create(['role' => User::ROLE_APPROVER]);
+        $hpp = $this->hpp($pkm, 'PKM-ACTIVE-HPP', Hpp::STATUS_IN_REVIEW);
+        $this->hppSignature($hpp, $approver, 'pkm-active-hpp-token');
+
+        $this->actingAs($pkm)
+            ->post(route('pkm.hpp.approval.resend-all'))
+            ->assertRedirect()
+            ->assertSessionHas('status', fn (string $message): bool => str_contains($message, '1 email berhasil dikirim'));
+
+        Notification::assertSentTo($approver, ApprovalRequestedNotification::class);
+    }
+
     public function test_non_admin_cannot_use_bulk_resend_endpoints(): void
     {
         $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
@@ -102,12 +119,16 @@ class BulkApprovalEmailNotificationTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_non_pkm_user_cannot_use_pkm_bast_bulk_resend_endpoint(): void
+    public function test_non_pkm_user_cannot_use_pkm_bulk_resend_endpoints(): void
     {
         $user = User::factory()->create(['role' => User::ROLE_USER]);
 
         $this->actingAs($user)
             ->post(route('pkm.lhpp.approval.resend-all'))
+            ->assertForbidden();
+
+        $this->actingAs($user)
+            ->post(route('pkm.hpp.approval.resend-all'))
             ->assertForbidden();
     }
 

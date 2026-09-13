@@ -78,6 +78,32 @@ class BastIndexTabsTest extends TestCase
         $this->assertStringNotContainsString('Terapkan', $source);
     }
 
+    public function test_admin_and_pkm_indexes_display_bast_value_without_decimal_digits(): void
+    {
+        $bast = $this->bast('BAST-WHOLE-RUPIAH', [
+            'total_aktual_biaya' => '1234567.89',
+        ]);
+        $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+
+        $this->actingAs($pkm)
+            ->get(route('pkm.lhpp.index', ['tab' => BastIndexTabs::TAB_IN_PROGRESS]))
+            ->assertOk()
+            ->assertSee('Rp 1.234.568')
+            ->assertDontSee('1.234.567,89');
+
+        $this->actingAs($admin)
+            ->get(route('admin.lhpp.index', ['tab' => BastIndexTabs::TAB_IN_PROGRESS]))
+            ->assertOk()
+            ->assertSee('Rp1.234.568')
+            ->assertDontSee('1.234.567,89');
+
+        $this->assertSame('1234567.89', $bast->fresh()->total_aktual_biaya);
+    }
+
     /** @return list<int> */
     private function ids(BastIndexTabs $tabs, string $tab): array
     {

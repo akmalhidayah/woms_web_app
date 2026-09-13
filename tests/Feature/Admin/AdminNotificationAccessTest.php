@@ -7,11 +7,15 @@ use App\Models\AdminNotificationRead;
 use App\Models\AdminRoleMenuAccess;
 use App\Models\Hpp;
 use App\Models\HppSignature;
+use App\Models\LhppBast;
+use App\Models\LhppBastSignature;
 use App\Models\Order;
 use App\Models\User;
 use App\Support\AdminActionCenter;
 use App\Support\AdminMenuRegistry;
 use App\Support\AdminNotificationCenter;
+use App\Support\BastIndexTabs;
+use App\Support\HppIndexTabs;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -79,6 +83,41 @@ class AdminNotificationAccessTest extends TestCase
         $this->assertFalse($informationKeys->contains('order-sow:'.$order->id));
     }
 
+    public function test_hpp_and_bast_information_open_their_approval_tabs(): void
+    {
+        $admin = $this->admin(User::ADMIN_ROLE_SUPER_ADMIN);
+        $hppSignature = $this->signedHppInformation($admin, 'INFO-HPP-TAB');
+        $bastSignature = $this->signedBastInformation($admin, 'INFO-BAST-TAB');
+
+        $notifications = app(AdminNotificationCenter::class)
+            ->informationNotifications($admin, 10)
+            ->keyBy('key');
+
+        $hppNotification = $notifications->get('hpp-signature:'.$hppSignature->id);
+        $bastNotification = $notifications->get('bast-signature:'.$bastSignature->id);
+        $expectedHppUrl = route('admin.hpp.index', [
+            'tab' => HppIndexTabs::IN_APPROVAL,
+            'search' => 'INFO-HPP-TAB',
+        ]);
+        $expectedBastUrl = route('admin.lhpp.index', [
+            'tab' => BastIndexTabs::TAB_IN_PROGRESS,
+            'search' => 'INFO-BAST-TAB',
+        ]);
+
+        $this->assertSame($expectedHppUrl, $hppNotification['url'] ?? null);
+        $this->assertSame($expectedBastUrl, $bastNotification['url'] ?? null);
+
+        $this->actingAs($admin)->post(route('admin.notifications.read'), [
+            'notification_key' => $hppNotification['key'],
+            'redirect_url' => $hppNotification['url'],
+        ])->assertRedirect($expectedHppUrl);
+
+        $this->actingAs($admin)->post(route('admin.notifications.read'), [
+            'notification_key' => $bastNotification['key'],
+            'redirect_url' => $bastNotification['url'],
+        ])->assertRedirect($expectedBastUrl);
+    }
+
     private function admin(string $adminRole): User
     {
         return User::factory()->create([
@@ -87,7 +126,7 @@ class AdminNotificationAccessTest extends TestCase
         ]);
     }
 
-    private function signedHppInformation(User $creator, string $number): void
+    private function signedHppInformation(User $creator, string $number): HppSignature
     {
         $order = $this->order($creator, $number);
         $hpp = Hpp::query()->create([
@@ -105,7 +144,7 @@ class AdminNotificationAccessTest extends TestCase
         ]);
         $token = Str::random(48);
 
-        HppSignature::query()->create([
+        return HppSignature::query()->create([
             'hpp_id' => $hpp->id,
             'step_order' => 1,
             'role_key' => 'manager_peminta',
@@ -117,6 +156,32 @@ class AdminNotificationAccessTest extends TestCase
             'token_hash' => hash('sha256', $token),
             'token_expires_at' => now()->addDay(),
             'status' => HppSignature::STATUS_SIGNED,
+            'signed_at' => now(),
+        ]);
+    }
+
+    private function signedBastInformation(User $creator, string $number): LhppBastSignature
+    {
+        $order = $this->order($creator, $number);
+        $bast = LhppBast::query()->create([
+            'order_id' => $order->id,
+            'termin_type' => 'termin_1',
+            'nomor_order' => $order->nomor_order,
+            'tanggal_bast' => '2026-08-10',
+            'quality_control_status' => 'approved',
+            'approval_status' => LhppBast::APPROVAL_IN_REVIEW,
+            'created_by' => $creator->id,
+        ]);
+
+        return LhppBastSignature::query()->create([
+            'lhpp_bast_id' => $bast->id,
+            'step_order' => 1,
+            'role_key' => 'manager_pkm',
+            'role_label' => 'Manager PKM',
+            'signer_user_id' => $creator->id,
+            'signer_name_snapshot' => $creator->name,
+            'signer_position_snapshot' => 'Manager PKM',
+            'status' => LhppBastSignature::STATUS_SIGNED,
             'signed_at' => now(),
         ]);
     }

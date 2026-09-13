@@ -100,6 +100,25 @@ class HppIndexTabsTest extends TestCase
             ->assertSee(route('pkm.hpp.approval.resend-all'), false);
     }
 
+    public function test_admin_and_pkm_indexes_display_hpp_value_without_decimal_digits(): void
+    {
+        $admin = $this->admin();
+        $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+        $hpp = $this->hpp($admin, Hpp::STATUS_DRAFT, 'WHOLE-RUPIAH');
+        $hpp->forceFill(['total_keseluruhan' => '1234567.89'])->saveQuietly();
+
+        foreach ([
+            [$admin, 'admin.hpp.index'],
+            [$pkm, 'pkm.hpp.index'],
+        ] as [$user, $routeName]) {
+            $this->actingAs($user)
+                ->get(route($routeName))
+                ->assertOk()
+                ->assertSee('Rp 1.234.568')
+                ->assertDontSee('Rp 1.234.567,89');
+        }
+    }
+
     public function test_search_only_filters_active_tab_and_invalid_tab_falls_back_to_action(): void
     {
         $admin = $this->admin();

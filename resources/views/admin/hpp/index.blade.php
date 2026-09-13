@@ -1,14 +1,6 @@
 <x-layouts.admin title="Create HPP">
     @php
-        $formatRupiah = function ($value): string {
-            $normalized = number_format((float) $value, 2, ',', '.');
-
-            if (str_ends_with($normalized, ',00')) {
-                return substr($normalized, 0, -3);
-            }
-
-            return rtrim(rtrim($normalized, '0'), ',');
-        };
+        $formatRupiah = fn ($value): string => number_format((float) $value, 0, ',', '.');
         $pendingHppOrders = collect($pendingHppOrders ?? []);
         $approvalReassignmentUserOptions = ($approvalReassignmentUsers ?? collect())
             ->map(fn ($user) => [

@@ -246,7 +246,7 @@
                                     </td>
 
                                     <td class="px-3 py-2 text-right">
-                                        <div class="font-semibold">Rp {{ number_format($totalBiaya, 2, ',', '.') }}</div>
+                                        <div class="font-semibold">Rp {{ number_format($totalBiaya, 0, ',', '.') }}</div>
                                         @if (! is_null($termin1Amount))
                                             <div class="mt-1 text-[10px] font-medium text-emerald-600">
                                                 {{ $isWithoutWarranty ? 'Total Dibayar' : 'Termin 1' }}: Rp {{ number_format($termin1Amount, 0, ',', '.') }}

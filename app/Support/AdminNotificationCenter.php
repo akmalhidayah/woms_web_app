@@ -139,7 +139,10 @@ class AdminNotificationCenter
                 ),
                 'meta' => $signature->role_label,
                 'signed_at' => $signature->signed_at,
-                'url' => route('admin.hpp.index', ['search' => $signature->hpp?->nomor_order]),
+                'url' => route('admin.hpp.index', [
+                    'tab' => HppIndexTabs::IN_APPROVAL,
+                    'search' => $signature->hpp?->nomor_order,
+                ]),
             ]);
     }
 
@@ -207,7 +210,10 @@ class AdminNotificationCenter
                 ),
                 'meta' => $signature->role_label,
                 'signed_at' => $signature->signed_at,
-                'url' => route('admin.lhpp.index', ['search' => $signature->lhppBast?->nomor_order]),
+                'url' => route('admin.lhpp.index', [
+                    'tab' => BastIndexTabs::TAB_IN_PROGRESS,
+                    'search' => $signature->lhppBast?->nomor_order,
+                ]),
             ]);
     }
 

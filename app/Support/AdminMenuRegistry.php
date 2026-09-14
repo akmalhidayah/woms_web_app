@@ -90,6 +90,17 @@ class AdminMenuRegistry
                 'route_name' => 'admin.orders.workshop.index',
                 'active_patterns' => ['admin.orders.workshop.index', 'admin.orders.workshop.store', 'admin.orders.workshop.start', 'admin.orders.workshop.update'],
             ],
+            self::MENU_DAILY_REPORT => [
+                'key' => self::MENU_DAILY_REPORT,
+                'permission_key' => self::MENU_APPSHEET,
+                'label' => 'Laporan Harian',
+                'icon' => 'clipboard-list',
+                'group' => 'workshop',
+                'route_name' => 'admin.daily-report.index',
+                'active_patterns' => ['admin.daily-report.*'],
+                'configurable' => false,
+                'access_control_hidden' => true,
+            ],
             self::MENU_CREATE_HPP => [
                 'key' => self::MENU_CREATE_HPP,
                 'label' => 'Create HPP',
@@ -209,17 +220,6 @@ class AdminMenuRegistry
                         'active_patterns' => ['admin.appsheet.stock-consumable.*'],
                     ],
                 ],
-            ],
-            self::MENU_DAILY_REPORT => [
-                'key' => self::MENU_DAILY_REPORT,
-                'permission_key' => self::MENU_APPSHEET,
-                'label' => 'Laporan Harian',
-                'icon' => 'clipboard-list',
-                'group' => 'support',
-                'route_name' => 'admin.daily-report.index',
-                'active_patterns' => ['admin.daily-report.*'],
-                'configurable' => false,
-                'access_control_hidden' => true,
             ],
             self::MENU_ACCESS_CONTROL => [
                 'key' => self::MENU_ACCESS_CONTROL,
@@ -379,7 +379,6 @@ class AdminMenuRegistry
         return [
             'dashboard' => $items[self::MENU_DASHBOARD] ?? null,
             'appsheet' => $items[self::MENU_APPSHEET] ?? null,
-            'daily_report' => $items[self::MENU_DAILY_REPORT] ?? null,
             'orders' => null,
             'main' => array_values(array_filter(
                 $items,
@@ -394,7 +393,7 @@ class AdminMenuRegistry
             'support' => array_values(array_filter(
                 $items,
                 fn (array $item) => $item['group'] === 'support'
-                    && ! in_array($item['key'], [self::MENU_APPSHEET, self::MENU_DAILY_REPORT], true),
+                    && $item['key'] !== self::MENU_APPSHEET,
             )),
             'other' => array_values(array_filter(
                 $items,

@@ -693,7 +693,6 @@
             $sidebarMenus = \App\Support\AdminMenuRegistry::sidebarForUser($user);
             $dashboardMenu = $sidebarMenus['dashboard'];
             $appsheetMenu = $sidebarMenus['appsheet'] ?? null;
-            $dailyReportMenu = $sidebarMenus['daily_report'] ?? null;
             $orderMenu = $sidebarMenus['orders'] ?? null;
             $mainMenus = $sidebarMenus['main'];
             $workshopMenus = $sidebarMenus['workshop'];
@@ -874,20 +873,6 @@
                                     @endforeach
                                 </div>
                             </div>
-                        @endif
-
-                        @if ($dailyReportMenu)
-                            @php($dailyReportActive = $dailyReportMenu['active'] ?? false)
-                            <a
-                                href="{{ $dailyReportMenu['href'] }}"
-                                @if ($dailyReportActive) aria-current="page" @endif
-                                class="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ $dailyReportActive ? 'bg-white text-blue-900 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
-                            >
-                                <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition {{ $dailyReportActive ? 'bg-blue-100 text-blue-900' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
-                                    <i data-lucide="{{ $dailyReportMenu['icon'] }}" class="h-4 w-4"></i>
-                                </span>
-                                <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="font-medium">{{ $dailyReportMenu['label'] }}</span>
-                            </a>
                         @endif
 
                         @if ($orderMenu || $mainMenus !== [])

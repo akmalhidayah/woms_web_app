@@ -92,14 +92,11 @@ class AdminMenuRegistry
             ],
             self::MENU_DAILY_REPORT => [
                 'key' => self::MENU_DAILY_REPORT,
-                'permission_key' => self::MENU_APPSHEET,
                 'label' => 'Laporan Harian',
                 'icon' => 'clipboard-list',
                 'group' => 'workshop',
                 'route_name' => 'admin.daily-report.index',
                 'active_patterns' => ['admin.daily-report.*'],
-                'configurable' => false,
-                'access_control_hidden' => true,
             ],
             self::MENU_CREATE_HPP => [
                 'key' => self::MENU_CREATE_HPP,

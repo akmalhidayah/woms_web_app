@@ -156,19 +156,24 @@ Route::middleware(['auth'])->group(function () {
 
     Route::prefix('admin/appsheet')
         ->name('admin.appsheet.')
-        ->middleware(['role:admin', 'admin_menu:appsheet'])
+        ->middleware('role:admin')
         ->group(function () {
-            Route::get('google/connect', [GoogleOAuthController::class, 'connect'])
-                ->name('google.connect');
-            Route::get('google/callback', [GoogleOAuthController::class, 'callback'])
-                ->name('google.callback');
-            Route::get('media/{key}', [AppSheetMediaController::class, 'show'])
-                ->where('key', '[a-f0-9]{64}')
-                ->name('media.show');
-            Route::get('history-consumable', [AppSheetController::class, 'historyConsumable'])
-                ->name('history-consumable.index');
-            Route::get('stock-consumable', [AppSheetController::class, 'stockConsumable'])
-                ->name('stock-consumable.index');
+            Route::middleware('admin_menu:appsheet,daily_report')->group(function () {
+                Route::get('google/connect', [GoogleOAuthController::class, 'connect'])
+                    ->name('google.connect');
+                Route::get('google/callback', [GoogleOAuthController::class, 'callback'])
+                    ->name('google.callback');
+                Route::get('media/{key}', [AppSheetMediaController::class, 'show'])
+                    ->where('key', '[a-f0-9]{64}')
+                    ->name('media.show');
+            });
+
+            Route::middleware('admin_menu:appsheet')->group(function () {
+                Route::get('history-consumable', [AppSheetController::class, 'historyConsumable'])
+                    ->name('history-consumable.index');
+                Route::get('stock-consumable', [AppSheetController::class, 'stockConsumable'])
+                    ->name('stock-consumable.index');
+            });
         });
 
     Route::get('admin/laporan-harian', DailyReportController::class)

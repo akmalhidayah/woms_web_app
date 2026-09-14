@@ -21,6 +21,7 @@ class GoogleSheetsReaderTest extends TestCase
             'services.google.spreadsheet_id' => 'test-spreadsheet',
             'services.google.history_consumable_sheet' => 'HISTORY CONS',
             'services.google.stock_consumable_sheet' => 'STOCK CONS BMS',
+            'services.google.data_sheet' => 'Data',
         ]);
         $cache = Cache::store('array');
         Cache::shouldReceive('store')->with('file')->andReturn($cache);
@@ -99,10 +100,53 @@ class GoogleSheetsReaderTest extends TestCase
         self::assertSame(115, $row['SPARE STOCK']);
         self::assertSame('KONSUMABEL UMUM', $row['SUB CATEGORY']);
         self::assertSame('10/04/2025', $row['INPUT DATE']);
-        self::assertArrayNotHasKey('IMG', $row);
+        self::assertSame('photo.jpg', $row['IMG']);
         self::assertArrayNotHasKey('LOC ID', $row);
-        self::assertArrayNotHasKey('SIZE', $row);
+        self::assertSame('3,2 mm', $row['SIZE']);
         self::assertArrayNotHasKey('QTY', $row);
+    }
+
+    public function test_requester_profiles_fetch_only_required_data_columns_without_password_values(): void
+    {
+        Http::fake([
+            'sheets.googleapis.com/*' => Http::sequence()
+                ->push([
+                    'range' => "'Data'!1:1",
+                    'values' => [[
+                        'KATA SANDI', 'IMG', 'NAMA', 'SHIFT', 'JABATAN', 'REGU', 'FIELD LAIN',
+                    ]],
+                ])
+                ->push([
+                    'spreadsheetId' => 'test-spreadsheet',
+                    'valueRanges' => [
+                        ['range' => "'Data'!C2:C", 'values' => [[' Hadi Purnomo ']]],
+                        ['range' => "'Data'!F2:F", 'values' => [['A']]],
+                        ['range' => "'Data'!D2:D", 'values' => [['1']]],
+                        ['range' => "'Data'!E2:E", 'values' => [['Teknisi']]],
+                        ['range' => "'Data'!B2:B", 'values' => [['Data_Images/Hadi.png']]],
+                    ],
+                ]),
+        ]);
+
+        $rows = $this->reader()->requesterProfiles();
+
+        self::assertSame([[
+            'NAMA' => ' Hadi Purnomo ',
+            'REGU' => 'A',
+            'SHIFT' => '1',
+            'JABATAN' => 'Teknisi',
+            'IMG' => 'Data_Images/Hadi.png',
+        ]], $rows);
+        self::assertSame(GoogleSheetsReader::PROFILE_HEADERS, array_keys($rows[0]));
+        Http::assertSent(function ($request): bool {
+            $url = rawurldecode($request->url());
+
+            return str_contains($url, '/values:batchGet?')
+                && str_contains($url, "ranges='Data'!C2:C")
+                && str_contains($url, "ranges='Data'!B2:B")
+                && ! str_contains($url, "ranges='Data'!A2:A")
+                && ! str_contains($url, 'KATA SANDI');
+        });
     }
 
     public function test_api_token_failure_requests_reconnection_without_returning_response_body(): void

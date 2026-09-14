@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AccessControlController;
 use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\ApprovalSignatureReassignmentController;
 use App\Http\Controllers\Admin\AppSheet\AppSheetController;
+use App\Http\Controllers\Admin\AppSheet\AppSheetMediaController;
 use App\Http\Controllers\Admin\AppSheet\GoogleOAuthController;
 use App\Http\Controllers\Admin\BengkelPicController;
 use App\Http\Controllers\Admin\BengkelTaskController;
@@ -160,6 +161,9 @@ Route::middleware(['auth'])->group(function () {
                 ->name('google.connect');
             Route::get('google/callback', [GoogleOAuthController::class, 'callback'])
                 ->name('google.callback');
+            Route::get('media/{key}', [AppSheetMediaController::class, 'show'])
+                ->where('key', '[a-f0-9]{64}')
+                ->name('media.show');
             Route::get('history-consumable', [AppSheetController::class, 'historyConsumable'])
                 ->name('history-consumable.index');
             Route::get('stock-consumable', [AppSheetController::class, 'stockConsumable'])

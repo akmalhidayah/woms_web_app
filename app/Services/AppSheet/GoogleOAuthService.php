@@ -76,6 +76,20 @@ class GoogleOAuthService
         });
     }
 
+    public function hasDriveReadScope(): bool
+    {
+        return $this->withTokenLock(function (): bool {
+            $tokens = $this->readTokens();
+            $scope = is_string($tokens['scope'] ?? null) ? trim($tokens['scope']) : '';
+
+            return in_array(
+                self::DRIVE_SCOPE,
+                preg_split('/\s+/', $scope, -1, PREG_SPLIT_NO_EMPTY) ?: [],
+                true,
+            );
+        });
+    }
+
     /**
      * Access token hanya untuk pemakaian server-side oleh service AppSheet.
      */

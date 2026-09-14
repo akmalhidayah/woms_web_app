@@ -3,6 +3,8 @@
 namespace Tests\Feature\AppSheet;
 
 use App\Models\User;
+use App\Services\AppSheet\AppSheetProfileDirectoryService;
+use App\Services\AppSheet\GoogleDriveMediaService;
 use App\Services\AppSheet\GoogleOAuthService;
 use App\Services\AppSheet\GoogleSheetsReader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -171,6 +173,52 @@ class AppSheetControllerTest extends TestCase
         self::assertSame('INVALID', collect($lastPage->items())->last()['UID']);
     }
 
+    public function test_history_renders_requester_profile_avatar_and_modern_badges(): void
+    {
+        $this->mockHistoryRows([
+            $this->historyRow('WITH-AVATAR', '11/09/2026 16.05.14'),
+        ], [
+            'name' => 'Hadi Purnomo',
+            'position' => 'Teknisi Senior',
+            'regu' => 'A',
+            'shift' => '1',
+            'image_path' => 'Data_Images/Hadi.png',
+            'initials' => 'HP',
+        ], '/admin/appsheet/media/'.str_repeat('a', 64));
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.appsheet.history-consumable.index'))
+            ->assertOk()
+            ->assertSee('Hadi Purnomo')
+            ->assertSee('Teknisi Senior')
+            ->assertSee('Regu A')
+            ->assertSee('16:05:14')
+            ->assertSee('loading="lazy"', false)
+            ->assertSee('/admin/appsheet/media/'.str_repeat('a', 64), false);
+    }
+
+    public function test_stock_renders_exact_row_image_and_keeps_rows_without_images(): void
+    {
+        $rows = [
+            $this->stockRow('WITH-IMAGE', [
+                'IMG' => 'STOCK CONS BMS_Images/WITH-IMAGE.IMG.1.jpg',
+                'SIZE' => '3,2 mm',
+            ]),
+            $this->stockRow('WITHOUT-IMAGE', ['IMG' => '']),
+        ];
+        $this->mockStockRows($rows, 1, '/admin/appsheet/media/'.str_repeat('b', 64));
+
+        $response = $this->actingAs($this->admin())
+            ->get(route('admin.appsheet.stock-consumable.index'))
+            ->assertOk()
+            ->assertSee('WITH-IMAGE')
+            ->assertSee('WITHOUT-IMAGE')
+            ->assertSee('Size 3,2 mm')
+            ->assertSee('loading="lazy"', false);
+
+        self::assertCount(2, $response->viewData('rows')->items());
+    }
+
     private function admin(): User
     {
         return User::factory()->create([
@@ -179,26 +227,46 @@ class AppSheetControllerTest extends TestCase
         ]);
     }
 
-    private function mockHistoryRows(array $rows): void
+    private function mockHistoryRows(array $rows, ?array $resolvedProfile = null, ?string $avatarUrl = null): void
     {
         $google = Mockery::mock(GoogleOAuthService::class);
         $google->shouldReceive('isConnected')->once()->andReturnTrue();
         $reader = Mockery::mock(GoogleSheetsReader::class);
         $reader->shouldReceive('historyConsumable')->once()->andReturn($rows);
+        $profiles = Mockery::mock(AppSheetProfileDirectoryService::class);
+        $profiles->shouldReceive('resolve')->andReturnUsing(function (mixed $name) use ($resolvedProfile): array {
+            return $resolvedProfile ?? [
+                'name' => trim((string) $name) ?: 'Tidak diketahui',
+                'position' => '',
+                'regu' => '',
+                'shift' => '',
+                'image_path' => '',
+                'initials' => 'T',
+            ];
+        });
+        $media = Mockery::mock(GoogleDriveMediaService::class);
+        $media->shouldReceive('mediaUrl')->andReturn($avatarUrl);
 
         $this->app->instance(GoogleOAuthService::class, $google);
         $this->app->instance(GoogleSheetsReader::class, $reader);
+        $this->app->instance(AppSheetProfileDirectoryService::class, $profiles);
+        $this->app->instance(GoogleDriveMediaService::class, $media);
     }
 
-    private function mockStockRows(array $rows, int $times = 1): void
+    private function mockStockRows(array $rows, int $times = 1, ?string $imageUrl = null): void
     {
         $google = Mockery::mock(GoogleOAuthService::class);
         $google->shouldReceive('isConnected')->times($times)->andReturnTrue();
         $reader = Mockery::mock(GoogleSheetsReader::class);
         $reader->shouldReceive('stockConsumable')->times($times)->andReturn($rows);
+        $media = Mockery::mock(GoogleDriveMediaService::class);
+        $media->shouldReceive('mediaUrl')->andReturnUsing(
+            fn (string $collection, mixed $path): ?string => trim((string) $path) !== '' ? $imageUrl : null,
+        );
 
         $this->app->instance(GoogleOAuthService::class, $google);
         $this->app->instance(GoogleSheetsReader::class, $reader);
+        $this->app->instance(GoogleDriveMediaService::class, $media);
     }
 
     private function historyRow(string $uid, mixed $date): array
@@ -220,8 +288,10 @@ class AppSheetControllerTest extends TestCase
     {
         return [
             'UID' => $uid,
+            'IMG' => '',
             'TYPE CATEGORY' => 'DEFAULT TYPE',
             'DESC.' => 'Default description',
+            'SIZE' => '',
             'STOCK IN' => 10,
             'STOCK OUT' => 5,
             'SPARE STOCK' => 5,

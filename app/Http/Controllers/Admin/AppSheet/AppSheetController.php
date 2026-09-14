@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin\AppSheet;
 use App\Exceptions\AppSheet\GoogleOAuthException;
 use App\Exceptions\AppSheet\GoogleSheetsException;
 use App\Http\Controllers\Controller;
+use App\Services\AppSheet\AppSheetProfileDirectoryService;
+use App\Services\AppSheet\GoogleDriveMediaService;
 use App\Services\AppSheet\GoogleOAuthService;
 use App\Services\AppSheet\GoogleSheetsReader;
 use App\Support\AppSheet\ConsumableData;
@@ -16,8 +18,13 @@ use Illuminate\View\View;
 
 class AppSheetController extends Controller
 {
-    public function historyConsumable(Request $request, GoogleOAuthService $google, GoogleSheetsReader $reader): View
-    {
+    public function historyConsumable(
+        Request $request,
+        GoogleOAuthService $google,
+        GoogleSheetsReader $reader,
+        AppSheetProfileDirectoryService $profiles,
+        GoogleDriveMediaService $driveMedia,
+    ): View {
         $data = $this->loadSheet($google, fn () => $reader->historyConsumable());
         $filters = [
             'search' => $this->filter($request, 'search'),
@@ -42,17 +49,33 @@ class AppSheetController extends Controller
             && ($filters['date'] === '' || $row['_date'] === $filters['date'])
         ));
         unset($data['sheetRows']);
+        $paginatedRows = $this->paginate($rows, $request, $filters);
+        $paginatedRows->setCollection($paginatedRows->getCollection()->map(function (array $row) use ($profiles, $driveMedia): array {
+            $requester = $profiles->resolve($row['INPUT BY'] ?? '');
+
+            return $row + [
+                '_requester' => $requester,
+                '_requester_avatar_url' => $driveMedia->mediaUrl(
+                    GoogleDriveMediaService::REQUESTER_COLLECTION,
+                    $requester['image_path'],
+                ),
+            ];
+        }));
 
         return view('admin.appsheet.history-consumable', $data + [
             'filters' => $filters,
             'categories' => $categories,
-            'rows' => $this->paginate($rows, $request, $filters),
+            'rows' => $paginatedRows,
             'totalRows' => $allRows->count(),
         ]);
     }
 
-    public function stockConsumable(Request $request, GoogleOAuthService $google, GoogleSheetsReader $reader): View
-    {
+    public function stockConsumable(
+        Request $request,
+        GoogleOAuthService $google,
+        GoogleSheetsReader $reader,
+        GoogleDriveMediaService $driveMedia,
+    ): View {
         $data = $this->loadSheet($google, fn () => $reader->stockConsumable());
         $filters = [
             'search' => $this->filter($request, 'search'),
@@ -72,16 +95,20 @@ class AppSheetController extends Controller
                 ];
             });
         $subCategories = $this->options($allRows, 'SUB CATEGORY');
-        $rows = $this->newestFirst($allRows->filter(fn (array $row): bool => ConsumableData::matchesSearch($row, ['UID', 'TYPE CATEGORY', 'DESC.', 'SUB CATEGORY', 'LOC', 'STN'], $filters['search'])
+        $rows = $this->newestFirst($allRows->filter(fn (array $row): bool => ConsumableData::matchesSearch($row, ['UID', 'TYPE CATEGORY', 'DESC.', 'SIZE', 'SUB CATEGORY', 'LOC', 'STN'], $filters['search'])
             && ($filters['jenis'] === '' || trim((string) $row['SUB CATEGORY']) === $filters['jenis'])
             && ($filters['status'] === '' || $row['_stock_status'] === $filters['status'])
         ));
         unset($data['sheetRows']);
+        $paginatedRows = $this->paginate($rows, $request, $filters);
+        $paginatedRows->setCollection($paginatedRows->getCollection()->map(fn (array $row): array => $row + [
+            '_image_url' => $driveMedia->mediaUrl(GoogleDriveMediaService::STOCK_COLLECTION, $row['IMG'] ?? ''),
+        ]));
 
         return view('admin.appsheet.stock-consumable', $data + [
             'filters' => $filters,
             'subCategories' => $subCategories,
-            'rows' => $this->paginate($rows, $request, $filters),
+            'rows' => $paginatedRows,
             'totalRows' => $allRows->count(),
         ]);
     }
@@ -132,7 +159,10 @@ class AppSheetController extends Controller
             '_date' => $date?->format('Y-m-d'),
             '_sort_timestamp' => ConsumableData::dateTimestamp($date),
             '_source_index' => $sourceIndex,
-            '_date_display' => ConsumableData::displayDate($dateValue),
+            '_date_display' => $date?->format('d/m/Y') ?? ConsumableData::displayDate($dateValue),
+            '_time_display' => $date !== null && $date->format('H:i:s') !== '00:00:00'
+                ? $date->format('H:i:s')
+                : null,
         ];
     }
 

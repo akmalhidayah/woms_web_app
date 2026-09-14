@@ -50,7 +50,8 @@ class GoogleOAuthServiceTest extends TestCase
             )),
         ]);
 
-        (new GoogleOAuthService)->exchangeCode('authorization-code');
+        $google = new GoogleOAuthService;
+        $google->exchangeCode('authorization-code');
 
         $encrypted = Storage::disk('local')->get(self::TOKEN_PATH);
         self::assertStringNotContainsString('new-access-token', $encrypted);
@@ -60,6 +61,7 @@ class GoogleOAuthServiceTest extends TestCase
         self::assertSame('new-access-token', $tokens['access_token']);
         self::assertSame('new-refresh-token', $tokens['refresh_token']);
         self::assertSame(implode(' ', GoogleOAuthService::SCOPES), $tokens['scope']);
+        self::assertTrue($google->hasDriveReadScope());
     }
 
     public function test_authorization_code_response_without_drive_scope_is_rejected(): void
@@ -147,6 +149,7 @@ class GoogleOAuthServiceTest extends TestCase
         $google = new GoogleOAuthService;
 
         self::assertTrue($google->isConnected());
+        self::assertFalse($google->hasDriveReadScope());
         self::assertSame('legacy-access-token', $google->accessToken());
         Http::assertNothingSent();
     }

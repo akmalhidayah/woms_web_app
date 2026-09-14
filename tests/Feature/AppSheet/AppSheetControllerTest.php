@@ -140,18 +140,11 @@ class AppSheetControllerTest extends TestCase
         );
     }
 
-    public function test_stock_is_sorted_before_pagination_with_invalid_dates_last(): void
+    public function test_stock_is_naturally_sorted_by_uid_before_pagination(): void
     {
-        $rows = [
-            $this->stockRow('INVALID', ['INPUT DATE' => 'not-a-date']),
-            $this->stockRow('JANUARY', ['INPUT DATE' => '31/01/2026']),
-            $this->stockRow('DECEMBER', ['INPUT DATE' => '01/12/2026']),
-            $this->stockRow('LATEST', ['INPUT DATE' => '31/12/2026 15:00']),
-            $this->stockRow('SAME-DAY-EARLIER', ['INPUT DATE' => '31/12/2026 10:00']),
-        ];
-
-        foreach (range(1, 48) as $index) {
-            $rows[] = $this->stockRow('OLD-'.$index, ['INPUT DATE' => '01/01/2025']);
+        $rows = [];
+        foreach (array_reverse(range(1, 53)) as $index) {
+            $rows[] = $this->stockRow('BMS-C'.$index, ['INPUT DATE' => '01/01/2025']);
         }
 
         $this->mockStockRows($rows);
@@ -162,15 +155,16 @@ class AppSheetControllerTest extends TestCase
         $paginator = $response->viewData('rows');
 
         self::assertSame(53, $paginator->total());
-        self::assertSame('LATEST', $paginator->items()[0]['UID']);
-        self::assertSame('SAME-DAY-EARLIER', $paginator->items()[1]['UID']);
+        self::assertSame('BMS-C1', $paginator->items()[0]['UID']);
+        self::assertSame('BMS-C2', $paginator->items()[1]['UID']);
+        self::assertSame('BMS-C50', collect($paginator->items())->last()['UID']);
 
         $this->mockStockRows($rows);
-        $lastPage = $this->actingAs($this->admin())
+        $secondPage = $this->actingAs($this->admin())
             ->get(route('admin.appsheet.stock-consumable.index', ['page' => 2]))
             ->viewData('rows');
 
-        self::assertSame('INVALID', collect($lastPage->items())->last()['UID']);
+        self::assertSame(['BMS-C51', 'BMS-C52', 'BMS-C53'], collect($secondPage->items())->pluck('UID')->all());
     }
 
     public function test_history_renders_requester_profile_avatar_and_modern_badges(): void

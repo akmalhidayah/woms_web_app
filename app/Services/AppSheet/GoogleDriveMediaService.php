@@ -5,6 +5,7 @@ namespace App\Services\AppSheet;
 use App\Exceptions\AppSheet\GoogleOAuthException;
 use App\Support\AppSheet\GoogleDriveMedia;
 use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -149,12 +150,12 @@ class GoogleDriveMediaService
     }
 
     /**
-     * @return array{found: bool, id?: string, mime_type?: string, size?: int}|null
+     * @return array{found: bool, id?: string, mime_type?: string, size?: int, thumbnail_url?: string}|null
      */
     private function resolveFile(string $folderId, string $filename, #[SensitiveParameter] string $token): ?array
     {
         $cache = Cache::store('file');
-        $cacheKey = 'appsheet:drive:file:'.hash('sha256', $folderId."\0".$filename);
+        $cacheKey = 'appsheet:drive:file:v2:'.hash('sha256', $folderId."\0".$filename);
         $cached = $cache->get($cacheKey);
         if (is_array($cached) && array_key_exists('found', $cached)) {
             return $cached;
@@ -180,7 +181,7 @@ class GoogleDriveMediaService
     }
 
     /**
-     * @return array{found: bool, id?: string, mime_type?: string, size?: int}|null
+     * @return array{found: bool, id?: string, mime_type?: string, size?: int, thumbnail_url?: string}|null
      */
     private function lookupFile(string $folderId, string $filename, #[SensitiveParameter] string $token): ?array
     {
@@ -191,7 +192,7 @@ class GoogleDriveMediaService
             ->withoutRedirecting()
             ->get('https://www.googleapis.com/drive/v3/files', [
                 'q' => "'".$this->escapeQueryValue($folderId)."' in parents and name = '".$this->escapeQueryValue($filename)."' and trashed = false",
-                'fields' => 'files(id,name,mimeType,size)',
+                'fields' => 'files(id,name,mimeType,size,thumbnailLink)',
                 'pageSize' => 2,
                 'spaces' => 'drive',
                 'supportsAllDrives' => 'true',
@@ -215,36 +216,49 @@ class GoogleDriveMediaService
             $id = $file['id'] ?? null;
             $mimeType = $file['mimeType'] ?? null;
             $size = filter_var($file['size'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
+            $thumbnailUrl = $this->safeThumbnailUrl($file['thumbnailLink'] ?? null);
             if (! is_string($id) || ! preg_match('/\A[A-Za-z0-9_-]{10,200}\z/', $id)
                 || ! is_string($mimeType) || ! in_array($mimeType, self::IMAGE_MIME_TYPES, true)
-                || $size === false || $size > self::MAX_IMAGE_BYTES) {
+                || $size === false || ($thumbnailUrl === null && $size > self::MAX_IMAGE_BYTES)) {
                 return ['found' => false];
             }
 
-            return [
+            $resolved = [
                 'found' => true,
                 'id' => $id,
                 'mime_type' => $mimeType,
                 'size' => $size,
             ];
+            if ($thumbnailUrl !== null) {
+                $resolved['thumbnail_url'] = $thumbnailUrl;
+            }
+
+            return $resolved;
         }
 
         return ['found' => false];
     }
 
     /**
-     * @param  array{found: bool, id?: string, mime_type?: string, size?: int}  $file
+     * @param  array{found: bool, id?: string, mime_type?: string, size?: int, thumbnail_url?: string}  $file
      */
     private function download(array $file, #[SensitiveParameter] string $token): ?GoogleDriveMedia
     {
-        $response = Http::withToken($token)
-            ->connectTimeout(5)
-            ->timeout(20)
-            ->withoutRedirecting()
-            ->get('https://www.googleapis.com/drive/v3/files/'.rawurlencode($file['id']), [
-                'alt' => 'media',
-                'supportsAllDrives' => 'true',
-            ]);
+        $response = $this->thumbnailResponse($file, $token);
+        if ($response === null || ! $response->successful()) {
+            if (($file['size'] ?? self::MAX_IMAGE_BYTES + 1) > self::MAX_IMAGE_BYTES) {
+                return null;
+            }
+
+            $response = Http::withToken($token)
+                ->connectTimeout(5)
+                ->timeout(20)
+                ->withoutRedirecting()
+                ->get('https://www.googleapis.com/drive/v3/files/'.rawurlencode($file['id']), [
+                    'alt' => 'media',
+                    'supportsAllDrives' => 'true',
+                ]);
+        }
 
         if (! $response->successful()) {
             return null;
@@ -258,6 +272,45 @@ class GoogleDriveMediaService
         }
 
         return new GoogleDriveMedia($contents, $mimeType);
+    }
+
+    /**
+     * @param  array{thumbnail_url?: string}  $file
+     */
+    private function thumbnailResponse(array $file, #[SensitiveParameter] string $token): ?Response
+    {
+        if (! is_string($file['thumbnail_url'] ?? null)) {
+            return null;
+        }
+
+        return Http::withToken($token)
+            ->connectTimeout(5)
+            ->timeout(15)
+            ->withoutRedirecting()
+            ->get($file['thumbnail_url']);
+    }
+
+    private function safeThumbnailUrl(mixed $url): ?string
+    {
+        if (! is_string($url) || trim($url) === '') {
+            return null;
+        }
+
+        $url = trim($url);
+        $scheme = parse_url($url, PHP_URL_SCHEME);
+        $host = parse_url($url, PHP_URL_HOST);
+        $port = parse_url($url, PHP_URL_PORT);
+        $user = parse_url($url, PHP_URL_USER);
+        $password = parse_url($url, PHP_URL_PASS);
+        $allowedHost = is_string($host)
+            && ($host === 'drive.google.com' || str_ends_with($host, '.googleusercontent.com'));
+
+        if ($scheme !== 'https' || ! $allowedHost || ($port !== null && $port !== 443)
+            || $user !== null || $password !== null) {
+            return null;
+        }
+
+        return $url;
     }
 
     private function escapeQueryValue(string $value): string

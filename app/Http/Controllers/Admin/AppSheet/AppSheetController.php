@@ -95,7 +95,7 @@ class AppSheetController extends Controller
                 ];
             });
         $subCategories = $this->options($allRows, 'SUB CATEGORY');
-        $rows = $this->newestFirst($allRows->filter(fn (array $row): bool => ConsumableData::matchesSearch($row, ['UID', 'TYPE CATEGORY', 'DESC.', 'SIZE', 'SUB CATEGORY', 'LOC', 'STN'], $filters['search'])
+        $rows = $this->uidAscending($allRows->filter(fn (array $row): bool => ConsumableData::matchesSearch($row, ['UID', 'TYPE CATEGORY', 'DESC.', 'SIZE', 'SUB CATEGORY', 'LOC', 'STN'], $filters['search'])
             && ($filters['jenis'] === '' || trim((string) $row['SUB CATEGORY']) === $filters['jenis'])
             && ($filters['status'] === '' || $row['_stock_status'] === $filters['status'])
         ));
@@ -184,6 +184,20 @@ class AppSheetController extends Controller
             }
 
             return $left['_source_index'] <=> $right['_source_index'];
+        })->values();
+    }
+
+    private function uidAscending(Collection $rows): Collection
+    {
+        return $rows->sort(function (array $left, array $right): int {
+            $uidOrder = strnatcasecmp(
+                trim((string) ($left['UID'] ?? '')),
+                trim((string) ($right['UID'] ?? '')),
+            );
+
+            return $uidOrder !== 0
+                ? $uidOrder
+                : $left['_source_index'] <=> $right['_source_index'];
         })->values();
     }
 

@@ -23,14 +23,14 @@
                 <i data-lucide="sliders-horizontal" class="h-4 w-4 text-blue-600" aria-hidden="true"></i>
                 Filter transaksi
             </div>
-            <form method="GET" action="{{ route('admin.appsheet.history-consumable.index') }}" class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <form method="GET" action="{{ route('admin.appsheet.history-consumable.index') }}" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(260px,2fr)_minmax(130px,0.8fr)_minmax(150px,1fr)_minmax(150px,0.9fr)_auto] xl:items-end">
                 <div>
                     <label for="history-consumable-search" class="mb-1.5 block text-[11px] font-semibold text-slate-600">Search</label>
-                    <input id="history-consumable-search" name="search" value="{{ $filters['search'] }}" type="search" placeholder="UID, consumable, requester, tujuan..." class="block w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 text-xs text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
+                    <input id="history-consumable-search" name="search" value="{{ $filters['search'] }}" type="search" placeholder="UID, consumable, requester, tujuan..." class="block h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
                 </div>
                 <div>
                     <label for="history-consumable-type" class="mb-1.5 block text-[11px] font-semibold text-slate-600">Input Type</label>
-                    <select id="history-consumable-type" name="input_type" class="block w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 text-xs text-slate-700 outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
+                    <select id="history-consumable-type" name="input_type" class="block h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs text-slate-700 outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
                         <option value="">Semua tipe transaksi</option>
                         <option value="STOCK IN" @selected($filters['input_type'] === 'STOCK IN')>STOCK IN</option>
                         <option value="STOCK OUT" @selected($filters['input_type'] === 'STOCK OUT')>STOCK OUT</option>
@@ -38,7 +38,7 @@
                 </div>
                 <div>
                     <label for="history-consumable-category" class="mb-1.5 block text-[11px] font-semibold text-slate-600">Category</label>
-                    <select id="history-consumable-category" name="category" class="block w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 text-xs text-slate-700 outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
+                    <select id="history-consumable-category" name="category" class="block h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs text-slate-700 outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
                         <option value="">Semua category</option>
                         @foreach ($categories as $category)
                             <option value="{{ $category }}" @selected($filters['category'] === $category)>{{ $category }}</option>
@@ -47,14 +47,14 @@
                 </div>
                 <div>
                     <label for="history-consumable-date" class="mb-1.5 block text-[11px] font-semibold text-slate-600">Tanggal</label>
-                    <input id="history-consumable-date" name="date" value="{{ $filters['date'] }}" type="date" class="block w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 text-xs text-slate-700 outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
+                    <input id="history-consumable-date" name="date" value="{{ $filters['date'] }}" type="date" class="block h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs text-slate-700 outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
                 </div>
-                <div class="flex flex-wrap items-center gap-3 md:col-span-2 xl:col-span-4">
-                    <button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700">
+                <div class="flex h-10 items-center gap-2 sm:col-span-2 xl:col-span-1">
+                    <button type="submit" class="inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl bg-blue-600 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700">
                         <i data-lucide="search" class="h-3.5 w-3.5" aria-hidden="true"></i>
                         Terapkan Filter
                     </button>
-                    <a href="{{ route('admin.appsheet.history-consumable.index') }}" class="inline-flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-blue-600">
+                    <a href="{{ route('admin.appsheet.history-consumable.index') }}" class="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-blue-600">
                         <i data-lucide="rotate-ccw" class="h-3.5 w-3.5" aria-hidden="true"></i>
                         Reset
                     </a>
@@ -66,7 +66,6 @@
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3.5 sm:px-5">
                 <div>
                     <p class="text-xs font-bold text-slate-800">Riwayat transaksi</p>
-                    <p class="mt-0.5 text-[11px] text-slate-500">{{ number_format($rows->total(), 0, ',', '.') }} hasil dari {{ number_format($totalRows, 0, ',', '.') }} data</p>
                 </div>
                 <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-semibold text-slate-600">
                     <i data-lucide="arrow-down-narrow-wide" class="h-3.5 w-3.5" aria-hidden="true"></i>
@@ -99,7 +98,7 @@
                                 $isStockIn = mb_strtoupper(trim((string) $row['INPUT TYPE'])) === 'STOCK IN';
                             @endphp
                             <tr class="group align-middle text-slate-700 transition-colors hover:bg-blue-50/40">
-                                <td class="whitespace-nowrap px-5 py-4 align-top">
+                                <td class="whitespace-nowrap px-5 py-3.5 align-top">
                                     <div class="font-semibold tabular-nums text-slate-800">{{ $row['_date_display'] ?: '-' }}</div>
                                     @if ($row['_time_display'])
                                         <div class="mt-1 inline-flex items-center gap-1 text-[10px] tabular-nums text-slate-400">
@@ -108,24 +107,25 @@
                                         </div>
                                     @endif
                                 </td>
-                                <td class="min-w-64 px-4 py-4 align-top">
+                                <td class="min-w-64 px-4 py-3.5 align-top">
                                     <p class="font-semibold leading-relaxed text-slate-900">{{ $row['DESC.'] ?: '-' }}</p>
                                     <p class="mt-1 font-mono text-[10px] font-semibold text-blue-600">{{ $row['UID'] ?: 'Tanpa UID' }}</p>
                                 </td>
-                                <td class="whitespace-nowrap px-4 py-4 align-top">
-                                    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold {{ $isStockIn ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' }}">
-                                        <i data-lucide="{{ $isStockIn ? 'arrow-down-to-line' : 'arrow-up-from-line' }}" class="h-3 w-3" aria-hidden="true"></i>
-                                        {{ $row['INPUT TYPE'] ?: '-' }}
-                                    </span>
-                                    <p class="mt-2 text-[10px] uppercase tracking-wide text-slate-400">Quantity</p>
-                                    <p class="mt-0.5 text-sm font-black tabular-nums text-slate-900">{{ $row['QTY'] }}</p>
+                                <td class="whitespace-nowrap px-4 py-3.5 align-top">
+                                    <div class="flex flex-wrap items-center gap-1.5">
+                                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold {{ $isStockIn ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' }}">
+                                            <i data-lucide="{{ $isStockIn ? 'arrow-down-to-line' : 'arrow-up-from-line' }}" class="h-3 w-3" aria-hidden="true"></i>
+                                            {{ $row['INPUT TYPE'] ?: '-' }}
+                                        </span>
+                                        <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold tabular-nums text-slate-700 ring-1 ring-slate-200">Qty {{ $row['QTY'] }}</span>
+                                    </div>
                                 </td>
-                                <td class="min-w-56 px-4 py-4 align-top">
+                                <td class="min-w-60 px-4 py-3.5 align-top">
                                     <div class="flex items-center gap-3">
-                                        <span class="relative inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-[11px] font-black text-blue-700 ring-2 ring-white shadow-sm">
+                                        <span class="relative inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 text-xs font-black text-blue-700 ring-1 ring-blue-200 shadow-sm">
                                             {{ $requester['initials'] }}
                                             @if ($row['_requester_avatar_url'])
-                                                <img src="{{ $row['_requester_avatar_url'] }}" alt="Avatar {{ $requester['name'] }}" loading="lazy" class="absolute inset-0 h-full w-full object-cover" onerror="this.remove()">
+                                                <img src="{{ $row['_requester_avatar_url'] }}" alt="Avatar {{ $requester['name'] }}" loading="lazy" class="absolute inset-0 h-full w-full bg-white object-contain object-center p-0.5" onerror="this.remove()">
                                             @endif
                                         </span>
                                         <div class="min-w-0">
@@ -136,11 +136,11 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td class="min-w-48 max-w-xs break-words px-4 py-4 align-top leading-relaxed">{{ $row['TUJUAN PENGGUNAAN'] ?: '-' }}</td>
-                                <td class="px-4 py-4 align-top">
+                                <td class="min-w-48 max-w-xs break-words px-4 py-3.5 align-top leading-relaxed">{{ $row['TUJUAN PENGGUNAAN'] ?: '-' }}</td>
+                                <td class="px-4 py-3.5 align-top">
                                     <span class="inline-flex rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-200">{{ $row['JENIS PERMINTAAN'] ?: 'Tidak diketahui' }}</span>
                                 </td>
-                                <td class="px-4 py-4 align-top">
+                                <td class="px-4 py-3.5 align-top">
                                     <span class="inline-flex rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-semibold text-sky-700 ring-1 ring-sky-200">{{ $row['CATEGORY'] ?: 'Tanpa category' }}</span>
                                 </td>
                             </tr>

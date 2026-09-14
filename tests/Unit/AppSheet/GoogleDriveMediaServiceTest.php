@@ -29,14 +29,14 @@ class GoogleDriveMediaServiceTest extends TestCase
     public function test_exact_img_filename_is_resolved_inside_the_allowlisted_stock_folder(): void
     {
         Http::fake([
-            'www.googleapis.com/drive/v3/files*' => Http::sequence()
-                ->push(['files' => [[
-                    'id' => 'drive-file-id-123',
-                    'name' => 'BMS-C01.IMG.234719.jpg',
-                    'mimeType' => 'image/jpeg',
-                    'size' => '11',
-                ]]])
-                ->push('image-bytes', 200, ['Content-Type' => 'image/jpeg']),
+            'www.googleapis.com/drive/v3/files*' => Http::response(['files' => [[
+                'id' => 'drive-file-id-123',
+                'name' => 'BMS-C01.IMG.234719.jpg',
+                'mimeType' => 'image/jpeg',
+                'size' => '5000000',
+                'thumbnailLink' => 'https://lh3.googleusercontent.com/drive-thumbnail=s220',
+            ]]]),
+            'lh3.googleusercontent.com/*' => Http::response('thumbnail-bytes', 200, ['Content-Type' => 'image/jpeg']),
         ]);
         $service = $this->serviceWithDriveScope();
 
@@ -49,7 +49,7 @@ class GoogleDriveMediaServiceTest extends TestCase
         self::assertStringNotContainsString('drive-file-id-123', $url);
         self::assertStringNotContainsString('BMS-C01.IMG.234719.jpg', $url);
         $media = $service->media(basename(parse_url($url, PHP_URL_PATH)));
-        self::assertSame('image-bytes', $media?->contents);
+        self::assertSame('thumbnail-bytes', $media?->contents);
         self::assertSame('image/jpeg', $media?->mimeType);
         Http::assertSent(function (Request $request): bool {
             $url = rawurldecode($request->url());
@@ -59,6 +59,7 @@ class GoogleDriveMediaServiceTest extends TestCase
                 && str_contains($url, "name = 'BMS-C01.IMG.234719.jpg'")
                 && $request->hasHeader('Authorization', 'Bearer drive-access-token');
         });
+        Http::assertSent(fn (Request $request): bool => $request->url() === 'https://lh3.googleusercontent.com/drive-thumbnail=s220');
     }
 
     public function test_only_expected_relative_directories_can_create_media_references(): void

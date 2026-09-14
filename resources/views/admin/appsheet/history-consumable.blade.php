@@ -6,11 +6,7 @@
                     <i data-lucide="history" class="h-5 w-5" aria-hidden="true"></i>
                 </span>
                 <div class="min-w-0">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <h1 class="text-[1.3rem] font-bold leading-tight tracking-tight text-slate-900">History Consumable</h1>
-                        <span class="inline-flex rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-blue-700 ring-1 ring-blue-200">Live AppSheet</span>
-                    </div>
-                    <p class="mt-1 text-xs leading-relaxed text-slate-500">Riwayat pergerakan consumable, requester, dan tujuan pemakaian dalam satu tampilan.</p>
+                    <h1 class="text-[1.3rem] font-bold leading-tight tracking-tight text-slate-900">History Consumable</h1>
                 </div>
                 @include('admin.appsheet.partials.google-connection', ['googleReturnTo' => 'history'])
             </div>

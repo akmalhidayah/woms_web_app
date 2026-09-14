@@ -6,11 +6,7 @@
                     <i data-lucide="package-open" class="h-5 w-5" aria-hidden="true"></i>
                 </span>
                 <div class="min-w-0">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <h1 class="text-[1.3rem] font-bold leading-tight tracking-tight text-slate-900">Stock Consumable</h1>
-                        <span class="inline-flex rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-blue-700 ring-1 ring-blue-200">Live Inventory</span>
-                    </div>
-                    <p class="mt-1 text-xs leading-relaxed text-slate-500">Pantau ketersediaan, lokasi, dan pergerakan stok consumable terbaru.</p>
+                    <h1 class="text-[1.3rem] font-bold leading-tight tracking-tight text-slate-900">Stock Consumable</h1>
                 </div>
                 @include('admin.appsheet.partials.google-connection', ['googleReturnTo' => 'stock'])
             </div>

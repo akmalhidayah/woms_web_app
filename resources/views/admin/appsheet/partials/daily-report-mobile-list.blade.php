@@ -1,4 +1,4 @@
-<div class="divide-y divide-slate-100 lg:hidden">
+<div class="mt-3 space-y-3 lg:hidden">
     @forelse ($rows as $row)
         @php
             $photoTitle = $row['_work']['title'];
@@ -9,12 +9,13 @@
                 $row['_input_by']['regu'] !== '' ? 'Regu '.$row['_input_by']['regu'] : '',
             ])->filter()->join(' · ') : '';
         @endphp
-        <article class="p-4 transition-colors hover:bg-blue-50/30">
+        <article class="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md">
+            <span class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-blue-600 via-cyan-400 to-transparent" aria-hidden="true"></span>
             <div class="flex items-start gap-3">
                 @if ($row['_photo_thumbnail_url'] && $row['_photo_preview_url'])
                     <button
                         type="button"
-                        class="group relative inline-flex h-20 w-24 shrink-0 cursor-zoom-in items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400 shadow-sm ring-1 ring-slate-200 transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        class="group relative inline-flex h-[5.5rem] w-[6.5rem] shrink-0 cursor-zoom-in items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400 shadow-sm ring-1 ring-slate-200 transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                         aria-label="Lihat foto {{ $photoTitle }}"
                         x-on:click="openPhoto(@js($row['_photo_preview_url']), @js($photoTitle), @js($photoDate ?: '-'), @js($photoPic ?: '-'))"
                     >
@@ -25,25 +26,25 @@
                         </span>
                     </button>
                 @else
-                    <span class="inline-flex h-20 w-24 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400 ring-1 ring-slate-200">
+                    <span class="inline-flex h-[5.5rem] w-[6.5rem] shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400 ring-1 ring-slate-200">
                         <i data-lucide="image-off" class="h-6 w-6" aria-hidden="true"></i>
                     </span>
                 @endif
 
                 <div class="min-w-0 flex-1">
-                    <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                    <div class="flex flex-col items-start gap-1">
                         @if ($row['_order'] !== '' && trim((string) ($row['DESC. ORDER'] ?? '')) !== '')
                             <p class="inline-flex items-center gap-1 font-mono text-[10px] font-bold text-blue-600">
                                 <i data-lucide="hash" class="h-3 w-3" aria-hidden="true"></i>
                                 {{ $row['_order'] }}
                             </p>
                         @endif
-                        <p class="ml-auto inline-flex items-center gap-1 text-[10px] font-semibold tabular-nums text-slate-400">
+                        <p class="inline-flex items-center gap-1 rounded-full bg-slate-50 px-2 py-1 text-[9px] font-semibold tabular-nums text-slate-500 ring-1 ring-slate-100">
                             <i data-lucide="calendar-clock" class="h-3 w-3" aria-hidden="true"></i>
                             {{ $photoDate ?: '-' }}
                         </p>
                     </div>
-                    <h2 class="mt-1 line-clamp-3 text-sm font-bold leading-relaxed text-slate-900">{{ $photoTitle }}</h2>
+                    <h2 class="mt-1 line-clamp-3 text-[15px] font-bold leading-snug text-slate-900">{{ $photoTitle }}</h2>
 
                     @if ($row['_work']['user'] !== '' || $row['_work']['unit'] !== '')
                         <div class="mt-1 space-y-0.5 text-[10px] leading-relaxed text-slate-500">
@@ -58,19 +59,22 @@
                 </div>
             </div>
 
-            <div class="mt-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">
-                <p class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Progress</p>
-                <p class="mt-1 whitespace-pre-line text-xs leading-relaxed text-slate-700">{{ $row['_progress'] ?: '-' }}</p>
+            <div class="mt-3 rounded-2xl bg-gradient-to-br from-slate-50 to-blue-50/60 p-3.5 ring-1 ring-slate-100">
+                <p class="inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                    <i data-lucide="activity" class="h-3 w-3 text-blue-500" aria-hidden="true"></i>
+                    Progress
+                </p>
+                <p class="mt-1.5 whitespace-pre-line text-xs font-medium leading-relaxed text-slate-700">{{ $row['_progress'] ?: '-' }}</p>
 
                 @if ($row['_pic_profiles'] !== [])
-                    <div class="mt-2.5 border-t border-slate-200/70 pt-2">
+                    <div class="mt-3 border-t border-slate-200/70 pt-2.5">
                         <p class="mb-1.5 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
                             <i data-lucide="users" class="h-3 w-3" aria-hidden="true"></i>
                             PIC
                         </p>
                         <div class="flex flex-wrap items-center gap-1.5">
                             @foreach ($row['_pic_profiles'] as $profile)
-                                <div class="inline-flex items-center gap-1.5 rounded-lg bg-white py-1 pl-1 pr-2 ring-1 ring-slate-200">
+                                <div class="inline-flex items-center gap-1.5 rounded-xl bg-white py-1 pl-1 pr-2.5 shadow-sm ring-1 ring-slate-200">
                                     <span class="relative inline-flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-md bg-gradient-to-br from-blue-100 to-indigo-100 text-[8px] font-black text-blue-700 ring-1 ring-blue-200">
                                         {{ $profile['initials'] }}
                                         @if ($profile['avatar_url'])
@@ -86,7 +90,7 @@
             </div>
 
             @if ($row['_input_by'] || $row['_attachment_url'])
-                <div class="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
+                <div class="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3.5">
                     @if ($row['_input_by'])
                         <div class="flex min-w-0 items-center gap-2">
                             <span class="relative inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-blue-100 to-indigo-100 text-[9px] font-black text-blue-700 ring-1 ring-blue-200">
@@ -106,7 +110,7 @@
                     @endif
 
                     @if ($row['_attachment_url'])
-                        <a href="{{ $row['_attachment_url'] }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1.5 text-[10px] font-semibold text-blue-700 ring-1 ring-blue-100">
+                        <a href="{{ $row['_attachment_url'] }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 px-3 py-2 text-[10px] font-semibold text-blue-700 ring-1 ring-blue-100 transition hover:bg-blue-100">
                             <i data-lucide="paperclip" class="h-3 w-3" aria-hidden="true"></i>
                             Lampiran
                         </a>
@@ -115,7 +119,7 @@
             @endif
         </article>
     @empty
-        <div class="px-5 py-14 text-center">
+        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-14 text-center shadow-sm">
             <span class="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                 <i data-lucide="clipboard-x" class="h-6 w-6" aria-hidden="true"></i>
             </span>

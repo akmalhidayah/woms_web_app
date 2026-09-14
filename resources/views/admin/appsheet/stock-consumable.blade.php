@@ -26,7 +26,7 @@
             <form method="GET" action="{{ route('admin.appsheet.stock-consumable.index') }}" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(280px,2fr)_minmax(180px,1fr)_minmax(150px,0.8fr)_auto] xl:items-end">
                 <div>
                     <label for="stock-consumable-search" class="mb-1.5 block text-[11px] font-semibold text-slate-600">Search</label>
-                    <input id="stock-consumable-search" name="search" value="{{ $filters['search'] }}" type="search" placeholder="UID, nama, ukuran, jenis, lokasi..." class="block h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
+                    <input id="stock-consumable-search" name="search" value="{{ $filters['search'] }}" type="search" placeholder="UID, nama, ukuran, jenis, lokasi..." autocomplete="off" x-on:input.debounce.500ms="$el.form.requestSubmit()" class="block h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
                 </div>
                 <div>
                     <label for="stock-consumable-type" class="mb-1.5 block text-[11px] font-semibold text-slate-600">Jenis Consumable</label>
@@ -99,9 +99,9 @@
                                             @endif
                                         </span>
                                         <div class="min-w-0">
-                                            <p class="font-semibold leading-relaxed text-slate-900">{{ $row['DESC.'] ?: '-' }}</p>
+                                            <p class="text-sm font-bold leading-relaxed text-slate-900">{{ $row['DESC.'] ?: '-' }}</p>
                                             <div class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px]">
-                                                <span class="font-mono font-bold text-blue-600">{{ $row['UID'] ?: 'Tanpa UID' }}</span>
+                                                <span class="font-mono text-[11px] font-semibold text-blue-600">{{ $row['UID'] ?: 'Tanpa UID' }}</span>
                                                 @if (trim((string) $row['SIZE']) !== '')
                                                     <span class="text-slate-300">•</span>
                                                     <span class="text-slate-500">Size {{ $row['SIZE'] }}</span>

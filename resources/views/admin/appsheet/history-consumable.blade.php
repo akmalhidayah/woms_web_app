@@ -26,7 +26,7 @@
             <form method="GET" action="{{ route('admin.appsheet.history-consumable.index') }}" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(260px,2fr)_minmax(130px,0.8fr)_minmax(150px,1fr)_minmax(150px,0.9fr)_auto] xl:items-end">
                 <div>
                     <label for="history-consumable-search" class="mb-1.5 block text-[11px] font-semibold text-slate-600">Search</label>
-                    <input id="history-consumable-search" name="search" value="{{ $filters['search'] }}" type="search" placeholder="UID, consumable, requester, tujuan..." class="block h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
+                    <input id="history-consumable-search" name="search" value="{{ $filters['search'] }}" type="search" placeholder="UID, consumable, requester, tujuan..." autocomplete="off" x-on:input.debounce.500ms="$el.form.requestSubmit()" class="block h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
                 </div>
                 <div>
                     <label for="history-consumable-type" class="mb-1.5 block text-[11px] font-semibold text-slate-600">Input Type</label>
@@ -108,8 +108,8 @@
                                     @endif
                                 </td>
                                 <td class="min-w-64 px-4 py-3.5 align-top">
-                                    <p class="font-semibold leading-relaxed text-slate-900">{{ $row['DESC.'] ?: '-' }}</p>
-                                    <p class="mt-1 font-mono text-[10px] font-semibold text-blue-600">{{ $row['UID'] ?: 'Tanpa UID' }}</p>
+                                    <p class="text-sm font-bold leading-relaxed text-slate-900">{{ $row['DESC.'] ?: '-' }}</p>
+                                    <p class="mt-1 font-mono text-[11px] font-semibold text-blue-600">{{ $row['UID'] ?: 'Tanpa UID' }}</p>
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-3.5 align-top">
                                     <div class="flex flex-wrap items-center gap-1.5">

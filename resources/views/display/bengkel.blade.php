@@ -662,7 +662,7 @@
             display: grid;
             min-width: 0;
             min-height: 0;
-            grid-template-rows: minmax(0, 57%) minmax(0, 43%);
+            grid-template-rows: minmax(0, 58%) minmax(0, 42%);
             overflow: hidden;
             border: 1px solid #cbd5e1;
             border-radius: 1rem;
@@ -699,9 +699,11 @@
         .daily-report-card-body { display: flex; min-height: 0; flex-direction: column; overflow: hidden; padding: 0.62rem 0.72rem 0.65rem; }
         .daily-report-card-body > h2 {
             color: #0f172a;
-            font-size: clamp(0.86rem, 1.02vw, 1.16rem);
+            font-size: clamp(1rem, 1.2vw, 1.38rem);
             font-weight: 900;
-            line-height: 1.18;
+            line-height: 1.12;
+            letter-spacing: 0.015em;
+            text-transform: uppercase;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
@@ -721,10 +723,13 @@
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
-        .daily-report-card-footer { display: flex; min-width: 0; align-items: flex-end; justify-content: space-between; gap: 0.5rem; margin-top: auto; border-top: 1px solid #e2e8f0; padding-top: 0.45rem; }
-        .daily-report-pics { display: flex; min-width: 0; align-items: center; gap: 0.3rem; overflow: hidden; }
-        .daily-report-pic-chip { display: inline-flex; min-width: 0; max-width: 9rem; align-items: center; gap: 0.3rem; border-radius: 999px; background: #eff6ff; padding: 0.2rem 0.45rem 0.2rem 0.22rem; color: #1e3a8a; }
-        .daily-report-pic-initials { display: inline-flex; width: 1.35rem; height: 1.35rem; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 999px; background: #2563eb; color: #fff; font-size: 0.5rem; font-weight: 900; }
+        .daily-report-card-footer { display: flex; min-width: 0; align-items: flex-end; justify-content: space-between; gap: 0.5rem; margin-top: auto; border-top: 1px solid #e2e8f0; padding-top: 0.4rem; }
+        .daily-report-pic-group { min-width: 0; overflow: hidden; }
+        .daily-report-pic-label { display: block; margin-bottom: 0.2rem; color: #64748b; font-size: clamp(0.46rem, 0.5vw, 0.58rem); font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; }
+        .daily-report-pics { display: flex; min-width: 0; align-items: center; flex-wrap: wrap; gap: 0.3rem; overflow: hidden; }
+        .daily-report-pic-chip { display: inline-flex; min-width: 0; max-width: 10rem; align-items: center; gap: 0.36rem; border: 1px solid #dbeafe; border-radius: 0.62rem; background: #eff6ff; padding: 0.16rem 0.48rem 0.16rem 0.18rem; color: #1e3a8a; }
+        .daily-report-pic-avatar { position: relative; display: inline-flex; width: 1.9rem; height: 1.9rem; flex: 0 0 auto; align-items: center; justify-content: center; overflow: hidden; border: 1px solid #bfdbfe; border-radius: 0.48rem; background: #2563eb; color: #fff; font-size: 0.56rem; font-weight: 900; }
+        .daily-report-pic-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; background: #fff; object-fit: contain; object-position: center; }
         .daily-report-pic-chip strong { min-width: 0; overflow: hidden; font-size: clamp(0.52rem, 0.6vw, 0.68rem); font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
         .daily-report-extra-pic,
         .daily-report-no-pic { flex: 0 0 auto; color: #64748b; font-size: clamp(0.52rem, 0.58vw, 0.66rem); font-weight: 800; white-space: nowrap; }
@@ -735,7 +740,7 @@
         .daily-report-tv-empty h2 { margin-top: 1rem; color: #0f172a; font-size: clamp(1rem, 1.35vw, 1.5rem); font-weight: 900; }
         .daily-report-tv-empty p { margin-top: 0.4rem; font-size: clamp(0.7rem, 0.8vw, 0.9rem); font-weight: 600; }
         @media (max-height: 820px) {
-            .daily-report-tv-card { grid-template-rows: minmax(0, 53%) minmax(0, 47%); }
+            .daily-report-tv-card { grid-template-rows: minmax(0, 55%) minmax(0, 45%); }
             .daily-report-card-body { padding: 0.48rem 0.58rem 0.5rem; }
             .daily-report-progress { margin-top: 0.28rem; }
             .daily-report-card-footer { padding-top: 0.3rem; }

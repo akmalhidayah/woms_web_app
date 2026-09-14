@@ -30,6 +30,8 @@ class GoogleDriveMediaService
 
     private const LOOKUP_TTL_SECONDS = 21600;
 
+    private const DISPLAY_MEDIA_TTL_SECONDS = 86400;
+
     private const MAX_IMAGE_BYTES = 10_485_760;
 
     private const IMAGE_MIME_TYPES = [
@@ -77,6 +79,16 @@ class GoogleDriveMediaService
             $relativePath,
             self::VARIANT_DISPLAY,
             'display.bengkel.daily-report-media',
+        );
+    }
+
+    public function dailyReportDisplayAvatarUrl(mixed $relativePath): ?string
+    {
+        return $this->mediaUrlForRoute(
+            self::REQUESTER_COLLECTION,
+            $relativePath,
+            self::VARIANT_THUMB,
+            'display.bengkel.daily-report-avatar',
         );
     }
 
@@ -155,17 +167,13 @@ class GoogleDriveMediaService
         }
 
         try {
-            if (! $this->hasDriveScope()) {
-                return null;
+            if ($this->shouldCacheDisplayMedia($validated['collection'], $variant, $requiredCollection, $requiredVariant)) {
+                return $this->cachedDisplayMedia($key, function () use ($folderId, $validated, $variant): ?GoogleDriveMedia {
+                    return $this->retrieveMedia($folderId, $validated['filename'], $variant);
+                });
             }
 
-            $token = $this->google->accessToken();
-            $file = $this->resolveFile($folderId, $validated['filename'], $token);
-            if ($file === null || ($file['found'] ?? false) !== true) {
-                return null;
-            }
-
-            return $this->download($file, $token, $variant);
+            return $this->retrieveMedia($folderId, $validated['filename'], $variant);
         } catch (GoogleOAuthException) {
             return null;
         } catch (Throwable $exception) {
@@ -175,6 +183,80 @@ class GoogleDriveMediaService
 
             return null;
         }
+    }
+
+    private function shouldCacheDisplayMedia(
+        string $collection,
+        string $variant,
+        ?string $requiredCollection,
+        ?string $requiredVariant,
+    ): bool {
+        if ($collection !== $requiredCollection || $variant !== $requiredVariant) {
+            return false;
+        }
+
+        return ($collection === self::DAILY_REPORT_COLLECTION && $variant === self::VARIANT_DISPLAY)
+            || ($collection === self::REQUESTER_COLLECTION && $variant === self::VARIANT_THUMB);
+    }
+
+    private function cachedDisplayMedia(string $key, callable $resolver): ?GoogleDriveMedia
+    {
+        $cache = Cache::store('file');
+        $cacheKey = 'appsheet:drive:display-media:v1:'.$key;
+        $cached = $this->mediaFromCache($cache->get($cacheKey));
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        try {
+            return $cache->lock($cacheKey.':lock', 60)->block(5, function () use ($cache, $cacheKey, $resolver): ?GoogleDriveMedia {
+                $cached = $this->mediaFromCache($cache->get($cacheKey));
+                if ($cached !== null) {
+                    return $cached;
+                }
+
+                $media = $resolver();
+                if ($media !== null) {
+                    $cache->put($cacheKey, [
+                        'contents' => $media->contents,
+                        'mime_type' => $media->mimeType,
+                    ], self::DISPLAY_MEDIA_TTL_SECONDS);
+                }
+
+                return $media;
+            });
+        } catch (LockTimeoutException) {
+            return $this->mediaFromCache($cache->get($cacheKey)) ?? $resolver();
+        }
+    }
+
+    private function mediaFromCache(mixed $cached): ?GoogleDriveMedia
+    {
+        if (! is_array($cached)
+            || ! is_string($cached['contents'] ?? null)
+            || $cached['contents'] === ''
+            || strlen($cached['contents']) > self::MAX_IMAGE_BYTES
+            || ! is_string($cached['mime_type'] ?? null)
+            || ! in_array($cached['mime_type'], self::IMAGE_MIME_TYPES, true)) {
+            return null;
+        }
+
+        return new GoogleDriveMedia($cached['contents'], $cached['mime_type']);
+    }
+
+    private function retrieveMedia(string $folderId, string $filename, string $variant): ?GoogleDriveMedia
+    {
+        if (! $this->hasDriveScope()) {
+            return null;
+        }
+
+        $token = $this->google->accessToken();
+        $file = $this->resolveFile($folderId, $filename, $token);
+        if ($file === null || ($file['found'] ?? false) !== true) {
+            return null;
+        }
+
+        return $this->download($file, $token, $variant);
     }
 
     /**

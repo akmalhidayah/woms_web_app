@@ -129,6 +129,15 @@ class DailyReportDisplay extends Component
             ->map(function (array $row) use ($driveMedia): array {
                 $row['photo_url'] = $driveMedia->dailyReportDisplayMediaUrl($row['photo_path'] ?? '');
                 unset($row['photo_path']);
+                $row['pic_profiles'] = collect($row['pic_profiles'] ?? [])
+                    ->map(function (array $profile) use ($driveMedia): array {
+                        $profile['avatar_url'] = $driveMedia->dailyReportDisplayAvatarUrl($profile['image_path'] ?? '');
+                        unset($profile['image_path']);
+
+                        return $profile;
+                    })
+                    ->values()
+                    ->all();
 
                 return $row;
             })
@@ -184,6 +193,7 @@ class DailyReportDisplay extends Component
                             return [
                                 'name' => $profile['name'],
                                 'initials' => $profile['initials'],
+                                'image_path' => $profile['image_path'],
                             ];
                         })
                         ->values()

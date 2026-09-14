@@ -56,8 +56,6 @@
         @forelse ($currentPage as $report)
             @php
                 $picProfiles = collect($report['pic_profiles'] ?? []);
-                $visiblePics = $picProfiles->take(2);
-                $extraPics = max(0, $picProfiles->count() - $visiblePics->count());
             @endphp
             <article wire:key="daily-report-tv-{{ $report['id'] }}" class="daily-report-tv-card">
                 <div class="daily-report-photo">
@@ -70,7 +68,7 @@
                         <span>Foto belum tersedia</span>
                     </div>
                     @if ($report['photo_url'] ?? null)
-                        <img src="{{ $report['photo_url'] }}" alt="Foto {{ $report['title'] }}" loading="lazy" onerror="this.style.display='none'">
+                        <img src="{{ $report['photo_url'] }}" alt="Foto {{ $report['title'] }}" loading="lazy" decoding="async" onerror="this.style.display='none'">
                     @endif
                     <span class="daily-report-date-badge">
                         {{ $report['date'] }}
@@ -89,18 +87,23 @@
                     </div>
 
                     <div class="daily-report-card-footer">
-                        <div class="daily-report-pics">
-                            @forelse ($visiblePics as $profile)
-                                <span class="daily-report-pic-chip">
-                                    <span class="daily-report-pic-initials">{{ $profile['initials'] }}</span>
-                                    <strong>{{ $profile['name'] }}</strong>
-                                </span>
-                            @empty
-                                <span class="daily-report-no-pic">PIC belum tersedia</span>
-                            @endforelse
-                            @if ($extraPics > 0)
-                                <span class="daily-report-extra-pic">+{{ $extraPics }} PIC</span>
-                            @endif
+                        <div class="daily-report-pic-group">
+                            <span class="daily-report-pic-label">PIC</span>
+                            <div class="daily-report-pics">
+                                @forelse ($picProfiles as $profile)
+                                    <span class="daily-report-pic-chip">
+                                        <span class="daily-report-pic-avatar">
+                                            <span>{{ $profile['initials'] }}</span>
+                                            @if ($profile['avatar_url'] ?? null)
+                                                <img src="{{ $profile['avatar_url'] }}" alt="Avatar {{ $profile['name'] }}" loading="lazy" decoding="async" onerror="this.remove()">
+                                            @endif
+                                        </span>
+                                        <strong>{{ $profile['name'] }}</strong>
+                                    </span>
+                                @empty
+                                    <span class="daily-report-no-pic">PIC belum tersedia</span>
+                                @endforelse
+                            </div>
                         </div>
 
                         @if ($report['order'] !== '')

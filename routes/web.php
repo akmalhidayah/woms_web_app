@@ -78,6 +78,10 @@ Route::get('display-pekerjaan-bengkel/laporan-harian/media/{key}', [AppSheetMedi
     ->where('key', '[a-f0-9]{64}')
     ->name('display.bengkel.daily-report-media');
 
+Route::get('display-pekerjaan-bengkel/laporan-harian/avatar/{key}', [AppSheetMediaController::class, 'showDailyReportDisplayAvatar'])
+    ->where('key', '[a-f0-9]{64}')
+    ->name('display.bengkel.daily-report-avatar');
+
 Route::middleware(['auth'])->group(function () {
     Route::post('impersonation/stop', [UserImpersonationController::class, 'stop'])
         ->name('impersonation.stop');

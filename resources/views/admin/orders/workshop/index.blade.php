@@ -108,6 +108,10 @@
             z-index: 40;
         }
 
+        .order-workshop-currency-input {
+            padding-left: 3rem !important;
+        }
+
         @media (max-width: 1279px) {
             .order-workshop-table thead {
                 display: none;
@@ -700,7 +704,7 @@
                         <label for="createBiayaDisplay" class="mb-2 block text-sm text-slate-700">Biaya <span class="text-slate-400">(Opsional)</span></label>
                         <div class="relative">
                             <span class="pointer-events-none absolute inset-y-0 left-4 flex items-center text-sm font-medium text-slate-500">Rp</span>
-                            <input id="createBiayaDisplay" type="text" inputmode="numeric" autocomplete="off" placeholder="Masukkan nominal" class="w-full rounded-lg border border-slate-400 py-3 pl-12 pr-4 text-sm focus:border-blue-500 focus:outline-none">
+                            <input id="createBiayaDisplay" type="text" inputmode="numeric" autocomplete="off" placeholder="Masukkan nominal" class="order-workshop-currency-input w-full rounded-lg border border-slate-400 py-3 pr-4 text-sm focus:border-blue-500 focus:outline-none">
                             <input id="createBiaya" name="biaya" type="hidden" value="{{ old('form_context') === 'create' ? old('biaya') : '' }}">
                         </div>
                         @if (old('form_context') === 'create')
@@ -838,7 +842,7 @@
                         <label for="editBiayaDisplay" class="mb-2 block text-sm text-slate-700">Biaya <span class="text-slate-400">(Opsional)</span></label>
                         <div class="relative">
                             <span class="pointer-events-none absolute inset-y-0 left-4 flex items-center text-sm font-medium text-slate-500">Rp</span>
-                            <input id="editBiayaDisplay" type="text" inputmode="numeric" autocomplete="off" placeholder="Masukkan nominal" class="w-full rounded-lg border border-slate-400 py-3 pl-12 pr-4 text-sm focus:border-blue-500 focus:outline-none">
+                            <input id="editBiayaDisplay" type="text" inputmode="numeric" autocomplete="off" placeholder="Masukkan nominal" class="order-workshop-currency-input w-full rounded-lg border border-slate-400 py-3 pr-4 text-sm focus:border-blue-500 focus:outline-none">
                             <input id="editBiaya" name="biaya" type="hidden" value="{{ old('form_context') === 'edit' ? old('biaya') : '' }}">
                         </div>
                         @if (old('form_context') === 'edit')

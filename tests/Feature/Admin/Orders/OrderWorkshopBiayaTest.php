@@ -48,12 +48,15 @@ class OrderWorkshopBiayaTest extends TestCase
     {
         $this->assertTrue(Schema::hasColumn('orders', 'biaya'));
 
-        $this->actingAs($this->admin)
+        $indexResponse = $this->actingAs($this->admin)
             ->get(route('admin.orders.workshop.index'))
             ->assertOk()
             ->assertSee('id="createBiayaDisplay"', false)
             ->assertSee('id="editBiayaDisplay"', false)
+            ->assertSee('padding-left: 3rem !important;', false)
             ->assertSee('name="biaya"', false);
+
+        $this->assertSame(3, substr_count($indexResponse->getContent(), 'order-workshop-currency-input'));
 
         $this->actingAs($this->admin)
             ->post(route('admin.orders.workshop.store'), $this->payload([

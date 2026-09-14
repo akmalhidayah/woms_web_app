@@ -18,9 +18,15 @@ class GoogleOAuthController extends Controller
 
     private const STOCK_ROUTE = 'admin.appsheet.stock-consumable.index';
 
+    private const DAILY_REPORT_ROUTE = 'admin.daily-report.index';
+
     public function connect(Request $request, GoogleOAuthService $google): RedirectResponse
     {
-        $returnRoute = $request->query('return_to') === 'stock' ? self::STOCK_ROUTE : self::HISTORY_ROUTE;
+        $returnRoute = match ($request->query('return_to')) {
+            'stock' => self::STOCK_ROUTE,
+            'daily-report' => self::DAILY_REPORT_ROUTE,
+            default => self::HISTORY_ROUTE,
+        };
 
         try {
             $state = Str::random(64);
@@ -72,7 +78,7 @@ class GoogleOAuthController extends Controller
                 return $pending;
             });
 
-            if (in_array($pending['return_route'] ?? null, [self::HISTORY_ROUTE, self::STOCK_ROUTE], true)) {
+            if (in_array($pending['return_route'] ?? null, [self::HISTORY_ROUTE, self::STOCK_ROUTE, self::DAILY_REPORT_ROUTE], true)) {
                 $returnRoute = $pending['return_route'];
             }
 

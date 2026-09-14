@@ -18,6 +18,12 @@ class GoogleDriveMediaService
 
     public const STOCK_COLLECTION = 'stock';
 
+    public const DAILY_REPORT_COLLECTION = 'daily-report';
+
+    public const VARIANT_THUMB = 'thumb';
+
+    public const VARIANT_PREVIEW = 'preview';
+
     private const REFERENCE_TTL_SECONDS = 86400;
 
     private const LOOKUP_TTL_SECONDS = 21600;
@@ -42,20 +48,26 @@ class GoogleDriveMediaService
             'directory' => 'STOCK CONS BMS_Images',
             'folder_config' => 'services.google.drive_stock_consumable_images_folder_id',
         ],
+        self::DAILY_REPORT_COLLECTION => [
+            'directory' => 'Input LapHarian_Images',
+            'folder_config' => 'services.google.drive_daily_report_images_folder_id',
+        ],
     ];
 
     private ?bool $hasDriveScope = null;
 
     public function __construct(private readonly GoogleOAuthService $google) {}
 
-    public function mediaUrl(string $collection, mixed $relativePath): ?string
+    public function mediaUrl(string $collection, mixed $relativePath, string $variant = self::VARIANT_THUMB): ?string
     {
         $reference = $this->reference($collection, $relativePath);
-        if ($reference === null || $this->folderId($collection) === null || ! $this->hasDriveScope()) {
+        if ($reference === null || ! in_array($variant, [self::VARIANT_THUMB, self::VARIANT_PREVIEW], true)
+            || $this->folderId($collection) === null || ! $this->hasDriveScope()) {
             return null;
         }
 
-        $key = hash_hmac('sha256', $collection."\0".$reference['filename'], (string) config('app.key'));
+        $reference['variant'] = $variant;
+        $key = hash_hmac('sha256', $collection."\0".$reference['filename']."\0".$variant, (string) config('app.key'));
         if (! Cache::store('file')->put($this->referenceCacheKey($key), $reference, self::REFERENCE_TTL_SECONDS)) {
             return null;
         }
@@ -76,14 +88,25 @@ class GoogleDriveMediaService
             return null;
         }
 
+        $legacyReference = ! array_key_exists('variant', $reference);
+        $variant = $legacyReference ? self::VARIANT_THUMB : $reference['variant'];
+        if (! is_string($variant) || ! in_array($variant, [self::VARIANT_THUMB, self::VARIANT_PREVIEW], true)) {
+            return null;
+        }
+
+        $settings = self::COLLECTIONS[$reference['collection']] ?? null;
+        if (! is_array($settings) || ! is_string($settings['directory'] ?? null)) {
+            return null;
+        }
+
         $validated = $this->reference(
             $reference['collection'],
-            self::COLLECTIONS[$reference['collection']]['directory'].'/'.$reference['filename'],
+            $settings['directory'].'/'.$reference['filename'],
         );
-        if ($validated === null || ! hash_equals(
-            $key,
-            hash_hmac('sha256', $validated['collection']."\0".$validated['filename'], (string) config('app.key')),
-        )) {
+        $signaturePayload = $validated === null
+            ? ''
+            : $validated['collection']."\0".$validated['filename'].($legacyReference ? '' : "\0".$variant);
+        if ($validated === null || ! hash_equals($key, hash_hmac('sha256', $signaturePayload, (string) config('app.key')))) {
             return null;
         }
 
@@ -103,7 +126,7 @@ class GoogleDriveMediaService
                 return null;
             }
 
-            return $this->download($file, $token);
+            return $this->download($file, $token, $variant);
         } catch (GoogleOAuthException) {
             return null;
         } catch (Throwable $exception) {
@@ -242,9 +265,9 @@ class GoogleDriveMediaService
     /**
      * @param  array{found: bool, id?: string, mime_type?: string, size?: int, thumbnail_url?: string}  $file
      */
-    private function download(array $file, #[SensitiveParameter] string $token): ?GoogleDriveMedia
+    private function download(array $file, #[SensitiveParameter] string $token, string $variant): ?GoogleDriveMedia
     {
-        $response = $this->thumbnailResponse($file, $token);
+        $response = $this->thumbnailResponse($file, $token, $variant);
         if ($response === null || ! $response->successful()) {
             if (($file['size'] ?? self::MAX_IMAGE_BYTES + 1) > self::MAX_IMAGE_BYTES) {
                 return null;
@@ -277,17 +300,25 @@ class GoogleDriveMediaService
     /**
      * @param  array{thumbnail_url?: string}  $file
      */
-    private function thumbnailResponse(array $file, #[SensitiveParameter] string $token): ?Response
+    private function thumbnailResponse(array $file, #[SensitiveParameter] string $token, string $variant): ?Response
     {
         if (! is_string($file['thumbnail_url'] ?? null)) {
             return null;
+        }
+
+        $url = $file['thumbnail_url'];
+        if ($variant === self::VARIANT_PREVIEW) {
+            $resizedUrl = preg_replace('/=s\d+(?:-[a-z0-9-]+)?\z/i', '=s1600', $url);
+            if (is_string($resizedUrl)) {
+                $url = $resizedUrl;
+            }
         }
 
         return Http::withToken($token)
             ->connectTimeout(5)
             ->timeout(15)
             ->withoutRedirecting()
-            ->get($file['thumbnail_url']);
+            ->get($url);
     }
 
     private function safeThumbnailUrl(mixed $url): ?string

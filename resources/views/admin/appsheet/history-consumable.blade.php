@@ -123,13 +123,12 @@
                                     <p class="mt-1 font-mono text-[11px] font-semibold text-blue-600">{{ $row['UID'] ?: 'Tanpa UID' }}</p>
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-3.5 align-top">
-                                    <div class="flex flex-wrap items-center gap-1.5">
-                                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold {{ $isStockIn ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' }}">
-                                            <i data-lucide="{{ $isStockIn ? 'arrow-down-to-line' : 'arrow-up-from-line' }}" class="h-3 w-3" aria-hidden="true"></i>
-                                            {{ $row['INPUT TYPE'] ?: '-' }}
-                                        </span>
-                                        <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold tabular-nums text-slate-700 ring-1 ring-slate-200">Qty {{ $row['QTY'] }}</span>
-                                    </div>
+                                    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold {{ $isStockIn ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' }}">
+                                        <i data-lucide="{{ $isStockIn ? 'arrow-down-to-line' : 'arrow-up-from-line' }}" class="h-3 w-3" aria-hidden="true"></i>
+                                        {{ $row['INPUT TYPE'] ?: '-' }}
+                                        <span class="opacity-40" aria-hidden="true">•</span>
+                                        <span class="tabular-nums">Qty {{ $row['QTY'] }}</span>
+                                    </span>
                                 </td>
                                 <td class="min-w-60 px-4 py-3.5 align-top">
                                     <div class="flex items-center gap-3">

@@ -135,8 +135,7 @@
                                     </div>
                                 </td>
                                 <td class="min-w-56 px-4 py-4 align-top">
-                                    <p class="font-semibold text-slate-800">{{ $row['TYPE CATEGORY'] ?: '-' }}</p>
-                                    <div class="mt-2 flex flex-wrap gap-1.5">
+                                    <div class="flex flex-wrap gap-1.5">
                                         <span class="inline-flex rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-semibold text-indigo-700 ring-1 ring-indigo-200">{{ $row['SUB CATEGORY'] ?: 'Tanpa jenis' }}</span>
                                         <span class="inline-flex rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-semibold text-sky-700 ring-1 ring-sky-200">{{ $row['CATEGORY'] ?: 'Tanpa category' }}</span>
                                     </div>

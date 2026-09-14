@@ -28,6 +28,11 @@ class GoogleSheetsReader
         'NAMA', 'REGU', 'SHIFT', 'JABATAN', 'IMG',
     ];
 
+    public const DAILY_REPORT_HEADERS = [
+        'ORDER', 'DESC. ORDER', 'ATTACHMENT', 'INPUT NON ORDER', 'PROGRESS PEKERJAAN',
+        'FOTO PEKERJAAN', 'PIC', 'INPUT BY', 'INPUT DATE', 'TAHUN',
+    ];
+
     public function __construct(private readonly GoogleOAuthService $google) {}
 
     public function historyConsumable(): array
@@ -43,6 +48,11 @@ class GoogleSheetsReader
     public function requesterProfiles(): array
     {
         return $this->read('data_sheet', 'appsheet:requester-profiles', self::PROFILE_HEADERS, 300, true);
+    }
+
+    public function dailyReports(): array
+    {
+        return $this->read('daily_report_sheet', 'appsheet:daily-reports', self::DAILY_REPORT_HEADERS);
     }
 
     private function read(string $sheetConfig, string $cacheKey, array $headers, int $cacheTtl = 30, bool $selectedColumnsOnly = false): array

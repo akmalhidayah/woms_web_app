@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\ApprovalSignatureReassignmentController;
 use App\Http\Controllers\Admin\AppSheet\AppSheetController;
 use App\Http\Controllers\Admin\AppSheet\AppSheetMediaController;
+use App\Http\Controllers\Admin\AppSheet\DailyReportController;
 use App\Http\Controllers\Admin\AppSheet\GoogleOAuthController;
 use App\Http\Controllers\Admin\BengkelPicController;
 use App\Http\Controllers\Admin\BengkelTaskController;
@@ -169,6 +170,10 @@ Route::middleware(['auth'])->group(function () {
             Route::get('stock-consumable', [AppSheetController::class, 'stockConsumable'])
                 ->name('stock-consumable.index');
         });
+
+    Route::get('admin/laporan-harian', DailyReportController::class)
+        ->middleware(['role:admin', 'admin_menu:daily_report'])
+        ->name('admin.daily-report.index');
 
     Route::get('admin/access-control', [AccessControlController::class, 'index'])
         ->middleware(['role:admin', 'admin_role:super_admin'])

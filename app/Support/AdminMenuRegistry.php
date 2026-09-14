@@ -40,6 +40,8 @@ class AdminMenuRegistry
 
     public const MENU_APPSHEET_STOCK_CONSUMABLE = 'appsheet_stock_consumable';
 
+    public const MENU_DAILY_REPORT = 'daily_report';
+
     public const MENU_ACCESS_CONTROL = 'access_control';
 
     public const MENU_KUOTA_ANGGARAN_OA = 'kuota_anggaran_oa';
@@ -208,6 +210,17 @@ class AdminMenuRegistry
                     ],
                 ],
             ],
+            self::MENU_DAILY_REPORT => [
+                'key' => self::MENU_DAILY_REPORT,
+                'permission_key' => self::MENU_APPSHEET,
+                'label' => 'Laporan Harian',
+                'icon' => 'clipboard-list',
+                'group' => 'support',
+                'route_name' => 'admin.daily-report.index',
+                'active_patterns' => ['admin.daily-report.*'],
+                'configurable' => false,
+                'access_control_hidden' => true,
+            ],
             self::MENU_ACCESS_CONTROL => [
                 'key' => self::MENU_ACCESS_CONTROL,
                 'label' => 'Access Control',
@@ -291,6 +304,11 @@ class AdminMenuRegistry
             return true;
         }
 
+        $permissionKey = $item['permission_key'] ?? $menuKey;
+        if (is_string($permissionKey) && $permissionKey !== $menuKey) {
+            return static::canAccess($user, $permissionKey);
+        }
+
         if ($menuKey === self::MENU_ORDERS) {
             return static::canAccess($user, self::MENU_ORDER_JASA)
                 || static::canAccess($user, self::MENU_ORDER_BENGKEL);
@@ -361,6 +379,7 @@ class AdminMenuRegistry
         return [
             'dashboard' => $items[self::MENU_DASHBOARD] ?? null,
             'appsheet' => $items[self::MENU_APPSHEET] ?? null,
+            'daily_report' => $items[self::MENU_DAILY_REPORT] ?? null,
             'orders' => null,
             'main' => array_values(array_filter(
                 $items,
@@ -375,7 +394,7 @@ class AdminMenuRegistry
             'support' => array_values(array_filter(
                 $items,
                 fn (array $item) => $item['group'] === 'support'
-                    && $item['key'] !== self::MENU_APPSHEET,
+                    && ! in_array($item['key'], [self::MENU_APPSHEET, self::MENU_DAILY_REPORT], true),
             )),
             'other' => array_values(array_filter(
                 $items,

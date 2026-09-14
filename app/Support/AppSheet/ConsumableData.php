@@ -27,32 +27,20 @@ class ConsumableData
 
     public static function stockStatus(array $row): ?string
     {
-        $consignment = self::quantity($row['QTY KONSINYASI'] ?? '');
-        $nonConsignment = self::quantity($row['QTY NON KONSINYASI'] ?? '');
-        if ($consignment === null || $nonConsignment === null) {
+        $stock = self::number($row['SPARE STOCK'] ?? null);
+        if ($stock === null) {
             return null;
         }
 
-        $total = $consignment + $nonConsignment;
-        if (! is_finite($total)) {
-            return null;
-        }
-        if ($total <= 0) {
-            return 'habis';
-        }
-
-        // Minimum kosong = 0: total positif tidak dikategorikan rendah.
-        $minimum = self::quantity($row['MIN'] ?? '');
-        if ($minimum === null) {
-            // Angka tidak valid tidak boleh menghasilkan status stok yang menyesatkan.
-            return null;
-        }
-
-        return $total <= $minimum ? 'rendah' : 'aman';
+        return $stock <= 0 ? 'habis' : 'tersedia';
     }
 
     public static function date(mixed $value): ?DateTimeImmutable
     {
+        if ($value instanceof DateTimeImmutable) {
+            return $value;
+        }
+
         $timezone = new DateTimeZone('UTC');
         if (is_int($value) || is_float($value)) {
             if (! is_finite((float) $value) || $value < 0 || $value > 2958465) {
@@ -78,6 +66,11 @@ class ConsumableData
         }
 
         return null;
+    }
+
+    public static function dateTimestamp(mixed $value): ?int
+    {
+        return self::date($value)?->getTimestamp();
     }
 
     public static function displayDate(mixed $value): string
@@ -107,10 +100,5 @@ class ConsumableData
         }
 
         return false;
-    }
-
-    private static function quantity(mixed $value): ?float
-    {
-        return $value === null || (is_string($value) && trim($value) === '') ? 0.0 : self::number($value);
     }
 }

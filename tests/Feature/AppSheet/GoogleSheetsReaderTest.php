@@ -20,7 +20,7 @@ class GoogleSheetsReaderTest extends TestCase
         config([
             'services.google.spreadsheet_id' => 'test-spreadsheet',
             'services.google.history_consumable_sheet' => 'HISTORY CONS',
-            'services.google.stock_consumable_sheet' => 'STOCK CONS GUDANG',
+            'services.google.stock_consumable_sheet' => 'STOCK CONS BMS',
         ]);
         $cache = Cache::store('array');
         Cache::shouldReceive('store')->with('file')->andReturn($cache);
@@ -72,6 +72,39 @@ class GoogleSheetsReaderTest extends TestCase
         Http::assertSentCount(3);
     }
 
+    public function test_stock_reader_uses_current_reordered_headers_and_ignores_extra_columns(): void
+    {
+        Http::fake(['sheets.googleapis.com/*' => Http::response([
+            'range' => "'STOCK CONS BMS'!A1:P2",
+            'values' => [
+                [
+                    'IMG', 'SPARE STOCK', 'UID', 'LOC ID', 'CATEGORY', 'TYPE CATEGORY', 'QTY', 'DESC.',
+                    'STOCK OUT', 'SIZE', 'SUB CATEGORY', 'STN', 'LOC', 'INPUT DATE', 'INPUT. BY', 'STOCK IN',
+                ],
+                [
+                    'photo.jpg', 115, 'BMS-C14', 'LOC-01', 'CONSUMABLE', 'ELECTRODE', 999,
+                    'Electrode 7018 dia. 3,2 mm', 3226, '3,2 mm', 'KONSUMABEL UMUM', 'KG',
+                    'RUANG TOOLS', '10/04/2025', 'Hadi Purnomo', 3341,
+                ],
+            ],
+        ])]);
+
+        $row = $this->reader()->stockConsumable()[0];
+
+        self::assertSame('BMS-C14', $row['UID']);
+        self::assertSame('ELECTRODE', $row['TYPE CATEGORY']);
+        self::assertSame('Electrode 7018 dia. 3,2 mm', $row['DESC.']);
+        self::assertSame(3341, $row['STOCK IN']);
+        self::assertSame(3226, $row['STOCK OUT']);
+        self::assertSame(115, $row['SPARE STOCK']);
+        self::assertSame('KONSUMABEL UMUM', $row['SUB CATEGORY']);
+        self::assertSame('10/04/2025', $row['INPUT DATE']);
+        self::assertArrayNotHasKey('IMG', $row);
+        self::assertArrayNotHasKey('LOC ID', $row);
+        self::assertArrayNotHasKey('SIZE', $row);
+        self::assertArrayNotHasKey('QTY', $row);
+    }
+
     public function test_api_token_failure_requests_reconnection_without_returning_response_body(): void
     {
         Http::fake(['sheets.googleapis.com/*' => Http::response(['error' => ['message' => 'sensitive-response-body']], 401)]);
@@ -111,7 +144,7 @@ class GoogleSheetsReaderTest extends TestCase
             self::fail('Expected a safe sheet error.');
         } catch (GoogleSheetsException $exception) {
             self::assertFalse($exception->requiresReconnect);
-            self::assertStringContainsString('STOCK CONS GUDANG', $exception->getMessage());
+            self::assertStringContainsString('STOCK CONS BMS', $exception->getMessage());
             self::assertStringNotContainsString('sensitive-response-body', $exception->getMessage());
         }
     }

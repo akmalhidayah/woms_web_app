@@ -32,22 +32,15 @@ class AppSheetController extends Controller
             $filters['date'] = '';
         }
 
-        $allRows = collect($data['sheetRows'])->map(function (array $row): array {
-            $date = ConsumableData::date($row['INPUT DATE']);
-
-            return $row + [
-                '_date' => $date?->format('Y-m-d'),
-                '_sort' => $date?->getTimestamp() ?? PHP_INT_MIN,
-                '_date_display' => ConsumableData::displayDate($row['INPUT DATE']),
-            ];
-        });
+        $allRows = collect($data['sheetRows'])
+            ->values()
+            ->map(fn (array $row, int $index): array => $this->withInputDateMetadata($row, $index));
         $categories = $this->options($allRows, 'CATEGORY');
-        $rows = $allRows->filter(fn (array $row): bool =>
-            ConsumableData::matchesSearch($row, ['UID', 'DESC.', 'INPUT BY', 'TUJUAN PENGGUNAAN'], $filters['search'])
+        $rows = $this->newestFirst($allRows->filter(fn (array $row): bool => ConsumableData::matchesSearch($row, ['UID', 'DESC.', 'INPUT BY', 'TUJUAN PENGGUNAAN'], $filters['search'])
             && ($filters['input_type'] === '' || mb_strtoupper(trim((string) $row['INPUT TYPE'])) === $filters['input_type'])
             && ($filters['category'] === '' || trim((string) $row['CATEGORY']) === $filters['category'])
             && ($filters['date'] === '' || $row['_date'] === $filters['date'])
-        )->sortByDesc('_sort')->values();
+        ));
         unset($data['sheetRows']);
 
         return view('admin.appsheet.history-consumable', $data + [
@@ -66,25 +59,28 @@ class AppSheetController extends Controller
             'jenis' => $this->filter($request, 'jenis'),
             'status' => $this->filter($request, 'status'),
         ];
-        if (! in_array($filters['status'], ['habis', 'rendah', 'aman'], true)) {
+        if (! in_array($filters['status'], ['habis', 'tersedia'], true)) {
             $filters['status'] = '';
         }
 
-        $allRows = collect($data['sheetRows'])->map(fn (array $row): array => $row + [
-            '_stock_status' => ConsumableData::stockStatus($row),
-            '_date_display' => ConsumableData::displayDate($row['UPD. DATE']),
-        ]);
-        $types = $this->options($allRows, 'JENIS CONSUMABLE');
-        $rows = $allRows->filter(fn (array $row): bool =>
-            ConsumableData::matchesSearch($row, ['NO MATERIAL', 'CONSUMABLE', 'DESKRIPSI'], $filters['search'])
-            && ($filters['jenis'] === '' || trim((string) $row['JENIS CONSUMABLE']) === $filters['jenis'])
+        $allRows = collect($data['sheetRows'])
+            ->filter(fn (array $row): bool => mb_strtoupper(trim((string) ($row['CATEGORY'] ?? ''))) === 'CONSUMABLE')
+            ->values()
+            ->map(function (array $row, int $index): array {
+                return $this->withInputDateMetadata($row, $index) + [
+                    '_stock_status' => ConsumableData::stockStatus($row),
+                ];
+            });
+        $subCategories = $this->options($allRows, 'SUB CATEGORY');
+        $rows = $this->newestFirst($allRows->filter(fn (array $row): bool => ConsumableData::matchesSearch($row, ['UID', 'TYPE CATEGORY', 'DESC.', 'SUB CATEGORY', 'LOC', 'STN'], $filters['search'])
+            && ($filters['jenis'] === '' || trim((string) $row['SUB CATEGORY']) === $filters['jenis'])
             && ($filters['status'] === '' || $row['_stock_status'] === $filters['status'])
-        )->values();
+        ));
         unset($data['sheetRows']);
 
         return view('admin.appsheet.stock-consumable', $data + [
             'filters' => $filters,
-            'types' => $types,
+            'subCategories' => $subCategories,
             'rows' => $this->paginate($rows, $request, $filters),
             'totalRows' => $allRows->count(),
         ]);
@@ -125,6 +121,40 @@ class AppSheetController extends Controller
     {
         return $rows->pluck($header)->map(fn ($value) => trim((string) $value))
             ->filter(fn (string $value) => $value !== '')->unique()->sort()->values();
+    }
+
+    private function withInputDateMetadata(array $row, int $sourceIndex): array
+    {
+        $dateValue = $row['INPUT DATE'] ?? '';
+        $date = ConsumableData::date($dateValue);
+
+        return $row + [
+            '_date' => $date?->format('Y-m-d'),
+            '_sort_timestamp' => ConsumableData::dateTimestamp($date),
+            '_source_index' => $sourceIndex,
+            '_date_display' => ConsumableData::displayDate($dateValue),
+        ];
+    }
+
+    private function newestFirst(Collection $rows): Collection
+    {
+        return $rows->sort(function (array $left, array $right): int {
+            $leftTimestamp = $left['_sort_timestamp'];
+            $rightTimestamp = $right['_sort_timestamp'];
+
+            if ($leftTimestamp === null || $rightTimestamp === null) {
+                if ($leftTimestamp !== $rightTimestamp) {
+                    return $leftTimestamp === null ? 1 : -1;
+                }
+            } else {
+                $timestampOrder = $rightTimestamp <=> $leftTimestamp;
+                if ($timestampOrder !== 0) {
+                    return $timestampOrder;
+                }
+            }
+
+            return $left['_source_index'] <=> $right['_source_index'];
+        })->values();
     }
 
     private function paginate(Collection $rows, Request $request, array $filters): LengthAwarePaginator

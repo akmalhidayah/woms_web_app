@@ -19,8 +19,8 @@ class GoogleSheetsReader
     ];
 
     public const STOCK_HEADERS = [
-        'NO MATERIAL', 'JENIS CONSUMABLE', 'CONSUMABLE', 'DESKRIPSI',
-        'QTY KONSINYASI', 'QTY NON KONSINYASI', 'UNIT', 'UPD. BY', 'UPD. DATE', 'MIN',
+        'UID', 'TYPE CATEGORY', 'DESC.', 'STOCK IN', 'STOCK OUT', 'SPARE STOCK',
+        'STN', 'CATEGORY', 'SUB CATEGORY', 'LOC', 'INPUT. BY', 'INPUT DATE',
     ];
 
     public function __construct(private readonly GoogleOAuthService $google) {}

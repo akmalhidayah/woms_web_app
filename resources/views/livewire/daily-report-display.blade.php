@@ -4,7 +4,7 @@
     $tickerMessage = trim((string) ($tickerText ?? ''));
     $tickerMessage = $tickerMessage !== ''
         ? $tickerMessage
-        : 'Monitoring aktivitas dan progres pekerjaan bengkel dalam tiga hari terakhir';
+        : "Monitoring aktivitas dan progres pekerjaan bengkel dalam {$displayDays} hari terakhir";
     $tickerDuration = max(5, min(60, (int) ($tickerSpeedSeconds ?? 18)));
 @endphp
 
@@ -21,13 +21,19 @@
         </div>
 
         <div class="tv-header-right">
-            <div class="daily-report-summary-card">
-                <span>Rentang Data</span>
-                <strong>3 Hari Terakhir</strong>
+            <div class="tv-summary-card">
+                <div class="tv-summary-title">Total Order</div>
+                <div class="tv-summary-values">
+                    <div><span>Bengkel</span><strong>{{ $orderSummary['total_workshop'] ?? 0 }}</strong></div>
+                    <div><span>Jasa</span><strong>{{ $orderSummary['total_service'] ?? 0 }}</strong></div>
+                </div>
             </div>
-            <div class="daily-report-summary-card">
-                <span>Laporan</span>
-                <strong>{{ $totalReports }}</strong>
+            <div class="tv-summary-card">
+                <div class="tv-summary-title">Diproses</div>
+                <div class="tv-summary-values">
+                    <div><span>Bengkel</span><strong>{{ $orderSummary['processed_workshop'] ?? 0 }}</strong></div>
+                    <div><span>Jasa</span><strong>{{ $orderSummary['processed_service'] ?? 0 }}</strong></div>
+                </div>
             </div>
             <div class="tv-header-clock">
                 <span class="daily-report-clock-label">Jam</span>
@@ -112,7 +118,7 @@
                         <path d="M9 12h6M9 16h4"></path>
                     </svg>
                 </span>
-                <h2>{{ $snapshotFailed ? 'Laporan harian belum dapat dimuat' : 'Belum ada laporan dalam 3 hari terakhir' }}</h2>
+                <h2>{{ $snapshotFailed ? 'Laporan harian belum dapat dimuat' : "Belum ada laporan dalam {$displayDays} hari terakhir" }}</h2>
                 <p>{{ $snapshotFailed ? 'Display Pekerjaan Bengkel akan tetap dilanjutkan secara otomatis.' : 'Data lama tidak ditampilkan pada layar TV.' }}</p>
             </section>
         @endforelse

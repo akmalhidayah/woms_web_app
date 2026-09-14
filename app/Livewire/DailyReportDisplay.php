@@ -7,6 +7,7 @@ use App\Services\AppSheet\AppSheetProfileDirectoryService;
 use App\Services\AppSheet\GoogleDriveMediaService;
 use App\Services\AppSheet\GoogleOAuthService;
 use App\Services\AppSheet\GoogleSheetsReader;
+use App\Services\BengkelTasks\WorkshopOrderSummaryService;
 use App\Support\AppSheet\ConsumableData;
 use App\Support\AppSheet\DailyReportData;
 use Illuminate\Support\Facades\Cache;
@@ -17,6 +18,8 @@ use Throwable;
 class DailyReportDisplay extends Component
 {
     public const DISPLAY_PER_PAGE = 6;
+
+    public const DISPLAY_DAYS = 5;
 
     private const SNAPSHOT_CACHE_KEY = 'appsheet:daily-report-display:rows:v1';
 
@@ -37,6 +40,16 @@ class DailyReportDisplay extends Component
 
     public int $totalReports = 0;
 
+    /**
+     * @var array{total_workshop: int, total_service: int, processed_workshop: int, processed_service: int}
+     */
+    public array $orderSummary = [
+        'total_workshop' => 0,
+        'total_service' => 0,
+        'processed_workshop' => 0,
+        'processed_service' => 0,
+    ];
+
     public int $slidePollCounter = 0;
 
     public int $snapshotPollCounter = 0;
@@ -50,6 +63,7 @@ class DailyReportDisplay extends Component
     public function mount(): void
     {
         $this->loadDisplaySettings();
+        $this->loadOrderSummary();
         $this->loadSnapshot();
     }
 
@@ -61,6 +75,7 @@ class DailyReportDisplay extends Component
         if ($this->snapshotPollCounter >= (int) (self::SNAPSHOT_TTL_SECONDS / self::POLL_SECONDS)) {
             $this->snapshotPollCounter = 0;
             $this->loadDisplaySettings();
+            $this->loadOrderSummary();
             $this->loadSnapshot();
         }
 
@@ -84,7 +99,9 @@ class DailyReportDisplay extends Component
 
     public function render()
     {
-        return view('livewire.daily-report-display');
+        return view('livewire.daily-report-display', [
+            'displayDays' => self::DISPLAY_DAYS,
+        ]);
     }
 
     private function loadSnapshot(): void
@@ -142,7 +159,7 @@ class DailyReportDisplay extends Component
             $reader = app(GoogleSheetsReader::class);
             $profiles = app(AppSheetProfileDirectoryService::class);
             $today = now()->startOfDay();
-            $startDate = $today->copy()->subDays(2)->toDateString();
+            $startDate = $today->copy()->subDays(self::DISPLAY_DAYS - 1)->toDateString();
             $endDate = $today->toDateString();
 
             $rows = collect($reader->dailyReports())
@@ -218,6 +235,17 @@ class DailyReportDisplay extends Component
 
         $this->tickerText = trim((string) ($setting->ticker_text ?? ''));
         $this->tickerSpeedSeconds = max(5, min(60, (int) ($setting->ticker_speed_seconds ?? 18)));
+    }
+
+    private function loadOrderSummary(): void
+    {
+        try {
+            $this->orderSummary = app(WorkshopOrderSummaryService::class)->resolve();
+        } catch (Throwable $exception) {
+            Log::warning('Daily Report TV order summary unavailable.', [
+                'exception_type' => $exception::class,
+            ]);
+        }
     }
 
     private function dateLabel(\DateTimeImmutable $date): string

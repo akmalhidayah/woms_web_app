@@ -186,8 +186,8 @@ class AdminMenuRegistry
             ],
             self::MENU_APPSHEET => [
                 'key' => self::MENU_APPSHEET,
-                'label' => 'AppSheet',
-                'icon' => 'table-2',
+                'label' => 'STOCK BMS',
+                'icon' => 'package-open',
                 'group' => 'support',
                 'route_name' => 'admin.appsheet.history-consumable.index',
                 'active_patterns' => ['admin.appsheet.*'],

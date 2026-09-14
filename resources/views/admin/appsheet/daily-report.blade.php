@@ -90,12 +90,11 @@
                 </span>
             </div>
             <div class="overflow-x-auto">
-                <table class="w-full min-w-[1260px] text-xs">
+                <table class="w-full min-w-[1160px] text-xs">
                     <caption class="sr-only">Laporan Harian Workshop</caption>
                     <thead class="border-b border-slate-200 bg-slate-50/80 text-[10px] uppercase tracking-[0.12em] text-slate-500">
                         <tr>
                             <th scope="col" class="px-5 py-3.5 text-left font-semibold">Foto</th>
-                            <th scope="col" class="whitespace-nowrap px-4 py-3.5 text-left font-semibold">Nomor Order</th>
                             <th scope="col" class="px-4 py-3.5 text-left font-semibold">Pekerjaan</th>
                             <th scope="col" class="px-4 py-3.5 text-left font-semibold">Progress</th>
                             <th scope="col" class="px-4 py-3.5 text-left font-semibold">PIC</th>
@@ -132,11 +131,16 @@
                                         </span>
                                     @endif
                                 </td>
-                                <td class="min-w-36 whitespace-nowrap px-4 py-3.5 align-top">
-                                    <span class="font-mono text-[11px] font-bold text-slate-800">{{ $row['_order'] ?: '-' }}</span>
-                                </td>
                                 <td class="min-w-72 max-w-sm px-4 py-3.5 align-top">
-                                    <p class="line-clamp-3 whitespace-pre-line text-sm font-bold leading-relaxed text-slate-900">{{ $row['_work']['title'] }}</p>
+                                    <div class="space-y-1">
+                                        @if ($row['_order'] !== '' && trim((string) ($row['DESC. ORDER'] ?? '')) !== '')
+                                            <p class="inline-flex items-center gap-1 font-mono text-[10px] font-bold text-blue-600">
+                                                <i data-lucide="hash" class="h-3 w-3" aria-hidden="true"></i>
+                                                {{ $row['_order'] }}
+                                            </p>
+                                        @endif
+                                        <p class="line-clamp-3 whitespace-pre-line text-sm font-bold leading-relaxed text-slate-900">{{ $row['_work']['title'] }}</p>
+                                    </div>
                                     @if ($row['_work']['user'] !== '' || $row['_work']['unit'] !== '')
                                         <div class="mt-1.5 space-y-0.5 text-[10px] leading-relaxed text-slate-500">
                                             @if ($row['_work']['user'] !== '')
@@ -214,7 +218,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-5 py-16 text-center">
+                                <td colspan="6" class="px-5 py-16 text-center">
                                     <span class="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                                         <i data-lucide="clipboard-x" class="h-6 w-6" aria-hidden="true"></i>
                                     </span>

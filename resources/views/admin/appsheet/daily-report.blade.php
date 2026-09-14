@@ -29,9 +29,12 @@
                 </span>
                 <div class="min-w-0">
                     <h1 class="text-[1.3rem] font-bold leading-tight tracking-tight text-slate-900">Laporan Harian</h1>
-                    <p class="mt-1 text-xs leading-relaxed text-slate-500">Pantau aktivitas dan progres pekerjaan harian Workshop.</p>
                 </div>
-                @include('admin.appsheet.partials.google-connection', ['googleReturnTo' => 'daily-report'])
+                @include('admin.appsheet.partials.google-connection', [
+                    'googleReturnTo' => 'daily-report',
+                    'googleConnectionIconOnly' => true,
+                    'hideGoogleReconnect' => true,
+                ])
             </div>
         </section>
 

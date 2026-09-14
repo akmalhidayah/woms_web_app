@@ -48,7 +48,7 @@
             <form method="GET" action="{{ route('admin.daily-report.index') }}" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(230px,2fr)_minmax(150px,1fr)_minmax(105px,0.65fr)_minmax(145px,0.9fr)_auto] xl:items-end">
                 <div>
                     <label for="daily-report-search" class="mb-1.5 block text-[11px] font-semibold text-slate-600">Search</label>
-                    <input id="daily-report-search" name="search" value="{{ $filters['search'] }}" type="search" placeholder="Nomor order, pekerjaan, progress, PIC..." autocomplete="off" class="block h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
+                    <input id="daily-report-search" name="search" value="{{ $filters['search'] }}" type="search" placeholder="Nomor order, pekerjaan, progress, PIC..." autocomplete="off" x-on:input.debounce.500ms="$el.form.requestSubmit()" class="block h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
                 </div>
                 <div>
                     <label for="daily-report-pic" class="mb-1.5 block text-[11px] font-semibold text-slate-600">PIC</label>

@@ -49,8 +49,10 @@
             <div>
                 <label for="daily-report-mobile-search" class="mb-1.5 block text-[11px] font-semibold text-slate-600">Search</label>
                 <div class="relative">
-                    <i data-lucide="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true"></i>
-                    <input id="daily-report-mobile-search" name="search" value="{{ $filters['search'] }}" type="search" placeholder="Order, pekerjaan, progress, PIC..." autocomplete="off" class="block h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 pl-10 pr-3 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
+                    <span class="pointer-events-none absolute inset-y-0 left-0 z-10 inline-flex w-12 items-center justify-center text-slate-400" aria-hidden="true">
+                        <i data-lucide="search" class="h-4 w-4"></i>
+                    </span>
+                    <input id="daily-report-mobile-search" name="search" value="{{ $filters['search'] }}" type="search" placeholder="Order, pekerjaan, progress, PIC..." autocomplete="off" enterkeyhint="search" x-on:input.debounce.500ms="$el.form.requestSubmit()" class="block h-12 w-full rounded-xl border border-slate-200 bg-slate-50/70 pl-12 pr-3 text-base text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
                 </div>
             </div>
             <div class="grid grid-cols-2 gap-3">

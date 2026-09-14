@@ -18,6 +18,8 @@ class DashboardPekerjaan extends Component
 
     public string $mode = 'admin';
 
+    public bool $orchestrated = false;
+
     /**
      * @var array<int, array<string, mixed>>
      */
@@ -52,9 +54,10 @@ class DashboardPekerjaan extends Component
         'forceRefreshBoard' => 'refreshBoard',
     ];
 
-    public function mount(string $mode = 'admin'): void
+    public function mount(string $mode = 'admin', bool $orchestrated = false): void
     {
         $this->mode = $mode;
+        $this->orchestrated = $orchestrated;
         $this->loadTasks();
     }
 
@@ -390,6 +393,17 @@ class DashboardPekerjaan extends Component
     {
         if ($this->maxPages <= 1) {
             $this->pageSlide = 0;
+
+            if ($this->mode === 'display' && $this->orchestrated) {
+                $this->dispatch('workshop-display-cycle-completed');
+            }
+
+            return;
+        }
+
+        if ($this->mode === 'display' && $this->orchestrated && $this->pageSlide >= $this->maxPages - 1) {
+            $this->pageSlide = 0;
+            $this->dispatch('workshop-display-cycle-completed');
 
             return;
         }

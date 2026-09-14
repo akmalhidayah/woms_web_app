@@ -24,6 +24,8 @@ class GoogleDriveMediaService
 
     public const VARIANT_PREVIEW = 'preview';
 
+    public const VARIANT_DISPLAY = 'display';
+
     private const REFERENCE_TTL_SECONDS = 86400;
 
     private const LOOKUP_TTL_SECONDS = 21600;
@@ -60,8 +62,33 @@ class GoogleDriveMediaService
 
     public function mediaUrl(string $collection, mixed $relativePath, string $variant = self::VARIANT_THUMB): ?string
     {
+        return $this->mediaUrlForRoute(
+            $collection,
+            $relativePath,
+            $variant,
+            'admin.appsheet.media.show',
+        );
+    }
+
+    public function dailyReportDisplayMediaUrl(mixed $relativePath): ?string
+    {
+        return $this->mediaUrlForRoute(
+            self::DAILY_REPORT_COLLECTION,
+            $relativePath,
+            self::VARIANT_DISPLAY,
+            'display.bengkel.daily-report-media',
+        );
+    }
+
+    private function mediaUrlForRoute(
+        string $collection,
+        mixed $relativePath,
+        string $variant,
+        string $routeName,
+    ): ?string
+    {
         $reference = $this->reference($collection, $relativePath);
-        if ($reference === null || ! in_array($variant, [self::VARIANT_THUMB, self::VARIANT_PREVIEW], true)
+        if ($reference === null || ! in_array($variant, [self::VARIANT_THUMB, self::VARIANT_PREVIEW, self::VARIANT_DISPLAY], true)
             || $this->folderId($collection) === null || ! $this->hasDriveScope()) {
             return null;
         }
@@ -72,10 +99,14 @@ class GoogleDriveMediaService
             return null;
         }
 
-        return route('admin.appsheet.media.show', ['key' => $key]);
+        return route($routeName, ['key' => $key]);
     }
 
-    public function media(string $key): ?GoogleDriveMedia
+    public function media(
+        string $key,
+        ?string $requiredCollection = null,
+        ?string $requiredVariant = null,
+    ): ?GoogleDriveMedia
     {
         if (! preg_match('/\A[a-f0-9]{64}\z/', $key)) {
             return null;
@@ -88,9 +119,17 @@ class GoogleDriveMediaService
             return null;
         }
 
+        if ($requiredCollection !== null && $reference['collection'] !== $requiredCollection) {
+            return null;
+        }
+
         $legacyReference = ! array_key_exists('variant', $reference);
         $variant = $legacyReference ? self::VARIANT_THUMB : $reference['variant'];
-        if (! is_string($variant) || ! in_array($variant, [self::VARIANT_THUMB, self::VARIANT_PREVIEW], true)) {
+        if (! is_string($variant) || ! in_array($variant, [self::VARIANT_THUMB, self::VARIANT_PREVIEW, self::VARIANT_DISPLAY], true)) {
+            return null;
+        }
+
+        if ($requiredVariant !== null && $variant !== $requiredVariant) {
             return null;
         }
 
@@ -307,8 +346,9 @@ class GoogleDriveMediaService
         }
 
         $url = $file['thumbnail_url'];
-        if ($variant === self::VARIANT_PREVIEW) {
-            $resizedUrl = preg_replace('/=s\d+(?:-[a-z0-9-]+)?\z/i', '=s1600', $url);
+        if (in_array($variant, [self::VARIANT_PREVIEW, self::VARIANT_DISPLAY], true)) {
+            $size = $variant === self::VARIANT_PREVIEW ? 1600 : 960;
+            $resizedUrl = preg_replace('/=s\d+(?:-[a-z0-9-]+)?\z/i', '=s'.$size, $url);
             if (is_string($resizedUrl)) {
                 $url = $resizedUrl;
             }

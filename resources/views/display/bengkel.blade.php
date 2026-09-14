@@ -597,11 +597,158 @@
             .tv-display-shell .tv-board-grid { grid-template-columns: 1fr; grid-template-rows: none; overflow-y: auto; }
             .tv-display-shell .tv-task-card { min-height: 15rem; }
         }
+
+        .daily-report-display-shell {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+            flex-direction: column;
+            overflow: hidden;
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+        .daily-report-board-header {
+            flex: 0 0 auto;
+            margin-bottom: 0.5rem;
+            border: 1px solid #450a0a;
+            background: #7f1d1d;
+            color: #fff;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
+        }
+        .daily-report-brand-logos { display: flex; align-items: center; gap: 0.75rem; }
+        .daily-report-brand-logos img { width: auto; max-width: 90%; height: 2.25rem; object-fit: contain; }
+        .daily-report-heading { min-width: 0; text-align: left; }
+        .daily-report-heading .tv-board-date { color: #cbd5e1; }
+        .daily-report-summary-card {
+            display: flex;
+            min-width: 118px;
+            height: 54px;
+            flex-direction: column;
+            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            border-radius: 0.65rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.4rem 0.65rem;
+        }
+        .daily-report-summary-card span,
+        .daily-report-clock-label {
+            color: #fecaca;
+            font-size: clamp(0.48rem, 0.55vw, 0.62rem);
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .daily-report-summary-card strong {
+            margin-top: 0.18rem;
+            color: #fff;
+            font-size: clamp(0.78rem, 0.9vw, 1rem);
+            font-weight: 900;
+            white-space: nowrap;
+        }
+        .daily-report-display-shell .tv-header-clock { color: #fff; text-align: right; }
+        .daily-report-display-shell .tv-header-clock p { margin-top: 0.25rem; color: #cbd5e1; font-size: 0.6rem; font-weight: 700; }
+        .daily-report-ticker { flex: 0 0 auto; margin-bottom: 0.5rem; border: 1px solid #450a0a; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.14); }
+        .daily-report-tv-grid {
+            display: grid;
+            min-height: 0;
+            flex: 1 1 0%;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-rows: repeat(2, minmax(0, 1fr));
+            gap: 0.75rem;
+            overflow: hidden;
+            padding: 0.75rem;
+        }
+        .daily-report-tv-card {
+            display: grid;
+            min-width: 0;
+            min-height: 0;
+            grid-template-rows: minmax(0, 57%) minmax(0, 43%);
+            overflow: hidden;
+            border: 1px solid #cbd5e1;
+            border-radius: 1rem;
+            background: #fff;
+            box-shadow: 0 5px 16px rgba(15, 23, 42, 0.11);
+        }
+        .daily-report-photo {
+            position: relative;
+            min-height: 0;
+            overflow: hidden;
+            background: linear-gradient(145deg, #e2e8f0, #f8fafc);
+        }
+        .daily-report-photo > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+        .daily-report-photo-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 0.45rem; color: #94a3b8; font-size: 0.7rem; font-weight: 700; }
+        .daily-report-photo-placeholder svg { width: 2rem; height: 2rem; }
+        .daily-report-date-badge {
+            position: absolute;
+            right: 0.6rem;
+            bottom: 0.55rem;
+            z-index: 2;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            border: 1px solid rgba(255, 255, 255, 0.32);
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.78);
+            padding: 0.32rem 0.58rem;
+            color: #fff;
+            font-size: clamp(0.58rem, 0.66vw, 0.75rem);
+            font-weight: 900;
+            letter-spacing: 0.03em;
+            backdrop-filter: blur(6px);
+        }
+        .daily-report-card-body { display: flex; min-height: 0; flex-direction: column; overflow: hidden; padding: 0.62rem 0.72rem 0.65rem; }
+        .daily-report-card-body > h2 {
+            color: #0f172a;
+            font-size: clamp(0.86rem, 1.02vw, 1.16rem);
+            font-weight: 900;
+            line-height: 1.18;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .daily-report-progress { min-height: 0; margin-top: 0.42rem; border-left: 3px solid #2563eb; padding-left: 0.52rem; }
+        .daily-report-progress > span { display: block; color: #64748b; font-size: clamp(0.48rem, 0.54vw, 0.62rem); font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; }
+        .daily-report-progress > p {
+            margin-top: 0.12rem;
+            color: #334155;
+            font-size: clamp(0.66rem, 0.74vw, 0.84rem);
+            font-weight: 700;
+            line-height: 1.25;
+            white-space: pre-line;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .daily-report-card-footer { display: flex; min-width: 0; align-items: flex-end; justify-content: space-between; gap: 0.5rem; margin-top: auto; border-top: 1px solid #e2e8f0; padding-top: 0.45rem; }
+        .daily-report-pics { display: flex; min-width: 0; align-items: center; gap: 0.3rem; overflow: hidden; }
+        .daily-report-pic-chip { display: inline-flex; min-width: 0; max-width: 9rem; align-items: center; gap: 0.3rem; border-radius: 999px; background: #eff6ff; padding: 0.2rem 0.45rem 0.2rem 0.22rem; color: #1e3a8a; }
+        .daily-report-pic-initials { display: inline-flex; width: 1.35rem; height: 1.35rem; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 999px; background: #2563eb; color: #fff; font-size: 0.5rem; font-weight: 900; }
+        .daily-report-pic-chip strong { min-width: 0; overflow: hidden; font-size: clamp(0.52rem, 0.6vw, 0.68rem); font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+        .daily-report-extra-pic,
+        .daily-report-no-pic { flex: 0 0 auto; color: #64748b; font-size: clamp(0.52rem, 0.58vw, 0.66rem); font-weight: 800; white-space: nowrap; }
+        .daily-report-order { max-width: 9.5rem; flex: 0 0 auto; overflow: hidden; color: #2563eb; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: clamp(0.54rem, 0.62vw, 0.7rem); font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
+        .daily-report-tv-empty { grid-column: 1 / -1; grid-row: 1 / -1; display: flex; align-items: center; justify-content: center; flex-direction: column; border: 1px dashed #cbd5e1; border-radius: 1rem; background: #fff; color: #64748b; text-align: center; }
+        .daily-report-empty-icon { display: inline-flex; width: 4rem; height: 4rem; align-items: center; justify-content: center; border-radius: 1rem; background: #eff6ff; color: #2563eb; }
+        .daily-report-empty-icon svg { width: 2rem; height: 2rem; }
+        .daily-report-tv-empty h2 { margin-top: 1rem; color: #0f172a; font-size: clamp(1rem, 1.35vw, 1.5rem); font-weight: 900; }
+        .daily-report-tv-empty p { margin-top: 0.4rem; font-size: clamp(0.7rem, 0.8vw, 0.9rem); font-weight: 600; }
+        @media (max-height: 820px) {
+            .daily-report-tv-card { grid-template-rows: minmax(0, 53%) minmax(0, 47%); }
+            .daily-report-card-body { padding: 0.48rem 0.58rem 0.5rem; }
+            .daily-report-progress { margin-top: 0.28rem; }
+            .daily-report-card-footer { padding-top: 0.3rem; }
+        }
+        @media (max-width: 800px) {
+            .daily-report-tv-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); }
+            .daily-report-summary-card { display: none; }
+        }
     </style>
 </head>
 
 <body class="bg-slate-100 min-h-screen overflow-hidden">
-    <livewire:dashboard-pekerjaan mode="display" />
+    <livewire:workshop-display />
 
     @livewireScripts
 

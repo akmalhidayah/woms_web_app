@@ -74,6 +74,10 @@ Route::get('informasi/{informationUpload}/preview', [InformationUploadController
 Route::view('display-pekerjaan-bengkel', 'display.bengkel')
     ->name('display.bengkel');
 
+Route::get('display-pekerjaan-bengkel/laporan-harian/media/{key}', [AppSheetMediaController::class, 'showDailyReportDisplay'])
+    ->where('key', '[a-f0-9]{64}')
+    ->name('display.bengkel.daily-report-media');
+
 Route::middleware(['auth'])->group(function () {
     Route::post('impersonation/stop', [UserImpersonationController::class, 'stop'])
         ->name('impersonation.stop');

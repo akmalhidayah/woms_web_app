@@ -53,10 +53,12 @@ class OrderWorkshopBiayaTest extends TestCase
             ->assertOk()
             ->assertSee('id="createBiayaDisplay"', false)
             ->assertSee('id="editBiayaDisplay"', false)
+            ->assertSee('.admin-compact #createBiayaDisplay', false)
+            ->assertSee('.admin-compact #editBiayaDisplay', false)
             ->assertSee('padding-left: 3rem !important;', false)
             ->assertSee('name="biaya"', false);
 
-        $this->assertSame(3, substr_count($indexResponse->getContent(), 'order-workshop-currency-input'));
+        $this->assertSame(2, substr_count($indexResponse->getContent(), 'order-workshop-currency-input'));
 
         $this->actingAs($this->admin)
             ->post(route('admin.orders.workshop.store'), $this->payload([

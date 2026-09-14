@@ -108,7 +108,8 @@
             z-index: 40;
         }
 
-        .order-workshop-currency-input {
+        .admin-compact #createBiayaDisplay,
+        .admin-compact #editBiayaDisplay {
             padding-left: 3rem !important;
         }
 

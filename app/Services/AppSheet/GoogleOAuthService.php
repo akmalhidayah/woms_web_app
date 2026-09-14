@@ -16,7 +16,14 @@ use Throwable;
 
 class GoogleOAuthService
 {
-    public const SCOPE = 'https://www.googleapis.com/auth/spreadsheets.readonly';
+    public const SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets.readonly';
+
+    public const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+
+    public const SCOPES = [
+        self::SHEETS_SCOPE,
+        self::DRIVE_SCOPE,
+    ];
 
     private const TOKEN_PATH = 'appsheet/google/oauth-tokens.enc';
 
@@ -29,7 +36,7 @@ class GoogleOAuthService
             'client_id' => $credentials['client_id'],
             'redirect_uri' => $credentials['redirect_uri'],
             'response_type' => 'code',
-            'scope' => self::SCOPE,
+            'scope' => $this->requestedScopes(),
             'access_type' => 'offline',
             'prompt' => 'consent',
             'state' => $state,
@@ -108,7 +115,10 @@ class GoogleOAuthService
                 throw $exception;
             }
 
-            $tokens = $this->tokenPayload($response, $tokens['refresh_token']);
+            $storedScope = is_string($tokens['scope'] ?? null) && trim($tokens['scope']) !== ''
+                ? $tokens['scope']
+                : self::SHEETS_SCOPE;
+            $tokens = $this->tokenPayload($response, $tokens['refresh_token'], $storedScope, false);
             $this->storeTokens($tokens);
 
             return $tokens['access_token'];
@@ -170,11 +180,15 @@ class GoogleOAuthService
      * @param  array<string, mixed>  $response
      * @return array<string, mixed>
      */
-    private function tokenPayload(#[SensitiveParameter] array $response, #[SensitiveParameter] ?string $refreshToken = null): array
-    {
+    private function tokenPayload(
+        #[SensitiveParameter] array $response,
+        #[SensitiveParameter] ?string $refreshToken = null,
+        ?string $fallbackScope = null,
+        bool $requireAllScopes = true,
+    ): array {
         $accessToken = $response['access_token'] ?? null;
         $expiresIn = filter_var($response['expires_in'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-        $scope = $response['scope'] ?? self::SCOPE;
+        $scope = $response['scope'] ?? $fallbackScope;
         $tokenType = $response['token_type'] ?? 'Bearer';
 
         if (! is_string($accessToken) || trim($accessToken) === '' || $expiresIn === false
@@ -182,8 +196,16 @@ class GoogleOAuthService
             throw new GoogleOAuthException('Respons koneksi Google tidak valid. Silakan coba kembali.');
         }
 
-        if (! is_string($scope) || ! in_array(self::SCOPE, preg_split('/\s+/', trim($scope)), true)) {
+        $returnedScopes = is_string($scope)
+            ? preg_split('/\s+/', trim($scope), -1, PREG_SPLIT_NO_EMPTY)
+            : false;
+
+        if (! is_array($returnedScopes) || ! in_array(self::SHEETS_SCOPE, $returnedScopes, true)) {
             throw new GoogleOAuthException('Izin membaca Google Sheets belum diberikan. Silakan hubungkan Google kembali dan berikan izin tersebut.');
+        }
+
+        if ($requireAllScopes && ! in_array(self::DRIVE_SCOPE, $returnedScopes, true)) {
+            throw new GoogleOAuthException('Izin membaca Google Drive belum diberikan. Silakan hubungkan Google kembali dan berikan izin tersebut.');
         }
 
         $returnedRefreshToken = $response['refresh_token'] ?? null;
@@ -196,9 +218,14 @@ class GoogleOAuthService
             'refresh_token' => $refreshToken,
             'expires_in' => $expiresIn,
             'expires_at' => now()->timestamp + $expiresIn,
-            'scope' => self::SCOPE,
+            'scope' => $requireAllScopes ? $this->requestedScopes() : implode(' ', $returnedScopes),
             'client_id_hash' => hash('sha256', $this->credentials()['client_id']),
         ];
+    }
+
+    private function requestedScopes(): string
+    {
+        return implode(' ', self::SCOPES);
     }
 
     /**

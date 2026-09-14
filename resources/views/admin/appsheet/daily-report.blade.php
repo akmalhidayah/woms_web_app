@@ -90,14 +90,13 @@
                 </span>
             </div>
             <div class="overflow-x-auto">
-                <table class="w-full min-w-[1160px] text-xs">
+                <table class="w-full min-w-[1040px] text-xs">
                     <caption class="sr-only">Laporan Harian Workshop</caption>
                     <thead class="border-b border-slate-200 bg-slate-50/80 text-[10px] uppercase tracking-[0.12em] text-slate-500">
                         <tr>
                             <th scope="col" class="px-5 py-3.5 text-left font-semibold">Foto</th>
                             <th scope="col" class="px-4 py-3.5 text-left font-semibold">Pekerjaan</th>
                             <th scope="col" class="px-4 py-3.5 text-left font-semibold">Progress</th>
-                            <th scope="col" class="px-4 py-3.5 text-left font-semibold">PIC</th>
                             <th scope="col" class="whitespace-nowrap px-4 py-3.5 text-left font-semibold">Input By</th>
                             <th scope="col" class="whitespace-nowrap px-4 py-3.5 text-left font-semibold">Tanggal</th>
                         </tr>
@@ -158,26 +157,28 @@
                                         </a>
                                     @endif
                                 </td>
-                                <td class="min-w-60 max-w-sm px-4 py-3.5 align-top">
+                                <td class="min-w-80 max-w-md px-5 py-3.5 align-top">
                                     <p class="line-clamp-4 whitespace-pre-line leading-relaxed text-slate-700">{{ $row['_progress'] ?: '-' }}</p>
-                                </td>
-                                <td class="min-w-52 px-4 py-3.5 align-top">
                                     @if ($row['_pic_profiles'] !== [])
-                                        <div class="flex flex-col items-start gap-2">
-                                            @foreach ($row['_pic_profiles'] as $profile)
-                                                <div class="flex items-center gap-2">
-                                                    <span class="relative inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-blue-100 to-indigo-100 text-[9px] font-black text-blue-700 ring-1 ring-blue-200">
-                                                        {{ $profile['initials'] }}
-                                                        @if ($profile['avatar_url'])
-                                                            <img src="{{ $profile['avatar_url'] }}" alt="Avatar {{ $profile['name'] }}" loading="lazy" class="absolute inset-0 h-full w-full bg-white object-contain object-center p-0.5" onerror="this.remove()">
-                                                        @endif
-                                                    </span>
-                                                    <span class="font-semibold leading-snug text-slate-800">{{ $profile['name'] }}</span>
-                                                </div>
-                                            @endforeach
+                                        <div class="mt-2.5 border-t border-slate-100 pt-2">
+                                            <p class="mb-1.5 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                                                <i data-lucide="users" class="h-3 w-3" aria-hidden="true"></i>
+                                                PIC
+                                            </p>
+                                            <div class="flex flex-wrap items-center gap-1.5">
+                                                @foreach ($row['_pic_profiles'] as $profile)
+                                                    <div class="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 py-1 pl-1 pr-2 ring-1 ring-slate-100">
+                                                        <span class="relative inline-flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-md bg-gradient-to-br from-blue-100 to-indigo-100 text-[8px] font-black text-blue-700 ring-1 ring-blue-200">
+                                                            {{ $profile['initials'] }}
+                                                            @if ($profile['avatar_url'])
+                                                                <img src="{{ $profile['avatar_url'] }}" alt="Avatar {{ $profile['name'] }}" loading="lazy" class="absolute inset-0 h-full w-full bg-white object-contain object-center p-0.5" onerror="this.remove()">
+                                                            @endif
+                                                        </span>
+                                                        <span class="text-[10px] font-semibold leading-none text-slate-600">{{ $profile['name'] }}</span>
+                                                    </div>
+                                                @endforeach
+                                            </div>
                                         </div>
-                                    @else
-                                        <span class="text-slate-400">-</span>
                                     @endif
                                 </td>
                                 <td class="min-w-52 px-4 py-3.5 align-top">
@@ -218,7 +219,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-5 py-16 text-center">
+                                <td colspan="5" class="px-5 py-16 text-center">
                                     <span class="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                                         <i data-lucide="clipboard-x" class="h-6 w-6" aria-hidden="true"></i>
                                     </span>

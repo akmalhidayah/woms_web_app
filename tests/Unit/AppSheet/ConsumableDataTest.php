@@ -47,10 +47,60 @@ class ConsumableDataTest extends TestCase
         self::assertSame('30/12/1899 12:00:00', ConsumableData::displayDate(0.5));
     }
 
+    public function test_date_timestamp_supports_local_dot_separated_times(): void
+    {
+        self::assertSame('2026-09-11 16:05:14', $this->timestampFormat('11/09/2026 16.05.14'));
+        self::assertSame('2026-09-11 09:24:11', $this->timestampFormat('11/09/2026 09.24.11'));
+        self::assertSame('2026-09-10 14:02:11', $this->timestampFormat('10/09/2026 14.02.11'));
+        self::assertSame('2025-12-31 00:00:00', $this->timestampFormat('31/12/2025'));
+    }
+
+    public function test_date_timestamp_uses_us_format_only_as_fallback(): void
+    {
+        self::assertSame('2023-11-28 00:00:00', $this->timestampFormat('11/28/2023 0:00:00'));
+        self::assertSame(
+            ConsumableData::dateTimestamp('2026-09-11'),
+            ConsumableData::dateTimestamp('11/09/2026'),
+        );
+        self::assertNotSame(
+            ConsumableData::dateTimestamp('2026-11-09'),
+            ConsumableData::dateTimestamp('11/09/2026'),
+        );
+        self::assertNull(ConsumableData::dateTimestamp('31/02/2026'));
+    }
+
+    public function test_mixed_input_dates_sort_by_parsed_timestamp_descending(): void
+    {
+        $dates = [
+            '31/12/2025',
+            '11/09/2026 09.24.11',
+            '10/09/2026 14.02.11',
+            '11/09/2026 16.05.14',
+            '11/09/2026 14.02.11',
+        ];
+
+        usort($dates, fn (string $left, string $right): int => ConsumableData::dateTimestamp($right) <=> ConsumableData::dateTimestamp($left));
+
+        self::assertSame([
+            '11/09/2026 16.05.14',
+            '11/09/2026 14.02.11',
+            '11/09/2026 09.24.11',
+            '10/09/2026 14.02.11',
+            '31/12/2025',
+        ], $dates);
+    }
+
     private function stockStatus(mixed $spareStock): ?string
     {
         return ConsumableData::stockStatus([
             'SPARE STOCK' => $spareStock,
         ]);
+    }
+
+    private function timestampFormat(mixed $value): ?string
+    {
+        $timestamp = ConsumableData::dateTimestamp($value);
+
+        return $timestamp === null ? null : gmdate('Y-m-d H:i:s', $timestamp);
     }
 }

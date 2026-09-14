@@ -56,8 +56,9 @@ class ConsumableData
 
         // Tanggal bertipe date memakai serial API. Tanggal teks lokal memakai hari/bulan/tahun.
         foreach (['Y-m-d\TH:i:sP', 'Y-m-d\TH:i:s.uP', 'Y-m-d\TH:i:s', 'Y-m-d H:i:s', 'Y-m-d H:i', 'Y-m-d',
-            'd/m/Y H:i:s', 'd/m/Y H:i', 'd/m/Y', 'd-m-Y H:i:s', 'd-m-Y H:i', 'd-m-Y',
-            'm/d/Y h:i:s A', 'm/d/Y h:i A'] as $format) {
+            'd/m/Y H:i:s', 'd/m/Y H:i', 'd/m/Y H.i.s', 'd/m/Y H.i', 'd/m/Y',
+            'd-m-Y H:i:s', 'd-m-Y H:i', 'd-m-Y',
+            'm/d/Y H:i:s', 'm/d/Y H:i', 'm/d/Y', 'm/d/Y h:i:s A', 'm/d/Y h:i A'] as $format) {
             $date = DateTimeImmutable::createFromFormat('!'.$format, trim($value), $timezone);
             $errors = DateTimeImmutable::getLastErrors();
             if ($date !== false && ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0))) {

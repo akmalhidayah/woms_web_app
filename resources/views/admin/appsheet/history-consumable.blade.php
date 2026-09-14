@@ -1,5 +1,20 @@
 <x-layouts.admin title="History Consumable">
-    <div class="min-w-0 space-y-5">
+    <div
+        class="min-w-0 space-y-5"
+        x-data="{
+            previewImageUrl: '',
+            previewImageAlt: '',
+            openImagePreview(url, alt) {
+                this.previewImageUrl = url;
+                this.previewImageAlt = alt;
+            },
+            closeImagePreview() {
+                this.previewImageUrl = '';
+                this.previewImageAlt = '';
+            },
+        }"
+        x-on:keydown.escape.window="closeImagePreview()"
+    >
         <section class="overflow-hidden rounded-[1.35rem] border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-indigo-50 px-5 py-5 shadow-sm">
             <div class="flex flex-wrap items-center gap-4">
                 <span class="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-200/70">
@@ -118,12 +133,25 @@
                                 </td>
                                 <td class="min-w-60 px-4 py-3.5 align-top">
                                     <div class="flex items-center gap-3">
-                                        <span class="relative inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 text-xs font-black text-blue-700 ring-1 ring-blue-200 shadow-sm">
-                                            {{ $requester['initials'] }}
-                                            @if ($row['_requester_avatar_url'])
+                                        @if ($row['_requester_avatar_url'])
+                                            <button
+                                                type="button"
+                                                class="group relative inline-flex h-12 w-12 shrink-0 cursor-zoom-in items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 text-xs font-black text-blue-700 shadow-sm ring-1 ring-blue-200 transition hover:ring-2 hover:ring-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                                aria-label="Lihat foto {{ $requester['name'] }}"
+                                                title="Klik untuk melihat foto"
+                                                x-on:click="openImagePreview(@js($row['_requester_avatar_url']), @js('Foto '.$requester['name']))"
+                                            >
+                                                {{ $requester['initials'] }}
                                                 <img src="{{ $row['_requester_avatar_url'] }}" alt="Avatar {{ $requester['name'] }}" loading="lazy" class="absolute inset-0 h-full w-full bg-white object-contain object-center p-0.5" onerror="this.remove()">
-                                            @endif
-                                        </span>
+                                                <span class="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/35 text-white opacity-0 transition group-hover:opacity-100" aria-hidden="true">
+                                                    <i data-lucide="maximize-2" class="h-4 w-4"></i>
+                                                </span>
+                                            </button>
+                                        @else
+                                            <span class="relative inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 text-xs font-black text-blue-700 shadow-sm ring-1 ring-blue-200">
+                                                {{ $requester['initials'] }}
+                                            </span>
+                                        @endif
                                         <div class="min-w-0">
                                             <p class="font-semibold leading-snug text-slate-900">{{ $requester['name'] }}</p>
                                             @if ($requesterMeta !== '')
@@ -166,5 +194,7 @@
                 <div class="border-t border-slate-200 bg-slate-50/40 px-4 py-3">{{ $rows->links() }}</div>
             @endif
         </section>
+
+        @include('admin.appsheet.partials.image-preview-modal')
     </div>
 </x-layouts.admin>

@@ -1,5 +1,20 @@
 <x-layouts.admin title="Stock Consumable">
-    <div class="min-w-0 space-y-5">
+    <div
+        class="min-w-0 space-y-5"
+        x-data="{
+            previewImageUrl: '',
+            previewImageAlt: '',
+            openImagePreview(url, alt) {
+                this.previewImageUrl = url;
+                this.previewImageAlt = alt;
+            },
+            closeImagePreview() {
+                this.previewImageUrl = '';
+                this.previewImageAlt = '';
+            },
+        }"
+        x-on:keydown.escape.window="closeImagePreview()"
+    >
         <section class="overflow-hidden rounded-[1.35rem] border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-cyan-50 px-5 py-5 shadow-sm">
             <div class="flex flex-wrap items-center gap-4">
                 <span class="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-200/70">
@@ -88,12 +103,25 @@
                             <tr class="group align-middle text-slate-700 transition-colors hover:bg-blue-50/40">
                                 <td class="min-w-96 px-5 py-4 align-top">
                                     <div class="flex items-start gap-3.5">
-                                        <span class="relative inline-flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400 ring-1 ring-slate-200 shadow-sm">
-                                            <i data-lucide="package" class="h-6 w-6" aria-hidden="true"></i>
-                                            @if ($row['_image_url'])
+                                        @if ($row['_image_url'])
+                                            <button
+                                                type="button"
+                                                class="group relative inline-flex h-20 w-20 shrink-0 cursor-zoom-in items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400 shadow-sm ring-1 ring-slate-200 transition hover:ring-2 hover:ring-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                                aria-label="Lihat foto {{ $row['DESC.'] ?: 'item consumable' }}"
+                                                title="Klik untuk melihat foto"
+                                                x-on:click="openImagePreview(@js($row['_image_url']), @js('Foto '.($row['DESC.'] ?: 'item consumable')))"
+                                            >
+                                                <i data-lucide="package" class="h-6 w-6" aria-hidden="true"></i>
                                                 <img src="{{ $row['_image_url'] }}" alt="Foto {{ $row['DESC.'] }}" loading="lazy" class="absolute inset-0 h-full w-full bg-white object-contain object-center p-1.5 transition duration-200 group-hover:scale-105" onerror="this.remove()">
-                                            @endif
-                                        </span>
+                                                <span class="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/35 text-white opacity-0 transition group-hover:opacity-100" aria-hidden="true">
+                                                    <i data-lucide="maximize-2" class="h-5 w-5"></i>
+                                                </span>
+                                            </button>
+                                        @else
+                                            <span class="relative inline-flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400 shadow-sm ring-1 ring-slate-200">
+                                                <i data-lucide="package" class="h-6 w-6" aria-hidden="true"></i>
+                                            </span>
+                                        @endif
                                         <div class="min-w-0">
                                             <p class="text-sm font-bold leading-relaxed text-slate-900">{{ $row['DESC.'] ?: '-' }}</p>
                                             <div class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px]">
@@ -176,5 +204,7 @@
                 <div class="border-t border-slate-200 bg-slate-50/40 px-4 py-3">{{ $rows->links() }}</div>
             @endif
         </section>
+
+        @include('admin.appsheet.partials.image-preview-modal')
     </div>
 </x-layouts.admin>

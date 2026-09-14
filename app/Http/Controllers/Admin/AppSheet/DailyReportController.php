@@ -146,12 +146,12 @@ class DailyReportController extends Controller
             '_input_by' => $inputBy,
             '_photo_thumbnail_url' => $driveMedia->mediaUrl(
                 GoogleDriveMediaService::DAILY_REPORT_COLLECTION,
-                $row['FOTO PEKERJAAN'] ?? '',
+                $row['POTO PEKERJAAN'] ?? '',
                 GoogleDriveMediaService::VARIANT_THUMB,
             ),
             '_photo_preview_url' => $driveMedia->mediaUrl(
                 GoogleDriveMediaService::DAILY_REPORT_COLLECTION,
-                $row['FOTO PEKERJAAN'] ?? '',
+                $row['POTO PEKERJAAN'] ?? '',
                 GoogleDriveMediaService::VARIANT_PREVIEW,
             ),
             // Lampiran hanya diberikan bila path-nya juga lolos allowlist folder gambar laporan.

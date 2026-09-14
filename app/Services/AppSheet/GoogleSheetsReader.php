@@ -30,7 +30,7 @@ class GoogleSheetsReader
 
     public const DAILY_REPORT_HEADERS = [
         'ORDER', 'DESC. ORDER', 'ATTACHMENT', 'INPUT NON ORDER', 'PROGRESS PEKERJAAN',
-        'FOTO PEKERJAAN', 'PIC', 'INPUT BY', 'INPUT DATE', 'TAHUN',
+        'POTO PEKERJAAN', 'PIC', 'INPUT BY', 'INPUT DATE', 'TAHUN',
     ];
 
     public function __construct(private readonly GoogleOAuthService $google) {}
@@ -52,10 +52,22 @@ class GoogleSheetsReader
 
     public function dailyReports(): array
     {
-        return $this->read('daily_report_sheet', 'appsheet:daily-reports', self::DAILY_REPORT_HEADERS);
+        return $this->read(
+            'daily_report_sheet',
+            'appsheet:daily-reports:v2',
+            self::DAILY_REPORT_HEADERS,
+            headerAliases: ['POTO PEKERJAAN' => ['FOTO PEKERJAAN']],
+        );
     }
 
-    private function read(string $sheetConfig, string $cacheKey, array $headers, int $cacheTtl = 30, bool $selectedColumnsOnly = false): array
+    private function read(
+        string $sheetConfig,
+        string $cacheKey,
+        array $headers,
+        int $cacheTtl = 30,
+        bool $selectedColumnsOnly = false,
+        array $headerAliases = [],
+    ): array
     {
         try {
             $spreadsheetId = config('services.google.spreadsheet_id');
@@ -74,15 +86,15 @@ class GoogleSheetsReader
                 return $cached['rows'];
             }
 
-            return $cache->lock($cacheKey.':lock', 35)->block(5, function () use ($cache, $cacheKey, $source, $spreadsheetId, $sheet, $token, $headers, $cacheTtl, $selectedColumnsOnly): array {
+            return $cache->lock($cacheKey.':lock', 35)->block(5, function () use ($cache, $cacheKey, $source, $spreadsheetId, $sheet, $token, $headers, $cacheTtl, $selectedColumnsOnly, $headerAliases): array {
                 $cached = $cache->get($cacheKey);
                 if (is_array($cached) && ($cached['source'] ?? null) === $source) {
                     return $cached['rows'];
                 }
 
                 $rows = $selectedColumnsOnly
-                    ? $this->fetchSelectedColumns($spreadsheetId, $sheet, $token, $headers)
-                    : $this->mapRows($this->fetchValues($spreadsheetId, $sheet, $token), $headers, $sheet);
+                    ? $this->fetchSelectedColumns($spreadsheetId, $sheet, $token, $headers, $headerAliases)
+                    : $this->mapRows($this->fetchValues($spreadsheetId, $sheet, $token), $headers, $sheet, $headerAliases);
                 if (! $cache->put($cacheKey, ['source' => $source, 'rows' => $rows], $cacheTtl)) {
                     throw new GoogleSheetsException('Cache AppSheet belum dapat disimpan. Silakan coba kembali.');
                 }
@@ -116,7 +128,13 @@ class GoogleSheetsReader
         return $this->valuesFromResponse($response, $sheet);
     }
 
-    private function fetchSelectedColumns(string $spreadsheetId, string $sheet, #[SensitiveParameter] string $token, array $requiredHeaders): array
+    private function fetchSelectedColumns(
+        string $spreadsheetId,
+        string $sheet,
+        #[SensitiveParameter] string $token,
+        array $requiredHeaders,
+        array $headerAliases = [],
+    ): array
     {
         $quotedSheet = "'".str_replace("'", "''", $sheet)."'";
         $headerResponse = $this->sheetsRequest($spreadsheetId, '/values/'.rawurlencode($quotedSheet.'!1:1'), $token, [
@@ -124,7 +142,7 @@ class GoogleSheetsReader
             'valueRenderOption' => 'UNFORMATTED_VALUE',
         ]);
         $headerRows = $this->valuesFromResponse($headerResponse, $sheet);
-        $positions = $this->headerPositions($headerRows[0] ?? [], $requiredHeaders, $sheet);
+        $positions = $this->headerPositions($headerRows[0] ?? [], $requiredHeaders, $sheet, $headerAliases);
         $ranges = [];
         foreach ($requiredHeaders as $header) {
             $column = $this->columnName($positions[$header] + 1);
@@ -218,13 +236,13 @@ class GoogleSheetsReader
         }
     }
 
-    private function mapRows(array $values, array $requiredHeaders, string $sheet): array
+    private function mapRows(array $values, array $requiredHeaders, string $sheet, array $headerAliases = []): array
     {
         if ($values === []) {
             return [];
         }
 
-        $positions = $this->headerPositions((array) array_shift($values), $requiredHeaders, $sheet);
+        $positions = $this->headerPositions((array) array_shift($values), $requiredHeaders, $sheet, $headerAliases);
 
         $rows = [];
         foreach ($values as $cells) {
@@ -243,20 +261,38 @@ class GoogleSheetsReader
         return $rows;
     }
 
-    private function headerPositions(array $headers, array $requiredHeaders, string $sheet): array
+    private function headerPositions(array $headers, array $requiredHeaders, string $sheet, array $headerAliases = []): array
     {
-        $positions = [];
+        $acceptedHeaders = collect($requiredHeaders)
+            ->flatMap(fn (string $header): array => [$header, ...($headerAliases[$header] ?? [])])
+            ->map(fn (string $header): string => mb_strtoupper(trim($header)))
+            ->all();
+        $available = [];
         foreach ($headers as $index => $header) {
             $name = is_string($header) ? mb_strtoupper(trim($header)) : '';
-            if ($name !== '' && in_array($name, $requiredHeaders, true)) {
-                if (array_key_exists($name, $positions)) {
-                    throw new GoogleSheetsException('Header "'.$name.'" berulang pada sheet "'.$sheet.'". Periksa baris pertama sheet.');
-                }
-                $positions[$name] = $index;
+            if ($name === '' || ! in_array($name, $acceptedHeaders, true)) {
+                continue;
             }
+            if (array_key_exists($name, $available)) {
+                throw new GoogleSheetsException('Header "'.$name.'" berulang pada sheet "'.$sheet.'". Periksa baris pertama sheet.');
+            }
+            $available[$name] = $index;
         }
 
-        $missing = array_diff($requiredHeaders, array_keys($positions));
+        $positions = [];
+        $missing = [];
+        foreach ($requiredHeaders as $requiredHeader) {
+            $candidates = [$requiredHeader, ...($headerAliases[$requiredHeader] ?? [])];
+            foreach ($candidates as $candidate) {
+                $candidate = mb_strtoupper(trim((string) $candidate));
+                if (array_key_exists($candidate, $available)) {
+                    $positions[$requiredHeader] = $available[$candidate];
+                    continue 2;
+                }
+            }
+            $missing[] = $requiredHeader;
+        }
+
         if ($missing !== []) {
             throw new GoogleSheetsException('Header sheet "'.$sheet.'" belum sesuai: '.implode(', ', $missing).'.');
         }

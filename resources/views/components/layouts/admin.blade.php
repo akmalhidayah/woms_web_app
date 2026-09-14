@@ -62,7 +62,7 @@
                 line-height: 1.2rem;
             }
 
-            .admin-compact input:not([type="checkbox"]):not([type="radio"]),
+            .admin-compact input:not([type="checkbox"]):not([type="radio"]):not([data-preserve-mobile-size]),
             .admin-compact select,
             .admin-compact textarea {
                 border-radius: 0.5rem !important;

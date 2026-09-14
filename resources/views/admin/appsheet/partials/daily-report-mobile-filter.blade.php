@@ -48,12 +48,7 @@
         <form method="GET" action="{{ route('admin.daily-report.index') }}" class="mt-5 space-y-4">
             <div>
                 <label for="daily-report-mobile-search" class="mb-1.5 block text-[11px] font-semibold text-slate-600">Search</label>
-                <div class="relative">
-                    <span class="pointer-events-none absolute inset-y-0 left-0 z-10 inline-flex w-12 items-center justify-center text-slate-400" aria-hidden="true">
-                        <i data-lucide="search" class="h-4 w-4"></i>
-                    </span>
-                    <input id="daily-report-mobile-search" name="search" value="{{ $filters['search'] }}" type="search" placeholder="Order, pekerjaan, progress, PIC..." autocomplete="off" enterkeyhint="search" x-on:input.debounce.500ms="$el.form.requestSubmit()" class="block h-12 w-full rounded-xl border border-slate-200 bg-slate-50/70 pl-12 pr-3 text-base text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
-                </div>
+                <input id="daily-report-mobile-search" name="search" value="{{ $filters['search'] }}" type="search" placeholder="Cari order, pekerjaan, progress, atau PIC..." autocomplete="off" enterkeyhint="search" data-preserve-mobile-size class="block h-12 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-4 text-base text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div>

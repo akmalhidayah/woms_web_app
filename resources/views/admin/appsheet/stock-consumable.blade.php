@@ -1,4 +1,4 @@
-<x-layouts.admin title="Stock Consumable">
+<x-layouts.admin title="STOCK">
     <div
         class="min-w-0 space-y-5"
         x-data="{
@@ -27,17 +27,7 @@
         }"
         x-on:keydown.escape.window="closeImagePreview()"
     >
-        <section class="overflow-hidden rounded-[1.35rem] border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-cyan-50 px-5 py-5 shadow-sm">
-            <div class="flex flex-wrap items-center gap-4">
-                <span class="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-200/70">
-                    <i data-lucide="package-open" class="h-5 w-5" aria-hidden="true"></i>
-                </span>
-                <div class="min-w-0">
-                    <h1 class="text-[1.3rem] font-bold leading-tight tracking-tight text-slate-900">Stock Consumable</h1>
-                </div>
-                @include('admin.appsheet.partials.google-connection', ['googleReturnTo' => 'stock'])
-            </div>
-        </section>
+        @include('admin.appsheet.partials.stock-header')
 
         @include('admin.appsheet.partials.google-messages')
 

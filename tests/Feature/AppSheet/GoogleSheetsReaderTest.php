@@ -21,6 +21,9 @@ class GoogleSheetsReaderTest extends TestCase
             'services.google.spreadsheet_id' => 'test-spreadsheet',
             'services.google.history_consumable_sheet' => 'HISTORY CONS',
             'services.google.stock_consumable_sheet' => 'STOCK CONS BMS',
+            'services.google.stock_consumable_gudang_sheet' => 'STOCK CONS GUDANG',
+            'services.google.stock_material_bms_sheet' => 'STOCK MATERIAL BMS',
+            'services.google.stock_material_gudang_sheet' => 'STOK MATERIAL GUDANG',
             'services.google.data_sheet' => 'Data',
         ]);
         $cache = Cache::store('array');
@@ -104,6 +107,42 @@ class GoogleSheetsReaderTest extends TestCase
         self::assertArrayNotHasKey('LOC ID', $row);
         self::assertSame('3,2 mm', $row['SIZE']);
         self::assertArrayNotHasKey('QTY', $row);
+    }
+
+    public function test_new_stock_readers_map_reordered_headers_and_use_independent_caches(): void
+    {
+        $sheets = [
+            'stockConsumableGudang' => ['STOCK CONS GUDANG', GoogleSheetsReader::STOCK_CONSUMABLE_GUDANG_HEADERS, 'appsheet:stock-consumable-gudang'],
+            'stockMaterialBms' => ['STOCK MATERIAL BMS', GoogleSheetsReader::STOCK_MATERIAL_BMS_HEADERS, 'appsheet:stock-material-bms'],
+            'stockMaterialGudang' => ['STOK MATERIAL GUDANG', GoogleSheetsReader::STOCK_MATERIAL_GUDANG_HEADERS, 'appsheet:stock-material-gudang'],
+        ];
+        Http::fake(function ($request) use ($sheets) {
+            foreach ($sheets as [$sheet, $headers]) {
+                if (str_contains(rawurldecode($request->url()), "/values/'".$sheet."'")) {
+                    $reversed = array_reverse($headers);
+
+                    return Http::response(['range' => $sheet, 'values' => [
+                        [...$reversed, 'Duplikat'],
+                        [...array_map(fn (string $header) => in_array($header, ['QTY', 'QTY KONSINYASI'], true) ? 2.345 : $header.' value', $reversed), 'ignored-helper'],
+                    ]]);
+                }
+            }
+
+            return Http::response([], 404);
+        });
+
+        $reader = $this->reader();
+        foreach ($sheets as $method => [$sheet, $headers, $cacheKey]) {
+            $rows = $reader->{$method}();
+            self::assertSame($rows, $reader->{$method}());
+            self::assertSame($headers, array_keys($rows[0]));
+            self::assertSame(2.345, $rows[0][$method === 'stockConsumableGudang' ? 'QTY KONSINYASI' : 'QTY']);
+            self::assertArrayNotHasKey('Duplikat', $rows[0]);
+            self::assertNotNull(Cache::store('file')->get($cacheKey));
+            self::assertStringNotContainsString('test-access-token', json_encode(Cache::store('file')->get($cacheKey)));
+        }
+        Http::assertSentCount(3);
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'valueRenderOption=UNFORMATTED_VALUE'));
     }
 
     public function test_requester_profiles_fetch_only_required_data_columns_without_password_values(): void

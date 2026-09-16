@@ -196,7 +196,8 @@ class AdminMenuRegistry
             ],
             self::MENU_APPSHEET => [
                 'key' => self::MENU_APPSHEET,
-                'label' => 'STOCK BMS',
+                // Permission existing tetap bersama; kedua link ditampilkan mandiri di sidebar.
+                'label' => 'History Consumable & Stock',
                 'icon' => 'package-open',
                 'group' => 'support',
                 'route_name' => 'admin.appsheet.history-consumable.index',
@@ -205,16 +206,18 @@ class AdminMenuRegistry
                     [
                         'key' => self::MENU_APPSHEET_HISTORY_CONSUMABLE,
                         'permission_key' => self::MENU_APPSHEET,
-                        'label' => 'History Consumable',
+                        'label' => 'HISTORY CONSUMABLE',
+                        'icon' => 'history',
                         'route_name' => 'admin.appsheet.history-consumable.index',
                         'active_patterns' => ['admin.appsheet.history-consumable.*'],
                     ],
                     [
                         'key' => self::MENU_APPSHEET_STOCK_CONSUMABLE,
                         'permission_key' => self::MENU_APPSHEET,
-                        'label' => 'Stock Consumable',
+                        'label' => 'STOCK',
+                        'icon' => 'package-open',
                         'route_name' => 'admin.appsheet.stock-consumable.index',
-                        'active_patterns' => ['admin.appsheet.stock-consumable.*'],
+                        'active_patterns' => ['admin.appsheet.stock-consumable.*', 'admin.appsheet.stock-consumable-gudang.*', 'admin.appsheet.stock-material-bms.*', 'admin.appsheet.stock-material-gudang.*'],
                     ],
                 ],
             ],

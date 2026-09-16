@@ -52,7 +52,7 @@ class AppSheetControllerTest extends TestCase
 
         $stockRows = collect($response->viewData('rows')->items())->keyBy('UID');
 
-        self::assertSame(['BMS-C14', 'EMPTY-01', 'NEGATIVE-01', 'INVALID-01'], $stockRows->keys()->all());
+        self::assertSame(['BMS-C14', 'EMPTY-01', 'INVALID-01', 'NEGATIVE-01'], $stockRows->keys()->all());
         self::assertSame(4, $response->viewData('totalRows'));
         self::assertSame(115, $stockRows['BMS-C14']['SPARE STOCK']);
         self::assertSame('tersedia', $stockRows['BMS-C14']['_stock_status']);
@@ -157,14 +157,15 @@ class AppSheetControllerTest extends TestCase
         self::assertSame(53, $paginator->total());
         self::assertSame('BMS-C1', $paginator->items()[0]['UID']);
         self::assertSame('BMS-C2', $paginator->items()[1]['UID']);
-        self::assertSame('BMS-C50', collect($paginator->items())->last()['UID']);
+        self::assertSame(25, $paginator->perPage());
+        self::assertSame('BMS-C25', collect($paginator->items())->last()['UID']);
 
         $this->mockStockRows($rows);
         $secondPage = $this->actingAs($this->admin())
             ->get(route('admin.appsheet.stock-consumable.index', ['page' => 2]))
             ->viewData('rows');
 
-        self::assertSame(['BMS-C51', 'BMS-C52', 'BMS-C53'], collect($secondPage->items())->pluck('UID')->all());
+        self::assertSame(array_map(fn (int $index): string => 'BMS-C'.$index, range(26, 50)), collect($secondPage->items())->pluck('UID')->all());
     }
 
     public function test_history_renders_requester_profile_avatar_and_modern_badges(): void

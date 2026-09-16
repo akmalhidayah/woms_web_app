@@ -838,41 +838,19 @@
                         @endif
 
                         @if ($appsheetMenu)
-                            @php($appsheetActive = $appsheetMenu['active'] ?? false)
-                            <div x-data="{ appsheetOpen: {{ $appsheetActive ? 'true' : 'false' }} }" class="rounded-xl">
-                                <button
-                                    type="button"
-                                    @click="appsheetOpen = !appsheetOpen"
-                                    :aria-expanded="appsheetOpen && sidebarOpen"
-                                    aria-controls="appsheet-submenus"
+                            @foreach ($appsheetMenu['children'] ?? [] as $menu)
+                                @php($appsheetActive = $menu['active'] ?? false)
+                                <a
+                                    href="{{ $menu['href'] }}"
+                                    @if ($appsheetActive) aria-current="page" @endif
                                     class="group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ $appsheetActive ? 'bg-white text-blue-900 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
                                 >
                                     <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition {{ $appsheetActive ? 'bg-blue-100 text-blue-900' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
-                                        <i data-lucide="{{ $appsheetMenu['icon'] }}" class="h-4 w-4"></i>
+                                        <i data-lucide="{{ $menu['icon'] }}" class="h-4 w-4"></i>
                                     </span>
-                                    <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 text-left font-medium">{{ $appsheetMenu['label'] }}</span>
-                                    <i
-                                        data-lucide="chevron-down"
-                                        class="h-4 w-4 transition"
-                                        :class="appsheetOpen ? 'rotate-180' : ''"
-                                        x-show="sidebarOpen"
-                                        x-transition.opacity.duration.200ms
-                                        aria-hidden="true"
-                                    ></i>
-                                </button>
-
-                                <div id="appsheet-submenus" x-show="appsheetOpen && sidebarOpen" x-transition.opacity.duration.200ms x-cloak class="mt-0.5 space-y-0.5 pl-9">
-                                    @foreach ($appsheetMenu['children'] ?? [] as $menu)
-                                        <a
-                                            href="{{ $menu['href'] }}"
-                                            @if ($menu['active']) aria-current="page" @endif
-                                            class="block rounded-md px-2.5 py-1.5 transition {{ $menu['active'] ? 'bg-white text-blue-900' : 'text-white/80 hover:bg-white/10 hover:text-white' }}"
-                                        >
-                                            {{ $menu['label'] }}
-                                        </a>
-                                    @endforeach
-                                </div>
-                            </div>
+                                    <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 text-left font-medium">{{ $menu['label'] }}</span>
+                                </a>
+                            @endforeach
                         @endif
 
                         @if ($orderMenu || $mainMenus !== [])

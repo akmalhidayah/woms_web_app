@@ -24,6 +24,20 @@ class GoogleSheetsReader
         'SPARE STOCK', 'STN', 'CATEGORY', 'SUB CATEGORY', 'LOC', 'INPUT. BY', 'INPUT DATE',
     ];
 
+    public const STOCK_CONSUMABLE_GUDANG_HEADERS = [
+        'NO MATERIAL', 'JENIS CONSUMABLE', 'CONSUMABLE', 'DESKRIPSI',
+        'QTY KONSINYASI', 'QTY NON KONSINYASI', 'STN', 'UPD. BY', 'UPD. DATE', 'MIN',
+    ];
+
+    public const STOCK_MATERIAL_BMS_HEADERS = [
+        'UID', 'JENIS MATERIAL', 'QTY', 'STN', 'LOC', 'UPD. BY', 'LAST UPDATE',
+    ];
+
+    public const STOCK_MATERIAL_GUDANG_HEADERS = [
+        'NO. MATERIAL', 'MATERIAL', 'MRP TYPE', 'DESKRIPSI', 'QTY CAPEX',
+        'QTY', 'STN', 'MATERIAL LOC', 'UPDATE BY', 'UPDATE DATE',
+    ];
+
     public const PROFILE_HEADERS = [
         'NAMA', 'REGU', 'SHIFT', 'JABATAN', 'IMG',
     ];
@@ -43,6 +57,31 @@ class GoogleSheetsReader
     public function stockConsumable(): array
     {
         return $this->read('stock_consumable_sheet', 'appsheet:stock-consumable', self::STOCK_HEADERS);
+    }
+
+    public function stockConsumableGudang(): array
+    {
+        return $this->read(
+            'stock_consumable_gudang_sheet',
+            'appsheet:stock-consumable-gudang',
+            self::STOCK_CONSUMABLE_GUDANG_HEADERS,
+            headerAliases: ['NO MATERIAL' => ['NO. MATERIAL']],
+        );
+    }
+
+    public function stockMaterialBms(): array
+    {
+        return $this->read('stock_material_bms_sheet', 'appsheet:stock-material-bms', self::STOCK_MATERIAL_BMS_HEADERS);
+    }
+
+    public function stockMaterialGudang(): array
+    {
+        return $this->read(
+            'stock_material_gudang_sheet',
+            'appsheet:stock-material-gudang',
+            self::STOCK_MATERIAL_GUDANG_HEADERS,
+            headerAliases: ['NO. MATERIAL' => ['NO MATERIAL']],
+        );
     }
 
     public function requesterProfiles(): array

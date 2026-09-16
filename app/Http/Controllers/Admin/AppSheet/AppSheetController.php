@@ -10,6 +10,7 @@ use App\Services\AppSheet\GoogleDriveMediaService;
 use App\Services\AppSheet\GoogleOAuthService;
 use App\Services\AppSheet\GoogleSheetsReader;
 use App\Support\AppSheet\ConsumableData;
+use App\Support\AppSheet\StockData;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -117,6 +118,89 @@ class AppSheetController extends Controller
             'filters' => $filters,
             'subCategories' => $subCategories,
             'rows' => $paginatedRows,
+            'totalRows' => $allRows->count(),
+        ]);
+    }
+
+    public function stockConsumableGudang(Request $request, GoogleOAuthService $google, GoogleSheetsReader $reader): View
+    {
+        return $this->stockSheet(
+            $request,
+            $google,
+            fn (): array => array_map(StockData::consumableGudang(...), $reader->stockConsumableGudang()),
+            'consumable-gudang',
+        );
+    }
+
+    public function stockMaterialBms(Request $request, GoogleOAuthService $google, GoogleSheetsReader $reader): View
+    {
+        return $this->stockSheet(
+            $request,
+            $google,
+            fn (): array => array_map(StockData::materialBms(...), $reader->stockMaterialBms()),
+            'material-bms',
+        );
+    }
+
+    public function stockMaterialGudang(Request $request, GoogleOAuthService $google, GoogleSheetsReader $reader): View
+    {
+        return $this->stockSheet(
+            $request,
+            $google,
+            fn (): array => array_map(StockData::materialGudang(...), $reader->stockMaterialGudang()),
+            'material-gudang',
+        );
+    }
+
+    private function stockSheet(Request $request, GoogleOAuthService $google, Closure $read, string $stockKind): View
+    {
+        $data = $this->loadSheet($google, $read);
+        $isMaterial = $stockKind !== 'consumable-gudang';
+        $typeFilter = match ($stockKind) {
+            'consumable-gudang' => 'jenis',
+            'material-gudang' => 'mrp_type',
+            default => null,
+        };
+        $filters = ['search' => $this->filter($request, 'search')];
+        if ($typeFilter !== null) {
+            $filters[$typeFilter] = $this->filter($request, $typeFilter);
+        }
+        if ($isMaterial) {
+            $filters['location'] = $this->filter($request, 'location');
+            $filters['status'] = $this->filter($request, 'status');
+            if (! in_array($filters['status'], ['habis', 'tersedia'], true)) {
+                $filters['status'] = '';
+            }
+        }
+
+        $allRows = collect($data['sheetRows'])->filter(StockData::hasItem(...))->values()
+            ->map(fn (array $row, int $index): array => $row + ['_source_index' => $index]);
+        $types = $this->options($allRows, 'type');
+        $locations = $this->options($allRows, 'location');
+        $rows = $allRows->filter(fn (array $row): bool => ConsumableData::matchesSearch(
+            $row, ['code', 'name', 'type', 'description', 'location', 'updated_by'], $filters['search'],
+        )
+            && ($typeFilter === null || $filters[$typeFilter] === '' || $row['type'] === $filters[$typeFilter])
+            && (! $isMaterial || $filters['location'] === '' || $row['location'] === $filters['location'])
+            && (! $isMaterial || $filters['status'] === '' || $row['status'] === $filters['status'])
+        )->sort(function (array $left, array $right): int {
+            // Kode kosong/tanda '-' tetap tampil, sesudah item berkode; urutan setara tetap stabil.
+            $missingOrder = (int) in_array($left['code'], ['', '-'], true)
+                <=> (int) in_array($right['code'], ['', '-'], true);
+            $codeOrder = strnatcasecmp($left['code'], $right['code']);
+
+            return $missingOrder ?: ($codeOrder ?: $left['_source_index'] <=> $right['_source_index']);
+        })->values();
+        unset($data['sheetRows']);
+
+        return view('admin.appsheet.stock-sheet', $data + [
+            'stockKind' => $stockKind,
+            'isMaterial' => $isMaterial,
+            'typeFilter' => $typeFilter,
+            'filters' => $filters,
+            'types' => $types,
+            'locations' => $locations,
+            'rows' => $this->paginate($rows, $request, $filters, 25),
             'totalRows' => $allRows->count(),
         ]);
     }

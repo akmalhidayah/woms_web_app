@@ -181,6 +181,12 @@ Route::middleware(['auth'])->group(function () {
                     ->name('history-consumable.index');
                 Route::get('stock-consumable', [AppSheetController::class, 'stockConsumable'])
                     ->name('stock-consumable.index');
+                Route::get('stock-consumable-gudang', [AppSheetController::class, 'stockConsumableGudang'])
+                    ->name('stock-consumable-gudang.index');
+                Route::get('stock-material-bms', [AppSheetController::class, 'stockMaterialBms'])
+                    ->name('stock-material-bms.index');
+                Route::get('stock-material-gudang', [AppSheetController::class, 'stockMaterialGudang'])
+                    ->name('stock-material-gudang.index');
             });
         });
 

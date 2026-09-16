@@ -62,7 +62,7 @@ class AppSheetController extends Controller
                 '_requester_avatar_preview_url' => $driveMedia->mediaUrl(
                     GoogleDriveMediaService::REQUESTER_COLLECTION,
                     $requester['image_path'],
-                    GoogleDriveMediaService::VARIANT_PREVIEW,
+                    GoogleDriveMediaService::VARIANT_DISPLAY,
                 ),
             ];
         }));
@@ -114,7 +114,7 @@ class AppSheetController extends Controller
             '_image_preview_url' => $driveMedia->mediaUrl(
                 GoogleDriveMediaService::STOCK_COLLECTION,
                 $row['IMG'] ?? '',
-                GoogleDriveMediaService::VARIANT_PREVIEW,
+                GoogleDriveMediaService::VARIANT_DISPLAY,
             ),
         ]));
 

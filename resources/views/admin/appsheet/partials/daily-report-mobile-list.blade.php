@@ -17,7 +17,7 @@
                         type="button"
                         class="group relative inline-flex h-[5.5rem] w-[6.5rem] shrink-0 cursor-zoom-in items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400 shadow-sm ring-1 ring-slate-200 transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                         aria-label="Lihat foto {{ $photoTitle }}"
-                        x-on:click="openPhoto(@js($row['_photo_preview_url']), @js($photoTitle), @js($photoDate ?: '-'), @js($photoPic ?: '-'))"
+                        x-on:click="openPhoto(@js($row['_photo_thumbnail_url']), @js($row['_photo_preview_url']), @js($photoTitle), @js($photoDate ?: '-'), @js($photoPic ?: '-'))"
                     >
                         <i data-lucide="image" class="h-6 w-6" aria-hidden="true"></i>
                         <img src="{{ $row['_photo_thumbnail_url'] }}" alt="Foto {{ $photoTitle }}" loading="lazy" class="absolute inset-0 h-full w-full bg-white object-cover object-center" onerror="this.remove()">

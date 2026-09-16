@@ -8,7 +8,21 @@
         $isMaterialGudang = $stockKind === 'material-gudang';
         $columnCount = $isMaterialGudang ? 8 : 5;
     @endphp
-    <div class="min-w-0 space-y-5" x-data="{}">
+    <div
+        class="min-w-0 space-y-5"
+        x-data="{
+            consumableInfoOpen: false,
+            consumableInfo: { title: '', name: '', code: '', type: '' },
+            openConsumableInfo(item) {
+                this.consumableInfo = item;
+                this.consumableInfoOpen = true;
+            },
+            closeConsumableInfo() {
+                this.consumableInfoOpen = false;
+            },
+        }"
+        x-on:keydown.escape.window="closeConsumableInfo()"
+    >
         @include('admin.appsheet.partials.stock-header')
         @include('admin.appsheet.partials.google-messages')
 
@@ -66,12 +80,8 @@
         </section>
 
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3.5 sm:px-5">
-                <p class="text-xs font-bold text-slate-800">{{ $stockTitle }}</p>
-                <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-semibold text-slate-600">
-                    <i data-lucide="arrow-down-az" class="h-3.5 w-3.5" aria-hidden="true"></i>
-                    {{ $stockKind === 'material-bms' ? 'UID' : 'Nomor material' }} terurut naik
-                </span>
+            <div class="border-b border-slate-200 px-2 py-2 sm:px-3">
+                @include('admin.appsheet.partials.stock-tabs')
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full min-w-[1080px] text-xs">
@@ -100,16 +110,29 @@
                         @forelse ($rows as $row)
                             <tr class="group align-top text-slate-700 transition-colors hover:bg-blue-50/40">
                                 <td class="min-w-64 max-w-sm break-words px-5 py-4">
-                                    <p class="text-sm font-bold leading-relaxed text-slate-900">{{ $row['name'] ?: '-' }}</p>
-                                    <p class="mt-1.5 font-mono text-[11px] font-semibold text-blue-600">{{ $row['code'] ?: '-' }}</p>
-                                    @unless ($isMaterial)
-                                        @if ($row['type'] !== '')
-                                            <span class="mt-2 inline-flex rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-semibold text-indigo-700 ring-1 ring-indigo-200">{{ $row['type'] }}</span>
-                                        @endif
-                                        @if ($row['description'] !== '')
-                                            <p class="mt-2 leading-relaxed text-slate-500">{{ $row['description'] }}</p>
-                                        @endif
-                                    @endunless
+                                    @if ($isMaterial)
+                                        <p class="text-sm font-bold leading-relaxed text-slate-900">{{ $row['name'] ?: '-' }}</p>
+                                        <p class="mt-1.5 font-mono text-[11px] font-semibold text-blue-600">{{ $row['code'] ?: '-' }}</p>
+                                    @else
+                                        @php($itemTitle = $row['description'] ?: ($row['name'] ?: '-'))
+                                        <div class="flex items-start gap-2">
+                                            <p class="min-w-0 text-sm font-bold leading-relaxed text-slate-900">{{ $itemTitle }}</p>
+                                            <button
+                                                type="button"
+                                                class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-600 transition hover:border-blue-300 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                                aria-label="Lihat detail {{ $itemTitle }}"
+                                                title="Lihat detail item"
+                                                x-on:click="openConsumableInfo(@js([
+                                                    'title' => $itemTitle,
+                                                    'name' => $row['name'] ?: '-',
+                                                    'code' => $row['code'] ?: '-',
+                                                    'type' => $row['type'] ?: '-',
+                                                ]))"
+                                            >
+                                                <i data-lucide="info" class="h-3.5 w-3.5" aria-hidden="true"></i>
+                                            </button>
+                                        </div>
+                                    @endif
                                 </td>
                                 @if ($isMaterialGudang)
                                     <td class="px-4 py-4">{{ $row['type'] ?: '-' }}</td>
@@ -178,5 +201,9 @@
                 <div class="border-t border-slate-200 bg-slate-50/40 px-4 py-3">{{ $rows->links() }}</div>
             @endif
         </section>
+
+        @unless ($isMaterial)
+            @include('admin.appsheet.partials.stock-consumable-info-modal')
+        @endunless
     </div>
 </x-layouts.admin>

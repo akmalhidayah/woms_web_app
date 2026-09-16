@@ -72,14 +72,8 @@
         </section>
 
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3.5 sm:px-5">
-                <div>
-                    <p class="text-xs font-bold text-slate-800">Persediaan consumable</p>
-                </div>
-                <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-semibold text-slate-600">
-                    <i data-lucide="arrow-down-az" class="h-3.5 w-3.5" aria-hidden="true"></i>
-                    UID terurut naik
-                </span>
+            <div class="border-b border-slate-200 px-2 py-2 sm:px-3">
+                @include('admin.appsheet.partials.stock-tabs')
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full min-w-[1080px] text-xs">

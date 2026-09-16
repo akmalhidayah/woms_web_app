@@ -109,7 +109,7 @@
                                                 class="group relative inline-flex h-20 w-20 shrink-0 cursor-zoom-in items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400 shadow-sm ring-1 ring-slate-200 transition hover:ring-2 hover:ring-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                                                 aria-label="Lihat foto {{ $row['DESC.'] ?: 'item consumable' }}"
                                                 title="Klik untuk melihat foto"
-                                                x-on:click="openImagePreview(@js($row['_image_url']), @js('Foto '.($row['DESC.'] ?: 'item consumable')))"
+                                                x-on:click="openImagePreview(@js($row['_image_preview_url'] ?: $row['_image_url']), @js('Foto '.($row['DESC.'] ?: 'item consumable')))"
                                             >
                                                 <i data-lucide="package" class="h-6 w-6" aria-hidden="true"></i>
                                                 <img src="{{ $row['_image_url'] }}" alt="Foto {{ $row['DESC.'] }}" loading="lazy" class="absolute inset-0 h-full w-full bg-white object-contain object-center p-1.5 transition duration-200 group-hover:scale-105" onerror="this.remove()">

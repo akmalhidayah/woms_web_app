@@ -59,6 +59,11 @@ class AppSheetController extends Controller
                     GoogleDriveMediaService::REQUESTER_COLLECTION,
                     $requester['image_path'],
                 ),
+                '_requester_avatar_preview_url' => $driveMedia->mediaUrl(
+                    GoogleDriveMediaService::REQUESTER_COLLECTION,
+                    $requester['image_path'],
+                    GoogleDriveMediaService::VARIANT_PREVIEW,
+                ),
             ];
         }));
 
@@ -102,7 +107,15 @@ class AppSheetController extends Controller
         unset($data['sheetRows']);
         $paginatedRows = $this->paginate($rows, $request, $filters, 25);
         $paginatedRows->setCollection($paginatedRows->getCollection()->map(fn (array $row): array => $row + [
-            '_image_url' => $driveMedia->mediaUrl(GoogleDriveMediaService::STOCK_COLLECTION, $row['IMG'] ?? ''),
+            '_image_url' => $driveMedia->mediaUrl(
+                GoogleDriveMediaService::STOCK_COLLECTION,
+                $row['IMG'] ?? '',
+            ),
+            '_image_preview_url' => $driveMedia->mediaUrl(
+                GoogleDriveMediaService::STOCK_COLLECTION,
+                $row['IMG'] ?? '',
+                GoogleDriveMediaService::VARIANT_PREVIEW,
+            ),
         ]));
 
         return view('admin.appsheet.stock-consumable', $data + [

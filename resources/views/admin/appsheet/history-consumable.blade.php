@@ -126,7 +126,7 @@
                                                 class="group relative inline-flex h-12 w-12 shrink-0 cursor-zoom-in items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 text-xs font-black text-blue-700 shadow-sm ring-1 ring-blue-200 transition hover:ring-2 hover:ring-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                                                 aria-label="Lihat foto {{ $requester['name'] }}"
                                                 title="Klik untuk melihat foto"
-                                                x-on:click="openImagePreview(@js($row['_requester_avatar_url']), @js('Foto '.$requester['name']))"
+                                                x-on:click="openImagePreview(@js($row['_requester_avatar_preview_url'] ?: $row['_requester_avatar_url']), @js('Foto '.$requester['name']))"
                                             >
                                                 {{ $requester['initials'] }}
                                                 <img src="{{ $row['_requester_avatar_url'] }}" alt="Avatar {{ $requester['name'] }}" loading="lazy" class="absolute inset-0 h-full w-full bg-white object-contain object-center p-0.5" onerror="this.remove()">

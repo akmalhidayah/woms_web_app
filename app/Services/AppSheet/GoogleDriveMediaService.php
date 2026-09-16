@@ -30,7 +30,7 @@ class GoogleDriveMediaService
 
     private const LOOKUP_TTL_SECONDS = 21600;
 
-    private const DISPLAY_MEDIA_TTL_SECONDS = 86400;
+    private const MEDIA_TTL_SECONDS = 86400;
 
     private const MAX_IMAGE_BYTES = 10_485_760;
 
@@ -167,13 +167,9 @@ class GoogleDriveMediaService
         }
 
         try {
-            if ($this->shouldCacheDisplayMedia($validated['collection'], $variant, $requiredCollection, $requiredVariant)) {
-                return $this->cachedDisplayMedia($key, function () use ($folderId, $validated, $variant): ?GoogleDriveMedia {
-                    return $this->retrieveMedia($folderId, $validated['filename'], $variant);
-                });
-            }
-
-            return $this->retrieveMedia($folderId, $validated['filename'], $variant);
+            return $this->cachedMedia($key, function () use ($folderId, $validated, $variant): ?GoogleDriveMedia {
+                return $this->retrieveMedia($folderId, $validated['filename'], $variant);
+            });
         } catch (GoogleOAuthException) {
             return null;
         } catch (Throwable $exception) {
@@ -185,24 +181,10 @@ class GoogleDriveMediaService
         }
     }
 
-    private function shouldCacheDisplayMedia(
-        string $collection,
-        string $variant,
-        ?string $requiredCollection,
-        ?string $requiredVariant,
-    ): bool {
-        if ($collection !== $requiredCollection || $variant !== $requiredVariant) {
-            return false;
-        }
-
-        return ($collection === self::DAILY_REPORT_COLLECTION && $variant === self::VARIANT_DISPLAY)
-            || ($collection === self::REQUESTER_COLLECTION && $variant === self::VARIANT_THUMB);
-    }
-
-    private function cachedDisplayMedia(string $key, callable $resolver): ?GoogleDriveMedia
+    private function cachedMedia(string $key, callable $resolver): ?GoogleDriveMedia
     {
         $cache = Cache::store('file');
-        $cacheKey = 'appsheet:drive:display-media:v1:'.$key;
+        $cacheKey = 'appsheet:drive:media:v1:'.$key;
         $cached = $this->mediaFromCache($cache->get($cacheKey));
         if ($cached !== null) {
             return $cached;
@@ -220,7 +202,7 @@ class GoogleDriveMediaService
                     $cache->put($cacheKey, [
                         'contents' => $media->contents,
                         'mime_type' => $media->mimeType,
-                    ], self::DISPLAY_MEDIA_TTL_SECONDS);
+                    ], self::MEDIA_TTL_SECONDS);
                 }
 
                 return $media;

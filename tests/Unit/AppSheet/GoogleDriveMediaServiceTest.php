@@ -49,8 +49,10 @@ class GoogleDriveMediaServiceTest extends TestCase
         self::assertStringNotContainsString('drive-file-id-123', $url);
         self::assertStringNotContainsString('BMS-C01.IMG.234719.jpg', $url);
         $media = $service->media(basename(parse_url($url, PHP_URL_PATH)));
+        $cachedMedia = $service->media(basename(parse_url($url, PHP_URL_PATH)));
         self::assertSame('thumbnail-bytes', $media?->contents);
         self::assertSame('image/jpeg', $media?->mimeType);
+        self::assertSame('thumbnail-bytes', $cachedMedia?->contents);
         Http::assertSent(function (Request $request): bool {
             $url = rawurldecode($request->url());
 
@@ -60,6 +62,7 @@ class GoogleDriveMediaServiceTest extends TestCase
                 && $request->hasHeader('Authorization', 'Bearer drive-access-token');
         });
         Http::assertSent(fn (Request $request): bool => $request->url() === 'https://lh3.googleusercontent.com/drive-thumbnail=s220');
+        Http::assertSentCount(2);
     }
 
     public function test_only_expected_relative_directories_can_create_media_references(): void

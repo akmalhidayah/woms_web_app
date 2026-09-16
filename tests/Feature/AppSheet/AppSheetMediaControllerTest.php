@@ -13,7 +13,7 @@ class AppSheetMediaControllerTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admin_can_read_proxied_image_with_private_cache_headers(): void
+    public function test_admin_can_read_proxied_image_with_long_lived_private_cache_headers(): void
     {
         $key = str_repeat('a', 64);
         $media = Mockery::mock(GoogleDriveMediaService::class);
@@ -26,7 +26,8 @@ class AppSheetMediaControllerTest extends TestCase
             ->get(route('admin.appsheet.media.show', ['key' => $key]))
             ->assertOk()
             ->assertHeader('Content-Type', 'image/png')
-            ->assertHeader('Cache-Control', 'max-age=3600, private')
+            ->assertHeader('Cache-Control', 'immutable, max-age=86400, private')
+            ->assertHeader('ETag', '"'.hash('sha256', 'image-bytes').'"')
             ->assertHeader('X-Content-Type-Options', 'nosniff')
             ->assertContent('image-bytes');
     }

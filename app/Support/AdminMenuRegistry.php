@@ -339,7 +339,7 @@ class AdminMenuRegistry
             }
 
             $hasSplitOrderPermission = AdminRoleMenuAccess::query()
-                ->where('admin_role', User::ADMIN_ROLE_ADMIN)
+                ->where('admin_role', $user->resolvedAdminRole())
                 ->whereIn('menu_key', [self::MENU_ORDER_JASA, self::MENU_ORDER_BENGKEL])
                 ->exists();
 
@@ -353,7 +353,7 @@ class AdminMenuRegistry
             }
 
             $hasSplitAppSheetPermission = AdminRoleMenuAccess::query()
-                ->where('admin_role', User::ADMIN_ROLE_ADMIN)
+                ->where('admin_role', $user->resolvedAdminRole())
                 ->whereIn('menu_key', [self::MENU_APPSHEET_HISTORY_CONSUMABLE, self::MENU_APPSHEET_STOCK_CONSUMABLE])
                 ->exists();
 

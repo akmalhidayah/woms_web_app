@@ -709,7 +709,11 @@
             $defaultWorkshopSectionOpen = $isWorkshopSection
                 || (! $isMainSection && $workshopMenus !== [] && (! $user?->isSuperAdmin() || $mainMenus === []));
             $isOtherSection = collect($otherMenus)->contains(fn (array $menu) => $menu['active'] ?? false);
-            $roleBadge = $user?->isSuperAdmin() ? 'SUPER ADMIN' : strtoupper($user?->role ?? 'admin');
+            $roleBadge = strtoupper(
+                AppModelsUser::adminRoleOptions()[$user?->resolvedAdminRole()]
+                    ?? $user?->role
+                    ?? 'admin'
+            );
             $adminActionCenter = app(\App\Support\AdminActionCenter::class);
             $adminInformationCenter = app(\App\Support\AdminNotificationCenter::class);
             $adminActions = $adminActionCenter->actions($user, 10);

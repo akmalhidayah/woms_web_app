@@ -89,9 +89,9 @@
                     <thead class="border-b border-slate-200 bg-slate-50/80 text-[10px] uppercase tracking-[0.12em] text-slate-500">
                         <tr>
                             <th scope="col" class="whitespace-nowrap px-5 py-3.5 text-left font-semibold">Tanggal</th>
+                            <th scope="col" class="px-4 py-3.5 text-left font-semibold">Requester</th>
                             <th scope="col" class="px-4 py-3.5 text-left font-semibold">Consumable</th>
                             <th scope="col" class="whitespace-nowrap px-4 py-3.5 text-left font-semibold">Transaksi</th>
-                            <th scope="col" class="px-4 py-3.5 text-left font-semibold">Requester</th>
                             <th scope="col" class="px-4 py-3.5 text-left font-semibold">Tujuan Penggunaan</th>
                             <th scope="col" class="px-4 py-3.5 text-left font-semibold">Jenis Permintaan</th>
                             <th scope="col" class="px-4 py-3.5 text-left font-semibold">Category</th>
@@ -109,7 +109,7 @@
                                 $isStockIn = mb_strtoupper(trim((string) $row['INPUT TYPE'])) === 'STOCK IN';
                             @endphp
                             <tr class="group align-middle text-slate-700 transition-colors hover:bg-blue-50/40">
-                                <td class="whitespace-nowrap px-5 py-3.5 align-top">
+                                <td class="whitespace-nowrap px-5 py-3.5 text-left align-top">
                                     <div class="font-semibold tabular-nums text-slate-800">{{ $row['_date_display'] ?: '-' }}</div>
                                     @if ($row['_time_display'])
                                         <div class="mt-1 inline-flex items-center gap-1 text-[10px] tabular-nums text-slate-400">
@@ -118,19 +118,7 @@
                                         </div>
                                     @endif
                                 </td>
-                                <td class="min-w-64 px-4 py-3.5 align-top">
-                                    <p class="text-sm font-bold leading-relaxed text-slate-900">{{ $row['DESC.'] ?: '-' }}</p>
-                                    <p class="mt-1 font-mono text-[11px] font-semibold text-blue-600">{{ $row['UID'] ?: 'Tanpa UID' }}</p>
-                                </td>
-                                <td class="whitespace-nowrap px-4 py-3.5 align-top">
-                                    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold {{ $isStockIn ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' }}">
-                                        <i data-lucide="{{ $isStockIn ? 'arrow-down-to-line' : 'arrow-up-from-line' }}" class="h-3 w-3" aria-hidden="true"></i>
-                                        {{ $row['INPUT TYPE'] ?: '-' }}
-                                        <span class="opacity-40" aria-hidden="true">•</span>
-                                        <span class="tabular-nums">Qty {{ $row['QTY'] }}</span>
-                                    </span>
-                                </td>
-                                <td class="min-w-60 px-4 py-3.5 align-top">
+                                <td class="min-w-60 px-4 py-3.5 text-left align-top">
                                     <div class="flex items-center gap-3">
                                         @if ($row['_requester_avatar_url'])
                                             <button
@@ -158,6 +146,18 @@
                                             @endif
                                         </div>
                                     </div>
+                                </td>
+                                <td class="min-w-64 px-4 py-3.5 text-left align-top">
+                                    <p class="text-sm font-bold leading-relaxed text-slate-900">{{ $row['DESC.'] ?: '-' }}</p>
+                                    <p class="mt-1 font-mono text-[11px] font-semibold text-blue-600">{{ $row['UID'] ?: 'Tanpa UID' }}</p>
+                                </td>
+                                <td class="whitespace-nowrap px-4 py-3.5 text-left align-top">
+                                    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold {{ $isStockIn ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' }}">
+                                        <i data-lucide="{{ $isStockIn ? 'arrow-down-to-line' : 'arrow-up-from-line' }}" class="h-3 w-3" aria-hidden="true"></i>
+                                        {{ $row['INPUT TYPE'] ?: '-' }}
+                                        <span class="opacity-40" aria-hidden="true">•</span>
+                                        <span class="tabular-nums">Qty {{ $row['QTY'] }}</span>
+                                    </span>
                                 </td>
                                 <td class="min-w-48 max-w-xs break-words px-4 py-3.5 align-top leading-relaxed">{{ $row['TUJUAN PENGGUNAAN'] ?: '-' }}</td>
                                 <td class="px-4 py-3.5 align-top">

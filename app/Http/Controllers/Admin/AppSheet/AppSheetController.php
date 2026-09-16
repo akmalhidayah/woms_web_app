@@ -49,7 +49,7 @@ class AppSheetController extends Controller
             && ($filters['date'] === '' || $row['_date'] === $filters['date'])
         ));
         unset($data['sheetRows']);
-        $paginatedRows = $this->paginate($rows, $request, $filters);
+        $paginatedRows = $this->paginate($rows, $request, $filters, 25);
         $paginatedRows->setCollection($paginatedRows->getCollection()->map(function (array $row) use ($profiles, $driveMedia): array {
             $requester = $profiles->resolve($row['INPUT BY'] ?? '');
 
@@ -100,7 +100,7 @@ class AppSheetController extends Controller
             && ($filters['status'] === '' || $row['_stock_status'] === $filters['status'])
         ));
         unset($data['sheetRows']);
-        $paginatedRows = $this->paginate($rows, $request, $filters);
+        $paginatedRows = $this->paginate($rows, $request, $filters, 25);
         $paginatedRows->setCollection($paginatedRows->getCollection()->map(fn (array $row): array => $row + [
             '_image_url' => $driveMedia->mediaUrl(GoogleDriveMediaService::STOCK_COLLECTION, $row['IMG'] ?? ''),
         ]));
@@ -201,9 +201,8 @@ class AppSheetController extends Controller
         })->values();
     }
 
-    private function paginate(Collection $rows, Request $request, array $filters): LengthAwarePaginator
+    private function paginate(Collection $rows, Request $request, array $filters, int $perPage = 50): LengthAwarePaginator
     {
-        $perPage = 50;
         $page = max(1, min((int) $this->filter($request, 'page'), max(1, (int) ceil($rows->count() / $perPage))));
 
         return new LengthAwarePaginator($rows->forPage($page, $perPage)->values(), $rows->count(), $perPage, $page, [

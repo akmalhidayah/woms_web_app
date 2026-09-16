@@ -217,7 +217,7 @@ class DailyReportController extends Controller
 
     private function paginate(Collection $rows, Request $request, array $filters): LengthAwarePaginator
     {
-        $perPage = 50;
+        $perPage = 25;
         $page = max(1, min((int) $this->filter($request, 'page'), max(1, (int) ceil($rows->count() / $perPage))));
 
         return new LengthAwarePaginator($rows->forPage($page, $perPage)->values(), $rows->count(), $perPage, $page, [

@@ -1,3 +1,5 @@
+@php($compactPreview = $compactPreview ?? false)
+
 <div
     x-cloak
     x-show="previewImageUrl"
@@ -16,7 +18,7 @@
         x-transition:leave="transition duration-150 ease-in"
         x-transition:leave-start="scale-100 opacity-100"
         x-transition:leave-end="scale-95 opacity-0"
-        class="flex h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-white/15 bg-white shadow-2xl"
+        class="flex w-full {{ $compactPreview ? 'max-h-[75vh] max-w-md' : 'h-[90vh] max-w-7xl' }} flex-col overflow-hidden rounded-2xl border border-white/15 bg-white shadow-2xl"
     >
         <div class="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-3 sm:px-5">
             <div class="min-w-0">
@@ -36,7 +38,7 @@
             <img
                 x-bind:src="previewImageUrl"
                 x-bind:alt="previewImageAlt"
-                class="h-full w-full rounded-xl bg-white object-contain shadow-sm"
+                class="{{ $compactPreview ? 'max-h-[55vh] max-w-full' : 'h-full w-full' }} rounded-xl bg-white object-contain shadow-sm"
             >
         </div>
     </div>

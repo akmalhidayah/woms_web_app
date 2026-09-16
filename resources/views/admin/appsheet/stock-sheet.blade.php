@@ -117,9 +117,13 @@
                                         @php
                                             $itemDescription = trim((string) ($row['description'] ?? ''));
                                             $consumableName = trim((string) ($row['name'] ?? ''));
-                                            $itemTitle = ! in_array($itemDescription, ['', '-'], true)
+                                            $hasItemDescription = $itemDescription !== ''
+                                                && preg_match('/^[\s\p{Pd}]+$/u', $itemDescription) !== 1;
+                                            $hasConsumableName = $consumableName !== ''
+                                                && preg_match('/^[\s\p{Pd}]+$/u', $consumableName) !== 1;
+                                            $itemTitle = $hasItemDescription
                                                 ? $itemDescription
-                                                : (! in_array($consumableName, ['', '-'], true) ? $consumableName : '-');
+                                                : ($hasConsumableName ? $consumableName : '-');
                                         @endphp
                                         <div class="flex items-start gap-2">
                                             <p class="min-w-0 text-sm font-bold leading-relaxed text-slate-900">{{ $itemTitle }}</p>

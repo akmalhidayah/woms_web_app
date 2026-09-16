@@ -35,8 +35,10 @@ class GoogleSheetsReader
 
     public const STOCK_MATERIAL_GUDANG_HEADERS = [
         'NO. MATERIAL', 'MATERIAL', 'MRP TYPE', 'DESKRIPSI', 'QTY CAPEX',
-        'QTY', 'STN', 'MATERIAL LOC', 'UPDATE BY', 'UPDATE DATE',
+        'QTY', 'STN', 'UPDATE BY', 'UPDATE DATE',
     ];
+
+    public const STOCK_MATERIAL_GUDANG_OPTIONAL_HEADERS = ['MATERIAL LOC'];
 
     public const PROFILE_HEADERS = [
         'NAMA', 'REGU', 'SHIFT', 'JABATAN', 'IMG',
@@ -82,8 +84,9 @@ class GoogleSheetsReader
             self::STOCK_MATERIAL_GUDANG_HEADERS,
             headerAliases: [
                 'NO. MATERIAL' => ['NO MATERIAL'],
-                'MATERIAL LOC' => ['MATERIAL LOCATION'],
+                'MATERIAL LOC' => ['MATERIAL LOCATION', 'MATERIAL LOC.', 'LOKASI MATERIAL'],
             ],
+            optionalHeaders: self::STOCK_MATERIAL_GUDANG_OPTIONAL_HEADERS,
         );
     }
 
@@ -109,6 +112,7 @@ class GoogleSheetsReader
         int $cacheTtl = 30,
         bool $selectedColumnsOnly = false,
         array $headerAliases = [],
+        array $optionalHeaders = [],
     ): array
     {
         try {
@@ -128,7 +132,7 @@ class GoogleSheetsReader
                 return $cached['rows'];
             }
 
-            return $cache->lock($cacheKey.':lock', 35)->block(5, function () use ($cache, $cacheKey, $source, $spreadsheetId, $sheet, $token, $headers, $cacheTtl, $selectedColumnsOnly, $headerAliases): array {
+            return $cache->lock($cacheKey.':lock', 35)->block(5, function () use ($cache, $cacheKey, $source, $spreadsheetId, $sheet, $token, $headers, $cacheTtl, $selectedColumnsOnly, $headerAliases, $optionalHeaders): array {
                 $cached = $cache->get($cacheKey);
                 if (is_array($cached) && ($cached['source'] ?? null) === $source) {
                     return $cached['rows'];
@@ -136,7 +140,7 @@ class GoogleSheetsReader
 
                 $rows = $selectedColumnsOnly
                     ? $this->fetchSelectedColumns($spreadsheetId, $sheet, $token, $headers, $headerAliases)
-                    : $this->mapRows($this->fetchValues($spreadsheetId, $sheet, $token), $headers, $sheet, $headerAliases);
+                    : $this->mapRows($this->fetchValues($spreadsheetId, $sheet, $token), $headers, $sheet, $headerAliases, $optionalHeaders);
                 if (! $cache->put($cacheKey, ['source' => $source, 'rows' => $rows], $cacheTtl)) {
                     throw new GoogleSheetsException('Cache AppSheet belum dapat disimpan. Silakan coba kembali.');
                 }
@@ -278,13 +282,25 @@ class GoogleSheetsReader
         }
     }
 
-    private function mapRows(array $values, array $requiredHeaders, string $sheet, array $headerAliases = []): array
+    private function mapRows(
+        array $values,
+        array $requiredHeaders,
+        string $sheet,
+        array $headerAliases = [],
+        array $optionalHeaders = [],
+    ): array
     {
         if ($values === []) {
             return [];
         }
 
-        $positions = $this->headerPositions((array) array_shift($values), $requiredHeaders, $sheet, $headerAliases);
+        $positions = $this->headerPositions(
+            (array) array_shift($values),
+            $requiredHeaders,
+            $sheet,
+            $headerAliases,
+            $optionalHeaders,
+        );
 
         $rows = [];
         foreach ($values as $cells) {
@@ -303,15 +319,21 @@ class GoogleSheetsReader
         return $rows;
     }
 
-    private function headerPositions(array $headers, array $requiredHeaders, string $sheet, array $headerAliases = []): array
+    private function headerPositions(
+        array $headers,
+        array $requiredHeaders,
+        string $sheet,
+        array $headerAliases = [],
+        array $optionalHeaders = [],
+    ): array
     {
-        $acceptedHeaders = collect($requiredHeaders)
+        $acceptedHeaders = collect([...$requiredHeaders, ...$optionalHeaders])
             ->flatMap(fn (string $header): array => [$header, ...($headerAliases[$header] ?? [])])
-            ->map(fn (string $header): string => mb_strtoupper(trim($header)))
+            ->map(fn (string $header): string => $this->normalizeHeader($header))
             ->all();
         $available = [];
         foreach ($headers as $index => $header) {
-            $name = is_string($header) ? mb_strtoupper(trim($header)) : '';
+            $name = $this->normalizeHeader($header);
             if ($name === '' || ! in_array($name, $acceptedHeaders, true)) {
                 continue;
             }
@@ -326,7 +348,7 @@ class GoogleSheetsReader
         foreach ($requiredHeaders as $requiredHeader) {
             $candidates = [$requiredHeader, ...($headerAliases[$requiredHeader] ?? [])];
             foreach ($candidates as $candidate) {
-                $candidate = mb_strtoupper(trim((string) $candidate));
+                $candidate = $this->normalizeHeader($candidate);
                 if (array_key_exists($candidate, $available)) {
                     $positions[$requiredHeader] = $available[$candidate];
                     continue 2;
@@ -339,7 +361,28 @@ class GoogleSheetsReader
             throw new GoogleSheetsException('Header sheet "'.$sheet.'" belum sesuai: '.implode(', ', $missing).'.');
         }
 
+        foreach ($optionalHeaders as $optionalHeader) {
+            foreach ([$optionalHeader, ...($headerAliases[$optionalHeader] ?? [])] as $candidate) {
+                $candidate = $this->normalizeHeader($candidate);
+                if (array_key_exists($candidate, $available)) {
+                    $positions[$optionalHeader] = $available[$candidate];
+                    break;
+                }
+            }
+        }
+
         return $positions;
+    }
+
+    private function normalizeHeader(mixed $header): string
+    {
+        if (! is_string($header)) {
+            return '';
+        }
+
+        $header = str_replace("\u{00A0}", ' ', trim($header));
+
+        return mb_strtoupper(preg_replace('/\s+/u', ' ', $header) ?? $header);
     }
 
     private function columnName(int $number): string

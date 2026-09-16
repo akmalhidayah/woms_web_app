@@ -165,6 +165,23 @@ class GoogleSheetsReaderTest extends TestCase
         self::assertArrayNotHasKey('Duplikat', $row);
     }
 
+    public function test_material_gudang_does_not_require_an_empty_location_column(): void
+    {
+        Http::fake(['sheets.googleapis.com/*' => Http::response([
+            'range' => "'STOK MATERIAL GUDANG'!A1:J2",
+            'values' => [
+                ['NO. MATERIAL', 'MATERIAL', 'MRP TYPE', 'DESKRIPSI', 'QTY CAPEX', 'QTY', 'STN', 'UPDATE BY', 'UPDATE DATE', 'Duplikat'],
+                ['M1', 'Plat', '', '', 0, 1, 'EA', 'Petugas', '16/09/2026', 1],
+            ],
+        ])]);
+
+        $row = $this->reader()->stockMaterialGudang()[0];
+
+        self::assertSame('Plat', $row['MATERIAL']);
+        self::assertArrayNotHasKey('MATERIAL LOC', $row);
+        self::assertSame('', \App\Support\AppSheet\StockData::materialGudang($row)['location']);
+    }
+
     public function test_material_gudang_keeps_the_canonical_location_header_when_both_headers_exist(): void
     {
         Http::fake(['sheets.googleapis.com/*' => Http::response([

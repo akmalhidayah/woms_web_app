@@ -177,20 +177,39 @@ class AppSheetController extends Controller
             ->map(fn (array $row, int $index): array => $row + ['_source_index' => $index]);
         $types = $this->options($allRows, 'type');
         $locations = $this->options($allRows, 'location');
-        $rows = $allRows->filter(fn (array $row): bool => ConsumableData::matchesSearch(
+        $filteredRows = $allRows->filter(fn (array $row): bool => ConsumableData::matchesSearch(
             $row, ['code', 'name', 'type', 'description', 'location', 'updated_by'], $filters['search'],
         )
             && ($typeFilter === null || $filters[$typeFilter] === '' || $row['type'] === $filters[$typeFilter])
             && (! $isMaterial || $filters['location'] === '' || $row['location'] === $filters['location'])
             && (! $isMaterial || $filters['status'] === '' || $row['status'] === $filters['status'])
-        )->sort(function (array $left, array $right): int {
-            // Kode kosong/tanda '-' tetap tampil, sesudah item berkode; urutan setara tetap stabil.
-            $missingOrder = (int) in_array($left['code'], ['', '-'], true)
-                <=> (int) in_array($right['code'], ['', '-'], true);
-            $codeOrder = strnatcasecmp($left['code'], $right['code']);
+        );
+        $rows = ($stockKind === 'consumable-gudang'
+            ? $filteredRows->sort(function (array $left, array $right): int {
+                $leftTimestamp = $left['date_timestamp'];
+                $rightTimestamp = $right['date_timestamp'];
 
-            return $missingOrder ?: ($codeOrder ?: $left['_source_index'] <=> $right['_source_index']);
-        })->values();
+                if ($leftTimestamp === null || $rightTimestamp === null) {
+                    if ($leftTimestamp !== $rightTimestamp) {
+                        return $leftTimestamp === null ? 1 : -1;
+                    }
+                } else {
+                    $dateOrder = $rightTimestamp <=> $leftTimestamp;
+                    if ($dateOrder !== 0) {
+                        return $dateOrder;
+                    }
+                }
+
+                return $left['_source_index'] <=> $right['_source_index'];
+            })
+            : $filteredRows->sort(function (array $left, array $right): int {
+                // Kode kosong/tanda '-' tetap tampil, sesudah item berkode; urutan setara tetap stabil.
+                $missingOrder = (int) in_array($left['code'], ['', '-'], true)
+                    <=> (int) in_array($right['code'], ['', '-'], true);
+                $codeOrder = strnatcasecmp($left['code'], $right['code']);
+
+                return $missingOrder ?: ($codeOrder ?: $left['_source_index'] <=> $right['_source_index']);
+            }))->values();
         unset($data['sheetRows']);
 
         return view('admin.appsheet.stock-sheet', $data + [

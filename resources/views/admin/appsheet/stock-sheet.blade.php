@@ -6,7 +6,11 @@
             'material-gudang' => 'Stock Material Gudang',
         };
         $isMaterialGudang = $stockKind === 'material-gudang';
-        $columnCount = $isMaterialGudang ? 8 : 5;
+        $columnCount = match ($stockKind) {
+            'material-gudang' => 8,
+            'consumable-gudang' => 6,
+            default => 5,
+        };
     @endphp
     <div
         class="min-w-0 space-y-5"
@@ -89,6 +93,9 @@
                     <thead class="border-b border-slate-200 bg-slate-50/80 text-[10px] uppercase tracking-[0.12em] text-slate-500">
                         <tr>
                             <th scope="col" class="px-5 py-3.5 text-left font-semibold">{{ $isMaterial ? 'Item Material' : 'Item Consumable' }}</th>
+                            @unless ($isMaterial)
+                                <th scope="col" class="px-4 py-3.5 text-left font-semibold">Jenis</th>
+                            @endunless
                             @if ($isMaterialGudang)
                                 <th scope="col" class="px-4 py-3.5 text-left font-semibold">MRP Type</th>
                                 <th scope="col" class="px-4 py-3.5 text-left font-semibold">Deskripsi</th>
@@ -144,6 +151,9 @@
                                         <p class="mt-1.5 font-mono text-[11px] font-semibold text-blue-600">{{ $row['code'] ?: '-' }}</p>
                                     @endif
                                 </td>
+                                @unless ($isMaterial)
+                                    <td class="min-w-40 max-w-xs break-words px-4 py-4 font-semibold text-slate-700">{{ $row['type'] ?: '-' }}</td>
+                                @endunless
                                 @if ($isMaterialGudang)
                                     <td class="px-4 py-4">{{ $row['type'] ?: '-' }}</td>
                                     <td class="min-w-48 max-w-xs break-words px-4 py-4 leading-relaxed">{{ $row['description'] ?: '-' }}</td>

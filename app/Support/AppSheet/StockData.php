@@ -89,6 +89,7 @@ class StockData
         $date = ConsumableData::date($rawDate);
 
         return $item + [
+            'date_timestamp' => $date?->getTimestamp(),
             'date_display' => $date?->format('d/m/Y') ?? ConsumableData::displayDate($rawDate),
             'time_display' => $date !== null && $date->format('H:i:s') !== '00:00:00'
                 ? $date->format('H:i:s') : null,

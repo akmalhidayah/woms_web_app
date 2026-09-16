@@ -114,7 +114,13 @@
                                         <p class="text-sm font-bold leading-relaxed text-slate-900">{{ $row['name'] ?: '-' }}</p>
                                         <p class="mt-1.5 font-mono text-[11px] font-semibold text-blue-600">{{ $row['code'] ?: '-' }}</p>
                                     @else
-                                        @php($itemTitle = $row['description'] ?: ($row['name'] ?: '-'))
+                                        @php
+                                            $itemDescription = trim((string) ($row['description'] ?? ''));
+                                            $consumableName = trim((string) ($row['name'] ?? ''));
+                                            $itemTitle = ! in_array($itemDescription, ['', '-'], true)
+                                                ? $itemDescription
+                                                : (! in_array($consumableName, ['', '-'], true) ? $consumableName : '-');
+                                        @endphp
                                         <div class="flex items-start gap-2">
                                             <p class="min-w-0 text-sm font-bold leading-relaxed text-slate-900">{{ $itemTitle }}</p>
                                             <button

@@ -36,12 +36,12 @@
                 <i data-lucide="sliders-horizontal" class="h-4 w-4 text-blue-600" aria-hidden="true"></i>
                 Filter persediaan
             </div>
-            <form method="GET" action="{{ route('admin.appsheet.stock-consumable.index') }}" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(280px,2fr)_minmax(180px,1fr)_minmax(150px,0.8fr)_auto] xl:items-end">
-                <div>
+            <form method="GET" action="{{ route('admin.appsheet.stock-consumable.index') }}" class="appsheet-stock-filters">
+                <div class="appsheet-stock-filter-field appsheet-stock-filter-search">
                     <label for="stock-consumable-search" class="mb-1.5 block text-[11px] font-semibold text-slate-600">Search</label>
                     <input id="stock-consumable-search" name="search" value="{{ $filters['search'] }}" type="search" placeholder="UID, nama, ukuran, jenis, lokasi..." autocomplete="off" x-on:input.debounce.500ms="$el.form.requestSubmit()" class="block h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
                 </div>
-                <div>
+                <div class="appsheet-stock-filter-field">
                     <label for="stock-consumable-type" class="mb-1.5 block text-[11px] font-semibold text-slate-600">Jenis Consumable</label>
                     <select id="stock-consumable-type" name="jenis" class="block h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs text-slate-700 outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
                         <option value="">Semua jenis consumable</option>
@@ -50,7 +50,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div>
+                <div class="appsheet-stock-filter-field">
                     <label for="stock-consumable-status" class="mb-1.5 block text-[11px] font-semibold text-slate-600">Status Stok</label>
                     <select id="stock-consumable-status" name="status" class="block h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs text-slate-700 outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100">
                         <option value="">Semua status stok</option>
@@ -58,7 +58,7 @@
                         <option value="tersedia" @selected($filters['status'] === 'tersedia')>Tersedia</option>
                     </select>
                 </div>
-                <div class="flex h-10 items-center gap-2 sm:col-span-2 xl:col-span-1">
+                <div class="appsheet-stock-filter-actions">
                     <button type="submit" class="inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl bg-blue-600 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700">
                         <i data-lucide="search" class="h-3.5 w-3.5" aria-hidden="true"></i>
                         Terapkan Filter

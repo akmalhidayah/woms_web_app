@@ -17,13 +17,13 @@
                 <i data-lucide="sliders-horizontal" class="h-4 w-4 text-blue-600" aria-hidden="true"></i>
                 Filter persediaan
             </div>
-            <form method="GET" action="{{ url()->current() }}" class="flex flex-wrap items-end gap-3 xl:flex-nowrap">
-                <div class="min-w-0 basis-full sm:flex-1">
+            <form method="GET" action="{{ url()->current() }}" class="appsheet-stock-filters">
+                <div class="appsheet-stock-filter-field appsheet-stock-filter-search">
                     <label for="stock-search" class="mb-1.5 block text-[11px] font-semibold text-slate-600">Search</label>
                     <input id="stock-search" name="search" value="{{ $filters['search'] }}" type="search" placeholder="Kode, nama, keterangan, petugas..." autocomplete="off" x-on:input.debounce.500ms="$el.form.requestSubmit()" class="block h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-base text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100 sm:text-xs">
                 </div>
                 @if ($typeFilter !== null)
-                    <div class="w-full sm:w-44">
+                    <div class="appsheet-stock-filter-field">
                         <label for="stock-type" class="mb-1.5 block text-[11px] font-semibold text-slate-600">{{ $isMaterial ? 'MRP Type' : 'Jenis Consumable' }}</label>
                         <select id="stock-type" name="{{ $typeFilter }}" class="block h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-base text-slate-700 outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100 sm:text-xs">
                             <option value="">{{ $isMaterial ? 'Semua MRP type' : 'Semua jenis consumable' }}</option>
@@ -34,7 +34,7 @@
                     </div>
                 @endif
                 @if ($isMaterial)
-                    <div class="w-full sm:w-44">
+                    <div class="appsheet-stock-filter-field">
                         <label for="stock-location" class="mb-1.5 block text-[11px] font-semibold text-slate-600">Lokasi</label>
                         <select id="stock-location" name="location" class="block h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-base text-slate-700 outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100 sm:text-xs">
                             <option value="">Semua lokasi</option>
@@ -43,7 +43,7 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="w-full sm:w-40">
+                    <div class="appsheet-stock-filter-field">
                         <label for="stock-status" class="mb-1.5 block text-[11px] font-semibold text-slate-600">Status Stok</label>
                         <select id="stock-status" name="status" class="block h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-base text-slate-700 outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100 sm:text-xs">
                             <option value="">Semua status stok</option>
@@ -52,7 +52,7 @@
                         </select>
                     </div>
                 @endif
-                <div class="flex h-10 shrink-0 items-center gap-2">
+                <div class="appsheet-stock-filter-actions">
                     <button type="submit" class="inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-xl bg-blue-600 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700">
                         <i data-lucide="search" class="h-3.5 w-3.5" aria-hidden="true"></i>
                         Terapkan Filter

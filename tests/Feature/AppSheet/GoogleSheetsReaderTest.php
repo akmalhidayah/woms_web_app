@@ -145,6 +145,39 @@ class GoogleSheetsReaderTest extends TestCase
         Http::assertSent(fn ($request) => str_contains($request->url(), 'valueRenderOption=UNFORMATTED_VALUE'));
     }
 
+    public function test_material_gudang_accepts_full_location_header_and_preserves_the_existing_mapping(): void
+    {
+        Http::fake(['sheets.googleapis.com/*' => Http::response([
+            'range' => "'STOK MATERIAL GUDANG'!A1:K2",
+            'values' => [
+                ['NO. MATERIAL', 'MATERIAL', 'MRP TYPE', 'DESKRIPSI', 'QTY CAPEX', 'QTY', 'STN', 'MATERIAL LOCATION', 'UPDATE BY', 'UPDATE DATE', 'Duplikat'],
+                ['-', 'Plat', 'V1', 'Keterangan', 90, 2.5, 'EA', 'Gudang Utama', 'Petugas', '16/09/2026', 1],
+            ],
+        ])]);
+
+        $row = $this->reader()->stockMaterialGudang()[0];
+
+        self::assertSame('Gudang Utama', $row['MATERIAL LOC']);
+        self::assertSame('Gudang Utama', \App\Support\AppSheet\StockData::materialGudang($row)['location']);
+        self::assertSame('-', $row['NO. MATERIAL']);
+        self::assertSame(2.5, $row['QTY']);
+        self::assertArrayNotHasKey('MATERIAL LOCATION', $row);
+        self::assertArrayNotHasKey('Duplikat', $row);
+    }
+
+    public function test_material_gudang_keeps_the_canonical_location_header_when_both_headers_exist(): void
+    {
+        Http::fake(['sheets.googleapis.com/*' => Http::response([
+            'range' => "'STOK MATERIAL GUDANG'!A1:K2",
+            'values' => [
+                ['NO. MATERIAL', 'MATERIAL', 'MRP TYPE', 'DESKRIPSI', 'QTY CAPEX', 'QTY', 'STN', 'MATERIAL LOCATION', 'UPDATE BY', 'UPDATE DATE', 'MATERIAL LOC'],
+                ['M1', 'Plat', '', '', 0, 1, 'EA', 'Lokasi Alias', 'Petugas', '16/09/2026', 'Lokasi Utama'],
+            ],
+        ])]);
+
+        self::assertSame('Lokasi Utama', $this->reader()->stockMaterialGudang()[0]['MATERIAL LOC']);
+    }
+
     public function test_requester_profiles_fetch_only_required_data_columns_without_password_values(): void
     {
         Http::fake([

@@ -80,7 +80,10 @@ class GoogleSheetsReader
             'stock_material_gudang_sheet',
             'appsheet:stock-material-gudang',
             self::STOCK_MATERIAL_GUDANG_HEADERS,
-            headerAliases: ['NO. MATERIAL' => ['NO MATERIAL']],
+            headerAliases: [
+                'NO. MATERIAL' => ['NO MATERIAL'],
+                'MATERIAL LOC' => ['MATERIAL LOCATION'],
+            ],
         );
     }
 

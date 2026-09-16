@@ -32,6 +32,15 @@ class AccessControlController extends Controller
             );
         }
 
+        if ($adminMenuKeys->contains(AdminMenuRegistry::MENU_APPSHEET)
+            && ! $adminMenuKeys->contains(AdminMenuRegistry::MENU_APPSHEET_HISTORY_CONSUMABLE)
+            && ! $adminMenuKeys->contains(AdminMenuRegistry::MENU_APPSHEET_STOCK_CONSUMABLE)) {
+            $adminMenuKeys->push(
+                AdminMenuRegistry::MENU_APPSHEET_HISTORY_CONSUMABLE,
+                AdminMenuRegistry::MENU_APPSHEET_STOCK_CONSUMABLE,
+            );
+        }
+
         return view('admin.access-control.index', [
             'adminMenuKeys' => $adminMenuKeys->all(),
             'menuOptions' => $this->roleMatrixItems(),

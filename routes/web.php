@@ -166,7 +166,7 @@ Route::middleware(['auth'])->group(function () {
         ->name('admin.appsheet.')
         ->middleware('role:admin')
         ->group(function () {
-            Route::middleware('admin_menu:appsheet,daily_report')->group(function () {
+            Route::middleware('admin_menu:appsheet_history_consumable,appsheet_stock_consumable,daily_report')->group(function () {
                 Route::get('google/connect', [GoogleOAuthController::class, 'connect'])
                     ->name('google.connect');
                 Route::get('google/callback', [GoogleOAuthController::class, 'callback'])
@@ -176,9 +176,12 @@ Route::middleware(['auth'])->group(function () {
                     ->name('media.show');
             });
 
-            Route::middleware('admin_menu:appsheet')->group(function () {
+            Route::middleware('admin_menu:appsheet_history_consumable')->group(function () {
                 Route::get('history-consumable', [AppSheetController::class, 'historyConsumable'])
                     ->name('history-consumable.index');
+            });
+
+            Route::middleware('admin_menu:appsheet_stock_consumable')->group(function () {
                 Route::get('stock-consumable', [AppSheetController::class, 'stockConsumable'])
                     ->name('stock-consumable.index');
                 Route::get('stock-consumable-gudang', [AppSheetController::class, 'stockConsumableGudang'])

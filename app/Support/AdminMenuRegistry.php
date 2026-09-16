@@ -61,6 +61,23 @@ class AdminMenuRegistry
      */
     public static function definitions(): array
     {
+        $historyConsumableMenu = [
+            'key' => self::MENU_APPSHEET_HISTORY_CONSUMABLE,
+            'label' => 'HISTORY CONSUMABLE',
+            'icon' => 'history',
+            'group' => 'support',
+            'route_name' => 'admin.appsheet.history-consumable.index',
+            'active_patterns' => ['admin.appsheet.history-consumable.*'],
+        ];
+        $stockConsumableMenu = [
+            'key' => self::MENU_APPSHEET_STOCK_CONSUMABLE,
+            'label' => 'STOCK',
+            'icon' => 'package-open',
+            'group' => 'support',
+            'route_name' => 'admin.appsheet.stock-consumable.index',
+            'active_patterns' => ['admin.appsheet.stock-consumable.*', 'admin.appsheet.stock-consumable-gudang.*', 'admin.appsheet.stock-material-bms.*', 'admin.appsheet.stock-material-gudang.*'],
+        ];
+
         return [
             self::MENU_DASHBOARD => [
                 'key' => self::MENU_DASHBOARD,
@@ -196,30 +213,27 @@ class AdminMenuRegistry
             ],
             self::MENU_APPSHEET => [
                 'key' => self::MENU_APPSHEET,
-                // Permission existing tetap bersama; kedua link ditampilkan mandiri di sidebar.
-                'label' => 'History Consumable & Stock',
+                'label' => 'AppSheet',
                 'icon' => 'package-open',
                 'group' => 'support',
                 'route_name' => 'admin.appsheet.history-consumable.index',
                 'active_patterns' => ['admin.appsheet.*'],
+                'configurable' => false,
+                'access_control_hidden' => true,
                 'children' => [
-                    [
-                        'key' => self::MENU_APPSHEET_HISTORY_CONSUMABLE,
-                        'permission_key' => self::MENU_APPSHEET,
-                        'label' => 'HISTORY CONSUMABLE',
-                        'icon' => 'history',
-                        'route_name' => 'admin.appsheet.history-consumable.index',
-                        'active_patterns' => ['admin.appsheet.history-consumable.*'],
-                    ],
-                    [
-                        'key' => self::MENU_APPSHEET_STOCK_CONSUMABLE,
-                        'permission_key' => self::MENU_APPSHEET,
-                        'label' => 'STOCK',
-                        'icon' => 'package-open',
-                        'route_name' => 'admin.appsheet.stock-consumable.index',
-                        'active_patterns' => ['admin.appsheet.stock-consumable.*', 'admin.appsheet.stock-consumable-gudang.*', 'admin.appsheet.stock-material-bms.*', 'admin.appsheet.stock-material-gudang.*'],
-                    ],
+                    $historyConsumableMenu,
+                    $stockConsumableMenu,
                 ],
+            ],
+            self::MENU_APPSHEET_HISTORY_CONSUMABLE => [
+                ...$historyConsumableMenu,
+                'label' => 'History Consumable',
+                'sidebar_hidden' => true,
+            ],
+            self::MENU_APPSHEET_STOCK_CONSUMABLE => [
+                ...$stockConsumableMenu,
+                'label' => 'Stock',
+                'sidebar_hidden' => true,
             ],
             self::MENU_ACCESS_CONTROL => [
                 'key' => self::MENU_ACCESS_CONTROL,
@@ -314,6 +328,11 @@ class AdminMenuRegistry
                 || static::canAccess($user, self::MENU_ORDER_BENGKEL);
         }
 
+        if ($menuKey === self::MENU_APPSHEET) {
+            return static::canAccess($user, self::MENU_APPSHEET_HISTORY_CONSUMABLE)
+                || static::canAccess($user, self::MENU_APPSHEET_STOCK_CONSUMABLE);
+        }
+
         if (in_array($menuKey, [self::MENU_ORDER_JASA, self::MENU_ORDER_BENGKEL], true)) {
             if ($user->hasAdminMenuAccess($menuKey)) {
                 return true;
@@ -326,6 +345,20 @@ class AdminMenuRegistry
 
             return ! $hasSplitOrderPermission
                 && $user->hasAdminMenuAccess(self::MENU_ORDERS);
+        }
+
+        if (in_array($menuKey, [self::MENU_APPSHEET_HISTORY_CONSUMABLE, self::MENU_APPSHEET_STOCK_CONSUMABLE], true)) {
+            if ($user->hasAdminMenuAccess($menuKey)) {
+                return true;
+            }
+
+            $hasSplitAppSheetPermission = AdminRoleMenuAccess::query()
+                ->where('admin_role', User::ADMIN_ROLE_ADMIN)
+                ->whereIn('menu_key', [self::MENU_APPSHEET_HISTORY_CONSUMABLE, self::MENU_APPSHEET_STOCK_CONSUMABLE])
+                ->exists();
+
+            return ! $hasSplitAppSheetPermission
+                && $user->hasAdminMenuAccess(self::MENU_APPSHEET);
         }
 
         return $user->hasAdminMenuAccess($menuKey);
@@ -393,7 +426,8 @@ class AdminMenuRegistry
             'support' => array_values(array_filter(
                 $items,
                 fn (array $item) => $item['group'] === 'support'
-                    && $item['key'] !== self::MENU_APPSHEET,
+                    && $item['key'] !== self::MENU_APPSHEET
+                    && ! ($item['sidebar_hidden'] ?? false),
             )),
             'other' => array_values(array_filter(
                 $items,

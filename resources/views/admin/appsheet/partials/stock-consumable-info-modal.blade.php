@@ -39,11 +39,7 @@
                     <dt class="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Consumable</dt>
                     <dd class="mt-1 break-words text-sm font-semibold leading-relaxed text-slate-800" x-text="consumableInfo.name"></dd>
                 </div>
-                <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <dt class="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Nomor Material</dt>
-                    <dd class="mt-1 break-words font-mono text-sm font-semibold text-blue-600" x-text="consumableInfo.code"></dd>
-                </div>
-                <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 sm:col-span-2">
                     <dt class="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Jenis Consumable</dt>
                     <dd class="mt-1 break-words text-sm font-semibold text-slate-800" x-text="consumableInfo.type"></dd>
                 </div>

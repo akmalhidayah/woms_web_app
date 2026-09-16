@@ -12,7 +12,7 @@
         class="min-w-0 space-y-5"
         x-data="{
             consumableInfoOpen: false,
-            consumableInfo: { title: '', name: '', code: '', type: '' },
+            consumableInfo: { title: '', name: '', type: '' },
             openConsumableInfo(item) {
                 this.consumableInfo = item;
                 this.consumableInfoOpen = true;
@@ -125,13 +125,13 @@
                                                 x-on:click="openConsumableInfo(@js([
                                                     'title' => $itemTitle,
                                                     'name' => $row['name'] ?: '-',
-                                                    'code' => $row['code'] ?: '-',
                                                     'type' => $row['type'] ?: '-',
                                                 ]))"
                                             >
                                                 <i data-lucide="info" class="h-3.5 w-3.5" aria-hidden="true"></i>
                                             </button>
                                         </div>
+                                        <p class="mt-1.5 font-mono text-[11px] font-semibold text-blue-600">{{ $row['code'] ?: '-' }}</p>
                                     @endif
                                 </td>
                                 @if ($isMaterialGudang)

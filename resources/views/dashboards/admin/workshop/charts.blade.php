@@ -56,7 +56,7 @@
                 <i data-lucide="chart-spline" class="h-4 w-4"></i>
             </span>
             <div>
-                <h2 class="text-xs font-bold uppercase tracking-[0.1em] text-slate-800">Nilai Pekerjaan Per Regu</h2>
+                <h2 class="text-xs font-bold uppercase tracking-[0.1em] text-slate-800">Nilai Penggunaan Material</h2>
             </div>
         </div>
 

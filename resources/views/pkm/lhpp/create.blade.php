@@ -124,30 +124,13 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
 
                                 <label class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-700">Nomor Order</label>
                                 <div class="relative">
-                                    <select
-                                        x-ref="orderSelect"
-                                        name="nomor_order"
-                                        x-init="$nextTick(() => initializeOrderSelect($el))"
-                                        @change="if (! $el.tomselect) { selectedOrder = $el.value; handleOrderChange(); }"
-                                        class="h-9 w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 pr-9 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none"
-                                    >
+                                    <select name="nomor_order" x-model="selectedOrder" x-init="$nextTick(() => { $el.value = selectedOrder; })" @change="handleOrderChange()" class="h-9 w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 pr-9 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none">
                                         <option value="">Pilih Nomor Order</option>
                                         <template x-for="order in orderOptions" :key="order.nomor_order">
-                                            <option
-                                                :value="order.nomor_order"
-                                                :selected="order.nomor_order === selectedOrder"
-                                                :data-data="JSON.stringify({
-                                                    value: order.nomor_order,
-                                                    text: order.nomor_order,
-                                                    nomor_order: order.nomor_order,
-                                                    notifikasi: order.notifikasi,
-                                                    deskripsi_pekerjaan: order.deskripsi_pekerjaan,
-                                                })"
-                                                x-text="`${order.nomor_order} — ${order.notifikasi || '-'} — ${order.deskripsi_pekerjaan || '-'}`"
-                                            ></option>
+                                            <option :value="order.nomor_order" :selected="order.nomor_order === selectedOrder" x-text="order.nomor_order"></option>
                                         </template>
                                     </select>
-                                    <i x-show="! orderSelectEnhanced" data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"></i>
+                                    <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"></i>
                                 </div>
 
                                 <label class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-700">Nomor Notifikasi</label>
@@ -619,7 +602,6 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                     previousItemSource: config.itemSource === 'manual' ? 'manual' : 'hpp_snapshot',
                     itemSourceLocked: Boolean(config.itemSourceLocked),
                     formLocked: Boolean(config.formLocked),
-                    orderSelectEnhanced: false,
                     rowSequence: 0,
                     isCalculating: false,
                     calculationError: '',
@@ -643,64 +625,6 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
                             hpp_material_rows: [],
                             hpp_service_rows: [],
                         };
-                    },
-                    initializeOrderSelect(element) {
-                        element.value = this.selectedOrder;
-
-                        if (!window.TomSelect || element.tomselect) {
-                            return;
-                        }
-
-                        const component = this;
-                        const tomSelect = new window.TomSelect(element, {
-                            create: false,
-                            persist: false,
-                            maxItems: 1,
-                            maxOptions: null,
-                            closeAfterSelect: true,
-                            openOnFocus: true,
-                            allowEmptyOption: true,
-                            valueField: 'value',
-                            labelField: 'text',
-                            searchField: ['nomor_order', 'notifikasi', 'deskripsi_pekerjaan'],
-                            placeholder: 'Cari nomor order, notifikasi, atau pekerjaan...',
-                            render: {
-                                option(data, escape) {
-                                    if (!data.value) {
-                                        return '<div class="px-3 py-2 text-[12px] text-slate-500">Pilih Nomor Order</div>';
-                                    }
-
-                                    return `
-                                        <div class="border-b border-slate-100 px-3 py-2.5 last:border-b-0">
-                                            <div class="flex flex-wrap items-center gap-2">
-                                                <span class="rounded-md bg-blue-100 px-2 py-1 text-[11px] font-black text-blue-700">${escape(data.nomor_order || '-')}</span>
-                                                <span class="rounded-md bg-amber-100 px-2 py-1 text-[11px] font-bold text-amber-700">Notif: ${escape(data.notifikasi || '-')}</span>
-                                            </div>
-                                            <div class="mt-1.5 whitespace-normal text-[12px] font-semibold leading-5 text-emerald-700">${escape(data.deskripsi_pekerjaan || '-')}</div>
-                                        </div>
-                                    `;
-                                },
-                                item(data, escape) {
-                                    return `
-                                        <div class="flex min-w-0 items-center gap-2">
-                                            <span class="font-black text-blue-700">${escape(data.nomor_order || data.value || '-')}</span>
-                                            <span class="text-amber-600">${escape(data.notifikasi || '-')}</span>
-                                            <span class="truncate text-emerald-700">${escape(data.deskripsi_pekerjaan || '-')}</span>
-                                        </div>
-                                    `;
-                                },
-                                no_results() {
-                                    return '<div class="px-3 py-3 text-[12px] font-semibold text-slate-500">Order tidak ditemukan.</div>';
-                                },
-                            },
-                            onChange(value) {
-                                component.selectedOrder = String(value || '');
-                                component.handleOrderChange();
-                            },
-                        });
-
-                        tomSelect.setValue(this.selectedOrder, true);
-                        this.orderSelectEnhanced = true;
                     },
                     rowsLocked() {
                         return this.formLocked || this.isTerminTwoLocked || this.itemSource === 'hpp_snapshot';

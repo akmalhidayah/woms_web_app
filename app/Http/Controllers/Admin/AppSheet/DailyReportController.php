@@ -77,6 +77,7 @@ class DailyReportController extends Controller
 
         $rows = $this->newestFirst($filteredRows);
         $reporterKpi = $this->reporterKpi($rows);
+        $picKpi = $this->picKpi($rows);
         unset($data['sheetRows']);
 
         $paginatedRows = $this->paginate($rows, $request, $filters);
@@ -90,6 +91,7 @@ class DailyReportController extends Controller
             'years' => $years,
             'rows' => $paginatedRows,
             'reporterKpi' => $reporterKpi,
+            'picKpi' => $picKpi,
         ]);
     }
 
@@ -100,13 +102,50 @@ class DailyReportController extends Controller
      */
     private function reporterKpi(Collection $rows): array
     {
-        $reportsWithContributor = $rows
-            ->filter(fn (array $row): bool => $row['_input_by_name'] !== '');
+        $names = $rows
+            ->pluck('_input_by_name')
+            ->filter(fn (string $name): bool => $name !== '')
+            ->values();
+        $contributors = $this->rankNames($names);
 
-        $contributors = $reportsWithContributor
-            ->groupBy(fn (array $row): string => DailyReportData::nameKey($row['_input_by_name']))
-            ->map(function (Collection $reports): array {
-                $name = $reports->first()['_input_by_name'];
+        return [
+            'items' => $contributors->take(3)->all(),
+            'report_count' => $names->count(),
+            'contributor_count' => $contributors->count(),
+        ];
+    }
+
+    /**
+     * Build the PIC leaderboard from all filtered rows before pagination.
+     * Every distinct PIC in one report contributes one assignment.
+     *
+     * @return array{items: list<array{name: string, initials: string, count: int}>, report_count: int, assignment_count: int, contributor_count: int}
+     */
+    private function picKpi(Collection $rows): array
+    {
+        $rowsWithPic = $rows->filter(fn (array $row): bool => $row['_pic_names'] !== []);
+        $names = $rowsWithPic
+            ->flatMap(fn (array $row): array => $row['_pic_names'])
+            ->values();
+        $contributors = $this->rankNames($names);
+
+        return [
+            'items' => $contributors->take(3)->all(),
+            'report_count' => $rowsWithPic->count(),
+            'assignment_count' => $names->count(),
+            'contributor_count' => $contributors->count(),
+        ];
+    }
+
+    /**
+     * @return Collection<int, array{name: string, initials: string, count: int}>
+     */
+    private function rankNames(Collection $names): Collection
+    {
+        return $names
+            ->groupBy(fn (string $name): string => DailyReportData::nameKey($name))
+            ->map(function (Collection $occurrences): array {
+                $name = $occurrences->first();
                 $nameParts = preg_split('/\s+/u', $name, -1, PREG_SPLIT_NO_EMPTY) ?: [];
                 $initials = collect($nameParts)
                     ->take(2)
@@ -116,7 +155,7 @@ class DailyReportController extends Controller
                 return [
                     'name' => $name,
                     'initials' => $initials,
-                    'count' => $reports->count(),
+                    'count' => $occurrences->count(),
                 ];
             })
             ->sort(function (array $left, array $right): int {
@@ -127,12 +166,6 @@ class DailyReportController extends Controller
                     : strnatcasecmp($left['name'], $right['name']);
             })
             ->values();
-
-        return [
-            'items' => $contributors->take(3)->all(),
-            'report_count' => $reportsWithContributor->count(),
-            'contributor_count' => $contributors->count(),
-        ];
     }
 
     private function prepareRow(array $row, int $sourceIndex): array

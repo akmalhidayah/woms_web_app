@@ -41,7 +41,9 @@
             </article>
 
             @foreach ($configurableAdminRoles as $adminRole => $adminRoleLabel)
-                @php($isEmployeeRole = $adminRole === \App\Models\User::ADMIN_ROLE_KARYAWAN)
+                @php
+                    $isEmployeeRole = $adminRole === \App\Models\User::ADMIN_ROLE_KARYAWAN;
+                @endphp
                 <article class="rounded-xl border {{ $isEmployeeRole ? 'border-amber-200' : 'border-blue-200' }} bg-white p-4 shadow-sm">
                     <div class="flex items-center gap-4">
                         <span class="inline-flex h-14 w-14 items-center justify-center rounded-xl {{ $isEmployeeRole ? 'bg-amber-500' : 'bg-blue-600' }} text-white">

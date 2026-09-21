@@ -61,9 +61,12 @@ class PurchaseOrderIndexTabsTest extends TestCase
         }
     }
 
-    public function test_active_purchase_orders_are_split_exclusively_by_progress(): void
+    public function test_active_purchase_orders_are_split_exclusively_by_progress_and_estimate_approval(): void
     {
         [, $readyZero] = $this->makeEligibleHpp('PO-READY-ZERO');
+        [, $pendingEstimate] = $this->makeEligibleHpp('PO-ESTIMATE-PENDING');
+        [, $rejectedEstimate] = $this->makeEligibleHpp('PO-ESTIMATE-REJECTED');
+        [, $approvedEstimate] = $this->makeEligibleHpp('PO-ESTIMATE-APPROVED');
         [, $progressOne] = $this->makeEligibleHpp('PO-PROGRESS-ONE');
         [, $progressFortyFive] = $this->makeEligibleHpp('PO-PROGRESS-45');
         [, $progressNinetyNine] = $this->makeEligibleHpp('PO-PROGRESS-99');
@@ -71,6 +74,27 @@ class PurchaseOrderIndexTabsTest extends TestCase
         [, $completedButUnapproved] = $this->makeEligibleHpp('PO-ACTION-100');
 
         $this->makePurchaseOrder($readyZero, ['purchase_order_number' => 'PO-0', 'approve_manager' => true, 'progress_pekerjaan' => 0]);
+        $this->makePurchaseOrder($pendingEstimate, [
+            'purchase_order_number' => 'PO-ESTIMATE-PENDING',
+            'approve_manager' => true,
+            'progress_pekerjaan' => 0,
+            'target_penyelesaian' => '2026-10-01',
+            'approval_target' => null,
+        ]);
+        $this->makePurchaseOrder($rejectedEstimate, [
+            'purchase_order_number' => 'PO-ESTIMATE-REJECTED',
+            'approve_manager' => true,
+            'progress_pekerjaan' => 0,
+            'target_penyelesaian' => '2026-10-02',
+            'approval_target' => 'tidak_setuju',
+        ]);
+        $this->makePurchaseOrder($approvedEstimate, [
+            'purchase_order_number' => 'PO-ESTIMATE-APPROVED',
+            'approve_manager' => true,
+            'progress_pekerjaan' => 0,
+            'target_penyelesaian' => '2026-10-03',
+            'approval_target' => 'setuju',
+        ]);
         $this->makePurchaseOrder($progressOne, ['purchase_order_number' => 'PO-1', 'approve_manager' => true, 'progress_pekerjaan' => 1]);
         $this->makePurchaseOrder($progressFortyFive, ['purchase_order_number' => 'PO-45', 'approve_manager' => true, 'progress_pekerjaan' => 45]);
         $this->makePurchaseOrder($progressNinetyNine, ['purchase_order_number' => 'PO-99', 'approve_manager' => true, 'progress_pekerjaan' => 99]);
@@ -79,7 +103,8 @@ class PurchaseOrderIndexTabsTest extends TestCase
 
         $expected = [
             PurchaseOrderIndexTabs::TAB_ACTION => [$completedButUnapproved->id],
-            PurchaseOrderIndexTabs::TAB_READY => [$readyZero->id],
+            PurchaseOrderIndexTabs::TAB_ESTIMATE_APPROVAL => [$pendingEstimate->id, $rejectedEstimate->id],
+            PurchaseOrderIndexTabs::TAB_READY => [$readyZero->id, $approvedEstimate->id],
             PurchaseOrderIndexTabs::TAB_IN_PROGRESS => [$progressOne->id, $progressFortyFive->id, $progressNinetyNine->id],
             PurchaseOrderIndexTabs::TAB_HISTORY => [$history->id],
         ];
@@ -92,7 +117,7 @@ class PurchaseOrderIndexTabsTest extends TestCase
             }
         }
 
-        foreach ([$readyZero, $progressOne, $progressFortyFive, $progressNinetyNine, $history, $completedButUnapproved] as $hpp) {
+        foreach ([$readyZero, $pendingEstimate, $rejectedEstimate, $approvedEstimate, $progressOne, $progressFortyFive, $progressNinetyNine, $history, $completedButUnapproved] as $hpp) {
             $matches = collect(array_keys($expected))
                 ->filter(fn (string $tab): bool => $this->tabRows($tab)->contains('id', $hpp->id));
 
@@ -147,7 +172,7 @@ class PurchaseOrderIndexTabsTest extends TestCase
         $this->assertSame(0, $purchaseOrder->progress_pekerjaan);
     }
 
-    public function test_view_has_four_tabs_search_only_existing_table_and_new_hidden_filters(): void
+    public function test_view_has_five_tabs_search_only_existing_table_and_new_hidden_filters(): void
     {
         [$admin, $hpp] = $this->makeEligibleHpp('PO-VIEW-TABS');
 
@@ -158,6 +183,7 @@ class PurchaseOrderIndexTabsTest extends TestCase
             ]))
             ->assertOk()
             ->assertSee('Perlu Tindakan')
+            ->assertSee('Persetujuan Estimasi')
             ->assertSee('Siap Dikerjakan')
             ->assertSee('Dalam Proses')
             ->assertSee('Riwayat')

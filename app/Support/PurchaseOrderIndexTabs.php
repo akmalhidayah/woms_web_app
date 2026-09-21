@@ -11,6 +11,8 @@ class PurchaseOrderIndexTabs
 
     public const TAB_READY = 'ready';
 
+    public const TAB_ESTIMATE_APPROVAL = 'estimate_approval';
+
     public const TAB_IN_PROGRESS = 'in_progress';
 
     public const TAB_HISTORY = 'history';
@@ -27,6 +29,7 @@ class PurchaseOrderIndexTabs
     {
         return [
             self::TAB_ACTION => 'Perlu Tindakan',
+            self::TAB_ESTIMATE_APPROVAL => 'Persetujuan Estimasi',
             self::TAB_READY => 'Siap Dikerjakan',
             self::TAB_IN_PROGRESS => 'Dalam Proses',
             self::TAB_HISTORY => 'Riwayat',
@@ -45,12 +48,22 @@ class PurchaseOrderIndexTabs
     public function apply(Builder $query, string $tab): Builder
     {
         return match ($this->normalize($tab)) {
+            self::TAB_ESTIMATE_APPROVAL => $this->applyActivePurchaseOrder($query)
+                ->whereHas('purchaseOrder', fn (Builder $purchaseOrder): Builder => $this
+                    ->applyNotStarted($purchaseOrder)
+                    ->whereNotNull('target_penyelesaian')
+                    ->where(function (Builder $approval): void {
+                        $approval
+                            ->whereNull('approval_target')
+                            ->orWhere('approval_target', '<>', 'setuju');
+                    })),
             self::TAB_READY => $this->applyActivePurchaseOrder($query)
-                ->whereHas('purchaseOrder', fn (Builder $purchaseOrder): Builder => $purchaseOrder
-                    ->where(function (Builder $progress): void {
-                        $progress
-                            ->whereNull('progress_pekerjaan')
-                            ->orWhere('progress_pekerjaan', 0);
+                ->whereHas('purchaseOrder', fn (Builder $purchaseOrder): Builder => $this
+                    ->applyNotStarted($purchaseOrder)
+                    ->where(function (Builder $estimate): void {
+                        $estimate
+                            ->whereNull('target_penyelesaian')
+                            ->orWhere('approval_target', 'setuju');
                     })),
             self::TAB_IN_PROGRESS => $this->applyActivePurchaseOrder($query)
                 ->whereHas('purchaseOrder', fn (Builder $purchaseOrder): Builder => $purchaseOrder
@@ -67,6 +80,7 @@ class PurchaseOrderIndexTabs
     {
         return [
             self::TAB_ACTION => $this->countFor(self::TAB_ACTION),
+            self::TAB_ESTIMATE_APPROVAL => $this->countFor(self::TAB_ESTIMATE_APPROVAL),
             self::TAB_READY => $this->countFor(self::TAB_READY),
             self::TAB_IN_PROGRESS => $this->countFor(self::TAB_IN_PROGRESS),
             self::TAB_HISTORY => $this->countFor(self::TAB_HISTORY),
@@ -117,6 +131,15 @@ class PurchaseOrderIndexTabs
                 ->whereNotNull('purchase_order_number')
                 ->whereRaw("TRIM(purchase_order_number) <> ''")
                 ->where('approve_manager', true);
+        });
+    }
+
+    private function applyNotStarted(Builder $query): Builder
+    {
+        return $query->where(function (Builder $progress): void {
+            $progress
+                ->whereNull('progress_pekerjaan')
+                ->orWhere('progress_pekerjaan', 0);
         });
     }
 }

@@ -223,6 +223,7 @@
                             <tr>
                                 <td colspan="8" class="px-4 py-8 text-center text-[11px] text-slate-500">
                                     {{ match ($activeTab) {
+                                        'estimate_approval' => 'Belum ada estimasi pekerjaan yang menunggu persetujuan.',
                                         'ready' => 'Belum ada Purchase Order yang siap dikerjakan.',
                                         'in_progress' => 'Belum ada pekerjaan Purchase Order yang sedang berjalan.',
                                         'history' => 'Belum ada riwayat Purchase Order.',

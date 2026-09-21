@@ -3,6 +3,7 @@
         class="min-w-0 space-y-4 sm:space-y-5"
         x-data="{
             filterMobileOpen: false,
+            kpiOpen: false,
             previewImageUrl: '',
             previewTitle: '',
             previewDate: '',
@@ -32,7 +33,7 @@
                 this.previewPic = '';
             },
         }"
-        x-on:keydown.escape.window="closePhoto(); filterMobileOpen = false"
+        x-on:keydown.escape.window="closePhoto(); filterMobileOpen = false; kpiOpen = false"
     >
         <section class="overflow-hidden rounded-[1.35rem] border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-cyan-50 px-4 py-4 shadow-sm sm:px-5 sm:py-5">
             <div class="flex flex-wrap items-center gap-3 sm:gap-4">
@@ -99,7 +100,18 @@
 
         <section class="lg:overflow-hidden lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-sm">
             <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm lg:rounded-none lg:border-x-0 lg:border-t-0 lg:shadow-none lg:px-5">
-                <p class="text-xs font-bold text-slate-800">Aktivitas pekerjaan harian</p>
+                <div class="flex items-center gap-1.5">
+                    <p class="text-xs font-bold text-slate-800">Aktivitas pekerjaan harian</p>
+                    <button
+                        type="button"
+                        class="inline-flex h-7 w-7 items-center justify-center rounded-lg text-blue-600 transition hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                        aria-label="Lihat KPI Top 3 pembuat laporan harian"
+                        title="KPI Top 3 pembuat laporan"
+                        x-on:click="kpiOpen = true"
+                    >
+                        <i data-lucide="chart-no-axes-column-increasing" class="h-4 w-4" aria-hidden="true"></i>
+                    </button>
+                </div>
                 <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-semibold text-slate-600">
                     <i data-lucide="arrow-down-narrow-wide" class="h-3.5 w-3.5" aria-hidden="true"></i>
                     Terbaru lebih dahulu
@@ -264,5 +276,6 @@
 
         @include('admin.appsheet.partials.daily-report-mobile-filter')
         @include('admin.appsheet.partials.daily-report-image-preview-modal')
+        @include('admin.appsheet.partials.daily-report-kpi-modal')
     </div>
 </x-layouts.admin>

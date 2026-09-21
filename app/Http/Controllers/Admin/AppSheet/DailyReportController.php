@@ -76,6 +76,7 @@ class DailyReportController extends Controller
         });
 
         $rows = $this->newestFirst($filteredRows);
+        $reporterKpi = $this->reporterKpi($rows);
         unset($data['sheetRows']);
 
         $paginatedRows = $this->paginate($rows, $request, $filters);
@@ -88,7 +89,50 @@ class DailyReportController extends Controller
             'picOptions' => $picOptions,
             'years' => $years,
             'rows' => $paginatedRows,
+            'reporterKpi' => $reporterKpi,
         ]);
+    }
+
+    /**
+     * Build the reporter leaderboard from all filtered rows before pagination.
+     *
+     * @return array{items: list<array{name: string, initials: string, count: int}>, report_count: int, contributor_count: int}
+     */
+    private function reporterKpi(Collection $rows): array
+    {
+        $reportsWithContributor = $rows
+            ->filter(fn (array $row): bool => $row['_input_by_name'] !== '');
+
+        $contributors = $reportsWithContributor
+            ->groupBy(fn (array $row): string => DailyReportData::nameKey($row['_input_by_name']))
+            ->map(function (Collection $reports): array {
+                $name = $reports->first()['_input_by_name'];
+                $nameParts = preg_split('/\s+/u', $name, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+                $initials = collect($nameParts)
+                    ->take(2)
+                    ->map(fn (string $part): string => mb_strtoupper(mb_substr($part, 0, 1)))
+                    ->implode('');
+
+                return [
+                    'name' => $name,
+                    'initials' => $initials,
+                    'count' => $reports->count(),
+                ];
+            })
+            ->sort(function (array $left, array $right): int {
+                $countOrder = $right['count'] <=> $left['count'];
+
+                return $countOrder !== 0
+                    ? $countOrder
+                    : strnatcasecmp($left['name'], $right['name']);
+            })
+            ->values();
+
+        return [
+            'items' => $contributors->take(3)->all(),
+            'report_count' => $reportsWithContributor->count(),
+            'contributor_count' => $contributors->count(),
+        ];
     }
 
     private function prepareRow(array $row, int $sourceIndex): array

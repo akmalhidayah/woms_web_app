@@ -5,6 +5,7 @@
             filterMobileOpen: false,
             kpiOpen: false,
             kpiTab: 'reporter',
+            kpiYear: @js((string) $kpiSelectedYear),
             previewImageUrl: '',
             previewTitle: '',
             previewDate: '',

@@ -34,7 +34,7 @@
                 </button>
             </div>
 
-            <div class="shrink-0 border-b border-slate-100 px-5 py-3">
+            <div class="shrink-0 space-y-3 border-b border-slate-100 px-5 py-3">
                 <div class="grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Jenis peringkat laporan harian">
                     <button
                         type="button"
@@ -57,27 +57,25 @@
                         PIC
                     </button>
                 </div>
+                <div class="flex items-center justify-between gap-3">
+                    <label for="daily-report-kpi-year" class="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        <i data-lucide="calendar-days" class="h-3.5 w-3.5 text-blue-600" aria-hidden="true"></i>
+                        Periode Tahun
+                    </label>
+                    <select
+                        id="daily-report-kpi-year"
+                        x-model="kpiYear"
+                        class="h-9 min-w-32 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                    >
+                        <option value="all">Semua Tahun</option>
+                        @foreach ($kpiYears as $year)
+                            <option value="{{ $year }}">{{ $year }}</option>
+                        @endforeach
+                    </select>
+                </div>
             </div>
 
             @php
-                $kpiRankings = [
-                    [
-                        'key' => 'reporter',
-                        'title' => 'Top 3 Pembuat Laporan',
-                        'description' => 'Berdasarkan INPUT BY dari hasil filter aktif',
-                        'items' => $reporterKpi['items'],
-                        'total' => $reporterKpi['report_count'],
-                        'total_label' => 'laporan',
-                    ],
-                    [
-                        'key' => 'pic',
-                        'title' => 'Top 3 PIC',
-                        'description' => 'Berdasarkan PIC dari hasil filter aktif',
-                        'items' => $picKpi['items'],
-                        'total' => $picKpi['assignment_count'],
-                        'total_label' => 'penugasan',
-                    ],
-                ];
                 $rankStyles = [
                     0 => [
                         'row' => 'border-amber-200 bg-amber-50/70',
@@ -98,66 +96,91 @@
             @endphp
 
             <div class="min-h-0 overflow-y-auto p-5">
-                @foreach ($kpiRankings as $ranking)
-                    <section x-cloak x-show="kpiTab === @js($ranking['key'])" role="tabpanel">
-                        <div class="mb-4 flex items-end justify-between gap-3">
-                            <div>
-                                <h3 class="text-sm font-bold text-slate-900">{{ $ranking['title'] }}</h3>
-                                <p class="mt-1 text-[10px] text-slate-500">{{ $ranking['description'] }}</p>
-                            </div>
-                            <p class="shrink-0 text-[10px] font-semibold text-slate-500">
-                                {{ number_format($ranking['total']) }} {{ $ranking['total_label'] }}
-                            </p>
-                        </div>
+                @foreach ($kpiSnapshots as $snapshotYear => $snapshot)
+                    @php
+                        $kpiRankings = [
+                            [
+                                'key' => 'reporter',
+                                'title' => 'Top 3 Pembuat Laporan',
+                                'items' => $snapshot['reporter']['items'],
+                                'total' => $snapshot['reporter']['report_count'],
+                                'total_label' => 'laporan',
+                            ],
+                            [
+                                'key' => 'pic',
+                                'title' => 'Top 3 PIC',
+                                'items' => $snapshot['pic']['items'],
+                                'total' => $snapshot['pic']['assignment_count'],
+                                'total_label' => 'penugasan',
+                            ],
+                        ];
+                    @endphp
 
-                        @if ($ranking['items'] !== [])
-                            <ol class="space-y-3">
-                                @foreach ($ranking['items'] as $index => $person)
-                                    @php
-                                        $style = $rankStyles[$index];
-                                    @endphp
-                                    <li class="flex items-center gap-3 rounded-2xl border p-3 {{ $style['row'] }}">
-                                        <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-black {{ $style['rank'] }}" aria-label="Peringkat {{ $index + 1 }}">
-                                            {{ $index + 1 }}
+                    <div x-cloak x-show="kpiYear === @js((string) $snapshotYear)">
+                        @foreach ($kpiRankings as $ranking)
+                            <section x-cloak x-show="kpiTab === @js($ranking['key'])" role="tabpanel">
+                                <div class="mb-4 flex items-end justify-between gap-3">
+                                    <div>
+                                        <h3 class="text-sm font-bold text-slate-900">{{ $ranking['title'] }}</h3>
+                                        <p class="mt-1 text-[10px] text-slate-500">
+                                            Periode {{ $snapshotYear === 'all' ? 'semua tahun' : 'tahun '.$snapshotYear }}
+                                        </p>
+                                    </div>
+                                    <p class="shrink-0 text-[10px] font-semibold text-slate-500">
+                                        {{ number_format($ranking['total']) }} {{ $ranking['total_label'] }}
+                                    </p>
+                                </div>
+
+                                @if ($ranking['items'] !== [])
+                                    <ol class="space-y-3">
+                                        @foreach ($ranking['items'] as $index => $person)
+                                            @php
+                                                $style = $rankStyles[$index];
+                                            @endphp
+                                            <li class="flex items-center gap-3 rounded-2xl border p-3 {{ $style['row'] }}">
+                                                <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-black {{ $style['rank'] }}" aria-label="Peringkat {{ $index + 1 }}">
+                                                    {{ $index + 1 }}
+                                                </span>
+                                                <span class="relative inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-xs font-black text-blue-700 ring-2 {{ $style['avatar'] }}">
+                                                    {{ $person['display_initials'] ?: '?' }}
+                                                    @if ($person['avatar_url'])
+                                                        <img
+                                                            src="{{ $person['avatar_url'] }}"
+                                                            alt="Avatar {{ $person['display_name'] }}"
+                                                            loading="lazy"
+                                                            class="absolute inset-0 h-full w-full bg-white object-contain object-center p-0.5"
+                                                            onerror="this.remove()"
+                                                        >
+                                                    @endif
+                                                </span>
+                                                <div class="min-w-0 flex-1">
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="text-[10px] font-bold text-slate-400">#{{ $index + 1 }}</span>
+                                                        <p class="truncate text-sm font-bold text-slate-900">{{ $person['display_name'] }}</p>
+                                                    </div>
+                                                    <p class="mt-0.5 text-[10px] text-slate-500">
+                                                        {{ $ranking['key'] === 'reporter' ? 'Pembuat laporan' : 'PIC pekerjaan' }}
+                                                    </p>
+                                                </div>
+                                                <div class="shrink-0 text-right">
+                                                    <p class="text-lg font-black tabular-nums text-blue-700">{{ number_format($person['count']) }}</p>
+                                                    <p class="text-[9px] font-semibold uppercase tracking-wide text-slate-400">laporan</p>
+                                                </div>
+                                            </li>
+                                        @endforeach
+                                    </ol>
+                                @else
+                                    <div class="rounded-2xl border border-dashed border-slate-200 py-10 text-center">
+                                        <span class="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                                            <i data-lucide="trophy" class="h-5 w-5" aria-hidden="true"></i>
                                         </span>
-                                        <span class="relative inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-xs font-black text-blue-700 ring-2 {{ $style['avatar'] }}">
-                                            {{ $person['display_initials'] ?: '?' }}
-                                            @if ($person['avatar_url'])
-                                                <img
-                                                    src="{{ $person['avatar_url'] }}"
-                                                    alt="Avatar {{ $person['display_name'] }}"
-                                                    loading="lazy"
-                                                    class="absolute inset-0 h-full w-full bg-white object-contain object-center p-0.5"
-                                                    onerror="this.remove()"
-                                                >
-                                            @endif
-                                        </span>
-                                        <div class="min-w-0 flex-1">
-                                            <div class="flex items-center gap-2">
-                                                <span class="text-[10px] font-bold text-slate-400">#{{ $index + 1 }}</span>
-                                                <p class="truncate text-sm font-bold text-slate-900">{{ $person['display_name'] }}</p>
-                                            </div>
-                                            <p class="mt-0.5 text-[10px] text-slate-500">
-                                                {{ $ranking['key'] === 'reporter' ? 'Pembuat laporan' : 'PIC pekerjaan' }}
-                                            </p>
-                                        </div>
-                                        <div class="shrink-0 text-right">
-                                            <p class="text-lg font-black tabular-nums text-blue-700">{{ number_format($person['count']) }}</p>
-                                            <p class="text-[9px] font-semibold uppercase tracking-wide text-slate-400">laporan</p>
-                                        </div>
-                                    </li>
-                                @endforeach
-                            </ol>
-                        @else
-                            <div class="rounded-2xl border border-dashed border-slate-200 py-10 text-center">
-                                <span class="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                                    <i data-lucide="trophy" class="h-5 w-5" aria-hidden="true"></i>
-                                </span>
-                                <p class="mt-3 text-xs font-semibold text-slate-700">Belum ada peringkat</p>
-                                <p class="mt-1 text-[10px] text-slate-500">Data belum tersedia pada hasil filter saat ini.</p>
-                            </div>
-                        @endif
-                    </section>
+                                        <p class="mt-3 text-xs font-semibold text-slate-700">Belum ada peringkat</p>
+                                        <p class="mt-1 text-[10px] text-slate-500">Belum ada laporan pada periode ini.</p>
+                                    </div>
+                                @endif
+                            </section>
+                        @endforeach
+                    </div>
                 @endforeach
             </div>
         </div>

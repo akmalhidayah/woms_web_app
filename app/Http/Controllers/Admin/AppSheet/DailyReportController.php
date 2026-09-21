@@ -60,7 +60,7 @@ class DailyReportController extends Controller
             $filters['year'] = '';
         }
 
-        $filteredRows = $allRows->filter(function (array $row) use ($filters): bool {
+        $kpiBaseRows = $allRows->filter(function (array $row) use ($filters): bool {
             $matchesPic = $filters['pic'] === '' || in_array(
                 DailyReportData::nameKey($filters['pic']),
                 $row['_pic_keys'],
@@ -71,16 +71,29 @@ class DailyReportController extends Controller
                 'ORDER', 'DESC. ORDER', 'INPUT NON ORDER', 'PROGRESS PEKERJAAN', 'PIC', 'INPUT BY',
             ], $filters['search'])
                 && $matchesPic
-                && ($filters['year'] === '' || $row['_year'] === $filters['year'])
                 && ($filters['date'] === '' || $row['_date'] === $filters['date']);
         });
+        $filteredRows = $kpiBaseRows->filter(
+            fn (array $row): bool => $filters['year'] === '' || $row['_year'] === $filters['year'],
+        );
 
         $rows = $this->newestFirst($filteredRows);
-        $reporterKpi = $this->reporterKpi($rows);
-        $picKpi = $this->picKpi($rows);
+        $kpiYears = $kpiBaseRows->pluck('_year')->filter()->unique()->sortDesc()->values();
+        $kpiSelectedYear = $filters['year'] !== ''
+            ? $filters['year']
+            : ($kpiYears->first() ?? 'all');
         $profileCache = [];
-        $reporterKpi = $this->decorateContributorKpi($reporterKpi, $profiles, $driveMedia, $profileCache);
-        $picKpi = $this->decorateContributorKpi($picKpi, $profiles, $driveMedia, $profileCache);
+        $kpiSnapshots = [
+            'all' => $this->contributorKpiSnapshot($kpiBaseRows, $profiles, $driveMedia, $profileCache),
+        ];
+        foreach ($kpiYears as $kpiYear) {
+            $kpiSnapshots[$kpiYear] = $this->contributorKpiSnapshot(
+                $kpiBaseRows->where('_year', $kpiYear),
+                $profiles,
+                $driveMedia,
+                $profileCache,
+            );
+        }
         unset($data['sheetRows']);
 
         $paginatedRows = $this->paginate($rows, $request, $filters);
@@ -93,9 +106,36 @@ class DailyReportController extends Controller
             'picOptions' => $picOptions,
             'years' => $years,
             'rows' => $paginatedRows,
-            'reporterKpi' => $reporterKpi,
-            'picKpi' => $picKpi,
+            'kpiYears' => $kpiYears,
+            'kpiSelectedYear' => $kpiSelectedYear,
+            'kpiSnapshots' => $kpiSnapshots,
         ]);
+    }
+
+    /**
+     * @param  array<string, array<string, mixed>>  $profileCache
+     * @return array{reporter: array<string, mixed>, pic: array<string, mixed>}
+     */
+    private function contributorKpiSnapshot(
+        Collection $rows,
+        AppSheetProfileDirectoryService $profiles,
+        GoogleDriveMediaService $driveMedia,
+        array &$profileCache,
+    ): array {
+        return [
+            'reporter' => $this->decorateContributorKpi(
+                $this->reporterKpi($rows),
+                $profiles,
+                $driveMedia,
+                $profileCache,
+            ),
+            'pic' => $this->decorateContributorKpi(
+                $this->picKpi($rows),
+                $profiles,
+                $driveMedia,
+                $profileCache,
+            ),
+        ];
     }
 
     /**

@@ -4,6 +4,7 @@
         x-data="{
             filterMobileOpen: false,
             kpiOpen: false,
+            kpiTab: 'reporter',
             previewImageUrl: '',
             previewTitle: '',
             previewDate: '',
@@ -107,7 +108,7 @@
                         class="inline-flex h-7 w-7 items-center justify-center rounded-lg text-blue-600 transition hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
                         aria-label="Lihat KPI Top 3 pembuat laporan harian"
                         title="KPI Top 3 pembuat laporan"
-                        x-on:click="kpiOpen = true"
+                        x-on:click="kpiTab = 'reporter'; kpiOpen = true"
                     >
                         <i data-lucide="chart-no-axes-column-increasing" class="h-4 w-4" aria-hidden="true"></i>
                     </button>

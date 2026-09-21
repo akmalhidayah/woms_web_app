@@ -17,119 +17,148 @@
             x-transition:leave="transition duration-150 ease-in"
             x-transition:leave-start="scale-100 opacity-100"
             x-transition:leave-end="scale-95 opacity-0"
-            class="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-white/15 bg-white shadow-2xl"
+            class="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-white/15 bg-white shadow-2xl"
         >
-            <div class="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-6">
+            <div class="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
                 <div class="min-w-0">
-                    <p class="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-blue-600">
-                        <i data-lucide="chart-no-axes-column-increasing" class="h-3.5 w-3.5" aria-hidden="true"></i>
-                        KPI Laporan Harian
-                    </p>
+                    <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-blue-600">KPI Laporan Harian</p>
                     <h2 id="daily-report-kpi-title" class="mt-1 text-lg font-bold text-slate-900">Peringkat Kontributor</h2>
-                    <p class="mt-1 text-xs leading-relaxed text-slate-500">Dihitung dari seluruh hasil filter aktif sebelum pagination.</p>
                 </div>
                 <button
                     type="button"
                     class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                    aria-label="Tutup KPI laporan harian"
+                    aria-label="Tutup peringkat kontributor"
                     x-on:click="kpiOpen = false"
                 >
                     <i data-lucide="x" class="h-5 w-5" aria-hidden="true"></i>
                 </button>
             </div>
 
+            <div class="shrink-0 border-b border-slate-100 px-5 py-3">
+                <div class="grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Jenis peringkat laporan harian">
+                    <button
+                        type="button"
+                        role="tab"
+                        x-bind:aria-selected="kpiTab === 'reporter'"
+                        x-on:click="kpiTab = 'reporter'"
+                        x-bind:class="kpiTab === 'reporter' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+                        class="rounded-lg px-3 py-2 text-xs font-semibold transition"
+                    >
+                        Pembuat Laporan
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        x-bind:aria-selected="kpiTab === 'pic'"
+                        x-on:click="kpiTab = 'pic'"
+                        x-bind:class="kpiTab === 'pic' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+                        class="rounded-lg px-3 py-2 text-xs font-semibold transition"
+                    >
+                        PIC
+                    </button>
+                </div>
+            </div>
+
             @php
-                $kpiGroups = [
+                $kpiRankings = [
                     [
+                        'key' => 'reporter',
                         'title' => 'Top 3 Pembuat Laporan',
-                        'description' => 'Berdasarkan kolom INPUT BY',
+                        'description' => 'Berdasarkan INPUT BY dari hasil filter aktif',
                         'items' => $reporterKpi['items'],
-                        'record_count' => $reporterKpi['report_count'],
-                        'record_label' => 'laporan dengan penginput',
-                        'contributor_count' => $reporterKpi['contributor_count'],
-                        'contributor_label' => 'pembuat laporan',
-                        'aria_action' => 'membuat',
+                        'total' => $reporterKpi['report_count'],
+                        'total_label' => 'laporan',
                     ],
                     [
+                        'key' => 'pic',
                         'title' => 'Top 3 PIC',
-                        'description' => 'Berdasarkan kolom PIC',
+                        'description' => 'Berdasarkan PIC dari hasil filter aktif',
                         'items' => $picKpi['items'],
-                        'record_count' => $picKpi['assignment_count'],
-                        'record_label' => 'penugasan PIC',
-                        'contributor_count' => $picKpi['contributor_count'],
-                        'contributor_label' => 'PIC',
-                        'aria_action' => 'menangani',
+                        'total' => $picKpi['assignment_count'],
+                        'total_label' => 'penugasan',
+                    ],
+                ];
+                $rankStyles = [
+                    0 => [
+                        'row' => 'border-amber-200 bg-amber-50/70',
+                        'rank' => 'bg-amber-400 text-amber-950',
+                        'avatar' => 'ring-amber-300',
+                    ],
+                    1 => [
+                        'row' => 'border-slate-200 bg-slate-50',
+                        'rank' => 'bg-slate-300 text-slate-700',
+                        'avatar' => 'ring-slate-300',
+                    ],
+                    2 => [
+                        'row' => 'border-orange-200 bg-orange-50/60',
+                        'rank' => 'bg-orange-300 text-orange-950',
+                        'avatar' => 'ring-orange-300',
                     ],
                 ];
             @endphp
 
-            <div class="min-h-0 overflow-y-auto p-5 sm:p-6">
-                <div class="grid gap-5 lg:grid-cols-2">
-                    @foreach ($kpiGroups as $group)
-                        <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                            <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
-                                <div>
-                                    <h3 class="text-sm font-bold text-slate-900">{{ $group['title'] }}</h3>
-                                    <p class="mt-0.5 text-[10px] text-slate-500">{{ $group['description'] }}</p>
-                                </div>
-                                <span class="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold tabular-nums text-blue-700">
-                                    {{ number_format($group['record_count']) }} {{ $group['record_label'] }}
-                                </span>
+            <div class="min-h-0 overflow-y-auto p-5">
+                @foreach ($kpiRankings as $ranking)
+                    <section x-cloak x-show="kpiTab === @js($ranking['key'])" role="tabpanel">
+                        <div class="mb-4 flex items-end justify-between gap-3">
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-900">{{ $ranking['title'] }}</h3>
+                                <p class="mt-1 text-[10px] text-slate-500">{{ $ranking['description'] }}</p>
                             </div>
+                            <p class="shrink-0 text-[10px] font-semibold text-slate-500">
+                                {{ number_format($ranking['total']) }} {{ $ranking['total_label'] }}
+                            </p>
+                        </div>
 
-                            @if ($group['items'] !== [])
-                                @php
-                                    $maximumCount = max(array_column($group['items'], 'count'));
-                                @endphp
-                                <div class="mt-4 space-y-3">
-                                    @foreach ($group['items'] as $index => $person)
-                                        @php
-                                            $filledSegments = max(1, (int) ceil(($person['count'] / $maximumCount) * 12));
-                                        @endphp
-                                        <article class="rounded-xl bg-slate-50/80 p-3 ring-1 ring-slate-100">
-                                            <div class="flex items-center gap-2.5">
-                                                <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-[10px] font-bold text-white">
-                                                    {{ $index + 1 }}
-                                                </span>
-                                                <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-[10px] font-black text-blue-700 ring-1 ring-blue-200">
-                                                    {{ $person['initials'] ?: '?' }}
-                                                </span>
-                                                <div class="min-w-0 flex-1">
-                                                    <div class="flex items-center justify-between gap-2">
-                                                        <p class="truncate text-xs font-bold text-slate-900">{{ $person['name'] }}</p>
-                                                        <p class="shrink-0 text-xs font-bold tabular-nums text-blue-700">
-                                                            {{ number_format($person['count']) }} <span class="text-[9px] font-semibold text-slate-500">laporan</span>
-                                                        </p>
-                                                    </div>
-                                                    <div
-                                                        class="mt-2 grid grid-cols-12 gap-1"
-                                                        role="img"
-                                                        aria-label="{{ $person['name'] }} {{ $group['aria_action'] }} {{ $person['count'] }} laporan"
-                                                    >
-                                                        @for ($segment = 1; $segment <= 12; $segment++)
-                                                            <span class="h-1.5 rounded-full {{ $segment <= $filledSegments ? 'bg-blue-600' : 'bg-slate-200' }}"></span>
-                                                        @endfor
-                                                    </div>
-                                                </div>
+                        @if ($ranking['items'] !== [])
+                            <ol class="space-y-3">
+                                @foreach ($ranking['items'] as $index => $person)
+                                    @php
+                                        $style = $rankStyles[$index];
+                                    @endphp
+                                    <li class="flex items-center gap-3 rounded-2xl border p-3 {{ $style['row'] }}">
+                                        <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-black {{ $style['rank'] }}" aria-label="Peringkat {{ $index + 1 }}">
+                                            {{ $index + 1 }}
+                                        </span>
+                                        <span class="relative inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-xs font-black text-blue-700 ring-2 {{ $style['avatar'] }}">
+                                            {{ $person['display_initials'] ?: '?' }}
+                                            @if ($person['avatar_url'])
+                                                <img
+                                                    src="{{ $person['avatar_url'] }}"
+                                                    alt="Avatar {{ $person['display_name'] }}"
+                                                    loading="lazy"
+                                                    class="absolute inset-0 h-full w-full bg-white object-contain object-center p-0.5"
+                                                    onerror="this.remove()"
+                                                >
+                                            @endif
+                                        </span>
+                                        <div class="min-w-0 flex-1">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-[10px] font-bold text-slate-400">#{{ $index + 1 }}</span>
+                                                <p class="truncate text-sm font-bold text-slate-900">{{ $person['display_name'] }}</p>
                                             </div>
-                                        </article>
-                                    @endforeach
-                                </div>
-                                <p class="mt-3 text-right text-[10px] text-slate-500">
-                                    {{ number_format($group['contributor_count']) }} {{ $group['contributor_label'] }} tercatat
-                                </p>
-                            @else
-                                <div class="py-8 text-center">
-                                    <span class="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-                                        <i data-lucide="chart-no-axes-column-increasing" class="h-5 w-5" aria-hidden="true"></i>
-                                    </span>
-                                    <p class="mt-3 text-xs font-semibold text-slate-700">Data belum tersedia</p>
-                                    <p class="mt-1 text-[10px] text-slate-500">Belum ada data pada hasil filter saat ini.</p>
-                                </div>
-                            @endif
-                        </section>
-                    @endforeach
-                </div>
+                                            <p class="mt-0.5 text-[10px] text-slate-500">
+                                                {{ $ranking['key'] === 'reporter' ? 'Pembuat laporan' : 'PIC pekerjaan' }}
+                                            </p>
+                                        </div>
+                                        <div class="shrink-0 text-right">
+                                            <p class="text-lg font-black tabular-nums text-blue-700">{{ number_format($person['count']) }}</p>
+                                            <p class="text-[9px] font-semibold uppercase tracking-wide text-slate-400">laporan</p>
+                                        </div>
+                                    </li>
+                                @endforeach
+                            </ol>
+                        @else
+                            <div class="rounded-2xl border border-dashed border-slate-200 py-10 text-center">
+                                <span class="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                                    <i data-lucide="trophy" class="h-5 w-5" aria-hidden="true"></i>
+                                </span>
+                                <p class="mt-3 text-xs font-semibold text-slate-700">Belum ada peringkat</p>
+                                <p class="mt-1 text-[10px] text-slate-500">Data belum tersedia pada hasil filter saat ini.</p>
+                            </div>
+                        @endif
+                    </section>
+                @endforeach
             </div>
         </div>
     </div>

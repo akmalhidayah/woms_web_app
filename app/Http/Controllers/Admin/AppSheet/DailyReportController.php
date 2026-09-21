@@ -78,6 +78,9 @@ class DailyReportController extends Controller
         $rows = $this->newestFirst($filteredRows);
         $reporterKpi = $this->reporterKpi($rows);
         $picKpi = $this->picKpi($rows);
+        $profileCache = [];
+        $reporterKpi = $this->decorateContributorKpi($reporterKpi, $profiles, $driveMedia, $profileCache);
+        $picKpi = $this->decorateContributorKpi($picKpi, $profiles, $driveMedia, $profileCache);
         unset($data['sheetRows']);
 
         $paginatedRows = $this->paginate($rows, $request, $filters);
@@ -166,6 +169,42 @@ class DailyReportController extends Controller
                     : strnatcasecmp($left['name'], $right['name']);
             })
             ->values();
+    }
+
+    /**
+     * @param  array{items: list<array{name: string, initials: string, count: int}>}  $kpi
+     * @param  array<string, array<string, mixed>>  $profileCache
+     * @return array<string, mixed>
+     */
+    private function decorateContributorKpi(
+        array $kpi,
+        AppSheetProfileDirectoryService $profiles,
+        GoogleDriveMediaService $driveMedia,
+        array &$profileCache,
+    ): array {
+        $kpi['items'] = collect($kpi['items'])
+            ->map(function (array $item) use ($profiles, $driveMedia, &$profileCache): array {
+                $nameKey = DailyReportData::nameKey($item['name']);
+                if (! array_key_exists($nameKey, $profileCache)) {
+                    $profile = $profiles->resolve($item['name']);
+                    $profile['avatar_url'] = $driveMedia->mediaUrl(
+                        GoogleDriveMediaService::REQUESTER_COLLECTION,
+                        $profile['image_path'],
+                    );
+                    $profileCache[$nameKey] = $profile;
+                }
+
+                $profile = $profileCache[$nameKey];
+
+                return $item + [
+                    'display_name' => $profile['name'] ?: $item['name'],
+                    'display_initials' => $profile['initials'] ?: $item['initials'],
+                    'avatar_url' => $profile['avatar_url'],
+                ];
+            })
+            ->all();
+
+        return $kpi;
     }
 
     private function prepareRow(array $row, int $sourceIndex): array

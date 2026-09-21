@@ -124,20 +124,36 @@ $selectedTipePekerjaan = filled($oldTipePekerjaan)
 
                                 <label class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-700">Nomor Order</label>
                                 <div class="relative">
-                                    <select name="nomor_order" x-model="selectedOrder" x-init="$nextTick(() => { $el.value = selectedOrder; })" @change="handleOrderChange()" class="h-9 w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 pr-9 text-[12px] text-slate-700 focus:border-[#ca642f] focus:outline-none">
+                                    <select name="nomor_order" x-model="selectedOrder" x-init="$nextTick(() => { $el.value = selectedOrder; })" @change="handleOrderChange()" class="h-9 w-full appearance-none rounded-lg border border-blue-300 bg-blue-50 px-3 pr-9 text-[12px] font-bold text-blue-800 focus:border-blue-500 focus:outline-none">
                                         <option value="">Pilih Nomor Order</option>
                                         <template x-for="order in orderOptions" :key="order.nomor_order">
                                             <option :value="order.nomor_order" :selected="order.nomor_order === selectedOrder" x-text="order.nomor_order"></option>
                                         </template>
                                     </select>
-                                    <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"></i>
+                                    <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-blue-500"></i>
                                 </div>
 
                                 <label class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-700">Nomor Notifikasi</label>
-                                <input type="text" x-bind:value="currentOrder().notifikasi" readonly class="h-9 min-w-0 rounded-lg border border-slate-300 bg-slate-50 px-3 text-[12px] text-slate-700 focus:outline-none">
+                                <div class="relative">
+                                    <select x-model="selectedOrder" @change="handleOrderChange()" class="h-9 w-full appearance-none rounded-lg border border-amber-300 bg-amber-50 px-3 pr-9 text-[12px] font-bold text-amber-800 focus:border-amber-500 focus:outline-none">
+                                        <option value="">Pilih Nomor Notifikasi</option>
+                                        <template x-for="order in orderOptions" :key="`notification-${order.nomor_order}`">
+                                            <option :value="order.nomor_order" x-text="order.notifikasi || `Tanpa notifikasi (${order.nomor_order})`"></option>
+                                        </template>
+                                    </select>
+                                    <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-500"></i>
+                                </div>
 
                                 <label class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-700">Deskripsi Pekerjaan</label>
-                                <input type="text" x-bind:value="currentOrder().deskripsi_pekerjaan" readonly class="h-9 min-w-0 rounded-lg border border-slate-300 bg-slate-50 px-3 text-[12px] text-slate-700 focus:outline-none">
+                                <div class="relative">
+                                    <select x-model="selectedOrder" @change="handleOrderChange()" class="h-9 w-full appearance-none rounded-lg border border-emerald-300 bg-emerald-50 px-3 pr-9 text-[12px] font-semibold text-emerald-800 focus:border-emerald-500 focus:outline-none">
+                                        <option value="">Pilih Deskripsi Pekerjaan</option>
+                                        <template x-for="order in orderOptions" :key="`description-${order.nomor_order}`">
+                                            <option :value="order.nomor_order" x-text="order.deskripsi_pekerjaan || `Tanpa deskripsi (${order.nomor_order})`"></option>
+                                        </template>
+                                    </select>
+                                    <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500"></i>
+                                </div>
 
                                 <label class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-700">Unit Kerja Peminta</label>
                                 <input type="text" x-bind:value="currentOrder().unit_kerja_peminta" readonly class="h-9 min-w-0 rounded-lg border border-slate-300 bg-slate-50 px-3 text-[12px] text-slate-700 focus:outline-none">

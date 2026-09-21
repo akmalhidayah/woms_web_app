@@ -147,6 +147,14 @@ class AdminSidebarBadgeCounterTest extends TestCase
 
         $this->assertSame(0, $this->counts()['purchase_order']);
 
+        $purchaseOrder->update(['target_penyelesaian' => '2026-09-25']);
+
+        $this->assertSame(1, $this->counts()['purchase_order']);
+
+        $purchaseOrder->update(['approval_target' => 'setuju']);
+
+        $this->assertSame(0, $this->counts()['purchase_order']);
+
         $purchaseOrder->update(['progress_pekerjaan' => 45]);
         $this->assertSame(0, $this->counts()['purchase_order']);
 

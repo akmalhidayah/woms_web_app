@@ -28,29 +28,55 @@
 
         <section class="order-list-panel overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-sm">
             <div class="space-y-3 border-b border-slate-200 px-5 py-4">
-                <nav class="overflow-x-auto" aria-label="Status Purchase Order">
-                    <div class="flex min-w-max items-center gap-2 pb-1">
-                        @foreach ($tabOptions as $tabKey => $tabLabel)
-                            @php
-                                $tabQuery = ['tab' => $tabKey];
+                <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <nav class="overflow-x-auto" aria-label="Status Purchase Order">
+                        <div class="flex min-w-max items-center gap-2 pb-1">
+                            @foreach ($tabOptions as $tabKey => $tabLabel)
+                                @php
+                                    $tabQuery = ['tab' => $tabKey];
 
-                                if ($search !== '') {
-                                    $tabQuery['search'] = $search;
-                                }
-                            @endphp
-                            <a
-                                href="{{ route('admin.purchase-order.index', $tabQuery) }}"
-                                @if ($activeTab === $tabKey) aria-current="page" @endif
-                                class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-[10px] font-semibold transition {{ $activeTab === $tabKey ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50' }}"
+                                    if ($search !== '') {
+                                        $tabQuery['search'] = $search;
+                                    }
+                                @endphp
+                                <a
+                                    href="{{ route('admin.purchase-order.index', $tabQuery) }}"
+                                    @if ($activeTab === $tabKey) aria-current="page" @endif
+                                    class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-[10px] font-semibold transition {{ $activeTab === $tabKey ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50' }}"
+                                >
+                                    <span>{{ $tabLabel }}</span>
+                                    <span class="inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[9px] {{ $activeTab === $tabKey ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">
+                                        {{ $tabCounts[$tabKey] ?? 0 }}
+                                    </span>
+                                </a>
+                            @endforeach
+                        </div>
+                    </nav>
+
+                    @if ($activeTab === \App\Support\PurchaseOrderIndexTabs::TAB_ESTIMATE_APPROVAL)
+                        <form
+                            id="approve-all-estimates-form"
+                            method="POST"
+                            action="{{ route('admin.purchase-order.estimate-approval.approve-all') }}"
+                            data-count="{{ $notifications->total() }}"
+                            class="shrink-0"
+                        >
+                            @csrf
+                            @if ($search !== '')
+                                <input type="hidden" name="search" value="{{ $search }}">
+                            @endif
+                            <button
+                                type="submit"
+                                class="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[10px] font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
+                                @disabled($notifications->total() === 0)
                             >
-                                <span>{{ $tabLabel }}</span>
-                                <span class="inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[9px] {{ $activeTab === $tabKey ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">
-                                    {{ $tabCounts[$tabKey] ?? 0 }}
-                                </span>
-                            </a>
-                        @endforeach
-                    </div>
-                </nav>
+                                <i data-lucide="badge-check" class="h-3.5 w-3.5" aria-hidden="true"></i>
+                                Setujui Semua
+                                <span class="rounded-full bg-white/20 px-1.5 py-0.5 text-[9px]">{{ $notifications->total() }}</span>
+                            </button>
+                        </form>
+                    @endif
+                </div>
 
                 <form method="GET" action="{{ route('admin.purchase-order.index') }}">
                     <input type="hidden" name="tab" value="{{ $activeTab }}">
@@ -256,6 +282,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const statusAlert = document.getElementById('purchase-order-status-alert');
+            const approveAllEstimatesForm = document.getElementById('approve-all-estimates-form');
 
             if (statusAlert?.dataset.message && window.Swal) {
                 window.Swal.fire({
@@ -266,6 +293,38 @@
                     showConfirmButton: false,
                 });
             }
+
+            approveAllEstimatesForm?.addEventListener('submit', (event) => {
+                event.preventDefault();
+
+                const estimateCount = Number.parseInt(approveAllEstimatesForm.dataset.count || '0', 10);
+                if (estimateCount < 1) {
+                    return;
+                }
+
+                const confirmationText = `${estimateCount} estimasi pekerjaan akan disetujui sekaligus.`;
+                if (! window.Swal) {
+                    if (window.confirm(confirmationText)) {
+                        approveAllEstimatesForm.submit();
+                    }
+
+                    return;
+                }
+
+                window.Swal.fire({
+                    icon: 'question',
+                    title: 'Setujui semua estimasi?',
+                    text: confirmationText,
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya, setujui semua',
+                    cancelButtonText: 'Batal',
+                    confirmButtonColor: '#059669',
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        approveAllEstimatesForm.submit();
+                    }
+                });
+            });
 
             document.querySelectorAll('.purchase-order-file-input').forEach((input) => {
                 input.addEventListener('change', () => {

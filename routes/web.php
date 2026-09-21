@@ -255,6 +255,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('admin/purchase-order', [PurchaseOrderController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:purchase_order'])
         ->name('admin.purchase-order.index');
+    Route::post('admin/purchase-order/estimate-approval/approve-all', [PurchaseOrderController::class, 'approveAllEstimates'])
+        ->middleware(['role:admin', 'admin_menu:purchase_order'])
+        ->name('admin.purchase-order.estimate-approval.approve-all');
     Route::patch('admin/purchase-order/{hpp:nomor_order}', [PurchaseOrderController::class, 'update'])
         ->middleware(['role:admin', 'admin_menu:purchase_order'])
         ->name('admin.purchase-order.update');

@@ -242,6 +242,35 @@ class PurchaseOrderIndexTabsTest extends TestCase
             ]));
     }
 
+    public function test_bulk_estimate_approval_updates_all_matching_rows_only(): void
+    {
+        [$admin, $matchingHpp] = $this->makeEligibleHpp('PO-BULK-MATCH');
+        [, $otherHpp] = $this->makeEligibleHpp('PO-BULK-OTHER');
+        $matchingPo = $this->makePurchaseOrder($matchingHpp, [
+            'purchase_order_number' => 'PO-BULK-MATCH-001',
+            'approve_manager' => true,
+            'target_penyelesaian' => '2026-10-01',
+        ]);
+        $otherPo = $this->makePurchaseOrder($otherHpp, [
+            'purchase_order_number' => 'PO-BULK-OTHER-001',
+            'approve_manager' => true,
+            'target_penyelesaian' => '2026-10-02',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.purchase-order.estimate-approval.approve-all'), [
+                'search' => 'PO-BULK-MATCH',
+            ])
+            ->assertRedirect(route('admin.purchase-order.index', [
+                'tab' => PurchaseOrderIndexTabs::TAB_ESTIMATE_APPROVAL,
+                'search' => 'PO-BULK-MATCH',
+            ]))
+            ->assertSessionHas('status', '1 estimasi pekerjaan berhasil disetujui.');
+
+        $this->assertSame('setuju', $matchingPo->fresh()->approval_target);
+        $this->assertNull($otherPo->fresh()->approval_target);
+    }
+
     private function tabRows(string $tab)
     {
         $tabs = app(PurchaseOrderIndexTabs::class);

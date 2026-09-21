@@ -11,6 +11,7 @@ use App\Support\PurchaseOrderIndexTabs;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -40,22 +41,7 @@ class PurchaseOrderController extends Controller
 
             $this->indexTabs->apply($query, $activeTab);
 
-            $query
-                ->when($search !== '', function (Builder $query) use ($search): void {
-                    $query->where(function (Builder $searchQuery) use ($search): void {
-                        $searchQuery
-                            ->where('hpps.nomor_order', 'like', "%{$search}%")
-                            ->orWhere('hpps.nama_pekerjaan', 'like', "%{$search}%")
-                            ->orWhere('hpps.unit_kerja', 'like', "%{$search}%")
-                            ->orWhereHas('order', function (Builder $orderQuery) use ($search): void {
-                                $orderQuery
-                                    ->where('notifikasi', 'like', "%{$search}%")
-                                    ->orWhere('seksi', 'like', "%{$search}%");
-                            })
-                            ->orWhereHas('purchaseOrder', fn (Builder $purchaseOrderQuery): Builder => $purchaseOrderQuery
-                                ->where('purchase_order_number', 'like', "%{$search}%"));
-                    });
-                });
+            $this->applySearch($query, $search);
 
             $notifications = $this->indexTabs
                 ->applyLatestActivityOrder($query)
@@ -82,6 +68,54 @@ class PurchaseOrderController extends Controller
             ]);
 
             abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Terjadi kesalahan saat memuat data Purchase Order.');
+        }
+    }
+
+    public function approveAllEstimates(Request $request): RedirectResponse
+    {
+        $search = trim((string) $request->string('search'));
+
+        try {
+            $eligibleHppIds = $this->indexTabs->apply(
+                $this->indexTabs->baseQuery(),
+                PurchaseOrderIndexTabs::TAB_ESTIMATE_APPROVAL,
+            )->select('hpps.id');
+            $this->applySearch($eligibleHppIds, $search);
+
+            $approvedCount = DB::transaction(function () use ($eligibleHppIds, $request): int {
+                $purchaseOrders = PurchaseOrder::query()
+                    ->whereIn('hpp_id', $eligibleHppIds)
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get();
+
+                foreach ($purchaseOrders as $purchaseOrder) {
+                    $purchaseOrder->approval_target = 'setuju';
+                    $purchaseOrder->updated_by = $request->user()?->id;
+                    $purchaseOrder->save();
+                }
+
+                return $purchaseOrders->count();
+            });
+
+            return redirect()
+                ->route('admin.purchase-order.index', array_filter([
+                    'tab' => PurchaseOrderIndexTabs::TAB_ESTIMATE_APPROVAL,
+                    'search' => $search,
+                ], fn (string $value): bool => $value !== ''))
+                ->with('status', $approvedCount > 0
+                    ? sprintf('%d estimasi pekerjaan berhasil disetujui.', $approvedCount)
+                    : 'Tidak ada estimasi pekerjaan yang perlu disetujui.');
+        } catch (Throwable $exception) {
+            Log::error('Failed to approve all purchase order estimates.', [
+                'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
+                'user_id' => $request->user()?->id,
+                'error' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+            ]);
+
+            abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Terjadi kesalahan saat menyetujui estimasi pekerjaan.');
         }
     }
 
@@ -289,6 +323,25 @@ class PurchaseOrderController extends Controller
         $normalized = trim((string) $value);
 
         return $normalized !== '' ? $normalized : null;
+    }
+
+    private function applySearch(Builder $query, string $search): Builder
+    {
+        return $query->when($search !== '', function (Builder $query) use ($search): void {
+            $query->where(function (Builder $searchQuery) use ($search): void {
+                $searchQuery
+                    ->where('hpps.nomor_order', 'like', "%{$search}%")
+                    ->orWhere('hpps.nama_pekerjaan', 'like', "%{$search}%")
+                    ->orWhere('hpps.unit_kerja', 'like', "%{$search}%")
+                    ->orWhereHas('order', function (Builder $orderQuery) use ($search): void {
+                        $orderQuery
+                            ->where('notifikasi', 'like', "%{$search}%")
+                            ->orWhere('seksi', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('purchaseOrder', fn (Builder $purchaseOrderQuery): Builder => $purchaseOrderQuery
+                        ->where('purchase_order_number', 'like', "%{$search}%"));
+            });
+        });
     }
 
     private function resolveStatusCode(Throwable $exception): int

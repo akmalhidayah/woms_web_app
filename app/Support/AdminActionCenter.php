@@ -257,8 +257,7 @@ class AdminActionCenter
             self::MODULE_CREATE_HPP => $this->createHppQuery()->count(),
             self::MODULE_BUDGET_VERIFICATION => $this->budgetVerificationTabs
                 ->countFor(BudgetVerificationIndexTabs::TAB_ACTION),
-            self::MODULE_PURCHASE_ORDER => $this->purchaseOrderTabs
-                ->countFor(PurchaseOrderIndexTabs::TAB_ACTION),
+            self::MODULE_PURCHASE_ORDER => $this->purchaseOrderTabs->countPendingActions(),
             self::MODULE_SET_GARANSI => $this->setGaransiQuery()->count(),
             self::MODULE_CHECK_BAST => $this->checkBastQuery()->count(),
             self::MODULE_LPJ_PPL => $this->lpjPplQuery()->count(),
@@ -314,9 +313,8 @@ class AdminActionCenter
 
     private function purchaseOrderQuery(): Builder
     {
-        return $this->purchaseOrderTabs->apply(
+        return $this->purchaseOrderTabs->applyPendingActions(
             $this->purchaseOrderTabs->baseQuery(),
-            PurchaseOrderIndexTabs::TAB_ACTION,
         );
     }
 
@@ -470,25 +468,45 @@ class AdminActionCenter
             ->with([
                 'order:id,nomor_order,nama_pekerjaan',
                 'budgetVerification:id,hpp_id,created_at,updated_at',
+                'purchaseOrder:id,hpp_id,purchase_order_number,target_penyelesaian,approval_target,approve_manager,progress_pekerjaan,created_at,updated_at',
             ])
             ->oldest('hpps.updated_at')
             ->limit($limit)
             ->get(['hpps.id', 'hpps.order_id', 'hpps.nomor_order', 'hpps.nama_pekerjaan', 'hpps.updated_at'])
-            ->map(fn (Hpp $hpp): array => $this->action(
-                key: 'purchase-order:'.$hpp->id,
-                menuKey: AdminMenuRegistry::MENU_PURCHASE_ORDER,
-                type: 'Purchase Order',
-                title: 'Lengkapi PO',
-                message: 'Order '.$this->hppOrderNumber($hpp).' siap dilengkapi Purchase Order.',
-                meta: $hpp->nama_pekerjaan ?: $hpp->order?->nama_pekerjaan,
-                icon: 'list-checks',
-                tone: 'blue',
-                url: route('admin.purchase-order.index', ['search' => $this->hppOrderNumber($hpp)]),
-                actionLabel: 'Lengkapi PO',
-                startedAt: $hpp->budgetVerification?->updated_at
-                    ?? $hpp->budgetVerification?->created_at
-                    ?? $hpp->updated_at,
-            ));
+            ->map(function (Hpp $hpp): array {
+                $purchaseOrder = $hpp->purchaseOrder;
+                $requiresEstimateApproval = $purchaseOrder !== null
+                    && filled($purchaseOrder->purchase_order_number)
+                    && $purchaseOrder->approve_manager
+                    && $purchaseOrder->target_penyelesaian !== null
+                    && $purchaseOrder->approval_target !== 'setuju'
+                    && (int) ($purchaseOrder->progress_pekerjaan ?? 0) === 0;
+
+                return $this->action(
+                    key: 'purchase-order:'.$hpp->id,
+                    menuKey: AdminMenuRegistry::MENU_PURCHASE_ORDER,
+                    type: 'Purchase Order',
+                    title: $requiresEstimateApproval ? 'Setujui Estimasi' : 'Lengkapi PO',
+                    message: $requiresEstimateApproval
+                        ? 'Estimasi pekerjaan order '.$this->hppOrderNumber($hpp).' menunggu persetujuan.'
+                        : 'Order '.$this->hppOrderNumber($hpp).' siap dilengkapi Purchase Order.',
+                    meta: $hpp->nama_pekerjaan ?: $hpp->order?->nama_pekerjaan,
+                    icon: $requiresEstimateApproval ? 'calendar-check-2' : 'list-checks',
+                    tone: $requiresEstimateApproval ? 'amber' : 'blue',
+                    url: route('admin.purchase-order.index', array_filter([
+                        'tab' => $requiresEstimateApproval
+                            ? PurchaseOrderIndexTabs::TAB_ESTIMATE_APPROVAL
+                            : null,
+                        'search' => $this->hppOrderNumber($hpp),
+                    ])),
+                    actionLabel: $requiresEstimateApproval ? 'Tinjau Estimasi' : 'Lengkapi PO',
+                    startedAt: $requiresEstimateApproval
+                        ? $purchaseOrder->updated_at
+                        : ($hpp->budgetVerification?->updated_at
+                            ?? $hpp->budgetVerification?->created_at
+                            ?? $hpp->updated_at),
+                );
+            });
     }
 
     /** @return Collection<int, array<string, mixed>> */

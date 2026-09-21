@@ -48,15 +48,7 @@ class PurchaseOrderIndexTabs
     public function apply(Builder $query, string $tab): Builder
     {
         return match ($this->normalize($tab)) {
-            self::TAB_ESTIMATE_APPROVAL => $this->applyActivePurchaseOrder($query)
-                ->whereHas('purchaseOrder', fn (Builder $purchaseOrder): Builder => $this
-                    ->applyNotStarted($purchaseOrder)
-                    ->whereNotNull('target_penyelesaian')
-                    ->where(function (Builder $approval): void {
-                        $approval
-                            ->whereNull('approval_target')
-                            ->orWhere('approval_target', '<>', 'setuju');
-                    })),
+            self::TAB_ESTIMATE_APPROVAL => $this->applyEstimateApproval($query),
             self::TAB_READY => $this->applyActivePurchaseOrder($query)
                 ->whereHas('purchaseOrder', fn (Builder $purchaseOrder): Builder => $this
                     ->applyNotStarted($purchaseOrder)
@@ -92,6 +84,20 @@ class PurchaseOrderIndexTabs
         return $this->apply($this->baseQuery(), $tab)->count();
     }
 
+    public function countPendingActions(): int
+    {
+        return $this->applyPendingActions($this->baseQuery())->count();
+    }
+
+    public function applyPendingActions(Builder $query): Builder
+    {
+        return $query->where(function (Builder $pending): void {
+            $pending
+                ->where(fn (Builder $action): Builder => $this->applyAction($action))
+                ->orWhere(fn (Builder $estimate): Builder => $this->applyEstimateApproval($estimate));
+        });
+    }
+
     public function applyLatestActivityOrder(Builder $query): Builder
     {
         return $query
@@ -122,6 +128,19 @@ class PurchaseOrderIndexTabs
                         });
                 });
         });
+    }
+
+    private function applyEstimateApproval(Builder $query): Builder
+    {
+        return $this->applyActivePurchaseOrder($query)
+            ->whereHas('purchaseOrder', fn (Builder $purchaseOrder): Builder => $this
+                ->applyNotStarted($purchaseOrder)
+                ->whereNotNull('target_penyelesaian')
+                ->where(function (Builder $approval): void {
+                    $approval
+                        ->whereNull('approval_target')
+                        ->orWhere('approval_target', '<>', 'setuju');
+                }));
     }
 
     private function applyActivePurchaseOrder(Builder $query): Builder

@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Support\AdminActionCenter;
 use App\Support\AdminMenuRegistry;
 use App\Support\AdminSidebarBadgeCounter;
+use App\Support\PurchaseOrderIndexTabs;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -158,6 +159,50 @@ class AdminActionCenterTest extends TestCase
         $actionCenter = app(AdminActionCenter::class);
         $this->assertSame($actionCenter->sidebarCounts(), app(AdminSidebarBadgeCounter::class)->counts());
         $this->assertSame(array_sum($actionCenter->moduleCounts($admin)), $actionCenter->pendingActionCount($admin));
+    }
+
+    public function test_purchase_order_action_center_includes_pending_estimate_approval(): void
+    {
+        $admin = $this->admin(User::ADMIN_ROLE_SUPER_ADMIN);
+        $order = $this->order($admin, 'ACTION-PO-ESTIMATE', OrderUserNoteStatus::Pending);
+        $hpp = $this->hpp($admin, $order, Hpp::STATUS_APPROVED);
+
+        BudgetVerification::query()->create([
+            'order_id' => $order->id,
+            'hpp_id' => $hpp->id,
+            'status_anggaran' => 'Tersedia',
+            'kategori_item' => 'jasa',
+            'kategori_biaya' => 'pemeliharaan',
+            'cost_element' => '65340001',
+            'created_by' => $admin->id,
+        ]);
+
+        $purchaseOrder = PurchaseOrder::query()->create([
+            'order_id' => $order->id,
+            'hpp_id' => $hpp->id,
+            'purchase_order_number' => 'PO-ACTION-ESTIMATE',
+            'target_penyelesaian' => '2026-09-25',
+            'approve_manager' => true,
+            'created_by' => $admin->id,
+        ]);
+
+        $actionCenter = app(AdminActionCenter::class);
+        $action = $actionCenter->actions($admin, 20)->firstWhere('key', 'purchase-order:'.$hpp->id);
+
+        $this->assertSame(1, $actionCenter->sidebarCounts($admin)['purchase_order']);
+        $this->assertNotNull($action);
+        $this->assertSame('Setujui Estimasi', $action['title']);
+        $this->assertSame('Tinjau Estimasi', $action['action_label']);
+        $this->assertSame(route('admin.purchase-order.index', [
+            'tab' => PurchaseOrderIndexTabs::TAB_ESTIMATE_APPROVAL,
+            'search' => $order->nomor_order,
+        ]), $action['url']);
+
+        $purchaseOrder->update(['approval_target' => 'setuju']);
+
+        $refreshedActionCenter = app(AdminActionCenter::class);
+        $this->assertSame(0, $refreshedActionCenter->sidebarCounts($admin)['purchase_order']);
+        $this->assertFalse($refreshedActionCenter->actions($admin, 20)->contains('key', 'purchase-order:'.$hpp->id));
     }
 
     public function test_waiting_levels_are_safe_and_danger_actions_are_ordered_first(): void

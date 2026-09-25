@@ -16,9 +16,11 @@ use Throwable;
 
 class GoogleOAuthService
 {
-    public const SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets.readonly';
+    public const SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
 
     public const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+
+    private const LEGACY_SHEETS_READ_ONLY_SCOPE = 'https://www.googleapis.com/auth/spreadsheets.readonly';
 
     public const SCOPES = [
         self::SHEETS_SCOPE,
@@ -84,6 +86,20 @@ class GoogleOAuthService
 
             return in_array(
                 self::DRIVE_SCOPE,
+                preg_split('/\s+/', $scope, -1, PREG_SPLIT_NO_EMPTY) ?: [],
+                true,
+            );
+        });
+    }
+
+    public function hasSheetsWriteScope(): bool
+    {
+        return $this->withTokenLock(function (): bool {
+            $tokens = $this->readTokens();
+            $scope = is_string($tokens['scope'] ?? null) ? trim($tokens['scope']) : '';
+
+            return in_array(
+                self::SHEETS_SCOPE,
                 preg_split('/\s+/', $scope, -1, PREG_SPLIT_NO_EMPTY) ?: [],
                 true,
             );
@@ -214,8 +230,12 @@ class GoogleOAuthService
             ? preg_split('/\s+/', trim($scope), -1, PREG_SPLIT_NO_EMPTY)
             : false;
 
-        if (! is_array($returnedScopes) || ! in_array(self::SHEETS_SCOPE, $returnedScopes, true)) {
-            throw new GoogleOAuthException('Izin membaca Google Sheets belum diberikan. Silakan hubungkan Google kembali dan berikan izin tersebut.');
+        $hasRequiredSheetsScope = is_array($returnedScopes)
+            && (in_array(self::SHEETS_SCOPE, $returnedScopes, true)
+                || (! $requireAllScopes && in_array(self::LEGACY_SHEETS_READ_ONLY_SCOPE, $returnedScopes, true)));
+
+        if (! $hasRequiredSheetsScope) {
+            throw new GoogleOAuthException('Izin Google Sheets belum diberikan. Silakan hubungkan Google kembali dan berikan izin tersebut.');
         }
 
         if ($requireAllScopes && ! in_array(self::DRIVE_SCOPE, $returnedScopes, true)) {

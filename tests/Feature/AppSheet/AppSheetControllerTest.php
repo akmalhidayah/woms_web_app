@@ -46,6 +46,8 @@ class AppSheetControllerTest extends TestCase
             ->assertSee('Sub Category')
             ->assertSee('Tersedia')
             ->assertSee('Habis')
+            ->assertSee('Edit Stock')
+            ->assertSee(route('admin.appsheet.stock.update', 'consumable-bms'), false)
             ->assertDontSee('Qty Konsinyasi')
             ->assertDontSee('Minimum')
             ->assertDontSee('9999');
@@ -127,12 +129,22 @@ class AppSheetControllerTest extends TestCase
             $this->historyRow('LATEST-A', '31/12/2026 15:00'),
             $this->historyRow('LATEST-B', '31/12/2026 15:00'),
             $this->historyRow('SAME-DAY-EARLIER', '31/12/2026 10:00'),
+        ], transactionStockRows: [
+            $this->stockRow('BMS-C32', [
+                'DESC.' => 'BATU GERINDA POTONG 4 INCH',
+                'SPARE STOCK' => 18,
+                'STN' => 'EA',
+            ]),
         ]);
 
         $response = $this->actingAs($this->admin())
             ->get(route('admin.appsheet.history-consumable.index'))
             ->assertOk()
-            ->assertDontSee('_sort_timestamp');
+            ->assertDontSee('_sort_timestamp')
+            ->assertSee('Tambah Transaksi')
+            ->assertSee('BATU GERINDA POTONG 4 INCH')
+            ->assertSee(route('admin.appsheet.history-consumable.transactions.store'), false);
+        $response->assertDontSee('Edit Stock');
 
         self::assertSame(
             ['LATEST-A', 'LATEST-B', 'SAME-DAY-EARLIER', 'DECEMBER', 'JANUARY', 'INVALID'],
@@ -222,12 +234,17 @@ class AppSheetControllerTest extends TestCase
         ]);
     }
 
-    private function mockHistoryRows(array $rows, ?array $resolvedProfile = null, ?string $avatarUrl = null): void
-    {
+    private function mockHistoryRows(
+        array $rows,
+        ?array $resolvedProfile = null,
+        ?string $avatarUrl = null,
+        array $transactionStockRows = [],
+    ): void {
         $google = Mockery::mock(GoogleOAuthService::class);
         $google->shouldReceive('isConnected')->once()->andReturnTrue();
         $reader = Mockery::mock(GoogleSheetsReader::class);
         $reader->shouldReceive('historyConsumable')->once()->andReturn($rows);
+        $reader->shouldReceive('stockConsumable')->once()->andReturn($transactionStockRows);
         $profiles = Mockery::mock(AppSheetProfileDirectoryService::class);
         $profiles->shouldReceive('resolve')->andReturnUsing(function (mixed $name) use ($resolvedProfile): array {
             return $resolvedProfile ?? [

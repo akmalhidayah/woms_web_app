@@ -24,6 +24,16 @@
                     <h1 class="text-[1.3rem] font-bold leading-tight tracking-tight text-slate-900">History Consumable</h1>
                 </div>
                 @include('admin.appsheet.partials.google-connection', ['googleReturnTo' => 'history'])
+                <button
+                    type="button"
+                    @disabled($transactionItems->isEmpty())
+                    x-on:click="$dispatch('open-consumable-transaction')"
+                    class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    title="{{ $transactionItems->isEmpty() ? ($transactionStockError ?: 'Daftar consumable belum tersedia') : 'Tambah transaksi consumable' }}"
+                >
+                    <i data-lucide="plus" class="h-4 w-4" aria-hidden="true"></i>
+                    Tambah Transaksi
+                </button>
             </div>
         </section>
 
@@ -195,5 +205,6 @@
         </section>
 
         @include('admin.appsheet.partials.image-preview-modal', ['compactPreview' => true])
+        @include('admin.appsheet.partials.consumable-transaction-modal')
     </div>
 </x-layouts.admin>

@@ -12,6 +12,8 @@ use Tests\TestCase;
 
 class GoogleOAuthServiceTest extends TestCase
 {
+    private const LEGACY_SHEETS_READ_ONLY_SCOPE = 'https://www.googleapis.com/auth/spreadsheets.readonly';
+
     private const TOKEN_PATH = 'appsheet/google/oauth-tokens.enc';
 
     protected function setUp(): void
@@ -29,7 +31,7 @@ class GoogleOAuthServiceTest extends TestCase
         Http::preventStrayRequests();
     }
 
-    public function test_authorization_url_requests_both_read_only_scopes_as_space_separated_values(): void
+    public function test_authorization_url_requests_sheets_write_and_drive_read_only_scopes(): void
     {
         $query = parse_url((new GoogleOAuthService)->authorizationUrl('oauth-state'), PHP_URL_QUERY);
         parse_str(is_string($query) ? $query : '', $parameters);
@@ -40,6 +42,8 @@ class GoogleOAuthServiceTest extends TestCase
             GoogleOAuthService::DRIVE_SCOPE,
         ], preg_split('/\s+/', $parameters['scope'], -1, PREG_SPLIT_NO_EMPTY));
         self::assertSame('https://woms.test/admin/appsheet/google/callback', $parameters['redirect_uri']);
+        self::assertSame('https://www.googleapis.com/auth/spreadsheets', GoogleOAuthService::SHEETS_SCOPE);
+        self::assertSame('https://www.googleapis.com/auth/drive.readonly', GoogleOAuthService::DRIVE_SCOPE);
     }
 
     public function test_authorization_code_response_with_both_scopes_is_accepted_and_stored_encrypted(): void
@@ -62,6 +66,7 @@ class GoogleOAuthServiceTest extends TestCase
         self::assertSame('new-refresh-token', $tokens['refresh_token']);
         self::assertSame(implode(' ', GoogleOAuthService::SCOPES), $tokens['scope']);
         self::assertTrue($google->hasDriveReadScope());
+        self::assertTrue($google->hasSheetsWriteScope());
     }
 
     public function test_authorization_code_response_without_drive_scope_is_rejected(): void
@@ -83,7 +88,7 @@ class GoogleOAuthServiceTest extends TestCase
         ]);
 
         $this->expectException(GoogleOAuthException::class);
-        $this->expectExceptionMessage('Izin membaca Google Sheets belum diberikan. Silakan hubungkan Google kembali dan berikan izin tersebut.');
+        $this->expectExceptionMessage('Izin Google Sheets belum diberikan. Silakan hubungkan Google kembali dan berikan izin tersebut.');
 
         (new GoogleOAuthService)->exchangeCode('authorization-code');
     }
@@ -142,7 +147,7 @@ class GoogleOAuthServiceTest extends TestCase
             'refresh_token' => 'legacy-refresh-token',
             'expires_in' => 3600,
             'expires_at' => now()->addHour()->timestamp,
-            'scope' => GoogleOAuthService::SHEETS_SCOPE,
+            'scope' => self::LEGACY_SHEETS_READ_ONLY_SCOPE,
             'client_id_hash' => hash('sha256', 'google-client-id'),
         ]);
 
@@ -150,8 +155,35 @@ class GoogleOAuthServiceTest extends TestCase
 
         self::assertTrue($google->isConnected());
         self::assertFalse($google->hasDriveReadScope());
+        self::assertFalse($google->hasSheetsWriteScope());
         self::assertSame('legacy-access-token', $google->accessToken());
         Http::assertNothingSent();
+    }
+
+    public function test_expired_legacy_read_scope_can_refresh_but_still_cannot_write(): void
+    {
+        $this->storeLegacyTokens([
+            'access_token' => 'expired-legacy-access-token',
+            'refresh_token' => 'legacy-refresh-token',
+            'expires_in' => 3600,
+            'expires_at' => now()->subMinute()->timestamp,
+            'scope' => self::LEGACY_SHEETS_READ_ONLY_SCOPE,
+            'client_id_hash' => hash('sha256', 'google-client-id'),
+        ]);
+        Http::fake([
+            'oauth2.googleapis.com/token' => Http::response([
+                'access_token' => 'refreshed-legacy-access-token',
+                'expires_in' => 3600,
+                'token_type' => 'Bearer',
+            ]),
+        ]);
+
+        $google = new GoogleOAuthService;
+
+        self::assertSame('refreshed-legacy-access-token', $google->accessToken());
+        self::assertFalse($google->hasSheetsWriteScope());
+        self::assertSame(self::LEGACY_SHEETS_READ_ONLY_SCOPE, $this->storedTokens()['scope']);
+        Http::assertSentCount(1);
     }
 
     /**

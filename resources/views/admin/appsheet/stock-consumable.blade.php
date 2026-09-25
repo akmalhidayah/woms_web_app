@@ -87,6 +87,7 @@
                             <th scope="col" class="px-4 py-3.5 text-left font-semibold">Lokasi</th>
                             <th scope="col" class="whitespace-nowrap px-4 py-3.5 text-left font-semibold">Status</th>
                             <th scope="col" class="whitespace-nowrap px-4 py-3.5 text-left font-semibold">Pembaruan</th>
+                            <th scope="col" class="whitespace-nowrap px-4 py-3.5 text-center font-semibold">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -172,10 +173,40 @@
                                         <span class="tabular-nums">{{ $row['_date_display'] ?: '-' }}{{ $row['_time_display'] ? ' · '.$row['_time_display'] : '' }}</span>
                                     </div>
                                 </td>
+                                <td class="whitespace-nowrap px-4 py-4 text-center align-top">
+                                    @php
+                                        $canEditStock = trim((string) ($row['UID'] ?? '')) !== ''
+                                            && $stock !== null && $stockIn !== null && $stockOut !== null;
+                                    @endphp
+                                    <button
+                                        type="button"
+                                        @disabled(! $canEditStock)
+                                        class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10px] font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                                        title="{{ $canEditStock ? 'Edit stock item ini' : 'Stock atau identifier item tidak valid' }}"
+                                        x-on:click="$dispatch('open-stock-editor', @js([
+                                            'identifier' => (string) ($row['UID'] ?? ''),
+                                            'code' => (string) ($row['UID'] ?? ''),
+                                            'name' => (string) ($row['DESC.'] ?? ''),
+                                            'unit' => (string) ($row['STN'] ?? ''),
+                                            'stockIn' => $stockIn,
+                                            'stockOut' => $stockOut,
+                                            'fields' => [[
+                                                'name' => 'spare_stock',
+                                                'originalName' => 'original_spare_stock',
+                                                'label' => 'Stok Baru',
+                                                'value' => $stock,
+                                                'originalValue' => $stock,
+                                            ]],
+                                        ]))"
+                                    >
+                                        <i data-lucide="pencil" class="h-3 w-3" aria-hidden="true"></i>
+                                        Edit Stock
+                                    </button>
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-5 py-16 text-center">
+                                <td colspan="8" class="px-5 py-16 text-center">
                                     <span class="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400"><i data-lucide="package-search" class="h-6 w-6" aria-hidden="true"></i></span>
                                     <p class="mt-4 text-sm font-semibold text-slate-700">Persediaan belum dapat ditampilkan</p>
                                     <p class="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-slate-500">
@@ -201,5 +232,6 @@
         </section>
 
         @include('admin.appsheet.partials.image-preview-modal')
+        @include('admin.appsheet.partials.stock-edit-modal', ['stockKind' => 'consumable-bms'])
     </div>
 </x-layouts.admin>

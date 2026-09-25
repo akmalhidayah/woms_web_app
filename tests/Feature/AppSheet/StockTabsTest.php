@@ -19,9 +19,9 @@ class StockTabsTest extends TestCase
     public function test_consumable_gudang_reads_only_its_sheet_and_filters_without_adding_a_stock_status(): void
     {
         $this->mockRows('stockConsumableGudang', [
-            ['NO MATERIAL' => 'M19', 'CONSUMABLE' => 'Carbon Gouging', 'JENIS CONSUMABLE' => 'Kawat Las', 'QTY KONSINYASI' => 1.25, 'QTY NON KONSINYASI' => 12000, 'MIN' => 99999, 'UPD. BY' => 'Hadi'],
-            ['NO MATERIAL' => 'M2', 'CONSUMABLE' => 'Kawat', 'JENIS CONSUMABLE' => 'Kawat Las', 'UPD. BY' => 'Hadi'],
-            ['NO MATERIAL' => 'M1', 'CONSUMABLE' => 'Gerinda', 'JENIS CONSUMABLE' => 'Batu Gerinda', 'UPD. BY' => 'Tester'],
+            ['NO MATERIAL' => 'M19', 'CONSUMABLE' => 'Carbon Gouging', 'JENIS CONSUMABLE' => 'Kawat Las', 'QTY KONSINYASI' => 1.25, 'QTY NON KONSINYASI' => 12000, 'MIN' => 99999, 'UPD. BY' => 'Hadi', 'UPD. DATE' => '01/09/2026'],
+            ['NO MATERIAL' => 'M2', 'CONSUMABLE' => 'Kawat', 'JENIS CONSUMABLE' => 'Kawat Las', 'UPD. BY' => 'Hadi', 'UPD. DATE' => '02/09/2026'],
+            ['NO MATERIAL' => 'M1', 'CONSUMABLE' => 'Gerinda', 'JENIS CONSUMABLE' => 'Batu Gerinda', 'UPD. BY' => 'Tester', 'UPD. DATE' => '03/09/2026'],
         ]);
 
         $response = $this->actingAs($this->admin())->get(route('admin.appsheet.stock-consumable-gudang.index', [
@@ -31,7 +31,9 @@ class StockTabsTest extends TestCase
             ->assertSee('Stock Material BMS')->assertSee('Stock Material Gudang')
             ->assertSee('HISTORY CONSUMABLE')->assertDontSee('STOCK BMS')
             ->assertDontSee('appsheet-submenus')->assertDontSee('name="status"', false)
-            ->assertSee('1,25')->assertSee('12.000')->assertSee('Non Konsinyasi');
+            ->assertSee('1,25')->assertSee('12.000')->assertSee('Non Konsinyasi')
+            ->assertSee('Edit Stock')
+            ->assertSee(route('admin.appsheet.stock.update', 'consumable-gudang'), false);
 
         self::assertSame(['M2', 'M19'], collect($response->viewData('rows')->items())->pluck('code')->all());
         self::assertArrayNotHasKey('status', $response->viewData('rows')->items()[1]);
@@ -53,7 +55,9 @@ class StockTabsTest extends TestCase
 
         $response = $this->actingAs($this->admin())->get(route('admin.appsheet.stock-material-bms.index', [
             'search' => 'plat', 'location' => 'Barat', 'status' => 'tersedia', 'page' => 2,
-        ]))->assertOk()->assertSee('0,25')->assertSee('Tersedia');
+        ]))->assertOk()->assertSee('0,25')->assertSee('Tersedia')
+            ->assertSee('Edit Stock')
+            ->assertSee(route('admin.appsheet.stock.update', 'material-bms'), false);
         $paginator = $response->viewData('rows');
 
         self::assertSame(30, $paginator->total());
@@ -78,6 +82,8 @@ class StockTabsTest extends TestCase
             'mrp_type' => 'V1', 'location' => 'Gudang', 'status' => 'habis',
         ]))->assertOk()->assertSee('Plat tanpa kode')->assertSee('Plat kode kosong')
             ->assertSee('SUDAH DI ISSUED')->assertSee('Qty Capex')->assertSee('90')
+            ->assertSee('Edit Stock')
+            ->assertSee(route('admin.appsheet.stock.update', 'material-gudang'), false)
             ->assertDontSee('Plat tersedia')->assertDontSee('Duplikat');
 
         self::assertSame(3, $response->viewData('totalRows'));

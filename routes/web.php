@@ -5,8 +5,10 @@ use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\ApprovalSignatureReassignmentController;
 use App\Http\Controllers\Admin\AppSheet\AppSheetController;
 use App\Http\Controllers\Admin\AppSheet\AppSheetMediaController;
+use App\Http\Controllers\Admin\AppSheet\ConsumableTransactionController;
 use App\Http\Controllers\Admin\AppSheet\DailyReportController;
 use App\Http\Controllers\Admin\AppSheet\GoogleOAuthController;
+use App\Http\Controllers\Admin\AppSheet\StockUpdateController;
 use App\Http\Controllers\Admin\BengkelPicController;
 use App\Http\Controllers\Admin\BengkelTaskController;
 use App\Http\Controllers\Admin\BudgetVerificationController;
@@ -179,6 +181,8 @@ Route::middleware(['auth'])->group(function () {
             Route::middleware('admin_menu:appsheet_history_consumable')->group(function () {
                 Route::get('history-consumable', [AppSheetController::class, 'historyConsumable'])
                     ->name('history-consumable.index');
+                Route::post('history-consumable/transactions', [ConsumableTransactionController::class, 'store'])
+                    ->name('history-consumable.transactions.store');
             });
 
             Route::middleware('admin_menu:appsheet_stock_consumable')->group(function () {
@@ -190,6 +194,14 @@ Route::middleware(['auth'])->group(function () {
                     ->name('stock-material-bms.index');
                 Route::get('stock-material-gudang', [AppSheetController::class, 'stockMaterialGudang'])
                     ->name('stock-material-gudang.index');
+                Route::patch('stock/{stockKind}', StockUpdateController::class)
+                    ->whereIn('stockKind', [
+                        'consumable-bms',
+                        'consumable-gudang',
+                        'material-bms',
+                        'material-gudang',
+                    ])
+                    ->name('stock.update');
             });
         });
 

@@ -15,6 +15,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class AppSheetController extends Controller
@@ -27,6 +28,17 @@ class AppSheetController extends Controller
         GoogleDriveMediaService $driveMedia,
     ): View {
         $data = $this->loadSheet($google, fn () => $reader->historyConsumable());
+        $transactionStockRows = [];
+        $transactionStockError = null;
+        if ($data['googleConnected']) {
+            try {
+                $transactionStockRows = $reader->stockConsumable();
+            } catch (GoogleSheetsException $exception) {
+                $transactionStockError = $exception->requiresReconnect
+                    ? 'Koneksi Google perlu diperbarui.'
+                    : 'Daftar consumable belum dapat dimuat. Silakan coba kembali.';
+            }
+        }
         $filters = [
             'search' => $this->filter($request, 'search'),
             'input_type' => $this->filter($request, 'input_type'),
@@ -44,6 +56,23 @@ class AppSheetController extends Controller
             ->values()
             ->map(fn (array $row, int $index): array => $this->withInputDateMetadata($row, $index));
         $categories = $this->options($allRows, 'CATEGORY');
+        $requestTypes = $this->options($allRows, 'JENIS PERMINTAAN')
+            ->reject(fn (string $value): bool => $value === '-')
+            ->values();
+        $transactionItems = collect($transactionStockRows)
+            ->filter(fn (array $row): bool => mb_strtoupper(trim((string) ($row['CATEGORY'] ?? ''))) === 'CONSUMABLE')
+            ->map(function (array $row): array {
+                return [
+                    'uid' => trim((string) ($row['UID'] ?? '')),
+                    'name' => trim((string) ($row['DESC.'] ?? '')),
+                    'category' => trim((string) ($row['CATEGORY'] ?? '')),
+                    'unit' => trim((string) ($row['STN'] ?? '')),
+                    'stock' => ConsumableData::number($row['SPARE STOCK'] ?? null),
+                ];
+            })
+            ->filter(fn (array $item): bool => $item['uid'] !== '' && $item['stock'] !== null)
+            ->sortBy('uid', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
         $rows = $this->newestFirst($allRows->filter(fn (array $row): bool => ConsumableData::matchesSearch($row, ['UID', 'DESC.', 'INPUT BY', 'TUJUAN PENGGUNAAN'], $filters['search'])
             && ($filters['input_type'] === '' || mb_strtoupper(trim((string) $row['INPUT TYPE'])) === $filters['input_type'])
             && ($filters['category'] === '' || trim((string) $row['CATEGORY']) === $filters['category'])
@@ -66,6 +95,10 @@ class AppSheetController extends Controller
         return view('admin.appsheet.history-consumable', $data + [
             'filters' => $filters,
             'categories' => $categories,
+            'requestTypes' => $requestTypes,
+            'transactionItems' => $transactionItems,
+            'transactionToken' => Str::uuid()->toString(),
+            'transactionStockError' => $transactionStockError,
             'rows' => $paginatedRows,
             'totalRows' => $allRows->count(),
         ]);

@@ -7,9 +7,9 @@
         };
         $isMaterialGudang = $stockKind === 'material-gudang';
         $columnCount = match ($stockKind) {
-            'material-gudang' => 8,
-            'consumable-gudang' => 6,
-            default => 5,
+            'material-gudang' => 9,
+            'consumable-gudang' => 7,
+            default => 6,
         };
     @endphp
     <div
@@ -111,10 +111,29 @@
                                 <th scope="col" class="px-4 py-3.5 text-right font-semibold">Minimum</th>
                             @endif
                             <th scope="col" class="px-4 py-3.5 text-left font-semibold">Pembaruan</th>
+                            <th scope="col" class="whitespace-nowrap px-4 py-3.5 text-center font-semibold">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         @forelse ($rows as $row)
+                            @php
+                                $editFields = match ($stockKind) {
+                                    'consumable-gudang' => [
+                                        ['name' => 'qty_consignment', 'originalName' => 'original_qty_consignment', 'label' => 'QTY Konsinyasi', 'value' => \App\Support\AppSheet\ConsumableData::number($row['consignment'])],
+                                        ['name' => 'qty_non_consignment', 'originalName' => 'original_qty_non_consignment', 'label' => 'QTY Non Konsinyasi', 'value' => \App\Support\AppSheet\ConsumableData::number($row['non_consignment'])],
+                                    ],
+                                    'material-bms' => [
+                                        ['name' => 'quantity', 'originalName' => 'original_quantity', 'label' => 'QTY', 'value' => \App\Support\AppSheet\ConsumableData::number($row['quantity'])],
+                                    ],
+                                    'material-gudang' => [
+                                        ['name' => 'quantity', 'originalName' => 'original_quantity', 'label' => 'QTY', 'value' => \App\Support\AppSheet\ConsumableData::number($row['quantity'])],
+                                        ['name' => 'qty_capex', 'originalName' => 'original_qty_capex', 'label' => 'QTY CAPEX', 'value' => \App\Support\AppSheet\ConsumableData::number($row['capex'])],
+                                    ],
+                                };
+                                $editFields = array_map(fn (array $field): array => $field + ['originalValue' => $field['value']], $editFields);
+                                $canEditStock = trim((string) ($row['code'] ?? '')) !== ''
+                                    && collect($editFields)->every(fn (array $field): bool => $field['value'] !== null);
+                            @endphp
                             <tr class="group align-top text-slate-700 transition-colors hover:bg-blue-50/40">
                                 <td class="min-w-64 max-w-sm break-words px-5 py-4">
                                     @if ($isMaterial)
@@ -194,6 +213,24 @@
                                         <span class="tabular-nums">{{ $row['date_display'] ?: '-' }}{{ $row['time_display'] ? ' · '.$row['time_display'] : '' }}</span>
                                     </div>
                                 </td>
+                                <td class="whitespace-nowrap px-4 py-4 text-center">
+                                    <button
+                                        type="button"
+                                        @disabled(! $canEditStock)
+                                        class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10px] font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                                        title="{{ $canEditStock ? 'Edit stock item ini' : 'Stock atau identifier item tidak valid' }}"
+                                        x-on:click="$dispatch('open-stock-editor', @js([
+                                            'identifier' => (string) ($row['code'] ?? ''),
+                                            'code' => (string) ($row['code'] ?? ''),
+                                            'name' => (string) ($row['name'] ?? ''),
+                                            'unit' => (string) ($row['unit'] ?? ''),
+                                            'fields' => $editFields,
+                                        ]))"
+                                    >
+                                        <i data-lucide="pencil" class="h-3 w-3" aria-hidden="true"></i>
+                                        Edit Stock
+                                    </button>
+                                </td>
                             </tr>
                         @empty
                             <tr>
@@ -225,5 +262,6 @@
         @unless ($isMaterial)
             @include('admin.appsheet.partials.stock-consumable-info-modal')
         @endunless
+        @include('admin.appsheet.partials.stock-edit-modal', ['stockKind' => $stockKind])
     </div>
 </x-layouts.admin>

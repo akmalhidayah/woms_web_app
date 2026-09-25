@@ -30,6 +30,8 @@ class GoogleDriveMediaService
 
     private const LOOKUP_TTL_SECONDS = 21600;
 
+    private const MISSING_LOOKUP_TTL_SECONDS = 60;
+
     private const MEDIA_TTL_SECONDS = 86400;
 
     private const MAX_IMAGE_BYTES = 10_485_760;
@@ -296,7 +298,11 @@ class GoogleDriveMediaService
 
                 $file = $this->lookupFile($folderId, $filename, $token);
                 if ($file !== null) {
-                    $cache->put($cacheKey, $file, self::LOOKUP_TTL_SECONDS);
+                    $ttl = ($file['found'] ?? false) === true
+                        ? self::LOOKUP_TTL_SECONDS
+                        : self::MISSING_LOOKUP_TTL_SECONDS;
+
+                    $cache->put($cacheKey, $file, $ttl);
                 }
 
                 return $file;

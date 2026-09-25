@@ -89,7 +89,7 @@ class GoogleDriveMediaServiceTest extends TestCase
         self::assertNull($service->mediaUrl(GoogleDriveMediaService::REQUESTER_COLLECTION, ''));
     }
 
-    public function test_missing_exact_file_returns_fallback_and_lookup_result_is_cached(): void
+    public function test_missing_exact_file_lookup_is_retried_after_sixty_seconds(): void
     {
         Http::fake([
             'www.googleapis.com/drive/v3/files*' => Http::response(['files' => []]),
@@ -104,6 +104,47 @@ class GoogleDriveMediaServiceTest extends TestCase
         self::assertNull($service->media($key));
         self::assertNull($service->media($key));
         Http::assertSentCount(1);
+
+        $this->travel(59)->seconds();
+        self::assertNull($service->media($key));
+        Http::assertSentCount(1);
+
+        $this->travel(2)->seconds();
+        self::assertNull($service->media($key));
+        Http::assertSentCount(2);
+    }
+
+    public function test_found_file_lookup_remains_cached_for_six_hours(): void
+    {
+        Http::fake([
+            'www.googleapis.com/drive/v3/files*' => Http::response(['files' => [[
+                'id' => 'drive-file-id-456',
+                'name' => 'Available.jpg',
+                'mimeType' => 'image/jpeg',
+                'size' => '1000',
+                'thumbnailLink' => 'https://lh3.googleusercontent.com/available=s220',
+            ]]]),
+            'lh3.googleusercontent.com/*' => Http::response('available-thumbnail', 200, ['Content-Type' => 'image/jpeg']),
+        ]);
+        $service = $this->serviceWithDriveScope();
+        $url = $service->mediaUrl(
+            GoogleDriveMediaService::REQUESTER_COLLECTION,
+            'Data_Images/Available.jpg',
+        );
+        $key = basename(parse_url($url, PHP_URL_PATH));
+
+        self::assertSame('available-thumbnail', $service->media($key)?->contents);
+        Http::assertSentCount(2);
+
+        $this->travel(5)->hours();
+        Cache::store('file')->forget('appsheet:drive:media:v1:'.$key);
+        self::assertSame('available-thumbnail', $service->media($key)?->contents);
+        Http::assertSentCount(3);
+
+        $this->travel(61)->minutes();
+        Cache::store('file')->forget('appsheet:drive:media:v1:'.$key);
+        self::assertSame('available-thumbnail', $service->media($key)?->contents);
+        Http::assertSentCount(5);
     }
 
     public function test_legacy_token_without_drive_scope_fails_gracefully_without_drive_request(): void

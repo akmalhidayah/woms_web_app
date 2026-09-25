@@ -16,6 +16,7 @@ use App\Models\VendorWorkType;
 use App\Models\VendorWorkTypeSection;
 use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\Approvals\BulkApprovalNotificationService;
+use App\Services\Approvals\PkmBulkResendCooldownService;
 use App\Services\Pkm\BastDeletionService;
 use App\Services\Pkm\BastItemSnapshotService;
 use App\Services\Pkm\BastPdfAttachmentService;
@@ -56,6 +57,7 @@ class LhppController extends Controller
         private readonly BastItemSnapshotService $bastItemSnapshotService,
         private readonly BastPdfAttachmentService $bastPdfAttachmentService,
         private readonly BulkApprovalNotificationService $bulkNotificationService,
+        private readonly PkmBulkResendCooldownService $bulkResendCooldownService,
     ) {}
 
     public function index(Request $request): View
@@ -118,6 +120,8 @@ class LhppController extends Controller
                 'tabCounts' => $this->indexTabs->counts(BastIndexTabs::CONTEXT_PKM),
                 'pendingTerminOneOrders' => $pendingTerminOneOrders,
                 'activeTokens' => collect(),
+                'bulkResendAvailableAt' => $this->bulkResendCooldownService
+                    ->availableAt(PkmBulkResendCooldownService::DOCUMENT_BAST),
             ]);
         } catch (Throwable $exception) {
             $this->rethrowExpectedException($exception);
@@ -1117,7 +1121,33 @@ class LhppController extends Controller
 
     public function resendAllActiveApprovals(): RedirectResponse
     {
-        $result = $this->bulkNotificationService->resendActiveBastApprovals();
+        $claim = $this->bulkResendCooldownService
+            ->acquire(PkmBulkResendCooldownService::DOCUMENT_BAST);
+
+        if (! $claim['allowed']) {
+            return back()->with('error', sprintf(
+                'Resend Semua BAST/LHPP hanya dapat dilakukan sekali setiap 24 jam. Tombol tersedia kembali pada %s.',
+                $claim['available_at']->format('d/m/Y H:i'),
+            ));
+        }
+
+        try {
+            $result = $this->bulkNotificationService->resendActiveBastApprovals();
+        } catch (Throwable $exception) {
+            $this->bulkResendCooldownService->release(
+                PkmBulkResendCooldownService::DOCUMENT_BAST,
+                $claim['claimed_at'],
+            );
+
+            throw $exception;
+        }
+
+        if ($result['sent'] === 0) {
+            $this->bulkResendCooldownService->release(
+                PkmBulkResendCooldownService::DOCUMENT_BAST,
+                $claim['claimed_at'],
+            );
+        }
 
         return back()->with('status', $this->bulkNotificationService->resultMessage('BAST/LHPP', $result));
     }

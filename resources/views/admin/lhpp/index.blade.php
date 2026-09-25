@@ -60,7 +60,7 @@
                                 <div class="flex items-center justify-between gap-2">
                                     <span>Quality Control / Approval</span>
                                     @if ($activeTab === \App\Support\BastIndexTabs::TAB_IN_PROGRESS)
-                                        <form method="POST" action="{{ route('admin.lhpp.approval.resend-all') }}" onsubmit="return confirm('Kirim ulang email kepada seluruh approver BAST/LHPP yang sedang aktif?')">
+                                        <form method="POST" action="{{ route('admin.lhpp.approval.resend-all') }}" class="js-resend-all-approval-form" data-approval-document="BAST/LHPP">
                                             @csrf
                                             <button type="submit" class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-[8px] font-bold normal-case tracking-normal text-white shadow-sm transition hover:bg-blue-700">
                                                 <i data-lucide="send" class="h-2.5 w-2.5"></i>
@@ -587,7 +587,8 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <x-approval.resend-all-confirmation />
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const statusAlert = document.getElementById('admin-bast-status-alert');

@@ -2,6 +2,7 @@
     @php
         $formatRupiah = fn ($value): string => number_format((float) $value, 0, ',', '.');
         $pendingHppOrders = collect($pendingHppOrders ?? []);
+        $bulkResendAvailableAt = $bulkResendAvailableAt ?? null;
     @endphp
 
     <div class="order-list-compact space-y-4">
@@ -24,6 +25,12 @@
         @if (session('status'))
             <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                 {{ session('status') }}
+            </div>
+        @endif
+
+        @if (session('error'))
+            <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {{ session('error') }}
             </div>
         @endif
 
@@ -76,12 +83,24 @@
                                 <div class="flex items-center justify-between gap-2">
                                     <span>Progress Approval</span>
                                     @if ($activeTab === \App\Support\HppIndexTabs::IN_APPROVAL)
-                                        <form method="POST" action="{{ route('pkm.hpp.approval.resend-all') }}" onsubmit="return confirm('Kirim ulang email kepada seluruh approver HPP yang sedang aktif?')">
+                                        <form
+                                            method="POST"
+                                            action="{{ route('pkm.hpp.approval.resend-all') }}"
+                                            class="js-resend-all-approval-form flex flex-col items-end gap-1"
+                                            data-approval-document="HPP"
+                                            data-cooldown-hours="24"
+                                            @if ($bulkResendAvailableAt) data-resend-available-at="{{ $bulkResendAvailableAt->toIso8601String() }}" @endif
+                                        >
                                             @csrf
-                                            <button type="submit" class="inline-flex items-center gap-1 rounded-md bg-[#ca642f] px-2 py-1 text-[8px] font-bold normal-case tracking-normal text-white shadow-sm transition hover:bg-[#b85b2b]">
+                                            <button type="submit" @disabled($bulkResendAvailableAt) class="inline-flex items-center gap-1 rounded-md bg-[#ca642f] px-2 py-1 text-[8px] font-bold normal-case tracking-normal text-white shadow-sm transition hover:bg-[#b85b2b] disabled:cursor-not-allowed disabled:bg-slate-400 disabled:opacity-70">
                                                 <i data-lucide="send" class="h-2.5 w-2.5"></i>
                                                 Resend Semua
                                             </button>
+                                            <span data-resend-cooldown-label class="text-[8px] font-semibold normal-case tracking-normal text-amber-700" @if (! $bulkResendAvailableAt) hidden @endif>
+                                                @if ($bulkResendAvailableAt)
+                                                    Bisa lagi {{ $bulkResendAvailableAt->format('d/m/Y H:i') }}
+                                                @endif
+                                            </span>
                                         </form>
                                     @endif
                                 </div>
@@ -278,6 +297,9 @@
             </div>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <x-approval.resend-all-confirmation />
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {

@@ -27,7 +27,11 @@ class BastApprovalModalTest extends TestCase
             ->assertOk()
             ->assertSee('Quality Control / Approval')
             ->assertSee('Resend Semua')
-            ->assertSee(route('admin.lhpp.approval.resend-all'), false);
+            ->assertSee(route('admin.lhpp.approval.resend-all'), false)
+            ->assertSee('js-resend-all-approval-form', false)
+            ->assertSee('data-approval-document="BAST/LHPP"', false)
+            ->assertSee('Ya, kirim ulang')
+            ->assertDontSee('onsubmit="return confirm(', false);
     }
 
     public function test_admin_bast_approval_flow_includes_whatsapp_action(): void
@@ -128,7 +132,11 @@ class BastApprovalModalTest extends TestCase
             ->assertOk()
             ->assertSee('Status LHPP')
             ->assertSee('Resend Semua')
-            ->assertSee(route('pkm.lhpp.approval.resend-all'), false);
+            ->assertSee(route('pkm.lhpp.approval.resend-all'), false)
+            ->assertSee('js-resend-all-approval-form', false)
+            ->assertSee('data-approval-document="BAST/LHPP"', false)
+            ->assertSee('Ya, kirim ulang')
+            ->assertDontSee('onsubmit="return confirm(', false);
     }
 
     private function createPendingBastSignature(

@@ -44,7 +44,11 @@ class HppIndexTabsTest extends TestCase
             ->get(route('admin.hpp.index', ['tab' => HppIndexTabs::IN_APPROVAL]))
             ->assertOk()
             ->assertSee('Resend Semua')
-            ->assertSee(route('admin.hpp.approval.resend-all'), false);
+            ->assertSee(route('admin.hpp.approval.resend-all'), false)
+            ->assertSee('js-resend-all-approval-form', false)
+            ->assertSee('data-approval-document="HPP"', false)
+            ->assertSee('Ya, kirim ulang')
+            ->assertDontSee('onsubmit="return confirm(', false);
 
         $this->assertSame(
             [$inReview->id],
@@ -97,7 +101,11 @@ class HppIndexTabsTest extends TestCase
             ->assertSee($inReview->nomor_order)
             ->assertDontSee($draft->nomor_order)
             ->assertSee('Resend Semua')
-            ->assertSee(route('pkm.hpp.approval.resend-all'), false);
+            ->assertSee(route('pkm.hpp.approval.resend-all'), false)
+            ->assertSee('js-resend-all-approval-form', false)
+            ->assertSee('data-approval-document="HPP"', false)
+            ->assertSee('Ya, kirim ulang')
+            ->assertDontSee('onsubmit="return confirm(', false);
     }
 
     public function test_admin_and_pkm_indexes_display_hpp_value_without_decimal_digits(): void

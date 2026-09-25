@@ -10,6 +10,7 @@ use App\Models\HppSignature;
 use App\Models\Order;
 use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\Approvals\BulkApprovalNotificationService;
+use App\Services\Approvals\PkmBulkResendCooldownService;
 use App\Services\Pkm\HppDraftService;
 use App\Support\HppIndexTabs;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -20,6 +21,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 class HppDraftController extends Controller
 {
@@ -27,6 +29,7 @@ class HppDraftController extends Controller
         private readonly HppDraftService $draftService,
         private readonly ApprovalNotificationService $approvalNotificationService,
         private readonly BulkApprovalNotificationService $bulkNotificationService,
+        private readonly PkmBulkResendCooldownService $bulkResendCooldownService,
     ) {}
 
     public function index(Request $request): View
@@ -72,6 +75,8 @@ class HppDraftController extends Controller
             'tabOptions' => HppIndexTabs::options(),
             'tabCounts' => HppIndexTabs::counts(),
             'pendingHppOrders' => $pendingHppOrders,
+            'bulkResendAvailableAt' => $this->bulkResendCooldownService
+                ->availableAt(PkmBulkResendCooldownService::DOCUMENT_HPP),
         ]);
     }
 
@@ -200,7 +205,33 @@ class HppDraftController extends Controller
 
     public function resendAllActiveApprovals(): RedirectResponse
     {
-        $result = $this->bulkNotificationService->resendActiveHppApprovals();
+        $claim = $this->bulkResendCooldownService
+            ->acquire(PkmBulkResendCooldownService::DOCUMENT_HPP);
+
+        if (! $claim['allowed']) {
+            return back()->with('error', sprintf(
+                'Resend Semua HPP hanya dapat dilakukan sekali setiap 24 jam. Tombol tersedia kembali pada %s.',
+                $claim['available_at']->format('d/m/Y H:i'),
+            ));
+        }
+
+        try {
+            $result = $this->bulkNotificationService->resendActiveHppApprovals();
+        } catch (Throwable $exception) {
+            $this->bulkResendCooldownService->release(
+                PkmBulkResendCooldownService::DOCUMENT_HPP,
+                $claim['claimed_at'],
+            );
+
+            throw $exception;
+        }
+
+        if ($result['sent'] === 0) {
+            $this->bulkResendCooldownService->release(
+                PkmBulkResendCooldownService::DOCUMENT_HPP,
+                $claim['claimed_at'],
+            );
+        }
 
         return back()->with('status', $this->bulkNotificationService->resultMessage('HPP', $result));
     }

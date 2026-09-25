@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\User;
 use App\Notifications\ApprovalRequestedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -104,6 +105,110 @@ class BulkApprovalEmailNotificationTest extends TestCase
             ->assertSessionHas('status', fn (string $message): bool => str_contains($message, '1 email berhasil dikirim'));
 
         Notification::assertSentTo($approver, ApprovalRequestedNotification::class);
+    }
+
+    public function test_pkm_hpp_bulk_resend_is_globally_limited_to_once_per_24_hours(): void
+    {
+        Carbon::setTestNow('2026-09-25 10:00:00');
+        Notification::fake();
+
+        try {
+            $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+            $otherPkm = User::factory()->create(['role' => User::ROLE_PKM]);
+            $approver = User::factory()->create(['role' => User::ROLE_APPROVER]);
+            $hpp = $this->hpp($pkm, 'PKM-HPP-COOLDOWN', Hpp::STATUS_IN_REVIEW);
+            $this->hppSignature($hpp, $approver, 'pkm-hpp-cooldown-token', expiresAt: now()->addDays(3));
+
+            $this->actingAs($pkm)
+                ->post(route('pkm.hpp.approval.resend-all'))
+                ->assertRedirect()
+                ->assertSessionHas('status');
+
+            $this->actingAs($otherPkm)
+                ->post(route('pkm.hpp.approval.resend-all'))
+                ->assertRedirect()
+                ->assertSessionHas('error', fn (string $message): bool => str_contains($message, 'sekali setiap 24 jam'));
+
+            Notification::assertSentToTimes($approver, ApprovalRequestedNotification::class, 1);
+
+            $this->actingAs($pkm)
+                ->get(route('pkm.hpp.index', ['tab' => 'in_approval']))
+                ->assertOk()
+                ->assertSee('data-resend-available-at=', false)
+                ->assertSee('data-resend-cooldown-label', false)
+                ->assertSee('disabled', false);
+
+            Carbon::setTestNow(now()->addDay());
+
+            $this->actingAs($otherPkm)
+                ->post(route('pkm.hpp.approval.resend-all'))
+                ->assertRedirect()
+                ->assertSessionHas('status');
+
+            Notification::assertSentToTimes($approver, ApprovalRequestedNotification::class, 2);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_pkm_bast_bulk_resend_is_globally_limited_to_once_per_24_hours(): void
+    {
+        Carbon::setTestNow('2026-09-25 11:00:00');
+        Notification::fake();
+
+        try {
+            $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+            $otherPkm = User::factory()->create(['role' => User::ROLE_PKM]);
+            $approver = User::factory()->create(['role' => User::ROLE_APPROVER]);
+            $order = $this->order($pkm, 'PKM-BAST-COOLDOWN');
+            $bast = $this->bast($pkm, $order, 'termin_1');
+            $this->bastSignature($bast, $approver, 'pkm-bast-cooldown-token', now()->addDays(3));
+
+            $this->actingAs($pkm)
+                ->post(route('pkm.lhpp.approval.resend-all'))
+                ->assertRedirect()
+                ->assertSessionHas('status');
+
+            $this->actingAs($otherPkm)
+                ->post(route('pkm.lhpp.approval.resend-all'))
+                ->assertRedirect()
+                ->assertSessionHas('error', fn (string $message): bool => str_contains($message, 'sekali setiap 24 jam'));
+
+            Notification::assertSentToTimes($approver, ApprovalRequestedNotification::class, 1);
+
+            $this->actingAs($pkm)
+                ->get(route('pkm.lhpp.index', ['tab' => 'in_progress']))
+                ->assertOk()
+                ->assertSee('data-resend-available-at=', false)
+                ->assertSee('data-resend-cooldown-label', false)
+                ->assertSee('disabled', false);
+
+            Carbon::setTestNow(now()->addDay());
+
+            $this->actingAs($otherPkm)
+                ->post(route('pkm.lhpp.approval.resend-all'))
+                ->assertRedirect()
+                ->assertSessionHas('status');
+
+            Notification::assertSentToTimes($approver, ApprovalRequestedNotification::class, 2);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_admin_bulk_resend_is_not_affected_by_pkm_cooldown(): void
+    {
+        Notification::fake();
+
+        $admin = $this->admin();
+        $approver = User::factory()->create(['role' => User::ROLE_APPROVER]);
+        $hpp = $this->hpp($admin, 'ADMIN-NO-COOLDOWN', Hpp::STATUS_IN_REVIEW);
+        $this->hppSignature($hpp, $approver, 'admin-no-cooldown-token');
+
+        $this->actingAs($admin)->post(route('admin.hpp.approval.resend-all'))->assertRedirect();
+        $this->actingAs($admin)->post(route('admin.hpp.approval.resend-all'))->assertRedirect();
+
+        Notification::assertSentToTimes($approver, ApprovalRequestedNotification::class, 2);
     }
 
     public function test_non_admin_cannot_use_bulk_resend_endpoints(): void
@@ -221,8 +326,12 @@ class BulkApprovalEmailNotificationTest extends TestCase
         ]);
     }
 
-    private function bastSignature(LhppBast $bast, User $signer, string $token): LhppBastSignature
-    {
+    private function bastSignature(
+        LhppBast $bast,
+        User $signer,
+        string $token,
+        ?\DateTimeInterface $expiresAt = null,
+    ): LhppBastSignature {
         return $bast->signatures()->create([
             'step_order' => 1,
             'role_key' => 'manager_pkm',
@@ -233,7 +342,7 @@ class BulkApprovalEmailNotificationTest extends TestCase
             'status' => LhppBastSignature::STATUS_PENDING,
             'token_hash' => hash('sha256', $token),
             'token' => $token,
-            'token_expires_at' => now()->addDay(),
+            'token_expires_at' => $expiresAt ?: now()->addDay(),
         ]);
     }
 }

@@ -152,7 +152,7 @@ class AppSheetControllerTest extends TestCase
         );
     }
 
-    public function test_transaction_request_types_only_use_consumable_stock_out_history(): void
+    public function test_transaction_request_types_only_use_stock_out_history(): void
     {
         $this->mockHistoryRows([
             array_replace($this->historyRow('STOCK-IN-H', '01/09/2026'), [
@@ -163,12 +163,8 @@ class AppSheetControllerTest extends TestCase
                 'INPUT TYPE' => 'STOCK IN',
                 'JENIS PERMINTAAN' => 'Ring type',
             ]),
-            array_replace($this->historyRow('OTHER-CATEGORY', '03/09/2026'), [
-                'CATEGORY' => 'TOOLS',
-                'INPUT TYPE' => 'STOCK OUT',
-                'JENIS PERMINTAAN' => 'Ring type',
-            ]),
             array_replace($this->historyRow('VALID-STOCK-OUT', '04/09/2026'), [
+                'CATEGORY' => 'KONSUMABEL UMUM',
                 'INPUT TYPE' => 'STOCK OUT',
                 'JENIS PERMINTAAN' => 'PERMINTAAN BARU',
             ]),

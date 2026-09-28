@@ -4,6 +4,7 @@ namespace Tests\Unit\AppSheet;
 
 use App\Exceptions\AppSheet\GoogleSheetsException;
 use App\Services\AppSheet\GoogleOAuthService;
+use App\Services\AppSheet\GoogleSheetsReader;
 use App\Services\AppSheet\GoogleSheetsWriter;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
@@ -16,11 +17,13 @@ class ConsumableTransactionWriterTest extends TestCase
 {
     private const STOCK_HEADERS = [
         'UID', 'DESC.', 'CATEGORY', 'STOCK IN', 'STOCK OUT', 'SPARE STOCK', 'STN', 'INPUT. BY', 'INPUT DATE',
+        'SUB CATEGORY',
     ];
 
     private const HISTORY_HEADERS = [
-        'UID', 'INPUT DATE', 'DESC.', 'CATEGORY', 'INPUT TYPE', 'QTY',
-        'TUJUAN PENGGUNAAN', 'JENIS PERMINTAAN', 'INPUT BY',
+        'UID', 'DESC.', 'CATEGORY', 'INPUT TYPE', 'QTY', 'TUJUAN PENGGUNAAN',
+        'JENIS PERMINTAAN', 'POTO ALAT YANG RUSAK', 'POTO ALAT YANG BAIK',
+        'INPUT DATE', 'INPUT BY',
     ];
 
     protected function setUp(): void
@@ -64,10 +67,10 @@ class ConsumableTransactionWriterTest extends TestCase
             8 => '2026-09-25 10:15:30',
         ], $this->stockUpdates($payload));
         self::assertSame([
-            'UID' => 'BMS-C32',
             'INPUT DATE' => '2026-09-25 10:15:30',
+            'UID' => 'BMS-C32',
             'DESC.' => 'BATU GERINDA POTONG 4 INCH',
-            'CATEGORY' => 'CONSUMABLE',
+            'CATEGORY' => 'KONSUMABEL UMUM',
             'INPUT TYPE' => 'STOCK IN',
             'QTY' => 5.0,
             'TUJUAN PENGGUNAAN' => '-',
@@ -226,13 +229,12 @@ class ConsumableTransactionWriterTest extends TestCase
         $this->assertNoBatchWrite();
     }
 
-    public function test_stock_out_request_type_ignores_stock_in_and_non_consumable_legacy_values(): void
+    public function test_stock_out_request_type_ignores_stock_in_legacy_values(): void
     {
         $this->fakeTransactionSheets($this->stockRows(100, 30, 70), historyRows: [
-            ['IN-H', '2026-09-01', 'Lama', 'CONSUMABLE', 'STOCK IN', 1, '-', 'H', 'Petugas'],
-            ['IN-RING', '2026-09-02', 'Lama', 'CONSUMABLE', 'STOCK IN', 1, '-', 'Ring type', 'Petugas'],
-            ['TOOLS-RING', '2026-09-03', 'Lama', 'TOOLS', 'STOCK OUT', 1, 'Workshop', 'Ring type', 'Petugas'],
-            ['VALID', '2026-09-04', 'Lama', 'CONSUMABLE', 'STOCK OUT', 1, 'Workshop', 'PERMINTAAN BARU', 'Petugas'],
+            ['IN-H', 'Lama', 'KONSUMABEL UMUM', 'STOCK IN', 1, '-', 'H', '', '', '2026-09-01', 'Petugas'],
+            ['IN-RING', 'Lama', 'KONSUMABEL UMUM', 'STOCK IN', 1, '-', 'Ring type', '', '', '2026-09-02', 'Petugas'],
+            ['VALID', 'Lama', 'KONSUMABEL UMUM', 'STOCK OUT', 1, 'Workshop', 'PERMINTAAN BARU', '', '', '2026-09-04', 'Petugas'],
         ]);
 
         try {
@@ -344,7 +346,7 @@ class ConsumableTransactionWriterTest extends TestCase
     {
         return [[
             $uid, 'BATU GERINDA POTONG 4 INCH', 'CONSUMABLE', $stockIn, $stockOut,
-            $spareStock, 'EA', 'Petugas Lama', '2026-09-01 08:00:00',
+            $spareStock, 'EA', 'Petugas Lama', '2026-09-01 08:00:00', 'KONSUMABEL UMUM',
         ]];
     }
 
@@ -365,7 +367,7 @@ class ConsumableTransactionWriterTest extends TestCase
     ): void {
         $formulaRows ??= $stockRows;
         $historyRows ??= [
-            ['OLD', '2026-09-01', 'Lama', 'CONSUMABLE', 'STOCK OUT', 1, 'Workshop', 'PERMINTAAN BARU', 'Petugas'],
+            ['OLD', 'Lama', 'KONSUMABEL UMUM', 'STOCK OUT', 1, 'Workshop', 'PERMINTAAN BARU', '', '', '2026-09-01', 'Petugas'],
         ];
         Http::fake(function (Request $request) use ($stockRows, $formulaRows, $writeStatus, $historyRows) {
             $url = rawurldecode($request->url());
@@ -423,7 +425,12 @@ class ConsumableTransactionWriterTest extends TestCase
         self::assertNotNull($append);
         $cells = $append['rows'][0]['values'];
 
-        return collect(self::HISTORY_HEADERS)->mapWithKeys(function (string $header, int $index) use ($cells): array {
+        self::assertInstanceOf(\stdClass::class, $cells[7]);
+        self::assertInstanceOf(\stdClass::class, $cells[8]);
+
+        return collect(GoogleSheetsReader::HISTORY_HEADERS)->mapWithKeys(function (string $header) use ($cells): array {
+            $index = array_search($header, self::HISTORY_HEADERS, true);
+            self::assertIsInt($index);
             $value = $cells[$index]['userEnteredValue'];
 
             return [$header => $value['numberValue'] ?? $value['stringValue']];

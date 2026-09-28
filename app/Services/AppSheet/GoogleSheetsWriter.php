@@ -341,7 +341,7 @@ class GoogleSheetsWriter
         $definition = StockSheetMap::definition(StockSheetMap::CONSUMABLE_BMS);
         $stockHeaders = is_array($stockValues[0] ?? null) ? $stockValues[0] : [];
         $stockPositions = $this->headerPositions($stockHeaders, $definition, $stockSheet);
-        $stockPositions += $this->exactHeaderPositions($stockHeaders, ['CATEGORY'], $stockSheet);
+        $stockPositions += $this->exactHeaderPositions($stockHeaders, ['CATEGORY', 'SUB CATEGORY'], $stockSheet);
         $historyHeaders = is_array($historyValues[0] ?? null) ? $historyValues[0] : [];
         $historyPositions = $this->exactHeaderPositions(
             $historyHeaders,
@@ -371,6 +371,7 @@ class GoogleSheetsWriter
         $stockOut = ConsumableData::number($row[$stockPositions['STOCK OUT']] ?? null);
         $spareStock = ConsumableData::number($row[$stockPositions['SPARE STOCK']] ?? null);
         $category = $this->scalarString($row[$stockPositions['CATEGORY']] ?? null);
+        $historyCategory = $this->scalarString($row[$stockPositions['SUB CATEGORY']] ?? null) ?: $category;
         if (mb_strtoupper($category) !== 'CONSUMABLE') {
             throw new GoogleSheetsException('Barang tidak ditemukan pada data Stock Consumable BMS terbaru.');
         }
@@ -395,8 +396,7 @@ class GoogleSheetsWriter
             $usagePurpose = $usagePurpose !== '' ? $usagePurpose : '-';
             $availableRequestTypes = collect(array_slice($historyValues, 1))
                 ->filter(fn (mixed $historyRow): bool => is_array($historyRow)
-                    && mb_strtoupper($this->scalarString($historyRow[$historyPositions['INPUT TYPE']] ?? null)) === self::TRANSACTION_STOCK_OUT
-                    && mb_strtoupper($this->scalarString($historyRow[$historyPositions['CATEGORY']] ?? null)) === 'CONSUMABLE')
+                    && mb_strtoupper($this->scalarString($historyRow[$historyPositions['INPUT TYPE']] ?? null)) === self::TRANSACTION_STOCK_OUT)
                 ->map(fn (mixed $historyRow): string => is_array($historyRow)
                     ? $this->scalarString($historyRow[$historyPositions['JENIS PERMINTAAN']] ?? null)
                     : '')
@@ -431,7 +431,7 @@ class GoogleSheetsWriter
             'INPUT DATE' => $timestamp,
             'UID' => $identifier,
             'DESC.' => $this->scalarString($row[$stockPositions['DESC.']] ?? null),
-            'CATEGORY' => $category,
+            'CATEGORY' => $historyCategory,
             'INPUT TYPE' => $inputType,
             'QTY' => $quantity,
             'TUJUAN PENGGUNAAN' => $usagePurpose,
@@ -557,7 +557,9 @@ class GoogleSheetsWriter
             ]];
         }
 
-        $historyCells = array_fill(0, max($historyPositions) + 1, []);
+        // CellData kosong harus berupa object (`{}`), bukan array (`[]`). Google Sheets
+        // dapat mengabaikan array kosong dan menggeser nilai setelah kolom helper.
+        $historyCells = array_fill(0, max($historyPositions) + 1, (object) []);
         foreach ($historyRow as $header => $value) {
             $historyCells[$historyPositions[$header]] = ['userEnteredValue' => $this->userEnteredValue($value)];
         }

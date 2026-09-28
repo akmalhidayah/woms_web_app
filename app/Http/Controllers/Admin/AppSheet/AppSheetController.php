@@ -56,8 +56,7 @@ class AppSheetController extends Controller
             ->values()
             ->map(fn (array $row, int $index): array => $this->withInputDateMetadata($row, $index));
         $categories = $this->options($allRows, 'CATEGORY');
-        $requestTypeRows = $allRows->filter(fn (array $row): bool => mb_strtoupper(trim((string) ($row['INPUT TYPE'] ?? ''))) === 'STOCK OUT'
-            && mb_strtoupper(trim((string) ($row['CATEGORY'] ?? ''))) === 'CONSUMABLE');
+        $requestTypeRows = $allRows->filter(fn (array $row): bool => mb_strtoupper(trim((string) ($row['INPUT TYPE'] ?? ''))) === 'STOCK OUT');
         $requestTypes = $this->options($requestTypeRows, 'JENIS PERMINTAAN')
             ->reject(fn (string $value): bool => $value === '-')
             ->values();
@@ -67,7 +66,8 @@ class AppSheetController extends Controller
                 return [
                     'uid' => trim((string) ($row['UID'] ?? '')),
                     'name' => trim((string) ($row['DESC.'] ?? '')),
-                    'category' => trim((string) ($row['CATEGORY'] ?? '')),
+                    'category' => trim((string) ($row['SUB CATEGORY'] ?? ''))
+                        ?: trim((string) ($row['CATEGORY'] ?? '')),
                     'unit' => trim((string) ($row['STN'] ?? '')),
                     'stock' => ConsumableData::number($row['SPARE STOCK'] ?? null),
                 ];

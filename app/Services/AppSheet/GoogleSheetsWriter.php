@@ -378,15 +378,6 @@ class GoogleSheetsWriter
             throw new GoogleSheetsException('Nilai stock terbaru tidak valid sehingga transaksi dibatalkan.');
         }
 
-        $formulaValues = $this->fetchValues($spreadsheetId, $stockSheet, $token, 'FORMULA');
-        $formulaRow = is_array($formulaValues[$rowNumber - 1] ?? null) ? $formulaValues[$rowNumber - 1] : [];
-        foreach (['STOCK IN', 'STOCK OUT', 'SPARE STOCK', 'INPUT. BY', 'INPUT DATE'] as $header) {
-            $formula = $formulaRow[$stockPositions[$header]] ?? null;
-            if (is_string($formula) && str_starts_with(trim($formula), '=')) {
-                throw new GoogleSheetsException('Kolom '.$header.' menggunakan formula Google Sheets sehingga transaksi tidak dapat menimpanya.');
-            }
-        }
-
         $unit = $this->scalarString($row[$stockPositions['STN']] ?? null) ?: 'unit';
         if ($inputType === self::TRANSACTION_STOCK_OUT && $quantity > $spareStock) {
             throw new GoogleSheetsException(sprintf(
@@ -426,6 +417,15 @@ class GoogleSheetsWriter
         $timestamp = now()->format('Y-m-d H:i:s');
         $stockUpdates['INPUT. BY'] = trim($actor);
         $stockUpdates['INPUT DATE'] = $timestamp;
+
+        $formulaValues = $this->fetchValues($spreadsheetId, $stockSheet, $token, 'FORMULA');
+        $formulaRow = is_array($formulaValues[$rowNumber - 1] ?? null) ? $formulaValues[$rowNumber - 1] : [];
+        foreach (array_keys($stockUpdates) as $header) {
+            $formula = $formulaRow[$stockPositions[$header]] ?? null;
+            if (is_string($formula) && str_starts_with(trim($formula), '=')) {
+                unset($stockUpdates[$header]);
+            }
+        }
 
         $historyRow = [
             'INPUT DATE' => $timestamp,

@@ -248,24 +248,29 @@ class ConsumableTransactionWriterTest extends TestCase
         $this->assertNoBatchWrite();
     }
 
-    public function test_formula_stock_cells_are_never_overwritten(): void
+    public function test_formula_stock_cells_are_skipped_while_history_is_still_appended(): void
     {
         $rows = $this->stockRows(100, 30, 70);
         $formulaRows = $rows;
-        $formulaRows[0][5] = '=D2-E2';
+        foreach ([3, 4, 5, 7, 8] as $column) {
+            $formulaRows[0][$column] = '=FORMULA';
+        }
         $this->fakeTransactionSheets($rows, $formulaRows);
 
-        $this->expectException(GoogleSheetsException::class);
-        $this->expectExceptionMessage('Kolom SPARE STOCK menggunakan formula');
+        $result = $this->writer()->createConsumableTransaction(
+            'BMS-C32', 'STOCK OUT', 5, null, 'PERMINTAAN BARU', 'Admin',
+            '66666666-6666-4666-8666-666666666666',
+        );
 
-        try {
-            $this->writer()->createConsumableTransaction(
-                'BMS-C32', 'STOCK IN', 5, null, null, 'Admin',
-                '66666666-6666-4666-8666-666666666666',
-            );
-        } finally {
-            $this->assertNoBatchWrite();
-        }
+        self::assertSame(65.0, $result['stock_after']);
+        $payload = $this->atomicBatchPayload();
+        self::assertSame([], $this->stockUpdates($payload));
+        $history = $this->appendedHistory($payload);
+        self::assertSame('STOCK OUT', $history['INPUT TYPE']);
+        self::assertSame(5.0, $history['QTY']);
+        self::assertSame('-', $history['TUJUAN PENGGUNAAN']);
+        self::assertSame('PERMINTAAN BARU', $history['JENIS PERMINTAAN']);
+        self::assertSame('Admin', $history['INPUT BY']);
     }
 
     public function test_duplicate_submit_with_same_transaction_token_is_idempotent(): void

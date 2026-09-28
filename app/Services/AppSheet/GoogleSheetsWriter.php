@@ -401,16 +401,17 @@ class GoogleSheetsWriter
         $usagePurpose = $inputType === self::TRANSACTION_STOCK_OUT ? trim((string) $usagePurpose) : '-';
         $requestType = $inputType === self::TRANSACTION_STOCK_OUT ? trim((string) $requestType) : '-';
         if ($inputType === self::TRANSACTION_STOCK_OUT) {
+            $usagePurpose = $usagePurpose !== '' ? $usagePurpose : '-';
             $availableRequestTypes = collect(array_slice($historyValues, 1))
+                ->filter(fn (mixed $historyRow): bool => is_array($historyRow)
+                    && mb_strtoupper($this->scalarString($historyRow[$historyPositions['INPUT TYPE']] ?? null)) === self::TRANSACTION_STOCK_OUT
+                    && mb_strtoupper($this->scalarString($historyRow[$historyPositions['CATEGORY']] ?? null)) === 'CONSUMABLE')
                 ->map(fn (mixed $historyRow): string => is_array($historyRow)
                     ? $this->scalarString($historyRow[$historyPositions['JENIS PERMINTAAN']] ?? null)
                     : '')
                 ->filter(fn (string $value): bool => $value !== '' && $value !== '-')
                 ->unique()
                 ->all();
-            if ($usagePurpose === '') {
-                throw new GoogleSheetsException('Tujuan penggunaan wajib diisi untuk STOCK OUT.');
-            }
             if ($requestType === '' || ! in_array($requestType, $availableRequestTypes, true)) {
                 throw new GoogleSheetsException('Jenis permintaan tidak tersedia pada data History Consumable terbaru.');
             }

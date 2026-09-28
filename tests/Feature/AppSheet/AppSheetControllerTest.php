@@ -152,6 +152,35 @@ class AppSheetControllerTest extends TestCase
         );
     }
 
+    public function test_transaction_request_types_only_use_consumable_stock_out_history(): void
+    {
+        $this->mockHistoryRows([
+            array_replace($this->historyRow('STOCK-IN-H', '01/09/2026'), [
+                'INPUT TYPE' => 'STOCK IN',
+                'JENIS PERMINTAAN' => 'H',
+            ]),
+            array_replace($this->historyRow('STOCK-IN-RING', '02/09/2026'), [
+                'INPUT TYPE' => 'STOCK IN',
+                'JENIS PERMINTAAN' => 'Ring type',
+            ]),
+            array_replace($this->historyRow('OTHER-CATEGORY', '03/09/2026'), [
+                'CATEGORY' => 'TOOLS',
+                'INPUT TYPE' => 'STOCK OUT',
+                'JENIS PERMINTAAN' => 'Ring type',
+            ]),
+            array_replace($this->historyRow('VALID-STOCK-OUT', '04/09/2026'), [
+                'INPUT TYPE' => 'STOCK OUT',
+                'JENIS PERMINTAAN' => 'PERMINTAAN BARU',
+            ]),
+        ]);
+
+        $response = $this->actingAs($this->admin())
+            ->get(route('admin.appsheet.history-consumable.index'))
+            ->assertOk();
+
+        self::assertSame(['PERMINTAAN BARU'], $response->viewData('requestTypes')->all());
+    }
+
     public function test_stock_is_naturally_sorted_by_uid_before_pagination(): void
     {
         $rows = [];

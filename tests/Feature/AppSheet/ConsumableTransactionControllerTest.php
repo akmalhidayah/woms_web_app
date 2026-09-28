@@ -86,7 +86,71 @@ class ConsumableTransactionControllerTest extends TestCase
         $this->actingAs($admin)->post($route, [
             ...$base,
             'input_type' => 'STOCK OUT',
-        ])->assertSessionHasErrors(['usage_purpose', 'request_type']);
+        ])->assertSessionDoesntHaveErrors('usage_purpose')
+            ->assertSessionHasErrors('request_type');
+    }
+
+    public function test_stock_out_with_empty_usage_purpose_is_accepted(): void
+    {
+        $writer = Mockery::mock(GoogleSheetsWriter::class);
+        $writer->shouldReceive('createConsumableTransaction')->once()->with(
+            'BMS-C32',
+            'STOCK OUT',
+            '2',
+            null,
+            'PERMINTAAN BARU',
+            'Admin History',
+            '55555555-5555-4555-8555-555555555555',
+        )->andReturn([
+            'input_type' => 'STOCK OUT',
+            'item_name' => 'BATU GERINDA POTONG 4 INCH',
+            'quantity' => 2,
+            'unit' => 'EA',
+            'stock_after' => 13,
+        ]);
+        $this->app->instance(GoogleSheetsWriter::class, $writer);
+
+        $this->actingAs($this->admin(['name' => 'Admin History']))
+            ->post(route('admin.appsheet.history-consumable.transactions.store'), [
+                'uid' => 'BMS-C32',
+                'input_type' => 'STOCK OUT',
+                'quantity' => '2',
+                'request_type' => 'PERMINTAAN BARU',
+                'transaction_token' => '55555555-5555-4555-8555-555555555555',
+            ])
+            ->assertSessionDoesntHaveErrors()
+            ->assertSessionHas('appsheet_transaction_success');
+    }
+
+    public function test_stock_in_with_empty_usage_purpose_remains_accepted(): void
+    {
+        $writer = Mockery::mock(GoogleSheetsWriter::class);
+        $writer->shouldReceive('createConsumableTransaction')->once()->with(
+            'BMS-C32',
+            'STOCK IN',
+            '3',
+            null,
+            null,
+            'Admin History',
+            '66666666-6666-4666-8666-666666666666',
+        )->andReturn([
+            'input_type' => 'STOCK IN',
+            'item_name' => 'BATU GERINDA POTONG 4 INCH',
+            'quantity' => 3,
+            'unit' => 'EA',
+            'stock_after' => 18,
+        ]);
+        $this->app->instance(GoogleSheetsWriter::class, $writer);
+
+        $this->actingAs($this->admin(['name' => 'Admin History']))
+            ->post(route('admin.appsheet.history-consumable.transactions.store'), [
+                'uid' => 'BMS-C32',
+                'input_type' => 'STOCK IN',
+                'quantity' => '3',
+                'transaction_token' => '66666666-6666-4666-8666-666666666666',
+            ])
+            ->assertSessionDoesntHaveErrors()
+            ->assertSessionHas('appsheet_transaction_success');
     }
 
     public function test_safe_writer_error_is_returned_as_flash_message(): void

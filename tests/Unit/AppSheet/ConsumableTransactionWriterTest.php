@@ -109,6 +109,26 @@ class ConsumableTransactionWriterTest extends TestCase
         self::assertSame('PERMINTAAN BARU', $history['JENIS PERMINTAAN']);
     }
 
+    public function test_stock_out_with_empty_usage_purpose_writes_history_placeholder(): void
+    {
+        $this->fakeTransactionSheets($this->stockRows(100, 30, 15));
+
+        $result = $this->writer()->createConsumableTransaction(
+            'BMS-C32',
+            'STOCK OUT',
+            2,
+            null,
+            'PERMINTAAN BARU',
+            'Admin Laravel',
+            'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+        );
+
+        self::assertSame(13.0, $result['stock_after']);
+        $history = $this->appendedHistory($this->atomicBatchPayload());
+        self::assertSame('-', $history['TUJUAN PENGGUNAAN']);
+        self::assertSame('PERMINTAAN BARU', $history['JENIS PERMINTAAN']);
+    }
+
     public function test_insufficient_stock_rejects_without_history_or_stock_write_or_cache_invalidation(): void
     {
         $this->fakeTransactionSheets($this->stockRows(100, 97, 3));
@@ -199,6 +219,28 @@ class ConsumableTransactionWriterTest extends TestCase
                 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
             );
             self::fail('Expected request type rejection.');
+        } catch (GoogleSheetsException $exception) {
+            self::assertStringContainsString('Jenis permintaan tidak tersedia', $exception->getMessage());
+        }
+
+        $this->assertNoBatchWrite();
+    }
+
+    public function test_stock_out_request_type_ignores_stock_in_and_non_consumable_legacy_values(): void
+    {
+        $this->fakeTransactionSheets($this->stockRows(100, 30, 70), historyRows: [
+            ['IN-H', '2026-09-01', 'Lama', 'CONSUMABLE', 'STOCK IN', 1, '-', 'H', 'Petugas'],
+            ['IN-RING', '2026-09-02', 'Lama', 'CONSUMABLE', 'STOCK IN', 1, '-', 'Ring type', 'Petugas'],
+            ['TOOLS-RING', '2026-09-03', 'Lama', 'TOOLS', 'STOCK OUT', 1, 'Workshop', 'Ring type', 'Petugas'],
+            ['VALID', '2026-09-04', 'Lama', 'CONSUMABLE', 'STOCK OUT', 1, 'Workshop', 'PERMINTAAN BARU', 'Petugas'],
+        ]);
+
+        try {
+            $this->writer()->createConsumableTransaction(
+                'BMS-C32', 'STOCK OUT', 1, 'Workshop', 'Ring type', 'Admin',
+                'abababab-abab-4bab-8bab-abababababab',
+            );
+            self::fail('Expected legacy request type rejection.');
         } catch (GoogleSheetsException $exception) {
             self::assertStringContainsString('Jenis permintaan tidak tersedia', $exception->getMessage());
         }
@@ -310,10 +352,17 @@ class ConsumableTransactionWriterTest extends TestCase
         return new GoogleSheetsWriter($google);
     }
 
-    private function fakeTransactionSheets(array $stockRows, ?array $formulaRows = null, int $writeStatus = 200): void
-    {
+    private function fakeTransactionSheets(
+        array $stockRows,
+        ?array $formulaRows = null,
+        int $writeStatus = 200,
+        ?array $historyRows = null,
+    ): void {
         $formulaRows ??= $stockRows;
-        Http::fake(function (Request $request) use ($stockRows, $formulaRows, $writeStatus) {
+        $historyRows ??= [
+            ['OLD', '2026-09-01', 'Lama', 'CONSUMABLE', 'STOCK OUT', 1, 'Workshop', 'PERMINTAAN BARU', 'Petugas'],
+        ];
+        Http::fake(function (Request $request) use ($stockRows, $formulaRows, $writeStatus, $historyRows) {
             $url = rawurldecode($request->url());
             if ($request->method() === 'POST' && str_contains($url, ':batchUpdate')) {
                 return Http::response(
@@ -329,7 +378,7 @@ class ConsumableTransactionWriterTest extends TestCase
             if (str_contains($url, "/values/'HISTORY CONS'")) {
                 return Http::response(['range' => 'history', 'values' => [
                     self::HISTORY_HEADERS,
-                    ['OLD', '2026-09-01', 'Lama', 'CONSUMABLE', 'STOCK OUT', 1, 'Workshop', 'PERMINTAAN BARU', 'Petugas'],
+                    ...$historyRows,
                 ]]);
             }
             if ($request->method() === 'GET' && str_contains($url, '/spreadsheets/test-spreadsheet')) {

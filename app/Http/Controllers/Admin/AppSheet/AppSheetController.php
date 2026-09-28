@@ -56,7 +56,9 @@ class AppSheetController extends Controller
             ->values()
             ->map(fn (array $row, int $index): array => $this->withInputDateMetadata($row, $index));
         $categories = $this->options($allRows, 'CATEGORY');
-        $requestTypes = $this->options($allRows, 'JENIS PERMINTAAN')
+        $requestTypeRows = $allRows->filter(fn (array $row): bool => mb_strtoupper(trim((string) ($row['INPUT TYPE'] ?? ''))) === 'STOCK OUT'
+            && mb_strtoupper(trim((string) ($row['CATEGORY'] ?? ''))) === 'CONSUMABLE');
+        $requestTypes = $this->options($requestTypeRows, 'JENIS PERMINTAAN')
             ->reject(fn (string $value): bool => $value === '-')
             ->values();
         $transactionItems = collect($transactionStockRows)

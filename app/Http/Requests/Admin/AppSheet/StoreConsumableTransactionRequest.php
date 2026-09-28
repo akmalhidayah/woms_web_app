@@ -31,7 +31,7 @@ class StoreConsumableTransactionRequest extends FormRequest
                     }
                 },
             ],
-            'usage_purpose' => ['bail', 'nullable', 'required_if:input_type,STOCK OUT', 'string', 'max:1000'],
+            'usage_purpose' => ['bail', 'nullable', 'string', 'max:1000'],
             'request_type' => ['bail', 'nullable', 'required_if:input_type,STOCK OUT', 'string', 'max:100'],
             'transaction_token' => ['bail', 'required', 'uuid'],
         ];
@@ -47,7 +47,6 @@ class StoreConsumableTransactionRequest extends FormRequest
             'quantity.required' => 'Jumlah transaksi wajib diisi.',
             'quantity.numeric' => 'Jumlah transaksi harus berupa angka yang valid.',
             'quantity.gt' => 'Jumlah transaksi harus lebih besar dari 0.',
-            'usage_purpose.required_if' => 'Tujuan penggunaan wajib diisi untuk STOCK OUT.',
             'request_type.required_if' => 'Jenis permintaan wajib dipilih untuk STOCK OUT.',
             'transaction_token.required' => 'Form transaksi sudah tidak valid. Silakan muat ulang halaman.',
             'transaction_token.uuid' => 'Form transaksi sudah tidak valid. Silakan muat ulang halaman.',

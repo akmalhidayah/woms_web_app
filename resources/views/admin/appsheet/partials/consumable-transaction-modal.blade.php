@@ -63,7 +63,7 @@
         canSubmit() {
             if (!this.selected || this.parsedQuantity() === null) return false;
             if (this.inputType === 'STOCK OUT') {
-                return this.usagePurpose.trim() !== '' && this.requestType !== '';
+                return this.requestType !== '';
             }
             return true;
         },
@@ -162,7 +162,7 @@
                 <div x-show="inputType === 'STOCK OUT'" class="space-y-4">
                     <div>
                         <label for="consumable-transaction-purpose" class="mb-1.5 block text-xs font-semibold text-slate-700">Tujuan Penggunaan</label>
-                        <textarea id="consumable-transaction-purpose" name="usage_purpose" rows="3" maxlength="1000" :required="inputType === 'STOCK OUT'" x-model="usagePurpose" placeholder="Contoh: Perbaikan Rotary Feeder" class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></textarea>
+                        <textarea id="consumable-transaction-purpose" name="usage_purpose" rows="3" maxlength="1000" x-model="usagePurpose" placeholder="Contoh: Perbaikan Rotary Feeder (opsional)" class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></textarea>
                     </div>
                     <div>
                         <label for="consumable-transaction-request-type" class="mb-1.5 block text-xs font-semibold text-slate-700">Jenis Permintaan</label>

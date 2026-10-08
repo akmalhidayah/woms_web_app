@@ -151,6 +151,29 @@ class AccessControlTest extends TestCase
             ->assertSee('workshopOpen: true', false);
     }
 
+    public function test_stock_sidebar_groups_history_and_stock_as_submenus(): void
+    {
+        $superAdmin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+
+        $stockMenu = AdminMenuRegistry::sidebarForUser($superAdmin)['appsheet'];
+
+        $this->assertSame('Stock', $stockMenu['label']);
+        $this->assertSame(
+            ['HISTORY CONSUMABLE', 'STOCK'],
+            collect($stockMenu['children'])->pluck('label')->all(),
+        );
+
+        $this->actingAs($superAdmin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('aria-controls="stock-submenus"', false)
+            ->assertSee('id="stock-submenus"', false)
+            ->assertSee('stockOpen: false', false);
+    }
+
     public function test_workshop_quality_control_menu_has_independent_frontend_access(): void
     {
         $admin = User::factory()->create([

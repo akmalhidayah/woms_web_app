@@ -699,6 +699,7 @@
             $supportMenus = $sidebarMenus['support'];
             $otherMenus = $sidebarMenus['other'];
             $orderMenus = $orderMenu['children'] ?? [];
+            $isStockSection = $appsheetMenu && ($appsheetMenu['active'] ?? false);
             $isOrdersSection = $orderMenu && ($orderMenu['active'] ?? false);
             $isMainSection = collect($mainMenus)->contains(fn (array $menu) => $menu['active'] ?? false);
             $isWorkshopSection = collect($workshopMenus)->contains(fn (array $menu) => $menu['active'] ?? false);
@@ -762,6 +763,7 @@
                 mobileOpen: false,
                 profileOpen: false,
                 notificationsOpen: false,
+                stockOpen: {{ $isStockSection ? 'true' : 'false' }},
                 orderOpen: {{ $isOrdersSection ? 'true' : 'false' }},
                 mainOpen: {{ $defaultMainSectionOpen ? 'true' : 'false' }},
                 workshopOpen: {{ $defaultWorkshopSectionOpen ? 'true' : 'false' }},
@@ -842,19 +844,40 @@
                         @endif
 
                         @if ($appsheetMenu)
-                            @foreach ($appsheetMenu['children'] ?? [] as $menu)
-                                @php($appsheetActive = $menu['active'] ?? false)
-                                <a
-                                    href="{{ $menu['href'] }}"
-                                    @if ($appsheetActive) aria-current="page" @endif
-                                    class="group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ $appsheetActive ? 'bg-white text-blue-900 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
+                            <div class="rounded-xl">
+                                <button
+                                    type="button"
+                                    @click="stockOpen = !stockOpen"
+                                    :aria-expanded="(stockOpen && sidebarOpen).toString()"
+                                    aria-controls="stock-submenus"
+                                    class="group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ $isStockSection ? 'bg-white text-blue-900 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
                                 >
-                                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition {{ $appsheetActive ? 'bg-blue-100 text-blue-900' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
-                                        <i data-lucide="{{ $menu['icon'] }}" class="h-4 w-4"></i>
+                                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition {{ $isStockSection ? 'bg-blue-100 text-blue-900' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
+                                        <i data-lucide="{{ $appsheetMenu['icon'] }}" class="h-4 w-4"></i>
                                     </span>
-                                    <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 text-left font-medium">{{ $menu['label'] }}</span>
-                                </a>
-                            @endforeach
+                                    <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 text-left font-medium">{{ $appsheetMenu['label'] }}</span>
+                                    <i
+                                        data-lucide="chevron-down"
+                                        class="h-4 w-4 transition {{ $isStockSection ? 'text-blue-900' : 'text-white/70' }}"
+                                        :class="stockOpen ? 'rotate-180' : ''"
+                                        x-show="sidebarOpen"
+                                        x-transition.opacity.duration.200ms
+                                        aria-hidden="true"
+                                    ></i>
+                                </button>
+
+                                <div id="stock-submenus" x-show="stockOpen && sidebarOpen" x-transition.opacity.duration.200ms x-cloak class="mt-0.5 space-y-0.5 pl-9">
+                                    @foreach ($appsheetMenu['children'] ?? [] as $menu)
+                                        <a
+                                            href="{{ $menu['href'] }}"
+                                            @if ($menu['active'] ?? false) aria-current="page" @endif
+                                            class="block rounded-md px-2.5 py-1.5 transition {{ ($menu['active'] ?? false) ? 'bg-white text-blue-900' : 'text-white/80 hover:bg-white/10 hover:text-white' }}"
+                                        >
+                                            {{ $menu['label'] }}
+                                        </a>
+                                    @endforeach
+                                </div>
+                            </div>
                         @endif
 
                         @if ($orderMenu || $mainMenus !== [])

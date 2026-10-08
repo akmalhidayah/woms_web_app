@@ -213,7 +213,7 @@ class AdminMenuRegistry
             ],
             self::MENU_APPSHEET => [
                 'key' => self::MENU_APPSHEET,
-                'label' => 'AppSheet',
+                'label' => 'Stock',
                 'icon' => 'package-open',
                 'group' => 'support',
                 'route_name' => 'admin.appsheet.history-consumable.index',

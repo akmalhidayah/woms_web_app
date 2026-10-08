@@ -10,6 +10,7 @@
         $modalSession = session('structure_modal', ['mode' => 'create', 'action' => route('admin.structure.store')]);
         $oldSections = collect(old('sections', []))->map(fn ($section, $index) => [
             'uid' => 'old-'.$index,
+            'id' => isset($section['id']) ? (string) ($section['id'] ?? '') : '',
             'name' => (string) ($section['name'] ?? ''),
             'manager_id' => isset($section['manager_id']) ? (string) ($section['manager_id'] ?? '') : '',
         ])->values()->all();
@@ -179,6 +180,7 @@
                 x-cloak
                 x-data="vendorStructureForm(@js(collect($errors->vendorStructure->any() ? old('sections', []) : $vendorWorkType->vendorSections)->map(fn ($section, $index) => [
                     'uid' => $errors->vendorStructure->any() ? 'old-'.$index : 'section-'.$section->id,
+                    'id' => (string) (is_array($section) ? ($section['id'] ?? '') : $section->id),
                     'name' => (string) (is_array($section) ? ($section['name'] ?? '') : $section->name),
                     'manager_id' => (string) (is_array($section) ? ($section['manager_id'] ?? '') : $section->manager_id),
                 ])->values()->all()))"
@@ -225,6 +227,7 @@
                             <div class="space-y-2">
                                 <template x-for="(section, index) in sections" :key="section.uid">
                                     <div class="grid gap-2 rounded-lg border border-slate-200 bg-white p-2 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
+                                        <input type="hidden" :name="`sections[${index}][id]`" x-model="section.id" form="vendor-work-type-{{ $vendorWorkType->id }}">
                                         <div>
                                             <label class="mb-1 block text-[10px] font-semibold text-slate-600">Nama Seksi</label>
                                             <input type="text" :name="`sections[${index}][name]`" x-model="section.name" form="vendor-work-type-{{ $vendorWorkType->id }}" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:border-[#ca642f] focus:outline-none" required>
@@ -337,6 +340,7 @@
                                             'unit_name' => $unit->name,
                                             'senior_manager_id' => $unit->senior_manager_id,
                                             'sections' => $unit->sections->map(fn ($section) => [
+                                                'id' => $section->id,
                                                 'name' => $section->name,
                                                 'manager_id' => $section->manager_id,
                                             ])->values()->all(),
@@ -521,6 +525,7 @@
                                     <div x-show="form.sections.length > 0" class="space-y-3">
                                         <template x-for="(section, index) in form.sections" :key="section.uid">
                                             <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                                <input type="hidden" :name="`sections[${index}][id]`" x-model="section.id">
                                                 <div class="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
                                                     <div>
                                                         <label class="mb-1.5 block text-xs font-semibold text-slate-700">Nama Seksi</label>
@@ -617,17 +622,18 @@
         return {
             sections: Array.isArray(initialSections) && initialSections.length
                 ? initialSections
-                : [{ uid: `${Date.now()}-${Math.random()}`, name: '', manager_id: '' }],
+                : [{ uid: `${Date.now()}-${Math.random()}`, id: '', name: '', manager_id: '' }],
             addSection() {
                 this.sections.push({
                     uid: `${Date.now()}-${Math.random()}`,
+                    id: '',
                     name: '',
                     manager_id: '',
                 });
             },
             removeSection(index) {
                 if (this.sections.length === 1) {
-                    this.sections = [{ uid: `${Date.now()}-${Math.random()}`, name: '', manager_id: '' }];
+                    this.sections = [{ uid: `${Date.now()}-${Math.random()}`, id: '', name: '', manager_id: '' }];
                     return;
                 }
 
@@ -698,6 +704,7 @@
                         senior_manager_id: data.senior_manager_id ? String(data.senior_manager_id) : '',
                         sections: (data.sections || []).map((section, index) => ({
                             uid: `${Date.now()}-${index}`,
+                            id: section.id ? String(section.id) : '',
                             name: section.name || '',
                             manager_id: section.manager_id ? String(section.manager_id) : '',
                         })),
@@ -772,6 +779,7 @@
 
                 this.form.sections.push({
                     uid: `${Date.now()}-${Math.random()}`,
+                    id: '',
                     name: value,
                     manager_id: '',
                 });

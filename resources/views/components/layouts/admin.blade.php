@@ -763,6 +763,10 @@
                 mobileOpen: false,
                 profileOpen: false,
                 notificationsOpen: false,
+                structurePreviewOpen: false,
+                structurePreviewLoading: false,
+                structurePreviewHtml: '',
+                structurePreviewError: '',
                 stockOpen: {{ $isStockSection ? 'true' : 'false' }},
                 orderOpen: {{ $isOrdersSection ? 'true' : 'false' }},
                 mainOpen: {{ $defaultMainSectionOpen ? 'true' : 'false' }},
@@ -774,9 +778,46 @@
                 },
                 closeMobile() {
                     this.mobileOpen = false;
+                },
+                syncBodyOverflow() {
+                    document.body.classList.toggle('overflow-hidden', this.mobileOpen || this.structurePreviewOpen);
+                },
+                openStructurePreview() {
+                    this.notificationsOpen = false;
+                    this.profileOpen = false;
+                    this.structurePreviewOpen = true;
+                    this.loadStructurePreview();
+                },
+                closeStructurePreview() {
+                    this.structurePreviewOpen = false;
+                },
+                async loadStructurePreview() {
+                    if (this.structurePreviewLoading) return;
+
+                    this.structurePreviewLoading = true;
+                    this.structurePreviewError = '';
+
+                    try {
+                        const response = await fetch(@js(route('admin.structure.preview')), {
+                            headers: {
+                                'Accept': 'text/html',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                        });
+
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                        this.structurePreviewHtml = await response.text();
+                        this.$nextTick(() => window.lucide?.createIcons());
+                    } catch (error) {
+                        this.structurePreviewError = 'Bagan struktur belum dapat dimuat. Silakan coba kembali.';
+                    } finally {
+                        this.structurePreviewLoading = false;
+                    }
                 }
             }"
-            x-init="$watch('mobileOpen', value => document.body.classList.toggle('overflow-hidden', value))"
+            x-init="$watch('mobileOpen', () => syncBodyOverflow()); $watch('structurePreviewOpen', () => syncBodyOverflow())"
+            @keydown.escape.window="if (structurePreviewOpen) closeStructurePreview()"
             x-on:admin-action-center:open.window="notificationsOpen = true; $nextTick(() => document.querySelector('[data-admin-action-section]')?.scrollIntoView({ block: 'nearest' }))"
             class="min-h-screen"
         >
@@ -1179,14 +1220,27 @@
 
                         <div class="flex items-center gap-2">
                             @foreach ($headerQuickLinks as $quickLink)
-                                <a
-                                    href="{{ route($quickLink['route']) }}"
-                                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-white transition hover:bg-white/10"
-                                    title="{{ $quickLink['label'] }}"
-                                    aria-label="{{ $quickLink['label'] }}"
-                                >
-                                    <i data-lucide="{{ $quickLink['icon'] }}" class="h-5 w-5"></i>
-                                </a>
+                                @if ($quickLink['key'] === \App\Support\AdminMenuRegistry::MENU_STRUKTUR_ORGANISASI)
+                                    <button
+                                        type="button"
+                                        @click="openStructurePreview()"
+                                        class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-white transition hover:bg-white/10"
+                                        title="Preview {{ $quickLink['label'] }}"
+                                        aria-label="{{ $quickLink['label'] }}"
+                                        data-structure-preview-trigger
+                                    >
+                                        <i data-lucide="{{ $quickLink['icon'] }}" class="h-5 w-5"></i>
+                                    </button>
+                                @else
+                                    <a
+                                        href="{{ route($quickLink['route']) }}"
+                                        class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-white transition hover:bg-white/10"
+                                        title="{{ $quickLink['label'] }}"
+                                        aria-label="{{ $quickLink['label'] }}"
+                                    >
+                                        <i data-lucide="{{ $quickLink['icon'] }}" class="h-5 w-5"></i>
+                                    </a>
+                                @endif
                             @endforeach
 
                             @if ($user?->isSuperAdmin())
@@ -1392,6 +1446,90 @@
                     </div>
                 </main>
             </div>
+
+            @if (\App\Support\AdminMenuRegistry::canAccess($user, \App\Support\AdminMenuRegistry::MENU_STRUKTUR_ORGANISASI))
+                <div
+                    x-show="structurePreviewOpen"
+                    x-transition.opacity
+                    x-cloak
+                    class="fixed inset-0 z-[70] bg-slate-950/65 backdrop-blur-sm"
+                    @click="closeStructurePreview()"
+                    aria-hidden="true"
+                ></div>
+
+                <div
+                    x-show="structurePreviewOpen"
+                    x-transition
+                    x-cloak
+                    class="fixed inset-0 z-[80] overflow-y-auto p-2 sm:p-4"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="structure-preview-title"
+                    @click.self="closeStructurePreview()"
+                >
+                    <div class="mx-auto flex min-h-full w-full max-w-[96rem] items-start justify-center py-2 sm:py-5">
+                        <section class="flex max-h-[94vh] w-full flex-col overflow-hidden rounded-2xl border border-white/60 bg-white shadow-2xl shadow-slate-950/30 sm:rounded-[1.75rem]">
+                            <header class="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 bg-gradient-to-r from-blue-950 via-blue-900 to-indigo-900 px-4 py-4 text-white sm:px-6">
+                                <div class="flex min-w-0 items-center gap-3">
+                                    <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20">
+                                        <i data-lucide="network" class="h-5 w-5"></i>
+                                    </span>
+                                    <div class="min-w-0">
+                                        <h2 id="structure-preview-title" class="truncate text-lg font-extrabold sm:text-xl">Bagan Struktur Organisasi</h2>
+                                        <p class="mt-0.5 text-xs text-blue-100">DIROPS, General Manager, Senior Manager, hingga Manager Seksi</p>
+                                    </div>
+                                </div>
+
+                                <div class="flex shrink-0 items-center gap-2">
+                                    <button
+                                        type="button"
+                                        @click="loadStructurePreview()"
+                                        :disabled="structurePreviewLoading"
+                                        class="hidden items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white ring-1 ring-white/20 transition hover:bg-white/20 disabled:cursor-wait disabled:opacity-60 sm:inline-flex"
+                                    >
+                                        <i data-lucide="refresh-cw" class="h-3.5 w-3.5" :class="structurePreviewLoading ? 'animate-spin' : ''"></i>
+                                        Muat Ulang
+                                    </button>
+                                    <button type="button" @click="closeStructurePreview()" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/20 transition hover:bg-white/20" aria-label="Tutup preview struktur">
+                                        <i data-lucide="x" class="h-5 w-5"></i>
+                                    </button>
+                                </div>
+                            </header>
+
+                            <div class="min-h-0 flex-1 overflow-y-auto bg-gradient-to-b from-slate-50 to-white p-4 sm:p-6">
+                                <div x-show="structurePreviewLoading" class="space-y-6 py-8" aria-live="polite">
+                                    <div class="mx-auto h-20 max-w-sm animate-pulse rounded-2xl bg-violet-100"></div>
+                                    <div class="mx-auto h-8 w-px bg-slate-200"></div>
+                                    <div class="mx-auto flex max-w-5xl gap-5 overflow-hidden">
+                                        <div class="h-72 min-w-80 flex-1 animate-pulse rounded-2xl bg-emerald-50"></div>
+                                        <div class="h-72 min-w-80 flex-1 animate-pulse rounded-2xl bg-sky-50"></div>
+                                        <div class="h-72 min-w-80 flex-1 animate-pulse rounded-2xl bg-amber-50"></div>
+                                    </div>
+                                    <div class="text-center text-xs font-semibold text-slate-500">Menyiapkan bagan struktur organisasi…</div>
+                                </div>
+
+                                <div x-show="!structurePreviewLoading && structurePreviewError" class="mx-auto max-w-md rounded-2xl border border-rose-200 bg-rose-50 px-5 py-8 text-center">
+                                    <span class="mx-auto inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-rose-600 ring-1 ring-rose-200">
+                                        <i data-lucide="triangle-alert" class="h-5 w-5"></i>
+                                    </span>
+                                    <p class="mt-3 text-sm font-bold text-rose-800" x-text="structurePreviewError"></p>
+                                    <button type="button" @click="loadStructurePreview()" class="mt-4 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-rose-700">Coba Lagi</button>
+                                </div>
+
+                                <div x-show="!structurePreviewLoading && !structurePreviewError" x-html="structurePreviewHtml"></div>
+                            </div>
+
+                            <footer class="flex shrink-0 flex-col gap-2 border-t border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                                <p class="text-[11px] text-slate-500">Bagan ini bersifat preview dan mengikuti data struktur terbaru.</p>
+                                <a href="{{ route('admin.structure.index') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-700">
+                                    <i data-lucide="settings-2" class="h-3.5 w-3.5"></i>
+                                    Kelola Struktur Organisasi
+                                </a>
+                            </footer>
+                        </section>
+                    </div>
+                </div>
+            @endif
         </div>
 
         <script>

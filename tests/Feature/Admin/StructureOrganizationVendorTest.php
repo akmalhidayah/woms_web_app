@@ -86,6 +86,41 @@ class StructureOrganizationVendorTest extends TestCase
         ]);
     }
 
+    public function test_admin_update_preserves_vendor_section_id_and_normalized_name(): void
+    {
+        $admin = $this->createSuperAdmin();
+        $manager = User::factory()->create();
+        $vendor = VendorWorkType::query()
+            ->where('name', VendorWorkType::FIXED_VENDOR_NAME)
+            ->firstOrFail();
+        $section = $vendor->vendorSections()->create([
+            'name' => 'Pekerjaan Lama',
+            'normalized_name' => 'pekerjaan lama',
+            'manager_id' => $manager->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.structure.vendor-structures.update', $vendor), [
+                'sections' => [
+                    [
+                        'id' => $section->id,
+                        'name' => 'Pekerjaan Fabrikasi',
+                        'manager_id' => $manager->id,
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('admin.structure.index'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('vendor_work_type_sections', [
+            'id' => $section->id,
+            'vendor_work_type_id' => $vendor->id,
+            'name' => 'Pekerjaan Fabrikasi',
+            'normalized_name' => 'pekerjaan fabrikasi',
+            'manager_id' => $manager->id,
+        ]);
+    }
+
     private function createSuperAdmin(): User
     {
         return User::factory()->create([

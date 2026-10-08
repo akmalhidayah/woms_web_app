@@ -74,7 +74,16 @@ class VendorStructureController extends Controller
                     }
                 }
 
-                $vendor->vendorSections()->whereNotIn('id', $submittedIds)->delete();
+                $removedIds = $existing->keys()->diff($submittedIds)->values();
+
+                if ($removedIds->isNotEmpty()
+                    && DB::table('lhpp_basts')->whereIn('vendor_work_type_section_id', $removedIds->all())->exists()) {
+                    throw ValidationException::withMessages([
+                        'sections' => 'Seksi vendor tidak dapat dihapus karena masih digunakan oleh dokumen BAST.',
+                    ]);
+                }
+
+                $vendor->vendorSections()->whereIn('id', $removedIds->all())->delete();
             });
         } catch (ValidationException $exception) {
             return back()->withErrors($exception->errors(), 'pkmVendorStructure')->withInput()

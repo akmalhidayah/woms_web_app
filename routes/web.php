@@ -481,6 +481,10 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
         ->name('admin.structure.index');
 
+    Route::get('admin/struktur-organisasi/preview', [StructureOrganizationController::class, 'preview'])
+        ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
+        ->name('admin.structure.preview');
+
     Route::post('admin/struktur-organisasi', [StructureOrganizationController::class, 'store'])
         ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
         ->name('admin.structure.store');

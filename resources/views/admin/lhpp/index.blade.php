@@ -28,22 +28,14 @@
         </section>
 
         <section class="order-list-panel overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-sm">
-            <div class="border-b border-slate-200 px-5 py-4 overflow-x-auto">
-                <form method="GET" action="{{ route('admin.lhpp.index') }}" class="flex min-w-[640px] items-center gap-2">
+            <div class="space-y-3 border-b border-slate-200 px-5 py-4">
+                <x-bast.index-tabs route-name="admin.lhpp.index" :active-tab="$activeTab" :tab-options="$tabOptions" :tab-counts="$tabCounts" :search="$search" />
+
+                <form method="GET" action="{{ route('admin.lhpp.index') }}">
+                    <input type="hidden" name="tab" value="{{ $activeTab }}">
                     <div class="relative min-w-0 flex-1">
                         <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 h-[12px] w-[12px] -translate-y-1/2 text-slate-400"></i>
-                        <input type="text" name="search" value="{{ $search }}" placeholder="Cari dokumen" class="w-full rounded-lg border border-slate-300 px-8 py-1.5 text-[10px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none">
-                    </div>
-
-                    <div class="ml-auto flex items-center gap-2">
-                        <button type="submit" class="inline-flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3 text-[10px] font-semibold text-white transition hover:bg-blue-700">
-                            <i data-lucide="filter" class="h-[12px] w-[12px]"></i>
-                            Terapkan
-                        </button>
-                        <a href="{{ route('admin.lhpp.index') }}" class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-[10px] font-semibold text-slate-700 transition hover:bg-slate-50">
-                            <i data-lucide="rotate-ccw" class="h-[12px] w-[12px]"></i>
-                            Reset
-                        </a>
+                        <input type="text" name="search" value="{{ $search }}" placeholder="Cari nomor order / pekerjaan / area..." class="w-full rounded-lg border border-slate-300 px-8 py-1.5 text-[10px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none">
                     </div>
                 </form>
             </div>
@@ -62,9 +54,22 @@
                         <tr>
                             <th class="px-4 py-2 text-left font-semibold">Order</th>
                             <th class="px-4 py-2 text-left font-semibold">Detail Pekerjaan</th>
-                            <th class="px-4 py-2 text-left font-semibold">Waktu</th>
+                            <th class="px-4 py-2 text-left font-semibold">Tanggal Dibuat</th>
                             <th class="px-4 py-2 text-left font-semibold">Biaya / Garansi</th>
-                            <th class="px-4 py-2 text-left font-semibold">Quality Control / Approval</th>
+                            <th class="px-4 py-2 text-left font-semibold">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span>Quality Control / Approval</span>
+                                    @if ($activeTab === \App\Support\BastIndexTabs::TAB_IN_PROGRESS)
+                                        <form method="POST" action="{{ route('admin.lhpp.approval.resend-all') }}" class="js-resend-all-approval-form" data-approval-document="BAST/LHPP">
+                                            @csrf
+                                            <button type="submit" class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-[8px] font-bold normal-case tracking-normal text-white shadow-sm transition hover:bg-blue-700">
+                                                <i data-lucide="send" class="h-2.5 w-2.5"></i>
+                                                Resend Semua
+                                            </button>
+                                        </form>
+                                    @endif
+                                </div>
+                            </th>
                             <th class="px-4 py-2 text-center font-semibold">PDF BAST</th>
                         </tr>
                     </thead>
@@ -79,11 +84,8 @@
                                 $pdfRefreshToken = now()->timestamp;
                                 $seksi = $lhpp->seksi ?: ($lhpp->order?->seksi ?? '-');
                                 $unitKerja = $lhpp->unit_kerja ?: ($lhpp->order?->unit_kerja ?? '-');
-                                $tanggalSelesai = $lhpp->tanggal_selesai_pekerjaan
-                                    ? $lhpp->tanggal_selesai_pekerjaan->format('d-m-Y')
-                                    : '-';
-                                $waktuPengerjaan = ($lhpp->tanggal_mulai_pekerjaan && $lhpp->tanggal_selesai_pekerjaan)
-                                    ? ($lhpp->tanggal_mulai_pekerjaan->diffInDays($lhpp->tanggal_selesai_pekerjaan) + 1).' Hari'
+                                $tanggalDibuat = $lhpp->created_at
+                                    ? $lhpp->created_at->format('d-m-Y')
                                     : '-';
                                 $totalBiaya = (float) ($lhpp->total_aktual_biaya ?? 0);
                                 $garansiMonths = $lhpp->garansi?->garansi_months;
@@ -213,12 +215,7 @@
                                 </td>
                                 <td class="px-4 py-3 align-top">
                                     <div class="space-y-1.5">
-                                        <div class="text-[11px] font-bold text-slate-900">{{ $tanggalSelesai }}</div>
-                                        @if ($waktuPengerjaan !== '-')
-                                            <span class="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-blue-200">
-                                                {{ $waktuPengerjaan }}
-                                            </span>
-                                        @endif
+                                        <div class="text-[11px] font-bold text-slate-900">{{ $tanggalDibuat }}</div>
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 align-top">
@@ -253,6 +250,7 @@
                                             <form method="POST" action="{{ route('admin.lhpp.quality-control', ['lhppId' => $lhpp->id]) }}" class="w-[104px] shrink-0 space-y-1">
                                                 @csrf
                                                 @method('PATCH')
+                                                <input type="hidden" name="tab" value="{{ $activeTab }}">
                                                 <input type="hidden" name="search" value="{{ $search }}">
                                                 <input type="hidden" name="page" value="{{ $lhpps->currentPage() }}">
                                                 <select name="quality_control_status" onchange="this.form.submit()" class="h-8 w-full rounded-lg border px-2 text-[10px] font-semibold focus:outline-none {{ $qualityControlSelectClass }}">
@@ -290,6 +288,12 @@
                                                     <i data-lucide="info" class="h-3 w-3"></i>
                                                 </button>
                                             </div>
+                                            <div class="mt-1 flex min-w-0 items-center gap-1 text-[8px] text-slate-400">
+                                                <i data-lucide="clock-3" class="h-2.5 w-2.5 shrink-0"></i>
+                                                <span class="truncate">
+                                                    {{ $approvalSummaryLabel }} · {{ $lhpp->updated_at?->locale('id')->diffForHumans() ?? '-' }}
+                                                </span>
+                                            </div>
                                             @if ($isActiveApprovalExpired)
                                                 <div class="mt-1 text-[8px] font-semibold text-amber-700">Link expired</div>
                                             @endif
@@ -302,10 +306,10 @@
                                         <a href="{{ route('admin.lhpp.pdf', ['nomorOrder' => $lhpp->nomor_order, 'termin' => 'termin-1']) }}?refresh={{ $pdfRefreshToken }}"
                                            target="_blank"
                                            rel="noopener"
-                                           title="Lihat BAST Termin 1 (PDF)"
-                                           aria-label="Lihat BAST Termin 1 PDF"
+                                           title="{{ $isWithoutWarranty ? 'Lihat BAST PDF' : 'Lihat BAST Termin 1 (PDF)' }}"
+                                           aria-label="{{ $isWithoutWarranty ? 'Lihat BAST PDF' : 'Lihat BAST Termin 1 PDF' }}"
                                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-[9px] font-black text-rose-700 shadow-sm transition hover:bg-rose-100">
-                                            T1
+                                            {{ \App\Support\BastDisplayLabel::shortStageLabel('termin_1', $garansiMonths) === 'Pembayaran' ? 'BAST' : 'T1' }}
                                         </a>
 
                                         @if ($hasTerminTwo)
@@ -317,9 +321,7 @@
                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-[9px] font-black text-sky-700 shadow-sm transition hover:bg-sky-100">
                                                 T2
                                             </a>
-                                        @elseif ($isWithoutWarranty)
-                                            <span class="text-center text-[10px] font-medium text-slate-400">Tidak ada Termin 2</span>
-                                        @else
+                                        @elseif (! $isWithoutWarranty)
                                             <span class="text-center text-[10px] font-medium text-slate-400">Termin 2 belum dibuat</span>
                                         @endif
 
@@ -330,7 +332,7 @@
                                         @endif
 
                                         @if ($diropsSignedDocumentUrl)
-                                            <a href="{{ $diropsSignedDocumentUrl }}" target="_blank" rel="noopener" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:bg-emerald-100" title="Final DIROPS T1">
+                                            <a href="{{ $diropsSignedDocumentUrl }}" target="_blank" rel="noopener" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:bg-emerald-100" title="{{ $isWithoutWarranty ? 'Final DIROPS' : 'Final DIROPS T1' }}">
                                                 <i data-lucide="file-check-2" class="h-3 w-3"></i>
                                             </a>
                                         @endif
@@ -352,9 +354,11 @@
                                             action="{{ route('admin.lhpp.destroy', $lhpp) }}"
                                             class="js-admin-delete-bast"
                                             data-order-number="{{ $nomorOrder }}"
+                                            data-without-warranty="{{ $isWithoutWarranty ? '1' : '0' }}"
                                         >
                                             @csrf
                                             @method('DELETE')
+                                            <input type="hidden" name="tab" value="{{ $activeTab }}">
                                             <input type="hidden" name="search" value="{{ $search }}">
                                             <input type="hidden" name="page" value="{{ $lhpps->currentPage() }}">
                                             <button
@@ -371,7 +375,14 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-8 text-center text-[11px] text-slate-500">Belum ada data BAST yang tersedia.</td>
+                                <td colspan="6" class="px-4 py-8 text-center text-[11px] text-slate-500">
+                                    {{ match ($activeTab) {
+                                        'in_progress' => 'Belum ada BAST dalam proses approval.',
+                                        'approved' => 'Belum ada BAST approved yang menunggu proses berikutnya.',
+                                        'history' => 'Belum ada riwayat BAST.',
+                                        default => 'Belum ada BAST yang perlu tindakan.',
+                                    } }}
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -576,7 +587,8 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <x-approval.resend-all-confirmation />
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const statusAlert = document.getElementById('admin-bast-status-alert');
@@ -595,7 +607,10 @@
                 form.addEventListener('submit', async (event) => {
                     event.preventDefault();
                     const orderNumber = form.dataset.orderNumber || '-';
-                    const message = `BAST order ${orderNumber} akan dihapus seluruhnya, termasuk Termin 2, item, gambar, signature, token approval, file final, dan LPJ/PPL terkait. Data garansi order tetap dipertahankan. PKM harus membuat BAST ulang.`;
+                    const withoutWarranty = form.dataset.withoutWarranty === '1';
+                    const message = withoutWarranty
+                        ? `BAST order ${orderNumber} akan dihapus seluruhnya, termasuk item, gambar, signature, token approval, file final, dan LPJ/PPL terkait. Data garansi order tetap dipertahankan. PKM harus membuat BAST ulang.`
+                        : `BAST order ${orderNumber} akan dihapus seluruhnya, termasuk Termin 2, item, gambar, signature, token approval, file final, dan LPJ/PPL terkait. Data garansi order tetap dipertahankan. PKM harus membuat BAST ulang.`;
 
                     if (!window.Swal) {
                         if (window.confirm(`${message}\n\nLanjutkan?`)) form.submit();

@@ -9,7 +9,10 @@ use App\Models\Hpp;
 use App\Models\HppSignature;
 use App\Models\Order;
 use App\Services\Approvals\ApprovalNotificationService;
+use App\Services\Approvals\BulkApprovalNotificationService;
+use App\Services\Approvals\PkmBulkResendCooldownService;
 use App\Services\Pkm\HppDraftService;
+use App\Support\HppIndexTabs;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,28 +21,41 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 class HppDraftController extends Controller
 {
     public function __construct(
         private readonly HppDraftService $draftService,
         private readonly ApprovalNotificationService $approvalNotificationService,
+        private readonly BulkApprovalNotificationService $bulkNotificationService,
+        private readonly PkmBulkResendCooldownService $bulkResendCooldownService,
     ) {}
 
     public function index(Request $request): View
     {
         $search = trim((string) $request->string('search'));
-        $status = trim((string) $request->string('status'));
-        $rows = Hpp::query()
+        $activeTab = HppIndexTabs::fromRequest(
+            $request->query('tab'),
+            $request->query('status'),
+        );
+        $rowsQuery = Hpp::query()
             ->with([
                 'order:id,notifikasi,seksi,unit_kerja',
+                'order.documents:id,order_id,jenis_dokumen',
+                'order.scopeOfWork:id,order_id',
                 'creator:id,name,role',
                 'signatures.signer:id,name,nomor_hp',
                 'activeSignature.signer:id,name,nomor_hp',
+                'budgetVerification',
+                'purchaseOrder',
+                'lhppBasts',
             ])
-            ->search($search)
-            ->when($status !== '', fn ($query) => $query->where('status', $status))
-            ->latest('id')
+            ->search($search);
+
+        $rows = HppIndexTabs::apply($rowsQuery, $activeTab)
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
             ->paginate(10)
             ->withQueryString();
 
@@ -54,9 +70,13 @@ class HppDraftController extends Controller
         return view('pkm.hpp.index', [
             'rows' => $rows,
             'search' => $search,
-            'status' => $status,
             'statusOptions' => Hpp::statusOptions(),
+            'activeTab' => $activeTab,
+            'tabOptions' => HppIndexTabs::options(),
+            'tabCounts' => HppIndexTabs::counts(),
             'pendingHppOrders' => $pendingHppOrders,
+            'bulkResendAvailableAt' => $this->bulkResendCooldownService
+                ->availableAt(PkmBulkResendCooldownService::DOCUMENT_HPP),
         ]);
     }
 
@@ -78,8 +98,8 @@ class HppDraftController extends Controller
                 ]);
             }
 
-            $hpp = new Hpp();
-            $this->draftService->fillDraft($hpp, $validated, $request->all());
+            $hpp = new Hpp;
+            $this->draftService->fillDraft($hpp, $validated, $validated);
             $hpp->created_by = $request->user()->id;
             $hpp->status = Hpp::STATUS_DRAFT;
             $hpp->submitted_at = null;
@@ -103,7 +123,7 @@ class HppDraftController extends Controller
     {
         $validated = $request->validated();
 
-        DB::transaction(function () use ($request, $validated, $hpp): void {
+        DB::transaction(function () use ($validated, $hpp): void {
             $lockedHpp = Hpp::query()->whereKey($hpp->id)->lockForUpdate()->firstOrFail();
 
             if ($lockedHpp->status !== Hpp::STATUS_DRAFT) {
@@ -118,7 +138,7 @@ class HppDraftController extends Controller
                 ]);
             }
 
-            $this->draftService->fillDraft($lockedHpp, $validated, $request->all());
+            $this->draftService->fillDraft($lockedHpp, $validated, $validated);
             $lockedHpp->status = Hpp::STATUS_DRAFT;
             $lockedHpp->submitted_at = null;
             $lockedHpp->save();
@@ -181,6 +201,39 @@ class HppDraftController extends Controller
             'Link approval HPP berhasil dikirim ulang ke %s.',
             $signature->signer?->email ?: 'email approver',
         ));
+    }
+
+    public function resendAllActiveApprovals(): RedirectResponse
+    {
+        $claim = $this->bulkResendCooldownService
+            ->acquire(PkmBulkResendCooldownService::DOCUMENT_HPP);
+
+        if (! $claim['allowed']) {
+            return back()->with('error', sprintf(
+                'Resend Semua HPP hanya dapat dilakukan sekali setiap 24 jam. Tombol tersedia kembali pada %s.',
+                $claim['available_at']->format('d/m/Y H:i'),
+            ));
+        }
+
+        try {
+            $result = $this->bulkNotificationService->resendActiveHppApprovals();
+        } catch (Throwable $exception) {
+            $this->bulkResendCooldownService->release(
+                PkmBulkResendCooldownService::DOCUMENT_HPP,
+                $claim['claimed_at'],
+            );
+
+            throw $exception;
+        }
+
+        if ($result['sent'] === 0) {
+            $this->bulkResendCooldownService->release(
+                PkmBulkResendCooldownService::DOCUMENT_HPP,
+                $claim['claimed_at'],
+            );
+        }
+
+        return back()->with('status', $this->bulkNotificationService->resultMessage('HPP', $result));
     }
 
     private function eligibleOrders()

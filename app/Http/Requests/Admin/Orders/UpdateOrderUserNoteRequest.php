@@ -26,12 +26,24 @@ class UpdateOrderUserNoteRequest extends FormRequest
     {
         $status = (string) $this->input('catatan_status');
         $detailOptions = Order::userNoteDetailOptions()[$status] ?? null;
+        $usesWorkshopRegu = in_array($status, [
+            OrderUserNoteStatus::ApprovedWorkshop->value,
+            OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+        ], true);
 
         return [
             'catatan_status' => ['required', Rule::in(OrderUserNoteStatus::values())],
             'catatan' => $detailOptions !== null
-                ? ['nullable', 'string', Rule::in($detailOptions)]
+                ? [$usesWorkshopRegu ? 'required' : 'nullable', 'string', Rule::in($detailOptions)]
                 : ['nullable', 'string', 'max:1000'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'catatan.required' => 'Regu Bengkel wajib dipilih untuk Order Pekerjaan Bengkel.',
+            'catatan.in' => 'Regu Bengkel yang dipilih tidak valid.',
         ];
     }
 }

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Admin\Orders;
 
-use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Orders\StoreOrderScopeOfWorkRequest;
 use App\Http\Requests\Admin\Orders\UpdateOrderScopeOfWorkRequest;
@@ -10,6 +9,7 @@ use App\Models\Order;
 use App\Models\OrderScopeOfWork;
 use App\Support\ScopeOfWorkPdfPresenter;
 use App\Support\SignatureImageStorage;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -42,7 +42,7 @@ class OrderScopeOfWorkController extends Controller
         }
 
         return redirect()
-            ->route('admin.orders.show', $order)
+            ->to($this->documentPageUrl($order))
             ->with('status', $message);
     }
 
@@ -63,7 +63,7 @@ class OrderScopeOfWorkController extends Controller
         ]);
 
         return redirect()
-            ->route('admin.orders.show', $order)
+            ->to($this->documentPageUrl($order))
             ->with('status', 'Scope of Work berhasil diperbarui.');
     }
 
@@ -92,6 +92,15 @@ class OrderScopeOfWorkController extends Controller
         ])->setPaper('a4', 'portrait');
 
         return $pdf->stream('scope-of-work-'.$order->nomor_order.'.pdf');
+    }
+
+    private function documentPageUrl(Order $order): string
+    {
+        if ($order->loadMissing('orderWorkshop')->isWorkshopOrder()) {
+            return route('admin.orders.documents.index', $order);
+        }
+
+        return route('admin.orders.show', $order);
     }
 
     private function storeSignature(StoreOrderScopeOfWorkRequest|UpdateOrderScopeOfWorkRequest $request, Order $order, ?string $existingSignature): ?string

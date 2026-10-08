@@ -299,5 +299,229 @@
                 })),
             });
         }
+
+        const monthlyModal = document.getElementById('oaMonthlyRealizationModal');
+        const monthlyForm = document.getElementById('monthlyRealizationForm');
+        const monthlyOaId = document.getElementById('monthlyRealizationOaId');
+        const monthlyRealizationId = document.getElementById('monthlyRealizationId');
+        const monthlyAgreementInfo = document.getElementById('monthlyRealizationAgreementInfo');
+        const monthlyYear = document.getElementById('monthlyRealizationYear');
+        const monthlyMonth = document.getElementById('monthlyRealizationMonth');
+        const monthlyCategory = document.getElementById('monthlyRealizationCategory');
+        const monthlyAmount = document.getElementById('monthlyRealizationAmount');
+        const monthlyEstimatorCompletedOrders = document.getElementById('monthlyEstimatorCompletedOrders');
+        const monthlyUnitWork = document.getElementById('monthlyRealizationUnitWork');
+        const monthlySection = document.getElementById('monthlyRealizationSection');
+        const monthlyRows = document.getElementById('monthlyRealizationRows');
+        const monthlyEmpty = document.getElementById('monthlyRealizationEmpty');
+        const monthlyNames = [
+            '', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+            'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+        ];
+        const monthlyCsrfToken = @json(csrf_token());
+        const oldMonthlyOaId = @json((string) old('_monthly_oa_id', ''));
+        const oldMonthlySection = @json((string) old('seksi', ''));
+
+        const formatMonthlyAmount = (value) => new Intl.NumberFormat('id-ID').format(Number(value || 0));
+
+        const syncMonthlySections = (selectedSection = '') => {
+            if (!monthlyUnitWork || !monthlySection) return;
+
+            const sections = parseSectionOptions(monthlyUnitWork);
+            monthlySection.innerHTML = '';
+
+            if (!monthlyUnitWork.value) {
+                const placeholder = new Option('Pilih unit kerja terlebih dahulu', '');
+                monthlySection.appendChild(placeholder);
+                monthlySection.disabled = true;
+                return;
+            }
+
+            monthlySection.disabled = false;
+
+            if (sections.length === 0) {
+                const noSection = new Option('Tidak ada seksi', 'Tidak ada seksi', true, true);
+                monthlySection.appendChild(noSection);
+                return;
+            }
+
+            monthlySection.appendChild(new Option('Pilih seksi', ''));
+            sections.forEach((section) => {
+                monthlySection.appendChild(new Option(section, section, false, section === selectedSection));
+            });
+        };
+
+        const fillMonthlyForm = (realization = null) => {
+            if (!monthlyRealizationId || !monthlyYear || !monthlyMonth || !monthlyCategory || !monthlyAmount || !monthlyEstimatorCompletedOrders || !monthlyUnitWork) return;
+
+            if (realization) {
+                monthlyRealizationId.value = realization.id ?? '';
+                monthlyYear.value = realization.year ?? '';
+                monthlyMonth.value = realization.month ?? '';
+                monthlyCategory.value = Array.from(monthlyCategory.options)
+                    .some((option) => option.value === realization.kategori_biaya)
+                    ? realization.kategori_biaya
+                    : '';
+                monthlyAmount.value = formatMonthlyAmount(realization.amount);
+                monthlyEstimatorCompletedOrders.value = realization.estimator_completed_orders ?? 0;
+                monthlyUnitWork.value = Array.from(monthlyUnitWork.options)
+                    .some((option) => option.value === realization.unit_kerja)
+                    ? realization.unit_kerja
+                    : '';
+                syncMonthlySections(realization.seksi || '');
+                monthlyYear.focus();
+                return;
+            }
+
+            monthlyRealizationId.value = '';
+            monthlyYear.value = '';
+            monthlyMonth.value = '';
+            monthlyCategory.value = '';
+            monthlyAmount.value = '0';
+            monthlyEstimatorCompletedOrders.value = '0';
+            monthlyUnitWork.value = '';
+            syncMonthlySections();
+        };
+
+        const bindMonthlyAmountFormatter = (input) => {
+            input?.addEventListener('input', () => {
+                const digits = input.value.replace(/\D/g, '');
+                input.value = digits === '' ? '' : formatMonthlyAmount(digits);
+            });
+        };
+
+        bindMonthlyAmountFormatter(monthlyAmount);
+        monthlyUnitWork?.addEventListener('change', () => syncMonthlySections());
+        syncMonthlySections(oldMonthlySection);
+
+        const renderMonthlyRows = (realizations) => {
+            if (!monthlyRows || !monthlyEmpty) return;
+
+            monthlyRows.innerHTML = '';
+            monthlyEmpty.classList.toggle('hidden', realizations.length > 0);
+
+            realizations.forEach((realization) => {
+                const row = document.createElement('tr');
+                row.className = 'text-slate-700';
+
+                const periodCell = document.createElement('td');
+                periodCell.className = 'whitespace-nowrap px-4 py-3 font-semibold';
+                periodCell.textContent = `${monthlyNames[Number(realization.month)] || realization.month} ${realization.year}`;
+
+                const categoryCell = document.createElement('td');
+                categoryCell.className = 'px-4 py-3';
+                categoryCell.textContent = realization.category_label || realization.kategori_biaya || '-';
+
+                const structureCell = document.createElement('td');
+                structureCell.className = 'px-4 py-3';
+                const sectionName = realization.seksi || 'Belum ditentukan';
+                const unitName = realization.unit_kerja || 'Belum ditentukan';
+                structureCell.innerHTML = `<div class="font-semibold text-slate-700"></div><div class="mt-0.5 text-xs text-slate-400"></div>`;
+                structureCell.children[0].textContent = sectionName;
+                structureCell.children[1].textContent = unitName;
+
+                const amountCell = document.createElement('td');
+                amountCell.className = 'whitespace-nowrap px-4 py-3 text-right';
+                amountCell.textContent = `Rp${formatMonthlyAmount(realization.amount)}`;
+
+                const completedOrdersCell = document.createElement('td');
+                completedOrdersCell.className = 'whitespace-nowrap px-4 py-3 text-right';
+                completedOrdersCell.textContent = formatMonthlyAmount(realization.estimator_completed_orders);
+
+                const actionCell = document.createElement('td');
+                actionCell.className = 'whitespace-nowrap px-4 py-3 text-right';
+
+                const actionWrap = document.createElement('div');
+                actionWrap.className = 'inline-flex items-center gap-2';
+
+                const editButton = document.createElement('button');
+                editButton.type = 'button';
+                editButton.className = 'font-semibold text-sky-600 hover:text-sky-700';
+                editButton.textContent = 'Edit';
+                editButton.addEventListener('click', () => fillMonthlyForm(realization));
+
+                const deleteForm = document.createElement('form');
+                deleteForm.method = 'POST';
+                deleteForm.action = realization.destroy_url;
+                deleteForm.dataset.deleteMonthlyRealizationForm = '';
+                deleteForm.innerHTML = `<input type="hidden" name="_token" value="${monthlyCsrfToken}"><input type="hidden" name="_method" value="DELETE">`;
+
+                const deleteButton = document.createElement('button');
+                deleteButton.type = 'submit';
+                deleteButton.className = 'font-semibold text-rose-600 hover:text-rose-700';
+                deleteButton.textContent = 'Hapus';
+                deleteForm.appendChild(deleteButton);
+                deleteForm.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+                    let confirmed = false;
+
+                    if (window.Swal) {
+                        const result = await window.Swal.fire({
+                            icon: 'warning',
+                            title: 'Hapus realisasi biaya?',
+                            text: `Realisasi ${categoryCell.textContent} untuk ${sectionName} periode ${periodCell.textContent} akan dihapus.`,
+                            showCancelButton: true,
+                            confirmButtonText: 'Ya, hapus',
+                            cancelButtonText: 'Batal',
+                            confirmButtonColor: '#e11d48',
+                        });
+                        confirmed = result.isConfirmed;
+                    } else {
+                        confirmed = window.confirm(`Hapus realisasi ${categoryCell.textContent} untuk ${sectionName} periode ${periodCell.textContent}?`);
+                    }
+
+                    if (confirmed) deleteForm.submit();
+                });
+
+                actionWrap.append(editButton, deleteForm);
+                actionCell.appendChild(actionWrap);
+                row.append(periodCell, categoryCell, structureCell, amountCell, completedOrdersCell, actionCell);
+                monthlyRows.appendChild(row);
+            });
+        };
+
+        const openMonthlyModal = (button, preserveOldInput = false) => {
+            if (!monthlyModal || !monthlyForm || !monthlyOaId || !monthlyAgreementInfo) return;
+
+            const realizations = JSON.parse(button.dataset.realizations || '[]');
+            monthlyForm.action = button.dataset.storeUrl || '';
+            monthlyOaId.value = button.dataset.id || '';
+            monthlyAgreementInfo.textContent = `${button.dataset.number || '-'} · ${button.dataset.name || '-'}`;
+            renderMonthlyRows(realizations);
+
+            if (!preserveOldInput) {
+                fillMonthlyForm();
+                const start = button.dataset.periodStart ? new Date(`${button.dataset.periodStart}T00:00:00`) : null;
+                const end = button.dataset.periodEnd ? new Date(`${button.dataset.periodEnd}T00:00:00`) : null;
+                const today = new Date();
+                const initialDate = start && today < start ? start : (end && today > end ? end : today);
+                monthlyYear.value = initialDate.getFullYear();
+                monthlyMonth.value = initialDate.getMonth() + 1;
+            }
+
+            monthlyModal.classList.remove('hidden');
+            monthlyModal.classList.add('flex');
+        };
+
+        const closeMonthlyModal = () => {
+            if (!monthlyModal) return;
+            monthlyModal.classList.add('hidden');
+            monthlyModal.classList.remove('flex');
+        };
+
+        const monthlyTriggers = document.querySelectorAll('[data-monthly-realization-trigger]');
+        monthlyTriggers.forEach((button) => {
+            button.addEventListener('click', () => openMonthlyModal(button));
+        });
+
+        document.getElementById('closeMonthlyRealizationModal')?.addEventListener('click', closeMonthlyModal);
+        monthlyModal?.addEventListener('click', (event) => {
+            if (event.target === monthlyModal) closeMonthlyModal();
+        });
+
+        if (oldMonthlyOaId) {
+            const trigger = Array.from(monthlyTriggers).find((button) => button.dataset.id === oldMonthlyOaId);
+            if (trigger) openMonthlyModal(trigger, true);
+        }
     });
 </script>

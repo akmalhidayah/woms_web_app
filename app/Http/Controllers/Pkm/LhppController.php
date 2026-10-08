@@ -15,12 +15,18 @@ use App\Models\Order;
 use App\Models\VendorWorkType;
 use App\Models\VendorWorkTypeSection;
 use App\Services\Approvals\ApprovalNotificationService;
+use App\Services\Approvals\BulkApprovalNotificationService;
+use App\Services\Approvals\PkmBulkResendCooldownService;
 use App\Services\Pkm\BastDeletionService;
+use App\Services\Pkm\BastItemSnapshotService;
+use App\Services\Pkm\BastPdfAttachmentService;
 use App\Support\ApprovalFlowSignerPreview;
 use App\Support\BastApprovalFlow;
 use App\Support\BastApprovalSignatureBuilder;
+use App\Support\BastDisplayLabel;
 use App\Support\BastDocumentNumberGenerator;
 use App\Support\BastEffectiveApprovalFlowResolver;
+use App\Support\BastIndexTabs;
 use App\Support\PdfMergeService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -32,6 +38,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
@@ -46,17 +53,18 @@ class LhppController extends Controller
         private readonly BastDocumentNumberGenerator $documentNumberGenerator,
         private readonly BastDeletionService $bastDeletionService,
         private readonly BastEffectiveApprovalFlowResolver $effectiveFlowResolver,
+        private readonly BastIndexTabs $indexTabs,
+        private readonly BastItemSnapshotService $bastItemSnapshotService,
+        private readonly BastPdfAttachmentService $bastPdfAttachmentService,
+        private readonly BulkApprovalNotificationService $bulkNotificationService,
+        private readonly PkmBulkResendCooldownService $bulkResendCooldownService,
     ) {}
 
     public function index(Request $request): View
     {
         try {
-            $filters = [
-                'search' => trim((string) $request->string('search')),
-                'unit_kerja' => trim((string) $request->string('unit_kerja')),
-                'purchase_order_number' => trim((string) $request->string('purchase_order_number')),
-                'termin_status' => trim((string) $request->string('termin_status', 'all')),
-            ];
+            $search = trim((string) $request->string('search'));
+            $activeTab = $this->indexTabs->normalize($request->string('tab')->toString());
 
             $baseQuery = LhppBast::query()
                 ->with([
@@ -68,52 +76,25 @@ class LhppController extends Controller
                     'order:id,nomor_order,notifikasi',
                 ])
                 ->where('termin_type', 'termin_1')
-                ->when($filters['search'] !== '', function ($query) use ($filters): void {
-                    $needle = $filters['search'];
-
-                    $query->where(function ($builder) use ($needle): void {
+                ->when($search !== '', function ($query) use ($search): void {
+                    $query->where(function ($builder) use ($search): void {
                         $builder
-                            ->where('nomor_order', 'like', "%{$needle}%")
-                            ->orWhere('purchase_order_number', 'like', "%{$needle}%")
-                            ->orWhere('unit_kerja', 'like', "%{$needle}%")
-                            ->orWhere('seksi', 'like', "%{$needle}%")
-                            ->orWhereHas('order', function ($orderQuery) use ($needle): void {
-                                $orderQuery->where('notifikasi', 'like', "%{$needle}%");
+                            ->where('nomor_order', 'like', "%{$search}%")
+                            ->orWhere('notifikasi', 'like', "%{$search}%")
+                            ->orWhere('purchase_order_number', 'like', "%{$search}%")
+                            ->orWhere('unit_kerja', 'like', "%{$search}%")
+                            ->orWhere('seksi', 'like', "%{$search}%")
+                            ->orWhere('deskripsi_pekerjaan', 'like', "%{$search}%")
+                            ->orWhereHas('order', function ($orderQuery) use ($search): void {
+                                $orderQuery->where('notifikasi', 'like', "%{$search}%");
                             });
                     });
-                })
-                ->when($filters['unit_kerja'] !== '', fn ($query) => $query->where('unit_kerja', $filters['unit_kerja']))
-                ->when($filters['purchase_order_number'] !== '', fn ($query) => $query->where('purchase_order_number', $filters['purchase_order_number']))
-                ->when($filters['termin_status'] !== 'all', function ($query) use ($filters): void {
-                    match ($filters['termin_status']) {
-                        't1_paid' => $query->where('termin1_status', 'sudah'),
-                        't1_unpaid' => $query->where('termin1_status', '!=', 'sudah'),
-                        't2_paid' => $query->where('termin2_status', 'sudah'),
-                        't2_unpaid' => $query->where('termin2_status', '!=', 'sudah'),
-                        default => null,
-                    };
                 });
 
-            $units = LhppBast::query()
-                ->where('termin_type', 'termin_1')
-                ->whereNotNull('unit_kerja')
-                ->whereRaw("TRIM(unit_kerja) <> ''")
-                ->orderBy('unit_kerja')
-                ->pluck('unit_kerja')
-                ->unique()
-                ->values();
-
-            $pos = LhppBast::query()
-                ->where('termin_type', 'termin_1')
-                ->whereNotNull('purchase_order_number')
-                ->whereRaw("TRIM(purchase_order_number) <> ''")
-                ->orderBy('purchase_order_number')
-                ->pluck('purchase_order_number')
-                ->unique()
-                ->values();
+            $this->indexTabs->apply($baseQuery, $activeTab, BastIndexTabs::CONTEXT_PKM);
+            $this->indexTabs->applyLatestActivityOrder($baseQuery);
 
             $lhpps = $baseQuery
-                ->latest('id')
                 ->paginate(8)
                 ->withQueryString();
 
@@ -133,11 +114,14 @@ class LhppController extends Controller
                 'pageTitle' => 'BAST / LHPP',
                 'pageDescription' => 'Monitoring laporan hasil pekerjaan dan dokumen BAST/LHPP PKM.',
                 'lhpps' => $lhpps,
-                'filters' => $filters,
-                'units' => $units,
-                'pos' => $pos,
+                'search' => $search,
+                'activeTab' => $activeTab,
+                'tabOptions' => $this->indexTabs->options(BastIndexTabs::CONTEXT_PKM),
+                'tabCounts' => $this->indexTabs->counts(BastIndexTabs::CONTEXT_PKM),
                 'pendingTerminOneOrders' => $pendingTerminOneOrders,
                 'activeTokens' => collect(),
+                'bulkResendAvailableAt' => $this->bulkResendCooldownService
+                    ->availableAt(PkmBulkResendCooldownService::DOCUMENT_BAST),
             ]);
         } catch (Throwable $exception) {
             $this->rethrowExpectedException($exception);
@@ -158,8 +142,8 @@ class LhppController extends Controller
         try {
             return $this->buildFormView($request, null, [
                 'pageTitle' => 'Form LHPP',
-                'pageDescription' => 'Form pembuatan BAST termin 1 PKM.',
-                'formTitle' => 'Buat BAST Termin 1',
+                'pageDescription' => 'Form pembuatan BAST/LHPP PKM.',
+                'formTitle' => 'Buat BAST / LHPP',
                 'formAction' => route('pkm.lhpp.store'),
                 'formMethod' => 'POST',
                 'submitLabel' => 'Simpan',
@@ -229,16 +213,26 @@ class LhppController extends Controller
 
             abort_if(! $lhpp, Response::HTTP_NOT_FOUND, 'Data BAST tidak ditemukan.');
 
+            $lhpp->loadMissing(['garansi', 'parentLhppBast.garansi']);
+            $garansiMonths = $terminType === 'termin_2'
+                ? $lhpp->parentLhppBast?->garansi?->garansi_months
+                : $lhpp->garansi?->garansi_months;
+            $bastLabel = BastDisplayLabel::bastLabel($terminType, $garansiMonths, false);
+            $isFormLocked = $lhpp->isApprovalLocked();
+
             return $this->buildFormView($request, $lhpp, [
-                'pageTitle' => 'Edit LHPP',
-                'pageDescription' => sprintf('Pembaruan data BAST %s PKM.', $this->terminLabel($terminType)),
-                'formTitle' => sprintf('Edit BAST %s', $this->terminLabel($terminType)),
+                'pageTitle' => $isFormLocked ? 'Lihat LHPP' : 'Edit LHPP',
+                'pageDescription' => $isFormLocked
+                    ? sprintf('Data %s PKM hanya dapat dilihat.', $bastLabel)
+                    : sprintf('Pembaruan data %s PKM.', $bastLabel),
+                'formTitle' => ($isFormLocked ? 'Lihat ' : 'Edit ').$bastLabel,
                 'formAction' => route('pkm.lhpp.update', [
                     'nomorOrder' => $lhpp->nomor_order,
                     'termin' => $this->terminSlug($terminType),
                 ]),
                 'formMethod' => 'PATCH',
                 'submitLabel' => 'Update',
+                'isFormLocked' => $isFormLocked,
             ], $terminType, $lhpp->parentLhppBast);
         } catch (Throwable $exception) {
             $this->rethrowExpectedException($exception);
@@ -259,6 +253,11 @@ class LhppController extends Controller
     public function calculate(Request $request): JsonResponse
     {
         $validated = $request->validate([
+            'nomor_order' => ['required', 'exists:orders,nomor_order'],
+            'item_source' => ['nullable', Rule::in([
+                LhppBast::ITEM_SOURCE_HPP_SNAPSHOT,
+                LhppBast::ITEM_SOURCE_MANUAL,
+            ])],
             'material_rows' => ['nullable', 'array', 'max:100'],
             'material_rows.*.contract_item_id' => ['nullable', 'integer', 'exists:fabrication_construction_contracts,id'],
             'material_rows.*.jenis_item' => ['nullable', 'string', 'max:255'],
@@ -275,14 +274,25 @@ class LhppController extends Controller
             'service_rows.*.volume' => ['nullable', 'regex:/^\d{1,12}(?:\.\d{1,3})?$/'],
             'service_rows.*.unit' => ['nullable', 'string', 'max:50'],
             'service_rows.*.unit_price' => ['nullable', 'string', 'max:50'],
-            'is_without_warranty' => ['nullable', 'boolean'],
         ]);
+
+        if (($validated['item_source'] ?? LhppBast::ITEM_SOURCE_MANUAL) !== LhppBast::ITEM_SOURCE_MANUAL) {
+            throw ValidationException::withMessages([
+                'item_source' => 'Endpoint kalkulasi hanya digunakan untuk sumber item manual.',
+            ]);
+        }
+
+        $order = Order::query()
+            ->with('garansi:id,order_id,garansi_months')
+            ->where('nomor_order', $validated['nomor_order'])
+            ->firstOrFail();
+        $isWithoutWarranty = (int) ($order->garansi?->garansi_months ?? -1) === 0;
 
         $calculation = $this->calculateRows(
             $validated['material_rows'] ?? [],
             $validated['service_rows'] ?? [],
             true,
-            (bool) ($validated['is_without_warranty'] ?? false),
+            $isWithoutWarranty,
         );
 
         return response()->json($calculation);
@@ -292,6 +302,9 @@ class LhppController extends Controller
     {
         $terminType = $this->normalizeTerminType($request->string('termin_type')->toString());
         $stagedImages = [];
+        $stagedAttachment = null;
+        $replacedAttachmentPath = null;
+        $attachmentPersisted = false;
 
         try {
             [$order, $parentLhpp] = $this->resolveStoreContext(
@@ -322,20 +335,23 @@ class LhppController extends Controller
                 $parentLhpp,
                 $request->input('tipe_pekerjaan'),
             );
-            [$materialRowsPayload, $serviceRowsPayload] = $this->resolveActualRowsPayload(
-                $terminType,
-                $parentLhpp,
-                $request->input('material_rows', []),
-                $request->input('service_rows', []),
-            );
             $isWithoutWarranty = $terminType === 'termin_1'
                 && (int) ($order->garansi?->garansi_months ?? -1) === 0;
-            $calculation = $this->calculateRows(
-                $materialRowsPayload,
-                $serviceRowsPayload,
-                false,
-                $isWithoutWarranty,
-            );
+            $itemSource = $terminType === 'termin_2'
+                ? ($parentLhpp?->item_source ?? LhppBast::ITEM_SOURCE_MANUAL)
+                : $this->normalizeItemSource($request->input('item_source'));
+            if ($terminType === 'termin_2' && $parentLhpp) {
+                $calculation = $this->bastItemSnapshotService->fromParentBast($parentLhpp);
+            } elseif ($itemSource === LhppBast::ITEM_SOURCE_HPP_SNAPSHOT) {
+                $calculation = $this->bastItemSnapshotService->fromApprovedHpp($approvedHpp, $isWithoutWarranty);
+            } else {
+                $calculation = $this->calculateRows(
+                    $request->input('material_rows', []),
+                    $request->input('service_rows', []),
+                    false,
+                    $isWithoutWarranty,
+                );
+            }
             $qualityControlStatus = $terminType === 'termin_2' ? 'approved' : 'pending';
             $approvalPayload = $this->resolveApprovalPayload(
                 $terminType,
@@ -345,6 +361,8 @@ class LhppController extends Controller
                 $this->makeApprovalContext($order, $approvedHpp, $terminType, $tipePekerjaan),
             );
             $stagedImages = $this->stageUploadedImages($request, (string) $order->nomor_order, $terminType);
+            $stagedAttachment = $this->stageUploadedAttachment($request, (string) $order->nomor_order, $terminType);
+            $attachmentAttributes = $this->attachmentAttributes($stagedAttachment);
 
             $lhpp = DB::transaction(function () use (
                 $order,
@@ -359,14 +377,36 @@ class LhppController extends Controller
                 $approvalPayload,
                 $calculation,
                 $qualityControlStatus,
+                $itemSource,
                 $stagedImages,
+                $stagedAttachment,
+                $attachmentAttributes,
+                &$replacedAttachmentPath,
             ): LhppBast {
+                if ($stagedAttachment !== null) {
+                    $existingLhpp = LhppBast::query()
+                        ->with('signatures')
+                        ->where('order_id', $order->id)
+                        ->where('termin_type', $terminType)
+                        ->lockForUpdate()
+                        ->first();
+
+                    abort_if(
+                        $existingLhpp?->isApprovalLocked(),
+                        Response::HTTP_FORBIDDEN,
+                        'Lampiran PDF BAST tidak dapat diubah setelah proses tanda tangan dimulai.'
+                    );
+
+                    $replacedAttachmentPath = $existingLhpp?->attachment_pdf_path;
+                }
+
                 $lhpp = LhppBast::query()->updateOrCreate(
                     [
                         'order_id' => $order->id,
                         'termin_type' => $terminType,
                     ],
-                    [
+                    array_merge([
+                        'item_source' => $itemSource,
                         'parent_lhpp_bast_id' => $terminType === 'termin_2' ? $parentLhpp?->id : null,
                         'hpp_id' => $approvedHpp->id,
                         'purchase_order_id' => $purchaseOrder?->id,
@@ -396,7 +436,7 @@ class LhppController extends Controller
                         'quality_control_status' => $qualityControlStatus,
                         'updated_by' => $request->user()?->id,
                         'created_by' => $request->user()?->id,
-                    ]
+                    ], $attachmentAttributes)
                 );
 
                 $this->syncParentTipePekerjaanIfMissing($terminType, $parentLhpp, $tipePekerjaan);
@@ -419,22 +459,42 @@ class LhppController extends Controller
                 return $lhpp->refresh();
             });
 
+            $attachmentPersisted = $stagedAttachment !== null;
+            if ($attachmentPersisted && $replacedAttachmentPath !== $stagedAttachment['attachment_pdf_path']) {
+                $this->deleteStoredAttachment($replacedAttachmentPath);
+            }
+
+            $lhpp->loadMissing(['garansi', 'parentLhppBast.garansi']);
+            $garansiMonths = $terminType === 'termin_2'
+                ? $lhpp->parentLhppBast?->garansi?->garansi_months
+                : $lhpp->garansi?->garansi_months;
+
             return redirect()
                 ->route('pkm.lhpp.index')
                 ->with('status', sprintf(
-                    'BAST %s untuk order %s berhasil disimpan. Total aktual biaya Rp %s.',
-                    $this->terminLabel($terminType),
+                    '%s untuk order %s berhasil disimpan. Total aktual biaya Rp %s.',
+                    BastDisplayLabel::bastLabel(
+                        $terminType,
+                        $garansiMonths,
+                        BastDisplayLabel::isWithoutWarranty($garansiMonths),
+                    ),
                     $lhpp->nomor_order,
                     number_format((float) $lhpp->total_aktual_biaya, 0, ',', '.'),
                 ));
         } catch (ValidationException $exception) {
             Storage::disk('public')->delete(collect($stagedImages)->pluck('file_path')->all());
+            if (! $attachmentPersisted) {
+                $this->deleteStoredAttachment($stagedAttachment['attachment_pdf_path'] ?? null);
+            }
 
             return back()
                 ->withInput()
                 ->withErrors($exception->errors());
         } catch (Throwable $exception) {
             Storage::disk('public')->delete(collect($stagedImages)->pluck('file_path')->all());
+            if (! $attachmentPersisted) {
+                $this->deleteStoredAttachment($stagedAttachment['attachment_pdf_path'] ?? null);
+            }
             $this->rethrowExpectedException($exception);
             Log::error('Failed to store PKM LHPP form.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
@@ -456,6 +516,9 @@ class LhppController extends Controller
     public function update(StoreLhppBastRequest $request, string $nomorOrder, string $termin): RedirectResponse
     {
         $terminType = $this->normalizeTerminType($termin);
+        $stagedAttachment = null;
+        $replacedAttachmentPath = null;
+        $attachmentPersisted = false;
 
         try {
             $lhpp = $this->resolveLhppByOrderAndTermin($nomorOrder, $terminType);
@@ -479,7 +542,7 @@ class LhppController extends Controller
             $purchaseOrder = $order->purchaseOrder;
             $approvedHpp = $terminType === 'termin_2'
                 ? ($parentLhpp?->hpp ?: $order->latestApprovedHpp)
-                : $order->latestApprovedHpp;
+                : ($lhpp->hpp ?: $order->latestApprovedHpp);
             abort_if(
                 ! $approvedHpp,
                 Response::HTTP_UNPROCESSABLE_ENTITY,
@@ -507,20 +570,36 @@ class LhppController extends Controller
                 $parentLhpp,
                 $requestedTipePekerjaan,
             );
-            [$materialRowsPayload, $serviceRowsPayload] = $this->resolveActualRowsPayload(
-                $terminType,
-                $parentLhpp,
-                $request->input('material_rows', []),
-                $request->input('service_rows', []),
-            );
             $isWithoutWarranty = $terminType === 'termin_1'
                 && (int) ($order->garansi?->garansi_months ?? -1) === 0;
-            $calculation = $this->calculateRows(
-                $materialRowsPayload,
-                $serviceRowsPayload,
-                false,
-                $isWithoutWarranty,
+            $requestedItemSource = $this->normalizeItemSource(
+                $request->validated('item_source') ?? $lhpp->item_source ?? LhppBast::ITEM_SOURCE_MANUAL
             );
+            $itemSource = $terminType === 'termin_2'
+                ? ($parentLhpp?->item_source ?? LhppBast::ITEM_SOURCE_MANUAL)
+                : $requestedItemSource;
+
+            if ($terminType === 'termin_1'
+                && $itemSource !== $lhpp->item_source
+                && ! $lhpp->canChangeItemSource()) {
+                abort(
+                    Response::HTTP_FORBIDDEN,
+                    'Sumber item BAST tidak dapat diubah setelah Quality Control atau proses approval dimulai.'
+                );
+            }
+
+            if ($terminType === 'termin_2' && $parentLhpp) {
+                $calculation = $this->bastItemSnapshotService->fromParentBast($parentLhpp);
+            } elseif ($itemSource === LhppBast::ITEM_SOURCE_HPP_SNAPSHOT) {
+                $calculation = $this->bastItemSnapshotService->fromApprovedHpp($approvedHpp, $isWithoutWarranty);
+            } else {
+                $calculation = $this->calculateRows(
+                    $request->input('material_rows', []),
+                    $request->input('service_rows', []),
+                    false,
+                    $isWithoutWarranty,
+                );
+            }
             $approvalPayload = $this->resolveApprovalPayload(
                 $terminType,
                 $calculation['totals'],
@@ -528,8 +607,8 @@ class LhppController extends Controller
                 $isWithoutWarranty,
                 $this->makeApprovalContext($order, $approvedHpp, $terminType, $tipePekerjaan),
             );
-            $approvalStarted = $lhpp->hasApprovalStarted();
-
+            $stagedAttachment = $this->stageUploadedAttachment($request, (string) $order->nomor_order, $terminType);
+            $attachmentAttributes = $this->attachmentAttributes($stagedAttachment);
             $lhpp = DB::transaction(function () use (
                 $lhpp,
                 $order,
@@ -541,13 +620,43 @@ class LhppController extends Controller
                 $request,
                 $tanggalMulaiPekerjaan,
                 $tanggalSelesaiPekerjaan,
-                $approvalStarted,
                 $approvalPayload,
                 $calculation,
+                $itemSource,
+                $stagedAttachment,
+                $attachmentAttributes,
+                &$replacedAttachmentPath,
             ): LhppBast {
-                $lhpp->fill([
+                $lhpp = LhppBast::query()
+                    ->with('signatures')
+                    ->lockForUpdate()
+                    ->findOrFail($lhpp->getKey());
+
+                abort_if(
+                    $lhpp->isApprovalLocked(),
+                    Response::HTTP_FORBIDDEN,
+                    'BAST/LHPP tidak dapat diubah setelah proses tanda tangan dimulai.'
+                );
+
+                if ($terminType === 'termin_1'
+                    && $itemSource !== $lhpp->item_source
+                    && ! $lhpp->canChangeItemSource()) {
+                    abort(
+                        Response::HTTP_FORBIDDEN,
+                        'Sumber item BAST tidak dapat diubah setelah Quality Control atau proses approval dimulai.'
+                    );
+                }
+
+                $approvalStarted = $lhpp->hasApprovalStarted();
+
+                if ($stagedAttachment !== null) {
+                    $replacedAttachmentPath = $lhpp->attachment_pdf_path;
+                }
+
+                $lhpp->fill(array_merge([
                     'order_id' => $order->id,
                     'termin_type' => $terminType,
+                    'item_source' => $itemSource,
                     'parent_lhpp_bast_id' => $terminType === 'termin_2' ? $parentLhpp?->id : null,
                     'hpp_id' => $approvedHpp->id,
                     'purchase_order_id' => $purchaseOrder?->id,
@@ -578,7 +687,7 @@ class LhppController extends Controller
                         ? 'approved'
                         : $lhpp->quality_control_status,
                     'updated_by' => $request->user()?->id,
-                ]);
+                ], $attachmentAttributes));
 
                 $lhpp->save();
                 $this->syncParentTipePekerjaanIfMissing($terminType, $parentLhpp, $tipePekerjaan);
@@ -597,20 +706,41 @@ class LhppController extends Controller
                 return $lhpp->refresh();
             });
 
+            $attachmentPersisted = $stagedAttachment !== null;
+            if ($attachmentPersisted && $replacedAttachmentPath !== $stagedAttachment['attachment_pdf_path']) {
+                $this->deleteStoredAttachment($replacedAttachmentPath);
+            }
+
             $this->storeUploadedImages($request, $lhpp);
+            $lhpp->loadMissing(['garansi', 'parentLhppBast.garansi']);
+            $garansiMonths = $terminType === 'termin_2'
+                ? $lhpp->parentLhppBast?->garansi?->garansi_months
+                : $lhpp->garansi?->garansi_months;
 
             return redirect()
                 ->route('pkm.lhpp.index')
                 ->with('status', sprintf(
-                    'BAST %s untuk order %s berhasil diperbarui.',
-                    $this->terminLabel($terminType),
+                    '%s untuk order %s berhasil diperbarui.',
+                    BastDisplayLabel::bastLabel(
+                        $terminType,
+                        $garansiMonths,
+                        BastDisplayLabel::isWithoutWarranty($garansiMonths),
+                    ),
                     $lhpp->nomor_order,
                 ));
         } catch (ValidationException $exception) {
+            if (! $attachmentPersisted) {
+                $this->deleteStoredAttachment($stagedAttachment['attachment_pdf_path'] ?? null);
+            }
+
             return back()
                 ->withInput()
                 ->withErrors($exception->errors());
         } catch (Throwable $exception) {
+            if (! $attachmentPersisted) {
+                $this->deleteStoredAttachment($stagedAttachment['attachment_pdf_path'] ?? null);
+            }
+
             if ($exception instanceof HttpExceptionInterface) {
                 throw $exception;
             }
@@ -669,14 +799,22 @@ class LhppController extends Controller
             }
 
             $nomorOrder = $lhpp->nomor_order;
-            $termLabel = $this->terminLabel($terminType);
+            $lhpp->loadMissing(['garansi', 'parentLhppBast.garansi']);
+            $garansiMonths = $terminType === 'termin_2'
+                ? $lhpp->parentLhppBast?->garansi?->garansi_months
+                : $lhpp->garansi?->garansi_months;
+            $bastLabel = BastDisplayLabel::bastLabel(
+                $terminType,
+                $garansiMonths,
+                BastDisplayLabel::isWithoutWarranty($garansiMonths),
+            );
             $this->bastDeletionService->delete($lhpp);
 
             return redirect()
                 ->route('pkm.lhpp.index')
                 ->with('status', sprintf(
-                    'BAST %s untuk order %s berhasil dihapus. Anda dapat membuat BAST baru untuk order tersebut.',
-                    $termLabel,
+                    '%s untuk order %s berhasil dihapus. Anda dapat membuat BAST baru untuk order tersebut.',
+                    $bastLabel,
                     $nomorOrder,
                 ));
         } catch (Throwable $exception) {
@@ -714,6 +852,7 @@ class LhppController extends Controller
                 'garansi',
                 'signatures',
                 'parentLhppBast.images',
+                'parentLhppBast.garansi',
                 'parentLhppBast.signatures',
                 'parentLhppBast.purchaseOrder:id,order_id,purchase_order_number',
                 'parentLhppBast.order.purchaseOrder:id,order_id,purchase_order_number',
@@ -754,36 +893,65 @@ class LhppController extends Controller
                 'materialItems' => collect($lhpp->material_items ?? []),
                 'serviceItems' => collect($lhpp->service_items ?? []),
             ])->setPaper('a4', 'portrait')->output();
+            $attachmentPdf = $this->bastPdfAttachmentService->pdfOutput($lhpp);
 
             $attachedHpp = $lhpp->hpp ?: $lhpp->order?->latestApprovedHpp;
             $terminOnePdf = null;
+            $terminOneAttachmentPdf = null;
 
             if ($terminType === 'termin_2' && $lhpp->parentLhppBast) {
-                $terminOnePdf = Pdf::loadView('pkm.lhpp.pdf', [
-                    'lhpp' => $lhpp->parentLhppBast,
-                    'materialItems' => collect($lhpp->parentLhppBast->material_items ?? []),
-                    'serviceItems' => collect($lhpp->parentLhppBast->service_items ?? []),
-                ])->setPaper('a4', 'portrait')->output();
+                $terminOnePdf = $this->finalSignedPdfOutput($lhpp->parentLhppBast)
+                    ?? Pdf::loadView('pkm.lhpp.pdf', [
+                        'lhpp' => $lhpp->parentLhppBast,
+                        'materialItems' => collect($lhpp->parentLhppBast->material_items ?? []),
+                        'serviceItems' => collect($lhpp->parentLhppBast->service_items ?? []),
+                    ])->setPaper('a4', 'portrait')->output();
+                $terminOneAttachmentPdf = $this->bastPdfAttachmentService->pdfOutput($lhpp->parentLhppBast);
             }
 
             if (! $attachedHpp) {
-                $pdfOutput = $terminOnePdf
-                    ? $this->mergePdfOutputs([$bastPdf, $terminOnePdf])
+                $pdfOutputs = array_filter([
+                    $bastPdf,
+                    $attachmentPdf,
+                    $terminOnePdf,
+                    $terminOneAttachmentPdf,
+                ]);
+                $pdfOutput = count($pdfOutputs) > 1
+                    ? $this->mergePdfOutputs($pdfOutputs)
                     : $bastPdf;
 
                 return response($pdfOutput, Response::HTTP_OK, $this->pdfInlineHeaders(
-                    sprintf('bast-%s-%s.pdf', $this->terminSlug($terminType), $lhpp->nomor_order)
+                    BastDisplayLabel::generatedBastPdfFilename(
+                        $lhpp->nomor_order,
+                        $terminType,
+                        $terminType === 'termin_2'
+                            ? $lhpp->parentLhppBast?->garansi?->garansi_months
+                            : $lhpp->garansi?->garansi_months,
+                    )
                 ));
             }
 
-            $hppPdf = Pdf::loadView('admin.hpp.hpppdf', [
-                'hpp' => $attachedHpp,
-            ])->setPaper('a4', 'landscape')->output();
+            $hppPdf = $this->finalSignedPdfOutput($attachedHpp)
+                ?? Pdf::loadView('admin.hpp.hpppdf', [
+                    'hpp' => $attachedHpp,
+                ])->setPaper('a4', 'landscape')->output();
 
-            $mergedPdf = $this->mergePdfOutputs(array_filter([$bastPdf, $terminOnePdf, $hppPdf]));
+            $mergedPdf = $this->mergePdfOutputs(array_filter([
+                $bastPdf,
+                $attachmentPdf,
+                $terminOnePdf,
+                $terminOneAttachmentPdf,
+                $hppPdf,
+            ]));
 
             return response($mergedPdf, Response::HTTP_OK, $this->pdfInlineHeaders(
-                sprintf('bast-%s-%s.pdf', $this->terminSlug($terminType), $lhpp->nomor_order)
+                BastDisplayLabel::generatedBastPdfFilename(
+                    $lhpp->nomor_order,
+                    $terminType,
+                    $terminType === 'termin_2'
+                        ? $lhpp->parentLhppBast?->garansi?->garansi_months
+                        : $lhpp->garansi?->garansi_months,
+                )
             ));
         } catch (Throwable $exception) {
             $this->rethrowExpectedException($exception);
@@ -823,7 +991,12 @@ class LhppController extends Controller
     public function uploadDiropsSignedDocument(UploadBastDiropsSignedDocumentRequest $request, int $lhppId): RedirectResponse
     {
         $lhpp = LhppBast::query()->findOrFail($lhppId);
+        $lhpp->loadMissing(['garansi', 'parentLhppBast.garansi']);
         $signature = $this->resolvePendingDiropsSignature($lhpp);
+        $garansiMonths = $lhpp->termin_type === 'termin_2'
+            ? $lhpp->parentLhppBast?->garansi?->garansi_months
+            : $lhpp->garansi?->garansi_months;
+        $bastLabel = BastDisplayLabel::bastLabel($lhpp->termin_type, $garansiMonths, false);
 
         if (! $signature) {
             throw ValidationException::withMessages([
@@ -883,8 +1056,8 @@ class LhppController extends Controller
             return redirect()
                 ->route('pkm.lhpp.index')
                 ->with('status', sprintf(
-                    'Dokumen final DIROPS BAST %s untuk order %s sudah pernah diunggah.',
-                    $lhpp->termin_type === 'termin_2' ? 'Termin 2' : 'Termin 1',
+                    'Dokumen final DIROPS %s untuk order %s sudah pernah diunggah.',
+                    $bastLabel,
                     $lhpp->nomor_order,
                 ));
         }
@@ -892,8 +1065,8 @@ class LhppController extends Controller
         return redirect()
             ->route('pkm.lhpp.index')
             ->with('status', sprintf(
-                'Dokumen final DIROPS BAST %s untuk order %s berhasil diunggah.',
-                $lhpp->termin_type === 'termin_2' ? 'Termin 2' : 'Termin 1',
+                'Dokumen final DIROPS %s untuk order %s berhasil diunggah.',
+                $bastLabel,
                 $lhpp->nomor_order,
             ));
     }
@@ -944,6 +1117,66 @@ class LhppController extends Controller
             'Link approval BAST/LHPP berhasil dikirim ulang ke %s.',
             $signature->signer?->email ?: 'email approver',
         ));
+    }
+
+    public function resendAllActiveApprovals(): RedirectResponse
+    {
+        $claim = $this->bulkResendCooldownService
+            ->acquire(PkmBulkResendCooldownService::DOCUMENT_BAST);
+
+        if (! $claim['allowed']) {
+            return back()->with('error', sprintf(
+                'Resend Semua BAST/LHPP hanya dapat dilakukan sekali setiap 24 jam. Tombol tersedia kembali pada %s.',
+                $claim['available_at']->format('d/m/Y H:i'),
+            ));
+        }
+
+        try {
+            $result = $this->bulkNotificationService->resendActiveBastApprovals();
+        } catch (Throwable $exception) {
+            $this->bulkResendCooldownService->release(
+                PkmBulkResendCooldownService::DOCUMENT_BAST,
+                $claim['claimed_at'],
+            );
+
+            throw $exception;
+        }
+
+        if ($result['sent'] === 0) {
+            $this->bulkResendCooldownService->release(
+                PkmBulkResendCooldownService::DOCUMENT_BAST,
+                $claim['claimed_at'],
+            );
+        }
+
+        return back()->with('status', $this->bulkNotificationService->resultMessage('BAST/LHPP', $result));
+    }
+
+    private function finalSignedPdfOutput(Hpp|LhppBast $document): ?string
+    {
+        $finalDocumentSignature = $document->finalSignedDocumentSignature();
+
+        if (! $finalDocumentSignature?->hasUploadedSignedDocument()) {
+            return null;
+        }
+
+        $disk = Storage::disk('public');
+
+        if (! $disk->exists($finalDocumentSignature->signed_document_path)) {
+            return null;
+        }
+
+        $path = $disk->path($finalDocumentSignature->signed_document_path);
+        $mime = $disk->mimeType($finalDocumentSignature->signed_document_path);
+
+        abort_unless(
+            str_contains(strtolower((string) $mime), 'pdf')
+                || strtolower(pathinfo($path, PATHINFO_EXTENSION)) === 'pdf',
+            Response::HTTP_UNPROCESSABLE_ENTITY,
+            'Dokumen final harus berupa PDF.'
+        );
+
+        return $disk->get($finalDocumentSignature->signed_document_path) ?: null;
     }
 
     /**
@@ -1023,6 +1256,7 @@ class LhppController extends Controller
                 ]),
                 'purchaseOrder:id,order_id,hpp_id,purchase_order_number,target_penyelesaian,progress_pekerjaan,tanggal_mulai_pekerjaan,tanggal_selesai_pekerjaan,created_at,updated_at',
                 'initialWork:id,order_id,target_penyelesaian,progress_pekerjaan,tanggal_mulai_pekerjaan,tanggal_selesai_pekerjaan,created_at,updated_at',
+                'garansi:id,order_id,garansi_months',
             ])
             ->where(function ($query): void {
                 $query
@@ -1111,13 +1345,14 @@ class LhppController extends Controller
             ]),
             'purchaseOrder:id,order_id,hpp_id,purchase_order_number,target_penyelesaian,progress_pekerjaan,tanggal_mulai_pekerjaan,tanggal_selesai_pekerjaan,created_at,updated_at',
             'initialWork:id,order_id,target_penyelesaian,progress_pekerjaan,tanggal_mulai_pekerjaan,tanggal_selesai_pekerjaan,created_at,updated_at',
+            'garansi:id,order_id,garansi_months',
         ]);
     }
 
     private function resolveLhppByOrderAndTermin(string $nomorOrder, string $terminType): ?LhppBast
     {
         return LhppBast::query()
-            ->with(['order', 'parentLhppBast.images', 'terminTwo', 'images', 'garansi'])
+            ->with(['order', 'hpp', 'parentLhppBast.hpp', 'parentLhppBast.images', 'terminTwo', 'images', 'garansi', 'signatures'])
             ->where('nomor_order', $nomorOrder)
             ->where('termin_type', $terminType)
             ->first();
@@ -1189,6 +1424,11 @@ class LhppController extends Controller
     private function mapOrderOption(Order $order): array
     {
         $jobSource = $this->resolveJobSource($order);
+        $approvedHpp = $order->latestApprovedHpp;
+        $isWithoutWarranty = (int) ($order->garansi?->garansi_months ?? -1) === 0;
+        $hppSnapshot = $approvedHpp
+            ? $this->bastItemSnapshotService->fromApprovedHpp($approvedHpp, $isWithoutWarranty)
+            : ['material_rows' => [], 'service_rows' => []];
 
         return [
             'nomor_order' => (string) $order->nomor_order,
@@ -1198,9 +1438,13 @@ class LhppController extends Controller
             'unit_kerja' => (string) ($order->unit_kerja ?? ''),
             'seksi' => (string) ($order->seksi ?? ''),
             'purchase_order_number' => (string) ($order->purchaseOrder?->purchase_order_number ?? ''),
-            'nilai_ece' => (float) ($order->latestApprovedHpp?->total_keseluruhan ?? 0),
-            'hpp_material_rows' => $this->buildRowsFromHpp($order->latestApprovedHpp, 'material'),
-            'hpp_service_rows' => $this->buildRowsFromHpp($order->latestApprovedHpp, 'service'),
+            'nilai_ece' => (string) ($approvedHpp?->total_keseluruhan ?? '0.00'),
+            'hpp_id' => $approvedHpp?->id,
+            'has_approved_hpp' => $approvedHpp !== null,
+            'hpp_total' => (string) ($approvedHpp?->total_keseluruhan ?? '0.00'),
+            'garansi_months' => $order->garansi?->garansi_months,
+            'hpp_material_rows' => $hppSnapshot['material_rows'],
+            'hpp_service_rows' => $hppSnapshot['service_rows'],
             'tanggal_mulai_pekerjaan' => $this->formatOptionalDate($this->resolveJobStartDate($jobSource)),
             'tanggal_selesai_pekerjaan' => $this->formatOptionalDate($this->resolveJobFinishDate($jobSource)),
         ];
@@ -1215,58 +1459,9 @@ class LhppController extends Controller
             return [];
         }
 
-        $rows = [];
+        $snapshot = $this->bastItemSnapshotService->fromApprovedHpp($hpp, false);
 
-        foreach ($hpp->item_groups as $group) {
-            $groupJenisItem = trim((string) (
-                $group['jenis_item']
-                ?? $group['jenis']
-                ?? $group['name']
-                ?? $group['label']
-                ?? $group['title']
-                ?? ''
-            ));
-
-            foreach (($group['items'] ?? []) as $item) {
-                $jenisItem = trim((string) ($item['jenis_item'] ?? $groupJenisItem));
-                $isServiceItem = str_contains(strtoupper($jenisItem), 'JASA');
-
-                if (($type === 'service') !== $isServiceItem) {
-                    continue;
-                }
-
-                $namaItem = trim((string) (
-                    $item['nama_item']
-                    ?? $item['name']
-                    ?? $item['nama']
-                    ?? $item['item_name']
-                    ?? $item['description']
-                    ?? $item['deskripsi_item']
-                    ?? $item['uraian']
-                    ?? $item['nama_material']
-                    ?? $item['nama_jasa']
-                    ?? $item['item']
-                    ?? ''
-                ));
-
-                if ($namaItem === '') {
-                    continue;
-                }
-
-                $rows[] = [
-                    'jenis_item' => $jenisItem,
-                    'kategori_item' => trim((string) ($item['kategori_item'] ?? $item['kategori'] ?? $item['category'] ?? '')),
-                    'name' => $namaItem,
-                    'volume' => (string) ($item['qty'] ?? $item['volume'] ?? ''),
-                    'unit' => trim((string) ($item['satuan'] ?? $item['unit'] ?? '')),
-                    'unit_price' => $this->displayEditableCurrency((string) ($item['harga_satuan'] ?? $item['unit_price'] ?? '')),
-                    'amount' => (string) ($item['harga_total'] ?? $item['amount'] ?? '0.00'),
-                    'amount_display' => $this->displayCurrency((string) ($item['harga_total'] ?? $item['amount'] ?? '0.00')),
-                ];
-            }
-        }
-
-        return $rows;
+        return $type === 'service' ? $snapshot['service_rows'] : $snapshot['material_rows'];
     }
 
     private function resolveJobStartDate(mixed $jobSource): mixed
@@ -1317,8 +1512,8 @@ class LhppController extends Controller
      */
     private function buildFormView(Request $request, ?LhppBast $lhpp, array $meta, string $terminType, ?LhppBast $parentLhpp = null): View
     {
-        $lhpp?->loadMissing(['images', 'parentLhppBast.images']);
-        $parentLhpp?->loadMissing('images');
+        $lhpp?->loadMissing(['images', 'hpp', 'parentLhppBast.hpp', 'parentLhppBast.images']);
+        $parentLhpp?->loadMissing(['images', 'hpp']);
 
         $sourceLhpp = $lhpp ?? $parentLhpp;
         $currentOrder = $sourceLhpp?->order ? $this->loadOrderWithRelations($sourceLhpp->order) : null;
@@ -1339,19 +1534,9 @@ class LhppController extends Controller
         if ($selectedOrder === '' || ! $orderOptions->firstWhere('nomor_order', $selectedOrder)) {
             $selectedOrder = (string) ($orderOptions->first()['nomor_order'] ?? '');
         }
+        $selectedOrderModel = $orders->firstWhere('nomor_order', $selectedOrder);
 
         $contractCatalog = $this->resolveContractCatalog();
-
-        $materialRows = collect(old('material_rows', $lhpp?->material_items ?? $parentLhpp?->material_items ?? [
-            ['jenis_item' => '', 'kategori_item' => '', 'name' => '', 'volume' => '', 'unit' => '', 'unit_price' => '', 'amount' => '0', 'amount_display' => '0'],
-        ]))
-            ->map(fn (array $row): array => $this->enrichLhppItemRow($row, $contractCatalog))
-            ->values();
-        $serviceRows = collect(old('service_rows', $lhpp?->service_items ?? $parentLhpp?->service_items ?? [
-            ['jenis_item' => '', 'kategori_item' => '', 'name' => '', 'volume' => '', 'unit' => '', 'unit_price' => '', 'amount' => '0', 'amount_display' => '0'],
-        ]))
-            ->map(fn (array $row): array => $this->enrichLhppItemRow($row, $contractCatalog))
-            ->values();
 
         $selectedTipePekerjaan = old('tipe_pekerjaan');
 
@@ -1370,16 +1555,61 @@ class LhppController extends Controller
             ->bastPreviewPayload($orders, $tipePekerjaanOptions, $lhpp);
 
         $isWithoutWarranty = $terminType === 'termin_1'
-            && (int) ($currentOrder?->garansi?->garansi_months ?? $lhpp?->garansi?->garansi_months ?? -1) === 0;
-        $calculation = $this->calculateRows(
-            $materialRows->all(),
-            $serviceRows->all(),
-            false,
-            $isWithoutWarranty,
-        );
-        $hppValueMatchesBast = $lhpp !== null
-            && (float) $lhpp->total_aktual_biaya > 0
-            && abs((float) $lhpp->total_aktual_biaya - (float) ($currentOrder?->latestApprovedHpp?->total_keseluruhan ?? 0)) < 0.01;
+            && (int) ($selectedOrderModel?->garansi?->garansi_months ?? $lhpp?->garansi?->garansi_months ?? -1) === 0;
+        $itemSource = $terminType === 'termin_2'
+            ? ($parentLhpp?->item_source ?? LhppBast::ITEM_SOURCE_MANUAL)
+            : $this->normalizeItemSource(old(
+                'item_source',
+                $lhpp?->item_source ?? LhppBast::ITEM_SOURCE_HPP_SNAPSHOT
+            ));
+        $itemSourceLocked = $terminType === 'termin_2'
+            || ($lhpp !== null && ! $lhpp->canChangeItemSource());
+
+        if ($terminType === 'termin_2' && $parentLhpp) {
+            $calculation = $this->bastItemSnapshotService->fromParentBast($parentLhpp);
+        } elseif ($itemSource === LhppBast::ITEM_SOURCE_HPP_SNAPSHOT) {
+            $sourceHpp = $lhpp?->hpp ?: $selectedOrderModel?->latestApprovedHpp;
+            $calculation = $sourceHpp
+                ? $this->bastItemSnapshotService->fromApprovedHpp($sourceHpp, $isWithoutWarranty)
+                : $this->calculateRows([], [], false, $isWithoutWarranty);
+        } else {
+            $emptyRow = [
+                'contract_item_id' => null,
+                'jenis_item' => '',
+                'kategori_item' => '',
+                'name' => '',
+                'volume' => '',
+                'unit' => '',
+                'unit_price_raw' => '',
+                'unit_price' => '',
+                'amount' => '0.00',
+                'amount_display' => '0',
+            ];
+            $materialRows = collect(old('material_rows', $lhpp?->material_items ?? [$emptyRow]))
+                ->map(fn (array $row): array => $this->enrichLhppItemRow($row, $contractCatalog))
+                ->values();
+            $serviceRows = collect(old('service_rows', $lhpp?->service_items ?? [$emptyRow]))
+                ->map(fn (array $row): array => $this->enrichLhppItemRow($row, $contractCatalog))
+                ->values();
+
+            try {
+                $calculation = $this->calculateRows(
+                    $materialRows->all(),
+                    $serviceRows->all(),
+                    false,
+                    $isWithoutWarranty,
+                );
+            } catch (ValidationException) {
+                $calculation = $this->calculateRows([], [], false, $isWithoutWarranty);
+            }
+
+            if ($calculation['material_rows'] === []) {
+                $calculation['material_rows'] = $materialRows->all();
+            }
+            if ($calculation['service_rows'] === []) {
+                $calculation['service_rows'] = $serviceRows->all();
+            }
+        }
 
         return view('dashboards.pkm', [
             'pageTitle' => $meta['pageTitle'],
@@ -1388,7 +1618,7 @@ class LhppController extends Controller
             'selectedBastOrder' => $selectedOrder,
             'selectedThreshold' => old('approval_threshold', $lhpp?->approval_threshold ?? $this->resolveThresholdFromTotals($terminType, $calculation['totals'], $isWithoutWarranty)),
             'selectedApprovalFlow' => array_values((array) old('approval_flow', $lhpp?->approval_flow ?? [])),
-            'approvalFlowMatrix' => BastApprovalFlow::flowMatrix(),
+            'approvalFlowMatrix' => BastApprovalFlow::flowMatrix($terminType),
             'selectedTipePekerjaan' => $selectedTipePekerjaan,
             'tipePekerjaanOptions' => $tipePekerjaanOptions,
             'approvalSignerPreview' => $approvalSignerPreview,
@@ -1396,7 +1626,11 @@ class LhppController extends Controller
             'tanggalMulaiPekerjaan' => old('tanggal_mulai_pekerjaan', optional($lhpp?->tanggal_mulai_pekerjaan)->format('Y-m-d') ?? optional($parentLhpp?->tanggal_mulai_pekerjaan)->format('Y-m-d')),
             'tanggalSelesaiPekerjaan' => old('tanggal_selesai_pekerjaan', optional($lhpp?->tanggal_selesai_pekerjaan)->format('Y-m-d') ?? optional($parentLhpp?->tanggal_selesai_pekerjaan)->format('Y-m-d')),
             'useFixedWorkDates' => (bool) ($lhpp || $parentLhpp),
-            'existingImages' => $this->buildExistingImageList($lhpp, $parentLhpp)->all(),
+            'existingImages' => $this->buildExistingImageList($lhpp, $parentLhpp, $isWithoutWarranty)->all(),
+            'existingAttachment' => filled($lhpp?->attachment_pdf_path) ? [
+                'name' => $lhpp->attachment_pdf_original_name ?: basename((string) $lhpp->attachment_pdf_path),
+                'size' => $lhpp->attachment_pdf_size,
+            ] : null,
             'initialMaterialRows' => $calculation['material_rows'],
             'initialServiceRows' => $calculation['service_rows'],
             'initialCalculation' => $calculation['totals'],
@@ -1409,24 +1643,31 @@ class LhppController extends Controller
             'terminLabel' => $this->terminLabel($terminType),
             'documentNo' => $lhpp?->document_no ?: ($terminType === 'termin_2' ? $parentLhpp?->document_no : null),
             'isWithoutWarranty' => $isWithoutWarranty,
-            'hppValueMatchesBast' => $hppValueMatchesBast,
+            'itemSource' => $itemSource,
+            'itemSourceLocked' => $itemSourceLocked,
+            'isFormLocked' => (bool) ($meta['isFormLocked'] ?? false),
         ]);
     }
 
-    private function buildExistingImageList(?LhppBast $lhpp, ?LhppBast $parentLhpp = null): Collection
-    {
+    private function buildExistingImageList(
+        ?LhppBast $lhpp,
+        ?LhppBast $parentLhpp = null,
+        bool $isWithoutWarranty = false
+    ): Collection {
         $parentImages = collect($parentLhpp?->images ?? [])
             ->map(fn (LhppBastImage $image): array => [
                 'name' => $image->file_name ?: basename((string) $image->file_path),
                 'url' => $image->file_path ? Storage::disk('public')->url($image->file_path) : null,
-                'source' => 'Termin 1',
+                'source' => $isWithoutWarranty ? 'BAST/LHPP' : 'Termin 1',
             ]);
 
         $ownImages = collect($lhpp?->images ?? [])
             ->map(fn (LhppBastImage $image): array => [
                 'name' => $image->file_name ?: basename((string) $image->file_path),
                 'url' => $image->file_path ? Storage::disk('public')->url($image->file_path) : null,
-                'source' => ($lhpp?->termin_type === 'termin_2') ? 'Tambahan Termin 2' : 'Termin 1',
+                'source' => ($lhpp?->termin_type === 'termin_2')
+                    ? 'Tambahan Termin 2'
+                    : ($isWithoutWarranty ? 'BAST/LHPP' : 'Termin 1'),
             ]);
 
         return $parentImages
@@ -1548,10 +1789,10 @@ class LhppController extends Controller
         mixed $submittedFlow,
         bool $isWithoutWarranty,
         LhppBast $approvalContext
-    ): array
-    {
+    ): array {
         $threshold = $this->resolveThresholdFromTotals($terminType, $totals, $isWithoutWarranty);
-        $baseFlow = BastApprovalFlow::resolveApprovalFlow($threshold);
+        $this->ensureTerminTwoExcludesRequesterManager($terminType, $submittedFlow);
+        $baseFlow = BastApprovalFlow::resolveApprovalFlow($threshold, $terminType);
 
         try {
             $defaultFlow = $this->effectiveFlowResolver->effectiveFlowLabels($approvalContext, $baseFlow);
@@ -1588,6 +1829,29 @@ class LhppController extends Controller
         $context->setRelation('hpp', $hpp);
 
         return $context;
+    }
+
+    private function ensureTerminTwoExcludesRequesterManager(string $terminType, mixed $submittedFlow): void
+    {
+        if ($this->normalizeTerminType($terminType) !== 'termin_2' || ! is_array($submittedFlow)) {
+            return;
+        }
+
+        $containsRequesterManager = collect($submittedFlow)->contains(function (mixed $role): bool {
+            $normalizedRole = Str::lower(trim((string) $role));
+
+            return in_array($normalizedRole, [
+                'manager peminta',
+                'manager user',
+                'manager_peminta',
+            ], true);
+        });
+
+        if ($containsRequesterManager) {
+            throw ValidationException::withMessages([
+                'approval_flow' => 'Manager Peminta tidak termasuk approval BAST Termin 2.',
+            ]);
+        }
     }
 
     /**
@@ -1774,6 +2038,67 @@ class LhppController extends Controller
     }
 
     /**
+     * @return array<string, int|string>|null
+     */
+    private function stageUploadedAttachment(
+        StoreLhppBastRequest $request,
+        string $nomorOrder,
+        string $terminType
+    ): ?array {
+        $file = $request->file('attachment_pdf');
+
+        if (! $file) {
+            return null;
+        }
+
+        try {
+            $this->bastPdfAttachmentService->assertReadable($file);
+        } catch (Throwable $exception) {
+            throw ValidationException::withMessages([
+                'attachment_pdf' => 'Lampiran BAST harus berupa PDF yang dapat dibuka dan digabungkan.',
+            ]);
+        }
+
+        $path = $file->storeAs(
+            "lhpp-basts/{$nomorOrder}/{$terminType}/attachments",
+            'lampiran-bast-'.now()->format('YmdHis').'-'.Str::uuid().'.pdf',
+            'public'
+        );
+
+        return [
+            'attachment_pdf_path' => $path,
+            'attachment_pdf_original_name' => $file->getClientOriginalName(),
+            'attachment_pdf_mime_type' => $file->getClientMimeType(),
+            'attachment_pdf_size' => $file->getSize(),
+        ];
+    }
+
+    /**
+     * @param  array<string, int|string>|null  $stagedAttachment
+     * @return array<string, int|string>
+     */
+    private function attachmentAttributes(?array $stagedAttachment): array
+    {
+        return $stagedAttachment ?? [];
+    }
+
+    private function deleteStoredAttachment(?string $path): void
+    {
+        if (blank($path)) {
+            return;
+        }
+
+        try {
+            Storage::disk('public')->delete(ltrim($path, '/'));
+        } catch (Throwable $exception) {
+            Log::warning('Failed to clean up BAST PDF attachment.', [
+                'path' => $path,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * @param  array<int, array<string, mixed>>  $materialRows
      * @param  array<int, array<string, mixed>>  $serviceRows
      * @return array<string, mixed>
@@ -1783,8 +2108,7 @@ class LhppController extends Controller
         array $serviceRows,
         bool $preserveEmptyRows = false,
         bool $isWithoutWarranty = false
-    ): array
-    {
+    ): array {
         $normalizedMaterialRows = $this->normalizeItemRows($materialRows, $preserveEmptyRows, 'material');
         $normalizedServiceRows = $this->normalizeItemRows($serviceRows, $preserveEmptyRows, 'service');
 
@@ -1797,30 +2121,12 @@ class LhppController extends Controller
             $termin2Nilai = '0.00';
         } else {
             $termin1Nilai = $this->multiplyCurrencyDecimal($totalAktualBiaya, '0.95');
-            $termin2Nilai = $this->multiplyCurrencyDecimal($totalAktualBiaya, '0.05');
+            $termin2Nilai = $this->subtractCurrencyDecimals($totalAktualBiaya, $termin1Nilai);
         }
 
         return [
-            'material_rows' => $normalizedMaterialRows !== [] ? $normalizedMaterialRows : [[
-                'jenis_item' => '',
-                'kategori_item' => '',
-                'name' => '',
-                'volume' => '',
-                'unit' => '',
-                'unit_price' => '',
-                'amount' => '0.00',
-                'amount_display' => '0',
-            ]],
-            'service_rows' => $normalizedServiceRows !== [] ? $normalizedServiceRows : [[
-                'jenis_item' => '',
-                'kategori_item' => '',
-                'name' => '',
-                'volume' => '',
-                'unit' => '',
-                'unit_price' => '',
-                'amount' => '0.00',
-                'amount_display' => '0',
-            ]],
+            'material_rows' => $normalizedMaterialRows,
+            'service_rows' => $normalizedServiceRows,
             'totals' => [
                 'subtotal_material' => $subtotalMaterial,
                 'subtotal_jasa' => $subtotalJasa,
@@ -1848,13 +2154,6 @@ class LhppController extends Controller
             $contractItem = null;
             if (filled($row['contract_item_id'] ?? null)) {
                 $contractItem = FabricationConstructionContract::query()->find($row['contract_item_id']);
-            } elseif (filled($row['name'] ?? null)) {
-                $matches = FabricationConstructionContract::query()
-                    ->where('nama_item', trim((string) $row['name']))
-                    ->when(filled($row['jenis_item'] ?? null), fn ($query) => $query->where('jenis_item', trim((string) $row['jenis_item'])))
-                    ->when(filled($row['kategori_item'] ?? null), fn ($query) => $query->where('kategori_item', trim((string) $row['kategori_item'])))
-                    ->get();
-                $contractItem = $matches->count() === 1 ? $matches->first() : null;
             }
 
             $jenisItem = trim((string) ($contractItem?->jenis_item ?? $row['jenis_item'] ?? ''));
@@ -1889,6 +2188,7 @@ class LhppController extends Controller
                     'name' => '',
                     'volume' => '',
                     'unit' => $unit !== 'Jam' ? $unit : '',
+                    'unit_price_raw' => '',
                     'unit_price' => '',
                     'amount' => '0.00',
                     'amount_display' => '0',
@@ -1904,7 +2204,8 @@ class LhppController extends Controller
                 'name' => $name,
                 'volume' => $volume === '0' ? '' : $volume,
                 'unit' => $unit !== '' ? $unit : 'Jam',
-                'unit_price' => $unitPrice === '0.00' ? '' : $this->displayEditableCurrency($unitPrice),
+                'unit_price_raw' => $unitPrice,
+                'unit_price' => $this->displayEditableCurrency($unitPrice),
                 'amount' => $amount,
                 'amount_display' => $this->displayCurrency($amount),
             ];
@@ -1932,6 +2233,7 @@ class LhppController extends Controller
                 'nama_item' => trim((string) $item->nama_item),
                 'satuan' => trim((string) $item->satuan),
                 'harga_satuan' => $this->displayEditableCurrency((string) $item->harga_satuan),
+                'harga_satuan_raw' => $this->normalizeCurrencyDecimal($item->harga_satuan),
             ])
             ->values()
             ->all();
@@ -1947,13 +2249,17 @@ class LhppController extends Controller
         $enriched = [
             'contract_item_id' => $row['contract_item_id'] ?? null,
             'jenis_item' => trim((string) ($row['jenis_item'] ?? '')),
+            'sub_jenis_item' => trim((string) ($row['sub_jenis_item'] ?? '')),
             'kategori_item' => trim((string) ($row['kategori_item'] ?? '')),
             'name' => trim((string) ($row['name'] ?? '')),
+            'jumlah_item' => trim((string) ($row['jumlah_item'] ?? '')),
             'volume' => $row['volume'] ?? '',
             'unit' => trim((string) ($row['unit'] ?? '')),
             'unit_price' => $row['unit_price'] ?? '',
+            'unit_price_raw' => $row['unit_price_raw'] ?? $row['unit_price'] ?? '',
             'amount' => $row['amount'] ?? '0.00',
             'amount_display' => $row['amount_display'] ?? '0',
+            'keterangan' => trim((string) ($row['keterangan'] ?? '')),
         ];
 
         if ($enriched['name'] === '') {
@@ -1994,25 +2300,9 @@ class LhppController extends Controller
         $enriched['kategori_item'] = $enriched['kategori_item'] !== '' ? $enriched['kategori_item'] : (string) ($matchedItem['kategori_item'] ?? '');
         $enriched['unit'] = $enriched['unit'] !== '' ? $enriched['unit'] : (string) ($matchedItem['satuan'] ?? '');
         $enriched['unit_price'] = $enriched['unit_price'] !== '' ? $enriched['unit_price'] : (string) ($matchedItem['harga_satuan'] ?? '');
+        $enriched['unit_price_raw'] = $enriched['unit_price_raw'] !== '' ? $enriched['unit_price_raw'] : (string) ($matchedItem['harga_satuan_raw'] ?? '');
 
         return $enriched;
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $materialRows
-     * @param  array<int, array<string, mixed>>  $serviceRows
-     * @return array{0: array<int, array<string, mixed>>, 1: array<int, array<string, mixed>>}
-     */
-    private function resolveActualRowsPayload(string $terminType, ?LhppBast $parentLhpp, array $materialRows, array $serviceRows): array
-    {
-        if ($terminType !== 'termin_2' || ! $parentLhpp) {
-            return [$materialRows, $serviceRows];
-        }
-
-        return [
-            is_array($parentLhpp->material_items) ? $parentLhpp->material_items : [],
-            is_array($parentLhpp->service_items) ? $parentLhpp->service_items : [],
-        ];
     }
 
     /**
@@ -2104,6 +2394,23 @@ class LhppController extends Controller
             '.',
             ''
         );
+    }
+
+    private function subtractCurrencyDecimals(string $left, string $right): string
+    {
+        return number_format(
+            (float) $this->normalizeCurrencyDecimal($left) - (float) $this->normalizeCurrencyDecimal($right),
+            2,
+            '.',
+            ''
+        );
+    }
+
+    private function normalizeItemSource(mixed $value): string
+    {
+        return $value === LhppBast::ITEM_SOURCE_HPP_SNAPSHOT
+            ? LhppBast::ITEM_SOURCE_HPP_SNAPSHOT
+            : LhppBast::ITEM_SOURCE_MANUAL;
     }
 
     private function isZeroNumericString(string $value): bool

@@ -52,11 +52,11 @@ class HppApprovalSignatureBuilder
                     'role_key' => $approver['role_key'],
                     'role_label' => $approver['role_label'],
                     'signer_user_id' => $approver['user']->id,
-                    'signer_name_snapshot' => $approver['user']->name,
-                    'signer_position_snapshot' => $approver['position'],
-                    'signer_department_snapshot' => $approver['department'],
-                    'signer_unit_snapshot' => $approver['unit'],
-                    'signer_section_snapshot' => $approver['section'],
+                    'signer_name_snapshot' => '',
+                    'signer_position_snapshot' => '',
+                    'signer_department_snapshot' => null,
+                    'signer_unit_snapshot' => null,
+                    'signer_section_snapshot' => null,
                     'status' => $stepOrder === 1
                         ? HppSignature::STATUS_PENDING
                         : HppSignature::STATUS_LOCKED,

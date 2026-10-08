@@ -42,43 +42,7 @@ class PkmSidebarBadgeCounter
 
     private function jobWaitingCount(): int
     {
-        return Order::query()
-            ->whereIn('catatan_status', [
-                OrderUserNoteStatus::ApprovedJasa->value,
-                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
-            ])
-            ->where(function (Builder $query): void {
-                $query
-                    ->whereHas('purchaseOrder', function (Builder $purchaseOrderQuery): void {
-                        $purchaseOrderQuery
-                            ->where('approve_manager', true)
-                            ->whereNotNull('purchase_order_number')
-                            ->whereRaw("TRIM(purchase_order_number) <> ''");
-                    })
-                    ->orWhere(function (Builder $emergencyQuery): void {
-                        $emergencyQuery
-                            ->whereIn('prioritas', [
-                                Order::PRIORITY_URGENT,
-                                Order::PRIORITY_HIGH,
-                            ])
-                            ->has('initialWork');
-                    });
-            })
-            ->where(function (Builder $query): void {
-                $query
-                    ->doesntHave('latestHpp')
-                    ->orWhereDoesntHave('lhppBasts', function (Builder $bastQuery): void {
-                        $bastQuery
-                            ->where('termin_type', 'termin_1')
-                            ->whereHas('garansi')
-                            ->whereHas('lpjPpl', function (Builder $lpjPplQuery): void {
-                                $lpjPplQuery
-                                    ->whereNotNull('lpj_document_path_termin1')
-                                    ->whereNotNull('ppl_document_path_termin1');
-                            });
-                    });
-            })
-            ->count();
+        return PkmJobWaitingQuery::query()->count();
     }
 
     private function lhppTerminOneCount(): int

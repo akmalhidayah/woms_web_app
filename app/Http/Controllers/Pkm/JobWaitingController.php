@@ -3,13 +3,14 @@
 namespace App\Http\Controllers\Pkm;
 
 use App\Domain\Orders\Enums\OrderDocumentType;
-use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Pkm\UpdateJobWaitingRequest;
 use App\Models\Hpp;
 use App\Models\Order;
+use App\Models\PurchaseOrder;
 use App\Services\Orders\OrderDocumentService;
 use App\Support\PdfMergeService;
+use App\Support\PkmJobWaitingQuery;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -40,10 +41,11 @@ class JobWaitingController extends Controller
                 'Medium' => [Order::PRIORITY_LOW],
             ];
 
-            $notifications = Order::query()
+            $notifications = PkmJobWaitingQuery::query()
                 ->with([
                     'documents',
                     'scopeOfWork',
+                    'garansi:id,order_id,garansi_months',
                     'initialWork:id,order_id,nomor_initial_work,tanggal_initial_work,target_penyelesaian,progress_pekerjaan,tanggal_mulai_pekerjaan,tanggal_selesai_pekerjaan,vendor_note,admin_note,created_at',
                     'lhppBasts:id,order_id,termin_type',
                     'lhppBasts.lpjPpl:id,lhpp_bast_id',
@@ -70,41 +72,6 @@ class JobWaitingController extends Controller
                         'purchase_orders.updated_at',
                     ]),
                 ])
-                ->whereIn('catatan_status', [
-                    OrderUserNoteStatus::ApprovedJasa->value,
-                    OrderUserNoteStatus::ApprovedWorkshopJasa->value,
-                ])
-                ->where(function (Builder $query): void {
-                    $query
-                        ->whereHas('purchaseOrder', function (Builder $purchaseOrderQuery): void {
-                            $purchaseOrderQuery
-                                ->where('approve_manager', true)
-                                ->whereNotNull('purchase_order_number')
-                                ->whereRaw("TRIM(purchase_order_number) <> ''");
-                        })
-                        ->orWhere(function (Builder $emergencyQuery): void {
-                            $emergencyQuery
-                                ->whereIn('prioritas', [
-                                    Order::PRIORITY_URGENT,
-                                    Order::PRIORITY_HIGH,
-                                ])
-                                ->has('initialWork');
-                        });
-                })
-                ->where(function (Builder $query): void {
-                    $query
-                        ->doesntHave('latestHpp')
-                        ->orWhereDoesntHave('lhppBasts', function (Builder $bastQuery): void {
-                            $bastQuery
-                                ->where('termin_type', 'termin_1')
-                                ->whereHas('garansi')
-                                ->whereHas('lpjPpl', function (Builder $lpjPplQuery): void {
-                                    $lpjPplQuery
-                                        ->whereNotNull('lpj_document_path_termin1')
-                                        ->whereNotNull('ppl_document_path_termin1');
-                                });
-                        });
-                })
                 ->when($selectedPriority !== '' && isset($priorityMap[$selectedPriority]), function (Builder $query) use ($priorityMap, $selectedPriority): void {
                     $mappedPriorities = $priorityMap[$selectedPriority];
 
@@ -173,7 +140,7 @@ class JobWaitingController extends Controller
                     ) ASC
                 ')
                 ->orderBy('id')
-                ->paginate(8)
+                ->paginate(20)
                 ->withQueryString();
 
             $notifications->setCollection(
@@ -230,8 +197,19 @@ class JobWaitingController extends Controller
 
             $currentProgress = (int) ($jobSource->progress_pekerjaan ?? 0);
             $nextProgress = $currentProgress;
+            $isStartRequest = $request->boolean('start_progress');
 
-            if ($request->boolean('start_progress')) {
+            if ($isStartRequest) {
+                if (! $usesInitialWorkFlow && $currentProgress < 11) {
+                    $startBlockedMessage = $this->startBlockedMessage($purchaseOrder);
+
+                    if ($startBlockedMessage !== null) {
+                        throw ValidationException::withMessages([
+                            'start_progress' => $startBlockedMessage,
+                        ]);
+                    }
+                }
+
                 $nextProgress = max($currentProgress, 11);
             } elseif ($request->filled('progress_pekerjaan') && $currentProgress >= 11) {
                 $requestedProgress = $request->integer('progress_pekerjaan');
@@ -246,13 +224,14 @@ class JobWaitingController extends Controller
             $isTargetPenyelesaianLocked = ! $usesInitialWorkFlow
                 && $purchaseOrder?->approval_target === 'setuju';
 
-            $payload = [
-                'progress_pekerjaan' => $nextProgress,
-                'target_penyelesaian' => $isTargetPenyelesaianLocked
+            $payload = ['progress_pekerjaan' => $nextProgress];
+
+            if (! $isStartRequest) {
+                $payload['target_penyelesaian'] = $isTargetPenyelesaianLocked
                     ? $jobSource->target_penyelesaian
-                    : $this->normalizeNullableString($request->input('target_penyelesaian')),
-                'vendor_note' => $this->normalizeNullableString($request->input('catatan')),
-            ];
+                    : $this->normalizeNullableString($request->input('target_penyelesaian'));
+                $payload['vendor_note'] = $this->normalizeNullableString($request->input('catatan'));
+            }
 
             if ($nextProgress >= 11 && ! $jobSource->tanggal_mulai_pekerjaan) {
                 $payload['tanggal_mulai_pekerjaan'] = now()->toDateString();
@@ -405,7 +384,9 @@ class JobWaitingController extends Controller
             && in_array($order->prioritas, [Order::PRIORITY_URGENT, Order::PRIORITY_HIGH], true)
             && (bool) $initialWork;
         $jobSource = $canUpdateByPurchaseOrder ? $latestPurchaseOrder : ($isEmergencyInitialWorkFlow ? $initialWork : null);
-        $isFinished = (int) ($jobSource?->progress_pekerjaan ?? 0) >= 100 && $hasBastOrLpj;
+        $progress = (int) ($jobSource?->progress_pekerjaan ?? 0);
+        $isFinished = $progress >= 100 && $hasBastOrLpj;
+        $isWaitingForWarranty = $progress >= 100 && ! $order->garansi;
         $jobWaitingSinceDate = $latestPurchaseOrder?->updated_at
             ?: $latestPurchaseOrder?->created_at
             ?: $initialWork?->tanggal_initial_work
@@ -420,16 +401,19 @@ class JobWaitingController extends Controller
             'job_name' => $order->nama_pekerjaan,
             'seksi' => $order->seksi,
             'unit' => $order->unit_kerja,
-            'progress' => (int) ($jobSource?->progress_pekerjaan ?? 0),
+            'progress' => $progress,
             'target_penyelesaian' => $latestPurchaseOrder?->target_penyelesaian?->format('Y-m-d')
-                ?: $jobSource?->target_penyelesaian?->format('Y-m-d')
-                ?: $order->target_selesai?->format('Y-m-d'),
+                ?: $jobSource?->target_penyelesaian?->format('Y-m-d'),
             'approval_target' => $latestPurchaseOrder?->approval_target,
+            'start_blocked_message' => $isEmergencyInitialWorkFlow
+                ? null
+                : $this->startBlockedMessage($latestPurchaseOrder),
             'target_penyelesaian_locked' => $canUpdateByPurchaseOrder
                 && $latestPurchaseOrder?->approval_target === 'setuju',
             'catatan' => $jobSource?->vendor_note ?: ($order->catatan ?: ''),
             'catatan_admin' => $jobSource?->admin_note ?: 'Belum ada catatan dari Admin Bengkel.',
             'is_finished' => $isFinished,
+            'is_waiting_for_warranty' => $isWaitingForWarranty,
             'can_update' => $canUpdateByPurchaseOrder || $isEmergencyInitialWorkFlow,
             'is_initial_work_flow' => $isEmergencyInitialWorkFlow,
             'documents' => [
@@ -465,6 +449,26 @@ class JobWaitingController extends Controller
                 ]] : []),
             ],
         ];
+    }
+
+    private function startBlockedMessage(?PurchaseOrder $purchaseOrder): ?string
+    {
+        $hasTarget = $purchaseOrder?->target_penyelesaian !== null;
+        $isApproved = $purchaseOrder?->approval_target === 'setuju';
+
+        if (! $hasTarget && ! $isApproved) {
+            return 'Estimasi penyelesaian belum diisi dan belum disetujui oleh Admin Bengkel.';
+        }
+
+        if (! $hasTarget) {
+            return 'Estimasi penyelesaian wajib diisi sebelum pekerjaan dimulai.';
+        }
+
+        if (! $isApproved) {
+            return 'Estimasi penyelesaian belum disetujui oleh Admin Bengkel.';
+        }
+
+        return null;
     }
 
     private function findDocument(Order $order, OrderDocumentType $type): mixed

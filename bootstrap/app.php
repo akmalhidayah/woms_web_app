@@ -5,6 +5,7 @@ use App\Console\Commands\RunMaintenanceScanCommand;
 use App\Console\Commands\SyncBastSmPengendali;
 use App\Http\Middleware\EnsureAdminHasSubrole;
 use App\Http\Middleware\EnsureAdminMenuAccess;
+use App\Http\Middleware\EnsureAdminOrderMenuAccess;
 use App\Http\Middleware\EnsurePkmPanelAccess;
 use App\Http\Middleware\EnsureUserHasRole;
 use Illuminate\Foundation\Application;
@@ -15,6 +16,7 @@ use Illuminate\Http\Request;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
@@ -28,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => EnsureUserHasRole::class,
             'admin_role' => EnsureAdminHasSubrole::class,
             'admin_menu' => EnsureAdminMenuAccess::class,
+            'admin_order_menu' => EnsureAdminOrderMenuAccess::class,
             'pkm_panel' => EnsurePkmPanelAccess::class,
         ]);
 

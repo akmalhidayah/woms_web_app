@@ -50,6 +50,18 @@ class ApprovalSignerAuthorizationTest extends TestCase
                     ->assertSee('submissionLoadingOverlay', false)
                     ->assertSee('Memproses approval...');
             }
+
+            if (in_array($documentType, ['initial-work', 'quality-control'], true)) {
+                $response
+                    ->assertSee('touch-none', false)
+                    ->assertSee("canvas.addEventListener('pointerdown'", false)
+                    ->assertSee("canvas.addEventListener('pointercancel'", false)
+                    ->assertSee('canvas.setPointerCapture?.(event.pointerId);', false)
+                    ->assertSee('const minimumStrokePoints = 8;', false)
+                    ->assertSee('const minimumStrokeDistance = 40;', false)
+                    ->assertDontSee("canvas.addEventListener('touchstart'", false)
+                    ->assertDontSee("canvas.addEventListener('mousedown'", false);
+            }
         }
     }
 

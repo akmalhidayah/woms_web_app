@@ -4,18 +4,18 @@ namespace Tests\Feature;
 
 use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Models\BudgetVerification;
-use App\Models\User;
-use App\Models\Order;
+use App\Models\Department;
 use App\Models\Hpp;
 use App\Models\HppSignature;
 use App\Models\LhppBast;
-use App\Models\Department;
-use App\Models\OutlineAgreement;
-use App\Models\OutlineAgreementTarget;
+use App\Models\Order;
 use App\Models\OrderDocument;
 use App\Models\OrderScopeOfWork;
+use App\Models\OutlineAgreement;
+use App\Models\OutlineAgreementTarget;
 use App\Models\PurchaseOrder;
 use App\Models\UnitWork;
+use App\Models\User;
 use App\Support\ApprovalWhatsappLink;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -211,23 +211,27 @@ class RoleDashboardAccessTest extends TestCase
         ]);
         $response->assertSeeTextInOrder([
             'Ringkasan Kuota Anggaran',
-            'Kuota Anggaran',
-            'Rp. 20.000.000',
-            'Periode:',
+            'Periode OA',
             '01 Jan 2026',
             's/d',
             '31 Dec 2026',
-            'Potensi Biaya + Realisasi Biaya:',
-            'Rp. 15.000.000',
-            'Kuota Anggaran Actual',
+            'Kuota Anggaran',
+            'Rp. 20.000.000',
+            'Potensi Biaya',
+            'Rp. 6.000.000',
+            'Realisasi Biaya',
+            'Rp. 9.000.000',
+            'Sisa Kuota Kontrak',
             'Rp. 5.000.000',
-            'Total Biaya Pemeliharaan',
+            'Pemakaian Kuota',
+            '75%',
+            'Rp. 15.000.000 dari Rp. 20.000.000',
+            'Ringkasan Biaya Pemeliharaan',
+            'Target Biaya Pemeliharaan',
             'Rp. 12.000.000',
             'Total Jasa Pemeliharaan',
             'Rp. 7.000.000',
-            'Sisa Biaya Pemeliharaan',
-            'Rp. 5.000.000',
-            'Sisa Kuota Kontrak',
+            'Sisa Target Pemeliharaan',
             'Rp. 5.000.000',
         ]);
 

@@ -6,7 +6,6 @@ use App\Models\AdminNotificationRead;
 use App\Models\HppSignature;
 use App\Models\InitialWork;
 use App\Models\InitialWorkSignature;
-use App\Models\LhppBast;
 use App\Models\LhppBastSignature;
 use App\Models\PurchaseOrder;
 use App\Models\User;
@@ -17,38 +16,61 @@ class AdminNotificationCenter
 {
     private const RECENT_DAYS = 7;
 
+    /** @var array<int, Collection<int, string>> */
+    private array $readKeysCache = [];
+
     /**
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     * @return Collection<int, array<string, mixed>>
      */
-    public static function signatureNotifications(int $limit = 5, ?User $user = null): Collection
+    public function informationNotifications(?User $user, int $limit = 5): Collection
     {
-        $sourceLimit = $user ? max($limit * 4, 20) : $limit;
+        if (! $user?->isAdmin()) {
+            return collect();
+        }
+
+        $sourceLimit = max($limit * 4, 20);
 
         return self::allNotifications($sourceLimit)
-            ->reject(fn (array $notification): bool => self::isRead($notification, $user))
+            ->filter(fn (array $notification): bool => AdminMenuRegistry::canAccess(
+                $user,
+                $notification['menu_key'] ?? '',
+            ))
+            ->reject(fn (array $notification): bool => $this->isRead($notification, $user))
             ->sortByDesc('signed_at')
             ->values()
             ->take($limit);
     }
 
-    public static function signatureNotificationCount(?User $user = null): int
+    public function unreadInformationCount(?User $user): int
     {
+        if (! $user?->isAdmin()) {
+            return 0;
+        }
+
         return self::allNotifications()
-            ->reject(fn (array $notification): bool => self::isRead($notification, $user))
+            ->filter(fn (array $notification): bool => AdminMenuRegistry::canAccess(
+                $user,
+                $notification['menu_key'] ?? '',
+            ))
+            ->reject(fn (array $notification): bool => $this->isRead($notification, $user))
             ->count();
     }
 
     /**
      * @return Collection<int, string>
      */
-    public static function unreadNotificationKeys(?User $user = null): Collection
+    public function unreadInformationKeys(?User $user): Collection
     {
-        if (! $user) {
+        if (! $user?->isAdmin()) {
             return collect();
         }
 
         return self::allNotifications()
-            ->reject(fn (array $notification): bool => self::isRead($notification, $user))
+            ->filter(fn (array $notification): bool => AdminMenuRegistry::canAccess(
+                $user,
+                $notification['menu_key'] ?? '',
+            ))
+            ->reject(fn (array $notification): bool => $this->isRead($notification, $user))
             ->pluck('key')
             ->filter()
             ->unique()
@@ -56,7 +78,7 @@ class AdminNotificationCenter
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     * @return Collection<int, array<string, mixed>>
      */
     private static function allNotifications(?int $limit = null): Collection
     {
@@ -64,38 +86,35 @@ class AdminNotificationCenter
             ->merge(self::hppSignedNotifications($limit))
             ->merge(self::initialWorkSignedNotifications($limit))
             ->merge(self::bastSignedNotifications($limit))
-            ->merge(self::bastQualityControlNotifications($limit))
             ->merge(self::pkmPurchaseOrderProgressNotifications($limit))
             ->merge(self::pkmInitialWorkProgressNotifications($limit));
     }
 
-    private static function isRead(array $notification, ?User $user): bool
+    private function isRead(array $notification, User $user): bool
     {
-        if (! $user || ! isset($notification['key'])) {
+        if (! isset($notification['key'])) {
             return false;
         }
 
-        return self::readKeysForUser($user)->contains($notification['key']);
+        return $this->readKeysForUser($user)->contains($notification['key']);
     }
 
     /**
      * @return Collection<int, string>
      */
-    private static function readKeysForUser(User $user): Collection
+    private function readKeysForUser(User $user): Collection
     {
-        static $cache = [];
-
         if (! Schema::hasTable('admin_notification_reads')) {
             return collect();
         }
 
-        return $cache[$user->id] ??= AdminNotificationRead::query()
+        return $this->readKeysCache[$user->id] ??= AdminNotificationRead::query()
             ->where('user_id', $user->id)
             ->pluck('notification_key');
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     * @return Collection<int, array<string, mixed>>
      */
     private static function hppSignedNotifications(?int $limit): Collection
     {
@@ -108,6 +127,7 @@ class AdminNotificationCenter
             ->get()
             ->map(fn (HppSignature $signature): array => [
                 'key' => 'hpp-signature:'.$signature->id,
+                'menu_key' => AdminMenuRegistry::MENU_CREATE_HPP,
                 'type' => 'HPP',
                 'icon' => 'file-signature',
                 'tone' => 'blue',
@@ -119,12 +139,15 @@ class AdminNotificationCenter
                 ),
                 'meta' => $signature->role_label,
                 'signed_at' => $signature->signed_at,
-                'url' => route('admin.hpp.index', ['search' => $signature->hpp?->nomor_order]),
+                'url' => route('admin.hpp.index', [
+                    'tab' => HppIndexTabs::IN_APPROVAL,
+                    'search' => $signature->hpp?->nomor_order,
+                ]),
             ]);
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     * @return Collection<int, array<string, mixed>>
      */
     private static function initialWorkSignedNotifications(?int $limit): Collection
     {
@@ -137,6 +160,7 @@ class AdminNotificationCenter
             ->get()
             ->map(fn (InitialWorkSignature $signature): array => [
                 'key' => 'initial-work-signature:'.$signature->id,
+                'menu_key' => AdminMenuRegistry::MENU_ORDER_JASA,
                 'type' => 'Initial Work',
                 'icon' => 'clipboard-pen-line',
                 'tone' => 'amber',
@@ -153,12 +177,15 @@ class AdminNotificationCenter
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     * @return Collection<int, array<string, mixed>>
      */
     private static function bastSignedNotifications(?int $limit): Collection
     {
         return self::limitQuery(LhppBastSignature::query()
-            ->with('lhppBast:id,nomor_order,termin_type,deskripsi_pekerjaan')
+            ->with([
+                'lhppBast:id,nomor_order,termin_type,deskripsi_pekerjaan',
+                'lhppBast.garansi:id,lhpp_bast_id,garansi_months',
+            ])
             ->where('status', LhppBastSignature::STATUS_SIGNED)
             ->whereNotNull('signed_at')
             ->where('signed_at', '>=', now()->subDays(self::RECENT_DAYS))
@@ -166,52 +193,32 @@ class AdminNotificationCenter
             ->get()
             ->map(fn (LhppBastSignature $signature): array => [
                 'key' => 'bast-signature:'.$signature->id,
+                'menu_key' => AdminMenuRegistry::MENU_LHPP_BAST,
                 'type' => 'BAST',
                 'icon' => 'file-badge',
                 'tone' => 'emerald',
                 'title' => 'BAST ditandatangani',
                 'message' => sprintf(
-                    'Order %s BAST %s telah ditandatangani oleh %s.',
+                    'Order %s %s telah ditandatangani oleh %s.',
                     $signature->lhppBast?->nomor_order ?: '-',
-                    $signature->lhppBast?->termin_type === 'termin_2' ? 'Termin 2' : 'Termin 1',
+                    BastDisplayLabel::bastLabel(
+                        $signature->lhppBast?->termin_type ?: 'termin_1',
+                        $signature->lhppBast?->garansi?->garansi_months,
+                        false,
+                    ),
                     $signature->signer_name_snapshot ?: 'Approver',
                 ),
                 'meta' => $signature->role_label,
                 'signed_at' => $signature->signed_at,
-                'url' => route('admin.lhpp.index', ['search' => $signature->lhppBast?->nomor_order]),
+                'url' => route('admin.lhpp.index', [
+                    'tab' => BastIndexTabs::TAB_IN_PROGRESS,
+                    'search' => $signature->lhppBast?->nomor_order,
+                ]),
             ]);
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
-     */
-    private static function bastQualityControlNotifications(?int $limit): Collection
-    {
-        return self::limitQuery(LhppBast::query()
-            ->where('quality_control_status', 'pending')
-            ->where('termin_type', 'termin_1')
-            ->where('created_at', '>=', now()->subDays(self::RECENT_DAYS))
-            ->latest('created_at'), $limit)
-            ->get()
-            ->map(fn (LhppBast $lhpp): array => [
-                'key' => 'bast-quality-control:'.$lhpp->id,
-                'type' => 'BAST',
-                'icon' => 'clipboard-check',
-                'tone' => 'amber',
-                'title' => 'Cek quality control BAST',
-                'message' => sprintf(
-                    'PKM membuat BAST %s untuk order %s. Cek quality control untuk mulai token TTD.',
-                    $lhpp->termin_type === 'termin_2' ? 'Termin 2' : 'Termin 1',
-                    $lhpp->nomor_order ?: '-',
-                ),
-                'meta' => 'Menunggu QC Admin',
-                'signed_at' => $lhpp->created_at,
-                'url' => route('admin.lhpp.index', ['search' => $lhpp->nomor_order]),
-            ]);
-    }
-
-    /**
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     * @return Collection<int, array<string, mixed>>
      */
     private static function pkmPurchaseOrderProgressNotifications(?int $limit): Collection
     {
@@ -222,6 +229,7 @@ class AdminNotificationCenter
             ->get()
             ->map(fn (PurchaseOrder $purchaseOrder): array => self::mapPkmProgressNotification(
                 key: 'pkm-po-progress:'.$purchaseOrder->id.':'.($purchaseOrder->updated_at?->timestamp ?? 0),
+                menuKey: AdminMenuRegistry::MENU_ORDER_JASA,
                 nomorOrder: $purchaseOrder->order?->nomor_order ?: '-',
                 sourceLabel: 'PO',
                 progress: (int) ($purchaseOrder->progress_pekerjaan ?? 0),
@@ -232,7 +240,7 @@ class AdminNotificationCenter
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     * @return Collection<int, array<string, mixed>>
      */
     private static function pkmInitialWorkProgressNotifications(?int $limit): Collection
     {
@@ -242,6 +250,7 @@ class AdminNotificationCenter
             ->get()
             ->map(fn (InitialWork $initialWork): array => self::mapPkmProgressNotification(
                 key: 'pkm-initial-work-progress:'.$initialWork->id.':'.($initialWork->updated_at?->timestamp ?? 0),
+                menuKey: AdminMenuRegistry::MENU_ORDER_JASA,
                 nomorOrder: $initialWork->nomor_order ?: '-',
                 sourceLabel: 'Initial Work',
                 progress: (int) ($initialWork->progress_pekerjaan ?? 0),
@@ -254,6 +263,11 @@ class AdminNotificationCenter
     private static function pkmPurchaseOrderProgressQuery()
     {
         return PurchaseOrder::query()
+            ->where(function ($query): void {
+                $query
+                    ->whereNull('progress_pekerjaan')
+                    ->orWhere('progress_pekerjaan', '<', 100);
+            })
             ->where(function ($query): void {
                 $query
                     ->where('progress_pekerjaan', '>=', 11)
@@ -271,6 +285,11 @@ class AdminNotificationCenter
         return InitialWork::query()
             ->where(function ($query): void {
                 $query
+                    ->whereNull('progress_pekerjaan')
+                    ->orWhere('progress_pekerjaan', '<', 100);
+            })
+            ->where(function ($query): void {
+                $query
                     ->where('progress_pekerjaan', '>=', 11)
                     ->orWhereNotNull('target_penyelesaian')
                     ->orWhereNotNull('tanggal_selesai_pekerjaan');
@@ -279,6 +298,7 @@ class AdminNotificationCenter
 
     private static function mapPkmProgressNotification(
         string $key,
+        string $menuKey,
         string $nomorOrder,
         string $sourceLabel,
         int $progress,
@@ -312,14 +332,15 @@ class AdminNotificationCenter
 
         return [
             'key' => $key,
+            'menu_key' => $menuKey,
             'type' => 'PKM',
-            'icon' => $progress >= 100 ? 'shield-check' : 'activity',
-            'tone' => $progress >= 100 ? 'emerald' : 'amber',
-            'title' => $progress >= 100 ? 'Garansi siap diatur' : 'Progress PKM diperbarui',
+            'icon' => 'activity',
+            'tone' => 'amber',
+            'title' => 'Progress PKM diperbarui',
             'message' => $message,
-            'meta' => $progress >= 100 ? $sourceLabel.' / Set Garansi' : $sourceLabel,
+            'meta' => $sourceLabel,
             'signed_at' => $updatedAt,
-            'url' => $progress >= 100 ? route('admin.garansi.index', ['search' => $nomorOrder]) : $url,
+            'url' => $url,
         ];
     }
 

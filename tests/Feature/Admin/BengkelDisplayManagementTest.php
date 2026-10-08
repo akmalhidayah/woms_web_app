@@ -287,24 +287,37 @@ class BengkelDisplayManagementTest extends TestCase
             ->assertOk();
     }
 
-    public function test_bengkel_task_can_store_pending_status_with_reason_visible_on_admin_index(): void
+    public function test_bengkel_task_can_set_pending_status_after_start_with_reason_visible_on_admin_index(): void
     {
         $user = $this->adminUser();
 
         $this->actingAs($user)
             ->post(route('admin.bengkel-tasks.store'), [
+                'nomor_order' => 'ORDER-PENDING-001',
                 'job_name' => 'Repair Conveyor',
                 'notification_number' => 'WO-PENDING',
                 'unit_work' => 'Machine Maintenance 2',
                 'seksi' => 'Line 4/5 RM Machine Maint',
                 'usage_plan_date' => '2026-05-26',
                 'catatan' => 'Regu Fabrikasi',
-                'progress_status' => OrderWorkshop::PROGRESS_PENDING,
-                'pending_reason' => 'Menunggu spare part dari gudang.',
+                'progress_status' => OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
                 'pic_ids' => [],
             ])
             ->assertRedirect(route('admin.bengkel-tasks.index'))
             ->assertSessionHas('status', 'Pekerjaan bengkel ditambahkan.');
+
+        $task = BengkelTask::query()->where('job_name', 'REPAIR CONVEYOR')->firstOrFail();
+
+        $this->actingAs($user)
+            ->patch(route('admin.bengkel-tasks.start', $task))
+            ->assertRedirect(route('admin.bengkel-tasks.index'));
+
+        $this->actingAs($user)
+            ->patch(route('admin.bengkel-tasks.progress.update', $task), [
+                'progress_status' => OrderWorkshop::PROGRESS_PENDING,
+                'pending_reason' => 'Menunggu spare part dari gudang.',
+            ])
+            ->assertRedirect(route('admin.bengkel-tasks.index'));
 
         $this->assertDatabaseHas('bengkel_tasks', [
             'job_name' => 'REPAIR CONVEYOR',
@@ -319,7 +332,154 @@ class BengkelDisplayManagementTest extends TestCase
             ->assertSee('Menunggu spare part dari gudang.');
     }
 
-    public function test_bengkel_task_archive_creates_workshop_order_and_hides_task_from_display_admin(): void
+    public function test_bengkel_task_can_start_sementara_proses_without_workshop_readiness(): void
+    {
+        $user = $this->adminUser();
+
+        $this->actingAs($user)
+            ->post(route('admin.bengkel-tasks.store'), [
+                'nomor_order' => 'ORDER-SEMENTARA-001',
+                'job_name' => 'Repair Conveyor Sementara',
+                'notification_number' => 'WO-SEMENTARA-001',
+                'unit_work' => 'Machine Maintenance 2',
+                'seksi' => 'Line 4/5 RM Machine Maint',
+                'usage_plan_date' => '2026-05-26',
+                'catatan' => 'Regu Fabrikasi',
+                'progress_status' => OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
+                'pic_ids' => [],
+            ])
+            ->assertRedirect(route('admin.bengkel-tasks.index'))
+            ->assertSessionHas('status', 'Pekerjaan bengkel ditambahkan.');
+
+        $order = Order::query()->where('nomor_order', 'ORDER-SEMENTARA-001')->firstOrFail();
+        $task = $order->bengkelTasks()->firstOrFail();
+
+        $this->actingAs($user)
+            ->patch(route('admin.bengkel-tasks.start', $task))
+            ->assertRedirect(route('admin.bengkel-tasks.index'));
+
+        $this->assertDatabaseHas('bengkel_tasks', [
+            'order_id' => $order->id,
+            'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
+        ]);
+        $this->assertDatabaseHas('order_workshops', [
+            'order_id' => $order->id,
+            'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
+            'preparation_status' => null,
+        ]);
+    }
+
+    public function test_bengkel_task_can_edit_pic_description_and_attachment_while_sementara_proses(): void
+    {
+        Storage::fake('public');
+
+        $user = $this->adminUser();
+        $pic = BengkelPic::create([
+            'name' => 'PIC Sementara',
+            'avatar_position_x' => 50,
+            'avatar_position_y' => 50,
+        ]);
+        $task = BengkelTask::create([
+            'job_name' => 'Repair Sementara',
+            'notification_number' => 'WO-SEMENTARA-002',
+            'unit_work' => 'Machine Maintenance 2',
+            'seksi' => 'Line 4/5 RM Machine Maint',
+            'usage_plan_date' => '2026-05-26',
+            'catatan' => 'Regu Fabrikasi',
+            'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
+            'person_in_charge' => [],
+            'person_in_charge_profiles' => [],
+        ]);
+        $order = $this->linkTaskToWorkshopOrder($task, $user, 'ORDER-SEMENTARA-002');
+
+        $this->actingAs($user)
+            ->put(route('admin.bengkel-tasks.update', $task), [
+                'job_name' => 'Repair Sementara Update',
+                'notification_number' => 'WO-SEMENTARA-002',
+                'unit_work' => 'Machine Maintenance 2',
+                'seksi' => 'Line 4/5 RM Machine Maint',
+                'usage_plan_date' => '2026-05-26',
+                'catatan' => 'Regu Fabrikasi',
+                'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
+                'pic_assignments' => [[
+                    'pic_id' => $pic->id,
+                    'descriptions' => ['Pemeriksaan awal pekerjaan'],
+                ]],
+                'attachment' => UploadedFile::fake()->image('bukti-sementara.jpg'),
+            ])
+            ->assertRedirect(route('admin.bengkel-tasks.index'))
+            ->assertSessionHas('status', 'Pekerjaan bengkel diperbarui.');
+
+        $task->refresh();
+
+        $this->assertSame($order->id, $task->order_id);
+        $this->assertSame(OrderWorkshop::PROGRESS_IN_PROGRESS, $task->progress_status);
+        $this->assertSame($pic->id, $task->person_in_charge_profiles[0]['id']);
+        $this->assertSame(['Pemeriksaan awal pekerjaan'], $task->person_in_charge_profiles[0]['work_descriptions']);
+        Storage::disk('public')->assertExists($task->attachment_path);
+    }
+
+    public function test_bengkel_task_cannot_advance_to_quality_control_without_workshop_readiness(): void
+    {
+        $user = $this->adminUser();
+        $task = BengkelTask::create([
+            'job_name' => 'Repair Perlu Readiness',
+            'notification_number' => 'WO-READINESS-001',
+            'unit_work' => 'Machine Maintenance 2',
+            'seksi' => 'Line 4/5 RM Machine Maint',
+            'usage_plan_date' => '2026-05-26',
+            'catatan' => 'Regu Fabrikasi',
+            'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
+            'person_in_charge' => [],
+            'person_in_charge_profiles' => [],
+        ]);
+        $this->linkTaskToWorkshopOrder($task, $user, 'ORDER-READINESS-001');
+
+        $this->actingAs($user)
+            ->patch(route('admin.bengkel-tasks.progress.update', $task), [
+                'progress_status' => OrderWorkshop::PROGRESS_QUALITY_CONTROL,
+            ])
+            ->assertSessionHasErrors('progress_status');
+
+        $this->assertDatabaseHas('bengkel_tasks', [
+            'id' => $task->id,
+            'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
+        ]);
+    }
+
+    public function test_bengkel_task_can_advance_after_workshop_readiness_is_complete(): void
+    {
+        $user = $this->adminUser();
+        $task = BengkelTask::create([
+            'job_name' => 'Repair Siap QC',
+            'notification_number' => 'WO-READINESS-002',
+            'unit_work' => 'Machine Maintenance 2',
+            'seksi' => 'Line 4/5 RM Machine Maint',
+            'usage_plan_date' => '2026-05-26',
+            'catatan' => 'Regu Fabrikasi',
+            'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
+            'person_in_charge' => [],
+            'person_in_charge_profiles' => [],
+        ]);
+        $order = $this->linkTaskToWorkshopOrder($task, $user, 'ORDER-READINESS-002');
+        $order->orderWorkshop()->update([
+            'preparation_status' => OrderWorkshop::PREPARATION_COMPLETED,
+        ]);
+
+        $this->actingAs($user)
+            ->patch(route('admin.bengkel-tasks.progress.update', $task), [
+                'progress_status' => OrderWorkshop::PROGRESS_QUALITY_CONTROL,
+            ])
+            ->assertRedirect(route('admin.bengkel-tasks.index'))
+            ->assertSessionHas('status', 'Status pekerjaan bengkel diperbarui.');
+
+        $this->assertDatabaseHas('bengkel_tasks', [
+            'id' => $task->id,
+            'progress_status' => OrderWorkshop::PROGRESS_QUALITY_CONTROL,
+        ]);
+    }
+
+    public function test_bengkel_task_archive_keeps_linked_workshop_order_and_hides_task_from_display_admin(): void
     {
         $user = $this->adminUser();
         $task = BengkelTask::create([
@@ -338,6 +498,10 @@ class BengkelDisplayManagementTest extends TestCase
                 ],
             ],
         ]);
+        $order = $this->linkTaskToWorkshopOrder($task, $user, 'ORDER-ARCHIVE-001');
+        $order->orderWorkshop()->update([
+            'progress_status' => OrderWorkshop::PROGRESS_PENDING,
+        ]);
 
         $this->actingAs($user)
             ->patch(route('admin.bengkel-tasks.archive', $task))
@@ -345,11 +509,11 @@ class BengkelDisplayManagementTest extends TestCase
             ->assertSessionHas('status', 'Pekerjaan bengkel diarsipkan ke Order Pekerjaan Bengkel.');
 
         $task->refresh();
-        $order = Order::query()->findOrFail($task->archived_order_id);
+        $order->refresh();
 
         $this->assertNotNull($task->archived_at);
         $this->assertSame($order->id, $task->order_id);
-        $this->assertSame('WO-ARCHIVE-001', $order->nomor_order);
+        $this->assertSame('ORDER-ARCHIVE-001', $order->nomor_order);
 
         $this->assertDatabaseHas('orders', [
             'id' => $order->id,
@@ -362,7 +526,7 @@ class BengkelDisplayManagementTest extends TestCase
 
         $this->assertDatabaseHas('order_workshops', [
             'order_id' => $order->id,
-            'progress_status' => OrderWorkshop::PROGRESS_IN_PROGRESS,
+            'progress_status' => OrderWorkshop::PROGRESS_PENDING,
             'catatan' => 'Regu Fabrikasi',
         ]);
 
@@ -399,6 +563,7 @@ class BengkelDisplayManagementTest extends TestCase
             'attachment_mime_type' => 'application/pdf',
             'attachment_size' => 1024,
         ]);
+        $this->linkTaskToWorkshopOrder($task, $user, 'ORDER-ATTACHMENT-001');
 
         $this->actingAs($user)
             ->patch(route('admin.bengkel-tasks.archive', $task))
@@ -453,6 +618,7 @@ class BengkelDisplayManagementTest extends TestCase
             'created_by' => $user->id,
             'updated_by' => $user->id,
         ]);
+        $this->linkTaskToWorkshopOrder($task, $user, 'ORDER-QC-ARCHIVE-001');
 
         $this->actingAs($user)
             ->patch(route('admin.bengkel-tasks.archive', $task))
@@ -462,11 +628,6 @@ class BengkelDisplayManagementTest extends TestCase
 
         $this->assertSame($archivedOrder->id, $report->fresh()->order_id);
         $this->assertSame($report->id, $archivedOrder->latestQualityControlReport()->first()?->id);
-
-        $this->actingAs($user)
-            ->get(route('admin.orders.workshop.index'))
-            ->assertOk()
-            ->assertSee('PDF QC');
     }
 
     public function test_archived_workshop_order_number_and_notification_can_be_completed_later(): void
@@ -482,6 +643,7 @@ class BengkelDisplayManagementTest extends TestCase
             'person_in_charge' => [],
             'person_in_charge_profiles' => [],
         ]);
+        $this->linkTaskToWorkshopOrder($task, $user, 'ORDER-COMPLETE-LATER-001');
 
         $this->actingAs($user)
             ->patch(route('admin.bengkel-tasks.archive', $task))
@@ -519,5 +681,29 @@ class BengkelDisplayManagementTest extends TestCase
             'role' => User::ROLE_ADMIN,
             'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
         ]);
+    }
+
+    private function linkTaskToWorkshopOrder(BengkelTask $task, User $user, string $number): Order
+    {
+        $order = Order::query()->create([
+            'nomor_order' => $number,
+            'nama_pekerjaan' => $task->job_name,
+            'unit_kerja' => $task->unit_work ?: '-',
+            'seksi' => $task->seksi ?: '-',
+            'deskripsi' => 'Pekerjaan dari Display Pekerjaan Bengkel.',
+            'prioritas' => Order::PRIORITY_LOW,
+            'tanggal_order' => now()->toDateString(),
+            'target_selesai' => $task->usage_plan_date?->format('Y-m-d') ?: now()->toDateString(),
+            'catatan_status' => OrderUserNoteStatus::ApprovedWorkshop->value,
+            'catatan' => $task->catatan ?: 'Regu Fabrikasi',
+            'created_by' => $user->id,
+        ]);
+        $order->orderWorkshop()->create([
+            'progress_status' => $task->progress_status ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
+            'catatan' => $task->catatan ?: 'Regu Fabrikasi',
+        ]);
+        $task->forceFill(['order_id' => $order->id])->save();
+
+        return $order;
     }
 }

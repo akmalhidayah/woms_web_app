@@ -8,13 +8,17 @@ use App\Models\BengkelPic;
 use App\Models\BengkelTask;
 use App\Models\Order;
 use App\Models\OrderWorkshop;
-use App\Services\BengkelTasks\WorkshopOrderTaskSyncer;
+use App\Models\WorkshopWorkPackage;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
 class DashboardPekerjaan extends Component
 {
+    public const DISPLAY_PER_PAGE = 6;
+
     public string $mode = 'admin';
+
+    public bool $orchestrated = false;
 
     /**
      * @var array<int, array<string, mixed>>
@@ -50,9 +54,10 @@ class DashboardPekerjaan extends Component
         'forceRefreshBoard' => 'refreshBoard',
     ];
 
-    public function mount(string $mode = 'admin'): void
+    public function mount(string $mode = 'admin', bool $orchestrated = false): void
     {
         $this->mode = $mode;
+        $this->orchestrated = $orchestrated;
         $this->loadTasks();
     }
 
@@ -80,7 +85,6 @@ class DashboardPekerjaan extends Component
     public function loadTasks(): void
     {
         if (Cache::add('bengkel_tasks:auto_sync_display', true, now()->addSeconds(20))) {
-            app(WorkshopOrderTaskSyncer::class)->syncOpenWorkshopOrders();
         }
 
         $this->loadDisplaySettings();
@@ -96,7 +100,7 @@ class DashboardPekerjaan extends Component
             ->keyBy('avatar_path');
 
         $tasks = BengkelTask::query()
-            ->with('order.orderWorkshop')
+            ->with('order.orderWorkshop', 'order.workPackages.assignments', 'order.workshopHandover', 'order.latestQualityControlReport.signatures')
             ->whereNull('archived_at')
             ->where(function ($builder): void {
                 $builder
@@ -124,7 +128,7 @@ class DashboardPekerjaan extends Component
             ->orderByDesc('created_at')
             ->get();
 
-        $this->tasks = $tasks->map(static function (BengkelTask $task) use ($picDirectory, $picDirectoryByName, $picDirectoryByPath): array {
+        $taskRows = $tasks->map(function (BengkelTask $task) use ($picDirectory, $picDirectoryByName, $picDirectoryByPath): array {
             $names = collect(is_array($task->person_in_charge) ? $task->person_in_charge : [])
                 ->filter(fn ($name) => filled($name))
                 ->values();
@@ -180,8 +184,56 @@ class DashboardPekerjaan extends Component
 
             $progressStatus = $task->effectiveProgressStatus() ?: OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
             $isCompleted = $progressStatus === OrderWorkshop::PROGRESS_DONE || (bool) $task->is_completed;
+            $preparationStatus = $task->order?->orderWorkshop?->preparation_status;
+            $preparationLabel = $task->order?->orderWorkshop?->preparationLabel() ?? 'Belum Memilih Persiapan';
+
+            $packageRows = ($task->order?->isWorkshopOrder() ? $task->order?->workPackages : collect())
+                ?->map(function ($package) use ($task, $picDirectory, $preparationStatus, $preparationLabel): array {
+                    $profiles = $package->assignments->map(static function ($assignment) use ($picDirectory): array {
+                        $pic = $assignment->bengkel_pic_id ? $picDirectory->get((int) $assignment->bengkel_pic_id) : null;
+
+                        return [
+                            'id' => $assignment->bengkel_pic_id,
+                            'name' => $assignment->pic_name_snapshot,
+                            'avatar_path' => $assignment->pic_avatar_path_snapshot,
+                            'avatar_url' => $pic?->avatar_url,
+                            'avatar_position_x' => $assignment->avatar_position_x ?? 50,
+                            'avatar_position_y' => $assignment->avatar_position_y ?? 50,
+                            'work_descriptions' => is_array($assignment->work_descriptions) ? $assignment->work_descriptions : [],
+                        ];
+                    })->values()->all();
+                    $status = match ($package->status) {
+                        WorkshopWorkPackage::STATUS_COMPLETED => OrderWorkshop::PROGRESS_DONE,
+                        WorkshopWorkPackage::STATUS_IN_PROGRESS => OrderWorkshop::PROGRESS_IN_PROGRESS,
+                        WorkshopWorkPackage::STATUS_PENDING => OrderWorkshop::PROGRESS_PENDING,
+                        default => OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
+                    };
+                    $status = $this->resolvePackageDisplayStatus($task->order, $status);
+
+                    return [
+                        'id' => 'package-'.$package->id,
+                        'entity_type' => 'work_package',
+                        'entity_id' => $package->id,
+                        'order_id' => $task->order_id,
+                        'notification_number' => $package->display_no,
+                        'unit_work' => $task->unit_work,
+                        'seksi' => $task->seksi,
+                        'job_name' => mb_strtoupper((string) $package->job_name),
+                        'usage_plan_date' => $package->target_date?->format('Y-m-d'),
+                        'person_in_charge' => collect($profiles)->pluck('name')->all(),
+                        'person_in_charge_profiles' => $profiles,
+                        'catatan' => $task->catatan,
+                        'is_completed' => $package->isCompleted(),
+                        'progress_status' => $status,
+                        'progress_label' => $package->statusLabel(),
+                        'preparation_status' => $preparationStatus,
+                        'preparation_label' => $preparationLabel,
+                        'pending_reason' => $package->pending_reason,
+                    ];
+                })->values()->all() ?? [];
 
             return [
+                'entity_type' => 'task',
                 'id' => $task->id,
                 'order_id' => $task->order_id,
                 'notification_number' => $task->notification_number,
@@ -195,10 +247,34 @@ class DashboardPekerjaan extends Component
                 'is_completed' => $isCompleted,
                 'progress_status' => $progressStatus,
                 'progress_label' => OrderWorkshop::progressOptions()[$progressStatus] ?? 'Menunggu Jadwal',
+                'preparation_status' => $preparationStatus,
+                'preparation_label' => $preparationLabel,
+                'work_packages' => $packageRows,
             ];
         })->all();
 
+        $this->tasks = collect($taskRows)
+            ->flatMap(static function (array $row): array {
+                return $row['work_packages'] !== [] ? $row['work_packages'] : [$row];
+            })
+            ->map(static function (array $row): array {
+                unset($row['work_packages']);
+
+                return $row;
+            })
+            ->values()
+            ->all();
+
         $collection = collect($this->tasks);
+
+        if ($this->mode === 'display') {
+            $this->maxPages = max(1, (int) ceil($collection->count() / self::DISPLAY_PER_PAGE));
+            $this->pageSlide = $this->maxPages > 0
+                ? $this->pageSlide % $this->maxPages
+                : 0;
+
+            return;
+        }
 
         $fabrikasiRows = $collection
             ->filter(fn (array $row): bool => (($row['catatan'] ?? null) === 'Regu Fabrikasi') || empty($row['catatan']))
@@ -227,11 +303,43 @@ class DashboardPekerjaan extends Component
         $this->pageSlide = (int) ($this->pageSlide % $this->maxPages);
     }
 
+    private function resolvePackageDisplayStatus(?Order $order, string $fallback): string
+    {
+        if ($order === null) {
+            return $fallback;
+        }
+
+        $handover = $order->workshopHandover;
+        if ($handover?->isCompleted()) {
+            return OrderWorkshop::PROGRESS_DONE;
+        }
+
+        if ($handover?->isWaitingUserSignature()) {
+            return 'waiting_handover';
+        }
+
+        $qualityControl = $order->latestQualityControlReport;
+        if ($qualityControl?->approvalCompleted()) {
+            return 'waiting_handover';
+        }
+
+        if (in_array($order->orderWorkshop?->progress_status, [
+            OrderWorkshop::PROGRESS_QUALITY_CONTROL,
+            OrderWorkshop::PROGRESS_DONE,
+        ], true)) {
+            return $order->orderWorkshop->progress_status === OrderWorkshop::PROGRESS_DONE
+                ? 'waiting_handover'
+                : OrderWorkshop::PROGRESS_QUALITY_CONTROL;
+        }
+
+        return $fallback;
+    }
+
     private function loadOrderSummary(): void
     {
         $orders = Order::query()
             ->with([
-                'orderWorkshop:id,order_id,progress_status',
+                'orderWorkshop:id,order_id,preparation_status,progress_status',
                 'purchaseOrder:id,order_id,progress_pekerjaan',
                 'initialWork:id,order_id,progress_pekerjaan',
             ])
@@ -285,6 +393,18 @@ class DashboardPekerjaan extends Component
     {
         if ($this->maxPages <= 1) {
             $this->pageSlide = 0;
+
+            if ($this->mode === 'display' && $this->orchestrated) {
+                $this->dispatch('workshop-display-cycle-completed');
+            }
+
+            return;
+        }
+
+        if ($this->mode === 'display' && $this->orchestrated && $this->pageSlide >= $this->maxPages - 1) {
+            $this->pageSlide = 0;
+            $this->dispatch('workshop-display-cycle-completed');
+
             return;
         }
 
@@ -297,7 +417,6 @@ class DashboardPekerjaan extends Component
     }
 
     /**
-     * @param  mixed  $descriptions
      * @return list<string>
      */
     private static function normalizeWorkDescriptions(mixed $descriptions): array

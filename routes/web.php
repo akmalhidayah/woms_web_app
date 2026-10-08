@@ -3,6 +3,12 @@
 use App\Http\Controllers\Admin\AccessControlController;
 use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\ApprovalSignatureReassignmentController;
+use App\Http\Controllers\Admin\AppSheet\AppSheetController;
+use App\Http\Controllers\Admin\AppSheet\AppSheetMediaController;
+use App\Http\Controllers\Admin\AppSheet\ConsumableTransactionController;
+use App\Http\Controllers\Admin\AppSheet\DailyReportController;
+use App\Http\Controllers\Admin\AppSheet\GoogleOAuthController;
+use App\Http\Controllers\Admin\AppSheet\StockUpdateController;
 use App\Http\Controllers\Admin\BengkelPicController;
 use App\Http\Controllers\Admin\BengkelTaskController;
 use App\Http\Controllers\Admin\BudgetVerificationController;
@@ -19,14 +25,18 @@ use App\Http\Controllers\Admin\Orders\InitialWorkController as AdminInitialWorkC
 use App\Http\Controllers\Admin\Orders\OrderDocumentController;
 use App\Http\Controllers\Admin\Orders\OrderScopeOfWorkController;
 use App\Http\Controllers\Admin\OutlineAgreementController;
+use App\Http\Controllers\Admin\OutlineAgreementMonthlyRealizationController;
 use App\Http\Controllers\Admin\PurchaseOrderController;
 use App\Http\Controllers\Admin\StructureOrganizationController;
 use App\Http\Controllers\Admin\UserImpersonationController;
 use App\Http\Controllers\Admin\UserPanelController;
+use App\Http\Controllers\Admin\WorkshopHandoverController;
+use App\Http\Controllers\Admin\WorkshopQualityControlController;
 use App\Http\Controllers\Approval\BastSignatureController;
 use App\Http\Controllers\Approval\HppSignatureController;
 use App\Http\Controllers\Approval\InitialWorkSignatureController;
 use App\Http\Controllers\Approval\QualityControlSignatureController;
+use App\Http\Controllers\Approval\WorkshopHandoverSignatureController;
 use App\Http\Controllers\ApprovalDocumentController;
 use App\Http\Controllers\Pkm\DashboardController as PkmDashboardController;
 use App\Http\Controllers\Pkm\DocumentsController as PkmDocumentsController;
@@ -66,6 +76,14 @@ Route::get('informasi/{informationUpload}/preview', [InformationUploadController
 Route::view('display-pekerjaan-bengkel', 'display.bengkel')
     ->name('display.bengkel');
 
+Route::get('display-pekerjaan-bengkel/laporan-harian/media/{key}', [AppSheetMediaController::class, 'showDailyReportDisplay'])
+    ->where('key', '[a-f0-9]{64}')
+    ->name('display.bengkel.daily-report-media');
+
+Route::get('display-pekerjaan-bengkel/laporan-harian/avatar/{key}', [AppSheetMediaController::class, 'showDailyReportDisplayAvatar'])
+    ->where('key', '[a-f0-9]{64}')
+    ->name('display.bengkel.daily-report-avatar');
+
 Route::middleware(['auth'])->group(function () {
     Route::post('impersonation/stop', [UserImpersonationController::class, 'stop'])
         ->name('impersonation.stop');
@@ -102,6 +120,21 @@ Route::middleware(['auth'])->group(function () {
         ->name('approval.bast.sign');
     Route::get('approval/bast/{token}/pdf', [BastSignatureController::class, 'pdf'])
         ->name('approval.bast.pdf');
+    Route::get('approval/bast/{token}/hpp', [BastSignatureController::class, 'previewHpp'])
+        ->name('approval.bast.hpp');
+    Route::get('approval/bast/{token}/abnormalitas', [BastSignatureController::class, 'previewAbnormalitas'])
+        ->name('approval.bast.abnormalitas');
+    Route::get('approval/bast/{token}/termin-1', [BastSignatureController::class, 'previewTerminOne'])
+        ->name('approval.bast.termin-one');
+    Route::get('approval/workshop-handover/{token}', [WorkshopHandoverSignatureController::class, 'show'])
+        ->name('approval.workshop-handover.show');
+    Route::post('approval/workshop-handover/{token}', [WorkshopHandoverSignatureController::class, 'sign'])
+        ->name('approval.workshop-handover.sign');
+    Route::get('approval/workshop-handover/{token}/pdf', [WorkshopHandoverSignatureController::class, 'pdf'])
+        ->name('approval.workshop-handover.pdf');
+    Route::get('approval/workshop-handover/{token}/photo/{index}', [WorkshopHandoverSignatureController::class, 'photo'])
+        ->whereNumber('index')
+        ->name('approval.workshop-handover.photo');
 
     Route::get('admin/dashboard', AdminDashboardController::class)
         ->middleware('role:admin')
@@ -127,6 +160,54 @@ Route::middleware(['auth'])->group(function () {
     Route::post('admin/notifications/read-all', [AdminNotificationController::class, 'readAll'])
         ->middleware('role:admin')
         ->name('admin.notifications.read-all');
+    Route::get('admin/notifications/action-feed', [AdminNotificationController::class, 'actionFeed'])
+        ->middleware('role:admin')
+        ->name('admin.notifications.action-feed');
+
+    Route::prefix('admin/appsheet')
+        ->name('admin.appsheet.')
+        ->middleware('role:admin')
+        ->group(function () {
+            Route::middleware('admin_menu:appsheet_history_consumable,appsheet_stock_consumable,daily_report')->group(function () {
+                Route::get('google/connect', [GoogleOAuthController::class, 'connect'])
+                    ->name('google.connect');
+                Route::get('google/callback', [GoogleOAuthController::class, 'callback'])
+                    ->name('google.callback');
+                Route::get('media/{key}', [AppSheetMediaController::class, 'show'])
+                    ->where('key', '[a-f0-9]{64}')
+                    ->name('media.show');
+            });
+
+            Route::middleware('admin_menu:appsheet_history_consumable')->group(function () {
+                Route::get('history-consumable', [AppSheetController::class, 'historyConsumable'])
+                    ->name('history-consumable.index');
+                Route::post('history-consumable/transactions', [ConsumableTransactionController::class, 'store'])
+                    ->name('history-consumable.transactions.store');
+            });
+
+            Route::middleware('admin_menu:appsheet_stock_consumable')->group(function () {
+                Route::get('stock-consumable', [AppSheetController::class, 'stockConsumable'])
+                    ->name('stock-consumable.index');
+                Route::get('stock-consumable-gudang', [AppSheetController::class, 'stockConsumableGudang'])
+                    ->name('stock-consumable-gudang.index');
+                Route::get('stock-material-bms', [AppSheetController::class, 'stockMaterialBms'])
+                    ->name('stock-material-bms.index');
+                Route::get('stock-material-gudang', [AppSheetController::class, 'stockMaterialGudang'])
+                    ->name('stock-material-gudang.index');
+                Route::patch('stock/{stockKind}', StockUpdateController::class)
+                    ->whereIn('stockKind', [
+                        'consumable-bms',
+                        'consumable-gudang',
+                        'material-bms',
+                        'material-gudang',
+                    ])
+                    ->name('stock.update');
+            });
+        });
+
+    Route::get('admin/laporan-harian', DailyReportController::class)
+        ->middleware(['role:admin', 'admin_menu:daily_report'])
+        ->name('admin.daily-report.index');
 
     Route::get('admin/access-control', [AccessControlController::class, 'index'])
         ->middleware(['role:admin', 'admin_role:super_admin'])
@@ -186,6 +267,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('admin/purchase-order', [PurchaseOrderController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:purchase_order'])
         ->name('admin.purchase-order.index');
+    Route::post('admin/purchase-order/estimate-approval/approve-all', [PurchaseOrderController::class, 'approveAllEstimates'])
+        ->middleware(['role:admin', 'admin_menu:purchase_order'])
+        ->name('admin.purchase-order.estimate-approval.approve-all');
     Route::patch('admin/purchase-order/{hpp:nomor_order}', [PurchaseOrderController::class, 'update'])
         ->middleware(['role:admin', 'admin_menu:purchase_order'])
         ->name('admin.purchase-order.update');
@@ -228,6 +312,9 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
         ->whereNumber('lhppId')
         ->name('admin.lhpp.approval.resend');
+    Route::post('admin/lhpp/resend-all-active-approvals', [AdminLhppController::class, 'resendAllActiveApprovals'])
+        ->middleware(['role:admin', 'admin_menu:lhpp_bast'])
+        ->name('admin.lhpp.approval.resend-all');
     Route::get('admin/lpj', [LpjPplController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:lpj_ppl'])
         ->name('admin.lpj.index');
@@ -250,6 +337,31 @@ Route::middleware(['auth'])->group(function () {
     Route::get('admin/display-pekerjaan-bengkel', [BengkelTaskController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
         ->name('admin.bengkel-tasks.index');
+    Route::get('admin/quality-control-bengkel', WorkshopQualityControlController::class)
+        ->middleware(['role:admin', 'admin_menu:quality_control_bengkel'])
+        ->name('admin.workshop-quality-control.index');
+    Route::get('admin/serah-terima-bengkel', WorkshopHandoverController::class)
+        ->middleware(['role:admin', 'admin_menu:serah_terima_bengkel'])
+        ->name('admin.workshop-handover.index');
+    Route::post('admin/serah-terima-bengkel/{order:nomor_order}/process', [WorkshopHandoverController::class, 'process'])
+        ->middleware(['role:admin', 'admin_menu:serah_terima_bengkel'])
+        ->name('admin.workshop-handover.process');
+    Route::post('admin/serah-terima-bengkel/{workshopHandover}/resend', [WorkshopHandoverController::class, 'resend'])
+        ->middleware(['role:admin', 'admin_menu:serah_terima_bengkel'])
+        ->whereNumber('workshopHandover')
+        ->name('admin.workshop-handover.resend');
+    Route::post('admin/serah-terima-bengkel/{workshopHandover}/regenerate', [WorkshopHandoverController::class, 'regenerate'])
+        ->middleware(['role:admin', 'admin_menu:serah_terima_bengkel'])
+        ->whereNumber('workshopHandover')
+        ->name('admin.workshop-handover.regenerate');
+    Route::get('admin/serah-terima-bengkel/{workshopHandover}/photo/{index}', [WorkshopHandoverController::class, 'photo'])
+        ->middleware(['role:admin', 'admin_menu:serah_terima_bengkel'])
+        ->whereNumber(['workshopHandover', 'index'])
+        ->name('admin.workshop-handover.photo');
+    Route::get('admin/serah-terima-bengkel/{workshopHandover}/pdf', [WorkshopHandoverController::class, 'pdf'])
+        ->middleware(['role:admin', 'admin_menu:serah_terima_bengkel'])
+        ->whereNumber('workshopHandover')
+        ->name('admin.workshop-handover.pdf');
     Route::get('admin/display-pekerjaan-bengkel/create', [BengkelTaskController::class, 'create'])
         ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
         ->name('admin.bengkel-tasks.create');
@@ -272,6 +384,14 @@ Route::middleware(['auth'])->group(function () {
         ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
         ->whereNumber('bengkel_task')
         ->name('admin.bengkel-tasks.progress.update');
+    Route::patch('admin/display-pekerjaan-bengkel/{bengkel_task}/start', [BengkelTaskController::class, 'start'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->whereNumber('bengkel_task')
+        ->name('admin.bengkel-tasks.start');
+    Route::patch('admin/display-pekerjaan-bengkel/{bengkel_task}/preparation', [BengkelTaskController::class, 'updatePreparation'])
+        ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
+        ->whereNumber('bengkel_task')
+        ->name('admin.bengkel-tasks.preparation.update');
     Route::patch('admin/display-pekerjaan-bengkel/{bengkel_task}/complete', [BengkelTaskController::class, 'complete'])
         ->middleware(['role:admin', 'admin_menu:display_pekerjaan_bengkel'])
         ->whereNumber('bengkel_task')
@@ -334,6 +454,12 @@ Route::middleware(['auth'])->group(function () {
     Route::post('admin/outline-agreements/{outlineAgreement}/amendments', [OutlineAgreementController::class, 'addAmendment'])
         ->middleware(['role:admin', 'admin_menu:kuota_anggaran_oa'])
         ->name('admin.outline-agreements.amendments.store');
+    Route::post('admin/outline-agreements/{outlineAgreement}/monthly-realizations', [OutlineAgreementMonthlyRealizationController::class, 'store'])
+        ->middleware(['role:admin', 'admin_menu:kuota_anggaran_oa'])
+        ->name('admin.outline-agreements.monthly-realizations.store');
+    Route::delete('admin/outline-agreements/{outlineAgreement}/monthly-realizations/{monthlyRealization}', [OutlineAgreementMonthlyRealizationController::class, 'destroy'])
+        ->middleware(['role:admin', 'admin_menu:kuota_anggaran_oa'])
+        ->name('admin.outline-agreements.monthly-realizations.destroy');
 
     Route::get('admin/user-panel', [UserPanelController::class, 'index'])
         ->middleware(['role:admin', 'admin_menu:user_panel'])
@@ -437,6 +563,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('user/orders/{order}/quality-control/pdf', [OrderTrackingController::class, 'qualityControlPdf'])
         ->middleware('role:user,approver,pkm')
         ->name('user.orders.quality-control.pdf');
+    Route::get('user/orders/{order}/workshop-handover/pdf', [OrderTrackingController::class, 'workshopHandoverPdf'])
+        ->middleware('role:user,approver,pkm')
+        ->name('user.orders.workshop-handover.pdf');
     Route::get('user/orders/{order}/{termin}/bast/pdf', [OrderTrackingController::class, 'bastPdf'])
         ->middleware('role:user,approver,pkm')
         ->where('termin', 'termin-1|termin-2')
@@ -530,6 +659,8 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('pkm_panel')
         ->group(function (): void {
             Route::get('/', [HppDraftController::class, 'index'])->name('index');
+            Route::post('/resend-all-active-approvals', [HppDraftController::class, 'resendAllActiveApprovals'])
+                ->name('approval.resend-all');
             Route::get('/create', [HppDraftController::class, 'create'])->name('create');
             Route::post('/', [HppDraftController::class, 'store'])->name('store');
             Route::get('/{hpp}/edit', [HppDraftController::class, 'edit'])->whereNumber('hpp')->name('edit');
@@ -583,6 +714,9 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('pkm_panel')
         ->whereNumber('lhppId')
         ->name('pkm.lhpp.approval.resend');
+    Route::post('pkm/lhpp/resend-all-active-approvals', [LhppController::class, 'resendAllActiveApprovals'])
+        ->middleware('pkm_panel')
+        ->name('pkm.lhpp.approval.resend-all');
     Route::get('pkm/lhpp/{nomorOrder}/{termin}/pdf', [LhppController::class, 'pdf'])
         ->middleware('pkm_panel')
         ->where('termin', 'termin-[12]')
@@ -620,6 +754,8 @@ Route::prefix('admin/hpp')
     ->middleware(['auth', 'role:admin', 'admin_menu:create_hpp'])
     ->group(function () {
         Route::get('/', [HppController::class, 'index'])->name('index');
+        Route::post('/resend-all-active-approvals', [HppController::class, 'resendAllActiveApprovals'])
+            ->name('approval.resend-all');
         Route::get('/create', [HppController::class, 'create'])->name('create');
         Route::prefix('id/{hpp}')
             ->whereNumber('hpp')
@@ -627,6 +763,9 @@ Route::prefix('admin/hpp')
                 Route::get('/pdf', [HppController::class, 'pdf'])->name('pdf.by-id');
                 Route::get('/dirops-signed-document', [HppController::class, 'diropsSignedDocument'])->name('dirops-document.show.by-id');
                 Route::post('/dirops-signed-document', [HppController::class, 'uploadDiropsSignedDocument'])->name('dirops-document.upload.by-id');
+                Route::patch('/dirops-signed-document', [HppController::class, 'replaceDiropsSignedDocument'])
+                    ->middleware('admin_role:super_admin')
+                    ->name('dirops-document.replace.by-id');
                 Route::post('/regenerate-active-approval-token', [HppController::class, 'regenerateActiveApprovalToken'])->name('approval-token.regenerate.by-id');
                 Route::post('/resend-active-approval', [HppController::class, 'resendActiveApproval'])->name('approval.resend.by-id');
                 Route::post('/signatures/{signature}/rollback', [HppController::class, 'rollbackSignature'])
@@ -637,6 +776,9 @@ Route::prefix('admin/hpp')
         Route::get('/{hpp:nomor_order}/pdf', [HppController::class, 'pdf'])->name('pdf');
         Route::get('/{hpp:nomor_order}/dirops-signed-document', [HppController::class, 'diropsSignedDocument'])->name('dirops-document.show');
         Route::post('/{hpp:nomor_order}/dirops-signed-document', [HppController::class, 'uploadDiropsSignedDocument'])->name('dirops-document.upload');
+        Route::patch('/{hpp:nomor_order}/dirops-signed-document', [HppController::class, 'replaceDiropsSignedDocument'])
+            ->middleware('admin_role:super_admin')
+            ->name('dirops-document.replace');
         Route::post('/{hpp:nomor_order}/regenerate-active-approval-token', [HppController::class, 'regenerateActiveApprovalToken'])->name('approval-token.regenerate');
         Route::post('/{hpp:nomor_order}/resend-active-approval', [HppController::class, 'resendActiveApproval'])->name('approval.resend');
         Route::post('/{hpp:nomor_order}/signatures/{signature}/rollback', [HppController::class, 'rollbackSignature'])

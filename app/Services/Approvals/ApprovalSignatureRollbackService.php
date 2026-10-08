@@ -236,7 +236,7 @@ class ApprovalSignatureRollbackService
     private function resetSignatures(Collection $signatures, string $lockedStatus): void
     {
         foreach ($signatures as $signature) {
-            $signature->update([
+            $resetAttributes = [
                 'status' => $lockedStatus,
                 'token' => null,
                 'token_hash' => null,
@@ -251,7 +251,20 @@ class ApprovalSignatureRollbackService
                 'approval_note' => null,
                 'signed_ip' => null,
                 'signed_user_agent' => null,
-            ]);
+            ];
+
+            if ($signature instanceof HppSignature) {
+                $resetAttributes = [
+                    ...$resetAttributes,
+                    'signer_name_snapshot' => '',
+                    'signer_position_snapshot' => '',
+                    'signer_department_snapshot' => null,
+                    'signer_unit_snapshot' => null,
+                    'signer_section_snapshot' => null,
+                ];
+            }
+
+            $signature->update($resetAttributes);
         }
     }
 
@@ -323,6 +336,10 @@ class ApprovalSignatureRollbackService
             'role_label' => $signature->getAttribute('role_label'),
             'signer_user_id' => $signature->getAttribute('signer_user_id'),
             'signer_name_snapshot' => $signature->getAttribute('signer_name_snapshot'),
+            'signer_position_snapshot' => $signature->getAttribute('signer_position_snapshot'),
+            'signer_department_snapshot' => $signature->getAttribute('signer_department_snapshot'),
+            'signer_unit_snapshot' => $signature->getAttribute('signer_unit_snapshot'),
+            'signer_section_snapshot' => $signature->getAttribute('signer_section_snapshot'),
             'status' => $signature->getAttribute('status'),
             'token_hash' => $signature->getAttribute('token_hash'),
             'token_expires_at' => optional($signature->getAttribute('token_expires_at'))?->toJSON(),

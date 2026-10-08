@@ -13,6 +13,7 @@ use App\Models\UnitWorkSection;
 use App\Models\User;
 use App\Support\HppApprovalFlow;
 use App\Support\HppApprovalSignatureBuilder;
+use App\Support\HppSignatureIdentityResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -44,6 +45,14 @@ class HppApprovalSignatureFlowTest extends TestCase
             $this->assertSame(HppSignature::STATUS_PENDING, $signatures->first()->status, $case['case']);
             $this->assertNotNull($signatures->first()->token_hash, $case['case']);
             $this->assertNotNull($signatures->first()->approvalUrl(), $case['case']);
+
+            foreach ($signatures as $signature) {
+                $this->assertSame('', $signature->signer_name_snapshot, $case['case'].' step '.$signature->step_order);
+                $this->assertSame('', $signature->signer_position_snapshot, $case['case'].' step '.$signature->step_order);
+                $this->assertNull($signature->signer_department_snapshot, $case['case'].' step '.$signature->step_order);
+                $this->assertNull($signature->signer_unit_snapshot, $case['case'].' step '.$signature->step_order);
+                $this->assertNull($signature->signer_section_snapshot, $case['case'].' step '.$signature->step_order);
+            }
 
             foreach ($signatures->skip(1) as $signature) {
                 $this->assertSame(HppSignature::STATUS_LOCKED, $signature->status, $case['case'].' step '.$signature->step_order);
@@ -101,7 +110,102 @@ class HppApprovalSignatureFlowTest extends TestCase
 
             $this->assertSame(Hpp::STATUS_APPROVED, $hpp->status, $case['case']);
             $this->assertTrue($hpp->signatures->every(fn (HppSignature $signature): bool => $signature->isSigned()), $case['case']);
+            $this->assertTrue($hpp->signatures->every(
+                fn (HppSignature $signature): bool => filled($signature->signer_name_snapshot)
+                    && filled($signature->signer_position_snapshot)
+            ), $case['case'].' signed identities must be snapshotted');
         }
+    }
+
+    public function test_pending_identity_is_live_and_becomes_immutable_when_signed(): void
+    {
+        Storage::fake('public');
+        $this->setUpApprovalStructure();
+
+        $hpp = $this->createHppForCase($this->hppCases()[0]);
+        app(HppApprovalSignatureBuilder::class)->ensureSignatures($hpp);
+
+        $pending = $hpp->refresh()->signatures->firstOrFail();
+        $pending->update([
+            'signer_name_snapshot' => 'Nama Snapshot Lama',
+            'signer_position_snapshot' => 'Jabatan Snapshot Lama',
+            'signer_department_snapshot' => 'Departemen Snapshot Lama',
+            'signer_unit_snapshot' => 'Unit Snapshot Lama',
+            'signer_section_snapshot' => 'Section Snapshot Lama',
+        ]);
+        $pending->signer->update(['name' => 'Nama Approver Terbaru']);
+        $requesterSection = UnitWorkSection::query()->where('name', 'Requester Section')->firstOrFail();
+        $requesterUnit = $requesterSection->unitWork;
+        $requesterDepartment = $requesterUnit->department;
+        $requesterDepartment->update(['name' => 'Requester Department Terbaru']);
+        $requesterUnit->update(['name' => 'Requester Unit Terbaru']);
+        $requesterSection->update(['name' => 'Requester Section Terbaru']);
+        $hpp->order->update([
+            'unit_kerja' => 'Requester Unit Terbaru',
+            'seksi' => 'Requester Section Terbaru',
+        ]);
+        $pending = $pending->fresh(['signer', 'hpp']);
+        $identityBeforeSigning = app(HppSignatureIdentityResolver::class)->resolve($pending);
+
+        $this->assertSame('Nama Approver Terbaru', $identityBeforeSigning['name']);
+        $this->assertSame('Manager of Requester Section Terbaru', $identityBeforeSigning['position']);
+        $this->assertSame('Requester Department Terbaru', $identityBeforeSigning['department']);
+        $this->assertSame('Requester Unit Terbaru', $identityBeforeSigning['unit']);
+        $this->assertSame('Requester Section Terbaru', $identityBeforeSigning['section']);
+        $this->assertSame('Nama Snapshot Lama', $pending->signer_name_snapshot);
+
+        $this->actingAs($pending->signer)
+            ->post(route('approval.hpp.sign', $pending->token), [
+                'approval_action' => 'sign',
+                'signature_data' => $this->signatureData(),
+            ])
+            ->assertRedirect(route('approval.hpp.show', $pending->token));
+
+        $signed = $pending->fresh(['signer', 'hpp']);
+        $this->assertTrue($signed->isSigned());
+        $this->assertSame($identityBeforeSigning['name'], $signed->signer_name_snapshot);
+        $this->assertSame($identityBeforeSigning['position'], $signed->signer_position_snapshot);
+        $this->assertSame($identityBeforeSigning['department'], $signed->signer_department_snapshot);
+        $this->assertSame($identityBeforeSigning['unit'], $signed->signer_unit_snapshot);
+        $this->assertSame($identityBeforeSigning['section'], $signed->signer_section_snapshot);
+
+        $signed->signer->update(['name' => 'Nama Berubah Setelah TTD']);
+        $requesterDepartment->update(['name' => 'Department Setelah TTD']);
+        $requesterUnit->update(['name' => 'Unit Setelah TTD']);
+        $requesterSection->update(['name' => 'Section Setelah TTD']);
+        $signed = $signed->fresh(['signer', 'hpp']);
+
+        $identityAfterSigning = app(HppSignatureIdentityResolver::class)->resolve($signed);
+        $this->assertSame('Nama Approver Terbaru', $identityAfterSigning['name']);
+        $this->assertSame('Manager of Requester Section Terbaru', $identityAfterSigning['position']);
+        $this->assertSame('Requester Department Terbaru', $identityAfterSigning['department']);
+        $this->assertSame('Requester Unit Terbaru', $identityAfterSigning['unit']);
+        $this->assertSame('Requester Section Terbaru', $identityAfterSigning['section']);
+
+        $smSignature = $hpp->refresh()->signatures->first(
+            fn (HppSignature $signature): bool => $signature->isPending()
+        );
+        $this->assertSame('sm_peminta', $smSignature?->role_key);
+        $smSignature->signer->update(['name' => 'Nama SM Terbaru']);
+        $smSignature = $smSignature->fresh(['signer', 'hpp']);
+        $this->assertStringContainsString(
+            'Nama SM Terbaru',
+            view('admin.hpp.hpppdf', ['hpp' => $hpp->fresh(['signatures.signer'])])->render(),
+        );
+
+        $this->actingAs($smSignature->signer)
+            ->post(route('approval.hpp.sign', $smSignature->token), [
+                'approval_action' => 'sign',
+                'signature_data' => $this->signatureData(),
+            ])
+            ->assertRedirect(route('approval.hpp.show', $smSignature->token));
+
+        $smSignature = $smSignature->fresh(['signer', 'hpp']);
+        $this->assertSame('Nama SM Terbaru', $smSignature->signer_name_snapshot);
+        $smSignature->signer->update(['name' => 'Nama SM Setelah TTD']);
+        $signedPdfHtml = view('admin.hpp.hpppdf', ['hpp' => $hpp->fresh(['signatures.signer'])])->render();
+        $this->assertStringContainsString('Nama SM Terbaru', $signedPdfHtml);
+        $this->assertStringNotContainsString('Nama SM Setelah TTD', $signedPdfHtml);
     }
 
     /**

@@ -11,9 +11,27 @@ class HppSignature extends Model
 {
     use HasFactory;
 
+    private const HPP_ACTIVITY_FIELDS = [
+        'status',
+        'signed_at',
+        'approval_note',
+        'signer_user_id',
+        'delegated_from_user_id',
+        'delegated_from_name',
+        'delegated_by_user_id',
+        'delegated_at',
+        'delegation_reason',
+        'acting_as_label',
+        'signed_document_path',
+        'signed_document_uploaded_at',
+    ];
+
     public const STATUS_LOCKED = 'locked';
+
     public const STATUS_PENDING = 'pending';
+
     public const STATUS_SIGNED = 'signed';
+
     public const STATUS_SKIPPED = 'skipped';
 
     /**
@@ -72,6 +90,15 @@ class HppSignature extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::updated(function (HppSignature $signature): void {
+            if ($signature->wasChanged(self::HPP_ACTIVITY_FIELDS)) {
+                $signature->hpp()->touch();
+            }
+        });
+    }
+
     public function hpp(): BelongsTo
     {
         return $this->belongsTo(Hpp::class);
@@ -124,6 +151,17 @@ class HppSignature extends Model
     public function displayRoleLabel(): string
     {
         return (string) ($this->acting_as_label ?: $this->role_label);
+    }
+
+    public function displaySignerName(): string
+    {
+        if ($this->isSigned()) {
+            return trim((string) $this->signer_name_snapshot) ?: 'N/A';
+        }
+
+        $this->loadMissing('signer');
+
+        return trim((string) $this->signer?->name) ?: 'N/A';
     }
 
     public function isDelegated(): bool

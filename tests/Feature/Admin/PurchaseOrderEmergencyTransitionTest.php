@@ -70,6 +70,19 @@ class PurchaseOrderEmergencyTransitionTest extends TestCase
             });
     }
 
+    public function test_admin_cannot_approve_an_empty_estimated_completion_date(): void
+    {
+        [$admin, , $hpp] = $this->createEmergencyOrderFlow();
+
+        $this->actingAs($admin)
+            ->patch(route('admin.purchase-order.update', ['hpp' => $hpp->nomor_order]), [
+                'approval_target' => 'setuju',
+            ])
+            ->assertSessionHasErrors('target_penyelesaian');
+
+        $this->assertNull($hpp->fresh()->purchaseOrder);
+    }
+
     public function test_dirops_checkbox_is_hidden_and_cannot_be_saved_for_hpp_up_to_250_million(): void
     {
         [$admin, , $hpp] = $this->createEmergencyOrderFlow();
@@ -182,6 +195,7 @@ class PurchaseOrderEmergencyTransitionTest extends TestCase
             'status_anggaran' => 'Tersedia',
             'kategori_item' => 'jasa',
             'kategori_biaya' => 'pemeliharaan',
+            'cost_element' => '65340001',
             'created_by' => $admin->id,
             'updated_by' => $admin->id,
         ]);

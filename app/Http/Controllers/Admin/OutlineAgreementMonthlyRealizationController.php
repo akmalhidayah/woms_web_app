@@ -1,0 +1,108 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\StoreOutlineAgreementMonthlyRealizationRequest;
+use App\Models\OutlineAgreement;
+use App\Models\OutlineAgreementMonthlyRealization;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+class OutlineAgreementMonthlyRealizationController extends Controller
+{
+    public function store(
+        StoreOutlineAgreementMonthlyRealizationRequest $request,
+        OutlineAgreement $outlineAgreement,
+    ): RedirectResponse {
+        $validated = $request->validated();
+        $structureSnapshot = $request->structureSnapshot();
+
+        $isEditing = DB::transaction(function () use ($outlineAgreement, $validated, $structureSnapshot): bool {
+            OutlineAgreement::query()
+                ->whereKey($outlineAgreement->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $realizationId = isset($validated['realization_id'])
+                ? (int) $validated['realization_id']
+                : null;
+            $identity = [
+                'outline_agreement_id' => $outlineAgreement->getKey(),
+                'year' => (int) $validated['year'],
+                'month' => (int) $validated['month'],
+                'kategori_biaya' => (string) $validated['kategori_biaya'],
+                'unit_kerja' => $structureSnapshot['unit_kerja'],
+                'seksi' => $structureSnapshot['seksi'],
+            ];
+
+            if ($realizationId !== null) {
+                $realization = OutlineAgreementMonthlyRealization::query()
+                    ->lockForUpdate()
+                    ->findOrFail($realizationId);
+
+                abort_unless(
+                    (int) $realization->outline_agreement_id === (int) $outlineAgreement->getKey(),
+                    404,
+                );
+
+                if (OutlineAgreementMonthlyRealization::query()
+                    ->where($identity)
+                    ->whereKeyNot($realization->getKey())
+                    ->exists()) {
+                    $period = Carbon::create($identity['year'], $identity['month'], 1)
+                        ->locale('id')
+                        ->translatedFormat('F Y');
+
+                    throw ValidationException::withMessages([
+                        'seksi' => "Kombinasi kategori, Unit Kerja, dan Seksi tersebut sudah memiliki realisasi pada {$period}.",
+                    ]);
+                }
+
+                $realization->update([
+                    ...$identity,
+                    'amount' => (int) $validated['amount'],
+                    'estimator_completed_orders' => (int) $validated['estimator_completed_orders'],
+                ]);
+
+                return true;
+            }
+
+            OutlineAgreementMonthlyRealization::query()->updateOrCreate(
+                $identity,
+                [
+                    'amount' => (int) $validated['amount'],
+                    'estimator_completed_orders' => (int) $validated['estimator_completed_orders'],
+                ],
+            );
+
+            return false;
+        });
+
+        return redirect()
+            ->route('admin.outline-agreements.index')
+            ->with(
+                'success',
+                "Realisasi biaya {$outlineAgreement->nomor_oa} berhasil "
+                .($isEditing ? 'diperbarui.' : 'disimpan.'),
+            );
+    }
+
+    public function destroy(
+        OutlineAgreement $outlineAgreement,
+        OutlineAgreementMonthlyRealization $monthlyRealization,
+    ): RedirectResponse {
+        abort_unless(
+            (int) $monthlyRealization->outline_agreement_id === (int) $outlineAgreement->getKey(),
+            404,
+        );
+
+        $monthlyRealization->delete();
+
+        return redirect()
+            ->route('admin.outline-agreements.index')
+            ->with('success', "Realisasi biaya {$outlineAgreement->nomor_oa} berhasil dihapus.");
+    }
+}

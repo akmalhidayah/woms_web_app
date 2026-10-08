@@ -3,31 +3,33 @@
             $baseBtn = 'min-h-[26px] text-[10px] leading-[1.3] px-3 rounded-[6px]';
 
             $selOrange = $baseSel.' bg-orange-100 text-orange-800 border border-orange-300 focus:ring-orange-400 focus:border-orange-400';
-            $selBlue = $baseSel.' bg-sky-100 text-sky-800 border border-sky-300 focus:ring-sky-400 focus:border-sky-400';
-            $selSlate = $baseSel.' bg-slate-100 text-slate-800 border border-slate-300 focus:ring-slate-400 focus:border-slate-400';
             $btnPrimary = $baseBtn.' bg-[#ca642f] text-white hover:bg-[#b85b2b]';
-            $btnGhost = $baseBtn.' border border-slate-300 text-slate-700 hover:bg-slate-50';
-
-            $filters = $filters ?? [
-                'search' => '',
-                'unit_kerja' => '',
-                'purchase_order_number' => '',
-                'termin_status' => 'all',
-            ];
-            $units = collect($units ?? []);
-            $pos = collect($pos ?? []);
+            $search = $search ?? '';
             $lhpps = $lhpps ?? new \Illuminate\Pagination\LengthAwarePaginator([], 0, 8, 1, [
                 'path' => request()->url(),
                 'query' => request()->query(),
             ]);
             $pendingTerminOneOrders = collect($pendingTerminOneOrders ?? []);
             $activeTokens = collect($activeTokens ?? []);
+            $bulkResendAvailableAt = $bulkResendAvailableAt ?? null;
         @endphp
 
         <div class="space-y-4">
             <section class="overflow-hidden rounded-[1.2rem] border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm">
                 <h1 class="text-[1.15rem] font-black leading-none tracking-tight text-slate-900">BAST / LHPP</h1>
             </section>
+
+            @if (session('status'))
+                <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                    {{ session('status') }}
+                </div>
+            @endif
+
+            @if (session('error'))
+                <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                    {{ session('error') }}
+                </div>
+            @endif
 
             <div class="rounded-[1.6rem] border border-slate-200 bg-white p-4 shadow-sm">
                 <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -39,14 +41,14 @@
                     <a href="{{ route('pkm.lhpp.create') }}"
                         class="{{ $btnPrimary }} inline-flex items-center gap-2 rounded-md px-3 py-2 text-[12px] font-semibold shadow-sm transition">
                         <i data-lucide="plus-circle" class="h-3.5 w-3.5"></i>
-                        Buat BAST Termin 1
+                        Buat BAST / LHPP
                     </a>
                 </div>
 
                 @if ($pendingTerminOneOrders->isNotEmpty())
                     <div class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
                         <div class="flex items-center justify-between gap-3">
-                            <div class="text-[10px] font-bold text-amber-900">Belum Dibuatkan BAST T1</div>
+                            <div class="text-[10px] font-bold text-amber-900">Belum Dibuatkan BAST</div>
                             <span class="rounded-full bg-white px-2 py-0.5 text-[9px] font-bold text-amber-800 ring-1 ring-amber-200">
                                 {{ $pendingTerminOneOrders->count() }} order
                             </span>
@@ -65,52 +67,17 @@
                     </div>
                 @endif
 
-                <form action="{{ route('pkm.lhpp.index') }}" method="GET" class="flex flex-wrap items-center gap-2 overflow-x-auto whitespace-nowrap">
-                    <div class="relative">
+                <div class="mb-3">
+                    <x-bast.index-tabs route-name="pkm.lhpp.index" :active-tab="$activeTab" :tab-options="$tabOptions" :tab-counts="$tabCounts" :search="$search" theme="orange" />
+                </div>
+
+                <form action="{{ route('pkm.lhpp.index') }}" method="GET">
+                    <input type="hidden" name="tab" value="{{ $activeTab }}">
+                    <div class="relative w-full">
                         <i data-lucide="search" class="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-orange-500"></i>
-                        <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Cari Nomor Notif / PO / Unit..." class="{{ $selOrange }} w-64 pl-6" />
+                        <input type="text" name="search" value="{{ $search }}" placeholder="Cari nomor order / pekerjaan / area..." class="{{ $selOrange }} w-full pl-6" />
                         <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-orange-600">⌕</span>
                     </div>
-
-                    <div class="relative">
-                        <select name="unit_kerja" class="{{ $selBlue }} w-48">
-                            <option value="">Semua Unit Kerja</option>
-                            @foreach ($units as $unit)
-                                <option value="{{ $unit }}" @selected($filters['unit_kerja'] === $unit)>{{ \Illuminate\Support\Str::limit($unit, 40) }}</option>
-                            @endforeach
-                        </select>
-                        <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-sky-700">▾</span>
-                    </div>
-
-                    <div class="relative">
-                        <select name="purchase_order_number" class="{{ $selSlate }} w-52">
-                            <option value="">Semua Nomor PO</option>
-                            @foreach ($pos as $po)
-                                <option value="{{ $po }}" @selected($filters['purchase_order_number'] === $po)>{{ $po }}</option>
-                            @endforeach
-                        </select>
-                        <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-700">▾</span>
-                    </div>
-
-                    <div class="relative">
-                        <select name="termin_status" class="{{ $selSlate }} w-52">
-                            <option value="all" @selected($filters['termin_status'] === 'all')>Semua Status Termin</option>
-                            <option value="t1_paid" @selected($filters['termin_status'] === 't1_paid')>Termin 1 - Sudah</option>
-                            <option value="t1_unpaid" @selected($filters['termin_status'] === 't1_unpaid')>Termin 1 - Belum</option>
-                            <option value="t2_paid" @selected($filters['termin_status'] === 't2_paid')>Termin 2 - Sudah</option>
-                            <option value="t2_unpaid" @selected($filters['termin_status'] === 't2_unpaid')>Termin 2 - Belum</option>
-                        </select>
-                        <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-700">▾</span>
-                    </div>
-
-                    <button type="submit" class="{{ $btnPrimary }} ml-auto inline-flex items-center rounded-md">
-                        <i data-lucide="filter" class="mr-1 h-3 w-3"></i>
-                        Terapkan
-                    </button>
-                    <a href="{{ route('pkm.lhpp.index') }}" class="{{ $btnGhost }} inline-flex items-center rounded-md">
-                        <i data-lucide="rotate-ccw" class="mr-1 h-3 w-3"></i>
-                        Reset
-                    </a>
                 </form>
             </div>
 
@@ -130,9 +97,34 @@
                             <tr>
                                 <th class="px-3 py-2 text-left font-semibold">Order</th>
                                 <th class="px-3 py-2 text-left font-semibold">Detail Pekerjaan</th>
-                                <th class="px-3 py-2 text-left font-semibold">Tanggal Selesai</th>
+                                <th class="px-3 py-2 text-left font-semibold">Tanggal Dibuat</th>
                                 <th class="px-3 py-2 text-right font-semibold">Total Biaya</th>
-                                <th class="px-3 py-2 text-left font-semibold">Status LHPP</th>
+                                <th class="px-3 py-2 text-left font-semibold">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span>Status LHPP</span>
+                                        @if ($activeTab === \App\Support\BastIndexTabs::TAB_IN_PROGRESS)
+                                            <form
+                                                method="POST"
+                                                action="{{ route('pkm.lhpp.approval.resend-all') }}"
+                                                class="js-resend-all-approval-form flex flex-col items-end gap-1"
+                                                data-approval-document="BAST/LHPP"
+                                                data-cooldown-hours="24"
+                                                @if ($bulkResendAvailableAt) data-resend-available-at="{{ $bulkResendAvailableAt->toIso8601String() }}" @endif
+                                            >
+                                                @csrf
+                                                <button type="submit" @disabled($bulkResendAvailableAt) class="inline-flex items-center gap-1 rounded-md bg-[#ca642f] px-2 py-1 text-[8px] font-bold normal-case tracking-normal text-white shadow-sm transition hover:bg-[#b85b2b] disabled:cursor-not-allowed disabled:bg-slate-400 disabled:opacity-70">
+                                                    <i data-lucide="send" class="h-2.5 w-2.5"></i>
+                                                    Resend Semua
+                                                </button>
+                                                <span data-resend-cooldown-label class="text-[8px] font-semibold normal-case tracking-normal text-amber-700" @if (! $bulkResendAvailableAt) hidden @endif>
+                                                    @if ($bulkResendAvailableAt)
+                                                        Bisa lagi {{ $bulkResendAvailableAt->format('d/m/Y H:i') }}
+                                                    @endif
+                                                </span>
+                                            </form>
+                                        @endif
+                                    </div>
+                                </th>
                                 <th class="px-3 py-2 text-left font-semibold">Status Payment</th>
                                 <th class="px-3 py-2 text-center font-semibold w-32">Aksi</th>
                             </tr>
@@ -194,12 +186,6 @@
                                             : 'bg-sky-100 text-sky-800 ring-sky-200',
                                     };
 
-                                    $waktuPengerjaan = null;
-                                    if ($row->tanggal_mulai_pekerjaan && $row->tanggal_selesai_pekerjaan) {
-                                        $waktuPengerjaan = \Carbon\Carbon::parse($row->tanggal_mulai_pekerjaan)->diffInDays(
-                                            \Carbon\Carbon::parse($row->tanggal_selesai_pekerjaan)
-                                        ) + 1;
-                                    }
                                     $totalBiaya = (float) ($row->total_aktual_biaya ?? 0);
                                     $termin1Paid = $t1 === 'sudah';
                                     $termin2Paid = ! $isWithoutWarranty && $t2 === 'sudah';
@@ -210,6 +196,8 @@
                                         ? (float) ($row->termin_2_nilai ?? round($totalBiaya * 0.05))
                                         : null;
                                     $terminTwoExists = ! $isWithoutWarranty && filled($terminTwo?->id);
+                                    $isTerminOneApprovalLocked = $row->isApprovalLocked();
+                                    $isTerminTwoApprovalLocked = $terminTwo?->isApprovalLocked() ?? false;
                                     $approvalProgress = $row->approvalProgressPercent();
                                     $signedCount = $row->approvalSignedCount();
                                     $totalSteps = $row->approvalStepCount();
@@ -275,16 +263,15 @@
                                     </td>
 
                                     <td class="px-3 py-2">
-                                        @if ($row->tanggal_selesai_pekerjaan)
-                                            {{ \Carbon\Carbon::parse($row->tanggal_selesai_pekerjaan)->format('d-m-Y') }}
-                                            ({{ $waktuPengerjaan ? $waktuPengerjaan.' Hari' : '-' }})
+                                        @if ($row->created_at)
+                                            {{ $row->created_at->format('d-m-Y') }}
                                         @else
                                             <span class="text-[10px] text-slate-400">-</span>
                                         @endif
                                     </td>
 
                                     <td class="px-3 py-2 text-right">
-                                        <div class="font-semibold">Rp {{ number_format($totalBiaya, 2, ',', '.') }}</div>
+                                        <div class="font-semibold">Rp {{ number_format($totalBiaya, 0, ',', '.') }}</div>
                                         @if (! is_null($termin1Amount))
                                             <div class="mt-1 text-[10px] font-medium text-emerald-600">
                                                 {{ $isWithoutWarranty ? 'Total Dibayar' : 'Termin 1' }}: Rp {{ number_format($termin1Amount, 0, ',', '.') }}
@@ -311,16 +298,22 @@
                                                 <button
                                                     type="button"
                                                     class="bast-approval-flow-trigger inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-blue-200 hover:bg-blue-100 hover:text-blue-700"
-                                                    data-title="{{ $row->nomor_order }} - T1"
+                                                    data-title="{{ $isWithoutWarranty ? $row->nomor_order.' - BAST' : $row->nomor_order.' - T1' }}"
                                                     data-progress="{{ $approvalProgress }}"
                                                     data-signed-count="{{ $signedCount }}"
                                                     data-total-steps="{{ $totalSteps }}"
                                                     data-checklist='@json($approvalChecklist)'
                                                     data-actions='@json($activeApprovalModalActions)'
-                                                    title="Detail approval Termin 1"
+                                                    title="{{ $isWithoutWarranty ? 'Detail approval BAST' : 'Detail approval Termin 1' }}"
                                                 >
                                                     <i data-lucide="info" class="h-3 w-3"></i>
                                                 </button>
+                                            </div>
+                                            <div class="mt-1 flex min-w-0 items-center gap-1 text-[8px] text-slate-400">
+                                                <i data-lucide="clock-3" class="h-2.5 w-2.5 shrink-0"></i>
+                                                <span class="truncate">
+                                                    {{ $approvalSummaryLabel }} · {{ $row->updated_at?->locale('id')->diffForHumans() ?? '-' }}
+                                                </span>
                                             </div>
                                             @if ($isExpired && $activeSignature && $approvalStatus !== \App\Models\LhppBast::APPROVAL_APPROVED)
                                                 <form action="{{ route('pkm.lhpp.approval-token.regenerate', ['lhppId' => $row->id]) }}" method="POST" class="mt-1">
@@ -364,6 +357,12 @@
                                                         <i data-lucide="info" class="h-3 w-3"></i>
                                                     </button>
                                                 </div>
+                                                <div class="mt-1 flex min-w-0 items-center gap-1 text-[8px] text-slate-400">
+                                                    <i data-lucide="clock-3" class="h-2.5 w-2.5 shrink-0"></i>
+                                                    <span class="truncate">
+                                                        {{ $terminTwoSummaryLabel }} · {{ $terminTwo?->updated_at?->locale('id')->diffForHumans() ?? '-' }}
+                                                    </span>
+                                                </div>
                                             </div>
                                             @if ($terminTwoApprovalStatus === \App\Models\LhppBast::APPROVAL_REJECTED)
                                                 <div class="mt-1 break-words text-[9px] text-rose-800"><span class="font-semibold">Alasan penolakan:</span> {{ $terminTwoRejectionNote ?: '-' }}</div>
@@ -393,7 +392,7 @@
                                     <td class="px-3 py-2">
                                         <div class="flex flex-col gap-1">
                                             <div>
-                                                <span class="text-[10px] text-slate-600">Termin 1:</span>
+                                                <span class="text-[10px] text-slate-600">{{ $isWithoutWarranty ? 'Pembayaran:' : 'Termin 1:' }}</span>
                                                 @if ($t1 === 'sudah')
                                                     <span class="ml-1 inline-block rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] text-emerald-800">Sudah Dibayar</span>
                                                 @else
@@ -415,6 +414,7 @@
 
                                     <td class="px-3 py-2 text-center">
                                         <div x-data="{ selectedTerm: 'termin_1' }" class="flex flex-col items-center gap-2">
+                                            @unless ($isWithoutWarranty)
                                             <div class="relative w-[118px]">
                                                 <select x-model="selectedTerm" class="w-full appearance-none rounded-md border border-slate-300 bg-white py-1.5 pl-2 pr-7 text-[10px] font-semibold text-slate-700 focus:border-[#ca642f] focus:outline-none">
                                                     <option value="termin_1">Termin 1</option>
@@ -424,19 +424,27 @@
                                                 </select>
                                                 <i data-lucide="chevron-down" class="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500"></i>
                                             </div>
+                                            @endunless
 
                                             <div x-show="selectedTerm === 'termin_1'" class="flex items-center justify-center gap-1">
-                                                <a @if ($approvalStatus === \App\Models\LhppBast::APPROVAL_REJECTED) style="display:none" @endif href="{{ route('pkm.lhpp.edit', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" class="pkm-lhpp-action-btn bg-emerald-500 hover:bg-emerald-600" title="Edit LHPP">
-                                                    <i data-lucide="square-pen" class="h-3.5 w-3.5"></i>
+                                                <a
+                                                    href="{{ route('pkm.lhpp.edit', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}"
+                                                    class="pkm-lhpp-action-btn pkm-lhpp-view-edit-btn {{ $isTerminOneApprovalLocked ? 'bg-slate-500 hover:bg-slate-600' : 'bg-emerald-500 hover:bg-emerald-600' }}"
+                                                    title="{{ $isTerminOneApprovalLocked ? ($isWithoutWarranty ? 'Lihat BAST / LHPP' : 'Lihat BAST Termin 1') : ($isWithoutWarranty ? 'Edit BAST / LHPP' : 'Edit BAST Termin 1') }}"
+                                                    aria-label="{{ $isTerminOneApprovalLocked ? ($isWithoutWarranty ? 'Lihat BAST / LHPP' : 'Lihat BAST Termin 1') : ($isWithoutWarranty ? 'Edit BAST / LHPP' : 'Edit BAST Termin 1') }}"
+                                                    data-bast-action="{{ $isTerminOneApprovalLocked ? 'view' : 'edit' }}"
+                                                >
+                                                    <i data-lucide="{{ $isTerminOneApprovalLocked ? 'eye' : 'square-pen' }}" class="h-3.5 w-3.5"></i>
+                                                    <span>{{ $isTerminOneApprovalLocked ? 'Lihat' : 'Edit' }}</span>
                                                 </a>
-                                                <a href="{{ route('pkm.lhpp.pdf', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" target="_blank" rel="noopener noreferrer" class="pkm-lhpp-action-btn bg-blue-500 hover:bg-blue-600" title="Download PDF LHPP">
+                                                <a href="{{ route('pkm.lhpp.pdf', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" target="_blank" rel="noopener noreferrer" class="pkm-lhpp-action-btn bg-blue-500 hover:bg-blue-600" title="{{ $isWithoutWarranty ? 'Download PDF BAST / LHPP' : 'Download PDF BAST Termin 1' }}">
                                                     <i data-lucide="file-text" class="h-3.5 w-3.5"></i>
                                                 </a>
                                                 @if ($approvalStatus === \App\Models\LhppBast::APPROVAL_REJECTED || ! $row->isApprovalLocked())
-                                                <form action="{{ route('pkm.lhpp.destroy', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" method="POST" class="inline-block pkm-lhpp-delete-form" data-rejected="{{ $approvalStatus === \App\Models\LhppBast::APPROVAL_REJECTED ? '1' : '0' }}">
+                                                <form action="{{ route('pkm.lhpp.destroy', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-1']) }}" method="POST" class="inline-block pkm-lhpp-delete-form" data-rejected="{{ $approvalStatus === \App\Models\LhppBast::APPROVAL_REJECTED ? '1' : '0' }}" data-without-warranty="{{ $isWithoutWarranty ? '1' : '0' }}">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="button" class="pkm-lhpp-action-btn bg-red-500 hover:bg-red-600 pkm-lhpp-delete-button" title="Hapus BAST">
+                                                    <button type="button" class="pkm-lhpp-action-btn bg-red-500 hover:bg-red-600 pkm-lhpp-delete-button" title="{{ $isWithoutWarranty ? 'Hapus BAST / LHPP' : 'Hapus BAST Termin 1' }}">
                                                         <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
                                                     </button>
                                                 </form>
@@ -447,8 +455,15 @@
                                             <div x-show="selectedTerm === 'termin_2'" class="w-full">
                                                 @if ($terminTwoExists)
                                                     <div class="flex items-center justify-center gap-1">
-                                                        <a @if ($terminTwoApprovalStatus === \App\Models\LhppBast::APPROVAL_REJECTED) style="display:none" @endif href="{{ route('pkm.lhpp.edit', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-2']) }}" class="pkm-lhpp-action-btn bg-emerald-500 hover:bg-emerald-600" title="Edit BAST Termin 2">
-                                                            <i data-lucide="square-pen" class="h-3.5 w-3.5"></i>
+                                                        <a
+                                                            href="{{ route('pkm.lhpp.edit', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-2']) }}"
+                                                            class="pkm-lhpp-action-btn pkm-lhpp-view-edit-btn {{ $isTerminTwoApprovalLocked ? 'bg-slate-500 hover:bg-slate-600' : 'bg-emerald-500 hover:bg-emerald-600' }}"
+                                                            title="{{ $isTerminTwoApprovalLocked ? 'Lihat BAST Termin 2' : 'Edit BAST Termin 2' }}"
+                                                            aria-label="{{ $isTerminTwoApprovalLocked ? 'Lihat BAST Termin 2' : 'Edit BAST Termin 2' }}"
+                                                            data-bast-action="{{ $isTerminTwoApprovalLocked ? 'view' : 'edit' }}"
+                                                        >
+                                                            <i data-lucide="{{ $isTerminTwoApprovalLocked ? 'eye' : 'square-pen' }}" class="h-3.5 w-3.5"></i>
+                                                            <span>{{ $isTerminTwoApprovalLocked ? 'Lihat' : 'Edit' }}</span>
                                                         </a>
                                                         <a href="{{ route('pkm.lhpp.pdf', ['nomorOrder' => $row->nomor_order, 'termin' => 'termin-2']) }}" target="_blank" rel="noopener noreferrer" class="pkm-lhpp-action-btn bg-blue-500 hover:bg-blue-600" title="Download PDF BAST Termin 2">
                                                             <i data-lucide="file-text" class="h-3.5 w-3.5"></i>
@@ -507,8 +522,12 @@
                             @empty
                                 <tr>
                                     <td colspan="7" class="px-4 py-8 text-center text-[11px] text-slate-500">
-                                        Belum ada data LHPP.
-                                        <a href="{{ route('pkm.lhpp.create') }}" class="text-[#ca642f] underline">Buat LHPP baru</a>
+                                        {{ match ($activeTab) {
+                                            'in_progress' => 'Belum ada BAST yang sedang menunggu proses.',
+                                            'approved' => 'Belum ada BAST approved yang menunggu proses berikutnya.',
+                                            'history' => 'Belum ada riwayat BAST.',
+                                            default => 'Belum ada BAST yang memerlukan tindakan PKM.',
+                                        } }}
                                     </td>
                                 </tr>
                             @endforelse
@@ -566,6 +585,14 @@
                 transition: .2s;
             }
 
+            .pkm-lhpp-action-btn.pkm-lhpp-view-edit-btn {
+                width: auto;
+                gap: 4px;
+                padding-inline: 8px;
+                font-size: 9px;
+                font-weight: 700;
+            }
+
             .pkm-lhpp-table th,
             .pkm-lhpp-table td {
                 white-space: nowrap;
@@ -573,6 +600,8 @@
         </style>
 
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <x-approval.resend-all-confirmation />
+
         <script>
             document.addEventListener('DOMContentLoaded', () => {
                 function copyTextToClipboard(text) {
@@ -761,10 +790,13 @@
                         event.preventDefault();
                         const form = button.closest('.pkm-lhpp-delete-form');
                         const isRejected = form?.dataset.rejected === '1';
+                        const isWithoutWarranty = form?.dataset.withoutWarranty === '1';
                         Swal.fire({
                             title: 'Hapus BAST ini?',
                             text: isRejected
-                                ? 'BAST ini telah ditolak. Menghapus BAST akan menghapus item, gambar, signature, token, dokumen terkait, dan Termin 2 jika ada. Data garansi order tetap dipertahankan. Lanjutkan?'
+                                ? (isWithoutWarranty
+                                    ? 'BAST ini telah ditolak. Menghapus BAST akan menghapus item, gambar, signature, token, dan dokumen terkait. Data garansi order tetap dipertahankan. Lanjutkan?'
+                                    : 'BAST ini telah ditolak. Menghapus BAST akan menghapus item, gambar, signature, token, dokumen terkait, dan Termin 2 jika ada. Data garansi order tetap dipertahankan. Lanjutkan?')
                                 : 'Data BAST / LHPP ini akan dihapus permanen.',
                             icon: 'warning',
                             showCancelButton: true,

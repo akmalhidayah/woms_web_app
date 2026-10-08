@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,11 +15,20 @@ class LhppBast extends Model
 {
     use HasFactory;
 
+    /**
+     * @var list<string>
+     */
+    protected $touches = ['hpp'];
+
     public const APPROVAL_IN_REVIEW = 'in_review';
 
     public const APPROVAL_APPROVED = 'approved';
 
     public const APPROVAL_REJECTED = 'rejected';
+
+    public const ITEM_SOURCE_HPP_SNAPSHOT = 'hpp_snapshot';
+
+    public const ITEM_SOURCE_MANUAL = 'manual';
 
     public function getRouteKeyName(): string
     {
@@ -34,6 +44,7 @@ class LhppBast extends Model
         'document_year',
         'order_id',
         'termin_type',
+        'item_source',
         'parent_lhpp_bast_id',
         'hpp_id',
         'purchase_order_id',
@@ -63,6 +74,10 @@ class LhppBast extends Model
         'approval_status',
         'approval_case',
         'approval_flow',
+        'attachment_pdf_path',
+        'attachment_pdf_original_name',
+        'attachment_pdf_mime_type',
+        'attachment_pdf_size',
         'created_by',
         'updated_by',
     ];
@@ -82,6 +97,7 @@ class LhppBast extends Model
             'material_items' => 'array',
             'service_items' => 'array',
             'approval_flow' => 'array',
+            'attachment_pdf_size' => 'integer',
             'subtotal_material' => 'decimal:2',
             'subtotal_jasa' => 'decimal:2',
             'total_aktual_biaya' => 'decimal:2',
@@ -107,6 +123,16 @@ class LhppBast extends Model
             ->all();
 
         return $vendorSectionOptions ?: self::legacyTipePekerjaanOptions();
+    }
+
+    public function usesHppSnapshot(): bool
+    {
+        return $this->item_source === self::ITEM_SOURCE_HPP_SNAPSHOT;
+    }
+
+    public function usesManualItems(): bool
+    {
+        return $this->item_source === self::ITEM_SOURCE_MANUAL;
     }
 
     public static function tipePekerjaanLabel(?string $value): string
@@ -189,24 +215,39 @@ class LhppBast extends Model
             ->exists();
     }
 
+    /**
+     * @return list<string>
+     */
+    public static function approvalStartedSignatureStatuses(): array
+    {
+        return [
+            LhppBastSignature::STATUS_PENDING,
+            LhppBastSignature::STATUS_SIGNED,
+            LhppBastSignature::STATUS_SKIPPED,
+        ];
+    }
+
+    public function scopeApprovalStarted(Builder $query): Builder
+    {
+        return $query->whereHas('signatures', function (Builder $signatureQuery): void {
+            $signatureQuery->whereIn('status', self::approvalStartedSignatureStatuses());
+        });
+    }
+
     public function hasApprovalStarted(): bool
     {
         if ($this->relationLoaded('signatures')) {
             return $this->signatures->contains(
-                fn (LhppBastSignature $signature): bool => in_array($signature->status, [
-                    LhppBastSignature::STATUS_PENDING,
-                    LhppBastSignature::STATUS_SIGNED,
-                    LhppBastSignature::STATUS_SKIPPED,
-                ], true)
+                fn (LhppBastSignature $signature): bool => in_array(
+                    $signature->status,
+                    self::approvalStartedSignatureStatuses(),
+                    true,
+                )
             );
         }
 
         return $this->signatures()
-            ->whereIn('status', [
-                LhppBastSignature::STATUS_PENDING,
-                LhppBastSignature::STATUS_SIGNED,
-                LhppBastSignature::STATUS_SKIPPED,
-            ])
+            ->whereIn('status', self::approvalStartedSignatureStatuses())
             ->exists();
     }
 
@@ -214,6 +255,13 @@ class LhppBast extends Model
     {
         return $this->approval_status === self::APPROVAL_REJECTED
             || $this->hasApprovalStarted();
+    }
+
+    public function canChangeItemSource(): bool
+    {
+        return $this->termin_type === 'termin_1'
+            && $this->quality_control_status === 'pending'
+            && ! $this->isApprovalLocked();
     }
 
     public function activeSignature(): HasOne

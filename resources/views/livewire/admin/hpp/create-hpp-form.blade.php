@@ -199,6 +199,21 @@
                         </div>
 
                         <div class="space-y-1 md:col-span-2">
+                            <label for="creator_note" class="text-[10px] font-semibold text-slate-700">Catatan HPP</label>
+                            <textarea
+                                id="creator_note"
+                                name="creator_note"
+                                rows="3"
+                                maxlength="750"
+                                class="w-full rounded-lg border border-slate-300 px-2.5 py-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                            >{{ old('creator_note', $hpp?->creator_note) }}</textarea>
+                            <p class="text-[9px] text-slate-500">Opsional. Catatan ini akan ditampilkan pada bagian Catatan Pengendali di PDF HPP.</p>
+                            @error('creator_note')
+                                <p class="text-[9px] font-medium text-rose-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="space-y-1 md:col-span-2">
                             <label for="nama_pekerjaan_preview" class="text-[10px] font-semibold text-slate-700">Deskripsi / Nama Pekerjaan</label>
                             <textarea
                                 id="nama_pekerjaan_preview"

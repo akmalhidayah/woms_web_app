@@ -192,17 +192,39 @@
         }
 
         .signature-wrapper {
+            width: 100%;
             margin-top: 16px;
+            table-layout: fixed;
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
 
         .signature-main {
             width: 79%;
-            float: left;
+            padding: 0;
+            vertical-align: top;
+        }
+
+        .signature-gap {
+            width: 2%;
+            padding: 0;
+            border: 0;
         }
 
         .signature-pkm {
             width: 19%;
-            float: right;
+            padding: 0;
+            vertical-align: top;
+        }
+
+        .signature-layout-row,
+        .signature-main,
+        .signature-gap,
+        .signature-pkm,
+        .signature-table,
+        .signature-pkm-table {
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
 
         .signature-table td,
@@ -274,12 +296,6 @@
             font-weight: 700;
         }
 
-        .clearfix::after {
-            content: "";
-            display: table;
-            clear: both;
-        }
-
         .page-break {
             page-break-before: always;
         }
@@ -332,11 +348,21 @@
     $materialItems = collect($materialItems ?? []);
     $serviceItems = collect($serviceItems ?? []);
 
-    $formatMoney = static fn ($value) => number_format((float) $value, 0, ',', '.');
-    $formatItemMoney = static function ($value) {
-        $normalized = preg_replace('/[^\d\-]/', '', (string) $value);
-        return number_format((float) ($normalized !== '' ? $normalized : 0), 0, ',', '.');
+    $formatItemMoney = static function ($value): string {
+        if ($value === null || trim((string) $value) === '') {
+            return '';
+        }
+
+        $normalized = preg_replace('/[^0-9,.-]/', '', trim((string) $value)) ?? '0';
+        if (str_contains($normalized, ',')) {
+            $normalized = str_replace(',', '.', str_replace('.', '', $normalized));
+        } elseif (preg_match('/^-?\d{1,3}(?:\.\d{3})+$/', $normalized) === 1) {
+            $normalized = str_replace('.', '', $normalized);
+        }
+
+        return number_format((float) $normalized, 0, ',', '.');
     };
+    $formatMoney = $formatItemMoney;
     $formatDate = static fn ($value) => $value ? \Illuminate\Support\Carbon::parse($value)->translatedFormat('d F Y') : '';
     $currentPurchaseOrderNumber = $lhpp->order?->purchaseOrder?->purchase_order_number
         ?: $lhpp->purchaseOrder?->purchase_order_number
@@ -555,7 +581,7 @@
                         <td class="detail-no">{{ $index + 1 }}</td>
                         <td>{{ $item['name'] ?? '' }}</td>
                         <td class="row-text-right">{{ trim(($item['volume'] ?? '').' '.($item['unit'] ?? '')) }}</td>
-                        <td class="row-text-right">{{ $formatItemMoney($item['unit_price'] ?? 0) }}</td>
+                        <td class="row-text-right">{{ $formatItemMoney($item['unit_price_raw'] ?? $item['unit_price'] ?? null) }}</td>
                         <td class="row-text-right">{{ $formatMoney($item['amount'] ?? 0) }}</td>
                     </tr>
                 @empty
@@ -597,7 +623,7 @@
                         <td class="detail-no">{{ $index + 1 }}</td>
                         <td>{{ $item['name'] ?? '' }}</td>
                         <td class="row-text-right">{{ trim(($item['volume'] ?? '').' '.($item['unit'] ?? '')) }}</td>
-                        <td class="row-text-right">{{ $formatItemMoney($item['unit_price'] ?? 0) }}</td>
+                        <td class="row-text-right">{{ $formatItemMoney($item['unit_price_raw'] ?? $item['unit_price'] ?? null) }}</td>
                         <td class="row-text-right">{{ $formatMoney($item['amount'] ?? 0) }}</td>
                     </tr>
                 @empty
@@ -638,62 +664,66 @@
             </tr>
         </table>
 
-        <div class="signature-wrapper clearfix">
-            <div class="signature-main">
-                <table class="signature-table">
-                    <colgroup>
-                        @foreach ($approvalCells as $cell)
-                            <col style="width: {{ number_format($approvalColumnWidth, 4, '.', '') }}%;">
-                        @endforeach
-                    </colgroup>
-                    <tr>
-                        <td colspan="{{ count($approvalCells) }}" class="signed-header">Menyetujui,</td>
-                    </tr>
-                    <tr class="date-row">
-                        @foreach ($approvalCells as $cell)
-                            <td>{{ $cell['date'] }}</td>
-                        @endforeach
-                    </tr>
-                    <tr>
-                        @foreach ($approvalCells as $cell)
-                            <td class="signature-role">{{ $cell['role'] }}</td>
-                        @endforeach
-                    </tr>
-                    <tr>
-                        @foreach ($approvalCells as $cell)
-                            <td class="signature-space">{!! $renderSignature($cell['signature']) !!}</td>
-                        @endforeach
-                    </tr>
-                    <tr>
-                        @foreach ($approvalCells as $cell)
-                            <td class="signature-name">{{ $cell['name'] }}</td>
-                        @endforeach
-                    </tr>
-                </table>
-            </div>
+        <table class="signature-wrapper">
+            <tr class="signature-layout-row">
+                <td class="signature-main">
+                    <table class="signature-table">
+                        <colgroup>
+                            @foreach ($approvalCells as $cell)
+                                <col style="width: {{ number_format($approvalColumnWidth, 4, '.', '') }}%;">
+                            @endforeach
+                        </colgroup>
+                        <tr>
+                            <td colspan="{{ count($approvalCells) }}" class="signed-header">Menyetujui,</td>
+                        </tr>
+                        <tr class="date-row">
+                            @foreach ($approvalCells as $cell)
+                                <td>{{ $cell['date'] }}</td>
+                            @endforeach
+                        </tr>
+                        <tr>
+                            @foreach ($approvalCells as $cell)
+                                <td class="signature-role">{{ $cell['role'] }}</td>
+                            @endforeach
+                        </tr>
+                        <tr>
+                            @foreach ($approvalCells as $cell)
+                                <td class="signature-space">{!! $renderSignature($cell['signature']) !!}</td>
+                            @endforeach
+                        </tr>
+                        <tr>
+                            @foreach ($approvalCells as $cell)
+                                <td class="signature-name">{{ $cell['name'] }}</td>
+                            @endforeach
+                        </tr>
+                    </table>
+                </td>
 
-            <div class="signature-pkm">
-                <table class="signature-pkm-table">
-                    <tr class="date-row">
-                        <td>{{ $signatureDate($managerPkmSignature) }}</td>
-                    </tr>
-                    <tr>
-                        <td class="signature-role">
-                            <div>{{ $managerPkmTitle }}</div>
-                            @if ($managerPkmOrganization !== '')
-                                <div class="signature-organization">{{ $managerPkmOrganization }}</div>
-                            @endif
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="signature-space">{!! $renderSignature($signatureImage($managerPkmSignature)) !!}</td>
-                    </tr>
-                    <tr>
-                        <td class="signature-name">{{ $signatureName($managerPkmSignature) }}</td>
-                    </tr>
-                </table>
-            </div>
-        </div>
+                <td class="signature-gap"></td>
+
+                <td class="signature-pkm">
+                    <table class="signature-pkm-table">
+                        <tr class="date-row">
+                            <td>{{ $signatureDate($managerPkmSignature) }}</td>
+                        </tr>
+                        <tr>
+                            <td class="signature-role">
+                                <div>{{ $managerPkmTitle }}</div>
+                                @if ($managerPkmOrganization !== '')
+                                    <div class="signature-organization">{{ $managerPkmOrganization }}</div>
+                                @endif
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="signature-space">{!! $renderSignature($signatureImage($managerPkmSignature)) !!}</td>
+                        </tr>
+                        <tr>
+                            <td class="signature-name">{{ $signatureName($managerPkmSignature) }}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
     </div>
 
     @if ($imageItems->isNotEmpty())

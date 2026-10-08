@@ -116,6 +116,17 @@ class AdminSidebarBadgeCounterTest extends TestCase
         $verification->update(['status_anggaran' => 'Tersedia']);
 
         $counts = $this->counts();
+        $this->assertSame(1, $counts['verifikasi_anggaran']);
+        $this->assertSame(0, $counts['purchase_order']);
+
+        $verification->update([
+            'status_anggaran' => 'Tersedia',
+            'kategori_item' => 'jasa',
+            'kategori_biaya' => 'pemeliharaan',
+            'cost_element' => '65340001',
+        ]);
+
+        $counts = $this->counts();
         $this->assertSame(0, $counts['verifikasi_anggaran']);
         $this->assertSame(1, $counts['purchase_order']);
 
@@ -130,6 +141,24 @@ class AdminSidebarBadgeCounterTest extends TestCase
 
         $purchaseOrder->update(['purchase_order_number' => 'PO-BADGE-001']);
 
+        $this->assertSame(1, $this->counts()['purchase_order']);
+
+        $purchaseOrder->update(['approve_manager' => true]);
+
+        $this->assertSame(0, $this->counts()['purchase_order']);
+
+        $purchaseOrder->update(['target_penyelesaian' => '2026-09-25']);
+
+        $this->assertSame(1, $this->counts()['purchase_order']);
+
+        $purchaseOrder->update(['approval_target' => 'setuju']);
+
+        $this->assertSame(0, $this->counts()['purchase_order']);
+
+        $purchaseOrder->update(['progress_pekerjaan' => 45]);
+        $this->assertSame(0, $this->counts()['purchase_order']);
+
+        $purchaseOrder->update(['progress_pekerjaan' => 100]);
         $this->assertSame(0, $this->counts()['purchase_order']);
     }
 
@@ -154,7 +183,7 @@ class AdminSidebarBadgeCounterTest extends TestCase
             'created_by' => $admin->id,
         ]);
 
-        $this->assertSame(1, $this->counts()['verifikasi_anggaran']);
+        $this->assertSame(2, $this->counts()['verifikasi_anggaran']);
 
         $this->actingAs($admin)
             ->get(route('admin.budget-verification.index'))
@@ -164,6 +193,45 @@ class AdminSidebarBadgeCounterTest extends TestCase
                 $eligibleOrder->nomor_order,
                 $completedOrder->nomor_order,
             ]);
+    }
+
+    public function test_verifikasi_anggaran_badge_excludes_unavailable_ready_and_numbered_po(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $order = $this->makeOrder($admin, 'BADGE-BV-TABS-001');
+        $hpp = $this->makeHpp($admin, $order);
+        $hpp->update(['status' => Hpp::STATUS_APPROVED]);
+
+        $verification = BudgetVerification::query()->create([
+            'order_id' => $order->id,
+            'hpp_id' => $hpp->id,
+            'status_anggaran' => 'Menunggu',
+            'created_by' => $admin->id,
+        ]);
+
+        $this->assertSame(1, $this->counts()['verifikasi_anggaran']);
+
+        $verification->update(['status_anggaran' => 'Tidak Tersedia']);
+        $this->assertSame(0, $this->counts()['verifikasi_anggaran']);
+
+        $verification->update([
+            'status_anggaran' => 'Tersedia',
+            'kategori_item' => 'jasa',
+            'kategori_biaya' => 'pemeliharaan',
+            'cost_element' => '65340001',
+        ]);
+        $this->assertSame(0, $this->counts()['verifikasi_anggaran']);
+
+        $verification->update(['cost_element' => null]);
+        $this->assertSame(1, $this->counts()['verifikasi_anggaran']);
+
+        PurchaseOrder::query()->create([
+            'order_id' => $order->id,
+            'hpp_id' => $hpp->id,
+            'purchase_order_number' => 'PO-BV-TABS-001',
+            'created_by' => $admin->id,
+        ]);
+        $this->assertSame(0, $this->counts()['verifikasi_anggaran']);
     }
 
     public function test_set_garansi_cek_bast_and_parent_bast_counts(): void
@@ -209,8 +277,13 @@ class AdminSidebarBadgeCounterTest extends TestCase
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
         $order = $this->makeOrder($admin, 'BADGE-LPJ-001');
         $lhpp = $this->makeLhppBast($admin, $order, [
+            'approval_status' => LhppBast::APPROVAL_IN_REVIEW,
             'quality_control_status' => 'approved',
         ]);
+
+        $this->assertSame(0, $this->counts()['lpj_ppl']);
+
+        $lhpp->update(['approval_status' => LhppBast::APPROVAL_APPROVED]);
 
         $this->assertSame(1, $this->counts()['lpj_ppl']);
 
@@ -231,6 +304,22 @@ class AdminSidebarBadgeCounterTest extends TestCase
             'start_date' => '2026-07-01',
             'created_by' => $admin->id,
         ]);
+
+        $this->assertSame(0, $this->counts()['lpj_ppl']);
+
+        $lhpp->update(['termin1_status' => 'sudah']);
+
+        $this->assertSame(0, $this->counts()['lpj_ppl']);
+
+        $terminTwo = $this->makeLhppBast($admin, $order, [
+            'termin_type' => 'termin_2',
+            'parent_lhpp_bast_id' => $lhpp->id,
+            'approval_status' => LhppBast::APPROVAL_IN_REVIEW,
+        ]);
+
+        $this->assertSame(0, $this->counts()['lpj_ppl']);
+
+        $terminTwo->update(['approval_status' => LhppBast::APPROVAL_APPROVED]);
 
         $this->assertSame(1, $this->counts()['lpj_ppl']);
 

@@ -6,20 +6,165 @@
     @if (session('status'))
         <div id="flash-success" data-message="{{ session('status') }}" class="hidden"></div>
     @endif
+    @if (session('work_package_order'))
+        <div id="work-package-order" data-payload='@json(session('work_package_order'))' class="hidden"></div>
+    @endif
 
     @if ($errors->any())
         <div id="flash-error" data-message="{{ implode(' | ', $errors->all()) }}" class="hidden"></div>
     @endif
 
+    <style>
+        /* The order list keeps each parent row as a card while preserving the
+           existing row selectors used by auto-save and modal scripts. */
+        .order-workshop-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .order-workshop-table thead {
+            display: block;
+            border-top: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f1f5f9;
+        }
+
+        .order-workshop-table thead tr {
+            display: grid;
+            grid-template-columns: minmax(150px, 0.9fr) minmax(220px, 1.25fr) minmax(360px, 2fr);
+        }
+
+        .order-workshop-table thead th {
+            min-width: 0;
+            padding: 0.65rem 0.9rem !important;
+            text-align: left;
+        }
+
+        .order-workshop-table tbody {
+            display: grid;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: #f8fafc;
+        }
+
+        .order-workshop-table tbody tr.order-workshop-card {
+            display: grid;
+            grid-template-columns: minmax(150px, 0.9fr) minmax(220px, 1.25fr) minmax(360px, 2fr);
+            min-width: 0;
+            overflow: hidden;
+            border: 1px solid #dbe4f0;
+            border-radius: 0.9rem;
+            background: #fff;
+            box-shadow: 0 1px 2px rgb(15 23 42 / 0.05);
+            transition: border-color 150ms ease, box-shadow 150ms ease;
+        }
+
+        .order-workshop-table tbody tr.order-workshop-card:hover {
+            border-color: #bfdbfe;
+            box-shadow: 0 4px 12px rgb(30 64 175 / 0.08);
+        }
+
+        .order-workshop-table tbody tr.order-workshop-card > td {
+            min-width: 0;
+            border: 0 !important;
+            padding: 0.75rem !important;
+            vertical-align: top;
+        }
+
+        .order-workshop-table tbody tr.order-workshop-card > td + td {
+            border-left: 1px solid #e2e8f0 !important;
+        }
+
+        .order-workshop-table tbody tr.order-workshop-empty {
+            display: block;
+            border: 0;
+        }
+
+        .order-workshop-table .order-workshop-status-cell {
+            position: relative;
+        }
+
+        .order-workshop-table .order-workshop-status-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.5rem;
+            padding-top: 0.6rem;
+        }
+
+        .order-workshop-table .order-workshop-status-block {
+            min-width: 0;
+        }
+
+        .order-workshop-table .order-workshop-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.4rem;
+            min-height: 2rem;
+        }
+
+        .order-workshop-table .order-workshop-actions .row-action-menu-panel {
+            z-index: 40;
+        }
+
+        .admin-compact #createBiayaDisplay,
+        .admin-compact #editBiayaDisplay {
+            padding-left: 3rem !important;
+        }
+
+        @media (max-width: 1279px) {
+            .order-workshop-table thead {
+                display: none;
+            }
+
+            .order-workshop-table thead tr {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .order-workshop-table tbody tr.order-workshop-card {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .order-workshop-table tbody tr.order-workshop-card > td + td {
+                border-top: 1px solid #e2e8f0 !important;
+                border-left: 0 !important;
+            }
+        }
+
+        @media (max-width: 767px) {
+            .order-workshop-table thead tr {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .order-workshop-table thead th {
+                padding: 0.55rem 0.65rem !important;
+                font-size: 9px !important;
+            }
+
+            .order-workshop-table tbody {
+                padding: 0.5rem;
+            }
+
+            .order-workshop-table .order-workshop-status-grid {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .order-workshop-table .order-workshop-actions {
+                justify-content: flex-start;
+            }
+        }
+    </style>
+
     <div class="order-list-compact space-y-4">
         <section class="order-list-hero rounded-[1.35rem] border border-blue-100 px-5 py-4 shadow-sm" style="background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 48%, #e6f1ff 100%);">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex items-center gap-4">
-                    <span class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm ring-1 ring-blue-200">
+                    <span class="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm ring-1 ring-blue-200">
                         <i data-lucide="factory" class="h-5 w-5"></i>
                     </span>
                     <div>
-                        <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Order Pekerjaan Bengkel</h1>
+                        <h1 class="text-sm font-bold leading-none tracking-tight text-slate-900">Order Pekerjaan Bengkel</h1>
                     </div>
                 </div>
 
@@ -34,57 +179,77 @@
             </div>
         </section>
 
-        <section class="order-list-panel overflow-hidden rounded-[1.5rem] border border-blue-900/20 bg-white shadow-sm">
+        <section class="order-list-panel overflow-visible">
             <div class="border-b border-slate-200 bg-white px-5 py-4">
                 @php
                     $reguToggleOptions = [
                         '' => 'Semua Regu',
-                        'Regu Fabrikasi' => 'Regu Fabrikasi',
-                        'Regu Bengkel (Refurbish)' => 'Refurbish',
+                        \App\Models\Order::WORKSHOP_REGU_FABRIKASI => 'Regu Fabrikasi',
+                        \App\Models\Order::WORKSHOP_REGU_REFURBISH => 'Refurbish',
+                        \App\Models\Order::WORKSHOP_REGU_ESTIMATOR => 'Estimator',
                     ];
                 @endphp
+                <nav class="mb-3 flex gap-2 overflow-x-auto pb-1" aria-label="Status order pekerjaan bengkel">
+                    @foreach ([
+                        'action' => 'Perlu Tindakan',
+                        'history' => 'Riwayat',
+                    ] as $tabKey => $tabLabel)
+                        <a
+                            href="{{ route('admin.orders.workshop.index', array_filter(['tab' => $tabKey, 'search' => $search, 'regu' => $selectedRegu])) }}"
+                            @if ($activeTab === $tabKey) aria-current="page" @endif
+                            class="inline-flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-semibold transition {{ $activeTab === $tabKey ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700' }}"
+                        >
+                            {{ $tabLabel }}
+                            <span class="inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[9px] {{ $activeTab === $tabKey ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">
+                                {{ $tabCounts[$tabKey] ?? 0 }}
+                            </span>
+                        </a>
+                    @endforeach
+                </nav>
                 <form method="GET" action="{{ route('admin.orders.workshop.index') }}" class="space-y-2.5">
+                    <input type="hidden" name="tab" value="{{ $activeTab }}">
                     <input type="hidden" id="reguToggleInput" name="regu" value="{{ $selectedRegu }}">
 
                     <div class="flex flex-col gap-2.5 md:flex-row md:items-end">
-                        <div class="grid flex-1 gap-2.5 md:grid-cols-[minmax(0,1.35fr)_minmax(240px,0.9fr)]">
+                        <div class="grid min-w-0 flex-1 gap-2.5 {{ $activeTab === 'action' ? 'md:grid-cols-2' : '' }}">
                             <div class="flex flex-col">
                                 <label for="search" class="mb-1.5 text-[10px] font-semibold text-slate-700">Pencarian</label>
                                 <input id="search" name="search" type="text" value="{{ $search }}" placeholder="Cari nomor / pekerjaan / unit..." class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-[13px] text-slate-900 placeholder:text-slate-500 shadow-sm focus:border-blue-500 focus:outline-none">
                             </div>
-                            <div class="flex flex-col">
-                                <label for="progress" class="mb-1.5 text-[10px] font-semibold text-slate-700">Progress</label>
-                                <select id="progress" name="progress" class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-[13px] font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none">
-                                    <option value="">Semua Progress</option>
-                                    @foreach ($progressOptions as $value => $label)
-                                        <option value="{{ $value }}" @selected($selectedProgress === $value)>{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
+                            @if ($activeTab === 'action')
+                                <div class="flex flex-col">
+                                    <label for="progress" class="mb-1.5 text-[10px] font-semibold text-slate-700">Progress</label>
+                                    <select id="progress" name="progress" class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-[13px] font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none">
+                                        <option value="">Semua Progress</option>
+                                        @foreach ($progressOptions as $value => $label)
+                                            @if ($value !== \App\Models\OrderWorkshop::PROGRESS_DONE)
+                                                <option value="{{ $value }}" @selected($selectedProgress === $value)>{{ $label }}</option>
+                                            @endif
+                                        @endforeach
+                                    </select>
+                                </div>
+                            @endif
                         </div>
 
-                        <div class="flex items-center gap-1.5">
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <div class="inline-flex w-full rounded-xl border border-slate-200 bg-slate-50 p-1 shadow-sm sm:w-auto">
+                                @foreach ($reguToggleOptions as $value => $label)
+                                    <button
+                                        type="button"
+                                        data-regu-toggle="{{ $value }}"
+                                        class="inline-flex flex-1 items-center justify-center rounded-lg px-3 py-1.5 text-[11px] font-semibold transition sm:flex-none {{ $selectedRegu === $value ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-white hover:text-blue-700' }}"
+                                    >
+                                        {{ $label }}
+                                    </button>
+                                @endforeach
+                            </div>
                             <button type="submit" class="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 text-[11px] font-semibold text-white shadow-sm transition hover:bg-blue-500" title="Cari dan filter">
                                 <i data-lucide="search" class="h-[13px] w-[13px]"></i>
                                 Cari
                             </button>
-                            <a href="{{ route('admin.orders.workshop.index') }}" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50" title="Reset">
+                            <a href="{{ route('admin.orders.workshop.index', ['tab' => $activeTab]) }}" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50" title="Reset">
                                 <i data-lucide="rotate-ccw" class="h-[13px] w-[13px]"></i>
                             </a>
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end border-t border-slate-100 pt-2.5">
-                        <div class="inline-flex w-full rounded-xl border border-slate-200 bg-slate-50 p-1 shadow-sm sm:w-auto">
-                            @foreach ($reguToggleOptions as $value => $label)
-                                <button
-                                    type="button"
-                                    data-regu-toggle="{{ $value }}"
-                                    class="inline-flex flex-1 items-center justify-center rounded-lg px-3 py-1.5 text-[11px] font-semibold transition sm:flex-none {{ $selectedRegu === $value ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-white hover:text-blue-700' }}"
-                                >
-                                    {{ $label }}
-                                </button>
-                            @endforeach
                         </div>
                     </div>
                 </form>
@@ -95,12 +260,8 @@
                     <thead class="border-y border-slate-200 bg-slate-200 text-slate-600">
                         <tr>
                             <th class="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-600">Nomor Order</th>
-                            <th class="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-600">Pekerjaan</th>
-                            <th class="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-600">Unit / Seksi</th>
-                            <th class="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-600">Konfirmasi Anggaran</th>
-                            <th class="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-600">Status Material</th>
-                            <th class="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-600">Progress Pekerjaan</th>
-                            <th class="px-3 py-3 text-right text-[10px] font-semibold uppercase tracking-wide text-slate-600">Aksi</th>
+                            <th class="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-600">Detail Pekerjaan</th>
+                            <th class="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-600">Status &amp; Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200 bg-white">
@@ -109,18 +270,65 @@
                                 $abnormalDocument = $order->documents->firstWhere('jenis_dokumen.value', 'abnormalitas');
                                 $gambarDocument = $order->documents->firstWhere('jenis_dokumen.value', 'gambar_teknik');
                                 $workshop = $order->orderWorkshop;
-                                $konfirmasi = $workshop?->konfirmasi_anggaran;
-                                $showMaterial = $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_READY;
-                                $showProgress = in_array($konfirmasi, [
-                                    \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_READY,
-                                    \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY,
-                                ], true);
-                                $showBudgetTransfer = $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY;
+                                $activeBengkelTask = $order->bengkelTasks->first(fn ($task) => $task->archived_at === null);
+                                $workPackages = $order->workPackages;
+                                $displayWorkPackages = $workPackages->map(fn ($package) => [
+                                    'display_no' => $package->display_no ?: '-',
+                                    'job_name' => $package->job_name ?: '-',
+                                    'assignments' => $package->assignments->map(fn ($assignment) => [
+                                        'name' => $assignment->pic_name_snapshot ?: '-',
+                                        'descriptions' => collect($assignment->work_descriptions ?? [])
+                                            ->filter(fn ($description) => filled($description))
+                                            ->values()
+                                            ->all(),
+                                    ])->values()->all(),
+                                ])->values()->all();
+                                if ($displayWorkPackages === []) {
+                                    $displayTask = $activeBengkelTask;
+                                    $displayProfiles = collect($displayTask?->person_in_charge_profiles ?? []);
+                                    if ($displayProfiles->isEmpty()) {
+                                        $displayProfiles = collect($displayTask?->person_in_charge ?? [])
+                                            ->filter(fn ($name) => filled($name))
+                                            ->map(fn ($name) => ['name' => $name, 'work_descriptions' => []]);
+                                    }
+
+                                    $displayWorkPackages = $displayTask ? [[
+                                        'display_no' => $displayTask->notification_number ?: '-',
+                                        'job_name' => $displayTask->job_name ?: ($order->nama_pekerjaan ?: '-'),
+                                        'assignments' => $displayProfiles
+                                            ->filter(fn ($profile) => is_array($profile) && filled($profile['name'] ?? null))
+                                            ->map(fn ($profile) => [
+                                                'name' => $profile['name'],
+                                                'descriptions' => collect($profile['work_descriptions'] ?? [])
+                                                    ->filter(fn ($description) => filled($description))
+                                                    ->values()
+                                                    ->all(),
+                                            ])
+                                            ->values()
+                                            ->all(),
+                                    ]] : [];
+                                }
+                                $workshopTypeLabel = match ($order->catatan) {
+                                    \App\Models\Order::WORKSHOP_REGU_FABRIKASI => 'Fabrikasi',
+                                    \App\Models\Order::WORKSHOP_REGU_REFURBISH => 'Refurbish',
+                                    \App\Models\Order::WORKSHOP_REGU_ESTIMATOR => 'Estimator',
+                                    default => null,
+                                };
+                                $preparationStatus = $workshop?->preparation_status;
+                                $preparationLabel = $workshop?->preparationLabel() ?? 'Belum Memilih Persiapan';
+                                $effectiveProgressStatus = filled($workshop?->progress_status)
+                                    ? $workshop->progress_status
+                                    : $activeBengkelTask?->progress_status;
+                                $waitingForStart = $workshop?->started_at === null
+                                    && (blank($effectiveProgressStatus)
+                                        || $effectiveProgressStatus === \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL);
+                                $legacyStarted = $workshop?->started_at === null
+                                    && filled($effectiveProgressStatus)
+                                    && $effectiveProgressStatus !== \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL;
+                                $progressHasBegun = $workshop?->started_at !== null || $legacyStarted;
                                 $workshopSummary = match (true) {
                                     filled($workshop?->progress_status) => $progressOptions[$workshop?->progress_status] ?? 'Progress Bengkel',
-                                    $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_READY => 'Material Ready',
-                                    $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY => $workshop?->status_anggaran ?: 'Material Not Ready',
-                                    default => 'Belum Konfirmasi',
+                                    default => $preparationLabel,
                                 };
                                 $workshopSummaryClasses = match (true) {
                                     $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_DONE => 'border-emerald-200 bg-emerald-50 text-emerald-700',
@@ -128,22 +336,20 @@
                                     $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_IN_PROGRESS => 'border-blue-200 bg-blue-50 text-blue-700',
                                     $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_PENDING => 'border-orange-200 bg-orange-50 text-orange-700',
                                     $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL => 'border-amber-200 bg-amber-50 text-amber-700',
-                                    $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_READY => 'border-sky-200 bg-sky-50 text-sky-700',
-                                    $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY => 'border-amber-200 bg-amber-50 text-amber-700',
+                                    $preparationStatus === \App\Models\OrderWorkshop::PREPARATION_COMPLETED => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+                                    filled($preparationStatus) => 'border-amber-200 bg-amber-50 text-amber-700',
                                     default => 'border-slate-200 bg-slate-50 text-slate-500',
                                 };
                                 $workshopNextStep = match (true) {
-                                    blank($konfirmasi) => 'Pilih konfirmasi anggaran/material.',
-                                    $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_READY && blank($workshop?->status_material) => 'Isi status material.',
-                                    $konfirmasi === \App\Models\OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY && blank($workshop?->status_anggaran) => 'Pilih Waiting Budget atau Complete Transfer.',
-                                    $showProgress && blank($workshop?->progress_status) => 'Update progress bengkel.',
-                                    $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_DONE => 'Pekerjaan bengkel selesai.',
-                                    default => 'Pantau catatan dan progress bengkel.',
+                                    blank($preparationStatus) => 'Pilih Persiapan Order.',
+                                    ! $workshop?->preparationCompleted() => 'Selesaikan Persiapan Order.',
+                                    $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL => 'Pantau Quality Control.',
+                                    $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_DONE => 'Pekerjaan selesai.',
+                                    blank($workshop?->progress_status) => 'Pilih Progress Pekerjaan.',
+                                    default => 'Pantau progress pekerjaan.',
                                 };
                                 $workshopFlowChecklist = [
-                                    ['label' => 'Konfirmasi', 'value' => $konfirmasi ?: '-', 'ready' => filled($konfirmasi)],
-                                    ['label' => 'Budget / Transfer', 'value' => $workshop?->status_anggaran ?: ($showBudgetTransfer ? '-' : 'N/A'), 'ready' => ! $showBudgetTransfer || filled($workshop?->status_anggaran)],
-                                    ['label' => 'Status Material', 'value' => $workshop?->status_material ?: ($showMaterial ? '-' : 'N/A'), 'ready' => ! $showMaterial || filled($workshop?->status_material)],
+                                    ['label' => 'Persiapan Order', 'value' => $preparationLabel, 'ready' => $workshop?->preparationCompleted() ?? false],
                                     ['label' => 'Progress', 'value' => $progressOptions[$workshop?->progress_status] ?? '-', 'ready' => filled($workshop?->progress_status)],
                                 ];
                                 $detailDocuments = collect([
@@ -161,12 +367,11 @@
                                     ] : null,
                                 ])->filter()->values();
                                 $qcReport = $order->latestQualityControlReport;
-                                if ($qcReport) {
-                                    $detailDocuments->push([
-                                        'label' => 'PDF Quality Control',
-                                        'url' => route('admin.orders.workshop.quality-control.pdf', [$order, $qcReport]),
-                                    ]);
-                                }
+                                $preparationLocked = app(\App\Support\WorkshopReadiness::class)->preparationLocked(
+                                    $workshop,
+                                    $qcReport !== null,
+                                    $order->workshopHandover !== null,
+                                );
                                 $showQcActions = $workshop?->progress_status === \App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL;
                                 $activeQcSignature = $qcReport?->signatures
                                     ?->firstWhere('status', \App\Models\QualityControlSignature::STATUS_PENDING);
@@ -182,72 +387,6 @@
                                     ?->firstWhere('role_key', \App\Models\QualityControlSignature::ROLE_WORKSHOP_MANAGER);
                                 $qcUserSignature = $qcReport?->signatures
                                     ?->firstWhere('role_key', \App\Models\QualityControlSignature::ROLE_USER_MANAGER);
-                                $qcSignaturePayload = collect($qcReport?->payload['signature'] ?? []);
-                                $qcMakerName = trim((string) $qcSignaturePayload->get('signer_name', ''));
-                                $qcMakerDate = trim((string) $qcSignaturePayload->get('signed_at', ''));
-                                $qcFlowItems = $qcReport ? collect([
-                                    [
-                                        'step' => 1,
-                                        'role' => 'Pembuat QC',
-                                        'name' => $qcMakerName !== '' ? $qcMakerName : '-',
-                                        'position' => 'Inspector / Pengisi Form QC',
-                                        'scope' => 'Form Quality Control',
-                                        'status' => $qcMakerName !== '' ? 'signed' : 'missing',
-                                        'status_label' => $qcMakerName !== '' ? 'Sudah TTD' : 'Belum TTD',
-                                        'signed_at' => $qcMakerDate,
-                                        'is_active' => false,
-                                    ],
-                                    [
-                                        'step' => 2,
-                                        'role' => $qcWorkshopSignature?->displayRoleLabel() ?: 'Manager Bengkel',
-                                        'original_role' => $qcWorkshopSignature?->role_label ?: 'Manager Bengkel',
-                                        'name' => $qcWorkshopSignature?->signer_name ?: '-',
-                                        'signer_user_id' => $qcWorkshopSignature?->signer_user_id,
-                                        'position' => $qcWorkshopSignature?->signer_position ?: $qcWorkshopSignature?->role_label ?: 'Manager Bengkel',
-                                        'scope' => trim(collect([$qcWorkshopSignature?->source_unit, $qcWorkshopSignature?->source_section])->filter()->implode(' / ')),
-                                        'status' => $qcWorkshopSignature?->status ?: 'missing',
-                                        'status_label' => match ($qcWorkshopSignature?->status) {
-                                            \App\Models\QualityControlSignature::STATUS_SIGNED => 'Sudah TTD',
-                                            \App\Models\QualityControlSignature::STATUS_PENDING => 'Menunggu TTD',
-                                            \App\Models\QualityControlSignature::STATUS_LOCKED => 'Belum aktif',
-                                            \App\Models\QualityControlSignature::STATUS_MISSING => 'Signer belum lengkap',
-                                            default => 'Belum dibuat',
-                                        },
-                                        'delegated_from_name' => $qcWorkshopSignature?->delegated_from_name ?: '',
-                                        'delegation_reason' => $qcWorkshopSignature?->delegation_reason ?: '',
-                                        'can_reassign' => $qcWorkshopSignature && ! in_array($qcWorkshopSignature->status, [\App\Models\QualityControlSignature::STATUS_SIGNED], true),
-                                        'reassign_url' => $qcWorkshopSignature ? route('admin.orders.approval-signatures.quality-control.reassign', $qcWorkshopSignature) : '',
-                                        'signed_at' => $qcWorkshopSignature?->signed_at?->format('d/m/Y H:i') ?: '',
-                                        'is_active' => $qcWorkshopSignature
-                                            ? ($activeQcSignature?->is($qcWorkshopSignature) ?? false)
-                                            : false,
-                                    ],
-                                    [
-                                        'step' => 3,
-                                        'role' => $qcUserSignature?->displayRoleLabel() ?: 'Manager Unit Terkait',
-                                        'original_role' => $qcUserSignature?->role_label ?: 'Manager Unit Terkait',
-                                        'name' => $qcUserSignature?->signer_name ?: '-',
-                                        'signer_user_id' => $qcUserSignature?->signer_user_id,
-                                        'position' => $qcUserSignature?->signer_position ?: $qcUserSignature?->role_label ?: 'Manager Unit Terkait',
-                                        'scope' => trim(collect([$qcUserSignature?->source_unit, $qcUserSignature?->source_section])->filter()->implode(' / ')),
-                                        'status' => $qcUserSignature?->status ?: 'missing',
-                                        'status_label' => match ($qcUserSignature?->status) {
-                                            \App\Models\QualityControlSignature::STATUS_SIGNED => 'Sudah TTD',
-                                            \App\Models\QualityControlSignature::STATUS_PENDING => 'Menunggu TTD',
-                                            \App\Models\QualityControlSignature::STATUS_LOCKED => 'Belum aktif',
-                                            \App\Models\QualityControlSignature::STATUS_MISSING => 'Signer belum lengkap',
-                                            default => 'Belum dibuat',
-                                        },
-                                        'delegated_from_name' => $qcUserSignature?->delegated_from_name ?: '',
-                                        'delegation_reason' => $qcUserSignature?->delegation_reason ?: '',
-                                        'can_reassign' => $qcUserSignature && ! in_array($qcUserSignature->status, [\App\Models\QualityControlSignature::STATUS_SIGNED], true),
-                                        'reassign_url' => $qcUserSignature ? route('admin.orders.approval-signatures.quality-control.reassign', $qcUserSignature) : '',
-                                        'signed_at' => $qcUserSignature?->signed_at?->format('d/m/Y H:i') ?: '',
-                                        'is_active' => $qcUserSignature
-                                            ? ($activeQcSignature?->is($qcUserSignature) ?? false)
-                                            : false,
-                                    ],
-                                ])->values() : collect();
                                 $qcFlowSummary = match (true) {
                                     ! $qcReport => 'QC belum dibuat.',
                                     $qcWorkshopSignature?->isSigned() && $qcUserSignature?->isSigned() => 'Approval QC selesai.',
@@ -258,234 +397,188 @@
                                     default => 'Approval QC belum aktif.',
                                 };
                             @endphp
-                            <tr class="align-top odd:bg-white even:bg-slate-50/80 hover:bg-blue-50/70">
-                                <td class="px-3 py-3">
-                                    <div class="font-semibold text-slate-800">{{ $order->nomor_order }}</div>
-                                    <div class="mt-1 text-[9px] text-slate-400">Tanggal: {{ optional($order->tanggal_order)->format('d-m-Y') ?: '-' }}</div>
-                                    <button
-                                        type="button"
-                                        class="workshop-flow-trigger mt-2 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 {{ $workshopSummaryClasses }}"
-                                        data-title="{{ $order->nomor_order }}"
-                                        data-summary="{{ $workshopSummary }}"
-                                        data-next="{{ $workshopNextStep }}"
-                                        data-checklist='@json($workshopFlowChecklist)'
-                                    >
-                                        {{ $workshopSummary }}
-                                    </button>
+                            <tr class="order-workshop-card align-top">
+                                <td class="order-workshop-order-cell">
+                                    <div class="mt-1 break-words text-[13px] font-bold text-slate-900">{{ $order->nomor_order }}</div>
+                                    <div class="mt-1 text-[9px] text-slate-500">Notif: {{ $order->notifikasi ?: '-' }}</div>
+                                    @php
+                                        $workshopPackagesLocked = $qcReport !== null
+                                            || $order->workshopHandover !== null
+                                            || in_array($order->orderWorkshop?->progress_status, [\App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL, \App\Models\OrderWorkshop::PROGRESS_DONE], true)
+                                            || $order->bengkelTasks->contains(fn ($task) => $task->archived_at !== null);
+                                    @endphp
+                                    @if ($workPackages->isNotEmpty())
+                                        <div class="mt-2 text-[9px] font-semibold text-blue-700">Pembagian: {{ $workPackages->count() }} paket</div>
+                                        <div class="mt-0.5 text-[9px] text-slate-500">{{ $order->workPackageProgressLabel() }}</div>
+                                        <a href="{{ route('admin.orders.workshop.work-packages.index', $order) }}" class="mt-2 inline-flex items-center rounded-lg border px-2.5 py-1 text-[9px] font-semibold {{ $workshopPackagesLocked ? 'border-slate-200 text-slate-500' : 'border-blue-200 text-blue-600 hover:bg-blue-50' }}">Kelola Pembagian</a>
+                                    @elseif (! $workshopPackagesLocked)
+                                        <a href="{{ route('admin.orders.workshop.work-packages.index', $order) }}" class="mt-2 inline-flex items-center rounded-lg border border-blue-200 px-2.5 py-1 text-[9px] font-semibold text-blue-600 hover:bg-blue-50">Buat Pembagian</a>
+                                    @endif
+                                    <div class="mt-2 text-[9px] text-slate-400">Tanggal order: {{ optional($order->tanggal_order)->format('d-m-Y') ?: '-' }}</div>
                                 </td>
-                                <td class="px-3 py-3">
-                                    <div class="font-semibold text-slate-800">{{ \Illuminate\Support\Str::limit($order->nama_pekerjaan, 180) }}</div>
-                                </td>
-                                <td class="px-3 py-3">
-                                    <div class="font-medium text-slate-800">{{ $order->unit_kerja }}</div>
-                                    <div class="mt-1 text-[9px] text-slate-400">{{ $order->seksi }}</div>
-                                </td>
-                                <td class="px-3 py-3">
-                                    <input type="hidden" class="workshop-order-key" value="{{ $order->getRouteKey() }}">
-                                    <div class="space-y-2">
-                                        <div class="relative">
-                                            <select name="konfirmasi_anggaran" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="konfirmasi_anggaran">
-                                                <option value="">Pilih Status Konfirmasi</option>
-                                                @foreach ($konfirmasiOptions as $value => $label)
-                                                    <option value="{{ $value }}" @selected(($workshop?->konfirmasi_anggaran ?? '') === $value)>{{ $label }}</option>
-                                                @endforeach
-                                            </select>
-                                            <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
+                                <td class="order-workshop-detail-cell">
+                                    <div class="mt-1 break-words text-[13px] font-bold leading-5 text-slate-900">{{ \Illuminate\Support\Str::limit($order->nama_pekerjaan, 180) }}</div>
+                                    @if ($workshopTypeLabel)
+                                        <span class="mt-2 inline-flex w-fit items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-blue-700">{{ $workshopTypeLabel }}</span>
+                                    @endif
+                                    <div class="mt-2 grid grid-cols-2 gap-3">
+                                        <div class="min-w-0">
+                                            <div class="text-[8px] font-semibold uppercase tracking-[0.1em] text-slate-400">Unit Kerja</div>
+                                            <div class="mt-0.5 break-words text-[9px] font-medium text-slate-700">{{ $order->unit_kerja ?: '-' }}</div>
                                         </div>
-
-                                        <div class="flex items-start gap-2">
-                                            <textarea name="keterangan_konfirmasi" class="note-textarea h-10 flex-1 resize-none rounded-md border border-blue-900/25 bg-white px-2 py-1 text-[10px] text-slate-900 placeholder:text-slate-500 focus:border-blue-600 focus:outline-none" placeholder="Keterangan konfirmasi...">{{ $workshop?->keterangan_konfirmasi }}</textarea>
-                                            <button type="button" class="save-note-btn inline-flex h-7 w-7 items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 shadow-sm transition hover:bg-indigo-100" data-field="keterangan_konfirmasi">
-                                                <i data-lucide="save" class="h-3 w-3"></i>
-                                            </button>
+                                        <div class="min-w-0">
+                                            <div class="text-[8px] font-semibold uppercase tracking-[0.1em] text-slate-400">Seksi</div>
+                                            <div class="mt-0.5 break-words text-[9px] text-slate-500">{{ $order->seksi ?: '-' }}</div>
                                         </div>
-
-                                        @if ($showBudgetTransfer)
-                                            <div class="rounded-md border border-slate-200 bg-slate-50 p-2.5 text-[9px] text-slate-700 shadow-sm">
-                                                <div class="mb-2 font-semibold text-slate-800">Budget / Transfer</div>
-                                                <div class="space-y-2">
-                                                    <select name="status_anggaran" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="status_anggaran">
-                                                        <option value="">Pilih status budget/transfer</option>
-                                                        @foreach ($statusAnggaranOptions as $value => $label)
-                                                            <option value="{{ $value }}" @selected(($workshop?->status_anggaran ?? '') === $value)>{{ $label }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        @endif
                                     </div>
                                 </td>
-                                <td class="px-3 py-3">
-                                    @if ($showMaterial)
-                                        <div class="space-y-2">
-                                            <div class="relative">
-                                                <select name="status_material" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="status_material">
-                                                    <option value="">Pilih status material</option>
-                                                    @foreach ($materialOptions as $value => $label)
-                                                        <option value="{{ $value }}" @selected(($workshop?->status_material ?? '') === $value)>{{ $label }}</option>
-                                                    @endforeach
-                                                </select>
-                                                <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
-                                            </div>
-                                            <div class="flex items-start gap-2">
-                                                <textarea name="keterangan_material" class="note-textarea h-10 flex-1 resize-none rounded-md border border-blue-900/25 bg-white px-2 py-1 text-[10px] text-slate-900 placeholder:text-slate-500 focus:border-blue-600 focus:outline-none" placeholder="Catatan material...">{{ $workshop?->keterangan_material }}</textarea>
-                                                <button type="button" class="save-note-btn inline-flex h-7 w-7 items-center justify-center rounded-md border border-cyan-200 bg-cyan-50 text-cyan-700 shadow-sm transition hover:bg-cyan-100" data-field="keterangan_material">
-                                                    <i data-lucide="save" class="h-3 w-3"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    @else
-                                        @if ($qcReport)
-                                            <a href="{{ route('admin.orders.workshop.quality-control.pdf', [$order, $qcReport]) }}" target="_blank" title="PDF QC" aria-label="PDF QC" class="inline-flex items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-100">
-                                                <i data-lucide="file-text" class="h-3 w-3"></i>
-                                                PDF QC
-                                            </a>
-                                        @else
-                                            <div class="italic text-slate-400">-</div>
-                                        @endif
-                                    @endif
-                                </td>
-                                <td class="px-3 py-3">
-                                    @if ($showProgress)
-                                        <div class="space-y-2">
-                                            <div class="relative">
-                                                <select name="progress_status" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="progress_status">
-                                                    <option value="">Pilih progress</option>
-                                                    @foreach ($progressOptions as $value => $label)
-                                                        <option value="{{ $value }}" @selected(($workshop?->progress_status ?? '') === $value)>{{ $label }}</option>
-                                                    @endforeach
-                                                </select>
-                                                <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
-                                            </div>
-                                            <div class="flex items-start gap-2">
-                                                <textarea name="keterangan_progress" class="note-textarea h-10 flex-1 resize-none rounded-md border border-blue-900/25 bg-white px-2 py-1 text-[10px] text-slate-900 placeholder:text-slate-500 focus:border-blue-600 focus:outline-none" placeholder="Catatan progress...">{{ $workshop?->keterangan_progress }}</textarea>
-                                                <button type="button" class="save-note-btn inline-flex h-7 w-7 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:bg-emerald-100" data-field="keterangan_progress">
-                                                    <i data-lucide="save" class="h-3 w-3"></i>
-                                                </button>
-                                            </div>
-                                            @if ($showQcActions)
-                                                <div class="flex items-center gap-1.5">
-                                                    @if ($qcReport)
-                                                        <a href="{{ route('admin.orders.workshop.quality-control.edit', [$order, $qcReport]) }}" title="Edit QC" aria-label="Edit QC" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-violet-200 bg-violet-50 text-violet-700 transition hover:bg-violet-100">
-                                                            <i data-lucide="clipboard-pen" class="h-3 w-3"></i>
-                                                        </a>
-                                                        <a href="{{ route('admin.orders.workshop.quality-control.pdf', [$order, $qcReport]) }}" target="_blank" title="PDF QC" aria-label="PDF QC" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100">
-                                                            <i data-lucide="file-text" class="h-3 w-3"></i>
-                                                        </a>
-                                                        <button
-                                                            type="button"
-                                                            title="Informasi approval QC"
-                                                            aria-label="Informasi approval QC"
-                                                            class="approval-signature-info-trigger inline-flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100"
-                                                            data-title="Approval Quality Control"
-                                                            data-summary="{{ $qcFlowSummary }}"
-                                                            data-checklist='@json($qcFlowItems->slice(1)->values())'
-                                                            data-active-role="{{ $activeQcSignature ? $activeQcRoleLabel : '' }}"
-                                                            data-active-signer="{{ $activeQcSignature?->signer_name ?: '' }}"
-                                                            data-expiry="{{ $activeQcSignature?->token_expires_at ? ($activeQcApprovalExpired ? 'Kedaluwarsa: ' : 'Berlaku sampai: ').$activeQcSignature->token_expires_at->format('d/m/Y H:i') : '' }}"
-                                                            data-approval-url="{{ $activeQcApprovalUrl ?: '' }}"
-                                                            data-whatsapp-url="{{ $activeQcApprovalWhatsappUrl ?: '' }}"
-                                                            data-resend-url="{{ $activeQcApprovalUrl ? route('admin.orders.workshop.quality-control.approval.resend', [$order, $qcReport]) : '' }}"
-                                                            data-regenerate-url="{{ $activeQcApprovalExpired ? route('admin.orders.workshop.quality-control.approval.regenerate', [$order, $qcReport]) : '' }}"
-                                                        >
-                                                            <i data-lucide="info" class="h-3.5 w-3.5"></i>
-                                                        </button>
-
-                                                        @if (
-                                                            $qcWorkshopSignature?->status === \App\Models\QualityControlSignature::STATUS_MISSING
-                                                            || $qcUserSignature?->status === \App\Models\QualityControlSignature::STATUS_MISSING
-                                                        )
-                                                            <span class="inline-flex w-full items-center justify-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[10px] font-semibold text-amber-700" title="Token belum dibuat: Manager Bengkel/Manager Unit belum lengkap di Struktur Organisasi.">
-                                                                <i data-lucide="user-x" class="h-3 w-3"></i>
-                                                                Signer QC belum lengkap
-                                                            </span>
-                                                        @elseif ($qcWorkshopSignature?->isSigned() && $qcUserSignature?->isSigned())
-                                                            <span class="inline-flex w-full items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[10px] font-semibold text-emerald-700">
-                                                                <i data-lucide="check-check" class="h-3 w-3"></i>
-                                                                Approval QC selesai
-                                                            </span>
-                                                        @endif
-                                                    @else
-                                                        <a href="{{ route('admin.orders.workshop.quality-control.create', $order) }}" class="inline-flex w-full items-center justify-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-[10px] font-semibold text-violet-700 transition hover:bg-violet-100">
-                                                            <i data-lucide="clipboard-plus" class="h-3 w-3"></i>
-                                                            Tambah QC
-                                                        </a>
-                                                    @endif
-                                                </div>
-                                            @elseif ($qcReport)
-                                                <div class="flex items-center gap-1.5">
-                                                    <a href="{{ route('admin.orders.workshop.quality-control.pdf', [$order, $qcReport]) }}" target="_blank" title="PDF QC" aria-label="PDF QC" class="inline-flex items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-100">
-                                                        <i data-lucide="file-text" class="h-3 w-3"></i>
-                                                        PDF QC
-                                                    </a>
-                                                </div>
-                                            @endif
-                                        </div>
-                                    @else
-                                        <div class="italic text-slate-400">-</div>
-                                    @endif
-                                </td>
-                                <td class="whitespace-nowrap px-3 py-3 text-right">
-                                    <div class="flex items-center justify-end gap-1.5">
+                                <td class="order-workshop-status-cell">
+                                    <input type="hidden" class="workshop-order-key" value="{{ $order->getRouteKey() }}">
+                                    <div class="flex items-center justify-between gap-2">
                                         <button
                                             type="button"
-                                            title="Detail"
-                                            aria-label="Detail order"
-                                            class="workshop-detail-trigger inline-flex h-8 w-8 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 shadow-sm transition hover:bg-blue-100"
+                                            class="workshop-flow-trigger inline-flex min-w-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[9px] font-semibold transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 {{ $workshopSummaryClasses }}"
                                             data-title="{{ $order->nomor_order }}"
-                                            data-job="{{ $order->nama_pekerjaan }}"
-                                            data-unit="{{ $order->unit_kerja }}"
-                                            data-seksi="{{ $order->seksi }}"
-                                            data-catatan="{{ $workshop?->catatan ?: ($order->catatan ?: '-') }}"
-                                            data-documents='@json($detailDocuments)'
-                                            data-qc-flow-summary="{{ $qcFlowSummary }}"
-                                            data-qc-flow='@json($qcFlowItems)'
+                                            data-summary="{{ $workshopSummary }}"
+                                            data-next="{{ $workshopNextStep }}"
+                                            data-checklist='@json($workshopFlowChecklist)'
                                         >
-                                            <i data-lucide="info" class="h-3.5 w-3.5"></i>
+                                            <span class="truncate">{{ $workshopSummary }}</span>
                                         </button>
-                                        <a href="{{ route('admin.orders.documents.index', $order) }}" title="Lengkapi dokumen" aria-label="Lengkapi dokumen" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-700 shadow-sm transition hover:bg-sky-100">
-                                            <i data-lucide="file-plus-2" class="h-3.5 w-3.5"></i>
-                                        </a>
-                                        <div class="row-action-menu relative">
-                                            <button type="button" class="row-action-menu-trigger inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50" title="Menu lainnya" aria-label="Menu lainnya">
-                                                <i data-lucide="more-vertical" class="h-3.5 w-3.5"></i>
+                                        <div class="order-workshop-actions">
+                                            <button
+                                                type="button"
+                                                title="Detail &amp; Dokumen"
+                                                aria-label="Detail order"
+                                                class="workshop-detail-trigger inline-flex h-8 w-8 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 shadow-sm transition hover:bg-blue-100"
+                                                data-title="{{ $order->nomor_order }}"
+                                                data-job="{{ $order->nama_pekerjaan }}"
+                                                data-unit="{{ $order->unit_kerja }}"
+                                                data-seksi="{{ $order->seksi }}"
+                                                data-catatan="{{ $workshop?->catatan ?: ($order->catatan ?: '-') }}"
+                                                data-documents-url="{{ route('admin.orders.documents.index', $order) }}"
+                                                data-documents='@json($detailDocuments)'
+                                                data-display-work-packages='@json($displayWorkPackages)'
+                                            >
+                                                <i data-lucide="info" class="h-3.5 w-3.5"></i>
                                             </button>
-                                            <div class="row-action-menu-panel absolute right-0 z-30 mt-2 hidden w-44 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 text-left shadow-lg">
-                                                <button
-                                                    type="button"
-                                                    class="edit-order-trigger flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50"
-                                                    data-action="{{ route('admin.orders.update', $order) }}"
-                                                    data-order-key="{{ $order->getRouteKey() }}"
-                                                    data-nomor-order="{{ $order->nomor_order }}"
-                                                    data-notifikasi="{{ $order->notifikasi }}"
-                                                    data-nama-pekerjaan="{{ $order->nama_pekerjaan }}"
-                                                    data-unit-kerja="{{ $order->unit_kerja }}"
-                                                    data-prioritas="{{ $order->prioritas }}"
-                                                    data-target-selesai="{{ optional($order->target_selesai)->format('Y-m-d') }}"
-                                                    data-seksi="{{ $order->seksi }}"
-                                                    data-catatan-status="{{ $order->catatan_status?->value ?? \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value }}"
-                                                    data-catatan="{{ $order->catatan }}"
-                                                    data-tanggal-order="{{ optional($order->tanggal_order)->format('Y-m-d') }}"
-                                                >
-                                                    <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
-                                                    Edit Order
+                                            <button
+                                                type="button"
+                                                title="Edit Order"
+                                                aria-label="Edit order"
+                                                class="edit-order-trigger inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:bg-emerald-100"
+                                                data-action="{{ route('admin.orders.update', $order) }}"
+                                                data-order-key="{{ $order->getRouteKey() }}"
+                                                data-nomor-order="{{ $order->nomor_order }}"
+                                                data-notifikasi="{{ $order->notifikasi }}"
+                                                data-nama-pekerjaan="{{ $order->nama_pekerjaan }}"
+                                                data-unit-kerja="{{ $order->unit_kerja }}"
+                                                data-prioritas="{{ $order->prioritas }}"
+                                                data-target-selesai="{{ optional($order->target_selesai)->format('Y-m-d') }}"
+                                                data-biaya="{{ $order->biaya === null ? '' : \Illuminate\Support\Str::before((string) $order->biaya, '.') }}"
+                                                data-seksi="{{ $order->seksi }}"
+                                                data-catatan-status="{{ $order->catatan_status?->value ?? \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value }}"
+                                                data-catatan="{{ $order->catatan }}"
+                                                data-tanggal-order="{{ optional($order->tanggal_order)->format('Y-m-d') }}"
+                                            >
+                                                <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
+                                            </button>
+                                            <form method="POST" action="{{ route('admin.orders.destroy', $order) }}" class="delete-order-form">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" title="Hapus Order" aria-label="Hapus order" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600 shadow-sm transition hover:bg-rose-100">
+                                                    <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
                                                 </button>
-                                                <form method="POST" action="{{ route('admin.orders.destroy', $order) }}" class="delete-order-form">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[11px] font-semibold text-rose-600 transition hover:bg-rose-50">
-                                                        <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
-                                                        Hapus Order
-                                                    </button>
-                                                </form>
-                                            </div>
+                                            </form>
                                         </div>
+                                    </div>
+
+                                    <div class="order-workshop-status-grid">
+                                        <section class="order-workshop-status-block rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                                            <div class="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Persiapan Order</div>
+                                            <div class="relative min-w-0">
+                                                <select name="preparation_status" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none" data-field="preparation_status" @disabled($preparationLocked)>
+                                                    <option value="">Pilih Persiapan Order</option>
+                                                    @foreach ($preparationOptions as $value => $label)
+                                                        <option value="{{ $value }}" @selected($preparationStatus === $value)>{{ $label }}</option>
+                                                    @endforeach
+                                                </select>
+                                                <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
+                                            </div>
+                                        </section>
+
+                                        <section class="order-workshop-status-block overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-0">
+                                            <div data-note-group class="relative h-full min-h-[92px]">
+                                                <textarea name="preparation_note" class="note-textarea h-full min-h-[92px] w-full resize-none border-0 bg-transparent px-2.5 py-2 pb-8 text-[10px] leading-4 text-slate-900 placeholder:text-slate-500 focus:outline-none" placeholder="Catatan persiapan..." @disabled($preparationLocked)>{{ $workshop?->preparation_note }}</textarea>
+                                                <button type="button" class="save-note-btn absolute bottom-1.5 right-1.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 shadow-sm transition hover:bg-indigo-100" data-field="preparation_note" title="Simpan catatan persiapan" aria-label="Simpan catatan persiapan" @disabled($preparationLocked)>
+                                                    <i data-lucide="save" class="h-2.5 w-2.5"></i>
+                                                </button>
+                                            </div>
+                                        </section>
+
+                                        <section class="order-workshop-status-block rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                                            <div class="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500">Progress Pekerjaan</div>
+                                            <div class="space-y-2">
+                                                    @if ($waitingForStart)
+                                                        <button type="button" class="start-workshop-button inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-blue-600 px-2.5 py-2 text-[10px] font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-wait disabled:opacity-60" data-start-url="{{ route('admin.orders.workshop.start', $order) }}">
+                                                            <i data-lucide="play" class="h-3.5 w-3.5"></i>
+                                                            Start Pekerjaan
+                                                        </button>
+                                                    @elseif ($workshop?->started_at !== null)
+                                                        <div class="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[9px] font-semibold text-emerald-700">
+                                                            Mulai: {{ $workshop->started_at->format('d-m-Y H:i') }}
+                                                        </div>
+                                                    @elseif ($legacyStarted)
+                                                        <div class="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[9px] font-semibold text-amber-700">
+                                                            Waktu mulai belum tercatat
+                                                        </div>
+                                                    @endif
+                                                    <div data-note-group>
+                                                        <div class="flex items-center gap-1.5">
+                                                            <div class="relative min-w-0 flex-1">
+                                                                <select name="progress_status" class="auto-save-select block w-full rounded-md border border-blue-900/25 bg-white px-2.5 py-2 pr-8 text-[10px] font-semibold text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" data-field="progress_status" @disabled($waitingForStart)>
+                                                                    @if ($waitingForStart)
+                                                                        <option value="{{ \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL }}" selected>Menunggu Jadwal</option>
+                                                                    @else
+                                                                        <option value="" disabled>Pilih progress</option>
+                                                                        @foreach ($progressOptions as $value => $label)
+                                                                            @continue($progressHasBegun && $value === \App\Models\OrderWorkshop::PROGRESS_MENUNGGU_JADWAL)
+                                                                            @continue($value === \App\Models\OrderWorkshop::PROGRESS_QUALITY_CONTROL && $order->isEstimatorWorkshopRegu())
+                                                                            <option value="{{ $value }}" @selected(($workshop?->progress_status ?? '') === $value)>{{ $label }}</option>
+                                                                        @endforeach
+                                                                    @endif
+                                                                </select>
+                                                                <div class="save-indicator absolute right-2 top-2 hidden text-[9px] text-slate-400">...</div>
+                                                            </div>
+                                                            <button type="button" data-note-toggle title="Catatan" aria-label="Buka catatan progress" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
+                                                                <i data-lucide="message-square" class="h-3.5 w-3.5"></i>
+                                                            </button>
+                                                        </div>
+                                                        <div data-note-content class="hidden mt-2 flex items-start gap-2">
+                                                            <textarea name="keterangan_progress" class="note-textarea h-10 flex-1 resize-none rounded-md border border-blue-900/25 bg-white px-2 py-1 text-[10px] text-slate-900 placeholder:text-slate-500 focus:border-blue-600 focus:outline-none" placeholder="Catatan progress...">{{ $workshop?->keterangan_progress }}</textarea>
+                                                            <button type="button" class="save-note-btn inline-flex h-7 w-7 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:bg-emerald-100" data-field="keterangan_progress">
+                                                                <i data-lucide="save" class="h-3 w-3"></i>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    @if ($showQcActions)
+                                                        <div class="rounded-lg border border-violet-100 bg-violet-50 px-2.5 py-2 text-[10px] text-violet-700">
+                                                            <span class="font-semibold">{{ $qcFlowSummary }}</span>
+                                                            @if (\App\Support\AdminMenuRegistry::canAccess(auth()->user(), \App\Support\AdminMenuRegistry::MENU_QUALITY_CONTROL_BENGKEL))
+                                                                <a href="{{ route('admin.workshop-quality-control.index', ['search' => $order->nomor_order]) }}" class="ml-1 font-bold underline">Buka Quality Control</a>
+                                                            @else
+                                                                <span class="ml-1">Dikelola admin Quality Control.</span>
+                                                            @endif
+                                                        </div>
+                                                    @endif
+                                            </div>
+                                        </section>
                                     </div>
                                 </td>
                             </tr>
                         @empty
-                            <tr>
-                                <td colspan="7" class="px-3 py-8 text-center text-sm text-slate-500">Tidak ada order bengkel untuk ditampilkan.</td>
+                            <tr class="order-workshop-empty">
+                                <td colspan="3" class="px-3 py-8 text-center text-sm text-slate-500">{{ $activeTab === 'history' ? 'Belum ada riwayat pekerjaan bengkel yang selesai.' : 'Tidak ada order bengkel yang perlu tindakan.' }}</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -505,7 +598,7 @@
 
     <div id="createOrderModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
         <div class="max-h-[92vh] overflow-y-auto rounded-3xl bg-white shadow-2xl" style="width:min(100%, 860px);">
-            <form method="POST" action="{{ route('admin.orders.store') }}" class="p-6">
+            <form method="POST" action="{{ route('admin.orders.workshop.store') }}" class="p-6">
                 @csrf
                 <input type="hidden" name="form_context" value="create">
                 <input type="hidden" name="tanggal_order" id="createTanggalOrder" value="{{ old('form_context') === 'create' ? old('tanggal_order', $today) : $today }}">
@@ -607,6 +700,19 @@
                     <div>
                         <label class="mb-2 block text-sm text-slate-700">Rencana Pemakaian</label>
                         <input id="createTargetSelesai" name="target_selesai" type="date" value="{{ old('form_context') === 'create' ? old('target_selesai', $today) : $today }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="createBiayaDisplay" class="mb-2 block text-sm text-slate-700">Biaya <span class="text-slate-400">(Opsional)</span></label>
+                        <div class="relative">
+                            <span class="pointer-events-none absolute inset-y-0 left-4 flex items-center text-sm font-medium text-slate-500">Rp</span>
+                            <input id="createBiayaDisplay" type="text" inputmode="numeric" autocomplete="off" placeholder="Masukkan nominal" class="order-workshop-currency-input w-full rounded-lg border border-slate-400 py-3 pr-4 text-sm focus:border-blue-500 focus:outline-none">
+                            <input id="createBiaya" name="biaya" type="hidden" value="{{ old('form_context') === 'create' ? old('biaya') : '' }}">
+                        </div>
+                        @if (old('form_context') === 'create')
+                            @error('biaya')
+                                <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                            @enderror
+                        @endif
                     </div>
                     <div class="md:col-span-2">
                         <label class="mb-2 block text-sm text-slate-700">Detail Catatan</label>
@@ -734,6 +840,19 @@
                         <input id="editTargetSelesai" name="target_selesai" type="date" value="{{ old('form_context') === 'edit' ? old('target_selesai') : '' }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
                     </div>
                     <div class="md:col-span-2">
+                        <label for="editBiayaDisplay" class="mb-2 block text-sm text-slate-700">Biaya <span class="text-slate-400">(Opsional)</span></label>
+                        <div class="relative">
+                            <span class="pointer-events-none absolute inset-y-0 left-4 flex items-center text-sm font-medium text-slate-500">Rp</span>
+                            <input id="editBiayaDisplay" type="text" inputmode="numeric" autocomplete="off" placeholder="Masukkan nominal" class="order-workshop-currency-input w-full rounded-lg border border-slate-400 py-3 pr-4 text-sm focus:border-blue-500 focus:outline-none">
+                            <input id="editBiaya" name="biaya" type="hidden" value="{{ old('form_context') === 'edit' ? old('biaya') : '' }}">
+                        </div>
+                        @if (old('form_context') === 'edit')
+                            @error('biaya')
+                                <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                            @enderror
+                        @endif
+                    </div>
+                    <div class="md:col-span-2">
                         <label class="mb-2 block text-sm text-slate-700">Detail Catatan</label>
                         <div class="space-y-2">
                             <select id="editCatatanSelect" class="hidden w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none"></select>
@@ -778,20 +897,20 @@
                     </div>
 
                     <div class="rounded-xl border border-slate-200 p-3">
-                        <div class="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Dokumen</div>
+                        <div class="mb-2 flex items-center justify-between gap-3">
+                            <div class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Dokumen</div>
+                            <a id="workshopDetailDocumentsManage" href="#" class="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-[9px] font-semibold text-sky-700 transition hover:bg-sky-100">
+                                <i data-lucide="file-plus-2" class="h-3 w-3"></i>
+                                Lengkapi Dokumen
+                            </a>
+                        </div>
                         <div id="workshopDetailDocuments" class="grid gap-2"></div>
                     </div>
                 </div>
 
                 <div class="rounded-xl border border-blue-100 bg-blue-50/40 p-3">
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <div class="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-500">Flow Approval QC</div>
-                            <div id="workshopDetailQcSummary" class="mt-1 text-[11px] font-semibold text-slate-600">-</div>
-                        </div>
-                        <span id="workshopDetailQcCount" class="inline-flex rounded-full bg-white px-2 py-0.5 text-[9px] font-bold text-blue-700 ring-1 ring-blue-100">0/3</span>
-                    </div>
-                    <div id="workshopDetailQcFlow" class="mt-3 space-y-2"></div>
+                    <div class="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-500">PIC Display &amp; Uraian Pekerjaan</div>
+                    <div id="workshopDetailDisplayWorkPackages" class="mt-3 space-y-2"></div>
                 </div>
             </div>
         </div>
@@ -840,9 +959,13 @@
             const createPrioritasPrimary = document.getElementById('createPrioritasPrimary');
             const createPrioritasEmergency = document.getElementById('createPrioritasEmergency');
             const createCatatanStatus = document.getElementById('createCatatanStatus');
+            const createBiayaDisplay = document.getElementById('createBiayaDisplay');
+            const createBiaya = document.getElementById('createBiaya');
             const editUnitKerja = document.getElementById('editUnitKerja');
             const editSeksi = document.getElementById('editSeksi');
             const editCatatanStatus = document.getElementById('editCatatanStatus');
+            const editBiayaDisplay = document.getElementById('editBiayaDisplay');
+            const editBiaya = document.getElementById('editBiaya');
             const oldFormContext = @json(old('form_context'));
             const oldEditOrderKey = @json(old('edit_original_order'));
             const userNoteDetailOptions = @json($userNoteDetailOptions);
@@ -872,6 +995,28 @@
                 .replaceAll('"', '&quot;')
                 .replaceAll("'", '&#039;');
 
+            const normalizeBiayaDigits = (value) => String(value ?? '')
+                .replace(/\D/g, '')
+                .replace(/^0+(?=\d)/, '');
+
+            const formatBiayaDigits = (value) => value.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+            const setBiayaFieldValue = (displayInput, hiddenInput, value = '') => {
+                if (!displayInput || !hiddenInput) {
+                    return;
+                }
+
+                const digits = normalizeBiayaDigits(value);
+                hiddenInput.value = digits;
+                displayInput.value = digits ? formatBiayaDigits(digits) : '';
+            };
+
+            const bindBiayaField = (displayInput, hiddenInput) => {
+                displayInput?.addEventListener('input', () => {
+                    setBiayaFieldValue(displayInput, hiddenInput, displayInput.value);
+                });
+            };
+
             const syncModalNoteField = (context, selectedStatus = defaultWorkshopStatus, currentNote = '') => {
                 const detailSelect = document.getElementById(`${context}CatatanSelect`);
                 const detailTextarea = document.getElementById(`${context}CatatanTextarea`);
@@ -889,8 +1034,8 @@
                 if (useSelect) {
                     const placeholder = document.createElement('option');
                     placeholder.value = '';
-                    placeholder.textContent = selectedStatus === 'approved_workshop'
-                        ? '- Pilih regu workshop (opsional) -'
+                    placeholder.textContent = ['approved_workshop', 'approved_workshop_jasa'].includes(selectedStatus)
+                        ? '- Pilih regu workshop -'
                         : selectedStatus === 'approved_jasa'
                             ? '- Pilih jenis jasa (opsional) -'
                             : '- Pilih (opsional) -';
@@ -1149,6 +1294,8 @@
             bindModalNoteField('edit');
             bindPriorityField('create');
             bindPriorityField('edit');
+            bindBiayaField(createBiayaDisplay, createBiaya);
+            bindBiayaField(editBiayaDisplay, editBiaya);
 
             document.querySelectorAll('[data-regu-toggle]').forEach((button) => {
                 button.addEventListener('click', () => {
@@ -1172,6 +1319,7 @@
                 document.getElementById('createTanggalOrder').value = '{{ $today }}';
                 document.getElementById('createDeskripsi').value = 'Order pekerjaan bengkel';
                 document.getElementById('createCatatan').value = '';
+                setBiayaFieldValue(createBiayaDisplay, createBiaya);
                 syncModalNoteField('create', defaultWorkshopStatus, '');
                 openCreateOrderModal();
             });
@@ -1213,6 +1361,7 @@
                     document.getElementById('editTargetSelesai').value = button.dataset.targetSelesai || '{{ $today }}';
                     document.getElementById('editTanggalOrder').value = button.dataset.tanggalOrder || button.dataset.targetSelesai || '{{ $today }}';
                     document.getElementById('editCatatan').value = button.dataset.catatan || '';
+                    setBiayaFieldValue(editBiayaDisplay, editBiaya, button.dataset.biaya || '');
                     document.getElementById('editDeskripsi').value = 'Order pekerjaan bengkel';
                     editStructurePair?.setValues(
                         button.dataset.unitKerja || '',
@@ -1233,6 +1382,7 @@
                     { allowLegacy: false }
                 );
                 syncPriorityField('create', @json(old('prioritas', \App\Models\Order::PRIORITY_LOW)));
+                setBiayaFieldValue(createBiayaDisplay, createBiaya, @json(old('biaya')));
                 syncModalNoteField('create', @json(old('catatan_status', \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value)), @json(old('catatan', '')));
                 openCreateOrderModal();
             } else {
@@ -1252,6 +1402,7 @@
                     document.getElementById('editDeskripsi').value = @json(old('deskripsi', 'Order pekerjaan bengkel'));
                     editCatatanStatus.value = @json(old('catatan_status', \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value));
                     syncPriorityField('edit', @json(old('prioritas', \App\Models\Order::PRIORITY_LOW)));
+                    setBiayaFieldValue(editBiayaDisplay, editBiaya, @json(old('biaya')));
                     editStructurePair?.setValues(
                         @json(old('unit_kerja')),
                         @json(old('seksi')),
@@ -1267,12 +1418,40 @@
                     const orderKey = select.closest('tr')?.querySelector('.workshop-order-key')?.value;
                     if (!orderKey) return;
 
-                    await sendPatch(buildUrl(orderKey), {
+                    const result = await sendPatch(buildUrl(orderKey), {
                         [select.dataset.field || select.name]: select.value,
                     }, select);
 
-                    if (select.name === 'konfirmasi_anggaran' || select.name === 'progress_status') {
+                    if (result && (select.name === 'preparation_status' || select.name === 'progress_status')) {
                         setTimeout(() => window.location.reload(), 500);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.start-workshop-button').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    const confirmation = swal
+                        ? await swal.fire({
+                            icon: 'question',
+                            title: 'Start Pekerjaan?',
+                            text: 'Waktu mulai aktual akan dicatat dan progress berubah menjadi Sementara Proses.',
+                            showCancelButton: true,
+                            confirmButtonText: 'Ya, mulai',
+                            cancelButtonText: 'Batal',
+                            confirmButtonColor: '#2563eb',
+                        })
+                        : { isConfirmed: confirm('Mulai pekerjaan sekarang?') };
+
+                    if (!confirmation.isConfirmed) {
+                        return;
+                    }
+
+                    button.disabled = true;
+                    const result = await sendPatch(button.dataset.startUrl || '', {});
+                    if (result) {
+                        setTimeout(() => window.location.reload(), 500);
+                    } else {
+                        button.disabled = false;
                     }
                 });
             });
@@ -1293,19 +1472,34 @@
                 });
             });
 
+            document.querySelectorAll('[data-note-toggle], [data-note-summary]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const group = button.closest('[data-note-group]');
+                    const content = group?.querySelector('[data-note-content]');
+
+                    if (button.hasAttribute('data-note-summary')) {
+                        content?.classList.remove('hidden');
+                    } else {
+                        content?.classList.toggle('hidden');
+                    }
+                    content?.querySelector('textarea')?.focus();
+                });
+            });
+
             document.querySelectorAll('.workshop-detail-trigger').forEach((button) => {
                 button.addEventListener('click', () => {
                     const documents = JSON.parse(button.dataset.documents || '[]');
-                    const qcFlow = JSON.parse(button.dataset.qcFlow || '[]');
-                    const signedCount = qcFlow.filter((item) => item.status === 'signed').length;
+                    const displayWorkPackages = JSON.parse(button.dataset.displayWorkPackages || '[]');
 
                     document.getElementById('workshopDetailTitle').textContent = button.dataset.title || 'Order';
                     document.getElementById('workshopDetailJob').textContent = button.dataset.job || '-';
                     document.getElementById('workshopDetailUnit').textContent = button.dataset.unit || '-';
                     document.getElementById('workshopDetailSeksi').textContent = button.dataset.seksi || '-';
                     document.getElementById('workshopDetailCatatan').textContent = button.dataset.catatan || '-';
-                    document.getElementById('workshopDetailQcSummary').textContent = button.dataset.qcFlowSummary || 'QC belum dibuat.';
-                    document.getElementById('workshopDetailQcCount').textContent = `${signedCount}/${qcFlow.length || 3}`;
+                    const manageDocumentsLink = document.getElementById('workshopDetailDocumentsManage');
+                    if (manageDocumentsLink) {
+                        manageDocumentsLink.href = button.dataset.documentsUrl || '#';
+                    }
                     document.getElementById('workshopDetailDocuments').innerHTML = documents.length
                         ? documents.map((document) => `
                             <a href="${escapeHtml(document.url || '#')}" target="_blank" rel="noopener" class="inline-flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
@@ -1314,42 +1508,35 @@
                             </a>
                         `).join('')
                         : '<div class="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-[11px] text-slate-500 sm:col-span-2">Belum ada dokumen.</div>';
-                    document.getElementById('workshopDetailQcFlow').innerHTML = qcFlow.length
-                        ? qcFlow.map((item) => {
-                            const tone = item.status === 'signed'
-                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                : item.status === 'pending'
-                                    ? 'border-blue-200 bg-blue-50 text-blue-700'
-                                    : item.status === 'missing'
-                                        ? 'border-amber-200 bg-amber-50 text-amber-700'
-                                        : 'border-slate-200 bg-white text-slate-500';
-                            const dot = item.status === 'signed'
-                                ? 'bg-emerald-500'
-                                : item.status === 'pending'
-                                    ? 'bg-blue-500'
-                                    : item.status === 'missing'
-                                        ? 'bg-amber-500'
-                                        : 'bg-slate-300';
+                    document.getElementById('workshopDetailDisplayWorkPackages').innerHTML = displayWorkPackages.length
+                        ? displayWorkPackages.map((workPackage) => {
+                            const assignments = Array.isArray(workPackage.assignments) ? workPackage.assignments : [];
+                            const assignmentHtml = assignments.length
+                                ? assignments.map((assignment) => {
+                                    const descriptions = Array.isArray(assignment.descriptions)
+                                        ? assignment.descriptions.filter((description) => description)
+                                        : [];
+
+                                    return `
+                                        <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                                            <div class="text-[11px] font-bold text-slate-900">${escapeHtml(assignment.name || '-')}</div>
+                                            ${descriptions.length
+                                                ? `<ul class="mt-1 list-disc space-y-0.5 pl-4 text-[10px] leading-4 text-slate-600">${descriptions.map((description) => `<li>${escapeHtml(description)}</li>`).join('')}</ul>`
+                                                : '<div class="mt-1 text-[10px] text-slate-400">Uraian pekerjaan belum diisi.</div>'}
+                                        </div>
+                                    `;
+                                }).join('')
+                                : '<div class="rounded-lg border border-dashed border-slate-200 bg-white px-3 py-2 text-[10px] text-slate-400">PIC belum ditentukan.</div>';
 
                             return `
-                                <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                                    <div class="flex items-start gap-2">
-                                        <span class="mt-1 inline-flex h-2.5 w-2.5 shrink-0 rounded-full ${dot}"></span>
-                                        <div class="min-w-0 flex-1">
-                                            <div class="flex flex-wrap items-center justify-between gap-2">
-                                                <div class="text-[11px] font-bold text-slate-900">Step ${escapeHtml(item.step || '-')} - ${escapeHtml(item.role || '-')}</div>
-                                                <span class="inline-flex rounded-full border px-2 py-0.5 text-[9px] font-bold ${tone}">${escapeHtml(item.status_label || '-')}</span>
-                                            </div>
-                                            <div class="mt-1 text-[11px] font-semibold text-slate-700">${escapeHtml(item.name || '-')}</div>
-                                            <div class="mt-0.5 text-[10px] leading-4 text-slate-500">${escapeHtml(item.position || '-')}</div>
-                                            ${item.scope ? `<div class="mt-0.5 text-[10px] leading-4 text-slate-400">${escapeHtml(item.scope)}</div>` : ''}
-                                            ${item.signed_at ? `<div class="mt-1 text-[10px] font-semibold text-emerald-700">TTD: ${escapeHtml(item.signed_at)}</div>` : ''}
-                                        </div>
-                                    </div>
+                                <div class="rounded-lg border border-blue-100 bg-white/70 p-2">
+                                    <div class="text-[10px] font-bold text-blue-700">${escapeHtml(workPackage.display_no || 'Paket')}</div>
+                                    <div class="mt-0.5 text-[10px] font-semibold text-slate-600">${escapeHtml(workPackage.job_name || '-')}</div>
+                                    <div class="mt-2 space-y-1.5">${assignmentHtml}</div>
                                 </div>
                             `;
                         }).join('')
-                        : '<div class="rounded-xl border border-dashed border-blue-100 bg-white px-3 py-4 text-center text-[11px] text-slate-500">QC belum dibuat atau flow approval belum tersedia.</div>';
+                        : '<div class="rounded-xl border border-dashed border-blue-100 bg-white px-3 py-4 text-center text-[11px] text-slate-500">Belum ada PIC atau uraian pekerjaan pada Display.</div>';
 
                     window.lucide?.createIcons();
                     openWorkshopDetail();
@@ -1414,6 +1601,23 @@
                 });
             }
 
+            const workPackageOrder = document.getElementById('work-package-order');
+            const workPackagePayload = workPackageOrder?.dataset.payload ? JSON.parse(workPackageOrder.dataset.payload) : null;
+            if (workPackagePayload?.url && swal) {
+                swal.fire({
+                    icon: 'success',
+                    title: 'Order berhasil dibuat',
+                    text: `Order ${workPackagePayload.nomor_order} berhasil dibuat. Apakah pekerjaan ini perlu dibagi menjadi beberapa paket?`,
+                    showCancelButton: true,
+                    confirmButtonText: 'Atur Pembagian Pekerjaan',
+                    cancelButtonText: 'Tidak, Selesai',
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = workPackagePayload.url;
+                    }
+                });
+            }
+
             if (errorFlash?.dataset.message) {
                 showAlert({
                     icon: 'error',
@@ -1437,7 +1641,7 @@
                     const result = await swal.fire({
                         icon: 'warning',
                         title: 'Hapus order?',
-                        text: 'Data order akan dihapus permanen.',
+                        text: 'Order beserta seluruh paket, dokumen, approval, QC, Serah Terima, foto, dan lampiran terkait akan dihapus permanen.',
                         showCancelButton: true,
                         confirmButtonText: 'Ya, hapus',
                         cancelButtonText: 'Batal',

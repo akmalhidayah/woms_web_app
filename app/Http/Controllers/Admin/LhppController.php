@@ -3,14 +3,19 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Hpp;
 use App\Models\LhppBast;
 use App\Models\LhppBastSignature;
 use App\Models\User;
 use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\Approvals\ApprovalSignatureRollbackService;
+use App\Services\Approvals\BulkApprovalNotificationService;
 use App\Services\Pkm\BastDeletionService;
+use App\Services\Pkm\BastPdfAttachmentService;
 use App\Support\BastApprovalSignatureBuilder;
+use App\Support\BastDisplayLabel;
 use App\Support\BastEffectiveApprovalFlowResolver;
+use App\Support\BastIndexTabs;
 use App\Support\PdfMergeService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
@@ -19,6 +24,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class LhppController extends Controller
@@ -29,6 +35,9 @@ class LhppController extends Controller
         private readonly ApprovalSignatureRollbackService $rollbackService,
         private readonly BastDeletionService $bastDeletionService,
         private readonly BastEffectiveApprovalFlowResolver $effectiveFlowResolver,
+        private readonly BastIndexTabs $indexTabs,
+        private readonly BulkApprovalNotificationService $bulkNotificationService,
+        private readonly BastPdfAttachmentService $bastPdfAttachmentService,
     ) {}
 
     public function destroy(Request $request, LhppBast $lhppBast): RedirectResponse
@@ -48,7 +57,7 @@ class LhppController extends Controller
             Log::warning('BAST deleted by admin for recreation.', $auditContext);
 
             return redirect()
-                ->route('admin.lhpp.index', $request->only('search', 'page'))
+                ->route('admin.lhpp.index', $request->only('tab', 'search', 'page'))
                 ->with('status', sprintf(
                     'BAST order %s berhasil dihapus seluruhnya. PKM dapat membuat BAST ulang.',
                     $auditContext['nomor_order'],
@@ -113,7 +122,7 @@ class LhppController extends Controller
             }
 
             return redirect()
-                ->route('admin.lhpp.index', $request->only('search', 'page'))
+                ->route('admin.lhpp.index', $request->only('tab', 'search', 'page'))
                 ->with('status', sprintf('Quality control untuk order %s berhasil diperbarui.', $lhpp->nomor_order));
         } catch (Throwable $exception) {
             Log::error('Failed to update admin BAST quality control.', [
@@ -213,8 +222,9 @@ class LhppController extends Controller
     {
         try {
             $search = trim((string) $request->string('search'));
+            $activeTab = $this->indexTabs->normalize($request->string('tab')->toString());
 
-            $lhpps = LhppBast::query()
+            $query = LhppBast::query()
                 ->with([
                     'order:id,nomor_order,notifikasi,nama_pekerjaan,unit_kerja,seksi',
                     'purchaseOrder:id,order_id,purchase_order_number',
@@ -234,13 +244,20 @@ class LhppController extends Controller
                             ->orWhere('seksi', 'like', "%{$search}%")
                             ->orWhere('deskripsi_pekerjaan', 'like', "%{$search}%");
                     });
-                })
-                ->latest('id')
+                });
+
+            $this->indexTabs->apply($query, $activeTab, BastIndexTabs::CONTEXT_ADMIN);
+            $this->indexTabs->applyLatestActivityOrder($query);
+
+            $lhpps = $query
                 ->paginate(10)
                 ->withQueryString();
 
             return view('admin.lhpp.index', [
                 'search' => $search,
+                'activeTab' => $activeTab,
+                'tabOptions' => $this->indexTabs->options(BastIndexTabs::CONTEXT_ADMIN),
+                'tabCounts' => $this->indexTabs->counts(BastIndexTabs::CONTEXT_ADMIN),
                 'lhpps' => $lhpps,
                 'approvalReassignmentUsers' => User::query()
                     ->orderBy('name')
@@ -283,6 +300,13 @@ class LhppController extends Controller
         ));
     }
 
+    public function resendAllActiveApprovals(): RedirectResponse
+    {
+        $result = $this->bulkNotificationService->resendActiveBastApprovals();
+
+        return back()->with('status', $this->bulkNotificationService->resultMessage('BAST/LHPP', $result));
+    }
+
     public function rollbackSignature(Request $request, LhppBast $lhppBast, LhppBastSignature $signature): RedirectResponse
     {
         $validated = $request->validate([
@@ -312,8 +336,10 @@ class LhppController extends Controller
 
             $lhpp->loadMissing([
                 'images',
+                'garansi',
                 'signatures',
                 'parentLhppBast.images',
+                'parentLhppBast.garansi',
                 'parentLhppBast.signatures',
                 'parentLhppBast.purchaseOrder:id,order_id,purchase_order_number',
                 'parentLhppBast.order.purchaseOrder:id,order_id,purchase_order_number',
@@ -353,35 +379,58 @@ class LhppController extends Controller
                 'materialItems' => collect($lhpp->material_items ?? []),
                 'serviceItems' => collect($lhpp->service_items ?? []),
             ])->setPaper('a4', 'portrait')->output();
+            $attachmentPdf = $this->bastPdfAttachmentService->pdfOutput($lhpp);
 
-            $terminSlug = $lhpp->termin_type === 'termin_2' ? 'termin-2' : 'termin-1';
+            $generatedFilename = BastDisplayLabel::generatedBastPdfFilename(
+                $lhpp->nomor_order,
+                $lhpp->termin_type,
+                $lhpp->termin_type === 'termin_2'
+                    ? $lhpp->parentLhppBast?->garansi?->garansi_months
+                    : $lhpp->garansi?->garansi_months,
+            );
 
             $attachedHpp = $lhpp->hpp ?: $lhpp->order?->latestApprovedHpp;
             $terminOnePdf = null;
+            $terminOneAttachmentPdf = null;
 
             if ($lhpp->termin_type === 'termin_2' && $lhpp->parentLhppBast) {
-                $terminOnePdf = Pdf::loadView('pkm.lhpp.pdf', [
-                    'lhpp' => $lhpp->parentLhppBast,
-                    'materialItems' => collect($lhpp->parentLhppBast->material_items ?? []),
-                    'serviceItems' => collect($lhpp->parentLhppBast->service_items ?? []),
-                ])->setPaper('a4', 'portrait')->output();
+                $terminOnePdf = $this->finalSignedPdfOutput($lhpp->parentLhppBast)
+                    ?? Pdf::loadView('pkm.lhpp.pdf', [
+                        'lhpp' => $lhpp->parentLhppBast,
+                        'materialItems' => collect($lhpp->parentLhppBast->material_items ?? []),
+                        'serviceItems' => collect($lhpp->parentLhppBast->service_items ?? []),
+                    ])->setPaper('a4', 'portrait')->output();
+                $terminOneAttachmentPdf = $this->bastPdfAttachmentService->pdfOutput($lhpp->parentLhppBast);
             }
 
             if (! $attachedHpp) {
-                $pdfOutput = $terminOnePdf
-                    ? $this->mergePdfOutputs([$bastPdf, $terminOnePdf])
+                $pdfOutputs = array_filter([
+                    $bastPdf,
+                    $attachmentPdf,
+                    $terminOnePdf,
+                    $terminOneAttachmentPdf,
+                ]);
+                $pdfOutput = count($pdfOutputs) > 1
+                    ? $this->mergePdfOutputs($pdfOutputs)
                     : $bastPdf;
 
                 return response($pdfOutput, Response::HTTP_OK, $this->pdfInlineHeaders(
-                    'bast-'.$terminSlug.'-'.$lhpp->nomor_order.'.pdf'
+                    $generatedFilename
                 ));
             }
 
-            $hppPdf = Pdf::loadView('admin.hpp.hpppdf', [
-                'hpp' => $attachedHpp,
-            ])->setPaper('a4', 'landscape')->output();
+            $hppPdf = $this->finalSignedPdfOutput($attachedHpp)
+                ?? Pdf::loadView('admin.hpp.hpppdf', [
+                    'hpp' => $attachedHpp,
+                ])->setPaper('a4', 'landscape')->output();
 
-            $mergedPdf = $this->mergePdfOutputs(array_filter([$bastPdf, $terminOnePdf, $hppPdf]));
+            $mergedPdf = $this->mergePdfOutputs(array_filter([
+                $bastPdf,
+                $attachmentPdf,
+                $terminOnePdf,
+                $terminOneAttachmentPdf,
+                $hppPdf,
+            ]));
 
             Log::info('Admin BAST PDF merged successfully.', [
                 'user_id' => $request->user()?->id,
@@ -395,9 +444,13 @@ class LhppController extends Controller
             ]);
 
             return response($mergedPdf, Response::HTTP_OK, $this->pdfInlineHeaders(
-                'bast-'.$terminSlug.'-'.$lhpp->nomor_order.'.pdf'
+                $generatedFilename
             ));
         } catch (Throwable $exception) {
+            if ($exception instanceof HttpExceptionInterface) {
+                throw $exception;
+            }
+
             Log::error('Failed to generate admin BAST PDF.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'user_id' => $request->user()?->id,
@@ -423,6 +476,10 @@ class LhppController extends Controller
 
             return $this->pdf($request, $lhpp->id);
         } catch (Throwable $exception) {
+            if ($exception instanceof HttpExceptionInterface) {
+                throw $exception;
+            }
+
             Log::error('Failed to generate admin BAST PDF by order.', [
                 'status_code' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'user_id' => $request->user()?->id,
@@ -454,6 +511,33 @@ class LhppController extends Controller
                 ).'"',
             ],
         );
+    }
+
+    private function finalSignedPdfOutput(Hpp|LhppBast $document): ?string
+    {
+        $finalDocumentSignature = $document->finalSignedDocumentSignature();
+
+        if (! $finalDocumentSignature?->hasUploadedSignedDocument()) {
+            return null;
+        }
+
+        $disk = Storage::disk('public');
+
+        if (! $disk->exists($finalDocumentSignature->signed_document_path)) {
+            return null;
+        }
+
+        $path = $disk->path($finalDocumentSignature->signed_document_path);
+        $mime = $disk->mimeType($finalDocumentSignature->signed_document_path);
+
+        abort_unless(
+            str_contains(strtolower((string) $mime), 'pdf')
+                || strtolower(pathinfo($path, PATHINFO_EXTENSION)) === 'pdf',
+            Response::HTTP_UNPROCESSABLE_ENTITY,
+            'Dokumen final harus berupa PDF.'
+        );
+
+        return $disk->get($finalDocumentSignature->signed_document_path) ?: null;
     }
 
     /**

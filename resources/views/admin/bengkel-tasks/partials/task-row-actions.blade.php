@@ -13,7 +13,7 @@
         </div>
     @endif
 
-    <div class="flex items-center gap-2">
+    <div class="flex flex-wrap items-center gap-1.5 {{ $isMobile ? 'justify-start' : 'justify-end' }}">
         @if ($attachmentPayload)
             <button type="button" @click="openAttachment(@js($attachmentPayload))" title="Preview Lampiran" aria-label="Preview lampiran" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-white text-blue-600 transition hover:bg-slate-50">
                 <i data-lucide="{{ ($attachmentPayload['is_image'] ?? false) ? 'image' : 'file-text' }}" class="h-3.5 w-3.5"></i>

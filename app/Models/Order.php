@@ -8,17 +8,26 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Order extends Model
 {
     use HasFactory;
 
     public const PRIORITY_LOW = 'medium_gt_10_hari';
+
     public const PRIORITY_MEDIUM = 'high_gt_7_sd_10_hari';
+
     public const PRIORITY_HIGH = 'emergency_lte_7_hari';
+
     public const PRIORITY_URGENT = 'emergency_unplan_overhaul';
+
+    public const WORKSHOP_REGU_FABRIKASI = 'Regu Fabrikasi';
+
+    public const WORKSHOP_REGU_REFURBISH = 'Regu Bengkel (Refurbish)';
+
+    public const WORKSHOP_REGU_ESTIMATOR = 'Regu Estimator';
 
     /**
      * The attributes that are mass assignable.
@@ -36,6 +45,7 @@ class Order extends Model
         'catatan_status',
         'tanggal_order',
         'target_selesai',
+        'biaya',
         'catatan',
         'created_by',
     ];
@@ -51,6 +61,7 @@ class Order extends Model
             'catatan_status' => OrderUserNoteStatus::class,
             'tanggal_order' => 'date',
             'target_selesai' => 'date',
+            'biaya' => 'decimal:2',
         ];
     }
 
@@ -174,18 +185,26 @@ class Order extends Model
                 'Jasa Konstruksi',
                 'Jasa Pengerjaan Mesin',
             ],
-            OrderUserNoteStatus::ApprovedWorkshop->value => [
-                'Regu Fabrikasi',
-                'Regu Bengkel (Refurbish)',
-            ],
-            OrderUserNoteStatus::ApprovedWorkshopJasa->value => [
-                'Jasa Fabrikasi',
-                'Jasa Konstruksi',
-                'Jasa Pengerjaan Mesin',
-                'Regu Fabrikasi',
-                'Regu Bengkel (Refurbish)',
-            ],
+            OrderUserNoteStatus::ApprovedWorkshop->value => self::workshopReguOptions(),
+            OrderUserNoteStatus::ApprovedWorkshopJasa->value => self::workshopReguOptions(),
         ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function workshopReguOptions(): array
+    {
+        return [
+            self::WORKSHOP_REGU_FABRIKASI,
+            self::WORKSHOP_REGU_REFURBISH,
+            self::WORKSHOP_REGU_ESTIMATOR,
+        ];
+    }
+
+    public function isEstimatorWorkshopRegu(): bool
+    {
+        return trim((string) $this->catatan) === self::WORKSHOP_REGU_ESTIMATOR;
     }
 
     /**
@@ -286,6 +305,73 @@ class Order extends Model
         return $this->hasOne(OrderWorkshop::class);
     }
 
+    /**
+     * Work packages belong to the workshop parent order only.
+     */
+    public function workPackages(): HasMany
+    {
+        return $this->hasMany(WorkshopWorkPackage::class)->orderBy('sequence');
+    }
+
+    /**
+     * The active workshop task remains the parent lifecycle record for packages.
+     * This relation is passive; it does not alter any global Order query.
+     */
+    public function bengkelTasks(): HasMany
+    {
+        return $this->hasMany(BengkelTask::class);
+    }
+
+    public function isWorkshopOrder(): bool
+    {
+        return $this->orderWorkshop !== null
+            && in_array($this->catatan_status?->value, [
+                OrderUserNoteStatus::ApprovedWorkshop->value,
+                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+            ], true);
+    }
+
+    public function hasWorkPackages(): bool
+    {
+        return $this->relationLoaded('workPackages')
+            ? $this->workPackages->isNotEmpty()
+            : $this->workPackages()->exists();
+    }
+
+    public function workPackageCount(): int
+    {
+        return $this->relationLoaded('workPackages')
+            ? $this->workPackages->count()
+            : $this->workPackages()->count();
+    }
+
+    public function completedWorkPackageCount(): int
+    {
+        return $this->relationLoaded('workPackages')
+            ? $this->workPackages->where('status', WorkshopWorkPackage::STATUS_COMPLETED)->count()
+            : $this->workPackages()->where('status', WorkshopWorkPackage::STATUS_COMPLETED)->count();
+    }
+
+    public function workPackageProgressLabel(): string
+    {
+        if (! $this->isWorkshopOrder()) {
+            return 'Tidak dibagi';
+        }
+
+        return $this->workPackageCount() === 0
+            ? 'Tidak dibagi'
+            : $this->completedWorkPackageCount().'/'.$this->workPackageCount().' selesai';
+    }
+
+    public function allWorkPackagesCompleted(): bool
+    {
+        if (! $this->isWorkshopOrder() || ! $this->hasWorkPackages()) {
+            return true;
+        }
+
+        return $this->completedWorkPackageCount() === $this->workPackageCount();
+    }
+
     public function qualityControlReports(): HasMany
     {
         return $this->hasMany(QualityControlReport::class);
@@ -294,6 +380,11 @@ class Order extends Model
     public function latestQualityControlReport(): HasOne
     {
         return $this->hasOne(QualityControlReport::class)->latestOfMany();
+    }
+
+    public function workshopHandover(): HasOne
+    {
+        return $this->hasOne(WorkshopHandover::class);
     }
 
     /**

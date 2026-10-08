@@ -16,8 +16,7 @@ class BastApprovalSignatureBuilder
     public function __construct(
         private readonly BastEffectiveApprovalFlowResolver $effectiveFlowResolver,
         private readonly ApprovalNotificationService $approvalNotificationService,
-    ) {
-    }
+    ) {}
 
     public function ensureSignatures(LhppBast $lhpp): void
     {
@@ -31,7 +30,10 @@ class BastApprovalSignatureBuilder
 
             $flow = is_array($lhpp->approval_flow) && $lhpp->approval_flow !== []
                 ? $lhpp->approval_flow
-                : BastApprovalFlow::resolveApprovalFlow((string) $lhpp->approval_threshold);
+                : BastApprovalFlow::resolveApprovalFlow(
+                    (string) $lhpp->approval_threshold,
+                    (string) $lhpp->termin_type,
+                );
 
             if ($flow === []) {
                 throw ValidationException::withMessages([

@@ -13,6 +13,8 @@ class StoreOrderRequest extends FormRequest
 {
     private const NO_SECTION = 'Tidak ada seksi';
 
+    private const MAX_BIAYA = 9999999999999999;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -28,6 +30,19 @@ class StoreOrderRequest extends FormRequest
      */
     public function rules(): array
     {
+        $status = (string) $this->input('catatan_status');
+        $usesWorkshopRegu = in_array($status, [
+            OrderUserNoteStatus::ApprovedWorkshop->value,
+            OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+        ], true);
+        $detailOptions = Order::userNoteDetailOptions()[$status] ?? null;
+        $statusOptions = $this->routeIs('admin.orders.workshop.store')
+            ? [
+                OrderUserNoteStatus::ApprovedWorkshop->value,
+                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+            ]
+            : OrderUserNoteStatus::values();
+
         return [
             'nomor_order' => ['required', 'string', 'max:100', 'unique:orders,nomor_order'],
             'notifikasi' => ['nullable', 'string', 'max:255', 'unique:orders,notifikasi'],
@@ -38,8 +53,13 @@ class StoreOrderRequest extends FormRequest
             'prioritas' => ['required', Rule::in(array_keys(Order::priorityOptions()))],
             'tanggal_order' => ['required', 'date'],
             'target_selesai' => ['required', 'date', 'after_or_equal:tanggal_order'],
-            'catatan_status' => ['required', Rule::in(array_keys(OrderUserNoteStatus::options()))],
-            'catatan' => ['nullable', 'string'],
+            'biaya' => $this->routeIs('admin.orders.workshop.store')
+                ? ['nullable', 'integer', 'min:0', 'max:'.self::MAX_BIAYA]
+                : ['prohibited'],
+            'catatan_status' => ['required', Rule::in($statusOptions)],
+            'catatan' => $detailOptions !== null
+                ? [$usesWorkshopRegu ? 'required' : 'nullable', 'string', Rule::in($detailOptions)]
+                : ['nullable', 'string'],
         ];
     }
 
@@ -71,6 +91,11 @@ class StoreOrderRequest extends FormRequest
             'target_selesai.after_or_equal' => 'Target selesai tidak boleh lebih awal dari tanggal order.',
             'unit_kerja.required' => 'Unit Kerja wajib dipilih.',
             'seksi.required' => 'Seksi wajib dipilih.',
+            'biaya.integer' => 'Biaya harus berupa nominal Rupiah tanpa pecahan.',
+            'biaya.min' => 'Biaya tidak boleh bernilai negatif.',
+            'biaya.max' => 'Biaya melebihi batas nominal yang dapat disimpan.',
+            'catatan.required' => 'Regu Bengkel wajib dipilih untuk Order Pekerjaan Bengkel.',
+            'catatan.in' => 'Regu Bengkel yang dipilih tidak valid.',
         ];
     }
 
@@ -82,6 +107,7 @@ class StoreOrderRequest extends FormRequest
             'nama_pekerjaan' => 'nama pekerjaan',
             'unit_kerja' => 'unit kerja',
             'target_selesai' => 'target selesai',
+            'biaya' => 'biaya',
             'catatan_status' => 'status catatan',
         ];
     }

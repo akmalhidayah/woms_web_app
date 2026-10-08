@@ -14,11 +14,14 @@ class ApprovalRecipientRoleLabel
     ): string {
         $roleKey = trim((string) $signature->role_key);
         $fallback = trim((string) $signature->displayRoleLabel());
+        $hppIdentity = $signature instanceof HppSignature
+            ? app(HppSignatureIdentityResolver::class)->resolve($signature)
+            : null;
 
         if (self::isSeniorManager($roleKey)) {
             return self::withContext(
                 'SM',
-                self::firstFilled($signature, ['signer_unit_snapshot', 'source_unit']),
+                $hppIdentity['unit'] ?? self::firstFilled($signature, ['signer_unit_snapshot', 'source_unit']),
                 'SM',
             );
         }
@@ -26,7 +29,7 @@ class ApprovalRecipientRoleLabel
         if (self::isGeneralManager($roleKey)) {
             return self::withContext(
                 'GM',
-                self::firstFilled($signature, ['signer_department_snapshot', 'source_department']),
+                $hppIdentity['department'] ?? self::firstFilled($signature, ['signer_department_snapshot', 'source_department']),
                 'GM',
             );
         }
@@ -34,7 +37,7 @@ class ApprovalRecipientRoleLabel
         if (self::isManager($roleKey)) {
             return self::withContext(
                 'Manager',
-                self::firstFilled($signature, ['signer_section_snapshot', 'source_section']),
+                $hppIdentity['section'] ?? self::firstFilled($signature, ['signer_section_snapshot', 'source_section']),
                 'Manager',
             );
         }

@@ -4,11 +4,14 @@ namespace App\Services\Approvals;
 
 use App\Models\HppSignature;
 use App\Models\InitialWorkSignature;
+use App\Models\LhppBast;
 use App\Models\LhppBastSignature;
 use App\Models\QualityControlSignature;
+use App\Models\WorkshopHandover;
 use App\Models\User;
 use App\Notifications\ApprovalRequestedNotification;
 use App\Support\ApprovalRecipientRoleLabel;
+use App\Support\BastDisplayLabel;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
@@ -53,6 +56,8 @@ class ApprovalNotificationService
                 'hpp_signature_id' => $signature->id,
                 'hpp_id' => $signature->hpp_id,
             ],
+            'Amount',
+            $this->moneyInt($signature->hpp?->total_keseluruhan),
         );
     }
 
@@ -60,8 +65,10 @@ class ApprovalNotificationService
     {
         $signature->loadMissing(['signer', 'lhppBast.garansi']);
         $lhpp = $signature->lhppBast;
+        $garansiMonths = $lhpp?->garansi?->garansi_months;
+        $garansiMonths = $garansiMonths === null ? null : (int) $garansiMonths;
         $isSinglePayment = $lhpp?->termin_type === 'termin_1'
-            && (int) ($lhpp->garansi?->garansi_months ?? -1) === 0;
+            && BastDisplayLabel::isWithoutWarranty($garansiMonths);
         $termin = $lhpp?->termin_type === 'termin_2' ? 'Termin 2' : 'Termin 1';
         $documentNumber = $isSinglePayment
             ? (string) $lhpp?->nomor_order
@@ -80,6 +87,8 @@ class ApprovalNotificationService
                 'lhpp_bast_signature_id' => $signature->id,
                 'lhpp_bast_id' => $signature->lhpp_bast_id,
             ],
+            'Amount',
+            $this->resolveBastAmount($lhpp, $isSinglePayment),
         );
     }
 
@@ -104,6 +113,26 @@ class ApprovalNotificationService
         );
     }
 
+    public function sendWorkshopHandover(WorkshopHandover $handover, bool $resend = false): bool
+    {
+        $handover->loadMissing(['recipient', 'order']);
+
+        return $this->send(
+            $handover->recipient,
+            'Serah Terima Bengkel',
+            (string) $handover->document_no,
+            (string) $handover->job_name_snapshot,
+            (string) $handover->recipient_position_snapshot,
+            $handover->approvalUrl(),
+            $handover->token_expires_at,
+            $resend,
+            [
+                'workshop_handover_id' => $handover->id,
+                'order_id' => $handover->order_id,
+            ],
+        );
+    }
+
     /**
      * @param  array<string, mixed>  $context
      */
@@ -117,6 +146,8 @@ class ApprovalNotificationService
         ?Carbon $expiresAt,
         bool $resend,
         array $context,
+        ?string $documentAmountLabel = null,
+        ?int $documentAmount = null,
     ): bool {
         $baseContext = [
             ...$context,
@@ -146,6 +177,8 @@ class ApprovalNotificationService
                 $roleLabel,
                 $approvalUrl,
                 $expiresAt,
+                $documentAmountLabel,
+                $documentAmount,
             ));
 
             Log::info('Approval email sent.', [
@@ -165,5 +198,25 @@ class ApprovalNotificationService
 
             return false;
         }
+    }
+
+    private function resolveBastAmount(?LhppBast $lhpp, bool $isSinglePayment): ?int
+    {
+        if (! $lhpp) {
+            return null;
+        }
+
+        if ($lhpp->termin_type === 'termin_2') {
+            return $this->moneyInt($lhpp->termin_2_nilai);
+        }
+
+        return $this->moneyInt(
+            $isSinglePayment ? $lhpp->total_aktual_biaya : $lhpp->termin_1_nilai,
+        );
+    }
+
+    private function moneyInt(mixed $value): ?int
+    {
+        return $value === null ? null : (int) $value;
     }
 }

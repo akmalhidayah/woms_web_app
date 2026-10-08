@@ -91,11 +91,13 @@
                     @foreach ($notifications as $notification)
                         @php
                             $approval = $approvalLabel($notification['approval_target']);
-                            $started = $notification['progress'] >= 11;
+                            $progress = max(0, min(100, (int) $notification['progress']));
+                            $started = $progress >= 11;
                             $isFinished = (bool) ($notification['is_finished'] ?? false);
                             $canUpdate = (bool) ($notification['can_update'] ?? true);
                             $isInitialWorkFlow = (bool) ($notification['is_initial_work_flow'] ?? false);
                             $isTargetPenyelesaianLocked = (bool) ($notification['target_penyelesaian_locked'] ?? false);
+                            $startBlockedMessage = trim((string) ($notification['start_blocked_message'] ?? ''));
                         @endphp
 
                         <article class="pkm-jobwaiting-card flex h-full flex-col overflow-hidden rounded-[1.1rem] border border-slate-200 bg-white shadow-sm">
@@ -159,19 +161,51 @@
                                     {{ $approval['label'] }}
                                 </div>
 
-                                <div class="mb-2.5">
-                                    <form method="POST" action="{{ route('pkm.jobwaiting.update', ['order' => $notification['nomor_order']]) }}">
-                                        @csrf
-                                        @method('PATCH')
-                                        <input type="hidden" name="start_progress" value="1">
-                                        <input type="hidden" name="_filter_priority" value="{{ $selectedPriority }}">
-                                        <input type="hidden" name="_filter_search" value="{{ $search }}">
-                                        <input type="hidden" name="_filter_page" value="{{ $notifications->currentPage() }}">
-                                        <button type="submit" class="inline-flex h-8 w-full items-center justify-center rounded-lg bg-amber-500 px-3 text-[10px] font-bold text-white transition hover:bg-amber-600 {{ ($started || $isFinished || ! $canUpdate) ? 'opacity-50' : '' }}" @disabled($started || $isFinished || ! $canUpdate)>
-                                            {{ $isFinished ? 'Selesai' : ($canUpdate ? ($started ? 'Dimulai' : 'Start') : 'Initial Work') }}
+                                @if ($notification['is_waiting_for_warranty'] ?? false)
+                                    <div class="mb-2.5 flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[10px] font-semibold text-amber-700">
+                                        <i data-lucide="shield-alert" class="h-3.5 w-3.5 shrink-0"></i>
+                                        <span>Menunggu Set Garansi</span>
+                                    </div>
+                                @endif
+
+                                @if ($started)
+                                    <div class="mb-2.5">
+                                        <button
+                                            type="button"
+                                            class="inline-flex h-8 w-full cursor-default items-center justify-center rounded-lg px-3 text-[10px] font-bold text-white {{ $progress >= 100 ? 'bg-emerald-500' : 'bg-orange-500' }}"
+                                            data-job-progress="{{ $notification['nomor_order'] }}"
+                                            aria-label="Progress pekerjaan {{ $progress }}%"
+                                            disabled
+                                        >
+                                            {{ $progress }}%
                                         </button>
-                                    </form>
-                                </div>
+                                    </div>
+                                @else
+                                    <div class="mb-2.5">
+                                        @if ($canUpdate && $startBlockedMessage === '')
+                                            <form method="POST" action="{{ route('pkm.jobwaiting.update', ['order' => $notification['nomor_order']]) }}">
+                                                @csrf
+                                                @method('PATCH')
+                                                <input type="hidden" name="start_progress" value="1">
+                                                <input type="hidden" name="_filter_priority" value="{{ $selectedPriority }}">
+                                                <input type="hidden" name="_filter_search" value="{{ $search }}">
+                                                <input type="hidden" name="_filter_page" value="{{ $notifications->currentPage() }}">
+                                                <button type="submit" class="inline-flex h-8 w-full items-center justify-center rounded-lg bg-amber-500 px-3 text-[10px] font-bold text-white transition hover:bg-amber-600">
+                                                    Start
+                                                </button>
+                                            </form>
+                                        @else
+                                            <button
+                                                type="button"
+                                                class="pkm-start-blocked inline-flex h-8 w-full items-center justify-center rounded-lg bg-amber-500 px-3 text-[10px] font-bold text-white transition hover:bg-amber-600 {{ ! $canUpdate ? 'cursor-not-allowed opacity-50' : '' }}"
+                                                data-message="{{ $startBlockedMessage }}"
+                                                @disabled(! $canUpdate)
+                                            >
+                                                {{ $canUpdate ? 'Start' : 'Initial Work' }}
+                                            </button>
+                                        @endif
+                                    </div>
+                                @endif
 
                                 <button type="button" class="pkm-jobwaiting-toggle inline-flex items-center gap-1.5 text-[10px] font-bold text-[#ca642f]" data-target="details-{{ $notification['nomor_order'] }}">
                                     Show details
@@ -280,6 +314,24 @@
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
         <script>
             document.addEventListener('click', function (event) {
+                const blockedStartButton = event.target.closest('.pkm-start-blocked');
+
+                if (blockedStartButton?.dataset.message) {
+                    if (window.Swal) {
+                        window.Swal.fire({
+                            icon: 'warning',
+                            title: 'Pekerjaan belum dapat dimulai',
+                            text: blockedStartButton.dataset.message,
+                            confirmButtonText: 'Mengerti',
+                            confirmButtonColor: '#ca642f',
+                        });
+                    } else {
+                        window.alert(blockedStartButton.dataset.message);
+                    }
+
+                    return;
+                }
+
                 const toggleButton = event.target.closest('.pkm-jobwaiting-toggle');
 
                 if (! toggleButton) {

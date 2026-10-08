@@ -6,6 +6,8 @@
 <body class="min-h-screen bg-slate-100 text-slate-900">
     @php
         $lhpp = $signature?->lhppBast;
+        $isTerminTwo = $lhpp?->termin_type === 'termin_2';
+        $currentBastPreviewTitle = $isTerminTwo ? 'Preview BAST Termin 2' : 'Preview BAST';
         $isRejected = $lhpp?->approval_status === \App\Models\LhppBast::APPROVAL_REJECTED;
         $isDirops = $signature?->role_key === 'dirops';
         $canSign = $signature?->isPending() && ! $isExpired && ! $isRejected && ! $isDirops;
@@ -149,14 +151,49 @@
                             <div class="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
                                     <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Preview Dokumen</div>
-                                    <h2 class="mt-1 text-lg font-bold text-slate-900">Preview PDF BAST</h2>
+                                    <h2 id="activePreviewTitle" class="mt-1 text-lg font-bold text-slate-900">{{ $currentBastPreviewTitle }}</h2>
                                 </div>
 
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <button
+                                        type="button"
+                                        class="preview-tab-btn rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700 transition"
+                                        data-preview-target="bast"
+                                    >
+                                        {{ $isTerminTwo ? 'BAST Termin 2' : 'BAST' }}
+                                    </button>
+                                    @if ($isTerminTwo)
+                                        <button
+                                            type="button"
+                                            class="preview-tab-btn rounded-xl border px-3 py-2 text-xs font-semibold transition {{ $terminOneBastPdfUrl ? 'border-transparent text-slate-600 hover:bg-amber-50 hover:text-amber-700' : 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400' }}"
+                                            data-preview-target="bast-termin-1"
+                                            @disabled(! $terminOneBastPdfUrl)
+                                        >
+                                            BAST Termin 1
+                                        </button>
+                                    @endif
+                                    <button
+                                        type="button"
+                                        class="preview-tab-btn rounded-xl border px-3 py-2 text-xs font-semibold transition {{ $hppPdfUrl ? 'border-transparent text-slate-600 hover:bg-blue-50 hover:text-blue-700' : 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400' }}"
+                                        data-preview-target="hpp"
+                                        @disabled(! $hppPdfUrl)
+                                    >
+                                        HPP
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="preview-tab-btn rounded-xl border px-3 py-2 text-xs font-semibold transition {{ $abnormalitasUrl ? 'border-transparent text-slate-600 hover:bg-rose-50 hover:text-rose-700' : 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400' }}"
+                                        data-preview-target="abnormalitas"
+                                        @disabled(! $abnormalitasUrl)
+                                    >
+                                        Abnormalitas
+                                    </button>
+                                </div>
                             </div>
 
                             <div class="p-4">
                                 @include('approval.partials.pdfjs-preview', [
-                                    'title' => 'Preview PDF BAST',
+                                    'title' => $currentBastPreviewTitle,
                                     'url' => $bastPdfUrl,
                                 ])
                             </div>
@@ -246,7 +283,7 @@
                                                         Clear
                                                     </button>
                                                 </div>
-                                                <canvas id="signatureCanvas" width="620" height="260" class="relative z-10 h-48 w-full rounded-xl bg-transparent sm:h-56 xl:h-60"></canvas>
+                                                <canvas id="signatureCanvas" width="620" height="260" class="relative z-10 h-48 w-full touch-none rounded-xl bg-transparent sm:h-56 xl:h-60"></canvas>
                                                 <div id="signaturePadPlaceholder" class="pointer-events-none absolute inset-3 z-0 flex items-center justify-center rounded-xl text-center">
                                                     <div class="px-4 text-slate-400">
                                                         <i data-lucide="pen-line" class="mx-auto h-8 w-8 opacity-70"></i>
@@ -285,7 +322,92 @@
     @include('approval.partials.signature-pad-visuals')
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
+        (() => {
+            const initializePreview = () => {
+            const previewConfig = {
+                bast: {
+                    title: @json($currentBastPreviewTitle),
+                    url: @json($bastPdfUrl),
+                    activeBtn: 'border-orange-200 bg-orange-50 text-orange-700',
+                    inactiveBtn: 'border-transparent text-slate-600 hover:bg-orange-50 hover:text-orange-700',
+                },
+                'bast-termin-1': {
+                    title: 'Preview BAST Termin 1',
+                    url: @json($terminOneBastPdfUrl),
+                    activeBtn: 'border-amber-200 bg-amber-50 text-amber-700',
+                    inactiveBtn: 'border-transparent text-slate-600 hover:bg-amber-50 hover:text-amber-700',
+                    unavailableBtn: 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400',
+                },
+                hpp: {
+                    title: 'Preview HPP',
+                    url: @json($hppPdfUrl),
+                    activeBtn: 'border-blue-200 bg-blue-50 text-blue-700',
+                    inactiveBtn: 'border-transparent text-slate-600 hover:bg-blue-50 hover:text-blue-700',
+                    unavailableBtn: 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400',
+                },
+                abnormalitas: {
+                    title: 'Preview Abnormalitas',
+                    url: @json($abnormalitasUrl),
+                    activeBtn: 'border-rose-200 bg-rose-50 text-rose-700',
+                    inactiveBtn: 'border-transparent text-slate-600 hover:bg-rose-50 hover:text-rose-700',
+                    unavailableBtn: 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400',
+                },
+            };
+
+            const previewTitle = document.getElementById('activePreviewTitle');
+            const previewOpen = document.getElementById('activePreviewOpen');
+            const previewDownload = document.getElementById('activePreviewDownload');
+            const previewButtons = document.querySelectorAll('.preview-tab-btn');
+
+            const setActivePreview = (key) => {
+                const config = previewConfig[key];
+
+                if (!config?.url) {
+                    return;
+                }
+
+                if (previewTitle) {
+                    previewTitle.textContent = config.title;
+                }
+
+                if (previewOpen) {
+                    previewOpen.href = config.url;
+                }
+
+                if (previewDownload) {
+                    previewDownload.href = config.url;
+                }
+
+                window.approvalPdfPreview?.load(config.title, config.url);
+
+                previewButtons.forEach((button) => {
+                    const targetConfig = previewConfig[button.dataset.previewTarget];
+                    const isActive = button.dataset.previewTarget === key;
+
+                    if (!targetConfig?.url) {
+                        button.disabled = true;
+                        button.className = `preview-tab-btn rounded-xl border px-3 py-2 text-xs font-semibold transition ${targetConfig?.unavailableBtn ?? 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400'}`;
+
+                        return;
+                    }
+
+                    button.disabled = false;
+                    button.className = `preview-tab-btn rounded-xl border px-3 py-2 text-xs font-semibold transition ${isActive ? targetConfig.activeBtn : targetConfig.inactiveBtn}`;
+                });
+            };
+
+            previewButtons.forEach((button) => {
+                button.addEventListener('click', () => setActivePreview(button.dataset.previewTarget));
+            });
+
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
+
+            };
+
+            const initializeSignaturePad = () => {
+
             const canvas = document.getElementById('signatureCanvas');
             const form = document.getElementById('signatureForm');
             const signatureFile = document.getElementById('signatureFile');
@@ -298,10 +420,6 @@
             const signatureVisuals = window.createSignaturePadVisuals?.();
             signatureVisuals?.idle();
 
-            if (window.lucide) {
-                window.lucide.createIcons();
-            }
-
             if (!canvas || !form || !signatureFile || !approvalAction) {
                 return;
             }
@@ -313,6 +431,9 @@
             let lastPoint = null;
             let strokePointCount = 0;
             let strokeDistance = 0;
+            let activePointerId = null;
+            let resizeTimer = null;
+            let resizePending = false;
 
             const minimumStrokePoints = 8;
             const minimumStrokeDistance = 40;
@@ -320,21 +441,55 @@
             const resizeCanvas = () => {
                 const rect = canvas.getBoundingClientRect();
                 const ratio = window.devicePixelRatio || 1;
-                const image = hasDrawn ? canvas.toDataURL('image/png') : null;
+                const targetWidth = Math.max(1, Math.floor(rect.width * ratio));
+                const targetHeight = Math.max(1, Math.floor(rect.height * ratio));
 
-                canvas.width = Math.max(1, Math.floor(rect.width * ratio));
-                canvas.height = Math.max(1, Math.floor(rect.height * ratio));
+                if (canvas.width === targetWidth && canvas.height === targetHeight) {
+                    return;
+                }
+
+                const snapshot = hasDrawn ? document.createElement('canvas') : null;
+
+                if (snapshot) {
+                    snapshot.width = canvas.width;
+                    snapshot.height = canvas.height;
+                    snapshot.getContext('2d')?.drawImage(canvas, 0, 0);
+                }
+
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
                 ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
                 ctx.lineWidth = 2.2;
                 ctx.strokeStyle = '#0f172a';
 
-                if (image) {
-                    const img = new Image();
-                    img.onload = () => ctx.drawImage(img, 0, 0, rect.width, rect.height);
-                    img.src = image;
+                if (snapshot) {
+                    ctx.drawImage(
+                        snapshot,
+                        0,
+                        0,
+                        snapshot.width,
+                        snapshot.height,
+                        0,
+                        0,
+                        rect.width,
+                        rect.height,
+                    );
                 }
+            };
+
+            const scheduleCanvasResize = () => {
+                resizePending = true;
+                window.clearTimeout(resizeTimer);
+                resizeTimer = window.setTimeout(() => {
+                    if (drawing) {
+                        return;
+                    }
+
+                    resizePending = false;
+                    resizeCanvas();
+                }, 200);
             };
 
             const clearCanvas = () => {
@@ -384,19 +539,22 @@
 
             const point = (event) => {
                 const rect = canvas.getBoundingClientRect();
-                const touch = event.touches?.[0] || event.changedTouches?.[0];
-                const clientX = touch ? touch.clientX : event.clientX;
-                const clientY = touch ? touch.clientY : event.clientY;
 
                 return {
-                    x: clientX - rect.left,
-                    y: clientY - rect.top,
+                    x: event.clientX - rect.left,
+                    y: event.clientY - rect.top,
                 };
             };
 
             const start = (event) => {
+                if (activePointerId !== null || (event.pointerType === 'mouse' && event.button !== 0)) {
+                    return;
+                }
+
                 event.preventDefault();
                 drawing = true;
+                activePointerId = event.pointerId;
+                canvas.setPointerCapture?.(event.pointerId);
                 signatureVisuals?.active();
                 const pos = point(event);
                 lastPoint = pos;
@@ -405,39 +563,55 @@
             };
 
             const move = (event) => {
-                if (!drawing) {
+                if (!drawing || event.pointerId !== activePointerId) {
                     return;
                 }
 
                 event.preventDefault();
-                const pos = point(event);
-                if (lastPoint) {
-                    strokeDistance += Math.hypot(pos.x - lastPoint.x, pos.y - lastPoint.y);
-                }
-                strokePointCount++;
-                lastPoint = pos;
-                ctx.lineTo(pos.x, pos.y);
-                ctx.stroke();
-                hasDrawn = true;
+                const coalescedEvents = event.getCoalescedEvents?.();
+                const pointerEvents = coalescedEvents?.length ? coalescedEvents : [event];
+
+                pointerEvents.forEach((pointerEvent) => {
+                    const pos = point(pointerEvent);
+
+                    if (lastPoint) {
+                        strokeDistance += Math.hypot(pos.x - lastPoint.x, pos.y - lastPoint.y);
+                    }
+
+                    strokePointCount++;
+                    lastPoint = pos;
+                    ctx.lineTo(pos.x, pos.y);
+                    ctx.stroke();
+                    hasDrawn = true;
+                });
             };
 
-            const stop = () => {
+            const stop = (event) => {
+                if (!drawing || event.pointerId !== activePointerId) {
+                    return;
+                }
+
                 drawing = false;
+                activePointerId = null;
                 lastPoint = null;
 
                 if (hasDrawn) {
                     signatureVisuals?.completed();
                 }
+
+                if (resizePending) {
+                    scheduleCanvasResize();
+                }
             };
 
             resizeCanvas();
-            window.addEventListener('resize', resizeCanvas);
-            canvas.addEventListener('mousedown', start);
-            canvas.addEventListener('mousemove', move);
-            window.addEventListener('mouseup', stop);
-            canvas.addEventListener('touchstart', start, { passive: false });
-            canvas.addEventListener('touchmove', move, { passive: false });
-            canvas.addEventListener('touchend', stop);
+            window.addEventListener('resize', scheduleCanvasResize);
+            window.addEventListener('orientationchange', scheduleCanvasResize);
+            canvas.addEventListener('pointerdown', start);
+            canvas.addEventListener('pointermove', move);
+            canvas.addEventListener('pointerup', stop);
+            canvas.addEventListener('pointercancel', stop);
+            canvas.addEventListener('lostpointercapture', stop);
 
             clearButton?.addEventListener('click', () => {
                 clearCanvas();
@@ -536,7 +710,16 @@
                 signatureFile.files = transfer.files;
                 form.submit();
             });
-        });
+            };
+
+            initializeSignaturePad();
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initializePreview, { once: true });
+            } else {
+                initializePreview();
+            }
+        })();
     </script>
 </body>
 </html>

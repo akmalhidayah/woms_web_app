@@ -2,25 +2,56 @@
 
 namespace App\Support;
 
+use App\Models\AdminRoleMenuAccess;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
 class AdminMenuRegistry
 {
     public const MENU_DASHBOARD = 'dashboard';
+
     public const MENU_ORDERS = 'orders';
+
+    public const MENU_ORDER_JASA = 'order_jasa';
+
+    public const MENU_ORDER_BENGKEL = 'order_bengkel';
+
     public const MENU_CREATE_HPP = 'create_hpp';
+
     public const MENU_VERIFIKASI_ANGGARAN = 'verifikasi_anggaran';
+
     public const MENU_PURCHASE_ORDER = 'purchase_order';
+
     public const MENU_LHPP_BAST = 'lhpp_bast';
+
     public const MENU_LPJ_PPL = 'lpj_ppl';
+
     public const MENU_GARANSI = 'garansi';
+
     public const MENU_DISPLAY_PEKERJAAN_BENGKEL = 'display_pekerjaan_bengkel';
+
+    public const MENU_QUALITY_CONTROL_BENGKEL = 'quality_control_bengkel';
+
+    public const MENU_SERAH_TERIMA_BENGKEL = 'serah_terima_bengkel';
+
+    public const MENU_APPSHEET = 'appsheet';
+
+    public const MENU_APPSHEET_HISTORY_CONSUMABLE = 'appsheet_history_consumable';
+
+    public const MENU_APPSHEET_STOCK_CONSUMABLE = 'appsheet_stock_consumable';
+
+    public const MENU_DAILY_REPORT = 'daily_report';
+
     public const MENU_ACCESS_CONTROL = 'access_control';
+
     public const MENU_KUOTA_ANGGARAN_OA = 'kuota_anggaran_oa';
+
     public const MENU_USER_PANEL = 'user_panel';
+
     public const MENU_UPLOAD_INFORMASI = 'upload_informasi';
+
     public const MENU_STRUKTUR_ORGANISASI = 'struktur_organisasi';
+
     public const MENU_KONTRAK_JASA_FABRIKASI_KONSTRUKSI = 'kontrak_jasa_fabrikasi_konstruksi';
 
     /**
@@ -30,6 +61,23 @@ class AdminMenuRegistry
      */
     public static function definitions(): array
     {
+        $historyConsumableMenu = [
+            'key' => self::MENU_APPSHEET_HISTORY_CONSUMABLE,
+            'label' => 'HISTORY CONSUMABLE',
+            'icon' => 'history',
+            'group' => 'support',
+            'route_name' => 'admin.appsheet.history-consumable.index',
+            'active_patterns' => ['admin.appsheet.history-consumable.*'],
+        ];
+        $stockConsumableMenu = [
+            'key' => self::MENU_APPSHEET_STOCK_CONSUMABLE,
+            'label' => 'STOCK',
+            'icon' => 'package-open',
+            'group' => 'support',
+            'route_name' => 'admin.appsheet.stock-consumable.index',
+            'active_patterns' => ['admin.appsheet.stock-consumable.*', 'admin.appsheet.stock-consumable-gudang.*', 'admin.appsheet.stock-material-bms.*', 'admin.appsheet.stock-material-gudang.*'],
+        ];
+
         return [
             self::MENU_DASHBOARD => [
                 'key' => self::MENU_DASHBOARD,
@@ -41,27 +89,31 @@ class AdminMenuRegistry
                 'always_visible' => true,
                 'configurable' => false,
             ],
-            self::MENU_ORDERS => [
-                'key' => self::MENU_ORDERS,
-                'label' => 'Order',
-                'badge_key' => 'orders_total',
-                'icon' => 'inbox',
+            self::MENU_ORDER_JASA => [
+                'key' => self::MENU_ORDER_JASA,
+                'label' => 'Order Pekerjaan Jasa',
+                'badge_key' => 'order_jasa_incomplete',
+                'icon' => 'briefcase-business',
                 'group' => 'main',
                 'route_name' => 'admin.orders.index',
-                'active_patterns' => ['admin.orders.*'],
-                'children' => [
-                    [
-                        'label' => 'Order Pekerjaan Jasa',
-                        'badge_key' => 'order_jasa_incomplete',
-                        'route_name' => 'admin.orders.index',
-                        'active_patterns' => ['admin.orders.index', 'admin.orders.show', 'admin.orders.edit', 'admin.orders.create', 'admin.orders.scope-of-work.*'],
-                    ],
-                    [
-                        'label' => 'Order Pekerjaan Bengkel',
-                        'route_name' => 'admin.orders.workshop.index',
-                        'active_patterns' => ['admin.orders.workshop.*'],
-                    ],
-                ],
+                'active_patterns' => ['admin.orders.index', 'admin.orders.show', 'admin.orders.edit', 'admin.orders.create', 'admin.orders.scope-of-work.*'],
+            ],
+            self::MENU_ORDER_BENGKEL => [
+                'key' => self::MENU_ORDER_BENGKEL,
+                'label' => 'Order Pekerjaan Bengkel',
+                'icon' => 'factory',
+                'badge_key' => 'order_bengkel_incomplete',
+                'group' => 'workshop',
+                'route_name' => 'admin.orders.workshop.index',
+                'active_patterns' => ['admin.orders.workshop.index', 'admin.orders.workshop.store', 'admin.orders.workshop.start', 'admin.orders.workshop.update'],
+            ],
+            self::MENU_DAILY_REPORT => [
+                'key' => self::MENU_DAILY_REPORT,
+                'label' => 'Laporan Harian',
+                'icon' => 'clipboard-list',
+                'group' => 'workshop',
+                'route_name' => 'admin.daily-report.index',
+                'active_patterns' => ['admin.daily-report.*'],
             ],
             self::MENU_CREATE_HPP => [
                 'key' => self::MENU_CREATE_HPP,
@@ -137,9 +189,51 @@ class AdminMenuRegistry
                 'key' => self::MENU_DISPLAY_PEKERJAAN_BENGKEL,
                 'label' => 'Display Pekerjaan Bengkel',
                 'icon' => 'monitor',
-                'group' => 'support',
+                'group' => 'workshop',
                 'route_name' => 'admin.bengkel-tasks.index',
                 'active_patterns' => ['admin.bengkel-tasks.*', 'admin.bengkel-pics.*'],
+            ],
+            self::MENU_QUALITY_CONTROL_BENGKEL => [
+                'key' => self::MENU_QUALITY_CONTROL_BENGKEL,
+                'label' => 'Quality Control',
+                'icon' => 'clipboard-check',
+                'badge_key' => 'quality_control_bengkel',
+                'group' => 'workshop',
+                'route_name' => 'admin.workshop-quality-control.index',
+                'active_patterns' => ['admin.workshop-quality-control.*', 'admin.orders.workshop.quality-control.*', 'admin.orders.approval-signatures.quality-control.*', 'admin.quality-control.*'],
+            ],
+            self::MENU_SERAH_TERIMA_BENGKEL => [
+                'key' => self::MENU_SERAH_TERIMA_BENGKEL,
+                'label' => 'Serah Terima',
+                'icon' => 'handshake',
+                'badge_key' => 'serah_terima_bengkel',
+                'group' => 'workshop',
+                'route_name' => 'admin.workshop-handover.index',
+                'active_patterns' => ['admin.workshop-handover.*'],
+            ],
+            self::MENU_APPSHEET => [
+                'key' => self::MENU_APPSHEET,
+                'label' => 'AppSheet',
+                'icon' => 'package-open',
+                'group' => 'support',
+                'route_name' => 'admin.appsheet.history-consumable.index',
+                'active_patterns' => ['admin.appsheet.*'],
+                'configurable' => false,
+                'access_control_hidden' => true,
+                'children' => [
+                    $historyConsumableMenu,
+                    $stockConsumableMenu,
+                ],
+            ],
+            self::MENU_APPSHEET_HISTORY_CONSUMABLE => [
+                ...$historyConsumableMenu,
+                'label' => 'History Consumable',
+                'sidebar_hidden' => true,
+            ],
+            self::MENU_APPSHEET_STOCK_CONSUMABLE => [
+                ...$stockConsumableMenu,
+                'label' => 'Stock',
+                'sidebar_hidden' => true,
             ],
             self::MENU_ACCESS_CONTROL => [
                 'key' => self::MENU_ACCESS_CONTROL,
@@ -224,6 +318,49 @@ class AdminMenuRegistry
             return true;
         }
 
+        $permissionKey = $item['permission_key'] ?? $menuKey;
+        if (is_string($permissionKey) && $permissionKey !== $menuKey) {
+            return static::canAccess($user, $permissionKey);
+        }
+
+        if ($menuKey === self::MENU_ORDERS) {
+            return static::canAccess($user, self::MENU_ORDER_JASA)
+                || static::canAccess($user, self::MENU_ORDER_BENGKEL);
+        }
+
+        if ($menuKey === self::MENU_APPSHEET) {
+            return static::canAccess($user, self::MENU_APPSHEET_HISTORY_CONSUMABLE)
+                || static::canAccess($user, self::MENU_APPSHEET_STOCK_CONSUMABLE);
+        }
+
+        if (in_array($menuKey, [self::MENU_ORDER_JASA, self::MENU_ORDER_BENGKEL], true)) {
+            if ($user->hasAdminMenuAccess($menuKey)) {
+                return true;
+            }
+
+            $hasSplitOrderPermission = AdminRoleMenuAccess::query()
+                ->where('admin_role', $user->resolvedAdminRole())
+                ->whereIn('menu_key', [self::MENU_ORDER_JASA, self::MENU_ORDER_BENGKEL])
+                ->exists();
+
+            return ! $hasSplitOrderPermission
+                && $user->hasAdminMenuAccess(self::MENU_ORDERS);
+        }
+
+        if (in_array($menuKey, [self::MENU_APPSHEET_HISTORY_CONSUMABLE, self::MENU_APPSHEET_STOCK_CONSUMABLE], true)) {
+            if ($user->hasAdminMenuAccess($menuKey)) {
+                return true;
+            }
+
+            $hasSplitAppSheetPermission = AdminRoleMenuAccess::query()
+                ->where('admin_role', $user->resolvedAdminRole())
+                ->whereIn('menu_key', [self::MENU_APPSHEET_HISTORY_CONSUMABLE, self::MENU_APPSHEET_STOCK_CONSUMABLE])
+                ->exists();
+
+            return ! $hasSplitAppSheetPermission
+                && $user->hasAdminMenuAccess(self::MENU_APPSHEET);
+        }
+
         return $user->hasAdminMenuAccess($menuKey);
     }
 
@@ -236,14 +373,14 @@ class AdminMenuRegistry
     {
         $items = [];
         $badgeCounts = $user && $user->hasRole(User::ROLE_ADMIN)
-            ? app(AdminSidebarBadgeCounter::class)->counts()
+            ? app(AdminSidebarBadgeCounter::class)->counts($user)
             : [];
 
         foreach (static::definitions() as $item) {
             $resolvedChildren = [];
 
             foreach ($item['children'] ?? [] as $child) {
-                $childKey = $child['key'] ?? null;
+                $childKey = $child['permission_key'] ?? $child['key'] ?? null;
 
                 if ($childKey && ! static::canAccess($user, $childKey)) {
                     continue;
@@ -274,16 +411,23 @@ class AdminMenuRegistry
 
         return [
             'dashboard' => $items[self::MENU_DASHBOARD] ?? null,
-            'orders' => $items[self::MENU_ORDERS] ?? null,
+            'appsheet' => $items[self::MENU_APPSHEET] ?? null,
+            'orders' => null,
             'main' => array_values(array_filter(
                 $items,
                 fn (array $item) => $item['group'] === 'main'
                     && $item['key'] !== self::MENU_ORDERS
                     && ! ($item['sidebar_hidden'] ?? false),
             )),
+            'workshop' => array_values(array_filter(
+                $items,
+                fn (array $item) => $item['group'] === 'workshop',
+            )),
             'support' => array_values(array_filter(
                 $items,
-                fn (array $item) => $item['group'] === 'support',
+                fn (array $item) => $item['group'] === 'support'
+                    && $item['key'] !== self::MENU_APPSHEET
+                    && ! ($item['sidebar_hidden'] ?? false),
             )),
             'other' => array_values(array_filter(
                 $items,

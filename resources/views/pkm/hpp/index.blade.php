@@ -1,29 +1,8 @@
 <x-layouts.pkm title="Create HPP">
-    <style>
-        .hpp-index-filter {
-            display: grid;
-            gap: 0.5rem;
-        }
-
-        @media (min-width: 640px) {
-            .hpp-index-filter {
-                grid-template-columns: minmax(0, 1.25fr) minmax(180px, 0.65fr) auto;
-                align-items: end;
-            }
-        }
-    </style>
-
     @php
-        $formatRupiah = function ($value): string {
-            $normalized = number_format((float) $value, 2, ',', '.');
-
-            if (str_ends_with($normalized, ',00')) {
-                return substr($normalized, 0, -3);
-            }
-
-            return rtrim(rtrim($normalized, '0'), ',');
-        };
+        $formatRupiah = fn ($value): string => number_format((float) $value, 0, ',', '.');
         $pendingHppOrders = collect($pendingHppOrders ?? []);
+        $bulkResendAvailableAt = $bulkResendAvailableAt ?? null;
     @endphp
 
     <div class="order-list-compact space-y-4">
@@ -49,6 +28,12 @@
             </div>
         @endif
 
+        @if (session('error'))
+            <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {{ session('error') }}
+            </div>
+        @endif
+
         <section class="order-list-panel overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 px-5 py-4">
                 @if ($pendingHppOrders->isNotEmpty())
@@ -71,29 +56,13 @@
                     </div>
                 @endif
 
-                <form method="GET" action="{{ route('pkm.hpp.index') }}" class="hpp-index-filter">
-                    <div class="flex min-w-0 flex-col">
-                        <label for="search" class="mb-1.5 text-[10px] font-semibold text-slate-700">Pencarian</label>
-                        <input id="search" name="search" type="text" value="{{ $search }}" placeholder="Cari nomor order / pekerjaan / area..." class="w-full rounded-lg border border-slate-300 px-3 py-2 text-[11px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none">
-                    </div>
-                    <div class="flex min-w-0 flex-col">
-                        <label for="status" class="mb-1.5 text-[10px] font-semibold text-slate-700">Status</label>
-                        <select id="status" name="status" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none">
-                            <option value="">Semua Status</option>
-                            @foreach ($statusOptions as $value => $label)
-                                <option value="{{ $value }}" @selected($status === $value)>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <button type="submit" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-700" title="Filter">
-                            <i data-lucide="filter" class="h-[13px] w-[13px]"></i>
-                        </button>
-                        <a href="{{ route('pkm.hpp.index') }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50" title="Reset">
-                            <i data-lucide="rotate-ccw" class="h-[13px] w-[13px]"></i>
-                        </a>
-                    </div>
-                </form>
+                <x-hpp.index-tabs
+                    route-name="pkm.hpp.index"
+                    :active-tab="$activeTab"
+                    :tab-options="$tabOptions"
+                    :tab-counts="$tabCounts"
+                    :search="$search"
+                />
             </div>
 
             <div class="overflow-x-auto">
@@ -110,7 +79,32 @@
                             <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Order</th>
                             <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Detail Pekerjaan</th>
                             <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Nilai HPP / Status</th>
-                            <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Progress Approval</th>
+                            <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span>Progress Approval</span>
+                                    @if ($activeTab === \App\Support\HppIndexTabs::IN_APPROVAL)
+                                        <form
+                                            method="POST"
+                                            action="{{ route('pkm.hpp.approval.resend-all') }}"
+                                            class="js-resend-all-approval-form flex flex-col items-end gap-1"
+                                            data-approval-document="HPP"
+                                            data-cooldown-hours="24"
+                                            @if ($bulkResendAvailableAt) data-resend-available-at="{{ $bulkResendAvailableAt->toIso8601String() }}" @endif
+                                        >
+                                            @csrf
+                                            <button type="submit" @disabled($bulkResendAvailableAt) class="inline-flex items-center gap-1 rounded-md bg-[#ca642f] px-2 py-1 text-[8px] font-bold normal-case tracking-normal text-white shadow-sm transition hover:bg-[#b85b2b] disabled:cursor-not-allowed disabled:bg-slate-400 disabled:opacity-70">
+                                                <i data-lucide="send" class="h-2.5 w-2.5"></i>
+                                                Resend Semua
+                                            </button>
+                                            <span data-resend-cooldown-label class="text-[8px] font-semibold normal-case tracking-normal text-amber-700" @if (! $bulkResendAvailableAt) hidden @endif>
+                                                @if ($bulkResendAvailableAt)
+                                                    Bisa lagi {{ $bulkResendAvailableAt->format('d/m/Y H:i') }}
+                                                @endif
+                                            </span>
+                                        </form>
+                                    @endif
+                                </div>
+                            </th>
                             <th class="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">Aksi</th>
                         </tr>
                     </thead>
@@ -133,7 +127,7 @@
                                 $approvalChecklist = $row->signatures
                                     ->map(fn (\App\Models\HppSignature $signature): array => [
                                         'label' => $signature->displayRoleLabel(),
-                                        'name' => $signature->signer_name_snapshot ?: '-',
+                                        'name' => $signature->displaySignerName(),
                                         'status' => $signature->status,
                                         'delegated_from_name' => $signature->delegated_from_name ?: '',
                                         'delegation_reason' => $signature->delegation_reason ?: '',
@@ -147,6 +141,27 @@
                                         ? route('pkm.hpp.approval.resend', $row)
                                         : '',
                                 ];
+                                $documentIndicators = [
+                                    [
+                                        'label' => 'SOW',
+                                        'title' => 'Scope of Work',
+                                        'ready' => $row->order?->scopeOfWork !== null,
+                                    ],
+                                    [
+                                        'label' => 'Abnormalitas',
+                                        'title' => 'Abnormalitas',
+                                        'ready' => (bool) $row->order?->documents?->contains(
+                                            fn (\App\Models\OrderDocument $document): bool => $document->jenis_dokumen === \App\Domain\Orders\Enums\OrderDocumentType::Abnormalitas
+                                        ),
+                                    ],
+                                    [
+                                        'label' => 'Gambar Teknik',
+                                        'title' => 'Gambar Teknik',
+                                        'ready' => (bool) $row->order?->documents?->contains(
+                                            fn (\App\Models\OrderDocument $document): bool => $document->jenis_dokumen === \App\Domain\Orders\Enums\OrderDocumentType::GambarTeknik
+                                        ),
+                                    ],
+                                ];
                             @endphp
                             <tr class="align-top hover:bg-slate-50">
                                 <td class="px-5 py-3 text-[10px] text-slate-800">
@@ -159,6 +174,17 @@
                                         <span class="text-slate-500">Unit: <strong class="font-semibold text-slate-700">{{ $row->unit_kerja }}</strong></span>
                                         <span class="text-slate-300">|</span>
                                         <span class="text-blue-500">Seksi: <strong class="font-semibold text-blue-700">{{ $row->order?->seksi ?: '-' }}</strong></span>
+                                    </div>
+                                    <div class="mt-1.5 flex flex-wrap items-center gap-1">
+                                        @foreach ($documentIndicators as $documentIndicator)
+                                            <span
+                                                class="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px] font-semibold {{ $documentIndicator['ready'] ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-400' }}"
+                                                title="{{ $documentIndicator['title'] }} {{ $documentIndicator['ready'] ? 'tersedia' : 'belum tersedia' }}"
+                                            >
+                                                <i data-lucide="{{ $documentIndicator['ready'] ? 'check' : 'minus' }}" class="h-2.5 w-2.5"></i>
+                                                {{ $documentIndicator['label'] }}
+                                            </span>
+                                        @endforeach
                                     </div>
                                 </td>
                                 <td class="px-5 py-3">
@@ -211,6 +237,12 @@
                                             </div>
                                         </div>
                                     @endif
+                                    <div class="mt-1.5 flex min-w-0 items-center gap-1 text-[8px] text-slate-400">
+                                        <i data-lucide="clock-3" class="h-2.5 w-2.5 shrink-0"></i>
+                                        <span class="truncate">
+                                            {{ $row->activityLabel() }} · {{ $row->updated_at?->locale('id')->diffForHumans() ?? '-' }}
+                                        </span>
+                                    </div>
                                 </td>
                                 <td class="px-5 py-3">
                                     <div class="flex items-center gap-1.5">
@@ -227,7 +259,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-5 py-10 text-center text-slate-500">Belum ada data HPP.</td>
+                                <td colspan="5" class="px-5 py-10 text-center text-slate-500">{{ \App\Support\HppIndexTabs::emptyMessage($activeTab) }}</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -265,6 +297,9 @@
             </div>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <x-approval.resend-all-confirmation />
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {

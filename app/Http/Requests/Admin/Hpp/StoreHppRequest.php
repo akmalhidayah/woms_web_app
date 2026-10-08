@@ -29,6 +29,7 @@ class StoreHppRequest extends FormRequest
         $this->merge([
             'action' => (string) $this->input('action', 'draft'),
             'area_pekerjaan' => HppApprovalFlow::displayArea((string) $this->input('area_pekerjaan', '')),
+            'creator_note' => $this->normalizedCreatorNote(),
             'approval_flow' => is_array($approvalFlow)
                 ? collect($approvalFlow)
                     ->map(fn (mixed $role): string => trim((string) $role))
@@ -89,6 +90,7 @@ class StoreHppRequest extends FormRequest
             'kategori_pekerjaan' => ['required', Rule::in(HppApprovalFlow::kategoriOptions())],
             'area_pekerjaan' => ['required', Rule::in(array_keys(HppApprovalFlow::areaOptions()))],
             'cost_centre' => ['nullable', 'string', 'max:255'],
+            'creator_note' => ['nullable', 'string', 'max:750'],
             'approval_flow' => ['nullable', 'array'],
             'approval_flow.*' => ['required', 'string', 'max:100'],
             'jenis_label_visible' => ['nullable', 'array'],
@@ -110,5 +112,18 @@ class StoreHppRequest extends FormRequest
         return [
             'order_id.unique' => 'Order ini sudah dibuatkan HPP. Hapus HPP lama terlebih dahulu jika ingin membuat ulang.',
         ];
+    }
+
+    private function normalizedCreatorNote(): mixed
+    {
+        $creatorNote = $this->input('creator_note');
+
+        if ($creatorNote === null || ! is_string($creatorNote)) {
+            return $creatorNote;
+        }
+
+        $creatorNote = trim($creatorNote);
+
+        return $creatorNote !== '' ? $creatorNote : null;
     }
 }

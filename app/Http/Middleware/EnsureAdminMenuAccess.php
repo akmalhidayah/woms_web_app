@@ -13,7 +13,7 @@ class EnsureAdminMenuAccess
     /**
      * Handle an incoming request.
      */
-    public function handle(Request $request, Closure $next, string $menuKey): Response
+    public function handle(Request $request, Closure $next, string ...$menuKeys): Response
     {
         $user = $request->user();
 
@@ -25,8 +25,10 @@ class EnsureAdminMenuAccess
             abort(403, 'Anda tidak memiliki hak akses untuk membuka halaman ini.');
         }
 
-        if (AdminMenuRegistry::canAccess($user, $menuKey)) {
-            return $next($request);
+        foreach ($menuKeys as $menuKey) {
+            if (AdminMenuRegistry::canAccess($user, $menuKey)) {
+                return $next($request);
+            }
         }
 
         abort(403, 'Anda tidak memiliki hak akses untuk membuka halaman ini.');

@@ -19,12 +19,8 @@ class UpdateOrderWorkshopRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'konfirmasi_anggaran' => ['sometimes', 'nullable', Rule::in(array_keys(OrderWorkshop::konfirmasiAnggaranOptions()))],
-            'keterangan_konfirmasi' => ['sometimes', 'nullable', 'string', 'max:2000'],
-            'status_anggaran' => ['sometimes', 'nullable', Rule::in(array_keys(OrderWorkshop::statusAnggaranOptions()))],
-            'keterangan_anggaran' => ['sometimes', 'nullable', 'string', 'max:2000'],
-            'status_material' => ['sometimes', 'nullable', Rule::in(array_keys(OrderWorkshop::materialOptions()))],
-            'keterangan_material' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'preparation_status' => ['sometimes', 'nullable', Rule::in(array_keys(OrderWorkshop::preparationOptions()))],
+            'preparation_note' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'progress_status' => ['sometimes', 'nullable', Rule::in(array_keys(OrderWorkshop::progressOptions()))],
             'keterangan_progress' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'catatan' => ['sometimes', 'nullable', 'string', 'max:2000'],

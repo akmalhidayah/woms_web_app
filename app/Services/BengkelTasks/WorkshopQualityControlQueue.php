@@ -1,0 +1,75 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\BengkelTasks;
+
+use App\Domain\Orders\Enums\OrderUserNoteStatus;
+use App\Models\Order;
+use App\Models\OrderWorkshop;
+use App\Models\QualityControlReport;
+use App\Models\QualityControlSignature;
+use Illuminate\Database\Eloquent\Builder;
+
+final class WorkshopQualityControlQueue
+{
+    public const ACTION = 'action';
+
+    public function query(): Builder
+    {
+        return Order::query()
+            ->with(['orderWorkshop', 'latestQualityControlReport.signatures.signer'])
+            ->whereIn('catatan_status', [
+                OrderUserNoteStatus::ApprovedWorkshop->value,
+                OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+            ])
+            ->whereHas('orderWorkshop', fn (Builder $query) => $query
+                ->where('progress_status', OrderWorkshop::PROGRESS_QUALITY_CONTROL))
+            ->whereDoesntHave('workPackages', fn (Builder $package) => $package
+                ->where('status', '!=', \App\Models\WorkshopWorkPackage::STATUS_COMPLETED));
+    }
+
+    public function status(Order $order): array
+    {
+        $report = $order->latestQualityControlReport;
+
+        if (! $report) {
+            return ['key' => 'missing', 'label' => 'Perlu Pemeriksaan', 'tone' => 'amber', 'action' => true];
+        }
+
+        if ($report->status === QualityControlReport::STATUS_DRAFT) {
+            return ['key' => 'draft', 'label' => 'Dalam Pemeriksaan', 'tone' => 'blue', 'action' => true];
+        }
+
+        if ($report->approvalCompleted()) {
+            return ['key' => 'completed', 'label' => 'Selesai', 'tone' => 'emerald', 'action' => false];
+        }
+
+        $signatures = $report->signatures;
+        $roleCounts = $signatures->groupBy('role_key')->map->count();
+        $broken = ! $report->hasValidMakerSignature()
+            || $signatures->count() !== 2
+            || $roleCounts->get(QualityControlSignature::ROLE_WORKSHOP_MANAGER, 0) !== 1
+            || $roleCounts->get(QualityControlSignature::ROLE_USER_MANAGER, 0) !== 1
+            || $signatures->contains(fn (QualityControlSignature $signature): bool => $signature->status === QualityControlSignature::STATUS_MISSING
+                || ($signature->status === QualityControlSignature::STATUS_PENDING && (! $signature->signer_user_id || ! $signature->approvalUrl() || $signature->tokenExpired()))
+            );
+
+        return $broken
+            ? ['key' => 'broken', 'label' => 'Perlu Tindakan', 'tone' => 'rose', 'action' => true]
+            : ['key' => 'approval', 'label' => 'Menunggu Approval', 'tone' => 'violet', 'action' => false];
+    }
+
+    public function actionCount(): int
+    {
+        $count = 0;
+
+        foreach ($this->query()->lazyById(200) as $order) {
+            if ($this->status($order)['action']) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+}

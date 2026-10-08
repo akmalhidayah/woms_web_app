@@ -13,14 +13,21 @@ class OutlineAgreement extends Model
     use HasFactory;
 
     public const STATUS_DRAFT = 'draft';
+
     public const STATUS_ACTIVE = 'active';
+
     public const STATUS_EXPIRED = 'expired';
+
     public const STATUS_CLOSED = 'closed';
 
     public const CHANGE_INITIAL = 'initial';
+
     public const CHANGE_EXTEND = 'extend';
+
     public const CHANGE_ADD_VALUE = 'add_value';
+
     public const CHANGE_EXTEND_AND_ADD_VALUE = 'extend_and_add_value';
+
     public const CHANGE_REVISION = 'revision';
 
     protected $fillable = [
@@ -115,6 +122,14 @@ class OutlineAgreement extends Model
     public function yearlyTargets(): HasMany
     {
         return $this->hasMany(OutlineAgreementTarget::class)->orderBy('tahun');
+    }
+
+    public function monthlyRealizations(): HasMany
+    {
+        return $this->hasMany(OutlineAgreementMonthlyRealization::class)
+            ->orderByDesc('year')
+            ->orderByDesc('month')
+            ->orderBy('kategori_biaya');
     }
 
     public function latestHistory(): BelongsTo

@@ -4,12 +4,19 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminNotificationRead;
+use App\Support\AdminActionCenter;
 use App\Support\AdminNotificationCenter;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class AdminNotificationController extends Controller
 {
+    public function __construct(
+        private readonly AdminNotificationCenter $notificationCenter,
+        private readonly AdminActionCenter $actionCenter,
+    ) {}
+
     public function read(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -35,7 +42,7 @@ class AdminNotificationController extends Controller
         $user = $request->user();
         $now = now();
 
-        $rows = AdminNotificationCenter::unreadNotificationKeys($user)
+        $rows = $this->notificationCenter->unreadInformationKeys($user)
             ->map(fn (string $key): array => [
                 'user_id' => $user->id,
                 'notification_key' => $key,
@@ -54,6 +61,26 @@ class AdminNotificationController extends Controller
         }
 
         return back()->with('status', 'Semua pemberitahuan sudah ditandai dibaca.');
+    }
+
+    public function actionFeed(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        return response()->json([
+            'pending_count' => $this->actionCenter->pendingActionCount($user),
+            'actions' => $this->actionCenter
+                ->actions($user, 20)
+                ->map(fn (array $action): array => [
+                    'key' => $action['key'],
+                    'title' => $action['title'],
+                    'message' => $action['message'],
+                    'url' => $action['url'],
+                    'overdue_level' => $action['overdue_level'],
+                ])
+                ->values()
+                ->all(),
+        ]);
     }
 
     private function safeRedirectUrl(Request $request, ?string $url): string

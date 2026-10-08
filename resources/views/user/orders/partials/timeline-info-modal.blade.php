@@ -153,12 +153,48 @@
             `;
         };
 
+        const renderPackages = (packages) => {
+            if (! Array.isArray(packages) || packages.length === 0) {
+                return '';
+            }
+
+            return `
+                <section class="mt-3 rounded-2xl border border-stone-200 bg-stone-50/70 p-3.5">
+                    <div class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Pekerjaan Paket</div>
+                    <div class="mt-2.5 grid gap-2.5 md:grid-cols-2">
+                        ${packages.map((item) => {
+                            const pics = Array.isArray(item.pics) ? item.pics : [];
+
+                            return `
+                                <article class="rounded-xl border border-stone-200 bg-white p-3">
+                                    <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Nama Pekerjaan Paket</div>
+                                    <div class="mt-1 text-sm font-black leading-5 text-slate-900">${escapeHtml(displayValue(item.name, '-'))}</div>
+                                    <div class="mt-3 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">PIC</div>
+                                    ${pics.length > 0 ? `
+                                        <div class="mt-2 flex flex-wrap gap-2">
+                                            ${pics.map((pic) => `
+                                                <div class="flex items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-2.5 py-2">
+                                                    ${workerAvatar(pic)}
+                                                    <span class="text-sm font-bold text-slate-800">${escapeHtml(displayValue(pic.name, 'PIC Bengkel'))}</span>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    ` : '<div class="mt-2 text-sm font-semibold text-slate-500">Belum ada PIC.</div>'}
+                                </article>
+                            `;
+                        }).join('')}
+                    </div>
+                </section>
+            `;
+        };
+
         const openModal = (payload) => {
             const rows = Array.isArray(payload.rows) ? payload.rows : [];
             const noteRows = rows.filter((row) => String(row.label || '').toLowerCase().includes('catatan'));
             const statusRows = rows.filter((row) => ! String(row.label || '').toLowerCase().includes('catatan'))
                 .filter((row) => ! isNotApplicable(row.value));
             const workers = Array.isArray(payload.workers) ? payload.workers : [];
+            const packages = Array.isArray(payload.packages) ? payload.packages : [];
 
             title.textContent = payload.title || 'Detail';
             rowsContainer.innerHTML = statusRows.length > 0
@@ -195,6 +231,8 @@
                     </div>
                 `
                 : '<div class="rounded-2xl border border-dashed border-stone-200 bg-stone-50 px-4 py-8 text-center text-sm font-semibold text-slate-500">Belum ada informasi.</div>';
+
+            rowsContainer.innerHTML += renderPackages(packages);
 
             modal.classList.remove('hidden');
             modal.classList.add('flex');

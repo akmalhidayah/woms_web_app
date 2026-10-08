@@ -19,8 +19,7 @@ class QualityControlSignatureService
 
     public function __construct(
         private readonly ApprovalNotificationService $approvalNotificationService,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array{workshop_url: ?string, workshop_signature: ?QualityControlSignature, user_signature: ?QualityControlSignature}
@@ -28,12 +27,30 @@ class QualityControlSignatureService
     public function createSignatureChain(QualityControlReport $report): array
     {
         return DB::transaction(function () use ($report): array {
-            $report->loadMissing('order');
+            $lockedReport = QualityControlReport::query()
+                ->whereKey($report->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+            $lockedReport->loadMissing(['order', 'signatures']);
 
-            $source = $this->resolveSignatureSource($report);
+            if ($lockedReport->signatures->isNotEmpty()) {
+                $workshopSignature = $lockedReport->signatures
+                    ->firstWhere('role_key', QualityControlSignature::ROLE_WORKSHOP_MANAGER);
+                $userSignature = $lockedReport->signatures
+                    ->firstWhere('role_key', QualityControlSignature::ROLE_USER_MANAGER);
+
+                return [
+                    'workshop_url' => $workshopSignature?->approvalUrl(),
+                    'workshop_signature' => $workshopSignature?->fresh('signer'),
+                    'user_signature' => $userSignature?->fresh('signer'),
+                ];
+            }
+
+            $this->assertApprovalReady($lockedReport);
+            $source = $this->resolveSignatureSource($lockedReport);
 
             $workshopSignature = $this->createSignatureRecord(
-                $report,
+                $lockedReport,
                 QualityControlSignature::ROLE_WORKSHOP_MANAGER,
                 1,
                 $source['workshop_manager'],
@@ -45,7 +62,7 @@ class QualityControlSignatureService
             );
 
             $userSignature = $this->createSignatureRecord(
-                $report,
+                $lockedReport,
                 QualityControlSignature::ROLE_USER_MANAGER,
                 2,
                 $source['user_manager'],
@@ -66,6 +83,36 @@ class QualityControlSignatureService
                 'user_signature' => $userSignature->fresh('signer'),
             ];
         });
+    }
+
+    public function assertApprovalReady(QualityControlReport $report): void
+    {
+        $report->loadMissing('order');
+        $source = $this->resolveSignatureSource($report);
+
+        if (! $source['workshop_manager']) {
+            throw ValidationException::withMessages([
+                'approval' => 'Manager Workshop belum ditemukan di struktur organisasi.',
+            ]);
+        }
+
+        if (blank($source['workshop_manager']->email)) {
+            throw ValidationException::withMessages([
+                'approval' => 'Email Manager Workshop belum dikonfigurasi.',
+            ]);
+        }
+
+        if (! $source['user_manager']) {
+            throw ValidationException::withMessages([
+                'approval' => 'Manager User belum ditemukan dari unit/seksi order.',
+            ]);
+        }
+
+        if (blank($source['user_manager']->email)) {
+            throw ValidationException::withMessages([
+                'approval' => 'Email Manager User pada unit/seksi order belum dikonfigurasi.',
+            ]);
+        }
     }
 
     /**
@@ -99,6 +146,12 @@ class QualityControlSignatureService
     public function ensureSignatureChain(QualityControlReport $report): array
     {
         return DB::transaction(function () use ($report): array {
+            if ($report->status !== QualityControlReport::STATUS_SUBMITTED) {
+                throw ValidationException::withMessages([
+                    'approval' => 'Approval Quality Control hanya dapat dibuat setelah laporan disubmit.',
+                ]);
+            }
+
             $report->loadMissing(['order', 'signatures']);
 
             if ($report->signatures->isEmpty()) {
@@ -112,6 +165,7 @@ class QualityControlSignatureService
                 ];
             }
 
+            $this->assertApprovalReady($report);
             $source = $this->resolveSignatureSource($report);
             $workshopSignature = $this->upsertRepairableSignature(
                 $report,
@@ -264,13 +318,9 @@ class QualityControlSignatureService
             return null;
         }
 
-        $target = $report->type === QualityControlReport::TYPE_REFURBISH
-            ? 'Machine Workshop'
-            : 'Machine Workshop';
+        $section = $this->resolveSectionFromUnit($workshopUnit, 'Machine Workshop');
 
-        return $this->resolveSectionFromUnit($workshopUnit, $target)
-            ?: $workshopUnit->sections->first(fn (UnitWorkSection $section): bool => $section->manager_id !== null)
-            ?: $workshopUnit->sections->first();
+        return $section?->manager && filled($section->manager->email) ? $section : null;
     }
 
     private function resolveUserSection(?Order $order): ?UnitWorkSection
@@ -281,21 +331,13 @@ class QualityControlSignatureService
 
         $fallbackUnit = $this->resolveUnitByName((string) $order->unit_kerja);
 
-        if ($fallbackUnit) {
-            $section = $this->resolveSectionFromUnit($fallbackUnit, (string) $order->seksi);
-
-            if ($section?->manager_id) {
-                return $section;
-            }
+        if (! $fallbackUnit) {
+            return null;
         }
 
-        if ($fallbackUnit) {
-            return $this->resolveSectionFromUnit($fallbackUnit, (string) $order->seksi)
-                ?: $fallbackUnit->sections->first(fn (UnitWorkSection $section): bool => $section->manager_id !== null)
-                ?: $fallbackUnit->sections->first();
-        }
+        $section = $this->resolveSectionFromUnit($fallbackUnit, (string) $order->seksi);
 
-        return $this->resolveSectionByName((string) $order->seksi);
+        return $section?->manager && filled($section->manager->email) ? $section : null;
     }
 
     private function resolveUnitByName(string $unitName): ?UnitWork
@@ -303,61 +345,20 @@ class QualityControlSignatureService
         $unitName = trim($unitName);
         $exact = UnitWork::query()
             ->with(['department', 'sections.manager'])
-            ->whereRaw('LOWER(name) = ?', [strtolower($unitName)])
-            ->first();
+            ->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($unitName)])
+            ->get();
 
-        if ($exact) {
-            return $exact;
-        }
-
-        $targetKey = $this->normalizeStructureName($unitName);
-
-        if ($targetKey === '') {
-            return null;
-        }
-
-        return UnitWork::query()
-            ->with(['department', 'sections.manager'])
-            ->get()
-            ->first(function (UnitWork $unit) use ($targetKey): bool {
-                $unitKey = $this->normalizeStructureName($unit->name);
-
-                return $unitKey !== ''
-                    && ($unitKey === $targetKey
-                        || str_contains($targetKey, $unitKey)
-                        || str_contains($unitKey, $targetKey));
-            });
+        return $exact->count() === 1 ? $exact->first() : null;
     }
 
     private function resolveSectionByName(string $sectionName): ?UnitWorkSection
     {
         $sectionName = trim($sectionName);
-        $exact = UnitWorkSection::query()
-            ->with(['manager', 'unitWork.department'])
-            ->whereRaw('LOWER(name) = ?', [strtolower($sectionName)])
-            ->first();
-
-        if ($exact) {
-            return $exact;
-        }
-
-        $targetKey = $this->normalizeStructureName($sectionName);
-
-        if ($targetKey === '') {
-            return null;
-        }
 
         return UnitWorkSection::query()
             ->with(['manager', 'unitWork.department'])
-            ->get()
-            ->first(function (UnitWorkSection $section) use ($targetKey): bool {
-                $sectionKey = $this->normalizeStructureName($section->name);
-
-                return $sectionKey !== ''
-                    && ($sectionKey === $targetKey
-                        || str_contains($targetKey, $sectionKey)
-                        || str_contains($sectionKey, $targetKey));
-            });
+            ->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($sectionName)])
+            ->first();
     }
 
     private function resolveSectionFromUnit(UnitWork $unit, string $sectionName): ?UnitWorkSection
@@ -377,19 +378,7 @@ class QualityControlSignatureService
                 return $exact;
             }
 
-            $targetKey = $this->normalizeStructureName($sectionName);
-            $normalized = $sections->first(function (UnitWorkSection $section) use ($targetKey): bool {
-                $sectionKey = $this->normalizeStructureName($section->name);
-
-                return $sectionKey !== ''
-                    && ($sectionKey === $targetKey
-                        || str_contains($targetKey, $sectionKey)
-                        || str_contains($sectionKey, $targetKey));
-            });
-
-            if ($normalized) {
-                return $normalized;
-            }
+            return null;
         }
 
         return null;

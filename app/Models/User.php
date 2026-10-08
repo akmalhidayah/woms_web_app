@@ -29,6 +29,8 @@ class User extends Authenticatable // implements MustVerifyEmail
 
     public const ADMIN_ROLE_ADMIN = 'admin';
 
+    public const ADMIN_ROLE_KARYAWAN = 'karyawan';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -107,6 +109,7 @@ class User extends Authenticatable // implements MustVerifyEmail
         return [
             self::ADMIN_ROLE_SUPER_ADMIN => 'Super Admin',
             self::ADMIN_ROLE_ADMIN => 'Admin',
+            self::ADMIN_ROLE_KARYAWAN => 'Karyawan',
         ];
     }
 
@@ -244,7 +247,7 @@ class User extends Authenticatable // implements MustVerifyEmail
         }
 
         return AdminRoleMenuAccess::query()
-            ->where('admin_role', self::ADMIN_ROLE_ADMIN)
+            ->where('admin_role', $this->resolvedAdminRole())
             ->where('menu_key', $menuKey)
             ->exists();
     }

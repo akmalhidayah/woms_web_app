@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\SignatureImageStorage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -81,10 +82,32 @@ class QualityControlReport extends Model
 
     public function approvalCompleted(): bool
     {
-        $signatures = $this->approvalSignatureCollection();
+        if ($this->status !== self::STATUS_SUBMITTED || ! $this->hasValidMakerSignature()) {
+            return false;
+        }
 
-        return $signatures->isNotEmpty()
-            && $signatures->every(fn (QualityControlSignature $signature): bool => $signature->isSigned());
+        $allSignatures = $this->relationLoaded('signatures')
+            ? $this->signatures
+            : $this->signatures()->get();
+        $requiredRoles = [
+            QualityControlSignature::ROLE_WORKSHOP_MANAGER,
+            QualityControlSignature::ROLE_USER_MANAGER,
+        ];
+
+        if ($allSignatures->count() !== 2 || $allSignatures->contains(
+            fn (QualityControlSignature $signature): bool => ! in_array($signature->role_key, $requiredRoles, true)
+        )) {
+            return false;
+        }
+
+        $signatures = $allSignatures;
+        $workshop = $signatures->where('role_key', QualityControlSignature::ROLE_WORKSHOP_MANAGER);
+        $user = $signatures->where('role_key', QualityControlSignature::ROLE_USER_MANAGER);
+
+        return $workshop->count() === 1
+            && $user->count() === 1
+            && $workshop->first()->isSigned()
+            && $user->first()->isSigned();
     }
 
     public function approvalStatus(): string
@@ -102,30 +125,56 @@ class QualityControlReport extends Model
 
     public function approvalSignedCount(): int
     {
-        return $this->approvalSignatureCollection()
-            ->filter(fn (QualityControlSignature $signature): bool => $signature->isSigned())
-            ->count();
+        if ($this->status !== self::STATUS_SUBMITTED) {
+            return 0;
+        }
+
+        $makerCount = $this->hasValidMakerSignature() ? 1 : 0;
+        $signatures = $this->approvalSignatureCollection();
+        $managerCount = collect([
+            QualityControlSignature::ROLE_WORKSHOP_MANAGER,
+            QualityControlSignature::ROLE_USER_MANAGER,
+        ])->filter(function (string $roleKey) use ($signatures): bool {
+            $roleSignatures = $signatures->where('role_key', $roleKey);
+
+            return $roleSignatures->count() === 1
+                && $roleSignatures->first()->isSigned();
+        })->count();
+
+        return min(3, $makerCount + $managerCount);
     }
 
     public function approvalStepCount(): int
     {
-        return $this->approvalSignatureCollection()->count();
+        return $this->status === self::STATUS_SUBMITTED ? 3 : 0;
     }
 
     public function approvalProgressPercent(): int
     {
-        $signatures = $this->approvalSignatureCollection();
-        $total = $signatures->count();
+        $total = $this->approvalStepCount();
 
         if ($total === 0) {
             return 0;
         }
 
-        $signed = $signatures
-            ->filter(fn (QualityControlSignature $signature): bool => $signature->isSigned())
-            ->count();
+        $signed = $this->approvalSignedCount();
 
         return (int) round(($signed / $total) * 100);
+    }
+
+    public function hasValidMakerSignature(): bool
+    {
+        $signature = $this->payload['signature'] ?? [];
+        $signatureData = is_array($signature) ? trim((string) ($signature['signature_data'] ?? '')) : '';
+
+        return $signatureData !== '' && SignatureImageStorage::imageSource($signatureData) !== null;
+    }
+
+    public function makerSignature(): array
+    {
+        $signature = $this->payload['signature'] ?? [];
+
+        return is_array($signature) ? $signature : [];
     }
 
     /**
@@ -145,9 +194,19 @@ class QualityControlReport extends Model
     private function approvalSignatureCollection(): Collection
     {
         if ($this->relationLoaded('signatures')) {
-            return $this->signatures;
+            return $this->signatures
+                ->whereIn('role_key', [
+                    QualityControlSignature::ROLE_WORKSHOP_MANAGER,
+                    QualityControlSignature::ROLE_USER_MANAGER,
+                ])
+                ->values();
         }
 
-        return $this->signatures()->get();
+        return $this->signatures()
+            ->whereIn('role_key', [
+                QualityControlSignature::ROLE_WORKSHOP_MANAGER,
+                QualityControlSignature::ROLE_USER_MANAGER,
+            ])
+            ->get();
     }
 }

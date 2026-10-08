@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
+use App\Http\Controllers\Admin\WorkshopHandoverController as AdminWorkshopHandoverController;
 use App\Http\Controllers\Controller;
 use App\Models\BengkelPic;
 use App\Models\BengkelTask;
@@ -17,12 +18,16 @@ use App\Models\OrderDocument;
 use App\Models\OrderWorkshop;
 use App\Models\QualityControlReport;
 use App\Models\QualityControlSignature;
+use App\Models\WorkshopHandover;
+use App\Models\WorkshopWorkPackage;
 use App\Services\Orders\OrderDocumentService;
-use App\Services\QualityControl\QualityControlSignatureService;
+use App\Services\Pkm\BastPdfAttachmentService;
 use App\Support\ApprovalWhatsappLink;
+use App\Support\BastDisplayLabel;
 use App\Support\PdfMergeService;
 use App\Support\ScopeOfWorkPdfPresenter;
 use App\Support\SignatureImageStorage;
+use App\Support\WorkshopReadiness;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -34,8 +39,8 @@ use Symfony\Component\HttpFoundation\Response;
 class OrderTrackingController extends Controller
 {
     public function __construct(
-        private readonly QualityControlSignatureService $qualityControlSignatureService,
         private readonly OrderDocumentService $orderDocumentService,
+        private readonly BastPdfAttachmentService $bastPdfAttachmentService,
     ) {}
 
     public function index(Request $request): View
@@ -267,6 +272,21 @@ class OrderTrackingController extends Controller
         ])->setPaper('a4', $paper)->stream($filename);
     }
 
+    public function workshopHandoverPdf(Order $order): Response
+    {
+        $order = $this->ownedOrder($order);
+        $handover = $order->workshopHandover;
+
+        abort_if(! $handover, Response::HTTP_NOT_FOUND);
+        abort_unless(
+            (int) request()->user()?->id === (int) $handover->recipient_user_id,
+            Response::HTTP_FORBIDDEN,
+            'Dokumen Serah Terima hanya dapat dibuka oleh Manager User penerima.'
+        );
+
+        return app(AdminWorkshopHandoverController::class)->renderPdf($handover);
+    }
+
     public function bastPdf(Order $order, string $termin): Response
     {
         $order = $this->ownedOrder($order);
@@ -276,8 +296,10 @@ class OrderTrackingController extends Controller
             ->where('termin_type', $terminType)
             ->with([
                 'images',
+                'garansi',
                 'signatures',
                 'parentLhppBast.images',
+                'parentLhppBast.garansi',
                 'parentLhppBast.signatures',
                 'parentLhppBast.purchaseOrder:id,order_id,purchase_order_number',
                 'parentLhppBast.order.purchaseOrder:id,order_id,purchase_order_number',
@@ -313,10 +335,18 @@ class OrderTrackingController extends Controller
             'materialItems' => collect($lhpp->material_items ?? []),
             'serviceItems' => collect($lhpp->service_items ?? []),
         ])->setPaper('a4', 'portrait')->output();
+        $attachmentPdf = $this->bastPdfAttachmentService->pdfOutput($lhpp);
 
         $attachedHpp = $lhpp->hpp ?: $order->latestHpp;
-        $terminSlug = $terminType === 'termin_2' ? 'termin-2' : 'termin-1';
+        $generatedFilename = BastDisplayLabel::generatedBastPdfFilename(
+            $order->nomor_order,
+            $terminType,
+            $terminType === 'termin_2'
+                ? $lhpp->parentLhppBast?->garansi?->garansi_months
+                : $lhpp->garansi?->garansi_months,
+        );
         $terminOnePdf = null;
+        $terminOneAttachmentPdf = null;
 
         if ($terminType === 'termin_2' && $lhpp->parentLhppBast) {
             $terminOnePdf = Pdf::loadView('pkm.lhpp.pdf', [
@@ -324,16 +354,23 @@ class OrderTrackingController extends Controller
                 'materialItems' => collect($lhpp->parentLhppBast->material_items ?? []),
                 'serviceItems' => collect($lhpp->parentLhppBast->service_items ?? []),
             ])->setPaper('a4', 'portrait')->output();
+            $terminOneAttachmentPdf = $this->bastPdfAttachmentService->pdfOutput($lhpp->parentLhppBast);
         }
 
         if (! $attachedHpp) {
-            $pdfOutput = $terminOnePdf
-                ? $this->mergePdfOutputs([$bastPdf, $terminOnePdf])
+            $pdfOutputs = array_filter([
+                $bastPdf,
+                $attachmentPdf,
+                $terminOnePdf,
+                $terminOneAttachmentPdf,
+            ]);
+            $pdfOutput = count($pdfOutputs) > 1
+                ? $this->mergePdfOutputs($pdfOutputs)
                 : $bastPdf;
 
             return response($pdfOutput, Response::HTTP_OK, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => sprintf('inline; filename="%s"', 'bast-'.$terminSlug.'-'.$order->nomor_order.'.pdf'),
+                'Content-Disposition' => sprintf('inline; filename="%s"', $generatedFilename),
             ]);
         }
 
@@ -341,11 +378,17 @@ class OrderTrackingController extends Controller
             'hpp' => $attachedHpp,
         ])->setPaper('a4', 'landscape')->output();
 
-        $mergedPdf = $this->mergePdfOutputs(array_filter([$bastPdf, $terminOnePdf, $hppPdf]));
+        $mergedPdf = $this->mergePdfOutputs(array_filter([
+            $bastPdf,
+            $attachmentPdf,
+            $terminOnePdf,
+            $terminOneAttachmentPdf,
+            $hppPdf,
+        ]));
 
         return response($mergedPdf, Response::HTTP_OK, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => sprintf('inline; filename="%s"', 'bast-'.$terminSlug.'-'.$order->nomor_order.'.pdf'),
+            'Content-Disposition' => sprintf('inline; filename="%s"', $generatedFilename),
         ]);
     }
 
@@ -459,8 +502,10 @@ class OrderTrackingController extends Controller
             'budgetVerification',
             'purchaseOrder',
             'orderWorkshop',
+            'workPackages.assignments.pic',
             'latestQualityControlReport.files',
             'latestQualityControlReport.signatures.signer:id,name,email,nomor_hp',
+            'workshopHandover',
             'lhppBasts.lpjPpl',
             'lhppBasts.garansi',
             'lhppBasts.terminTwo.signatures.signer:id,name,email,nomor_hp',
@@ -542,10 +587,33 @@ class OrderTrackingController extends Controller
         $qualityControlDocument = $this->resolveQualityControlDocumentLink($order);
         $initialWorkApproval = $this->resolveInitialWorkApprovalShareInfo($order->initialWork);
         $hppApproval = $this->resolveHppApprovalShareInfo($order->latestHpp);
-        $bastTerminOneApproval = $this->resolveBastApprovalShareInfo($terminOne, 'BAST Termin 1');
+        $bastTerminOneLabel = BastDisplayLabel::bastLabel('termin_1', $garansi?->garansi_months, false);
+        $bastTerminOneApproval = $this->resolveBastApprovalShareInfo($terminOne, $bastTerminOneLabel);
         $bastTerminTwoApproval = $this->resolveBastApprovalShareInfo($terminTwo, 'BAST Termin 2');
         $qualityControlApproval = $this->resolveQualityControlApprovalShareInfo($order->latestQualityControlReport);
         $workshopInfo = $this->buildWorkshopTimelineInfoPayload($order, $workshopTask);
+        $workshopHandover = $order->workshopHandover;
+        $legacyWorkshopCompleted = $order->orderWorkshop?->legacyCompleted() ?? false;
+        $workshopHandoverPdfUrl = $workshopHandover !== null
+            && (int) auth()->id() === (int) $workshopHandover->recipient_user_id
+            ? route('user.orders.workshop-handover.pdf', $order)
+            : null;
+        $workshopHandoverLabel = match (true) {
+            $workshopHandover?->status === WorkshopHandover::STATUS_COMPLETED => 'Serah Terima Selesai',
+            $workshopHandover?->status === WorkshopHandover::STATUS_WAITING_USER_SIGNATURE => 'Menunggu Tanda Tangan Manager User',
+            $legacyWorkshopCompleted => 'Selesai (Data Legacy)',
+            default => $order->orderWorkshop?->progress_status === OrderWorkshop::PROGRESS_DONE
+                ? 'Menunggu Serah Terima'
+                : 'Belum siap Serah Terima',
+        };
+        $workshopHandoverInfo = $this->buildTimelineInfoPayload('Serah Terima', [
+            ['label' => 'Status', 'value' => $workshopHandoverLabel],
+            ['label' => 'Nomor Dokumen', 'value' => $workshopHandover?->document_no ?: '-'],
+            ['label' => 'Manager User', 'value' => $workshopHandover?->recipient_name_snapshot ?: '-'],
+            ['label' => $legacyWorkshopCompleted ? 'Tanggal Penandaan Legacy' : 'Tanggal Serah Terima', 'value' => $workshopHandover?->handed_over_at?->format('d/m/Y H:i')
+                ?: $order->orderWorkshop?->legacy_completed_at?->format('d/m/Y H:i')
+                ?: '-'],
+        ], $workshopHandover?->isCompleted() || $legacyWorkshopCompleted ? 'done' : 'waiting');
         $workshopTimelineItem = [
             'label' => 'Pekerjaan Bengkel',
             'value' => $this->resolveWorkshopTimelineValue($order),
@@ -609,6 +677,15 @@ class OrderTrackingController extends Controller
                 'tone' => 'emerald',
             ],
             [
+                'key' => 'workshop_handover',
+                'title' => 'Serah Terima Bengkel',
+                'label' => $workshopHandover?->document_no ?: 'Serah Terima Bengkel',
+                'url' => $workshopHandoverPdfUrl,
+                'preview_type' => 'pdf',
+                'icon' => 'handshake',
+                'tone' => 'emerald',
+            ],
+            [
                 'key' => 'purchase_order',
                 'title' => 'Dokumen PO',
                 'label' => $order->purchaseOrder?->purchase_order_number ? 'PO : '.$order->purchaseOrder->purchase_order_number : 'Dokumen PO',
@@ -619,8 +696,8 @@ class OrderTrackingController extends Controller
             ],
             [
                 'key' => 'bast_termin_1',
-                'title' => 'BAST Termin 1',
-                'label' => 'BAST Termin 1',
+                'title' => $bastTerminOneLabel,
+                'label' => $bastTerminOneLabel,
                 'url' => $terminOne ? route('user.orders.bast.pdf', ['order' => $order, 'termin' => 'termin-1']) : null,
                 'preview_type' => 'pdf',
                 'icon' => 'file-badge',
@@ -637,8 +714,8 @@ class OrderTrackingController extends Controller
             ],
             [
                 'key' => 'lpj_termin_1',
-                'title' => 'LPJ Termin 1',
-                'label' => $lpjPpl?->lpj_number_termin1 ?: 'LPJ Termin 1',
+                'title' => BastDisplayLabel::documentLabel('lpj', 'termin_1', $garansi?->garansi_months),
+                'label' => $lpjPpl?->lpj_number_termin1 ?: BastDisplayLabel::documentLabel('lpj', 'termin_1', $garansi?->garansi_months),
                 'url' => filled($lpjPpl?->lpj_number_termin1) ? route('user.orders.laporan.preview', ['order' => $order, 'kind' => 'lpj', 'termin' => 1]) : null,
                 'preview_type' => $this->detectPreviewTypeFromFilename($lpjPpl?->lpj_document_path_termin1),
                 'icon' => 'file-chart-column',
@@ -646,8 +723,8 @@ class OrderTrackingController extends Controller
             ],
             [
                 'key' => 'ppl_termin_1',
-                'title' => 'PPL Termin 1',
-                'label' => $lpjPpl?->ppl_number_termin1 ?: 'PPL Termin 1',
+                'title' => BastDisplayLabel::documentLabel('ppl', 'termin_1', $garansi?->garansi_months),
+                'label' => $lpjPpl?->ppl_number_termin1 ?: BastDisplayLabel::documentLabel('ppl', 'termin_1', $garansi?->garansi_months),
                 'url' => filled($lpjPpl?->ppl_number_termin1) ? route('user.orders.laporan.preview', ['order' => $order, 'kind' => 'ppl', 'termin' => 1]) : null,
                 'preview_type' => $this->detectPreviewTypeFromFilename($lpjPpl?->ppl_document_path_termin1),
                 'icon' => 'file-bar-chart-2',
@@ -683,7 +760,7 @@ class OrderTrackingController extends Controller
         if ($isWorkshopOnly) {
             $documentPreviewItems = array_values(array_filter(
                 $documentPreviewItems,
-                fn (array $item): bool => in_array($item['key'], ['abnormalitas', 'gambar_teknik', 'scope_of_work', 'quality_control'], true),
+                fn (array $item): bool => in_array($item['key'], ['abnormalitas', 'gambar_teknik', 'scope_of_work', 'quality_control', 'workshop_handover'], true),
             ));
         }
 
@@ -720,15 +797,20 @@ class OrderTrackingController extends Controller
                     'label' => 'Status',
                     'value' => $order->catatan_status?->label() ?? 'Pending',
                     'tone' => $order->catatan_status && $order->catatan_status !== OrderUserNoteStatus::Pending ? 'done' : 'waiting',
-                    'approval' => $initialWorkApproval,
                 ],
                 $workshopTimelineItem,
-                [
+                ...($order->latestQualityControlReport ? [[
                     'label' => 'Quality Control',
-                    'value' => $qualityControlApproval['label'] ?? $this->resolveWorkshopTimelineValue($order),
+                    'value' => $qualityControlApproval['label'] ?? 'Quality Control berjalan',
                     'detail' => $qualityControlApproval['timeline_detail'] ?? null,
-                    'tone' => $this->resolveWorkshopPhaseTone($order) === 'emerald' ? 'done' : 'waiting',
+                    'tone' => ($qualityControlApproval['state'] ?? null) === 'completed' ? 'done' : 'waiting',
                     'approval' => $qualityControlApproval,
+                ]] : []),
+                [
+                    'label' => 'Serah Terima',
+                    'value' => $workshopHandoverLabel,
+                    'tone' => $workshopHandover?->isCompleted() || $legacyWorkshopCompleted ? 'done' : 'waiting',
+                    'info' => $workshopHandoverInfo,
                 ],
             ]
             : [
@@ -767,17 +849,17 @@ class OrderTrackingController extends Controller
                     'info' => $purchaseOrderInfo,
                 ],
                 [
-                    'label' => 'BAST Termin 1',
+                    'label' => $bastTerminOneLabel,
                     'value' => $terminOne ? 'Siap dilihat' : 'Belum tersedia',
                     'tone' => $terminOne ? 'done' : 'waiting',
                     'approval' => $bastTerminOneApproval,
                 ],
-                [
+                ...(! $isWithoutWarranty ? [[
                     'label' => 'BAST Termin 2',
                     'value' => $terminTwo ? 'Siap dilihat' : 'Belum tersedia',
                     'tone' => $terminTwo ? 'done' : 'waiting',
                     'approval' => $bastTerminTwoApproval,
-                ],
+                ]] : []),
                 [
                     'label' => 'Garansi',
                     'value' => $garansi ? sprintf('%s bulan', (int) $garansi->garansi_months) : 'Belum tersedia',
@@ -802,19 +884,18 @@ class OrderTrackingController extends Controller
             'progress' => $progress,
             'timeline' => $timeline,
             'is_workshop_only' => $isWorkshopOnly,
+            'is_workshop_routed' => $this->isWorkshopRouted($order),
             'workshop' => [
-                'status' => $this->resolveWorkshopPhase($order),
+                'status' => $this->resolveWorkshopTimelineValue($order),
                 'task_name' => $workshopTask?->job_name ?: $order->nama_pekerjaan,
                 'regu' => $workshopTask?->catatan ?: $order->catatan,
                 'pics' => $this->resolveBengkelTaskPicAssignments($workshopTask),
-                'konfirmasi_anggaran' => $order->orderWorkshop?->konfirmasi_anggaran,
-                'status_anggaran' => $order->orderWorkshop?->status_anggaran,
-                'status_material' => $order->orderWorkshop?->status_material,
-                'keterangan_konfirmasi' => $order->orderWorkshop?->keterangan_konfirmasi,
-                'keterangan_anggaran' => $order->orderWorkshop?->keterangan_anggaran,
-                'keterangan_material' => $order->orderWorkshop?->keterangan_material,
+                'preparation_status' => $order->orderWorkshop?->preparation_status,
+                'preparation_label' => $order->orderWorkshop?->preparationLabel() ?? 'Belum Memilih Persiapan',
+                'preparation_note' => $order->orderWorkshop?->preparation_note,
                 'keterangan_progress' => $order->orderWorkshop?->keterangan_progress,
                 'catatan' => $order->orderWorkshop?->catatan ?: $order->catatan,
+                'packages' => $this->mapWorkshopPackages($order),
             ],
             'quality_control' => [
                 'approval' => $qualityControlApproval,
@@ -825,6 +906,7 @@ class OrderTrackingController extends Controller
                 'scope_of_work' => $order->scopeOfWork ? route('user.orders.scope-of-work.pdf', $order) : null,
                 'initial_work' => $order->initialWork ? route('user.orders.initial-work.pdf', $order) : null,
                 'quality_control' => $qualityControlDocument,
+                'workshop_handover' => $workshopHandoverPdfUrl,
                 'hpp' => $hppDocument ? $hppDocument['url'] : null,
                 'purchase_order' => filled($order->purchaseOrder?->po_document_path) ? route('user.orders.purchase-order.document', $order) : null,
                 'bast_termin_1' => $terminOne ? route('user.orders.bast.pdf', ['order' => $order, 'termin' => 'termin-1']) : null,
@@ -959,29 +1041,28 @@ class OrderTrackingController extends Controller
             return null;
         }
 
-        $this->qualityControlSignatureService->ensureSignatureChain($report);
         $report->loadMissing('signatures');
-        $report->refresh()->loadMissing('signatures');
 
-        $makerSignature = collect($report->payload['signature'] ?? []);
-        $makerName = trim((string) ($makerSignature->get('signer_name') ?: $makerSignature->get('name')));
-        $makerSignedAt = $makerSignature->get('signed_at');
-        $makerSigned = filled($makerSignature->get('signature_data'))
-            || filled($makerSignedAt)
-            || filled($makerName);
+        $makerSignature = $report->makerSignature();
+        $makerName = trim((string) ($makerSignature['signer_name'] ?? ''));
+        $makerSignedAt = $makerSignature['signed_at'] ?? null;
+        $makerSigned = $report->status === QualityControlReport::STATUS_SUBMITTED
+            && $report->hasValidMakerSignature();
 
         $approvalSignatures = $report->signatures
+            ->whereIn('role_key', [
+                QualityControlSignature::ROLE_WORKSHOP_MANAGER,
+                QualityControlSignature::ROLE_USER_MANAGER,
+            ])
             ->sortBy('step_order')
             ->values();
+        $signaturesByRole = $approvalSignatures->keyBy('role_key');
         $activeSignature = $approvalSignatures
             ->first(fn (QualityControlSignature $signature): bool => $signature->isPending());
         $missingSignature = $approvalSignatures
             ->firstWhere('status', QualityControlSignature::STATUS_MISSING);
-        $completedSteps = ($makerSigned ? 1 : 0)
-            + $approvalSignatures
-                ->filter(fn (QualityControlSignature $signature): bool => $signature->isSigned())
-                ->count();
-        $totalSteps = 1 + max(2, $approvalSignatures->count());
+        $completedSteps = $report->approvalSignedCount();
+        $totalSteps = $report->approvalStepCount();
         $signatureLinks = $approvalSignatures
             ->filter(
                 fn (QualityControlSignature $signature): bool => $signature->isPending()
@@ -1016,27 +1097,32 @@ class OrderTrackingController extends Controller
             'is_expired' => false,
         ];
         $steps = collect([
-            [
-                ...$makerStep,
-            ],
-        ])
-            ->merge($approvalSignatures->map(fn (QualityControlSignature $signature): array => [
-                'step' => ((int) $signature->step_order) + 1,
-                'role_label' => $signature->role_label,
-                'signer_name' => $signature->signer_name ?: '-',
-                'status' => $signature->status,
-                'status_label' => match ($signature->status) {
-                    QualityControlSignature::STATUS_SIGNED => 'Sudah TTD',
-                    QualityControlSignature::STATUS_PENDING => $signature->tokenExpired() ? 'Token kedaluwarsa' : 'Menunggu TTD',
-                    QualityControlSignature::STATUS_LOCKED => 'Belum aktif',
-                    QualityControlSignature::STATUS_MISSING => 'Signer belum lengkap',
-                    default => ucfirst((string) $signature->status),
-                },
-                'signed_at' => $signature->signed_at?->format('d/m/Y H:i'),
-                'link' => $signature->approvalUrl(),
-            ]))
-            ->values()
-            ->all();
+            $makerStep,
+            ...collect([
+                [QualityControlSignature::ROLE_WORKSHOP_MANAGER, 'Manager Workshop'],
+                [QualityControlSignature::ROLE_USER_MANAGER, 'Manager User'],
+            ])->map(function (array $role) use ($signaturesByRole): array {
+                $signature = $signaturesByRole->get($role[0]);
+
+                return [
+                    'step' => $role[0] === QualityControlSignature::ROLE_WORKSHOP_MANAGER ? 2 : 3,
+                    'role_label' => $signature?->displayRoleLabel() ?: $role[1],
+                    'signer_name' => $signature?->signer_name ?: '-',
+                    'status' => $signature?->status ?: QualityControlSignature::STATUS_MISSING,
+                    'status_label' => ! $signature
+                        ? 'Signer belum lengkap'
+                        : match ($signature->status) {
+                            QualityControlSignature::STATUS_SIGNED => 'Sudah TTD',
+                            QualityControlSignature::STATUS_PENDING => $signature->tokenExpired() ? 'Token kedaluwarsa' : 'Menunggu TTD',
+                            QualityControlSignature::STATUS_LOCKED => 'Belum aktif',
+                            QualityControlSignature::STATUS_MISSING => 'Signer belum lengkap',
+                            default => ucfirst((string) $signature->status),
+                        },
+                    'signed_at' => $signature?->signed_at?->format('d/m/Y H:i'),
+                    'link' => $signature?->approvalUrl(),
+                ];
+            })->all(),
+        ])->values()->all();
 
         $isCompleted = $makerSigned && $report->approvalCompleted();
         $state = match (true) {
@@ -1173,55 +1259,55 @@ class OrderTrackingController extends Controller
     private function buildWorkshopTimelineInfoPayload(Order $order, ?BengkelTask $workshopTask): array
     {
         $workshop = $order->orderWorkshop;
-        $konfirmasi = $workshop?->konfirmasi_anggaran;
-        $isMaterialReady = $konfirmasi === OrderWorkshop::KONFIRMASI_MATERIAL_READY;
-        $isMaterialNotReady = $konfirmasi === OrderWorkshop::KONFIRMASI_MATERIAL_NOT_READY;
-
-        $budgetTransferStatus = match (true) {
-            $isMaterialNotReady => $workshop?->status_anggaran ?: 'Belum dipilih',
-            $isMaterialReady => 'Tidak berlaku',
-            default => 'Menunggu konfirmasi material',
-        };
-        $materialStatus = match (true) {
-            $isMaterialReady => $workshop?->status_material ?: 'Belum diisi',
-            $isMaterialNotReady => 'Tidak berlaku karena material belum ready',
-            default => 'Menunggu konfirmasi material',
-        };
-
+        $preparationLabel = $workshop?->preparationLabel() ?? 'Belum Memilih Persiapan';
         $progressLabel = $this->resolveWorkshopTimelineValue($order);
+        $packages = $this->mapWorkshopPackages($order);
         $summary = match (true) {
             $workshop?->progress_status === OrderWorkshop::PROGRESS_DONE => 'Pekerjaan bengkel sudah selesai dan siap masuk tahap berikutnya.',
-            $isMaterialNotReady && $workshop?->status_anggaran === OrderWorkshop::STATUS_ANGGARAN_COMPLETE_TRANSFER => 'Material belum ready, tetapi proses transfer sudah selesai.',
-            $isMaterialNotReady && $workshop?->status_anggaran === OrderWorkshop::STATUS_ANGGARAN_WAITING_BUDGET => 'Material belum ready dan masih menunggu budget.',
-            $isMaterialReady => 'Material sudah ready untuk diproses bengkel.',
-            default => 'Status bengkel masih menunggu update dari admin workshop.',
+            $workshop?->preparationCompleted() => 'Persiapan Order selesai; status pekerjaan mengikuti progress bengkel.',
+            default => $preparationLabel,
         };
-
-        $workers = $this->resolveBengkelTaskPicAssignments($workshopTask);
-        return [
-            ...$this->buildTimelineInfoPayload('Pekerjaan Bengkel', [
-            ['label' => 'Konfirmasi Anggaran', 'value' => $konfirmasi ?: 'Belum dikonfirmasi'],
-            ['label' => 'Budget / Transfer', 'value' => $budgetTransferStatus],
-            ['label' => 'Status Material', 'value' => $materialStatus],
+        $workers = $packages === [] ? $this->resolveBengkelTaskPicAssignments($workshopTask) : [];
+        $rows = [
+            ['label' => 'Persiapan Order', 'value' => $preparationLabel],
             ['label' => 'Progress Pekerjaan', 'value' => $progressLabel],
             ['label' => 'Regu', 'value' => $workshopTask?->catatan ?: $order->catatan ?: '-'],
-            ['label' => 'Dikerjakan Oleh', 'value' => $workers !== [] ? count($workers).' PIC' : 'Belum ada PIC'],
-            ['label' => 'Catatan Konfirmasi', 'value' => $workshop?->keterangan_konfirmasi ?: '-'],
-            ['label' => 'Catatan Material', 'value' => $workshop?->keterangan_material ?: '-'],
+            ['label' => 'Catatan Persiapan', 'value' => $workshop?->preparation_note ?: '-'],
             ['label' => 'Catatan Progress', 'value' => $workshop?->keterangan_progress ?: '-'],
-            ], $this->resolveWorkshopTimelineTone($order)),
+        ];
+
+        if ($packages === []) {
+            array_splice($rows, 3, 0, [[
+                'label' => 'Dikerjakan Oleh',
+                'value' => $workers !== [] ? count($workers).' PIC' : 'Belum ada PIC',
+            ]]);
+        }
+
+        return [
+            ...$this->buildTimelineInfoPayload('Pekerjaan Bengkel', $rows, $this->resolveWorkshopTimelineTone($order)),
             'headline' => $progressLabel,
             'summary' => $summary,
-            'badge' => $konfirmasi ?: 'Belum dikonfirmasi',
+            'badge' => $preparationLabel,
             'workers' => $workers,
+            'packages' => $packages,
         ];
     }
 
     private function resolveWorkshopTimelineValue(Order $order): string
     {
-        return $order->orderWorkshop?->progress_status
+        $workshop = $order->orderWorkshop;
+
+        if ($workshop?->progress_status === OrderWorkshop::PROGRESS_DONE) {
+            return 'Pekerjaan Selesai';
+        }
+
+        if (! $workshop?->preparationCompleted()) {
+            return $workshop?->preparationLabel() ?? 'Belum Memilih Persiapan';
+        }
+
+        return $workshop->progress_status
             ? $this->resolveWorkshopPhase($order)
-            : 'Pending';
+            : $workshop->preparationLabel();
     }
 
     private function resolveWorkshopTimelineTone(Order $order): string
@@ -1245,12 +1331,14 @@ class OrderTrackingController extends Controller
         $roleLabel = method_exists($signature, 'displayRoleLabel')
             ? $signature->displayRoleLabel()
             : (string) ($signature->role_label ?? '-');
-        $signerName = (string) (
-            $signature->signer_name_snapshot
-            ?? $signature->signer_name
-            ?? $signature->signer?->name
-            ?? '-'
-        );
+        $signerName = $signature instanceof HppSignature
+            ? $signature->displaySignerName()
+            : (string) (
+                $signature->signer_name_snapshot
+                ?? $signature->signer_name
+                ?? $signature->signer?->name
+                ?? '-'
+            );
 
         return [
             'step' => ((int) ($signature->step_order ?? 0)) + $stepOffset,
@@ -1444,15 +1532,76 @@ class OrderTrackingController extends Controller
             ->all();
     }
 
+    /**
+     * @return array<int, array{name: string, pics: array<int, array{name: string, initials: string, avatar_url: ?string, avatar_position: string}>}>
+     */
+    private function mapWorkshopPackages(Order $order): array
+    {
+        if (! $this->isWorkshopRouted($order)) {
+            return [];
+        }
+
+        return $order->workPackages
+            ->sortBy('sequence')
+            ->map(function (WorkshopWorkPackage $package): array {
+                return [
+                    'name' => $package->job_name,
+                    'pics' => $package->assignments
+                        ->map(function ($assignment): array {
+                            $name = (string) ($assignment->pic_name_snapshot ?: 'PIC Bengkel');
+
+                            return [
+                                'name' => $name,
+                                'initials' => collect(explode(' ', $name))
+                                    ->filter()
+                                    ->take(2)
+                                    ->map(fn ($part): string => mb_strtoupper(mb_substr($part, 0, 1)))
+                                    ->implode('') ?: '?',
+                                'avatar_url' => $assignment->pic?->avatar_url,
+                                'avatar_position' => sprintf(
+                                    '%d%% %d%%',
+                                    (int) ($assignment->avatar_position_x ?? 50),
+                                    (int) ($assignment->avatar_position_y ?? 50),
+                                ),
+                            ];
+                        })
+                        ->values()
+                        ->all(),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
     private function resolveWorkshopPhase(Order $order): string
     {
+        $readiness = app(WorkshopReadiness::class)->resolve($order->orderWorkshop);
+
+        if (! $readiness['can_advance']) {
+            return $readiness['label'];
+        }
+
         $progressStatus = $order->orderWorkshop?->progress_status;
+
+        if ($progressStatus === OrderWorkshop::PROGRESS_QUALITY_CONTROL) {
+            $report = $order->latestQualityControlReport;
+
+            if ($report?->hasApprovalStarted() && ! $report->approvalCompleted()) {
+                return 'Menunggu Approval QC';
+            }
+
+            return 'Quality Control';
+        }
+
+        if ($progressStatus === OrderWorkshop::PROGRESS_DONE) {
+            return 'Pekerjaan Selesai – Menunggu Serah Terima';
+        }
 
         if ($progressStatus) {
             return OrderWorkshop::progressOptions()[$progressStatus] ?? ucfirst(str_replace('_', ' ', $progressStatus));
         }
 
-        return 'Pekerjaan bengkel diproses';
+        return $order->orderWorkshop?->preparationLabel() ?? 'Belum Memilih Persiapan';
     }
 
     private function resolveWorkshopPhaseTone(Order $order): string
@@ -1496,11 +1645,12 @@ class OrderTrackingController extends Controller
     {
         $terminOne = $order->lhppBasts->firstWhere('termin_type', 'termin_1');
         $terminTwo = $order->lhppBasts->firstWhere('termin_type', 'termin_2') ?: $terminOne?->terminTwo;
-        $terminTwo = (int) ($terminOne?->garansi?->garansi_months ?? -1) === 0 ? null : $terminTwo;
+        $garansiMonths = $terminOne?->garansi?->garansi_months;
+        $terminTwo = BastDisplayLabel::isWithoutWarranty($garansiMonths) ? null : $terminTwo;
 
         return match (true) {
             $terminTwo !== null => 'Termin 2 berjalan',
-            $terminOne !== null => 'Termin 1 berjalan',
+            $terminOne !== null => BastDisplayLabel::isWithoutWarranty($garansiMonths) ? 'BAST berjalan' : 'Termin 1 berjalan',
             filled($order->purchaseOrder?->purchase_order_number) => 'PO tersedia',
             $order->budgetVerification !== null => 'Verifikasi anggaran',
             $order->latestHpp !== null => 'HPP tersedia',

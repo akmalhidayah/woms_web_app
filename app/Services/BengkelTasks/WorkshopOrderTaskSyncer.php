@@ -9,6 +9,30 @@ use App\Models\OrderWorkshop;
 
 class WorkshopOrderTaskSyncer
 {
+    public function ensureWorkshopLifecycle(Order $order): ?OrderWorkshop
+    {
+        $status = $order->catatan_status instanceof OrderUserNoteStatus
+            ? $order->catatan_status->value
+            : (string) $order->catatan_status;
+
+        if (! in_array($status, [
+            OrderUserNoteStatus::ApprovedWorkshop->value,
+            OrderUserNoteStatus::ApprovedWorkshopJasa->value,
+        ], true)) {
+            return null;
+        }
+
+        $workshop = $order->orderWorkshop()->firstOrCreate([], [
+            'progress_status' => OrderWorkshop::PROGRESS_MENUNGGU_JADWAL,
+            'started_at' => null,
+            'catatan' => $order->catatan,
+        ]);
+
+        $this->syncOrder($order->fresh('orderWorkshop') ?: $order, $workshop);
+
+        return $workshop;
+    }
+
     public function syncOpenWorkshopOrders(): void
     {
         Order::query()
@@ -52,7 +76,7 @@ class WorkshopOrderTaskSyncer
         $task->forceFill([
             'order_id' => $order->id,
             'job_name' => $jobName !== '' ? $jobName : ($order->nomor_order ?: 'PEKERJAAN BENGKEL'),
-            'notification_number' => $order->nomor_order ?: $order->notifikasi,
+            'notification_number' => $order->notifikasi,
             'unit_work' => $order->unit_kerja,
             'seksi' => $order->seksi,
             'usage_plan_date' => $order->target_selesai ?: $order->tanggal_order,
@@ -74,18 +98,24 @@ class WorkshopOrderTaskSyncer
         return $task;
     }
 
+    public function syncProgress(Order $order, OrderWorkshop $workshop): void
+    {
+        $this->syncOrder($order->fresh('orderWorkshop') ?: $order, $workshop);
+
+        BengkelTask::query()
+            ->where('order_id', $order->id)
+            ->whereNull('archived_at')
+            ->update([
+                'progress_status' => $workshop->progress_status,
+                'is_completed' => $workshop->progress_status === OrderWorkshop::PROGRESS_DONE,
+                'pending_reason' => $workshop->progress_status === OrderWorkshop::PROGRESS_PENDING
+                    ? $workshop->keterangan_progress
+                    : null,
+            ]);
+    }
+
     private function resolveTask(Order $order): BengkelTask
     {
-        $archivedTask = BengkelTask::query()
-            ->where('order_id', $order->id)
-            ->whereNotNull('archived_at')
-            ->latest('id')
-            ->first();
-
-        if ($archivedTask) {
-            return $archivedTask;
-        }
-
         $activeTask = BengkelTask::query()
             ->where('order_id', $order->id)
             ->whereNull('archived_at')
@@ -116,22 +146,19 @@ class WorkshopOrderTaskSyncer
             }
         }
 
-        return new BengkelTask();
+        return new BengkelTask;
     }
 
     private function resolveRegu(Order $order, BengkelTask $task): string
     {
         $regu = trim((string) $order->catatan);
 
-        if (in_array($regu, [
-            'Regu Fabrikasi',
-            'Regu Bengkel (Refurbish)',
-        ], true)) {
+        if (in_array($regu, Order::workshopReguOptions(), true)) {
             return $regu;
         }
 
         $existingRegu = trim((string) $task->catatan);
 
-        return $existingRegu !== '' ? $existingRegu : 'Regu Fabrikasi';
+        return $existingRegu !== '' ? $existingRegu : Order::WORKSHOP_REGU_FABRIKASI;
     }
 }

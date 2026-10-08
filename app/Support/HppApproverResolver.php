@@ -27,14 +27,30 @@ class HppApproverResolver
      */
     public function resolveApprover(Hpp $hpp, string $flowRoleLabel): array
     {
+        $roleKey = $this->roleKeyFor($hpp, $flowRoleLabel);
+
+        return $this->resolveApproverByRoleKey($hpp, $roleKey, $flowRoleLabel);
+    }
+
+    /**
+     * @return array{
+     *     role_key: string,
+     *     role_label: string,
+     *     user: User,
+     *     position: string,
+     *     department: ?string,
+     *     unit: ?string,
+     *     section: ?string
+     * }
+     */
+    public function resolveApproverByRoleKey(Hpp $hpp, string $roleKey, string $flowRoleLabel): array
+    {
         $hpp->loadMissing([
             'order',
             'outlineAgreement.unitWork.department.generalManager',
             'outlineAgreement.unitWork.seniorManager',
             'outlineAgreement.unitWork.sections.manager',
         ]);
-
-        $roleKey = $this->roleKeyFor($hpp, $flowRoleLabel);
 
         return match ($roleKey) {
             'planner_control' => $this->resolvePlannerControl($roleKey, $flowRoleLabel),

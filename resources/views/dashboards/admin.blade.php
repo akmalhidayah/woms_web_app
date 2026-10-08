@@ -1,559 +1,188 @@
 <x-layouts.admin title="Dashboard Admin">
-    @php
-        $cleanNumber = function ($x) {
-            if ($x === null || $x === '') {
-                return 0;
-            }
+    <style>
+        html:has(.dashboard-header) {
+            overflow-y: auto !important;
+        }
 
-            if (is_int($x) || (is_string($x) && ctype_digit($x))) {
-                return (int) $x;
-            }
+        body:has(.dashboard-header) {
+            overflow-y: visible !important;
+        }
 
-            if (is_numeric($x)) {
-                return (int) round((float) $x);
-            }
+        .admin-compact {
+            border: 0 !important;
+            background: transparent !important;
+            padding: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+    </style>
 
-            $trim = trim((string) $x);
-            if (str_starts_with($trim, '[') && str_ends_with($trim, ']')) {
-                return 0;
-            }
+    @if ($activeDashboard === 'jasa')
+        @php
+            $headerRp = static function ($value): string {
+                $amount = is_numeric($value) ? (int) round((float) $value) : 0;
 
-            $onlyDigits = preg_replace('/[^\d\-]/', '', (string) $x);
-            return ($onlyDigits === '') ? 0 : (int) $onlyDigits;
-        };
-
-        $fmt = function ($v) use ($cleanNumber) {
-            if (is_array($v)) {
-                $sum = 0;
-                foreach ($v as $item) {
-                    $sum += $cleanNumber($item);
-                }
-                $v = $sum;
-            } else {
-                $v = $cleanNumber($v);
-            }
-
-            return number_format((int) $v, 0, ',', '.');
-        };
-
-        $rp = fn ($v) => 'Rp. ' . $fmt($v);
-
-        $outstandingNotifications = $outstandingNotifications ?? 0;
-        $pendingProcessJasa = $pendingProcessJasa ?? 0;
-        $approvalProcessHPPCount = $approvalProcessHPPCount ?? 0;
-        $documentOnProcessPOCount = $documentOnProcessPOCount ?? 0;
-
-        $documentOnProcessHPPAmount = $documentOnProcessHPPAmount ?? 0;
-        $approvalProcessHPPAmount = $approvalProcessHPPAmount ?? 0;
-        $documentOnProcessPOAmount = $documentOnProcessPOAmount ?? 0;
-        $documentPRPOAmount = $documentPRPOAmount ?? 0;
-        $urgentAmount = $urgentAmount ?? 0;
-        $totalAmount1 = $totalAmount1 ?? 0;
-        $totalAmount2 = $totalAmount2 ?? 0;
-        $totalSeluruhAmount = $totalSeluruhAmount ?? 0;
-        $totalKuotaKontrak = $totalKuotaKontrak ?? 0;
-        $sisaKuotaKontrak = $sisaKuotaKontrak ?? 0;
-        $targetPemeliharaan = $targetPemeliharaan ?? null;
-        $totalJasaPemeliharaan = $totalJasaPemeliharaan ?? 0;
-        $sisaBiayaPemeliharaan = $sisaBiayaPemeliharaan ?? 0;
-        $totalRealisasiBiaya = $totalRealisasiBiaya ?? 0;
-        $latestKuotaAnggaran = $latestKuotaAnggaran ?? null;
-        $periodeKontrak = $periodeKontrak ?? ['start' => null, 'end' => null, 'adendum' => null];
-
-        $processCards = [
-            [
-                'title' => 'Outstanding Order',
-                'value' => $outstandingNotifications,
-                'icon' => 'bell',
-                'wrap' => 'bg-[#5f9ae8]',
-                'iconColor' => 'text-[#2453d4]',
-                'valueColor' => 'text-[#2453d4]',
-                'url' => route('admin.hpp.index'),
-            ],
-            [
-                'title' => 'Document On Process (HPP)',
-                'value' => $pendingProcessJasa,
-                'icon' => 'hourglass',
-                'wrap' => 'bg-[#ffca19]',
-                'iconColor' => 'text-[#ab7700]',
-                'valueColor' => 'text-[#ab7700]',
-                'url' => route('admin.hpp.index', ['status' => \App\Models\Hpp::STATUS_IN_REVIEW]),
-            ],
-            [
-                'title' => 'Approval Process (HPP)',
-                'value' => $approvalProcessHPPCount,
-                'icon' => 'badge-check',
-                'wrap' => 'bg-[#49d97a]',
-                'iconColor' => 'text-[#0b8a57]',
-                'valueColor' => 'text-[#0b7d4f]',
-                'url' => route('admin.budget-verification.index'),
-            ],
-            [
-                'title' => 'PR/PO Process (HPP Approved)',
-                'value' => $documentOnProcessPOCount,
-                'icon' => 'alert-circle',
-                'wrap' => 'bg-[#fb6a6f]',
-                'iconColor' => 'text-[#a71922]',
-                'valueColor' => 'text-[#a71922]',
-                'url' => route('admin.purchase-order.index'),
-            ],
-        ];
-    @endphp
+                return 'Rp. '.number_format($amount, 0, ',', '.');
+            };
+            $headerPeriod = $periodeKontrak ?? ['start' => null, 'end' => null];
+            $contractPeriodLabel = collect([
+                $headerPeriod['start']
+                    ? strtoupper(\Carbon\Carbon::parse($headerPeriod['start'])->locale('id')->translatedFormat('M Y'))
+                    : null,
+                $headerPeriod['end']
+                    ? strtoupper(\Carbon\Carbon::parse($headerPeriod['end'])->locale('id')->translatedFormat('M Y'))
+                    : null,
+            ])->filter()->join(' - ');
+        @endphp
+    @endif
 
     <div class="space-y-3">
-        <section class="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-            <div class="flex items-center gap-2.5">
-                <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                    <i data-lucide="bar-chart-3" class="h-3.5 w-3.5"></i>
+        @if ($showActionSummaryBanner ?? false)
+            <section
+                x-data="{ visible: true }"
+                x-show="visible"
+                x-transition.opacity
+                data-admin-action-summary-banner
+                class="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 shadow-sm"
+            >
+                <button
+                    type="button"
+                    class="flex min-w-0 flex-1 items-start gap-3 text-left"
+                    @click="$dispatch('admin-action-center:open')"
+                    aria-label="Buka daftar pekerjaan yang perlu ditindaklanjuti"
+                >
+                    <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                        <i data-lucide="circle-alert" class="h-4 w-4"></i>
+                    </span>
+                    <span class="min-w-0">
+                        <span class="block text-xs font-bold text-amber-950">
+                            Ada {{ $adminActionSummaryCount }} pekerjaan yang perlu ditindaklanjuti.
+                        </span>
+                        @if (($adminActionSummary ?? []) !== [])
+                            <span class="mt-1 block text-[11px] leading-4 text-amber-800">
+                                {{ collect($adminActionSummary)->map(fn (array $item): string => $item['label'].': '.$item['count'])->join(' · ') }}
+                            </span>
+                        @endif
+                        <span class="mt-1 block text-[10px] font-semibold text-amber-700">Klik untuk melihat Perlu Tindakan.</span>
+                    </span>
+                </button>
+                <button
+                    type="button"
+                    class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-amber-700 transition hover:bg-amber-100"
+                    @click="visible = false"
+                    aria-label="Tutup ringkasan tindakan"
+                >
+                    <i data-lucide="x" class="h-4 w-4"></i>
+                </button>
+            </section>
+        @endif
+
+        <header class="dashboard-header grid gap-3 rounded-xl border border-slate-200 bg-white p-4 lg:sticky lg:top-[52px] lg:z-10 xl:grid-cols-[minmax(240px,1fr)_minmax(0,auto)] xl:items-stretch">
+            <div class="flex min-w-0 items-center gap-3">
+                <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                    <i data-lucide="layout-dashboard" class="h-5 w-5"></i>
                 </span>
-                <div>
-                    <h1 class="text-[1.1rem] font-bold leading-tight tracking-tight text-slate-900">Dashboard Admin</h1>
-                    <p class="text-[11px] text-slate-500">Ringkasan proses notifikasi, HPP, dan approval.</p>
-                </div>
-            </div>
-        </section>
-
-        <section class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-            <h2 class="mb-2 text-[13px] font-semibold text-slate-800">Order Process</h2>
-
-            <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:hidden">
-                @foreach ($processCards as $card)
-                    <a href="{{ $card['url'] }}" class="flex h-24 min-w-0 flex-col items-center justify-center rounded-lg px-2.5 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md {{ $card['wrap'] }}">
-                        <i data-lucide="{{ $card['icon'] }}" class="h-5 w-5 {{ $card['iconColor'] }}"></i>
-                        <div class="mt-1.5 text-[11px] font-medium leading-4 text-slate-800">{{ $card['title'] }}</div>
-                        <div class="text-lg font-bold {{ $card['valueColor'] }}">{{ $card['value'] }}</div>
-                    </a>
-                @endforeach
+                <form id="dashboardTypeForm" method="GET" action="{{ route('admin.dashboard') }}" class="relative inline-flex min-w-0 max-w-full items-center">
+                    <label for="dashboardTypeSelector" class="sr-only">Pilih dashboard</label>
+                    <select
+                        id="dashboardTypeSelector"
+                        name="dashboard"
+                        class="min-h-14 w-auto max-w-full appearance-none rounded-xl border border-transparent bg-transparent py-2 pl-3 pr-11 text-3xl font-extrabold tracking-[0.08em] text-slate-900 outline-none transition hover:border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 sm:text-4xl"
+                        aria-label="Pilih dashboard"
+                    >
+                        <option value="jasa" @selected($activeDashboard === 'jasa')>DASHBOARD BIAYA JASA</option>
+                        <option value="bengkel" @selected($activeDashboard === 'bengkel')>DASHBOARD PEKERJAAN BENGKEL</option>
+                    </select>
+                    <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500"></i>
+                </form>
             </div>
 
-            <div class="hidden gap-2.5 md:flex md:flex-nowrap">
-                @foreach ($processCards as $card)
-                    <a href="{{ $card['url'] }}" class="flex h-24 min-w-0 flex-1 flex-col items-center justify-center rounded-lg px-2.5 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md {{ $card['wrap'] }}">
-                        <i data-lucide="{{ $card['icon'] }}" class="h-5 w-5 {{ $card['iconColor'] }}"></i>
-                        <div class="mt-1.5 text-[11px] font-medium leading-4 text-slate-800">{{ $card['title'] }}</div>
-                        <div class="text-lg font-bold {{ $card['valueColor'] }}">{{ $card['value'] }}</div>
-                    </a>
-                @endforeach
-            </div>
-        </section>
+            @if ($activeDashboard === 'jasa')
+                <div id="dashboardJasaHeaderControls" class="grid min-w-0 gap-x-3 gap-y-2 sm:grid-cols-2 xl:grid-cols-[minmax(220px,320px)_110px_minmax(210px,auto)] xl:items-center">
+                    <form id="dashboardGlobalFilter" method="GET" action="{{ route('admin.dashboard') }}" class="contents">
+                        <label class="min-w-0">
+                            <span class="block text-[8px] font-bold uppercase tracking-[0.14em] text-slate-500">Outline Agreement</span>
+                            <select id="dashboardOutlineAgreement" name="oa_id" class="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-slate-700">
+                                @forelse ($dashboardOutlineAgreements ?? [] as $agreement)
+                                    <option value="{{ $agreement->id }}" @selected((int) $selectedOutlineAgreementId === (int) $agreement->id)>
+                                        {{ $agreement->nomor_oa }} — {{ $agreement->nama_kontrak }} — {{ \App\Models\OutlineAgreement::statusOptions()[$agreement->status] ?? ucfirst($agreement->status) }}
+                                    </option>
+                                @empty
+                                    <option value="">Belum ada Outline Agreement</option>
+                                @endforelse
+                            </select>
+                        </label>
+                        <label class="min-w-0">
+                            <span class="block text-[8px] font-bold uppercase tracking-[0.14em] text-slate-500">Tahun</span>
+                            <select id="dashboardYear" name="year" class="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-slate-700">
+                                <option value="all" @selected($selectedDashboardYear === null)>Semua Tahun</option>
+                                @foreach ($dashboardAvailableYears ?? [] as $year)
+                                    <option value="{{ $year }}" @selected((int) $selectedDashboardYear === (int) $year)>{{ $year }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <noscript><button type="submit">Terapkan</button></noscript>
+                    </form>
 
-        <section class="grid gap-3 xl:grid-cols-2">
-            <article class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                <div class="mb-2 flex items-center gap-2">
-                    <i data-lucide="badge-dollar-sign" class="h-4 w-4 text-emerald-500"></i>
-                    <h3 class="text-[13px] font-semibold text-slate-800">Potensi Biaya (Cost)</h3>
-                </div>
-
-                <div class="grid gap-2.5 md:grid-cols-3">
-                    <div class="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
-                        <div class="text-[11px] leading-4 text-slate-700">Document On Process (HPP)</div>
-                        <div class="mt-2 text-right text-xs font-semibold text-slate-900">{{ $rp($documentOnProcessHPPAmount) }}</div>
-                    </div>
-                    <div class="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
-                        <div class="text-[11px] leading-4 text-slate-700">Approval Process (HPP)</div>
-                        <div class="mt-2 text-right text-xs font-semibold text-slate-900">{{ $rp($approvalProcessHPPAmount) }}</div>
-                    </div>
-                    <div class="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
-                        <div class="text-[11px] leading-4 text-slate-700">PR/PO On Process</div>
-                        <div class="mt-2 text-right text-xs font-semibold text-slate-900">{{ $rp($documentOnProcessPOAmount) }}</div>
-                    </div>
-                </div>
-
-                <div class="mt-2 flex justify-end gap-2 text-[11px]">
-                    <span class="text-slate-500">Subtotal potensi</span>
-                    <span class="font-bold text-slate-900">{{ $rp($totalAmount1) }}</span>
-                </div>
-            </article>
-
-            <article class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                <div class="mb-2 flex items-center gap-2">
-                    <i data-lucide="pie-chart" class="h-4 w-4 text-blue-500"></i>
-                    <h3 class="text-[13px] font-semibold text-slate-800">Realisasi Biaya (LPJ)</h3>
-                </div>
-
-                <div class="grid gap-2.5 md:grid-cols-2">
-                    <div class="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
-                        <div class="text-[11px] leading-4 text-slate-700">Document PR/PO (LHPP)</div>
-                        <div class="mt-2 text-right text-xs font-semibold text-slate-900">{{ $rp($documentPRPOAmount) }}</div>
-                    </div>
-                    <div class="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
-                        <div class="text-[11px] leading-4 text-slate-700">Pekerjaan Urgent</div>
-                        <div class="mt-2 text-right text-xs font-semibold text-slate-900">{{ $rp($urgentAmount) }}</div>
-                    </div>
-                </div>
-
-                <div class="mt-2 flex justify-end gap-2 text-[11px]">
-                    <span class="text-slate-500">Subtotal realisasi</span>
-                    <span class="font-bold text-slate-900">{{ $rp($totalAmount2) }}</span>
-                </div>
-            </article>
-        </section>
-
-        <section class="dashboard-compact-grid grid gap-2 lg:grid-cols-2">
-            <article class="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-                <div class="mb-1.5 space-y-1.5">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="badge-info" class="h-3.5 w-3.5 text-slate-600"></i>
-                        <h3 class="text-[13px] font-semibold text-slate-800">Ringkasan Kuota Anggaran</h3>
-                    </div>
-                    <div class="flex flex-wrap items-end justify-between gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5">
-                        <div>
-                            <div class="text-[8px] font-semibold uppercase tracking-[0.14em] text-slate-500">Kuota Anggaran</div>
-                            <div class="text-[11px] font-bold leading-4 text-slate-900">Rp. {{ number_format($totalKuotaKontrak, 0, ',', '.') }}</div>
+                    <aside class="contract-budget-summary min-w-0 border-t-2 border-blue-600 pt-3 sm:col-span-2 xl:col-span-1 xl:border-l-2 xl:border-t-0 xl:py-1 xl:pl-4 xl:text-right">
+                        <div class="text-[9px] font-bold uppercase tracking-[0.16em] text-blue-700">Pagu Kontrak</div>
+                        <div class="mt-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                            {{ $contractPeriodLabel !== '' ? $contractPeriodLabel : '-' }}
                         </div>
-                        <div class="text-[8.5px] leading-3 text-slate-500">
-                            {{ $periodeKontrak['start'] ? \Carbon\Carbon::parse($periodeKontrak['start'])->format('d M Y') : '-' }}
-                            s/d
-                            {{ $periodeKontrak['end'] ? \Carbon\Carbon::parse($periodeKontrak['end'])->format('d M Y') : '-' }}
+                        <div class="mt-1 break-words text-lg font-extrabold leading-6 text-slate-950 sm:text-xl">
+                            {{ $headerRp($totalPaguKontrak) }}
                         </div>
-                    </div>
+                    </aside>
                 </div>
+            @else
+                <form id="dashboardWorkshopFilter" method="GET" action="{{ route('admin.dashboard') }}" class="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-[130px_170px] xl:items-center">
+                    <input type="hidden" name="dashboard" value="bengkel">
+                    <label class="min-w-0">
+                        <span class="block text-[8px] font-bold uppercase tracking-[0.14em] text-slate-500">Tahun</span>
+                        <select id="dashboardWorkshopYear" name="workshop_year" class="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-[10px] font-semibold text-slate-700">
+                            @foreach ($workshopDashboard['available_years'] as $year)
+                                <option value="{{ $year }}" @selected($workshopDashboard['filters']['year'] === $year)>{{ $year }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <label class="min-w-0">
+                        <span class="block text-[8px] font-bold uppercase tracking-[0.14em] text-slate-500">Bulan</span>
+                        <select id="dashboardWorkshopMonth" name="workshop_month" class="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-[10px] font-semibold text-slate-700">
+                            <option value="all" @selected($workshopDashboard['filters']['month'] === null)>Semua Bulan</option>
+                            @foreach ([1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'] as $month => $label)
+                                <option value="{{ $month }}" @selected($workshopDashboard['filters']['month'] === $month)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <noscript><button type="submit">Terapkan</button></noscript>
+                </form>
+            @endif
+        </header>
 
-                <div class="grid gap-1.5 sm:grid-cols-2">
-                    <div class="min-h-[76px] rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5">
-                        <div class="text-[11px] font-bold leading-5 text-blue-900">
-                            Potensi Biaya + Realisasi Biaya:
-                            <span class="text-slate-900">Rp. {{ number_format($totalSeluruhAmount, 0, ',', '.') }}</span>
-                        </div>
-                    </div>
-
-                    @php
-                        $kuotaKontrakActual = ($totalKuotaKontrak ?? 0) - ($totalSeluruhAmount ?? 0);
-                        $totalBiayaPemeliharaan = $cleanNumber($targetPemeliharaan);
-                        $sisaBiayaPemeliharaan = $cleanNumber($sisaBiayaPemeliharaan);
-                        $sisaBiayaPemeliharaanClasses = $sisaBiayaPemeliharaan < 0 ? 'text-rose-700' : 'text-slate-900';
-                    @endphp
-                    <div class="min-h-[76px] rounded-lg border border-sky-200 bg-sky-50 px-2 py-1.5">
-                        <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-sky-700">Kuota Anggaran Actual</div>
-                        <div class="mt-0.5 text-sm font-bold text-slate-900">Rp. {{ number_format($kuotaKontrakActual, 0, ',', '.') }}</div>
-                        <div class="mt-1 grid gap-0.5 text-[8.5px] leading-3 text-sky-700">
-                            <div>Kuota: Rp. {{ number_format($totalKuotaKontrak, 0, ',', '.') }}</div>
-                            <div>Potensi + Realisasi: Rp. {{ number_format($totalSeluruhAmount, 0, ',', '.') }}</div>
-                        </div>
-                    </div>
-
-                    <div class="min-h-[76px] rounded-lg border border-slate-200 bg-white px-2 py-1.5">
-                        <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-700">Total Biaya Pemeliharaan</div>
-                        <div class="mt-0.5 text-sm font-bold {{ $sisaBiayaPemeliharaanClasses }}">Rp. {{ number_format($sisaBiayaPemeliharaan, 0, ',', '.') }}</div>
-                        <div class="mt-1 grid gap-0.5 text-[9px] text-slate-500">
-                            <div class="flex items-center justify-between gap-3">
-                                <span>Target Biaya Pemeliharaan</span>
-                                <span class="font-semibold text-slate-800">Rp. {{ number_format($totalBiayaPemeliharaan, 0, ',', '.') }}</span>
-                            </div>
-                            <div class="flex items-center justify-between gap-3">
-                                <span>Total Jasa Pemeliharaan</span>
-                                <span class="font-semibold text-slate-800">Rp. {{ number_format($totalJasaPemeliharaan, 0, ',', '.') }}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="min-h-[76px] rounded-lg border border-yellow-200 bg-yellow-50 px-2 py-1.5">
-                        <div class="text-[9px] font-semibold uppercase tracking-[0.12em] text-yellow-700">Sisa Kuota Kontrak</div>
-                        <div class="mt-0.5 text-sm font-bold text-yellow-900">Rp. {{ number_format($sisaKuotaKontrak, 0, ',', '.') }}</div>
-                    </div>
-                </div>
-            </article>
-
-            <article class="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-                <div class="rounded-lg bg-emerald-100 px-2.5 py-1 text-center text-[10px] font-bold text-slate-900">
-                    Total Realisasi Biaya: Rp {{ number_format($totalRealisasiBiaya, 0, ',', '.') }}
-                </div>
-
-                <div class="mt-1.5 grid gap-2 text-[10px] text-slate-700 xl:grid-cols-2">
-                    <div>
-                        <p class="mb-1 text-[9px] text-slate-500">Sortir per rentang tahun.</p>
-                        <div class="grid gap-1.5 md:grid-cols-[1fr_auto_1fr] md:items-center">
-                            <div class="grid gap-1">
-                                <label for="startYear" class="text-[9px] text-slate-600">Dari Tahun</label>
-                                <select id="startYear" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] focus:border-blue-500 focus:outline-none">
-                                    <option value="" selected disabled>Pilih Tahun</option>
-                                </select>
-                            </div>
-                            <span class="hidden text-[9px] text-slate-600 md:block">sampai</span>
-                            <div class="grid gap-1">
-                                <label for="endYear" class="text-[9px] text-slate-600">Sampai Tahun</label>
-                                <select id="endYear" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] focus:border-blue-500 focus:outline-none">
-                                    <option value="" selected disabled>Pilih Tahun</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <p class="mb-1 text-[9px] text-slate-500">Sortir per rentang bulan.</p>
-                        <div class="grid gap-1.5 md:grid-cols-[1fr_auto_1fr] md:items-center">
-                            <div class="grid gap-1">
-                                <label for="startMonth" class="text-[9px] text-slate-600">Dari Bulan</label>
-                                <select id="startMonth" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] focus:border-blue-500 focus:outline-none">
-                                    <option value="" selected disabled>Pilih Bulan</option>
-                                </select>
-                            </div>
-                            <span class="hidden text-[9px] text-slate-600 md:block">sampai</span>
-                            <div class="grid gap-1">
-                                <label for="endMonth" class="text-[9px] text-slate-600">Sampai Bulan</label>
-                                <select id="endMonth" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] focus:border-blue-500 focus:outline-none">
-                                    <option value="" selected disabled>Pilih Bulan</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex items-end justify-start lg:col-span-2">
-                        <button id="applyFilters" class="rounded-md bg-blue-600 px-2.5 py-1.5 text-[10px] font-semibold text-white transition hover:bg-blue-700">
-                            Terapkan
-                        </button>
-                    </div>
-                </div>
-
-                <div class="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                        <div class="text-[11px] font-semibold text-slate-800">Grafik Realisasi Biaya</div>
-                        <div id="chartTotal" class="text-[11px] font-bold text-slate-600">Rp 0</div>
-                    </div>
-                    <div class="mt-1.5 h-28">
-                        <canvas id="realisasiBiayaPieChart" class="h-full w-full"></canvas>
-                    </div>
-                    <div id="chartEmptyState" class="hidden rounded-lg border border-dashed border-slate-300 bg-white px-3 py-4 text-center text-xs text-slate-500">
-                        Belum ada data realisasi biaya pada rentang ini.
-                    </div>
-                    <div id="chartLegend" class="mt-2 grid gap-1.5 text-[10px] text-slate-700 md:grid-cols-2"></div>
-                </div>
-            </article>
-        </section>
+        @if ($activeDashboard === 'bengkel')
+            @include('dashboards.admin.sections.pekerjaan-bengkel')
+        @else
+            @include('dashboards.admin.sections.biaya-jasa')
+        @endif
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    @if ($activeDashboard === 'bengkel')
+        @include('dashboards.admin.scripts.pekerjaan-bengkel')
+    @else
+        @include('dashboards.admin.scripts.biaya-jasa')
+    @endif
+
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const startYearSelect = document.getElementById('startYear');
-            const endYearSelect = document.getElementById('endYear');
-            const startMonthSelect = document.getElementById('startMonth');
-            const endMonthSelect = document.getElementById('endMonth');
-            const applyFiltersButton = document.getElementById('applyFilters');
-            const chartLegend = document.getElementById('chartLegend');
-            const chartTotal = document.getElementById('chartTotal');
-            const chartEmptyState = document.getElementById('chartEmptyState');
-            const chartCanvas = document.getElementById('realisasiBiayaPieChart');
-            const initialChartData = @json($realizationChartData ?? []);
-            const yearsEndpoint = @json(url('/admin/get-years'));
-            const chartEndpoint = @json(url('/admin/realisasi-biaya'));
-            const chartColors = {
-                normal: '#2563eb',
-                urgent: '#f97316',
-            };
-            const monthNames = {
-                1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'Mei', 6: 'Jun',
-                7: 'Jul', 8: 'Agu', 9: 'Sep', 10: 'Okt', 11: 'Nov', 12: 'Des',
-            };
+            const dashboardTypeSelector = document.getElementById('dashboardTypeSelector');
+            const dashboardTypeForm = document.getElementById('dashboardTypeForm');
+            const workshopFilterForm = document.getElementById('dashboardWorkshopFilter');
 
-            function fetchYears() {
-                fetch(yearsEndpoint)
-                    .then(response => response.json())
-                    .then(data => {
-                        startYearSelect.innerHTML = '<option value="" selected disabled>Pilih Tahun</option>';
-                        endYearSelect.innerHTML = '<option value="" selected disabled>Pilih Tahun</option>';
-                        data.forEach(year => {
-                            const option = `<option value="${year}">${year}</option>`;
-                            startYearSelect.innerHTML += option;
-                            endYearSelect.innerHTML += option;
-                        });
-
-                        loadSavedFilters();
-                    })
-                    .catch(error => console.error('Error fetching years:', error));
-            }
-
-            function loadMonths() {
-                const months = [
-                    { number: 1, name: 'Januari' }, { number: 2, name: 'Februari' }, { number: 3, name: 'Maret' },
-                    { number: 4, name: 'April' }, { number: 5, name: 'Mei' }, { number: 6, name: 'Juni' },
-                    { number: 7, name: 'Juli' }, { number: 8, name: 'Agustus' }, { number: 9, name: 'September' },
-                    { number: 10, name: 'Oktober' }, { number: 11, name: 'November' }, { number: 12, name: 'Desember' }
-                ];
-
-                [startMonthSelect, endMonthSelect].forEach(select => {
-                    select.innerHTML = '<option value="" selected disabled>Pilih Bulan</option>';
-                    months.forEach(month => {
-                        select.innerHTML += `<option value="${month.number}">${month.name}</option>`;
-                    });
-                });
-            }
-
-            function loadSavedFilters() {
-                const savedStartYear = localStorage.getItem('startYear');
-                const savedEndYear = localStorage.getItem('endYear');
-                const savedStartMonth = localStorage.getItem('startMonth');
-                const savedEndMonth = localStorage.getItem('endMonth');
-
-                if (savedStartYear) startYearSelect.value = savedStartYear;
-                if (savedEndYear) endYearSelect.value = savedEndYear;
-                if (savedStartMonth) startMonthSelect.value = savedStartMonth;
-                if (savedEndMonth) endMonthSelect.value = savedEndMonth;
-
-                if (savedStartYear && savedEndYear) {
-                    fetchData(savedStartYear, savedEndYear, savedStartMonth, savedEndMonth);
-                    return;
-                }
-
-                renderChart(initialChartData);
-            }
-
-            function fetchData(startYear, endYear, startMonth = null, endMonth = null) {
-                const queryParams = new URLSearchParams({
-                    startYear,
-                    endYear,
-                    ...(startMonth && { startMonth }),
-                    ...(endMonth && { endMonth })
-                }).toString();
-
-                fetch(`${chartEndpoint}?${queryParams}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (!Array.isArray(data)) throw new Error('Format data tidak valid.');
-                        renderChart(data);
-                    })
-                    .catch(error => {
-                        console.error('Error saat memproses data:', error);
-                        alert('Terjadi kesalahan saat mengambil data.');
-                    });
-            }
-
-            function renderChart(rows) {
-                const labels = rows.map(item => item.label || `${monthNames[item.month] || item.month} ${item.year}`);
-                const normalValues = rows.map(item => Number(item.normal_total || 0));
-                const urgentValues = rows.map(item => Number(item.urgent_total || 0));
-                const total = rows.reduce((sum, item) => sum + Number(item.total || 0), 0);
-
-                chartTotal.textContent = formatRupiah(total);
-                chartEmptyState.classList.toggle('hidden', rows.length > 0);
-                chartCanvas.classList.toggle('hidden', rows.length === 0);
-
-                if (window.realisasiBiayaChart) window.realisasiBiayaChart.destroy();
-
-                if (rows.length > 0) {
-                    window.realisasiBiayaChart = new Chart(chartCanvas, {
-                        type: 'bar',
-                        data: {
-                            labels,
-                            datasets: [
-                                {
-                                    label: 'Document PR/PO (LHPP)',
-                                    data: normalValues,
-                                    backgroundColor: chartColors.normal,
-                                    borderRadius: 8,
-                                },
-                                {
-                                    label: 'Pekerjaan Urgent',
-                                    data: urgentValues,
-                                    backgroundColor: chartColors.urgent,
-                                    borderRadius: 8,
-                                },
-                            ],
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            scales: {
-                                x: {
-                                    stacked: true,
-                                    grid: { display: false },
-                                },
-                                y: {
-                                    stacked: true,
-                                    beginAtZero: true,
-                                    ticks: {
-                                        callback: value => compactRupiah(value),
-                                    },
-                                },
-                            },
-                            plugins: {
-                                legend: {
-                                    display: false,
-                                },
-                                tooltip: {
-                                    callbacks: {
-                                        label: context => `${context.dataset.label}: ${formatRupiah(context.raw)}`,
-                                        footer: items => {
-                                            const index = items[0]?.dataIndex ?? 0;
-                                            return `Total: ${formatRupiah(rows[index]?.total || 0)}`;
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    });
-                }
-
-                updateLegend(rows);
-            }
-
-            function updateLegend(rows) {
-                chartLegend.innerHTML = '';
-
-                rows.forEach(item => {
-                    chartLegend.innerHTML += `
-                        <div class="rounded-lg border border-slate-200 bg-white px-2 py-1.5">
-                            <div class="flex items-center justify-between gap-2">
-                                <span class="font-semibold text-slate-700">${item.label || `${monthNames[item.month] || item.month} ${item.year}`}</span>
-                                <span class="font-bold text-slate-900">${formatRupiah(item.total || 0)}</span>
-                            </div>
-                            <div class="mt-1 grid gap-0.5 text-[10px] text-slate-500">
-                                <div class="flex items-center justify-between gap-2">
-                                    <span><span class="mr-1 inline-block h-2 w-2 rounded-full" style="background-color:${chartColors.normal}"></span>Document PR/PO</span>
-                                    <span>${formatRupiah(item.normal_total || 0)}</span>
-                                </div>
-                                <div class="flex items-center justify-between gap-2">
-                                    <span><span class="mr-1 inline-block h-2 w-2 rounded-full" style="background-color:${chartColors.urgent}"></span>Urgent</span>
-                                    <span>${formatRupiah(item.urgent_total || 0)}</span>
-                                </div>
-                            </div>
-                        </div>`;
-                });
-            }
-
-            function formatRupiah(value) {
-                return `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
-            }
-
-            function compactRupiah(value) {
-                const number = Number(value || 0);
-                if (number >= 1000000000) return `Rp ${(number / 1000000000).toLocaleString('id-ID')} M`;
-                if (number >= 1000000) return `Rp ${(number / 1000000).toLocaleString('id-ID')} jt`;
-                if (number >= 1000) return `Rp ${(number / 1000).toLocaleString('id-ID')} rb`;
-                return `Rp ${number.toLocaleString('id-ID')}`;
-            }
-
-            applyFiltersButton.addEventListener('click', function () {
-                const startYear = startYearSelect.value;
-                const endYear = endYearSelect.value;
-                const startMonth = startMonthSelect.value;
-                const endMonth = endMonthSelect.value;
-
-                if (!startYear || !endYear) {
-                    alert('Pilih rentang tahun terlebih dahulu!');
-                    return;
-                }
-
-                if (parseInt(startYear) > parseInt(endYear)) {
-                    alert('Tahun mulai tidak boleh lebih besar dari tahun akhir!');
-                    return;
-                }
-
-                if (startMonth && endMonth && parseInt(startMonth) > parseInt(endMonth)) {
-                    alert('Bulan mulai tidak boleh lebih besar dari bulan akhir!');
-                    return;
-                }
-
-                localStorage.setItem('startYear', startYear);
-                localStorage.setItem('endYear', endYear);
-                if (startMonth) localStorage.setItem('startMonth', startMonth);
-                if (endMonth) localStorage.setItem('endMonth', endMonth);
-
-                fetchData(startYear, endYear, startMonth, endMonth);
+            dashboardTypeSelector?.addEventListener('change', () => dashboardTypeForm?.submit());
+            workshopFilterForm?.querySelectorAll('select').forEach(select => {
+                select.addEventListener('change', () => workshopFilterForm.submit());
             });
-
-            fetchYears();
-            loadMonths();
         });
     </script>
 </x-layouts.admin>

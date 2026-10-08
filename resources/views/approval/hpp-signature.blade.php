@@ -18,6 +18,9 @@
         $saveLabel = $isInitialApproval ? 'Simpan Paraf' : 'Simpan Tanda Tangan';
         $canSign = $signature?->isPending() && ! $isExpired && ! $isRejected && ! $isDirops;
         $noteGroupLabel = $signature?->noteGroupLabel() ?? 'Catatan Approval';
+        $signatureIdentity = $signature
+            ? app(\App\Support\HppSignatureIdentityResolver::class)->resolve($signature)
+            : ['name' => 'N/A', 'position' => '-'];
         $statusLabel = match (true) {
             ! $signature => 'Token Tidak Valid',
             $isRejected => 'Dokumen Ditolak',
@@ -101,8 +104,8 @@
                         <div class="grid gap-3 lg:grid-cols-2 xl:grid-cols-5">
                             <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
                                 <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Penanda Tangan</div>
-                                <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $signature->signer_name_snapshot }}</div>
-                                <div class="mt-1 text-sm leading-5 text-slate-600">{{ $signature->acting_as_label ?: $signature->signer_position_snapshot }}</div>
+                                <div class="mt-2 break-words text-sm font-bold text-slate-900">{{ $signatureIdentity['name'] }}</div>
+                                <div class="mt-1 text-sm leading-5 text-slate-600">{{ $signatureIdentity['position'] }}</div>
                                 <span class="mt-3 inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ring-1 {{ $statusClasses }}">
                                     {{ $statusLabel }}
                                 </span>
@@ -216,7 +219,7 @@
                                             <div class="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left">
                                                 <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">{{ $noteGroupLabel }}</div>
                                                 <div class="mt-2 text-sm leading-6 text-slate-700">{{ $signature->approval_note }}</div>
-                                                <div class="mt-2 text-xs text-slate-500">oleh {{ $signature->signer_name_snapshot }}</div>
+                                                <div class="mt-2 text-xs text-slate-500">oleh {{ $signatureIdentity['name'] }}</div>
                                             </div>
                                         @endif
                                     </div>
@@ -235,7 +238,7 @@
                                             <div class="mt-4 w-full rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-left">
                                                 <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-500">{{ $noteGroupLabel }}</div>
                                                 <div class="mt-2 text-sm leading-6 text-slate-700">{{ $signature->approval_note }}</div>
-                                                <div class="mt-2 text-xs text-slate-500">oleh {{ $signature->signer_name_snapshot }}</div>
+                                                <div class="mt-2 text-xs text-slate-500">oleh {{ $signatureIdentity['name'] }}</div>
                                             </div>
                                         @endif
                                     </div>
@@ -303,7 +306,7 @@
                                                         Clear
                                                     </button>
                                                 </div>
-                                                <canvas id="signatureCanvas" width="620" height="260" class="relative z-10 h-48 w-full rounded-xl bg-transparent sm:h-56 xl:h-60"></canvas>
+                                                <canvas id="signatureCanvas" width="620" height="260" class="relative z-10 h-48 w-full touch-none rounded-xl bg-transparent sm:h-56 xl:h-60"></canvas>
                                                 <div id="signaturePadPlaceholder" class="pointer-events-none absolute inset-3 z-0 flex items-center justify-center rounded-xl text-center">
                                                     <div class="px-4 text-slate-400">
                                                         <i data-lucide="pen-line" class="mx-auto h-8 w-8 opacity-70"></i>
@@ -353,7 +356,8 @@
     @include('approval.partials.signature-pad-visuals')
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
+        (() => {
+            const initializePreview = () => {
             const previewConfig = {
                 hpp: {
                     title: 'Preview PDF HPP',
@@ -419,6 +423,10 @@
                 button.addEventListener('click', () => setActivePreview(button.dataset.previewTarget));
             });
 
+            };
+
+            const initializeSignaturePad = () => {
+
             @if ($canSign)
                 const canvas = document.getElementById('signatureCanvas');
                 const form = document.getElementById('signatureForm');
@@ -442,6 +450,9 @@
                     let lastPoint = null;
                     let strokePointCount = 0;
                     let strokeDistance = 0;
+                    let activePointerId = null;
+                    let resizeTimer = null;
+                    let resizePending = false;
 
                     const minimumStrokePoints = 8;
                     const minimumStrokeDistance = 40;
@@ -456,19 +467,53 @@
                     const resizeCanvas = () => {
                         const ratio = Math.max(window.devicePixelRatio || 1, 1);
                         const rect = canvas.getBoundingClientRect();
-                        const imageData = hasStroke ? canvas.toDataURL('image/png') : null;
+                        const targetWidth = Math.max(1, Math.round(rect.width * ratio));
+                        const targetHeight = Math.max(1, Math.round(rect.height * ratio));
 
-                        canvas.width = rect.width * ratio;
-                        canvas.height = rect.height * ratio;
+                        if (canvas.width === targetWidth && canvas.height === targetHeight) {
+                            return;
+                        }
+
+                        const snapshot = hasStroke ? document.createElement('canvas') : null;
+
+                        if (snapshot) {
+                            snapshot.width = canvas.width;
+                            snapshot.height = canvas.height;
+                            snapshot.getContext('2d')?.drawImage(canvas, 0, 0);
+                        }
+
+                        canvas.width = targetWidth;
+                        canvas.height = targetHeight;
                         context.setTransform(1, 0, 0, 1, 0, 0);
                         context.scale(ratio, ratio);
                         setupCanvasStyle();
 
-                        if (imageData) {
-                            const image = new Image();
-                            image.onload = () => context.drawImage(image, 0, 0, rect.width, rect.height);
-                            image.src = imageData;
+                        if (snapshot) {
+                            context.drawImage(
+                                snapshot,
+                                0,
+                                0,
+                                snapshot.width,
+                                snapshot.height,
+                                0,
+                                0,
+                                rect.width,
+                                rect.height,
+                            );
                         }
+                    };
+
+                    const scheduleCanvasResize = () => {
+                        resizePending = true;
+                        window.clearTimeout(resizeTimer);
+                        resizeTimer = window.setTimeout(() => {
+                            if (drawing) {
+                                return;
+                            }
+
+                            resizePending = false;
+                            resizeCanvas();
+                        }, 200);
                     };
 
                     const clearCanvas = () => {
@@ -515,17 +560,22 @@
 
                     const getPoint = (event) => {
                         const rect = canvas.getBoundingClientRect();
-                        const source = event.touches?.[0] || event;
 
                         return {
-                            x: source.clientX - rect.left,
-                            y: source.clientY - rect.top,
+                            x: event.clientX - rect.left,
+                            y: event.clientY - rect.top,
                         };
                     };
 
                     const startDrawing = (event) => {
+                        if (activePointerId !== null || (event.pointerType === 'mouse' && event.button !== 0)) {
+                            return;
+                        }
+
                         event.preventDefault();
                         drawing = true;
+                        activePointerId = event.pointerId;
+                        canvas.setPointerCapture?.(event.pointerId);
                         signatureVisuals?.active();
                         const point = getPoint(event);
                         lastPoint = point;
@@ -534,37 +584,55 @@
                     };
 
                     const draw = (event) => {
-                        if (!drawing) return;
+                        if (!drawing || event.pointerId !== activePointerId) {
+                            return;
+                        }
 
                         event.preventDefault();
-                        const point = getPoint(event);
-                        if (lastPoint) {
-                            strokeDistance += Math.hypot(point.x - lastPoint.x, point.y - lastPoint.y);
-                        }
-                        strokePointCount++;
-                        lastPoint = point;
-                        context.lineTo(point.x, point.y);
-                        context.stroke();
-                        hasStroke = true;
+                        const coalescedEvents = event.getCoalescedEvents?.();
+                        const pointerEvents = coalescedEvents?.length ? coalescedEvents : [event];
+
+                        pointerEvents.forEach((pointerEvent) => {
+                            const point = getPoint(pointerEvent);
+
+                            if (lastPoint) {
+                                strokeDistance += Math.hypot(point.x - lastPoint.x, point.y - lastPoint.y);
+                            }
+
+                            strokePointCount++;
+                            lastPoint = point;
+                            context.lineTo(point.x, point.y);
+                            context.stroke();
+                            hasStroke = true;
+                        });
                     };
 
-                    const stopDrawing = () => {
+                    const stopDrawing = (event) => {
+                        if (!drawing || event.pointerId !== activePointerId) {
+                            return;
+                        }
+
                         drawing = false;
+                        activePointerId = null;
                         lastPoint = null;
 
                         if (hasStroke) {
                             signatureVisuals?.completed();
                         }
+
+                        if (resizePending) {
+                            scheduleCanvasResize();
+                        }
                     };
 
                     resizeCanvas();
-                    window.addEventListener('resize', resizeCanvas);
-                    canvas.addEventListener('mousedown', startDrawing);
-                    canvas.addEventListener('mousemove', draw);
-                    window.addEventListener('mouseup', stopDrawing);
-                    canvas.addEventListener('touchstart', startDrawing, { passive: false });
-                    canvas.addEventListener('touchmove', draw, { passive: false });
-                    canvas.addEventListener('touchend', stopDrawing);
+                    window.addEventListener('resize', scheduleCanvasResize);
+                    window.addEventListener('orientationchange', scheduleCanvasResize);
+                    canvas.addEventListener('pointerdown', startDrawing);
+                    canvas.addEventListener('pointermove', draw);
+                    canvas.addEventListener('pointerup', stopDrawing);
+                    canvas.addEventListener('pointercancel', stopDrawing);
+                    canvas.addEventListener('lostpointercapture', stopDrawing);
 
                     clearButton?.addEventListener('click', () => {
                         clearCanvas();
@@ -665,7 +733,16 @@
                     });
                 }
             @endif
-        });
+            };
+
+            initializeSignaturePad();
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initializePreview, { once: true });
+            } else {
+                initializePreview();
+            }
+        })();
     </script>
 </body>
 </html>

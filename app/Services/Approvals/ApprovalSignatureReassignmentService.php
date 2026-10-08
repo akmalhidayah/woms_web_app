@@ -32,6 +32,7 @@ class ApprovalSignatureReassignmentService
                 ->firstOrFail();
 
             $this->assertReassignable($lockedSignature);
+            $this->assertNewSigner($lockedSignature, $newSigner);
 
             $previousSigner = $lockedSignature->signer;
             $status = $this->resolveStatusAfterReassign($lockedSignature);
@@ -42,7 +43,7 @@ class ApprovalSignatureReassignmentService
                 'signer_user_id' => $newSigner->id,
                 ...$this->signerSnapshotAttributes($lockedSignature, $newSigner, $actingAsLabel),
                 'delegated_from_user_id' => $previousSigner?->id,
-                'delegated_from_name' => $this->signatureSignerName($lockedSignature) ?: $previousSigner?->name,
+                'delegated_from_name' => $previousSigner?->name ?: $this->signatureSignerName($lockedSignature),
                 'delegated_by_user_id' => $delegatedBy->id,
                 'delegated_at' => now(),
                 'delegation_reason' => $reason,
@@ -66,6 +67,23 @@ class ApprovalSignatureReassignmentService
         if ($this->isSigned($signature) || $this->isSkipped($signature)) {
             throw ValidationException::withMessages([
                 'signature' => 'Approver yang sudah TTD atau dilewati tidak dapat dialihkan.',
+            ]);
+        }
+    }
+
+    private function assertNewSigner(Model $signature, User $newSigner): void
+    {
+        if ((int) $signature->signer_user_id === (int) $newSigner->id) {
+            throw ValidationException::withMessages([
+                'signer_user_id' => 'Signer baru harus berbeda dari signer sebelumnya.',
+            ]);
+        }
+
+        $isDeleted = method_exists($newSigner, 'trashed') && $newSigner->trashed();
+
+        if ($isDeleted || blank($newSigner->email)) {
+            throw ValidationException::withMessages([
+                'signer_user_id' => 'Signer baru harus merupakan user aktif dengan email yang valid.',
             ]);
         }
     }
@@ -96,6 +114,16 @@ class ApprovalSignatureReassignmentService
             return [
                 'signer_name' => $newSigner->name,
                 'signer_position' => $actingAsLabel,
+            ];
+        }
+
+        if ($signature instanceof HppSignature) {
+            return [
+                'signer_name_snapshot' => '',
+                'signer_position_snapshot' => '',
+                'signer_department_snapshot' => null,
+                'signer_unit_snapshot' => null,
+                'signer_section_snapshot' => null,
             ];
         }
 

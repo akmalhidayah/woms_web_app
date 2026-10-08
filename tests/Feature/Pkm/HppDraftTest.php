@@ -12,6 +12,7 @@ use App\Models\UnitWork;
 use App\Models\User;
 use App\Support\HppApprovalFlow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class HppDraftTest extends TestCase
@@ -65,6 +66,7 @@ class HppDraftTest extends TestCase
                 'nilai_hpp_bucket' => 'under',
                 'total_keseluruhan' => 1,
                 'approval_flow' => ['FAKE APPROVER'],
+                'creator_note' => '  Catatan draft dari PKM.  ',
             ])
             ->assertRedirect(route('pkm.hpp.index'));
 
@@ -76,6 +78,7 @@ class HppDraftTest extends TestCase
         $this->assertNull($hpp->document_sequence);
         $this->assertNull($hpp->document_year);
         $this->assertSame($pkm->id, $hpp->created_by);
+        $this->assertSame('Catatan draft dari PKM.', $hpp->creator_note);
         $this->assertSame(300000000.0, (float) $hpp->total_keseluruhan);
         $this->assertSame('over', $hpp->nilai_hpp_bucket);
         $this->assertSame('FAB-DALAM-OVER250', $hpp->approval_case);
@@ -108,11 +111,39 @@ class HppDraftTest extends TestCase
         $this->actingAs($pkm)
             ->put(route('pkm.hpp.update', $hpp), [
                 ...$this->payload($order, $oa, 2, 500000),
+                'creator_note' => 'Catatan draft diperbarui.',
                 'hpp_updated_at' => $hpp->getRawOriginal('updated_at'),
             ])->assertRedirect(route('pkm.hpp.index'));
 
         $this->assertSame($admin->id, $hpp->fresh()->created_by);
+        $this->assertSame('Catatan draft diperbarui.', $hpp->fresh()->creator_note);
         $this->assertSame(1000000.0, (float) $hpp->fresh()->total_keseluruhan);
+    }
+
+    public function test_creator_note_empty_string_is_null_and_more_than_750_characters_is_rejected(): void
+    {
+        [$pkm, $oa, $order] = $this->fixture();
+
+        $this->actingAs($pkm)
+            ->post(route('pkm.hpp.store'), [
+                ...$this->payload($order, $oa),
+                'creator_note' => '   ',
+            ])
+            ->assertRedirect(route('pkm.hpp.index'));
+
+        $this->assertNull(Hpp::query()->where('order_id', $order->id)->firstOrFail()->creator_note);
+
+        [$secondPkm, $secondOa, $secondOrder] = $this->fixture('creator-note-limit');
+
+        $this->actingAs($secondPkm)
+            ->from(route('pkm.hpp.create'))
+            ->post(route('pkm.hpp.store'), [
+                ...$this->payload($secondOrder, $secondOa),
+                'creator_note' => str_repeat('a', 751),
+            ])
+            ->assertSessionHasErrors('creator_note');
+
+        $this->assertDatabaseMissing('hpps', ['order_id' => $secondOrder->id]);
     }
 
     public function test_non_draft_hpp_cannot_be_edited_or_updated_by_pkm(): void
@@ -164,7 +195,7 @@ class HppDraftTest extends TestCase
     public function test_pkm_submit_delete_duplicate_and_signature_routes_do_not_exist(): void
     {
         foreach (['pkm.hpp.submit', 'pkm.hpp.destroy', 'pkm.hpp.duplicate', 'pkm.hpp.signature'] as $name) {
-            $this->assertFalse(\Illuminate\Support\Facades\Route::has($name));
+            $this->assertFalse(Route::has($name));
         }
     }
 

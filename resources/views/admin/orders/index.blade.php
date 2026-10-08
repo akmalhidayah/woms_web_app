@@ -1,4 +1,4 @@
-<x-layouts.admin title="Order">
+<x-layouts.admin title="Order Pekerjaan Jasa">
     <style>
         .orders-index-filter {
             display: grid;
@@ -119,7 +119,7 @@
                             <i data-lucide="inbox" class="h-5 w-5"></i>
                         </span>
                         <div>
-                            <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Order</h1>
+                            <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Order Pekerjaan Jasa</h1>
                         </div>
                     </div>
 
@@ -499,18 +499,6 @@ $initialWorkFlowSummary = match (true) {
                                                             </button>
                                                         @endif
                                                     @endif
-
-                                                    <button
-                                                        type="button"
-                                                        class="order-flow-trigger inline-flex h-7 w-7 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100"
-                                                        data-title="{{ $order->nomor_order }}"
-                                                        data-route="{{ $routeLabel }}"
-                                                        data-next="{{ $flowNextStep }}"
-                                                        data-checklist='@json($flowChecklist)'
-                                                        title="Detail alur"
-                                                    >
-                                                        <i data-lucide="info" class="h-3 w-3"></i>
-                                                    </button>
 
                                                     <button
                                                         type="button"
@@ -1092,8 +1080,8 @@ $initialWorkFlowSummary = match (true) {
                 if (useSelect) {
                     const placeholder = document.createElement('option');
                     placeholder.value = '';
-                    placeholder.textContent = selectedStatus === 'approved_workshop'
-                        ? '- Pilih regu workshop (opsional) -'
+                    placeholder.textContent = ['approved_workshop', 'approved_workshop_jasa'].includes(selectedStatus)
+                        ? '- Pilih regu workshop -'
                         : selectedStatus === 'approved_jasa'
                             ? '- Pilih jenis jasa (opsional) -'
                             : '- Pilih (opsional) -';
@@ -1548,7 +1536,7 @@ $initialWorkFlowSummary = match (true) {
                     const result = await swal.fire({
                         icon: 'warning',
                         title: 'Hapus order?',
-                        text: 'Data order akan dihapus permanen.',
+                        text: 'Order beserta seluruh paket, dokumen, approval, QC, Serah Terima, foto, dan lampiran terkait akan dihapus permanen.',
                         showCancelButton: true,
                         confirmButtonText: 'Ya, hapus',
                         cancelButtonText: 'Batal',

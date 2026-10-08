@@ -45,7 +45,7 @@
                     </div>
                 </div>
 
-                <a href="{{ route('admin.orders.index') }}" class="inline-flex w-fit items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[10px] font-semibold text-blue-700 transition hover:bg-blue-100">
+                <a href="{{ $returnUrl ?? route('admin.orders.index') }}" class="inline-flex w-fit items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[10px] font-semibold text-blue-700 transition hover:bg-blue-100">
                     <i data-lucide="arrow-left" class="h-3 w-3"></i>
                     Kembali
                 </a>

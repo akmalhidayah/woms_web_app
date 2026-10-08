@@ -11,14 +11,18 @@ use App\Models\QualityControlReport;
 use App\Models\QualityControlReportFile;
 use App\Models\QualityControlSignature;
 use App\Services\Approvals\ApprovalNotificationService;
+use App\Services\BengkelTasks\WorkshopWorkPackagePresenter;
+use App\Services\BengkelTasks\WorkshopWorkPackageService;
 use App\Services\QualityControl\QualityControlSignatureService;
 use App\Support\SignatureImageStorage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -27,8 +31,9 @@ class OrderWorkshopQualityControlController extends Controller
     public function __construct(
         private readonly QualityControlSignatureService $signatureService,
         private readonly ApprovalNotificationService $approvalNotificationService,
-    ) {
-    }
+        private readonly WorkshopWorkPackageService $workPackageService,
+        private readonly WorkshopWorkPackagePresenter $workPackagePresenter,
+    ) {}
 
     public function create(Order $order): View|RedirectResponse
     {
@@ -39,6 +44,7 @@ class OrderWorkshopQualityControlController extends Controller
         }
 
         $type = $guard;
+        $order->loadMissing('workPackages.assignments');
         $payload = $this->defaultPayload($order, $type);
         $report = new QualityControlReport([
             'type' => $type,
@@ -52,6 +58,7 @@ class OrderWorkshopQualityControlController extends Controller
             'order' => $order,
             'report' => $report,
             'payload' => $payload,
+            'workPackages' => $order->workPackages,
         ]);
     }
 
@@ -64,28 +71,79 @@ class OrderWorkshopQualityControlController extends Controller
         }
 
         $type = $guard;
+        $intent = $this->resolveIntent($request);
+        $isSubmit = $intent === 'submit';
         $validated = $this->validateReport($request, $type);
 
-        $report = QualityControlReport::create([
-            'order_id' => $order->id,
-            'bengkel_task_id' => BengkelTask::query()->where('order_id', $order->id)->latest('id')->value('id'),
-            'type' => $type,
-            'report_no' => $this->suggestReportNumber(),
-            'report_date' => $validated['report_date'] ?? null,
-            'status' => $validated['status'] ?? QualityControlReport::STATUS_DRAFT,
-            'payload' => $this->payloadFromRequest($request, $type),
-            'created_by' => $request->user()?->id,
-            'updated_by' => $request->user()?->id,
-        ]);
+        if ($order->qualityControlReports()->exists()) {
+            return back()->withErrors([
+                'quality_control' => 'Order ini sudah mempunyai laporan Quality Control aktif.',
+            ])->withInput();
+        }
 
-        $this->storeUploadedFiles($request, $report, $type);
-        $signatureResult = $this->signatureService->createSignatureChain($report->fresh('order'));
+        $payload = [];
+        $storedFilePaths = [];
+
+        try {
+            $payload = $this->payloadFromRequest($request, $type, $isSubmit);
+
+            if ($isSubmit) {
+                $this->assertSubmissionReady($order, $type, $payload);
+            }
+
+            $result = DB::transaction(function () use ($order, $type, $validated, $request, $payload, $isSubmit, &$storedFilePaths): array {
+                $lockedOrder = Order::query()->findOrFail($order->id);
+                $workshop = $lockedOrder->orderWorkshop()->lockForUpdate()->first();
+                abort_unless($workshop !== null, Response::HTTP_NOT_FOUND);
+                $lockedOrder->load(['orderWorkshop', 'workPackages.assignments', 'qualityControlReports']);
+
+                if ($lockedOrder->qualityControlReports()->exists()) {
+                    throw ValidationException::withMessages([
+                        'quality_control' => 'Order ini sudah mempunyai laporan Quality Control aktif.',
+                    ]);
+                }
+
+                if ($isSubmit) {
+                    $this->workPackageService->assertParentMayAdvance($lockedOrder);
+                }
+
+                if ($isSubmit) {
+                    $payload['work_packages_snapshot'] = $this->workPackagePresenter->snapshotForOrder($lockedOrder);
+                }
+
+                $report = QualityControlReport::create([
+                    'order_id' => $lockedOrder->id,
+                    'bengkel_task_id' => BengkelTask::query()->where('order_id', $lockedOrder->id)->latest('id')->value('id'),
+                    'type' => $type,
+                    'report_no' => $this->suggestReportNumber(),
+                    'report_date' => $validated['report_date'] ?? null,
+                    'status' => $isSubmit ? QualityControlReport::STATUS_SUBMITTED : QualityControlReport::STATUS_DRAFT,
+                    'payload' => $payload,
+                    'created_by' => $request->user()?->id,
+                    'updated_by' => $request->user()?->id,
+                ]);
+
+                $storedFilePaths = $this->storeUploadedFiles($request, $report, $type);
+                $signatureResult = $isSubmit
+                    ? $this->signatureService->createSignatureChain($report->fresh('order'))
+                    : ['workshop_url' => null, 'workshop_signature' => null, 'user_signature' => null];
+
+                return [$report, $signatureResult];
+            });
+
+            [$report, $signatureResult] = $result;
+        } catch (\Throwable $exception) {
+            $this->cleanupStoredPaths($storedFilePaths);
+            $this->cleanupNewMakerSignature($payload, []);
+
+            throw $exception;
+        }
 
         $redirect = redirect()
             ->route('admin.orders.workshop.quality-control.edit', [$order, $report])
-            ->with('status', $signatureResult['workshop_url']
-                ? 'Form Quality Control berhasil disimpan.'
-                : 'Form Quality Control berhasil disimpan, tetapi penanda tangan Manager Bengkel belum ditemukan di struktur organisasi.');
+            ->with('status', $isSubmit
+                ? 'Quality Control berhasil disubmit dan approval Manager Workshop dimulai.'
+                : 'Draft Quality Control berhasil disimpan.');
 
         if ($signatureResult['workshop_url']) {
             $redirect
@@ -107,11 +165,13 @@ class OrderWorkshopQualityControlController extends Controller
 
         $type = $qualityControlReport->type;
         $qualityControlReport->load('files');
+        $order->loadMissing('workPackages.assignments');
 
         return view("admin.orders.workshop.quality-control.edit-{$type}", [
             'order' => $order,
             'report' => $qualityControlReport,
             'payload' => $qualityControlReport->payload ?: $this->defaultPayload($order, $type),
+            'workPackages' => $order->workPackages,
         ]);
     }
 
@@ -123,8 +183,8 @@ class OrderWorkshopQualityControlController extends Controller
             return $redirect;
         }
 
-        if ($qualityControlReport->hasApprovalStarted()) {
-            Log::warning('Blocked update to Quality Control report with active approval.', [
+        if ($qualityControlReport->status === QualityControlReport::STATUS_SUBMITTED || $qualityControlReport->hasApprovalStarted()) {
+            Log::warning('Blocked update to signed Quality Control report.', [
                 'status_code' => Response::HTTP_FORBIDDEN,
                 'user_id' => $request->user()?->id,
                 'order_id' => $order->id,
@@ -136,18 +196,52 @@ class OrderWorkshopQualityControlController extends Controller
         }
 
         $type = $qualityControlReport->type;
+        $intent = $this->resolveIntent($request);
+        $isSubmit = $intent === 'submit';
         $validated = $this->validateReport($request, $type);
+        $existingMakerSignature = $qualityControlReport->makerSignature();
+        $payload = [];
+        $storedFilePaths = [];
 
-        $qualityControlReport->update([
-            'report_no' => $this->reportNumberForExistingReport($qualityControlReport),
-            'report_date' => $validated['report_date'] ?? null,
-            'status' => $validated['status'] ?? QualityControlReport::STATUS_DRAFT,
-            'payload' => $this->payloadFromRequest($request, $type),
-            'updated_by' => $request->user()?->id,
-        ]);
+        try {
+            $payload = $this->payloadFromRequest(
+                $request,
+                $type,
+                $isSubmit,
+                $existingMakerSignature,
+            );
 
-        $this->storeUploadedFiles($request, $qualityControlReport, $type);
-        $signatureResult = $this->signatureService->rebuildIfUnsigned($qualityControlReport->refresh()->load('order'));
+            if ($isSubmit) {
+                $this->assertSubmissionReady($order, $type, $payload);
+            }
+
+            $signatureResult = DB::transaction(function () use ($request, $order, $type, $validated, $payload, $isSubmit, $qualityControlReport, &$storedFilePaths): array {
+                $order->orderWorkshop()->lockForUpdate()->firstOrFail();
+                $order->load(['workPackages.assignments']);
+                if ($isSubmit) {
+                    $this->workPackageService->assertParentMayAdvance($order);
+                    $payload['work_packages_snapshot'] = $this->workPackagePresenter->snapshotForOrder($order);
+                }
+                $qualityControlReport->update([
+                    'report_no' => $this->reportNumberForExistingReport($qualityControlReport),
+                    'report_date' => $validated['report_date'] ?? null,
+                    'status' => $isSubmit ? QualityControlReport::STATUS_SUBMITTED : QualityControlReport::STATUS_DRAFT,
+                    'payload' => $payload,
+                    'updated_by' => $request->user()?->id,
+                ]);
+
+                $storedFilePaths = $this->storeUploadedFiles($request, $qualityControlReport, $type);
+
+                return $isSubmit
+                    ? $this->signatureService->createSignatureChain($qualityControlReport->refresh()->load('order'))
+                    : ['workshop_url' => null, 'workshop_signature' => null, 'user_signature' => null];
+            });
+        } catch (\Throwable $exception) {
+            $this->cleanupStoredPaths($storedFilePaths);
+            $this->cleanupNewMakerSignature($payload, $existingMakerSignature);
+
+            throw $exception;
+        }
 
         $redirect = redirect()
             ->route('admin.orders.workshop.quality-control.edit', [$order, $qualityControlReport])
@@ -174,6 +268,7 @@ class OrderWorkshopQualityControlController extends Controller
         }
 
         $qualityControlReport->load(['files', 'signatures']);
+        $order->loadMissing('workPackages.assignments');
         $type = $qualityControlReport->type;
         $paper = $type === QualityControlReport::TYPE_REFURBISH ? 'landscape' : 'portrait';
         $filename = 'qc-'.$type.'-'.$order->nomor_order.'.pdf';
@@ -183,6 +278,10 @@ class OrderWorkshopQualityControlController extends Controller
             'report' => $qualityControlReport,
             'payload' => $qualityControlReport->payload ?: $this->defaultPayload($order, $type),
             'filesByCategory' => $qualityControlReport->files->groupBy('category'),
+            'workPackages' => $qualityControlReport->status === QualityControlReport::STATUS_SUBMITTED
+                && ! empty($qualityControlReport->payload['work_packages_snapshot'] ?? null)
+                ? $qualityControlReport->payload['work_packages_snapshot']
+                : $this->workPackagePresenter->snapshotForOrder($order),
         ])->setPaper('a4', $paper)->stream($filename);
     }
 
@@ -249,8 +348,8 @@ class OrderWorkshopQualityControlController extends Controller
             abort(404);
         }
 
-        if ($qualityControlReport->hasApprovalStarted()) {
-            Log::warning('Blocked file deletion from Quality Control report with active approval.', [
+        if ($qualityControlReport->status === QualityControlReport::STATUS_SUBMITTED || $qualityControlReport->hasApprovalStarted()) {
+            Log::warning('Blocked file deletion from signed Quality Control report.', [
                 'status_code' => Response::HTTP_FORBIDDEN,
                 'user_id' => $request->user()?->id,
                 'quality_control_report_id' => $qualityControlReport->id,
@@ -292,6 +391,8 @@ class OrderWorkshopQualityControlController extends Controller
         if ($order->orderWorkshop?->progress_status !== OrderWorkshop::PROGRESS_QUALITY_CONTROL) {
             return back()->withErrors(['quality_control' => 'Quality Control hanya bisa dibuat saat progress Proses Quality Control.']);
         }
+
+        $this->workPackageService->assertParentMayAdvance($order);
 
         $type = $this->typeForOrder($order);
 
@@ -337,6 +438,7 @@ class OrderWorkshopQualityControlController extends Controller
             'report_no' => ['nullable', 'string', 'max:191'],
             'report_date' => ['nullable', 'date'],
             'status' => ['nullable', Rule::in([QualityControlReport::STATUS_DRAFT, QualityControlReport::STATUS_SUBMITTED])],
+            'intent' => ['nullable', Rule::in(['draft', 'submit'])],
             'signature' => ['nullable', 'array'],
             'signature.signature_data' => ['nullable', 'string', 'max:500000'],
             'signature.signature_existing' => ['nullable', 'string', 'max:500000'],
@@ -356,17 +458,21 @@ class OrderWorkshopQualityControlController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function payloadFromRequest(Request $request, string $type): array
-    {
+    private function payloadFromRequest(
+        Request $request,
+        string $type,
+        bool $isSubmit,
+        array $existingSignature = [],
+    ): array {
         return $type === QualityControlReport::TYPE_FABRICATION
-            ? $this->fabricationPayloadFromRequest($request)
-            : $this->refurbishPayloadFromRequest($request);
+            ? $this->fabricationPayloadFromRequest($request, $isSubmit, $existingSignature)
+            : $this->refurbishPayloadFromRequest($request, $isSubmit, $existingSignature);
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function fabricationPayloadFromRequest(Request $request): array
+    private function fabricationPayloadFromRequest(Request $request, bool $isSubmit, array $existingSignature = []): array
     {
         return [
             'dimension_checks' => $this->rows($request->input('dimension_checks', []), [
@@ -386,14 +492,14 @@ class OrderWorkshopQualityControlController extends Controller
                 'notes' => '',
             ], ['condition' => ['baik', 'perlu_perbaikan']]),
             'notes' => trim((string) $request->input('notes', '')),
-            'signature' => $this->signaturePayloadFromRequest($request),
+            'signature' => $this->signaturePayloadFromRequest($request, $isSubmit, $existingSignature),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function refurbishPayloadFromRequest(Request $request): array
+    private function refurbishPayloadFromRequest(Request $request, bool $isSubmit, array $existingSignature = []): array
     {
         $notesBeforeRows = $this->rows($request->input('notes_before_rows', []), [
             'note' => '',
@@ -429,7 +535,7 @@ class OrderWorkshopQualityControlController extends Controller
             'notes_before' => collect($notesBeforeRows)->pluck('note')->implode("\n"),
             'notes_after' => collect($notesAfterRows)->pluck('note')->implode("\n"),
             'user_notes' => trim((string) $request->input('user_notes', '')),
-            'signature' => $this->signaturePayloadFromRequest($request),
+            'signature' => $this->signaturePayloadFromRequest($request, $isSubmit, $existingSignature),
         ];
     }
 
@@ -464,10 +570,13 @@ class OrderWorkshopQualityControlController extends Controller
     }
 
     /**
-     * @return array{signature_data: string, signer_name: string, signed_at: string}
+     * @return array{signature_data: string, signer_name: string, signed_at: string, signer_user_id: ?int}
      */
-    private function signaturePayloadFromRequest(Request $request): array
-    {
+    private function signaturePayloadFromRequest(
+        Request $request,
+        bool $isSubmit,
+        array $existingSignature = [],
+    ): array {
         $signatureData = '';
         $order = $request->route('order');
         $orderId = $order instanceof Order ? $order->id : 'manual';
@@ -485,12 +594,16 @@ class OrderWorkshopQualityControlController extends Controller
                 $signatureData = str_starts_with($legacySignatureData, 'data:image/png;base64,')
                     ? SignatureImageStorage::storeDataUri($legacySignatureData, 'quality-control-maker-signatures/'.$orderId, 'maker')
                     : '';
-            } else {
+            } elseif (filled($existingSignature['signature_data'] ?? null)) {
+                $signatureData = trim((string) $existingSignature['signature_data']);
+            } elseif (! $isSubmit) {
                 $signatureData = trim((string) $request->input('signature.signature_existing', ''));
             }
         }
 
-        $signerName = trim((string) $request->input('signature.signer_name', ''));
+        $signerName = $isSubmit
+            ? trim((string) ($request->user()?->name ?? ''))
+            : trim((string) $request->input('signature.signer_name', ''));
 
         if ($signerName === '') {
             $signerName = $request->user()?->name ?? '';
@@ -499,12 +612,51 @@ class OrderWorkshopQualityControlController extends Controller
         return [
             'signature_data' => $signatureData,
             'signer_name' => mb_substr($signerName, 0, 191),
-            'signed_at' => (string) ($request->input('signature.signed_at') ?: now()->format('Y-m-d')),
+            'signed_at' => $isSubmit
+                ? now()->format('Y-m-d')
+                : (string) ($request->input('signature.signed_at') ?: now()->format('Y-m-d')),
+            'signer_user_id' => $isSubmit
+                ? $request->user()?->id
+                : (isset($existingSignature['signer_user_id']) ? (int) $existingSignature['signer_user_id'] : null),
         ];
     }
 
-    private function storeUploadedFiles(Request $request, QualityControlReport $report, string $type): void
+    private function resolveIntent(Request $request): string
     {
+        $intent = trim((string) $request->input('intent', 'draft'));
+
+        return $intent === 'submit' ? 'submit' : 'draft';
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function assertSubmissionReady(Order $order, string $type, array $payload): void
+    {
+        $probe = new QualityControlReport([
+            'order_id' => $order->id,
+            'type' => $type,
+            'status' => QualityControlReport::STATUS_SUBMITTED,
+            'payload' => $payload,
+        ]);
+        $probe->setRelation('order', $order);
+
+        if (! $probe->hasValidMakerSignature()) {
+            throw ValidationException::withMessages([
+                'signature.signature_data' => 'Tanda tangan Pembuat QC wajib diisi dengan gambar yang valid sebelum submit.',
+            ]);
+        }
+
+        $this->signatureService->assertApprovalReady($probe);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function storeUploadedFiles(Request $request, QualityControlReport $report, string $type): array
+    {
+        $storedPaths = [];
+
         foreach ($this->fileCategories($type) as $category) {
             $files = $request->file($category, []);
 
@@ -516,6 +668,7 @@ class OrderWorkshopQualityControlController extends Controller
 
             foreach ($files as $file) {
                 $path = $file->store('quality-control/'.$report->id.'/'.$category, 'public');
+                $storedPaths[] = $path;
 
                 $report->files()->create([
                     'category' => $category,
@@ -527,6 +680,39 @@ class OrderWorkshopQualityControlController extends Controller
                 ]);
             }
         }
+
+        return $storedPaths;
+    }
+
+    /**
+     * @param  list<string>  $paths
+     */
+    private function cleanupStoredPaths(array $paths): void
+    {
+        foreach (array_unique($paths) as $path) {
+            if (is_string($path) && $path !== '') {
+                Storage::disk('public')->delete($path);
+            }
+        }
+    }
+
+    /**
+     * Delete only a newly persisted maker signature. Existing draft signatures
+     * must remain intact when a later update fails.
+     *
+     * @param  array<string, mixed>  $payload
+     * @param  array<string, mixed>  $existingSignature
+     */
+    private function cleanupNewMakerSignature(array $payload, array $existingSignature): void
+    {
+        $path = trim((string) ($payload['signature']['signature_data'] ?? ''));
+        $existingPath = trim((string) ($existingSignature['signature_data'] ?? ''));
+
+        if ($path === '' || $path === $existingPath || ! str_starts_with($path, 'quality-control-maker-signatures/')) {
+            return;
+        }
+
+        Storage::disk('public')->delete($path);
     }
 
     /**

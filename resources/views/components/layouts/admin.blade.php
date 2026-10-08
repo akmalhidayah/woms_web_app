@@ -681,6 +681,39 @@
             .other-menu-compact [class*="space-y-4"] {
                 gap: 0.75rem !important;
             }
+
+            .structure-chart-scrollbar {
+                scrollbar-color: #60a5fa #e2e8f0;
+                scrollbar-gutter: stable;
+                scrollbar-width: auto;
+            }
+
+            .structure-chart-scrollbar::-webkit-scrollbar {
+                height: 12px;
+            }
+
+            .structure-chart-scrollbar::-webkit-scrollbar-track {
+                background: #e2e8f0;
+                border-radius: 9999px;
+            }
+
+            .structure-chart-scrollbar::-webkit-scrollbar-thumb {
+                background: #60a5fa;
+                border: 3px solid #e2e8f0;
+                border-radius: 9999px;
+            }
+
+            .structure-chart-scrollbar::-webkit-scrollbar-thumb:hover {
+                background: #2563eb;
+            }
+
+            .structure-node-chevron {
+                transition: transform 180ms ease;
+            }
+
+            details[open] > summary .structure-node-chevron {
+                transform: rotate(180deg);
+            }
         </style>
     </head>
     <body class="bg-slate-50 font-sans text-slate-800 antialiased">
@@ -790,6 +823,31 @@
                 },
                 closeStructurePreview() {
                     this.structurePreviewOpen = false;
+                },
+                scrollStructurePreview(direction) {
+                    const scroller = this.$refs.structurePreviewContent?.querySelector('[data-structure-chart-scroller]');
+                    if (!scroller) return;
+
+                    scroller.scrollBy({
+                        left: direction * Math.max(scroller.clientWidth * 0.75, 360),
+                        behavior: 'smooth',
+                    });
+                },
+                setStructurePreviewLevel(level) {
+                    const content = this.$refs.structurePreviewContent;
+                    if (!content) return;
+
+                    const root = content.querySelector('[data-structure-root]');
+                    const departments = content.querySelectorAll('[data-structure-department]');
+                    const units = content.querySelectorAll('[data-structure-unit]');
+
+                    if (root) root.open = level !== 'dirops';
+                    departments.forEach((department) => {
+                        department.open = level === 'sm' || level === 'all';
+                    });
+                    units.forEach((unit) => {
+                        unit.open = level === 'all';
+                    });
                 },
                 async loadStructurePreview() {
                     if (this.structurePreviewLoading) return;
@@ -1516,7 +1574,35 @@
                                     <button type="button" @click="loadStructurePreview()" class="mt-4 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-rose-700">Coba Lagi</button>
                                 </div>
 
-                                <div x-show="!structurePreviewLoading && !structurePreviewError" x-html="structurePreviewHtml"></div>
+                                <div x-show="!structurePreviewLoading && !structurePreviewError && structurePreviewHtml" class="sticky top-0 z-20 mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-sm backdrop-blur">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="hidden text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 sm:inline">Tampilan</span>
+                                        <button type="button" @click="setStructurePreviewLevel('dirops')" class="inline-flex items-center gap-1.5 rounded-lg bg-violet-50 px-3 py-2 text-[11px] font-bold text-violet-700 ring-1 ring-violet-100 transition hover:bg-violet-100">
+                                            DIROPS Saja
+                                        </button>
+                                        <button type="button" @click="setStructurePreviewLevel('gm')" class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-100 transition hover:bg-emerald-100">
+                                            Sampai GM
+                                        </button>
+                                        <button type="button" @click="setStructurePreviewLevel('sm')" class="inline-flex items-center gap-1.5 rounded-lg bg-sky-50 px-3 py-2 text-[11px] font-bold text-sky-700 ring-1 ring-sky-100 transition hover:bg-sky-100">
+                                            Sampai SM
+                                        </button>
+                                        <button type="button" @click="setStructurePreviewLevel('all')" class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-[11px] font-bold text-white transition hover:bg-blue-700">
+                                            Semua
+                                        </button>
+                                    </div>
+
+                                    <div class="flex items-center gap-2">
+                                        <span class="hidden text-[11px] font-semibold text-slate-500 sm:inline">Geser bagan</span>
+                                        <button type="button" @click="scrollStructurePreview(-1)" class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 transition hover:bg-blue-100 hover:text-blue-700" aria-label="Geser bagan ke kiri">
+                                            <i data-lucide="arrow-left" class="h-4 w-4"></i>
+                                        </button>
+                                        <button type="button" @click="scrollStructurePreview(1)" class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 transition hover:bg-blue-100 hover:text-blue-700" aria-label="Geser bagan ke kanan">
+                                            <i data-lucide="arrow-right" class="h-4 w-4"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div x-show="!structurePreviewLoading && !structurePreviewError" x-ref="structurePreviewContent" x-html="structurePreviewHtml"></div>
                             </div>
 
                             <footer class="flex shrink-0 flex-col gap-2 border-t border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">

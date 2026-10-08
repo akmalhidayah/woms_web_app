@@ -46,7 +46,11 @@ class StructureOrganizationPreviewTest extends TestCase
             ->assertSee('Senior Manager Test')
             ->assertSee('Unit Workshop Test')
             ->assertSee('Manager Seksi Test')
-            ->assertSee('Seksi Fabrikasi Test');
+            ->assertSee('Seksi Fabrikasi Test')
+            ->assertSee('data-structure-root', false)
+            ->assertSee('data-structure-department', false)
+            ->assertSee('data-structure-unit', false)
+            ->assertSee('data-structure-chart-scroller', false);
     }
 
     public function test_preview_does_not_create_hpp_setting_as_a_read_side_effect(): void
@@ -81,7 +85,11 @@ class StructureOrganizationPreviewTest extends TestCase
             ->get(route('admin.dashboard'))
             ->assertOk()
             ->assertSee('data-structure-preview-trigger', false)
-            ->assertSee('Bagan Struktur Organisasi');
+            ->assertSee('Bagan Struktur Organisasi')
+            ->assertSee('DIROPS Saja')
+            ->assertSee('Sampai GM')
+            ->assertSee('Sampai SM')
+            ->assertSee('Geser bagan ke kanan');
     }
 
     private function createSuperAdmin(): User

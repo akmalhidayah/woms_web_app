@@ -25,6 +25,8 @@ class User extends Authenticatable // implements MustVerifyEmail
 
     public const ROLE_APPROVER = 'approver';
 
+    public const ROLE_INSPECTOR = 'inspector';
+
     public const ADMIN_ROLE_SUPER_ADMIN = 'super_admin';
 
     public const ADMIN_ROLE_ADMIN = 'admin';
@@ -81,6 +83,7 @@ class User extends Authenticatable // implements MustVerifyEmail
             self::ROLE_USER,
             self::ROLE_PKM,
             self::ROLE_APPROVER,
+            self::ROLE_INSPECTOR,
         ];
     }
 
@@ -96,6 +99,7 @@ class User extends Authenticatable // implements MustVerifyEmail
             self::ROLE_APPROVER => 'Approval',
             self::ROLE_PKM => 'Vendor',
             self::ROLE_ADMIN => 'Admin',
+            self::ROLE_INSPECTOR => 'Inspeksi Peralatan',
         ];
     }
 
@@ -122,6 +126,7 @@ class User extends Authenticatable // implements MustVerifyEmail
             self::ROLE_ADMIN => 'admin.dashboard',
             self::ROLE_PKM => 'pkm.dashboard',
             self::ROLE_APPROVER => 'user.dashboard',
+            self::ROLE_INSPECTOR => 'inspector.equipment-forms.index',
             default => 'user.dashboard',
         };
     }

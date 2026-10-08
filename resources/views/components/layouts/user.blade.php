@@ -1,3 +1,8 @@
+@if (auth()->user()?->hasRole(\App\Models\User::ROLE_INSPECTOR))
+    <x-layouts.inspector :title="$title ?? config('app.name', 'WOMS')">
+        {{ $slot }}
+    </x-layouts.inspector>
+@else
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
@@ -449,3 +454,4 @@
         @fluxScripts
     </body>
 </html>
+@endif

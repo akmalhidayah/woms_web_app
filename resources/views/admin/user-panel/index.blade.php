@@ -41,7 +41,7 @@
             </div>
         </section>
 
-        <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             @foreach ($roleLabels as $roleKey => $label)
                 @php
                     $count = $summaryCounts[$roleKey] ?? 0;
@@ -146,6 +146,7 @@
                                                 {{ $user->role === \App\Models\User::ROLE_APPROVER ? 'bg-emerald-100 text-emerald-700' : '' }}
                                                 {{ $user->role === \App\Models\User::ROLE_PKM ? 'bg-amber-100 text-amber-700' : '' }}
                                                 {{ $user->role === \App\Models\User::ROLE_USER ? 'bg-slate-100 text-slate-700' : '' }}
+                                                {{ $user->role === \App\Models\User::ROLE_INSPECTOR ? 'bg-red-100 text-red-700' : '' }}
                                             ">
                                                 {{ $roleLabels[$user->role] ?? strtoupper($user->role) }}
                                             </span>

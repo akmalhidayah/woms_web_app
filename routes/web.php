@@ -38,6 +38,7 @@ use App\Http\Controllers\Approval\InitialWorkSignatureController;
 use App\Http\Controllers\Approval\QualityControlSignatureController;
 use App\Http\Controllers\Approval\WorkshopHandoverSignatureController;
 use App\Http\Controllers\ApprovalDocumentController;
+use App\Http\Controllers\Inspector\EquipmentFormController;
 use App\Http\Controllers\Pkm\DashboardController as PkmDashboardController;
 use App\Http\Controllers\Pkm\DocumentsController as PkmDocumentsController;
 use App\Http\Controllers\Pkm\HppDraftController;
@@ -535,6 +536,11 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('admin/kontrak-jasa-fabrikasi-konstruksi/{contract}', [FabricationConstructionContractController::class, 'destroy'])
         ->middleware(['role:admin', 'admin_menu:kontrak_jasa_fabrikasi_konstruksi'])
         ->name('admin.fabrication-construction-contracts.destroy');
+
+    Route::prefix('inspector')->name('inspector.')->middleware('role:inspector')->group(function () {
+        Route::get('equipment-forms', [EquipmentFormController::class, 'index'])->name('equipment-forms.index');
+        Route::get('equipment-forms/{equipmentForm}', [EquipmentFormController::class, 'show'])->name('equipment-forms.show');
+    });
 
     Route::get('user/dashboard', [OrderTrackingController::class, 'index'])
         ->middleware('role:user,approver,pkm')

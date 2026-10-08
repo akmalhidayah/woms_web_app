@@ -800,6 +800,7 @@
                 structurePreviewLoading: false,
                 structurePreviewHtml: '',
                 structurePreviewError: '',
+                structurePreviewZoom: 1,
                 stockOpen: {{ $isStockSection ? 'true' : 'false' }},
                 orderOpen: {{ $isOrdersSection ? 'true' : 'false' }},
                 mainOpen: {{ $defaultMainSectionOpen ? 'true' : 'false' }},
@@ -849,6 +850,19 @@
                         unit.open = level === 'all';
                     });
                 },
+                applyStructurePreviewZoom() {
+                    const canvas = this.$refs.structurePreviewContent?.querySelector('[data-structure-chart-canvas]');
+                    if (canvas) canvas.style.zoom = String(this.structurePreviewZoom);
+                },
+                changeStructurePreviewZoom(delta) {
+                    const nextZoom = Math.min(1.5, Math.max(0.6, this.structurePreviewZoom + delta));
+                    this.structurePreviewZoom = Math.round(nextZoom * 10) / 10;
+                    this.applyStructurePreviewZoom();
+                },
+                resetStructurePreviewZoom() {
+                    this.structurePreviewZoom = 1;
+                    this.applyStructurePreviewZoom();
+                },
                 async loadStructurePreview() {
                     if (this.structurePreviewLoading) return;
 
@@ -866,7 +880,10 @@
                         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
                         this.structurePreviewHtml = await response.text();
-                        this.$nextTick(() => window.lucide?.createIcons());
+                        this.$nextTick(() => {
+                            window.lucide?.createIcons();
+                            this.applyStructurePreviewZoom();
+                        });
                     } catch (error) {
                         this.structurePreviewError = 'Bagan struktur belum dapat dimuat. Silakan coba kembali.';
                     } finally {
@@ -1526,10 +1543,10 @@
                     @click.self="closeStructurePreview()"
                 >
                     <div class="mx-auto flex min-h-full w-full max-w-[96rem] items-start justify-center py-2 sm:py-5">
-                        <section class="flex max-h-[94vh] w-full flex-col overflow-hidden rounded-2xl border border-white/60 bg-white shadow-2xl shadow-slate-950/30 sm:rounded-[1.75rem]">
-                            <header class="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 bg-gradient-to-r from-blue-950 via-blue-900 to-indigo-900 px-4 py-4 text-white sm:px-6">
+                        <section class="flex max-h-[94vh] w-full flex-col overflow-hidden rounded-2xl border border-slate-700 bg-white sm:rounded-[1.75rem]">
+                            <header class="flex shrink-0 items-start justify-between gap-4 border-b border-blue-950 bg-blue-900 px-4 py-4 text-white sm:px-6">
                                 <div class="flex min-w-0 items-center gap-3">
-                                    <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20">
+                                    <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-700">
                                         <i data-lucide="network" class="h-5 w-5"></i>
                                     </span>
                                     <div class="min-w-0">
@@ -1543,60 +1560,70 @@
                                         type="button"
                                         @click="loadStructurePreview()"
                                         :disabled="structurePreviewLoading"
-                                        class="hidden items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white ring-1 ring-white/20 transition hover:bg-white/20 disabled:cursor-wait disabled:opacity-60 sm:inline-flex"
+                                        class="hidden items-center gap-2 rounded-xl bg-blue-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60 sm:inline-flex"
                                     >
                                         <i data-lucide="refresh-cw" class="h-3.5 w-3.5" :class="structurePreviewLoading ? 'animate-spin' : ''"></i>
                                         Muat Ulang
                                     </button>
-                                    <button type="button" @click="closeStructurePreview()" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/20 transition hover:bg-white/20" aria-label="Tutup preview struktur">
+                                    <button type="button" @click="closeStructurePreview()" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-700 text-white transition hover:bg-blue-800" aria-label="Tutup preview struktur">
                                         <i data-lucide="x" class="h-5 w-5"></i>
                                     </button>
                                 </div>
                             </header>
 
-                            <div class="min-h-0 flex-1 overflow-y-auto bg-gradient-to-b from-slate-50 to-white p-4 sm:p-6">
+                            <div class="min-h-0 flex-1 overflow-y-auto bg-slate-100 p-4 sm:p-6">
                                 <div x-show="structurePreviewLoading" class="space-y-6 py-8" aria-live="polite">
-                                    <div class="mx-auto h-20 max-w-sm animate-pulse rounded-2xl bg-violet-100"></div>
-                                    <div class="mx-auto h-8 w-px bg-slate-200"></div>
+                                    <div class="mx-auto h-20 max-w-sm animate-pulse rounded-2xl bg-violet-600"></div>
+                                    <div class="mx-auto h-8 w-px bg-slate-500"></div>
                                     <div class="mx-auto flex max-w-5xl gap-5 overflow-hidden">
-                                        <div class="h-72 min-w-80 flex-1 animate-pulse rounded-2xl bg-emerald-50"></div>
-                                        <div class="h-72 min-w-80 flex-1 animate-pulse rounded-2xl bg-sky-50"></div>
-                                        <div class="h-72 min-w-80 flex-1 animate-pulse rounded-2xl bg-amber-50"></div>
+                                        <div class="h-72 min-w-80 flex-1 animate-pulse rounded-2xl bg-emerald-600"></div>
+                                        <div class="h-72 min-w-80 flex-1 animate-pulse rounded-2xl bg-blue-600"></div>
+                                        <div class="h-72 min-w-80 flex-1 animate-pulse rounded-2xl bg-amber-500"></div>
                                     </div>
                                     <div class="text-center text-xs font-semibold text-slate-500">Menyiapkan bagan struktur organisasi…</div>
                                 </div>
 
-                                <div x-show="!structurePreviewLoading && structurePreviewError" class="mx-auto max-w-md rounded-2xl border border-rose-200 bg-rose-50 px-5 py-8 text-center">
-                                    <span class="mx-auto inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-rose-600 ring-1 ring-rose-200">
+                                <div x-show="!structurePreviewLoading && structurePreviewError" class="mx-auto max-w-md rounded-2xl border-2 border-rose-600 bg-white px-5 py-8 text-center">
+                                    <span class="mx-auto inline-flex h-11 w-11 items-center justify-center rounded-full bg-rose-600 text-white">
                                         <i data-lucide="triangle-alert" class="h-5 w-5"></i>
                                     </span>
                                     <p class="mt-3 text-sm font-bold text-rose-800" x-text="structurePreviewError"></p>
                                     <button type="button" @click="loadStructurePreview()" class="mt-4 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-rose-700">Coba Lagi</button>
                                 </div>
 
-                                <div x-show="!structurePreviewLoading && !structurePreviewError && structurePreviewHtml" class="sticky top-0 z-20 mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-sm backdrop-blur">
+                                <div x-show="!structurePreviewLoading && !structurePreviewError && structurePreviewHtml" class="sticky top-0 z-20 mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-400 bg-white px-3 py-2">
                                     <div class="flex flex-wrap items-center gap-2">
                                         <span class="hidden text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 sm:inline">Tampilan</span>
-                                        <button type="button" @click="setStructurePreviewLevel('dirops')" class="inline-flex items-center gap-1.5 rounded-lg bg-violet-50 px-3 py-2 text-[11px] font-bold text-violet-700 ring-1 ring-violet-100 transition hover:bg-violet-100">
+                                        <button type="button" @click="setStructurePreviewLevel('dirops')" class="inline-flex items-center gap-1.5 rounded-lg bg-violet-700 px-3 py-2 text-[11px] font-bold text-white transition hover:bg-violet-800">
                                             DIROPS Saja
                                         </button>
-                                        <button type="button" @click="setStructurePreviewLevel('gm')" class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-100 transition hover:bg-emerald-100">
+                                        <button type="button" @click="setStructurePreviewLevel('gm')" class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-[11px] font-bold text-white transition hover:bg-emerald-700">
                                             Sampai GM
                                         </button>
-                                        <button type="button" @click="setStructurePreviewLevel('sm')" class="inline-flex items-center gap-1.5 rounded-lg bg-sky-50 px-3 py-2 text-[11px] font-bold text-sky-700 ring-1 ring-sky-100 transition hover:bg-sky-100">
+                                        <button type="button" @click="setStructurePreviewLevel('sm')" class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-[11px] font-bold text-white transition hover:bg-blue-700">
                                             Sampai SM
                                         </button>
-                                        <button type="button" @click="setStructurePreviewLevel('all')" class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-[11px] font-bold text-white transition hover:bg-blue-700">
+                                        <button type="button" @click="setStructurePreviewLevel('all')" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-700 px-3 py-2 text-[11px] font-bold text-white transition hover:bg-slate-800">
                                             Semua
                                         </button>
                                     </div>
 
-                                    <div class="flex items-center gap-2">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="hidden text-[11px] font-semibold text-slate-500 sm:inline">Zoom</span>
+                                        <div class="inline-flex items-center overflow-hidden rounded-lg border border-slate-400 bg-white">
+                                            <button type="button" @click="changeStructurePreviewZoom(-0.1)" :disabled="structurePreviewZoom <= 0.6" class="inline-flex h-9 w-9 items-center justify-center bg-slate-700 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Zoom out bagan">
+                                                <i data-lucide="zoom-out" class="h-4 w-4"></i>
+                                            </button>
+                                            <button type="button" @click="resetStructurePreviewZoom()" class="h-9 min-w-14 border-x border-slate-400 px-2 text-[11px] font-black text-slate-700" title="Reset zoom" x-text="`${Math.round(structurePreviewZoom * 100)}%`"></button>
+                                            <button type="button" @click="changeStructurePreviewZoom(0.1)" :disabled="structurePreviewZoom >= 1.5" class="inline-flex h-9 w-9 items-center justify-center bg-slate-700 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Zoom in bagan">
+                                                <i data-lucide="zoom-in" class="h-4 w-4"></i>
+                                            </button>
+                                        </div>
                                         <span class="hidden text-[11px] font-semibold text-slate-500 sm:inline">Geser bagan</span>
-                                        <button type="button" @click="scrollStructurePreview(-1)" class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 transition hover:bg-blue-100 hover:text-blue-700" aria-label="Geser bagan ke kiri">
+                                        <button type="button" @click="scrollStructurePreview(-1)" class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-700 text-white transition hover:bg-blue-800" aria-label="Geser bagan ke kiri">
                                             <i data-lucide="arrow-left" class="h-4 w-4"></i>
                                         </button>
-                                        <button type="button" @click="scrollStructurePreview(1)" class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 transition hover:bg-blue-100 hover:text-blue-700" aria-label="Geser bagan ke kanan">
+                                        <button type="button" @click="scrollStructurePreview(1)" class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-700 text-white transition hover:bg-blue-800" aria-label="Geser bagan ke kanan">
                                             <i data-lucide="arrow-right" class="h-4 w-4"></i>
                                         </button>
                                     </div>

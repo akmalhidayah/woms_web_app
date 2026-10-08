@@ -89,6 +89,8 @@ class StructureOrganizationPreviewTest extends TestCase
             ->assertSee('DIROPS Saja')
             ->assertSee('Sampai GM')
             ->assertSee('Sampai SM')
+            ->assertSee('Zoom out bagan')
+            ->assertSee('Zoom in bagan')
             ->assertSee('Geser bagan ke kanan');
     }
 

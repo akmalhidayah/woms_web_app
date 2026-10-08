@@ -13,7 +13,7 @@
             'main' => 'Pekerjaan Jasa',
             'workshop' => 'Pekerjaan Bengkel',
             'support' => 'Menu Pendukung',
-            'other' => 'Lainnya',
+            'other' => 'Master Data',
         ];
         $menusByGroup = collect($menuOptions ?? [])->groupBy(fn (array $menu) => $menu['group'] ?? 'other');
         $groupedMenus = collect(['dashboard', 'main', 'workshop', 'support', 'other'])

@@ -43,7 +43,7 @@ class AccessControlTest extends TestCase
                 'Pekerjaan Jasa',
                 'Pekerjaan Bengkel',
                 'Menu Pendukung',
-                'Lainnya',
+                'Master Data',
             ])
             ->assertDontSee('Admin Operasional')
             ->assertDontSee('Approval');

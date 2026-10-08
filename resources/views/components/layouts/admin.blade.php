@@ -1117,7 +1117,7 @@
                                     <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 text-white/90 transition group-hover:bg-white/15">
                                         <i data-lucide="layers" class="h-4 w-4"></i>
                                     </span>
-                                    <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 text-left font-medium">Lainnya</span>
+                                    <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 text-left font-medium">Master Data</span>
                                     <i
                                         data-lucide="chevron-down"
                                         class="h-4 w-4 text-white/70 transition"

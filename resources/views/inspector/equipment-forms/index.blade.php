@@ -12,7 +12,7 @@
                         <div class="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
                             <span class="rounded-full bg-slate-100 px-3 py-1 text-slate-700">{{ count($forms) }} form peralatan</span>
                             <span class="rounded-full bg-slate-100 px-3 py-1 text-slate-700">{{ array_sum(array_column($forms, 'item_count')) }} item pemeriksaan</span>
-                            <span class="rounded-full bg-amber-100 px-3 py-1 text-amber-800">Tahap 1 · Simulasi UI</span>
+                            <a href="{{ route('inspector.inspections.index') }}" class="rounded-full bg-[#7f1017] px-3 py-1 text-white">Inspeksi Saya</a>
                         </div>
                     </div>
                 </div>
@@ -28,7 +28,7 @@
 
         <p class="flex items-start gap-2 text-xs leading-5 text-slate-600">
             <i data-lucide="info" class="mt-0.5 h-4 w-4 shrink-0 text-red-700" aria-hidden="true"></i>
-            Pilihan dan keterangan hanya untuk simulasi. Data tidak disimpan dan akan hilang saat halaman dimuat ulang atau ditinggalkan.
+            Pilih Form untuk memulai pemeriksaan baru. Draft yang sudah tersimpan dapat dilanjutkan melalui Inspeksi Saya.
         </p>
 
         <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" aria-label="Daftar form peralatan">

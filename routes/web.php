@@ -39,6 +39,7 @@ use App\Http\Controllers\Approval\QualityControlSignatureController;
 use App\Http\Controllers\Approval\WorkshopHandoverSignatureController;
 use App\Http\Controllers\ApprovalDocumentController;
 use App\Http\Controllers\Inspector\EquipmentFormController;
+use App\Http\Controllers\Inspector\EquipmentInspectionController;
 use App\Http\Controllers\Pkm\DashboardController as PkmDashboardController;
 use App\Http\Controllers\Pkm\DocumentsController as PkmDocumentsController;
 use App\Http\Controllers\Pkm\HppDraftController;
@@ -540,6 +541,14 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('inspector')->name('inspector.')->middleware('role:inspector')->group(function () {
         Route::get('equipment-forms', [EquipmentFormController::class, 'index'])->name('equipment-forms.index');
         Route::get('equipment-forms/{equipmentForm}', [EquipmentFormController::class, 'show'])->name('equipment-forms.show');
+        Route::post('equipment-forms/{equipmentForm}', [EquipmentInspectionController::class, 'store'])->name('inspections.store');
+        Route::get('inspections', [EquipmentInspectionController::class, 'index'])->name('inspections.index');
+        Route::get('inspections/{inspection}', [EquipmentInspectionController::class, 'show'])->name('inspections.show');
+        Route::put('inspections/{inspection}', [EquipmentInspectionController::class, 'update'])->name('inspections.update');
+        Route::post('inspections/{inspection}/sign', [EquipmentInspectionController::class, 'sign'])->name('inspections.sign');
+        Route::get('inspections/{inspection}/pdf', [EquipmentInspectionController::class, 'pdf'])->name('inspections.pdf');
+        Route::get('inspections/{inspection}/attachments/{attachment}', [EquipmentInspectionController::class, 'attachment'])->whereNumber('attachment')->name('inspections.attachments.show');
+        Route::get('inspections/{inspection}/signature', [EquipmentInspectionController::class, 'signature'])->name('inspections.signature');
     });
 
     Route::get('user/dashboard', [OrderTrackingController::class, 'index'])

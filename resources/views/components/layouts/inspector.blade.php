@@ -42,10 +42,11 @@
                         </div>
                     </div>
 
-                    <div class="hidden shrink-0 items-center gap-3 md:flex">
+                    <div class="hidden shrink-0 items-center gap-3 lg:flex">
                         <a href="{{ route('inspector.equipment-forms.index') }}" @if(request()->routeIs('inspector.equipment-forms.*')) aria-current="page" @endif class="rounded-xl border px-4 py-1.5 text-sm font-semibold transition {{ request()->routeIs('inspector.equipment-forms.*') ? 'border-white/25 bg-white text-red-800 shadow-sm' : 'border-white/20 bg-white/10 text-white hover:bg-white/15' }}">
                             Pemeriksaan Peralatan
                         </a>
+                        <a href="{{ route('inspector.inspections.index') }}" class="rounded-xl border px-4 py-1.5 text-sm font-semibold transition {{ request()->routeIs('inspector.inspections.*') ? 'border-white/25 bg-white text-red-800' : 'border-white/20 bg-white/10 text-white hover:bg-white/15' }}">Inspeksi Saya</a>
                         <div class="relative" @click.outside="profileOpen = false">
                             <button type="button" @click="profileOpen = !profileOpen" :aria-expanded="profileOpen" aria-controls="inspector-profile-menu" class="inline-flex items-center gap-2.5 rounded-xl border border-white/20 bg-white px-3 py-1.5 shadow-sm transition hover:bg-red-50">
                                 <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-xs font-bold text-red-700">{{ $user->initials() }}</span>
@@ -69,13 +70,14 @@
                         </div>
                     </div>
 
-                    <button type="button" @click="mobileMenu = !mobileMenu" :aria-expanded="mobileMenu" aria-controls="inspector-mobile-menu" aria-label="Buka menu Inspektor" class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white text-red-800 shadow-sm md:hidden">
+                    <button type="button" @click="mobileMenu = !mobileMenu" :aria-expanded="mobileMenu" aria-controls="inspector-mobile-menu" aria-label="Buka menu Inspektor" class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white text-red-800 shadow-sm lg:hidden">
                         <i data-lucide="menu" class="h-5 w-5" aria-hidden="true"></i>
                     </button>
                 </div>
-                <div id="inspector-mobile-menu" x-show="mobileMenu" x-transition x-cloak class="border-t border-red-700 bg-white px-4 py-4 md:hidden">
+                <div id="inspector-mobile-menu" x-show="mobileMenu" x-transition x-cloak class="border-t border-red-700 bg-white px-4 py-4 lg:hidden">
                     <nav class="space-y-3" aria-label="Navigasi Inspektor">
                         <a href="{{ route('inspector.equipment-forms.index') }}" class="block rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-800">Pemeriksaan Peralatan</a>
+                        <a href="{{ route('inspector.inspections.index') }}" class="block rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-800">Inspeksi Saya</a>
                         <div class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
                             <div class="break-words text-sm font-semibold text-slate-900">{{ $user->name }}</div>
                             <div class="break-words text-xs text-slate-500">{{ $user->email }}</div>

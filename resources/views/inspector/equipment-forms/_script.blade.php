@@ -22,7 +22,7 @@ window.equipmentInspectionPage = function (config) {
                 && (answer.rating === 'A' || answer.remark.trim().length > 0));
         },
         get canSign() {
-            return this.persisted && !this.readOnly && !this.conflict && !this.dirty && this.complete
+            return !this.readOnly && !this.conflict && this.complete
                 && this.inspectionDate && this.inspectionDate <= this.today && !this.saving && !this.signing;
         },
         get formattedDate() {
@@ -46,10 +46,15 @@ window.equipmentInspectionPage = function (config) {
             this.signatureData = '';
             this.signOpen = false;
         },
-        submitDraft(event) {
+        submitInspection(event) {
             if (this.saving || this.readOnly || this.conflict) { event.preventDefault(); return; }
             if (this.deleteAttachments.length && !window.confirm('Hapus foto yang dipilih saat menyimpan draft ini?')) {
                 event.preventDefault(); return;
+            }
+            if (event.submitter?.dataset.action === 'sign') {
+                if (!this.canSign || !this.signatureData) { event.preventDefault(); return; }
+                this.signing = true;
+                return;
             }
             this.saving = true;
         },
@@ -96,10 +101,6 @@ window.equipmentInspectionPage = function (config) {
         },
         previewSignature() {
             if (this.hasInk) this.signatureData = this.$refs.signatureCanvas.toDataURL('image/png');
-        },
-        submitSignature(event) {
-            if (!this.canSign || !this.signatureData) { event.preventDefault(); return; }
-            this.signing = true;
         },
     };
 };

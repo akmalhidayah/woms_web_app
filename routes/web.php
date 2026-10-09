@@ -556,9 +556,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('equipment-forms', [EquipmentFormController::class, 'index'])->name('equipment-forms.index');
         Route::get('equipment-forms/{equipmentForm}', [EquipmentFormController::class, 'show'])->name('equipment-forms.show');
         Route::post('equipment-forms/{equipmentForm}', [EquipmentInspectionController::class, 'store'])->name('inspections.store');
+        Route::post('equipment-forms/{equipmentForm}/sign', [EquipmentInspectionController::class, 'storeAndSign'])->name('inspections.store-and-sign');
         Route::get('inspections', [EquipmentInspectionController::class, 'index'])->name('inspections.index');
         Route::get('inspections/{inspection}', [EquipmentInspectionController::class, 'show'])->name('inspections.show');
         Route::put('inspections/{inspection}', [EquipmentInspectionController::class, 'update'])->name('inspections.update');
+        Route::put('inspections/{inspection}/sign', [EquipmentInspectionController::class, 'updateAndSign'])->name('inspections.update-and-sign');
         Route::post('inspections/{inspection}/sign', [EquipmentInspectionController::class, 'sign'])->name('inspections.sign');
         Route::post('inspections/{inspection}/revise', [EquipmentInspectionController::class, 'revise'])->name('inspections.revise');
         Route::get('inspections/{inspection}/pdf', [EquipmentInspectionController::class, 'pdf'])->name('inspections.pdf');

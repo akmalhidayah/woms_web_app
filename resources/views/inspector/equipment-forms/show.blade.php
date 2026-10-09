@@ -66,7 +66,7 @@
         @endif
         <noscript><p class="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Aktifkan JavaScript untuk mengisi checklist dan menggambar tanda tangan.</p></noscript>
 
-        <form method="POST" action="{{ $inspection ? route('inspector.inspections.update', $inspection) : route('inspector.inspections.store', $form['id']) }}" enctype="multipart/form-data" @submit="submitDraft($event)" class="space-y-4">
+        <form id="equipment-inspection-form" method="POST" action="{{ $inspection ? route('inspector.inspections.update', $inspection) : route('inspector.inspections.store', $form['id']) }}" enctype="multipart/form-data" @submit="submitInspection($event)" class="space-y-4">
             @csrf
             @if ($inspection)
                 @method('PUT')
@@ -125,14 +125,14 @@
 
             @unless ($readOnly)
                 <div class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <p class="text-xs text-slate-600" x-text="dirty || !persisted ? 'Ada isian yang belum disimpan. Simpan draft sebelum menandatangani.' : 'Isian terakhir sudah tersimpan.'"></p>
+                    <p class="text-xs text-slate-600" x-text="dirty || !persisted ? 'Isian belum disimpan. Anda dapat menyimpan draft atau langsung tanda tangan.' : 'Isian terakhir sudah tersimpan dan siap ditandatangani.'"></p>
                     <div class="grid gap-2 sm:flex">
                         <button type="button" @click="reset()" :disabled="saving" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold">Reset isian</button>
                         <button type="submit" :disabled="saving || conflict" class="rounded-xl bg-[#7f1017] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50" x-text="saving ? 'Menyimpan...' : 'Simpan Draft'">Simpan Draft</button>
                     </div>
                 </div>
             @endunless
+            @include('inspector.equipment-forms._signature')
         </form>
-        @include('inspector.equipment-forms._signature')
     </div>
 </x-layouts.inspector>

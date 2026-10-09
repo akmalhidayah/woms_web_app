@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Inspector;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inspector\SaveEquipmentInspectionRequest;
+use App\Http\Requests\Inspector\SaveAndSignEquipmentInspectionRequest;
 use App\Http\Requests\Inspector\SignEquipmentInspectionRequest;
 use App\Models\EquipmentInspection;
 use App\Models\EquipmentInspectionAttachment;
@@ -63,6 +64,20 @@ class EquipmentInspectionController extends Controller
         return redirect()->route('inspector.inspections.show', $inspection)->with('success', 'Perubahan draft berhasil disimpan.');
     }
 
+    public function storeAndSign(SaveAndSignEquipmentInspectionRequest $request, string $equipmentForm, EquipmentInspectionService $service, EquipmentInspectionWorkflow $workflow): RedirectResponse
+    {
+        $inspection = $service->save($request->user(), null, $equipmentForm, $request->validated(), $request->file('photos', []));
+
+        return $this->completeDirectSignature($request, $inspection, $service, $workflow);
+    }
+
+    public function updateAndSign(SaveAndSignEquipmentInspectionRequest $request, EquipmentInspection $inspection, EquipmentInspectionService $service, EquipmentInspectionWorkflow $workflow): RedirectResponse
+    {
+        $inspection = $service->save($request->user(), $inspection, null, $request->validated(), $request->file('photos', []));
+
+        return $this->completeDirectSignature($request, $inspection, $service, $workflow);
+    }
+
     public function sign(SignEquipmentInspectionRequest $request, EquipmentInspection $inspection, EquipmentInspectionService $service): RedirectResponse
     {
         try {
@@ -119,5 +134,25 @@ class EquipmentInspectionController extends Controller
     private function authorizeView(Request $request, EquipmentInspection $inspection): void
     {
         abort_unless((new EquipmentInspectionPolicy)->view($request->user(), $inspection), 403);
+    }
+
+    private function completeDirectSignature(SaveAndSignEquipmentInspectionRequest $request, EquipmentInspection $inspection, EquipmentInspectionService $service, EquipmentInspectionWorkflow $workflow): RedirectResponse
+    {
+        try {
+            $inspection = $service->sign($request->user(), $inspection, [
+                'lock_version' => $inspection->lock_version,
+                'document_version' => $inspection->document_version,
+                'signature_data' => $request->validated('signature_data'),
+            ]);
+        } catch (ValidationException $exception) {
+            return redirect()->route('inspector.inspections.show', $inspection)
+                ->withErrors($exception->errors())
+                ->with('success', 'Isian berhasil disimpan sebagai draft, tetapi tanda tangan belum dapat diproses.');
+        }
+
+        $workflow->initialize($inspection);
+
+        return redirect()->route('inspector.inspections.show', $inspection)
+            ->with('success', 'Pemeriksaan berhasil disimpan dan ditandatangani. Nomor '.$inspection->document_no.' telah diterbitkan.');
     }
 }

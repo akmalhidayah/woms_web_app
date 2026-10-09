@@ -19,7 +19,16 @@
         thead { display: table-header-group; }
         tr { page-break-inside: avoid; }
         .center { text-align: center; }
-        .title { font-size: 16px; font-weight: bold; text-transform: uppercase; }
+        .masthead { page-break-inside: avoid; }
+        .masthead td { border: 0; padding: 0 3px 5px; vertical-align: bottom; }
+        .masthead .brand-logos { white-space: nowrap; vertical-align: middle; }
+        .brand-logos img { vertical-align: middle; }
+        .brand-sig { width: 62px; height: auto; }
+        .brand-tonasa { width: 47px; height: auto; margin-left: 3px; }
+        .brand-workshop { width: 58px; height: auto; margin-left: 3px; }
+        .title { font-size: 13px; font-weight: bold; }
+        .task-record { font-size: 13px; font-weight: bold; font-style: italic; }
+        .header-block { page-break-inside: avoid; }
         .small { font-size: 8px; }
         .meta { margin-bottom: 12px; page-break-inside: avoid; }
         .meta td { vertical-align: top; }
@@ -39,9 +48,21 @@
 </head>
 <body>
     @if ($isDraft)<div class="watermark">DRAFT</div>@endif
+    <div class="header-block">
+    <table class="masthead">
+        <colgroup><col style="width:27%"><col style="width:54%"><col style="width:19%"></colgroup>
+        <tr>
+            <td class="brand-logos">
+                <img class="brand-sig" src="{{ public_path('assets/branding/logos/logo-sig.png') }}" alt="SIG">
+                <img class="brand-tonasa" src="{{ public_path('assets/branding/logos/logo-st2.png') }}" alt="Semen Tonasa">
+                <img class="brand-workshop" src="{{ public_path('assets/branding/logos/logo-bms2.png') }}" alt="Workshop">
+            </td>
+            <td class="title center">{{ $inspection->form_name }}</td>
+            <td class="task-record center">Task Record</td>
+        </tr>
+    </table>
     <table class="meta">
         <colgroup><col style="width:38%"><col style="width:24%"><col style="width:19%"><col style="width:19%"></colgroup>
-        <tr><td colspan="3" class="title center">{{ $inspection->form_name }}</td><td class="center"><strong>Task Record</strong><br>Versi {{ $inspection->document_version }}</td></tr>
         <tr>
             <td rowspan="2"><strong>Document No:</strong><br>{{ $inspection->document_no ?? 'Belum diterbitkan' }}<br><br><strong>Seksi:</strong> Bengkel Mesin<br><strong>Unit:</strong> Bengkel</td>
             <td rowspan="2" class="center"><strong>Process:</strong><br><br>Inspection &amp; List</td>
@@ -54,7 +75,8 @@
         </tr>
         <tr><td colspan="2"><strong>Nama Pelaksana:</strong> {{ $inspection->inspector_name }}</td><td colspan="2"><strong>Tanggal Pemeriksaan:</strong><br>{{ $inspection->inspection_date->locale('id')->translatedFormat('l, d F Y') }}</td></tr>
     </table>
-    <p class="status"><strong>{{ $isDraft ? 'DRAFT — Belum ditandatangani' : 'Siap Approval — Belum final' }}</strong></p>
+    </div>
+    <p class="status"><strong>{{ $isDraft ? 'DRAFT — Belum ditandatangani' : 'Siap Approval — Belum final' }}</strong> · Versi {{ $inspection->document_version }}</p>
     <table>
         <colgroup><col style="width:5%"><col style="width:33%"><col style="width:8%"><col style="width:8%"><col style="width:8%"><col style="width:38%"></colgroup>
         <thead>

@@ -1,5 +1,5 @@
 <x-layouts.admin title="Monitoring Inspeksi Peralatan">
-    <div class="space-y-4" x-data="{
+    <div class="order-list-compact space-y-4" x-data="{
         remarks: null, loading: false, error: '', requestId: 0,
         approvalModalOpen: false, approvalProgress: null, approvalLoading: false, approvalError: '', approvalRequestId: 0,
         async openApproval(url) {
@@ -25,38 +25,57 @@
             finally { if (id === this.requestId) this.loading = false; }
         }
     }">
-        <header class="rounded-2xl border border-blue-200 bg-white p-5">
-            <h1 class="flex items-center gap-3 text-xl font-bold"><i data-lucide="clipboard-check" class="h-6 w-6 text-blue-700"></i>Monitoring Inspeksi Peralatan</h1>
-                   @if ($errors->any())<p role="alert" class="rounded-xl border border-red-500 bg-white p-4 text-red-800">{{ $errors->first() }}</p>@endif
+        <section class="order-list-hero rounded-[1.35rem] border border-blue-100 px-5 py-4 shadow-sm" style="background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 48%, #e6f1ff 100%);">
+            <div class="flex items-center gap-4">
+                <span class="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm ring-1 ring-blue-200">
+                    <i data-lucide="clipboard-check" class="h-[18px] w-[18px]" aria-hidden="true"></i>
+                </span>
+                <h1 class="text-[1.3rem] font-bold leading-none tracking-tight text-slate-900">Monitoring Inspeksi Peralatan</h1>
+            </div>
+        </section>
+
+        @if ($errors->any())<p role="alert" class="rounded-xl border border-red-500 bg-white p-4 text-red-800">{{ $errors->first() }}</p>@endif
         @if (session('success'))<p role="status" class="rounded-xl border border-green-600 bg-white p-4 text-green-800">{{ session('success') }}</p>@endif
-        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <x-inspections.index-tabs route-name="admin.inspections.index" :tab="$tab" :counts="$counts" :search="$filters['search'] ?? ''" />
+        <section class="order-list-panel overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-sm">
+            <div class="border-b border-slate-200 px-5 py-4">
+                <x-inspections.index-tabs route-name="admin.inspections.index" :tab="$tab" :counts="$counts" :search="$filters['search'] ?? ''" />
+            </div>
             <div class="overflow-x-auto">
-                <table class="w-full text-left text-xs">
-                    <thead class="bg-slate-100 text-slate-700"><tr><th class="p-3">No.</th><th class="p-3">Peralatan / Jenis Form</th><th class="p-3">Tanggal Pemeriksaan</th><th class="p-3">Inspektor</th><th class="p-3">Nomor Dokumen</th><th class="p-3">Kondisi</th><th class="p-3">Posisi Approval</th><th class="p-3">Action</th></tr></thead>
-                    <tbody class="divide-y divide-slate-200">
+                <table class="min-w-[1100px] table-fixed bg-white text-left text-[11px] text-slate-700">
+                    <colgroup>
+                        <col class="w-[4%]">
+                        <col class="w-[14%]">
+                        <col class="w-[13%]">
+                        <col class="w-[10%]">
+                        <col class="w-[15%]">
+                        <col class="w-[9%]">
+                        <col class="w-[25%]">
+                        <col class="w-[10%]">
+                    </colgroup>
+                    <thead class="bg-slate-100 uppercase tracking-wide text-slate-700"><tr><th class="px-4 py-2 font-semibold">No.</th><th class="px-4 py-2 font-semibold">Peralatan / Jenis Form</th><th class="px-4 py-2 font-semibold">Tanggal Pemeriksaan</th><th class="px-4 py-2 font-semibold">Inspektor</th><th class="px-4 py-2 font-semibold">Nomor Dokumen</th><th class="px-4 py-2 font-semibold">Kondisi</th><th class="px-4 py-2 font-semibold">Posisi Approval</th><th class="px-4 py-2 text-center font-semibold">Aksi</th></tr></thead>
+                    <tbody class="divide-y divide-slate-100 bg-white">
                         @forelse ($inspections as $inspection)
                             @php
                                 $remarkCount = $inspection->answers->filter(fn ($a) => preg_match('/[^\s\p{Z}]/u', (string) $a->remark))->count();
                                 $worst = $inspection->answers->pluck('rating')->filter()->sortDesc()->first();
                                 $signedCount = $inspection->status === \App\Models\EquipmentInspection::STATUS_REVISION ? 0 : $inspection->signed_count;
                             @endphp
-                            <tr>
-                                <td class="p-3">{{ $inspections->firstItem() + $loop->index }}</td>
-                                <td class="max-w-xs p-3 font-semibold">{{ $inspection->form_name }}</td>
-                                <td class="whitespace-nowrap p-3">{{ $inspection->inspection_date->format('d/m/Y') }}</td>
-                                <td class="p-3">{{ $inspection->inspector_name }}</td>
-                                <td class="p-3">{{ $inspection->document_no ?? 'Belum diterbitkan' }}</td>
-                                <td class="p-3">{{ ['A' => 'A · Normal', 'B' => 'B · Kurang Normal', 'C' => 'C · Rusak'][$worst] ?? 'Belum diperiksa' }}</td>
-                                <td class="p-3">
-                                    <div class="flex min-w-52 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2">
-                                        <span class="shrink-0 rounded-full bg-white px-2 py-1 text-[9px] font-bold text-blue-700">{{ $signedCount }}/{{ count(\App\Models\EquipmentInspectionSignature::STEPS) }} TTD</span>
-                                        <span class="text-[10px] font-semibold text-slate-700">{{ $inspection->statusLabel() }}</span>
-                                        <button type="button" @click="openApproval(@js(route('admin.inspections.approval-progress', $inspection)))" title="Detail progres approval" aria-label="Detail progres approval {{ $inspection->form_name }}" class="ml-auto rounded-full border border-slate-300 bg-white p-1 text-slate-500 hover:text-blue-700"><i data-lucide="info" class="h-3.5 w-3.5" aria-hidden="true"></i></button>
+                            <tr class="transition duration-150 hover:bg-slate-50">
+                                <td class="px-4 py-3 align-top">{{ $inspections->firstItem() + $loop->index }}</td>
+                                <td class="px-4 py-3 align-top font-bold text-slate-900">{{ $inspection->form_name }}</td>
+                                <td class="whitespace-nowrap px-4 py-3 align-top">{{ $inspection->inspection_date->format('d/m/Y') }}</td>
+                                <td class="px-4 py-3 align-top">{{ $inspection->inspector_name }}</td>
+                                <td class="break-words px-4 py-3 align-top">{{ $inspection->document_no ?? 'Belum diterbitkan' }}</td>
+                                <td class="px-4 py-3 align-top">{{ ['A' => 'A · Normal', 'B' => 'B · Kurang Normal', 'C' => 'C · Rusak'][$worst] ?? 'Belum diperiksa' }}</td>
+                                <td class="px-4 py-3 align-top">
+                                    <div class="flex min-w-0 items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-2 py-1.5 shadow-sm">
+                                        <span class="shrink-0 rounded-full bg-white px-1.5 py-0.5 text-[8px] font-bold text-blue-700 ring-1 ring-blue-100">{{ $signedCount }}/{{ count(\App\Models\EquipmentInspectionSignature::STEPS) }} TTD</span>
+                                        <span class="truncate text-[9px] font-semibold text-slate-800" title="{{ $inspection->statusLabel() }}">{{ $inspection->statusLabel() }}</span>
+                                        <button type="button" @click="openApproval(@js(route('admin.inspections.approval-progress', $inspection)))" title="Detail progres approval" aria-label="Detail progres approval {{ $inspection->form_name }}" class="ml-auto inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-blue-200 hover:bg-blue-100 hover:text-blue-700"><i data-lucide="info" class="h-3 w-3" aria-hidden="true"></i></button>
                                     </div>
                                     @if ($inspection->workflow_error || $inspection->archive_error)<p class="mt-1 font-semibold text-red-700">Perlu pemeriksaan Admin</p>@endif
                                 </td>
-                                <td class="p-3"><div class="flex flex-nowrap items-center gap-1">
+                                <td class="px-4 py-3 align-top"><div class="flex flex-nowrap items-center justify-center gap-1.5">
                                     @if ($remarkCount > 0)<button type="button" @click="openRemarks(@js(route('admin.inspections.remarks', $inspection)))" title="Lihat {{ $remarkCount }} item dengan Remark" aria-label="Lihat {{ $remarkCount }} item dengan Remark" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700 transition hover:bg-amber-100"><i data-lucide="message-square-text" class="h-3 w-3" aria-hidden="true"></i></button>@endif
                                     <a href="{{ route('admin.inspections.pdf', $inspection) }}" target="_blank" rel="noopener" title="Lihat PDF inspeksi" aria-label="Lihat PDF {{ $inspection->form_name }}" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50"><i data-lucide="file-text" class="h-3 w-3" aria-hidden="true"></i></a>
                                     <a href="{{ route('admin.inspections.show', $inspection) }}" title="Lihat inspeksi" aria-label="Lihat inspeksi {{ $inspection->form_name }}" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100"><i data-lucide="eye" class="h-3 w-3" aria-hidden="true"></i></a>
@@ -64,12 +83,12 @@
                                 </div></td>
                             </tr>
                         @empty
-                            <tr><td colspan="8" class="p-10 text-center text-sm text-slate-500">Tidak ada laporan yang sesuai.</td></tr>
+                            <tr><td colspan="8" class="px-4 py-12 text-center text-sm text-slate-500">Tidak ada laporan yang sesuai.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
-            <div class="p-4">{{ $inspections->links() }}</div>
+            <div class="border-t border-slate-200 px-5 py-4">{{ $inspections->links() }}</div>
         </section>
         @include('admin.inspections._approval-modal')
         <dialog x-ref="remarksDialog" aria-labelledby="remarks-title" class="w-[calc(100%-2rem)] max-w-3xl rounded-2xl border border-slate-300 p-0 backdrop:bg-black/60">

@@ -6,9 +6,13 @@
         </section>
         @if ($errors->any())<p role="alert" class="rounded-xl bg-red-50 p-4 text-sm text-red-800">{{ $errors->first() }}</p>@endif
         @if (session('success'))<p role="status" class="rounded-xl border border-green-600 bg-white p-4 text-sm text-green-800">{{ session('success') }}</p>@endif
-        <section class="rounded-2xl border border-slate-200 bg-white">
-            <x-inspections.index-tabs route-name="inspector.inspections.index" :tab="$tab" :counts="$counts" :search="$filters['search'] ?? ''" />
-        </section>
+        <form method="GET" action="{{ route('inspector.inspections.index') }}" class="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 xl:grid-cols-5">
+            <label class="text-xs font-semibold text-slate-600">Peralatan<input type="search" name="equipment" value="{{ $filters['equipment'] ?? '' }}" placeholder="Nama peralatan..." class="mt-1 block w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"></label>
+            <label class="text-xs font-semibold text-slate-600">Tanggal dari<input type="date" name="date_from" value="{{ $filters['date_from'] ?? '' }}" class="mt-1 block w-full min-w-0 rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"></label>
+            <label class="text-xs font-semibold text-slate-600">Tanggal sampai<input type="date" name="date_to" value="{{ $filters['date_to'] ?? '' }}" class="mt-1 block w-full min-w-0 rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"></label>
+            <label class="text-xs font-semibold text-slate-600">Status<select name="status" class="mt-1 block w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"><option value="">Semua status</option>@foreach (\App\Models\EquipmentInspection::STATUS_LABELS as $key => $label)<option value="{{ $key }}" @selected(($filters['status'] ?? '') === $key)>{{ $label }}</option>@endforeach</select></label>
+            <div class="flex items-end gap-2"><button type="submit" class="rounded-xl bg-[#7f1017] px-4 py-2.5 text-sm font-bold text-white">Terapkan</button><a href="{{ route('inspector.inspections.index') }}" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm">Reset Filter</a></div>
+        </form>
         <section class="space-y-3" aria-label="Riwayat inspeksi">
             @forelse ($inspections as $inspection)
                 <article class="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:grid-cols-[1fr_1.3fr_1fr_auto] lg:items-center">
@@ -19,7 +23,7 @@
                         @if ($inspection->status === \App\Models\EquipmentInspection::STATUS_REVISION)
                             <form method="POST" action="{{ route('inspector.inspections.revise', $inspection) }}">@csrf<input type="hidden" name="document_version" value="{{ $inspection->document_version }}"><button class="w-full rounded-xl bg-amber-500 px-3 py-2 text-xs font-bold text-slate-950">Perbaiki Laporan</button></form>
                         @endif
-                        <a href="{{ route('inspector.inspections.show', $inspection) }}" class="rounded-xl bg-[#7f1017] px-3 py-2 text-center text-xs font-bold text-white">{{ $inspection->isDraft() ? 'Lanjutkan Draft' : 'Lihat Detail' }}</a>
+                        <a href="{{ route('inspector.inspections.show', $inspection) }}" class="rounded-xl bg-[#7f1017] px-3 py-2 text-center text-xs font-bold text-white">{{ $inspection->isDraft() ? 'Edit Draft' : 'Lihat Detail' }}</a>
                         <a href="{{ route('inspector.inspections.pdf', $inspection) }}" target="_blank" rel="noopener" class="rounded-xl border border-slate-300 px-3 py-2 text-center text-xs font-semibold">Preview PDF</a>
                         <x-inspections.delete-button :inspection="$inspection" route-name="inspector.inspections.destroy" />
                     </div>

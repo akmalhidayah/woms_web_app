@@ -107,7 +107,6 @@
             <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" aria-labelledby="checklist-title">
                 <div class="border-b border-slate-200 p-5 sm:px-6">
                     <h2 id="checklist-title" class="font-bold">Checklist Pemeriksaan</h2>
-                    <p class="mt-2 text-xs leading-5 text-slate-500">Pilih A = Normal, B = Kurang Normal, atau C = Rusak. Keterangan B/C wajib sebelum tanda tangan. Draft boleh disimpan meskipun belum lengkap.</p>
                 </div>
                 <div class="hidden grid-cols-[2.5rem_minmax(0,1fr)_12rem_minmax(0,1.2fr)] gap-4 border-b border-slate-200 bg-slate-100 px-4 py-3 text-xs font-bold text-slate-600 lg:grid" aria-hidden="true">
                     <span>NO</span><span>ACTIVITY / PEMERIKSAAN</span><span class="text-center">A / B / C</span><span>REMARK / FOTO</span>
@@ -131,7 +130,6 @@
                         <p class="mt-1 text-xs text-slate-600" x-text="complete ? 'Simpan sebagai draft atau tanda tangani lalu submit pemeriksaan.' : 'Draft dapat disimpan sekarang. Submit tersedia setelah checklist lengkap dan sudah ditandatangani.'"></p>
                     </div>
                     <div class="grid gap-2 sm:flex">
-                        <button type="button" @click="reset()" :disabled="saving || signing" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold">Reset isian</button>
                         <button type="submit" :disabled="saving || signing || conflict" class="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40" x-text="saving ? 'Menyimpan...' : 'Simpan Draft'">Simpan Draft</button>
                         <button type="submit"
                             data-action="sign"

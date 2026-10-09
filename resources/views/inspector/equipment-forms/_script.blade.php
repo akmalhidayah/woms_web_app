@@ -37,19 +37,6 @@ window.equipmentInspectionPage = function (config) {
             if (input) input.value = '';
             this.filesSelected[id] = 0;
         },
-        reset() {
-            if (!window.confirm('Kembalikan isian ke kondisi terakhir yang tersimpan? Foto tersimpan tidak dihapus.')) return;
-            this.answers = JSON.parse(JSON.stringify(this.savedAnswers));
-            this.inspectionDate = this.savedDate;
-            Object.keys(this.filesSelected).forEach(id => this.clearPhotos(id));
-            this.deleteAttachments = [];
-            this.signatureData = '';
-            this.signatureConfirmed = false;
-            this.signatureModalOpen = false;
-            this.hasInk = false;
-            this.pointerId = null;
-            this.paintSignatureBackground();
-        },
         submitInspection(event) {
             if (this.saving || this.readOnly || this.conflict) { event.preventDefault(); return; }
             if (this.deleteAttachments.length && !window.confirm('Hapus foto yang dipilih saat menyimpan pemeriksaan ini?')) {

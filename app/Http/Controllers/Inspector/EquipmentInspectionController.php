@@ -9,11 +9,11 @@ use App\Models\EquipmentInspection;
 use App\Models\EquipmentInspectionAttachment;
 use App\Models\EquipmentInspectionSignature;
 use App\Policies\EquipmentInspectionPolicy;
+use App\Services\Inspector\EquipmentInspectionPdfService;
 use App\Services\Inspector\EquipmentInspectionService;
-use App\Support\Inspector\EquipmentInspectionPdfPresenter;
+use App\Services\Inspector\EquipmentInspectionWorkflow;
 use App\Support\Inspector\EquipmentInspectionViewData;
 use App\Support\Inspector\InspectionImageStorage;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,7 +29,7 @@ class EquipmentInspectionController extends Controller
             'equipment' => ['nullable', 'string', 'max:255'],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', ...($request->filled('date_from') ? ['after_or_equal:date_from'] : [])],
-            'status' => ['nullable', Rule::in([EquipmentInspection::STATUS_DRAFT, EquipmentInspection::STATUS_READY])],
+            'status' => ['nullable', Rule::in(array_keys(EquipmentInspection::STATUS_LABELS))],
         ]);
         $inspections = EquipmentInspection::query()->where('inspector_user_id', $request->user()->id)
             ->when($filters['equipment'] ?? null, fn ($query, $name) => $query->where('form_name', 'like', '%'.$name.'%'))
@@ -71,18 +71,28 @@ class EquipmentInspectionController extends Controller
             return redirect()->route('inspector.inspections.show', $inspection)->withErrors($exception->errors());
         }
 
+        app(EquipmentInspectionWorkflow::class)->initialize($inspection);
+
         return redirect()->route('inspector.inspections.show', $inspection)
             ->with('success', 'Pemeriksaan ditandatangani. Nomor '.$inspection->document_no.' diterbitkan dan laporan terkunci.');
     }
 
-    public function pdf(Request $request, EquipmentInspection $inspection, EquipmentInspectionPdfPresenter $presenter): Response
+    public function revise(Request $request, EquipmentInspection $inspection, EquipmentInspectionWorkflow $workflow): RedirectResponse
+    {
+        $this->authorizeView($request, $inspection);
+        $data = $request->validate(['document_version' => ['required', 'integer', 'min:1']]);
+        $workflow->beginRevision($request->user(), $inspection, (int) $data['document_version']);
+
+        return redirect()->route('inspector.inspections.show', $inspection)->with('success', 'Versi revisi baru dibuka. Nomor tetap; periksa isian lalu tanda tangani ulang.');
+    }
+
+    public function pdf(Request $request, EquipmentInspection $inspection, EquipmentInspectionPdfService $pdf): Response
     {
         $this->authorizeView($request, $inspection);
 
-        return Pdf::loadView('inspector.inspections.pdf', $presenter->present($inspection))
-            ->setPaper('a4', 'portrait')->setOption('isRemoteEnabled', false)
-            ->stream('inspeksi-'.$inspection->public_id.'.pdf', ['Attachment' => false])
-            ->header('Cache-Control', 'private, no-store');
+        $data = $request->validate(['version' => ['nullable', 'integer', 'min:1', 'max:'.$inspection->document_version]]);
+
+        return $pdf->response($inspection, isset($data['version']) ? (int) $data['version'] : null);
     }
 
     public function attachment(Request $request, EquipmentInspection $inspection, EquipmentInspectionAttachment $attachment, InspectionImageStorage $images): Response

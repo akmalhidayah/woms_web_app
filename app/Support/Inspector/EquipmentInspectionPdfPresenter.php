@@ -9,22 +9,31 @@ final class EquipmentInspectionPdfPresenter
 {
     public function __construct(private readonly InspectionImageStorage $images) {}
 
-    public function present(EquipmentInspection $inspection): array
+    public function present(EquipmentInspection $inspection, ?int $version = null): array
     {
-        $inspection->load(['answers.attachments', 'signatures']);
-        $signatures = $inspection->signatures->where('document_version', $inspection->document_version)->keyBy('role_key');
+        $version ??= $inspection->document_version;
+        $isHistorical = $version !== $inspection->document_version;
+        abort_unless($version > 0 && $version <= $inspection->document_version, 404);
+        $signatures = $inspection->signatures()->where('document_version', $version)->get()->keyBy('role_key');
+        $inspector = $signatures->get('inspector');
+        if ($inspector) {
+            // Signed previews (including old revisions) are reconstructed from immutable payloads.
+            $inspection = $this->fromSnapshot($inspection, $inspector->signed_payload, $version);
+        } else {
+            abort_unless($inspection->isDraft() && $version === $inspection->document_version, 409, 'Snapshot Inspektor tidak tersedia.');
+            $inspection->load('answers.attachments');
+        }
         $signatureImages = [];
         foreach ($signatures as $role => $signature) {
-            if (! hash_equals($signature->content_hash, EquipmentInspectionSnapshot::hash($signature->signed_payload))) {
+            if (! hash_equals($signature->content_hash, EquipmentInspectionSnapshot::hash($signature->signed_payload))
+                || ($inspector && ! hash_equals($signature->content_hash, $inspector->content_hash))) {
                 throw new RuntimeException('Snapshot tanda tangan tidak sesuai dengan hash dokumen.');
             }
             $signatureImages[$role] = 'data:image/png;base64,'.base64_encode($this->images->read($signature->signature_path, $signature->signature_sha256));
         }
-        if (! $inspection->isDraft()) {
-            $inspector = $signatures->get('inspector');
-            if (! $inspector || ! hash_equals($inspector->content_hash, EquipmentInspectionSnapshot::hash(EquipmentInspectionSnapshot::payload($inspection)))) {
-                throw new RuntimeException('Isi laporan berubah dari versi yang ditandatangani.');
-            }
+        if ($inspection->status === EquipmentInspection::STATUS_REVISION && ! $isHistorical) {
+            $signatures = collect();
+            $signatureImages = [];
         }
 
         $rows = [];
@@ -41,7 +50,36 @@ final class EquipmentInspectionPdfPresenter
             }
         }
 
-        return compact('inspection', 'rows', 'photos', 'signatures', 'signatureImages');
+        return compact('inspection', 'rows', 'photos', 'signatures', 'signatureImages', 'isHistorical');
+    }
+
+    private function fromSnapshot(EquipmentInspection $source, array $payload, int $version): EquipmentInspection
+    {
+        $inspection = clone $source;
+        $inspection->forceFill(collect($payload)->only(['public_id', 'document_version', 'document_no', 'form_slug', 'form_name', 'template_hash',
+            'inspection_date', 'inspector_user_id', 'inspector_name', 'signed_at'])->all());
+        $inspection->template_snapshot = $payload['template'];
+        if ($version !== $source->document_version) {
+            $inspection->status = EquipmentInspection::STATUS_REVISION;
+        }
+        $fileIds = collect($payload['answers'])->flatMap(fn ($answer) => array_column($answer['attachments'], 'id'));
+        $files = \App\Models\EquipmentInspectionAttachment::withTrashed()->where('equipment_inspection_id', $source->id)->whereIn('id', $fileIds)->get()->keyBy('id');
+        $answers = collect($payload['answers'])->map(function (array $row) use ($files) {
+            $answer = new \App\Models\EquipmentInspectionAnswer(collect($row)->except('attachments')->all());
+            $answer->setRelation('attachments', collect($row['attachments'])->map(function (array $snapshot) use ($files) {
+                $file = $files->get($snapshot['id']);
+                if (! $file || ! hash_equals($file->sha256, $snapshot['sha256']) || $file->mime_type !== $snapshot['mime_type'] || (int) $file->size !== (int) $snapshot['size']) {
+                    throw new RuntimeException('Lampiran snapshot inspeksi tidak sesuai.');
+                }
+
+                return $file;
+            }));
+
+            return $answer;
+        });
+        $inspection->setRelation('answers', $answers);
+
+        return $inspection;
     }
 
     private function remarkChunks(string $remark, int $columns = 42): array

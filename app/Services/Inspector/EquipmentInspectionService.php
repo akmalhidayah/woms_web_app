@@ -66,6 +66,7 @@ final class EquipmentInspectionService
                 }
 
                 $this->validateDate($data['inspection_date']);
+                $previousDate = $inspection->inspection_date->format('Y-m-d');
                 $inspection->inspection_date = $data['inspection_date'];
                 $inspection->save();
                 $answers = $inspection->answers()->withCount('attachments')->get()->keyBy('item_key');
@@ -83,7 +84,10 @@ final class EquipmentInspectionService
                     throw ValidationException::withMessages(['delete_attachments' => 'Lampiran yang dipilih tidak tersedia pada laporan ini.']);
                 }
                 foreach ($deleting as $file) {
-                    $deletedPaths[] = $file->path;
+                    // Signed historical snapshots may still reference this file after a revision.
+                    if ($inspection->document_no === null) {
+                        $deletedPaths[] = $file->path;
+                    }
                     $file->delete();
                     $this->log($inspection, $actor, 'attachment_removed', ['attachment_id' => $file->id, 'answer_id' => $file->equipment_inspection_answer_id]);
                 }
@@ -120,6 +124,7 @@ final class EquipmentInspectionService
                 }
 
                 $this->log($inspection, $actor, $isNew ? 'draft_created' : 'draft_updated', [
+                    'previous_inspection_date' => $previousDate,
                     'inspection_date' => $inspection->inspection_date->format('Y-m-d'), 'changes' => $changes,
                 ]);
 
@@ -148,7 +153,7 @@ final class EquipmentInspectionService
                 }
                 $signature = $inspection->signatures()->where('document_version', $inspection->document_version)
                     ->where('role_key', EquipmentInspectionSignature::ROLE_INSPECTOR)->first();
-                if ($signature && $inspection->status === EquipmentInspection::STATUS_READY) {
+                if ($signature && ! $inspection->isDraft()) {
                     return $inspection;
                 }
 
@@ -193,6 +198,7 @@ final class EquipmentInspectionService
                 $stored = $this->images->signature($data['signature_data'], $inspection->public_id);
                 $createdPaths[] = $stored['path'];
                 $signedAt = now(config('app.timezone'));
+                $isFirstIssue = $inspection->document_no === null;
                 $this->numbers->assign($inspection, $signedAt);
                 $inspection->forceFill([
                     'inspector_name' => $actor->name, 'signed_at' => $signedAt,
@@ -208,7 +214,11 @@ final class EquipmentInspectionService
                     'content_hash' => EquipmentInspectionSnapshot::hash($payload), 'signed_payload' => $payload,
                 ]);
                 $this->log($inspection, $actor, 'inspector_signed');
-                $this->log($inspection, $actor, 'number_issued', ['document_no' => $inspection->document_no]);
+                if ($isFirstIssue) {
+                    $this->log($inspection, $actor, 'number_issued', ['document_no' => $inspection->document_no]);
+                } else {
+                    $this->log($inspection, $actor, 'revision_submitted');
+                }
                 $this->log($inspection, $actor, 'status_changed', ['from' => EquipmentInspection::STATUS_DRAFT, 'to' => EquipmentInspection::STATUS_READY]);
 
                 return $inspection;

@@ -25,7 +25,6 @@
         .brand-logos img { vertical-align: middle; }
         .brand-sig { width: 62px; height: auto; }
         .brand-tonasa { width: 47px; height: auto; margin-left: 3px; }
-        .brand-workshop { width: 58px; height: auto; margin-left: 3px; }
         .title { font-size: 13px; font-weight: bold; }
         .task-record { font-size: 13px; font-weight: bold; font-style: italic; }
         .header-block { page-break-inside: avoid; }
@@ -47,7 +46,7 @@
     </style>
 </head>
 <body>
-    @if ($isDraft)<div class="watermark">DRAFT</div>@endif
+    @if ($isDraft)<div class="watermark">DRAFT</div>@elseif ($inspection->status === \App\Models\EquipmentInspection::STATUS_REVISION)<div class="watermark">REVISI</div>@endif
     <div class="header-block">
     <table class="masthead">
         <colgroup><col style="width:27%"><col style="width:54%"><col style="width:19%"></colgroup>
@@ -55,7 +54,6 @@
             <td class="brand-logos">
                 <img class="brand-sig" src="{{ public_path('assets/branding/logos/logo-sig.png') }}" alt="SIG">
                 <img class="brand-tonasa" src="{{ public_path('assets/branding/logos/logo-st2.png') }}" alt="Semen Tonasa">
-                <img class="brand-workshop" src="{{ public_path('assets/branding/logos/logo-bms2.png') }}" alt="Workshop">
             </td>
             <td class="title center">{{ $inspection->form_name }}</td>
             <td class="task-record center">Task Record</td>
@@ -73,10 +71,9 @@
             <td class="center"><div class="signature-space">@if (isset($signatureImages['manager_workshop']))<img class="signature-image" src="{{ $signatureImages['manager_workshop'] }}" alt="Tanda tangan Manager">@endif</div><span class="small">{{ $managerSignature?->signer_name }}<br>{{ $managerSignature?->signer_position }}<br>{{ $managerSignature?->signed_at->format('d/m/Y H:i') }}</span></td>
             <td class="center"><div class="signature-space">@if (isset($signatureImages['leader_gugus']))<img class="signature-image" src="{{ $signatureImages['leader_gugus'] }}" alt="Tanda tangan Leader Gugus">@endif</div><span class="small">{{ $leaderSignature?->signer_name }}<br>{{ $leaderSignature?->signer_position }}<br>{{ $leaderSignature?->signed_at->format('d/m/Y H:i') }}</span></td>
         </tr>
-        <tr><td colspan="2"><strong>Nama Pelaksana:</strong> {{ $inspection->inspector_name }}</td><td colspan="2"><strong>Tanggal Pemeriksaan:</strong><br>{{ $inspection->inspection_date->locale('id')->translatedFormat('l, d F Y') }}</td></tr>
     </table>
     </div>
-    <p class="status"><strong>{{ $isDraft ? 'DRAFT — Belum ditandatangani' : 'Siap Approval — Belum final' }}</strong> · Versi {{ $inspection->document_version }}</p>
+    <p class="status"><strong>{{ $inspection->status === \App\Models\EquipmentInspection::STATUS_APPROVED ? 'FINAL — Selesai' : ($isDraft ? 'DRAFT — Belum ditandatangani' : $inspection->statusLabel().' — Belum final') }}</strong> · Versi {{ $inspection->document_version }}@if ($isHistorical ?? false) · HISTORI — Tidak berlaku sebagai persetujuan versi aktif @endif</p>
     <table>
         <colgroup><col style="width:5%"><col style="width:33%"><col style="width:8%"><col style="width:8%"><col style="width:8%"><col style="width:38%"></colgroup>
         <thead>
@@ -101,7 +98,7 @@
     </table>
     <table class="responsible">
         <colgroup><col style="width:24%"><col style="width:38%"><col style="width:38%"></colgroup>
-        <tr><td><strong>Penanggung Jawab</strong></td><td>{{ $inspectorSignature?->signer_name }}</td><td><strong>Keterangan:</strong><br>A = Kondisi Normal</td></tr>
+        <tr><td><strong>Penanggung Jawab</strong></td><td>{{ $inspection->inspector_name }}</td><td><strong>Keterangan:</strong><br>A = Kondisi Normal</td></tr>
         <tr><td><strong>Paraf / Inspektor</strong></td><td class="center"><div class="signature-space">@if (isset($signatureImages['inspector']))<img class="signature-image" src="{{ $signatureImages['inspector'] }}" alt="Tanda tangan Inspektor">@endif</div>@if ($inspectorSignature)<span class="small">{{ $inspectorSignature->signer_position }}<br>TTD: {{ $inspectorSignature->signed_at->format('d/m/Y H:i') }}</span>@endif</td><td>B = Kondisi kurang Normal<br><br>C = Kondisi Rusak</td></tr>
         <tr><td><strong>Hari / Tanggal Pemeriksaan</strong></td><td>{{ $inspection->inspection_date->locale('id')->translatedFormat('l, d F Y') }}</td><td class="small">Hasil pemeriksaan mencatat kondisi peralatan. Approval tidak otomatis menyatakan alat layak digunakan.</td></tr>
     </table>

@@ -22,6 +22,7 @@ class ApprovalRequestedNotification extends Notification
         public readonly ?Carbon $expiresAt,
         public readonly ?string $documentAmountLabel = null,
         public readonly ?int $documentAmount = null,
+        public readonly bool $includeDefaultPassword = true,
     ) {}
 
     /**
@@ -49,7 +50,8 @@ class ApprovalRequestedNotification extends Notification
                 'documentDescription' => $this->documentDescription,
                 'roleLabel' => $this->roleLabel,
                 'loginEmail' => $notifiable->email,
-                'defaultPassword' => 'bengkelmesin123',
+                'defaultPassword' => $this->includeDefaultPassword ? 'bengkelmesin123' : null,
+                'includeDefaultPassword' => $this->includeDefaultPassword,
                 'approvalUrl' => $this->approvalUrl,
                 'expiresAt' => $this->expiresAt?->format('d/m/Y H:i'),
                 'documentAmountLabel' => $this->documentAmountLabel,

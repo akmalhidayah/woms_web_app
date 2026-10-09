@@ -9,7 +9,7 @@
             <label class="text-xs font-semibold text-slate-600">Peralatan<input type="search" name="equipment" value="{{ $filters['equipment'] ?? '' }}" placeholder="Nama peralatan..." class="mt-1 block w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"></label>
             <label class="text-xs font-semibold text-slate-600">Tanggal dari<input type="date" name="date_from" value="{{ $filters['date_from'] ?? '' }}" class="mt-1 block w-full min-w-0 rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"></label>
             <label class="text-xs font-semibold text-slate-600">Tanggal sampai<input type="date" name="date_to" value="{{ $filters['date_to'] ?? '' }}" class="mt-1 block w-full min-w-0 rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"></label>
-            <label class="text-xs font-semibold text-slate-600">Status<select name="status" class="mt-1 block w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"><option value="">Semua status</option><option value="draft" @selected(($filters['status'] ?? '') === 'draft')>Draft</option><option value="ready_for_approval" @selected(($filters['status'] ?? '') === 'ready_for_approval')>Siap Approval</option></select></label>
+            <label class="text-xs font-semibold text-slate-600">Status<select name="status" class="mt-1 block w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base sm:text-sm"><option value="">Semua status</option>@foreach (\App\Models\EquipmentInspection::STATUS_LABELS as $key => $label)<option value="{{ $key }}" @selected(($filters['status'] ?? '') === $key)>{{ $label }}</option>@endforeach</select></label>
             <div class="flex items-end gap-2"><button type="submit" class="rounded-xl bg-[#7f1017] px-4 py-2.5 text-sm font-bold text-white">Terapkan</button><a href="{{ route('inspector.inspections.index') }}" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm">Reset</a></div>
         </form>
         <section class="space-y-3" aria-label="Riwayat inspeksi">
@@ -19,9 +19,15 @@
                     <div><h2 class="text-sm font-bold">{{ $inspection->form_name }}</h2><p class="mt-1 break-words text-xs text-slate-600">{{ $inspection->document_no ?? 'Belum diterbitkan' }}</p></div>
                     <div><span class="inline-block rounded-full px-3 py-1 text-xs font-bold {{ $inspection->isDraft() ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800' }}">{{ $inspection->statusLabel() }}</span><p class="mt-2 text-xs text-slate-500">{{ $inspection->filled_answers_count }} / {{ $inspection->answers_count }} item terisi</p></div>
                     <div class="grid gap-2 sm:flex lg:flex-col">
+                        @if ($inspection->status === \App\Models\EquipmentInspection::STATUS_REVISION)
+                            <form method="POST" action="{{ route('inspector.inspections.revise', $inspection) }}">@csrf<input type="hidden" name="document_version" value="{{ $inspection->document_version }}"><button class="w-full rounded-xl bg-amber-500 px-3 py-2 text-xs font-bold text-slate-950">Perbaiki Laporan</button></form>
+                        @endif
                         <a href="{{ route('inspector.inspections.show', $inspection) }}" class="rounded-xl bg-[#7f1017] px-3 py-2 text-center text-xs font-bold text-white">{{ $inspection->isDraft() ? 'Lanjutkan Draft' : 'Lihat Detail' }}</a>
                         <a href="{{ route('inspector.inspections.pdf', $inspection) }}" target="_blank" rel="noopener" class="rounded-xl border border-slate-300 px-3 py-2 text-center text-xs font-semibold">Preview PDF</a>
                     </div>
+                    @if ($inspection->status === \App\Models\EquipmentInspection::STATUS_REVISION)
+                        <div class="rounded-lg border border-amber-500 p-3 text-sm lg:col-span-4"><p class="font-bold">Perlu revisi · Versi {{ $inspection->document_version }}</p><p class="mt-1 whitespace-pre-wrap">{{ $inspection->revision_note }}</p><p class="mt-2 text-xs">Dikembalikan oleh {{ $inspection->returned_by_name }} · {{ $inspection->returned_at?->format('d/m/Y H:i') }}</p></div>
+                    @endif
                 </article>
             @empty
                 <p class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">Belum ada inspeksi yang sesuai. Pilih form untuk memulai pemeriksaan baru.</p>

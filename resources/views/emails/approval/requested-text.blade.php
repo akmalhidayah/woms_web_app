@@ -12,7 +12,9 @@ Role Approval : {{ $roleLabel }}
 
 Akses Login Approval
 Email Resmi SIG  : {{ ($loginEmail ?? '') ?: '-' }}
+@if ($includeDefaultPassword ?? true)
 Password default : {{ $defaultPassword ?? 'bengkelmesin123' }}
+@endif
 
 @if (! empty($guideUrl))
 Sebelum melakukan tanda tangan, mohon membaca buku panduan role approval berikut:

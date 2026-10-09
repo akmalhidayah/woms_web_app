@@ -157,6 +157,12 @@ class UserPanelController extends Controller
         $validated = $validator->validated();
         $newRole = $validated['role'];
 
+        if ($newRole !== $user->role && \App\Models\EquipmentInspectionApproval::query()->where('signer_user_id', $user->id)
+            ->whereIn('status', [\App\Models\EquipmentInspectionApproval::LOCKED, \App\Models\EquipmentInspectionApproval::PENDING])->exists()) {
+            return redirect()->route('admin.user-panel.index', $returnTo)
+                ->with('error', 'Role tidak dapat diubah selama akun masih berada dalam alur approval Inspeksi Peralatan.');
+        }
+
         $user->name = trim($validated['name']);
         $user->email = strtolower(trim($validated['email']));
         $user->nomor_hp = $this->nullableTrim($validated['nomor_hp'] ?? null);
@@ -247,6 +253,7 @@ class UserPanelController extends Controller
             'HPP' => HppSignature::class,
             'Initial Work' => InitialWorkSignature::class,
             'Quality Control' => QualityControlSignature::class,
+            'Inspeksi Peralatan' => \App\Models\EquipmentInspectionApproval::class,
             'BAST' => LhppBastSignature::class,
         ];
 

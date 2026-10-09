@@ -23,6 +23,7 @@ class ApprovalDocumentInbox
         'bast' => 'BAST',
         'initial_work' => 'Initial Work',
         'quality_control' => 'Quality Control',
+        'equipment_inspection' => 'Inspeksi Peralatan',
     ];
 
     public static function hasPendingFor(?User $user): bool
@@ -34,7 +35,8 @@ class ApprovalDocumentInbox
         return self::pendingHppQuery($user)->exists()
             || self::pendingBastQuery($user)->exists()
             || self::pendingInitialWorkQuery($user)->exists()
-            || self::pendingQualityControlQuery($user)->exists();
+            || self::pendingQualityControlQuery($user)->exists()
+            || self::pendingEquipmentInspectionQuery($user)->exists();
     }
 
     public static function pendingCountFor(?User $user): int
@@ -72,6 +74,14 @@ class ApprovalDocumentInbox
     public static function pendingDocumentsFor(User $user, ?string $type): Collection
     {
         $documents = collect();
+
+        if ($type === null || $type === 'equipment_inspection') {
+            $documents = $documents->merge(self::pendingEquipmentInspectionQuery($user)->with('inspection')->get()->map(fn ($approval): array => [
+                'type' => 'equipment_inspection', 'type_label' => self::TYPE_LABELS['equipment_inspection'], 'id' => $approval->id,
+                'number' => $approval->inspection->document_no, 'title' => $approval->inspection->form_name,
+                'step' => $approval->signer_position, 'submitted_at' => $approval->activated_at, 'status' => 'Menunggu Tanda Tangan',
+            ]));
+        }
 
         if ($type === null || $type === 'hpp') {
             $documents = $documents->merge(self::pendingHpp($user));
@@ -121,6 +131,7 @@ class ApprovalDocumentInbox
             'bast' => self::pendingBastQuery($user)->whereKey($id)->first(),
             'initial_work' => self::pendingInitialWorkQuery($user)->whereKey($id)->first(),
             'quality_control' => self::pendingQualityControlQuery($user)->whereKey($id)->first(),
+            'equipment_inspection' => self::pendingEquipmentInspectionQuery($user)->whereKey($id)->first(),
         };
     }
 
@@ -128,7 +139,7 @@ class ApprovalDocumentInbox
     {
         return match ($type) {
             'hpp', 'bast' => (string) $signature->token,
-            'initial_work', 'quality_control' => (string) $signature->token_encrypted,
+            'initial_work', 'quality_control', 'equipment_inspection' => (string) $signature->token_encrypted,
         };
     }
 
@@ -139,12 +150,18 @@ class ApprovalDocumentInbox
             'bast' => 'approval.bast.show',
             'initial_work' => 'approval.initial-work.show',
             'quality_control' => 'approval.quality-control.show',
+            'equipment_inspection' => 'approval.equipment-inspection.show',
         };
     }
 
     /**
-     * @return Collection<int, array<string, mixed>>
+     * @return Builder<\App\Models\EquipmentInspectionApproval>
      */
+    private static function pendingEquipmentInspectionQuery(User $user): Builder
+    {
+        return \App\Models\EquipmentInspectionApproval::query()->active()->where('signer_user_id', $user->id);
+    }
+
     private static function pendingHpp(User $user): Collection
     {
         return self::pendingHppQuery($user)

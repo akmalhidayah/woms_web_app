@@ -19,6 +19,23 @@ use Throwable;
 
 class ApprovalNotificationService
 {
+    public function sendEquipmentInspection(\App\Models\EquipmentInspectionApproval $approval, bool $resend = false): bool
+    {
+        $approval->loadMissing(['signer', 'inspection']);
+        if ($approval->signer?->role !== User::ROLE_APPROVER || ! $approval->approvalUrl()) {
+            return false;
+        }
+        // Keep the existing mail template, but never send default credentials for inspections.
+        $approval->signer->notify(new ApprovalRequestedNotification(
+            documentType: 'Inspeksi Peralatan', documentNumber: $approval->inspection->document_no,
+            documentDescription: $approval->inspection->form_name.' — Tanggal pemeriksaan '.$approval->inspection->inspection_date->format('d/m/Y'),
+            roleLabel: $approval->signer_position, approvalUrl: $approval->approvalUrl(),
+            expiresAt: $approval->token_expires_at, includeDefaultPassword: false,
+        ));
+
+        return true;
+    }
+
     public function sendInitialWork(InitialWorkSignature $signature, bool $resend = false): bool
     {
         $signature->loadMissing(['signer', 'initialWork.order']);

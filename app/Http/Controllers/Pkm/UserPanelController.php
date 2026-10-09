@@ -163,6 +163,7 @@ class UserPanelController extends Controller
             'HPP' => HppSignature::class,
             'Initial Work' => InitialWorkSignature::class,
             'Quality Control' => QualityControlSignature::class,
+            'Inspeksi Peralatan' => \App\Models\EquipmentInspectionApproval::class,
             'BAST' => LhppBastSignature::class,
         ] as $documentName => $model) {
             if ($model::query()->where('signer_user_id', $user->id)

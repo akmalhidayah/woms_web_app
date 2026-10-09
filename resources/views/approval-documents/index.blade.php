@@ -6,10 +6,12 @@
             'bast' => 'bg-orange-50 text-orange-700 ring-orange-100',
             'initial_work' => 'bg-emerald-50 text-emerald-700 ring-emerald-100',
             'quality_control' => 'bg-violet-50 text-violet-700 ring-violet-100',
+            'equipment_inspection' => 'bg-cyan-50 text-cyan-800 ring-cyan-200',
         ];
     @endphp
 
     <div class="space-y-5">
+        @if (session('status'))<p role="status" class="rounded-xl border border-green-600 bg-white p-4 text-sm text-green-800">{{ session('status') }}</p>@endif
         <section class="overflow-hidden rounded-[1.5rem] border border-red-100 bg-white shadow-sm">
             <div class="flex flex-col gap-4 border-b border-red-100 bg-red-50/70 px-5 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
                 <div class="min-w-0">

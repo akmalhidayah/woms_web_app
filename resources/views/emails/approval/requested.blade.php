@@ -114,10 +114,12 @@
                                                 <td style="padding:6px 0;color:#64748b;">Email Resmi SIG</td>
                                                 <td style="padding:6px 0;text-align:right;font-weight:800;color:#0f172a;">{{ ($loginEmail ?? '') ?: '-' }}</td>
                                             </tr>
+                                            @if ($includeDefaultPassword ?? true)
                                             <tr>
                                                 <td style="padding:6px 0;color:#64748b;">Password default</td>
                                                 <td style="padding:6px 0;text-align:right;font-weight:800;color:#0f172a;">{{ $defaultPassword ?? 'bengkelmesin123' }}</td>
                                             </tr>
+                                            @endif
                                         </table>
                                     </td>
                                 </tr>

@@ -11,8 +11,17 @@ class EquipmentInspection extends Model
     public const STATUS_DRAFT = 'draft';
 
     public const STATUS_READY = 'ready_for_approval';
+    public const STATUS_MANAGER = 'pending_manager';
+    public const STATUS_LEADER = 'pending_leader';
+    public const STATUS_REVISION = 'revision_required';
+    public const STATUS_APPROVED = 'approved';
+
+    public const STATUS_LABELS = [self::STATUS_DRAFT => 'Draft', self::STATUS_READY => 'Menunggu Inisialisasi Approval',
+        self::STATUS_MANAGER => 'Menunggu Manager Workshop', self::STATUS_LEADER => 'Menunggu Leader Gugus',
+        self::STATUS_REVISION => 'Perlu Revisi', self::STATUS_APPROVED => 'Selesai'];
 
     protected $guarded = ['id'];
+    protected $hidden = ['final_pdf_path', 'final_pdf_sha256'];
 
     protected function casts(): array
     {
@@ -22,6 +31,8 @@ class EquipmentInspection extends Model
             'signed_at' => 'datetime',
             'document_version' => 'integer',
             'lock_version' => 'integer',
+            'returned_at' => 'datetime',
+            'archived_at' => 'datetime',
         ];
     }
 
@@ -55,6 +66,11 @@ class EquipmentInspection extends Model
         return $this->hasMany(EquipmentInspectionLog::class);
     }
 
+    public function approvals(): HasMany
+    {
+        return $this->hasMany(EquipmentInspectionApproval::class)->orderBy('document_version')->orderBy('step_order');
+    }
+
     public function isDraft(): bool
     {
         return $this->status === self::STATUS_DRAFT && $this->signed_at === null;
@@ -62,6 +78,6 @@ class EquipmentInspection extends Model
 
     public function statusLabel(): string
     {
-        return $this->status === self::STATUS_READY ? 'Siap Approval' : 'Draft';
+        return self::STATUS_LABELS[$this->status] ?? $this->status;
     }
 }

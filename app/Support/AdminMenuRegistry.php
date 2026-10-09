@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Route;
 
 class AdminMenuRegistry
 {
+    public const MENU_INSPEKSI = 'inspeksi';
     public const MENU_DASHBOARD = 'dashboard';
 
     public const MENU_ORDERS = 'orders';
@@ -234,6 +235,10 @@ class AdminMenuRegistry
                 ...$stockConsumableMenu,
                 'label' => 'Stock',
                 'sidebar_hidden' => true,
+            ],
+            self::MENU_INSPEKSI => [
+                'key' => self::MENU_INSPEKSI, 'label' => 'Inspeksi', 'icon' => 'clipboard-check', 'group' => 'support',
+                'route_name' => 'admin.inspections.index', 'active_patterns' => ['admin.inspections.*'], 'badge_key' => 'inspeksi_baru',
             ],
             self::MENU_ACCESS_CONTROL => [
                 'key' => self::MENU_ACCESS_CONTROL,

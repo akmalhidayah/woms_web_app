@@ -87,6 +87,20 @@ Route::get('display-pekerjaan-bengkel/laporan-harian/avatar/{key}', [AppSheetMed
     ->name('display.bengkel.daily-report-avatar');
 
 Route::middleware(['auth'])->group(function () {
+    Route::prefix('approval/equipment-inspection')->name('approval.equipment-inspection.')->middleware('role:approver')->group(function () {
+        Route::get('{token}', [\App\Http\Controllers\Approval\EquipmentInspectionController::class, 'show'])->name('show');
+        Route::post('{token}', [\App\Http\Controllers\Approval\EquipmentInspectionController::class, 'decide'])->middleware('throttle:20,1')->name('decide');
+        Route::get('{token}/pdf', [\App\Http\Controllers\Approval\EquipmentInspectionController::class, 'pdf'])->name('pdf');
+    });
+    Route::prefix('admin/inspections')->name('admin.inspections.')->middleware(['role:admin', 'admin_menu:inspeksi'])->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'index'])->name('index');
+        Route::get('{inspection}', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'show'])->name('show');
+        Route::get('{inspection}/remarks', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'remarks'])->name('remarks');
+        Route::get('{inspection}/pdf', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'pdf'])->name('pdf');
+        Route::get('{inspection}/attachments/{attachment}', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'attachment'])->whereNumber('attachment')->name('attachment');
+        Route::post('{inspection}/recover', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'recover'])->middleware('throttle:3,1')->name('recover');
+        Route::post('{inspection}/approvals/{approval}/resend', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'resend'])->whereNumber('approval')->middleware('throttle:3,1')->name('resend');
+    });
     Route::post('impersonation/stop', [UserImpersonationController::class, 'stop'])
         ->name('impersonation.stop');
 
@@ -546,6 +560,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('inspections/{inspection}', [EquipmentInspectionController::class, 'show'])->name('inspections.show');
         Route::put('inspections/{inspection}', [EquipmentInspectionController::class, 'update'])->name('inspections.update');
         Route::post('inspections/{inspection}/sign', [EquipmentInspectionController::class, 'sign'])->name('inspections.sign');
+        Route::post('inspections/{inspection}/revise', [EquipmentInspectionController::class, 'revise'])->name('inspections.revise');
         Route::get('inspections/{inspection}/pdf', [EquipmentInspectionController::class, 'pdf'])->name('inspections.pdf');
         Route::get('inspections/{inspection}/attachments/{attachment}', [EquipmentInspectionController::class, 'attachment'])->whereNumber('attachment')->name('inspections.attachments.show');
         Route::get('inspections/{inspection}/signature', [EquipmentInspectionController::class, 'signature'])->name('inspections.signature');
@@ -600,7 +615,7 @@ Route::middleware(['auth'])->group(function () {
         ->name('approval-documents.index');
     Route::get('approval-documents/{type}/{id}/open', [ApprovalDocumentController::class, 'open'])
         ->middleware('role:approver')
-        ->where('type', 'hpp|bast|initial_work|quality_control')
+        ->where('type', 'hpp|bast|initial_work|quality_control|equipment_inspection')
         ->whereNumber('id')
         ->name('approval-documents.open');
 

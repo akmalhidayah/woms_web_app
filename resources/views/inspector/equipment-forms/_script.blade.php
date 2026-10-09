@@ -5,11 +5,11 @@ window.equipmentInspectionPage = function (config) {
         savedAnswers: config.savedAnswers, savedDate: config.savedDate, today: config.today,
         persisted: config.persisted, readOnly: config.readOnly, conflict: config.conflict,
         deleteAttachments: [], filesSelected: {}, saving: false, signing: false,
-        signOpen: false, signatureData: '', hasInk: false, pointerId: null,
+        signatureModalOpen: false, signatureData: '', signatureConfirmed: false, hasInk: false, pointerId: null,
         get dirty() {
             return JSON.stringify(this.answers) !== JSON.stringify(this.savedAnswers)
                 || this.inspectionDate !== this.savedDate || this.deleteAttachments.length > 0
-                || Object.values(this.filesSelected).some(count => count > 0);
+                || Object.values(this.filesSelected).some(count => count > 0) || this.hasInk;
         },
         get summary() {
             const values = Object.values(this.answers).map(answer => answer.rating);
@@ -44,15 +44,19 @@ window.equipmentInspectionPage = function (config) {
             Object.keys(this.filesSelected).forEach(id => this.clearPhotos(id));
             this.deleteAttachments = [];
             this.signatureData = '';
-            this.signOpen = false;
+            this.signatureConfirmed = false;
+            this.signatureModalOpen = false;
+            this.hasInk = false;
+            this.pointerId = null;
+            this.paintSignatureBackground();
         },
         submitInspection(event) {
             if (this.saving || this.readOnly || this.conflict) { event.preventDefault(); return; }
-            if (this.deleteAttachments.length && !window.confirm('Hapus foto yang dipilih saat menyimpan draft ini?')) {
+            if (this.deleteAttachments.length && !window.confirm('Hapus foto yang dipilih saat menyimpan pemeriksaan ini?')) {
                 event.preventDefault(); return;
             }
             if (event.submitter?.dataset.action === 'sign') {
-                if (!this.canSign || !this.signatureData) { event.preventDefault(); return; }
+                if (!this.canSign || !this.signatureData || !this.signatureConfirmed) { event.preventDefault(); return; }
                 this.signing = true;
                 return;
             }
@@ -60,8 +64,17 @@ window.equipmentInspectionPage = function (config) {
         },
         openSignature() {
             if (!this.canSign) return;
-            this.signOpen = true;
-            this.$nextTick(() => this.clearSignature());
+            this.signatureModalOpen = true;
+            this.$nextTick(() => {
+                if (!this.hasInk) this.paintSignatureBackground();
+            });
+        },
+        paintSignatureBackground() {
+            const canvas = this.$refs.signatureCanvas;
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
         },
         point(event) {
             const canvas = this.$refs.signatureCanvas;
@@ -73,6 +86,7 @@ window.equipmentInspectionPage = function (config) {
             if (!event.isPrimary || this.pointerId !== null || !this.canSign || (event.pointerType === 'mouse' && event.button !== 0)) return;
             this.pointerId = event.pointerId;
             this.signatureData = '';
+            this.signatureConfirmed = false;
             const canvas = this.$refs.signatureCanvas;
             canvas.setPointerCapture(event.pointerId);
             const ctx = canvas.getContext('2d');
@@ -95,12 +109,13 @@ window.equipmentInspectionPage = function (config) {
         clearSignature() {
             const canvas = this.$refs.signatureCanvas;
             if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            this.hasInk = false; this.signatureData = ''; this.pointerId = null;
+            this.paintSignatureBackground();
+            this.hasInk = false; this.signatureData = ''; this.signatureConfirmed = false; this.pointerId = null;
         },
-        previewSignature() {
-            if (this.hasInk) this.signatureData = this.$refs.signatureCanvas.toDataURL('image/png');
+        acceptSignature() {
+            if (!this.hasInk) return;
+            this.signatureData = this.$refs.signatureCanvas.toDataURL('image/png');
+            this.signatureModalOpen = false;
         },
     };
 };

@@ -123,16 +123,25 @@
                 </div>
             </section>
 
-            @unless ($readOnly)
-                <div class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <p class="text-xs text-slate-600" x-text="dirty || !persisted ? 'Isian belum disimpan. Anda dapat menyimpan draft atau langsung tanda tangan.' : 'Isian terakhir sudah tersimpan dan siap ditandatangani.'"></p>
-                    <div class="grid gap-2 sm:flex">
-                        <button type="button" @click="reset()" :disabled="saving" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold">Reset isian</button>
-                        <button type="submit" :disabled="saving || conflict" class="rounded-xl bg-[#7f1017] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50" x-text="saving ? 'Menyimpan...' : 'Simpan Draft'">Simpan Draft</button>
-                    </div>
-                </div>
-            @endunless
             @include('inspector.equipment-forms._signature')
+            @unless ($readOnly)
+                <section class="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5" aria-labelledby="inspection-action-title">
+                    <div>
+                        <h2 id="inspection-action-title" class="text-sm font-bold">Action Form</h2>
+                        <p class="mt-1 text-xs text-slate-600" x-text="complete ? 'Simpan sebagai draft atau tanda tangani lalu submit pemeriksaan.' : 'Draft dapat disimpan sekarang. Submit tersedia setelah checklist lengkap dan sudah ditandatangani.'"></p>
+                    </div>
+                    <div class="grid gap-2 sm:flex">
+                        <button type="button" @click="reset()" :disabled="saving || signing" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold">Reset isian</button>
+                        <button type="submit" :disabled="saving || signing || conflict" class="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40" x-text="saving ? 'Menyimpan...' : 'Simpan Draft'">Simpan Draft</button>
+                        <button type="submit"
+                            data-action="sign"
+                            formaction="{{ $inspection ? route('inspector.inspections.update-and-sign', $inspection) : route('inspector.inspections.store-and-sign', $form['id']) }}"
+                            :disabled="!canSign || !signatureData || !signatureConfirmed || signing"
+                            class="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40"
+                            x-text="signing ? 'Mengirim...' : 'Submit Pemeriksaan'">Submit Pemeriksaan</button>
+                    </div>
+                </section>
+            @endunless
         </form>
     </div>
 </x-layouts.inspector>

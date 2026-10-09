@@ -93,8 +93,7 @@ class EquipmentInspectionController extends Controller
         return response()->json(['number' => $inspection->document_no ?? 'Draft', 'equipment' => $inspection->form_name,
             'status' => $inspection->statusLabel(), 'signed_count' => $signedCount, 'total' => count(EquipmentInspectionSignature::STEPS),
             'percent' => (int) round($signedCount / count(EquipmentInspectionSignature::STEPS) * 100), 'steps' => $steps,
-            'error' => $inspection->workflow_error ?? $inspection->archive_error,
-            'detail_url' => route('admin.inspections.show', $inspection)], 200, ['Cache-Control' => 'private, no-store']);
+            'error' => $inspection->workflow_error ?? $inspection->archive_error], 200, ['Cache-Control' => 'private, no-store']);
     }
 
     public function show(Request $request, EquipmentInspection $inspection): View

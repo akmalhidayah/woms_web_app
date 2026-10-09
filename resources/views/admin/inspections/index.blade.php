@@ -1,11 +1,11 @@
 <x-layouts.admin title="Monitoring Inspeksi Peralatan">
     <div class="space-y-4" x-data="{
         remarks: null, loading: false, error: '', requestId: 0,
-        approvalProgress: null, approvalLoading: false, approvalError: '', approvalRequestId: 0,
+        approvalModalOpen: false, approvalProgress: null, approvalLoading: false, approvalError: '', approvalRequestId: 0,
         async openApproval(url) {
             const id = ++this.approvalRequestId;
             this.approvalProgress = null; this.approvalError = ''; this.approvalLoading = true;
-            this.$refs.approvalDialog.showModal();
+            this.approvalModalOpen = true;
             try {
                 const response = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
                 if (!response.ok) throw new Error('Progres approval tidak dapat dimuat. Muat ulang halaman dan coba lagi.');

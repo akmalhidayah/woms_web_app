@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\EquipmentInspection;
 use App\Models\EquipmentInspectionApproval;
 use App\Models\EquipmentInspectionAttachment;
+use App\Models\EquipmentInspectionSignature;
 use App\Policies\EquipmentInspectionPolicy;
 use App\Services\Inspector\EquipmentInspectionPdfService;
+use App\Services\Inspector\EquipmentInspectionDeletionService;
 use App\Services\Inspector\EquipmentInspectionWorkflow;
 use App\Support\Inspector\EquipmentInspectionIndexTabs;
 use App\Support\Inspector\InspectionImageStorage;
@@ -15,7 +17,6 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -29,13 +30,16 @@ class EquipmentInspectionController extends Controller
     public function index(Request $request): View
     {
         $this->authorizeAdmin($request);
-        $filters = $request->validate(['tab' => ['nullable', Rule::in(array_keys(EquipmentInspectionIndexTabs::options()))],
+        $filters = $request->validate(['tab' => ['nullable', Rule::in([...array_keys(EquipmentInspectionIndexTabs::options()), 'completed'])],
+            'search' => ['nullable', 'string', 'max:255'],
             'document_no' => ['nullable', 'string', 'max:255'], 'equipment' => ['nullable', 'string', 'max:255'],
             'inspector' => ['nullable', 'string', 'max:255'], 'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', ...($request->filled('date_from') ? ['after_or_equal:date_from'] : [])],
             'status' => ['nullable', Rule::in(array_keys(EquipmentInspection::STATUS_LABELS))], 'rating' => ['nullable', Rule::in(['A', 'B', 'C'])]]);
         $tab = EquipmentInspectionIndexTabs::normalize($filters['tab'] ?? null);
-        $query = EquipmentInspectionIndexTabs::apply(EquipmentInspection::query(), $tab, $request->user());
+        $query = EquipmentInspectionIndexTabs::apply(EquipmentInspection::query(), $tab);
+        $query->when($filters['search'] ?? null, fn ($q, $search) => $q->where(fn ($q) => $q
+            ->where('document_no', 'like', '%'.$search.'%')->orWhere('form_name', 'like', '%'.$search.'%')->orWhere('inspector_name', 'like', '%'.$search.'%')));
         foreach (['document_no' => 'document_no', 'equipment' => 'form_name', 'inspector' => 'inspector_name'] as $key => $column) {
             $query->when($filters[$key] ?? null, fn ($q, $value) => $q->where($column, 'like', '%'.$value.'%'));
         }
@@ -43,25 +47,60 @@ class EquipmentInspectionController extends Controller
             ->when($filters['date_to'] ?? null, fn ($q, $date) => $q->whereDate('inspection_date', '<=', $date))
             ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
             ->when($filters['rating'] ?? null, fn ($q, $rating) => $q->whereHas('answers', fn ($q) => $q->where('rating', $rating)));
-        $inspections = $query->with('answers')->latest('id')->paginate(15)->withQueryString();
+        $inspections = $query->with('answers')->withCount(['signatures as signed_count' => fn ($q) => $q
+            ->whereColumn('equipment_inspection_signatures.document_version', 'equipment_inspections.document_version')
+            ->whereIn('role_key', array_keys(EquipmentInspectionSignature::STEPS))])->latest('id')->paginate(15)->withQueryString();
         $counts = EquipmentInspectionIndexTabs::counts($request->user());
 
         return view('admin.inspections.index', compact('inspections', 'filters', 'tab', 'counts'));
     }
 
+    public function destroy(Request $request, EquipmentInspection $inspection, EquipmentInspectionDeletionService $deletion): RedirectResponse
+    {
+        $this->authorizeAdmin($request);
+        $data = $request->validate(['lock_version' => ['required', 'integer', 'min:1']]);
+        $deletion->delete($request->user(), $inspection, (int) $data['lock_version']);
+
+        return redirect()->route('admin.inspections.index')->with('success', 'Laporan dihapus dari daftar dan approval aktif dibatalkan. Histori tetap tersimpan.');
+    }
+
+    public function approvalProgress(Request $request, EquipmentInspection $inspection): JsonResponse
+    {
+        $this->authorizeAdmin($request);
+        $signatures = $inspection->signatures()->where('document_version', $inspection->document_version)->get()->keyBy('role_key');
+        $approvals = $inspection->approvals()->where('document_version', $inspection->document_version)->get()->keyBy('role_key');
+        $activeId = $inspection->approvals()->active(true)->value('id');
+        $steps = collect([EquipmentInspectionSignature::ROLE_INSPECTOR => 'Inspektor', EquipmentInspectionSignature::ROLE_MANAGER => 'Manager Workshop'])
+            ->map(function (string $label, string $role) use ($inspection, $signatures, $approvals, $activeId): array {
+                $signature = $signatures->get($role);
+                $approval = $approvals->get($role);
+                $state = $signature ? 'signed' : ($approval?->status ?? 'waiting');
+                if ($inspection->status === EquipmentInspection::STATUS_REVISION) {
+                    $state = $approval?->status === EquipmentInspectionApproval::RETURNED ? 'returned' : 'revision';
+                }
+
+                return ['role' => $role, 'label' => $label,
+                    'name' => $signature?->signer_name ?? $approval?->signer_name ?? ($role === EquipmentInspectionSignature::ROLE_INSPECTOR ? $inspection->inspector_name : 'Belum ditetapkan'),
+                    'state' => $state, 'state_label' => match ($state) {
+                        'signed', 'approved' => 'Sudah TTD', 'pending' => 'Aktif', 'returned' => 'Dikembalikan', 'revision' => 'Perlu Revisi', 'cancelled' => 'Dibatalkan', default => 'Menunggu',
+                    },
+                    'signed_at' => $signature?->signed_at?->format('d/m/Y H:i'), 'note' => $approval?->decision_note,
+                    'email_status' => $approval ? (['not_sent' => 'Belum dikirim', 'sending' => 'Sedang dikirim', 'sent' => 'Terkirim', 'resent' => 'Dikirim ulang', 'failed' => 'Gagal'][$approval->email_status] ?? $approval->email_status) : null,
+                    'resend_url' => $approval && $activeId === $approval->id ? route('admin.inspections.resend', [$inspection, $approval]) : null];
+            })->values();
+        $signedCount = $inspection->status === EquipmentInspection::STATUS_REVISION ? 0 : $signatures->only(array_keys(EquipmentInspectionSignature::STEPS))->count();
+
+        return response()->json(['number' => $inspection->document_no ?? 'Draft', 'equipment' => $inspection->form_name,
+            'status' => $inspection->statusLabel(), 'signed_count' => $signedCount, 'total' => count(EquipmentInspectionSignature::STEPS),
+            'percent' => (int) round($signedCount / count(EquipmentInspectionSignature::STEPS) * 100), 'steps' => $steps,
+            'error' => $inspection->workflow_error ?? $inspection->archive_error,
+            'detail_url' => route('admin.inspections.show', $inspection)], 200, ['Cache-Control' => 'private, no-store']);
+    }
+
     public function show(Request $request, EquipmentInspection $inspection): View
     {
         $this->authorizeAdmin($request);
-        // Reading is per administrator and submitted version; it never changes workflow status.
-        DB::transaction(function () use ($request, $inspection): void {
-            $current = EquipmentInspection::query()->whereKey($inspection->id)->lockForUpdate()->firstOrFail();
-            if ($current->signed_at) {
-                DB::table('equipment_inspection_admin_reads')->upsert([['admin_user_id' => $request->user()->id,
-                    'equipment_inspection_id' => $current->id, 'document_version' => $current->document_version, 'viewed_at' => now()]],
-                    ['admin_user_id', 'equipment_inspection_id', 'document_version'], ['viewed_at']);
-            }
-        });
-        $inspection->refresh()->load(['signatures', 'approvals']);
+        $inspection->load(['signatures', 'approvals']);
         $logs = $inspection->logs()->latest('id')->paginate(20);
 
         return view('admin.inspections.show', compact('inspection', 'logs'));
@@ -97,10 +136,12 @@ class EquipmentInspectionController extends Controller
     public function recover(Request $request, EquipmentInspection $inspection, EquipmentInspectionWorkflow $workflow, EquipmentInspectionPdfService $pdf): RedirectResponse
     {
         $this->authorizeAdmin($request);
-        abort_unless(in_array($inspection->status, [EquipmentInspection::STATUS_READY, EquipmentInspection::STATUS_APPROVED], true), 409);
+        abort_unless(in_array($inspection->status, [EquipmentInspection::STATUS_READY, EquipmentInspection::STATUS_LEADER, EquipmentInspection::STATUS_APPROVED], true), 409);
         EquipmentInspectionWorkflow::audit($inspection, $request->user(), 'admin_recovery_requested');
         if ($inspection->status === EquipmentInspection::STATUS_READY) {
             $workflow->initialize($inspection);
+        } elseif ($inspection->status === EquipmentInspection::STATUS_LEADER) {
+            $workflow->finalizeLegacy($request->user(), $inspection);
         } else {
             $pdf->archive($inspection);
         }

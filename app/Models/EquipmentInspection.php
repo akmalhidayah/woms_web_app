@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class EquipmentInspection extends Model
 {
+    use SoftDeletes;
+
     public const STATUS_DRAFT = 'draft';
 
     public const STATUS_READY = 'ready_for_approval';
@@ -17,7 +20,7 @@ class EquipmentInspection extends Model
     public const STATUS_APPROVED = 'approved';
 
     public const STATUS_LABELS = [self::STATUS_DRAFT => 'Draft', self::STATUS_READY => 'Menunggu Inisialisasi Approval',
-        self::STATUS_MANAGER => 'Menunggu Manager Workshop', self::STATUS_LEADER => 'Menunggu Leader Gugus',
+        self::STATUS_MANAGER => 'Menunggu Manager Workshop', self::STATUS_LEADER => 'Perlu Finalisasi Admin (Alur Lama)',
         self::STATUS_REVISION => 'Perlu Revisi', self::STATUS_APPROVED => 'Selesai'];
 
     protected $guarded = ['id'];

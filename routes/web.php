@@ -96,6 +96,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'index'])->name('index');
         Route::get('{inspection}', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'show'])->name('show');
         Route::get('{inspection}/remarks', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'remarks'])->name('remarks');
+        Route::get('{inspection}/approval-progress', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'approvalProgress'])->name('approval-progress');
+        Route::delete('{inspection}', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'destroy'])->name('destroy');
         Route::get('{inspection}/pdf', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'pdf'])->name('pdf');
         Route::get('{inspection}/attachments/{attachment}', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'attachment'])->whereNumber('attachment')->name('attachment');
         Route::post('{inspection}/recover', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'recover'])->middleware('throttle:3,1')->name('recover');
@@ -560,6 +562,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('inspections', [EquipmentInspectionController::class, 'index'])->name('inspections.index');
         Route::get('inspections/{inspection}', [EquipmentInspectionController::class, 'show'])->name('inspections.show');
         Route::put('inspections/{inspection}', [EquipmentInspectionController::class, 'update'])->name('inspections.update');
+        Route::delete('inspections/{inspection}', [EquipmentInspectionController::class, 'destroy'])->name('inspections.destroy');
         Route::put('inspections/{inspection}/sign', [EquipmentInspectionController::class, 'updateAndSign'])->name('inspections.update-and-sign');
         Route::post('inspections/{inspection}/sign', [EquipmentInspectionController::class, 'sign'])->name('inspections.sign');
         Route::post('inspections/{inspection}/revise', [EquipmentInspectionController::class, 'revise'])->name('inspections.revise');

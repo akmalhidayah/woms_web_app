@@ -11,9 +11,11 @@ use App\Models\EquipmentInspectionAttachment;
 use App\Models\EquipmentInspectionSignature;
 use App\Policies\EquipmentInspectionPolicy;
 use App\Services\Inspector\EquipmentInspectionPdfService;
+use App\Services\Inspector\EquipmentInspectionDeletionService;
 use App\Services\Inspector\EquipmentInspectionService;
 use App\Services\Inspector\EquipmentInspectionWorkflow;
 use App\Support\Inspector\EquipmentInspectionViewData;
+use App\Support\Inspector\EquipmentInspectionIndexTabs;
 use App\Support\Inspector\InspectionImageStorage;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -27,12 +29,17 @@ class EquipmentInspectionController extends Controller
     public function index(Request $request): View
     {
         $filters = $request->validate([
+            'tab' => ['nullable', Rule::in([...array_keys(EquipmentInspectionIndexTabs::options()), 'completed'])],
+            'search' => ['nullable', 'string', 'max:255'],
             'equipment' => ['nullable', 'string', 'max:255'],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', ...($request->filled('date_from') ? ['after_or_equal:date_from'] : [])],
             'status' => ['nullable', Rule::in(array_keys(EquipmentInspection::STATUS_LABELS))],
         ]);
-        $inspections = EquipmentInspection::query()->where('inspector_user_id', $request->user()->id)
+        $tab = EquipmentInspectionIndexTabs::normalize($filters['tab'] ?? null);
+        $query = EquipmentInspectionIndexTabs::apply(EquipmentInspection::query()->where('inspector_user_id', $request->user()->id), $tab);
+        $inspections = $query
+            ->when($filters['search'] ?? null, fn ($q, $search) => $q->where(fn ($q) => $q->where('document_no', 'like', '%'.$search.'%')->orWhere('form_name', 'like', '%'.$search.'%')->orWhere('inspector_name', 'like', '%'.$search.'%')))
             ->when($filters['equipment'] ?? null, fn ($query, $name) => $query->where('form_name', 'like', '%'.$name.'%'))
             ->when($filters['date_from'] ?? null, fn ($query, $date) => $query->whereDate('inspection_date', '>=', $date))
             ->when($filters['date_to'] ?? null, fn ($query, $date) => $query->whereDate('inspection_date', '<=', $date))
@@ -40,7 +47,18 @@ class EquipmentInspectionController extends Controller
             ->withCount(['answers', 'answers as filled_answers_count' => fn ($query) => $query->whereIn('rating', ['A', 'B', 'C'])])
             ->orderByDesc('inspection_date')->orderByDesc('id')->paginate(12)->withQueryString();
 
-        return view('inspector.inspections.index', compact('inspections', 'filters'));
+        $counts = EquipmentInspectionIndexTabs::counts($request->user());
+
+        return view('inspector.inspections.index', compact('inspections', 'filters', 'tab', 'counts'));
+    }
+
+    public function destroy(Request $request, EquipmentInspection $inspection, EquipmentInspectionDeletionService $deletion): RedirectResponse
+    {
+        $this->authorizeView($request, $inspection);
+        $data = $request->validate(['lock_version' => ['required', 'integer', 'min:1']]);
+        $deletion->delete($request->user(), $inspection, (int) $data['lock_version']);
+
+        return redirect()->route('inspector.inspections.index')->with('success', 'Laporan dihapus dari daftar dan approval aktif dibatalkan. Histori tetap tersimpan.');
     }
 
     public function show(Request $request, EquipmentInspection $inspection): View

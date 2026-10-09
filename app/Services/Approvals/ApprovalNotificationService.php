@@ -21,6 +21,9 @@ class ApprovalNotificationService
 {
     public function sendEquipmentInspection(\App\Models\EquipmentInspectionApproval $approval, bool $resend = false): bool
     {
+        if (! \App\Models\EquipmentInspectionApproval::query()->whereKey($approval->id)->active()->exists()) {
+            return false;
+        }
         $approval->loadMissing(['signer', 'inspection']);
         if ($approval->signer?->role !== User::ROLE_APPROVER || ! $approval->approvalUrl()) {
             return false;

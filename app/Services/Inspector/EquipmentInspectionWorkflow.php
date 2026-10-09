@@ -113,9 +113,6 @@ final class EquipmentInspectionWorkflow
                 abort_unless(EquipmentInspectionApproval::query()->whereKey($approval->id)->active()->exists(), 409, 'Giliran approval sudah berubah atau kedaluwarsa.');
                 abort_unless($approval->document_version === (int) $data['document_version'], 409);
                 $snapshot = $this->signedSnapshot($inspection);
-                if ($approval->step_order === 3) {
-                    abort_unless($inspection->signatures()->where('document_version', $inspection->document_version)->where('role_key', 'manager_workshop')->exists(), 409);
-                }
                 $note = trim((string) ($data['decision_note'] ?? ''));
                 if ($data['decision'] === 'return') {
                     if (! preg_match('/[^\s\p{Z}]/u', $note)) {
@@ -138,19 +135,8 @@ final class EquipmentInspectionWorkflow
                     'signer_position' => $approval->signer_position, 'signature_path' => $stored['path'], 'signature_sha256' => $stored['sha256'],
                     'signed_at' => now(), 'content_hash' => $snapshot->content_hash, 'signed_payload' => $snapshot->signed_payload]);
                 $approval->update(['status' => EquipmentInspectionApproval::APPROVED, 'decided_at' => now(), 'decision_note' => $note ?: null, 'token_encrypted' => null]);
-                self::audit($inspection, $actor, $approval->step_order === 2 ? 'manager_approved' : 'leader_approved', ['approval_id' => $approval->id, 'note' => $note]);
-                if ($approval->step_order === 2) {
-                    $next = $inspection->approvals()->where('document_version', $inspection->document_version)->where('step_order', 3)->lockForUpdate()->firstOrFail();
-                    $this->activate($inspection, $next);
-                    $inspection->status = EquipmentInspection::STATUS_LEADER;
-                } else {
-                    abort_unless($inspection->signatures()->where('document_version', $inspection->document_version)
-                        ->whereIn('role_key', array_keys(EquipmentInspectionSignature::STEPS))->count() === 3, 409);
-                    $inspection->status = EquipmentInspection::STATUS_APPROVED;
-                    self::audit($inspection, $actor, 'document_approved');
-                }
-                $inspection->lock_version++;
-                $inspection->save();
+                self::audit($inspection, $actor, 'manager_approved', ['approval_id' => $approval->id, 'note' => $note]);
+                $this->complete($inspection, $actor);
                 $processed = true;
 
                 return $inspection;
@@ -163,16 +149,45 @@ final class EquipmentInspectionWorkflow
             return $inspection;
         }
         // Side effects are recoverable and never undo a committed approval.
-        if ($inspection->status === EquipmentInspection::STATUS_LEADER) {
-            $next = $inspection->approvals()->active()->first();
-            if ($next) {
-                DB::afterCommit(fn () => $this->notifySafely($next->id));
-            }
-        } elseif ($inspection->status === EquipmentInspection::STATUS_APPROVED) {
+        if ($inspection->status === EquipmentInspection::STATUS_APPROVED) {
             DB::afterCommit(fn () => app(EquipmentInspectionPdfService::class)->archive($inspection));
         }
 
         return $inspection;
+    }
+
+    private function complete(EquipmentInspection $inspection, User $actor): void
+    {
+        abort_unless($inspection->signatures()->where('document_version', $inspection->document_version)
+            ->whereIn('role_key', array_keys(EquipmentInspectionSignature::STEPS))->count() === count(EquipmentInspectionSignature::STEPS), 409);
+        $cancelled = $inspection->approvals()->where('document_version', $inspection->document_version)
+            ->where('role_key', EquipmentInspectionSignature::ROLE_LEADER)
+            ->whereIn('status', [EquipmentInspectionApproval::LOCKED, EquipmentInspectionApproval::PENDING])
+            ->update(['status' => EquipmentInspectionApproval::CANCELLED, 'token_hash' => null, 'token_encrypted' => null, 'token_expires_at' => null]);
+        if ($cancelled) {
+            self::audit($inspection, $actor, 'leader_step_disabled', ['cancelled_approvals' => $cancelled]);
+        }
+        $inspection->update(['status' => EquipmentInspection::STATUS_APPROVED, 'workflow_error' => null, 'lock_version' => $inspection->lock_version + 1]);
+        self::audit($inspection, $actor, 'document_approved');
+    }
+
+    public function finalizeLegacy(User $admin, EquipmentInspection $existing): void
+    {
+        abort_unless((new EquipmentInspectionPolicy)->monitor($admin), 403);
+        $inspection = DB::transaction(function () use ($admin, $existing): EquipmentInspection {
+            $inspection = EquipmentInspection::query()->whereKey($existing->id)->lockForUpdate()->firstOrFail();
+            if ($inspection->status === EquipmentInspection::STATUS_APPROVED) {
+                return $inspection;
+            }
+            abort_unless($inspection->status === EquipmentInspection::STATUS_LEADER, 409);
+            $this->signedSnapshot($inspection);
+            abort_unless($inspection->approvals()->where('document_version', $inspection->document_version)
+                ->where('role_key', EquipmentInspectionSignature::ROLE_MANAGER)->where('status', EquipmentInspectionApproval::APPROVED)->exists(), 409);
+            $this->complete($inspection, $admin);
+
+            return $inspection;
+        });
+        DB::afterCommit(fn () => app(EquipmentInspectionPdfService::class)->archive($inspection));
     }
 
     public function beginRevision(User $actor, EquipmentInspection $existing, int $version): EquipmentInspection
@@ -270,7 +285,8 @@ final class EquipmentInspectionWorkflow
             Log::warning('Equipment inspection mail failed.', ['approval_id' => $approvalId, 'exception_type' => $exception::class]);
         }
         DB::transaction(function () use ($approval, $attempt, $sent, $admin): void {
-            $inspection = EquipmentInspection::query()->whereKey($approval->equipment_inspection_id)->lockForUpdate()->firstOrFail();
+            // A concurrent deletion must not erase the outcome of a mail already sent.
+            $inspection = EquipmentInspection::withTrashed()->whereKey($approval->equipment_inspection_id)->lockForUpdate()->firstOrFail();
             $locked = EquipmentInspectionApproval::query()->whereKey($approval->id)->lockForUpdate()->firstOrFail();
             if ($locked->email_attempt_id !== $attempt) {
                 return;

@@ -6,16 +6,20 @@
             <p class="mt-2 text-sm">{{ $inspection->document_no ?? 'Belum diterbitkan' }} · Versi {{ $inspection->document_version }} · {{ $inspection->inspection_date->format('d/m/Y') }}</p>
             <p class="mt-2 font-semibold text-blue-900">{{ $inspection->statusLabel() }}</p>
             <a href="{{ route('admin.inspections.pdf', $inspection) }}" target="_blank" rel="noopener" class="mt-3 inline-block rounded-xl bg-blue-700 px-4 py-2 text-sm text-white">Preview PDF</a>
+            <div class="mt-3"><x-inspections.delete-button :inspection="$inspection" route-name="admin.inspections.destroy" /></div>
         </header>
         @if (session('success'))<p role="status" class="rounded-xl border border-green-600 bg-white p-4 text-green-800">{{ session('success') }}</p>@endif
         @if ($errors->any())<p role="alert" class="rounded-xl border border-red-600 bg-white p-4 text-red-800">{{ $errors->first() }}</p>@endif
         @if ($inspection->workflow_error || $inspection->archive_error)<p class="rounded-xl border border-red-600 bg-white p-4 text-sm text-red-800">{{ $inspection->workflow_error }} {{ $inspection->archive_error }}</p>@endif
+        @if ($inspection->status === \App\Models\EquipmentInspection::STATUS_LEADER)
+            <form method="POST" action="{{ route('admin.inspections.recover', $inspection) }}">@csrf<p class="mb-2 text-sm">Tahap TPM / Leader Gugus dinonaktifkan. Finalisasi menggunakan tanda tangan Inspektor dan Manager Workshop yang sudah tersimpan.</p><button class="rounded-lg bg-blue-700 px-4 py-2 text-white">Finalisasi dengan Dua Tanda Tangan</button></form>
+        @endif
         @if ($inspection->status === \App\Models\EquipmentInspection::STATUS_READY || ($inspection->status === \App\Models\EquipmentInspection::STATUS_APPROVED && !$inspection->final_pdf_path))
             <form method="POST" action="{{ route('admin.inspections.recover', $inspection) }}">@csrf<button class="rounded-lg bg-blue-700 px-4 py-2 text-white">{{ $inspection->status === \App\Models\EquipmentInspection::STATUS_READY ? 'Inisialisasi / Pulihkan Approval' : 'Coba Arsipkan PDF Final' }}</button></form>
         @endif
         @if ($inspection->revision_note)<section class="rounded-xl border border-amber-500 bg-white p-4"><h2 class="font-bold">Catatan Pengembalian</h2><p class="mt-2 whitespace-pre-wrap text-sm">{{ $inspection->revision_note }}</p><p class="mt-2 text-xs text-slate-600">{{ $inspection->returned_by_name }} · {{ $inspection->returned_at?->format('d/m/Y H:i') }}</p></section>@endif
-        <section class="grid gap-3 md:grid-cols-3" aria-label="Tahap approval aktif">
-            @foreach (['inspector' => 'Inspektor', 'manager_workshop' => 'Manager Workshop', 'leader_gugus' => 'Leader Gugus'] as $role => $label)
+        <section class="grid gap-3 md:grid-cols-2" aria-label="Tahap approval aktif">
+            @foreach (['inspector' => 'Inspektor', 'manager_workshop' => 'Manager Workshop'] as $role => $label)
                 @php
                     $signature = $inspection->signatures->first(fn ($s) => $s->document_version === $inspection->document_version && $s->role_key === $role);
                     $approval = $inspection->approvals->first(fn ($a) => $a->document_version === $inspection->document_version && $a->role_key === $role);
@@ -25,7 +29,7 @@
                 <article class="rounded-xl border border-slate-300 bg-white p-5"><h2 class="font-bold">{{ $loop->iteration }}. {{ $label }}</h2><p class="mt-2 text-sm">{{ $signature?->signer_name ?? $approval?->signer_name ?? ($role === 'inspector' ? $inspection->inspector_name : 'Belum ditetapkan') }}</p><p class="mt-2 text-sm font-semibold">{{ $signature ? 'Sudah ditandatangani' : ($states[$approval?->status] ?? 'Belum ditandatangani') }}</p><p class="mt-1 text-xs text-slate-600">{{ ($signature?->signed_at ?? $approval?->decided_at)?->format('d/m/Y H:i') }}</p>
                     @if ($approval)
                         <p class="mt-3 whitespace-pre-wrap text-sm">{{ $approval->decision_note }}</p><p class="mt-3 text-xs">Email: {{ $emailStates[$approval->email_status] ?? $approval->email_status }}<br>Percobaan: {{ $approval->email_attempted_at?->format('d/m/Y H:i') ?? '—' }}</p>
-                        @if ($approval->status === 'pending' && in_array($inspection->status, [\App\Models\EquipmentInspection::STATUS_MANAGER, \App\Models\EquipmentInspection::STATUS_LEADER], true))
+                        @if ($approval->status === 'pending' && $inspection->status === \App\Models\EquipmentInspection::STATUS_MANAGER)
                             <p class="mt-2 text-xs">Token: {{ $approval->token_expires_at?->isFuture() ? 'Aktif' : 'Kedaluwarsa' }}</p>
                             <form method="POST" action="{{ route('admin.inspections.resend', [$inspection, $approval]) }}" class="mt-3" onsubmit="return confirm('Kirim ulang email kepada approver aktif?')">@csrf<button class="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white">Kirim Ulang Email Approval</button></form>
                         @endif

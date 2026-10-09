@@ -124,7 +124,7 @@ class AdminActionCenter
             'order_jasa_incomplete' => $counts[self::MODULE_ORDER_INCOMPLETE],
             'orders_total' => $counts[self::MODULE_ORDER_INCOMPLETE],
             'inspeksi_baru' => $user && AdminMenuRegistry::canAccess($user, AdminMenuRegistry::MENU_INSPEKSI)
-                ? \App\Support\Inspector\EquipmentInspectionIndexTabs::apply(\App\Models\EquipmentInspection::query(), 'new', $user)->count() : 0,
+                ? \App\Support\Inspector\EquipmentInspectionIndexTabs::apply(\App\Models\EquipmentInspection::query(), 'new')->count() : 0,
             'create_hpp' => $counts[self::MODULE_CREATE_HPP],
             'verifikasi_anggaran' => $counts[self::MODULE_BUDGET_VERIFICATION],
             'purchase_order' => $counts[self::MODULE_PURCHASE_ORDER],

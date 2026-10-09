@@ -13,7 +13,8 @@ class EquipmentInspectionSignature extends Model
 
     public const ROLE_LEADER = 'leader_gugus';
 
-    public const STEPS = [self::ROLE_INSPECTOR => 1, self::ROLE_MANAGER => 2, self::ROLE_LEADER => 3];
+    // ROLE_LEADER remains available for historical signatures only.
+    public const STEPS = [self::ROLE_INSPECTOR => 1, self::ROLE_MANAGER => 2];
 
     protected $guarded = ['id'];
 

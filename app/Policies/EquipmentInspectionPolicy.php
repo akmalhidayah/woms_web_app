@@ -22,4 +22,13 @@ class EquipmentInspectionPolicy
     {
         return $this->view($user, $inspection) && $inspection->isDraft();
     }
+
+    public function delete(User $user, EquipmentInspection $inspection): bool
+    {
+        return ($this->monitor($user) || $this->view($user, $inspection))
+            && ! $inspection->trashed()
+            && in_array($inspection->status, [EquipmentInspection::STATUS_DRAFT, EquipmentInspection::STATUS_READY,
+                EquipmentInspection::STATUS_MANAGER, EquipmentInspection::STATUS_LEADER, EquipmentInspection::STATUS_REVISION], true)
+            && $inspection->final_pdf_path === null;
+    }
 }

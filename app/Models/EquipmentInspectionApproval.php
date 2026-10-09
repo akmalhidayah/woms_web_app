@@ -39,19 +39,20 @@ class EquipmentInspectionApproval extends Model
     public function scopeActive(Builder $query, bool $includeExpired = false): Builder
     {
         return $query->where('status', self::PENDING)
+            ->where('role_key', EquipmentInspectionSignature::ROLE_MANAGER)
+            ->where('step_order', EquipmentInspectionSignature::STEPS[EquipmentInspectionSignature::ROLE_MANAGER])
             ->whereNotNull('token_hash')
             ->when(! $includeExpired, fn (Builder $q) => $q->where('token_expires_at', '>', now()))
             ->whereHas('inspection', function (Builder $q): void {
                 $q->whereColumn('equipment_inspections.document_version', 'equipment_inspection_approvals.document_version')
-                    ->where(fn (Builder $q) => $q
-                        ->where(fn (Builder $q) => $q->where('equipment_inspections.status', EquipmentInspection::STATUS_MANAGER)->where('equipment_inspection_approvals.step_order', 2))
-                        ->orWhere(fn (Builder $q) => $q->where('equipment_inspections.status', EquipmentInspection::STATUS_LEADER)->where('equipment_inspection_approvals.step_order', 3)));
+                    ->where('equipment_inspections.status', EquipmentInspection::STATUS_MANAGER);
             });
     }
 
     public function approvalUrl(): ?string
     {
-        return $this->status === self::PENDING && $this->token_expires_at?->isFuture() && $this->token_encrypted
+        return $this->role_key === EquipmentInspectionSignature::ROLE_MANAGER
+            && $this->status === self::PENDING && $this->token_expires_at?->isFuture() && $this->token_encrypted
             ? route('approval.equipment-inspection.show', $this->token_encrypted) : null;
     }
 }

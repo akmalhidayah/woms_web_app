@@ -48,7 +48,7 @@ final class EquipmentInspectionPdfService
                 }
                 abort_unless($inspection->status === EquipmentInspection::STATUS_APPROVED
                     && $inspection->signatures()->where('document_version', $inspection->document_version)
-                        ->whereIn('role_key', array_keys(\App\Models\EquipmentInspectionSignature::STEPS))->count() === 3, 409);
+                        ->whereIn('role_key', array_keys(\App\Models\EquipmentInspectionSignature::STEPS))->count() === count(\App\Models\EquipmentInspectionSignature::STEPS), 409);
                 $binary = $this->render($inspection);
                 $path = 'equipment-inspections/'.$inspection->public_id.'/final/v'.$inspection->document_version.'-'.Str::uuid().'.pdf';
                 if (! Storage::disk(InspectionImageStorage::DISK)->put($path, $binary, ['visibility' => 'private'])) {

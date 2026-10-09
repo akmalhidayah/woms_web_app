@@ -2,7 +2,6 @@
     $isDraft = $inspection->isDraft();
     $inspectorSignature = $signatures->get('inspector');
     $managerSignature = $signatures->get('manager_workshop');
-    $leaderSignature = $signatures->get('leader_gugus');
     $previousGroup = null;
 @endphp
 <!DOCTYPE html>
@@ -60,16 +59,14 @@
         </tr>
     </table>
     <table class="meta">
-        <colgroup><col style="width:38%"><col style="width:24%"><col style="width:19%"><col style="width:19%"></colgroup>
+        <colgroup><col style="width:42%"><col style="width:28%"><col style="width:30%"></colgroup>
         <tr>
             <td rowspan="2"><strong>Document No:</strong><br>{{ $inspection->document_no ?? 'Belum diterbitkan' }}<br><br><strong>Seksi:</strong> Bengkel Mesin<br><strong>Unit:</strong> Bengkel</td>
             <td rowspan="2" class="center"><strong>Process:</strong><br><br>Inspection &amp; List</td>
             <td class="center small"><strong>Approve<br>Manager Machine Workshop</strong></td>
-            <td class="center small"><strong>Approve<br>Leader Gugus / Senior Manager TPM</strong></td>
         </tr>
         <tr>
             <td class="center"><div class="signature-space">@if (isset($signatureImages['manager_workshop']))<img class="signature-image" src="{{ $signatureImages['manager_workshop'] }}" alt="Tanda tangan Manager">@endif</div><span class="small">{{ $managerSignature?->signer_name }}<br>{{ $managerSignature?->signer_position }}<br>{{ $managerSignature?->signed_at->format('d/m/Y H:i') }}</span></td>
-            <td class="center"><div class="signature-space">@if (isset($signatureImages['leader_gugus']))<img class="signature-image" src="{{ $signatureImages['leader_gugus'] }}" alt="Tanda tangan Leader Gugus">@endif</div><span class="small">{{ $leaderSignature?->signer_name }}<br>{{ $leaderSignature?->signer_position }}<br>{{ $leaderSignature?->signed_at->format('d/m/Y H:i') }}</span></td>
         </tr>
     </table>
     </div>

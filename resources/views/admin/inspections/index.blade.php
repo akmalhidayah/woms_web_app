@@ -41,7 +41,7 @@
                 <x-inspections.index-tabs route-name="admin.inspections.index" :tab="$tab" :counts="$counts" :search="$filters['search'] ?? ''" />
             </div>
             <div class="overflow-x-auto">
-                <table class="min-w-[1100px] table-fixed bg-white text-left text-[11px] text-slate-700">
+                <table class="w-full min-w-[1100px] table-fixed bg-white text-left text-[11px] text-slate-700">
                     <colgroup>
                         <col class="w-[4%]">
                         <col class="w-[14%]">

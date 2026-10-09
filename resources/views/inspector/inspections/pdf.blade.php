@@ -95,7 +95,7 @@
         <colgroup><col style="width:24%"><col style="width:38%"><col style="width:38%"></colgroup>
         <tr><td><strong>Penanggung Jawab</strong></td><td>{{ $inspection->inspector_name }}</td><td><strong>Keterangan:</strong><br>A = Kondisi Normal</td></tr>
         <tr><td><strong>Tanda Tangan</strong></td><td class="center"><div class="signature-space">@if (isset($signatureImages['inspector']))<img class="signature-image" src="{{ $signatureImages['inspector'] }}" alt="Tanda tangan {{ $inspectorSignature?->signer_name ?? $inspection->inspector_name }}">@endif</div>@if ($inspectorSignature)<span class="small">{{ $inspectorSignature->signer_name }}<br>TTD: {{ $inspectorSignature->signed_at->format('d/m/Y H:i') }}</span>@endif</td><td>B = Kondisi kurang Normal<br><br>C = Kondisi Rusak</td></tr>
-        <tr><td><strong>Hari / Tanggal Pemeriksaan</strong></td><td>{{ $inspection->inspection_date->locale('id')->translatedFormat('l, d F Y') }}</td><td class="small">Hasil pemeriksaan mencatat kondisi peralatan. Approval tidak otomatis menyatakan alat layak digunakan.</td></tr>
+        <tr><td><strong>Hari / Tanggal Pemeriksaan</strong></td><td>{{ $inspection->inspection_date->locale('id')->translatedFormat('l, d F Y') }}</td><td></td></tr>
     </table>
 
     @foreach ($photos as $photo)

@@ -27,9 +27,7 @@
     }">
         <header class="rounded-2xl border border-blue-200 bg-white p-5">
             <h1 class="flex items-center gap-3 text-xl font-bold"><i data-lucide="clipboard-check" class="h-6 w-6 text-blue-700"></i>Monitoring Inspeksi Peralatan</h1>
-            <p class="mt-2 text-sm text-slate-600">Monitoring laporan, versi, dan pengiriman email. Persetujuan dilakukan melalui Dokumen Approval.</p>
-        </header>
-        @if ($errors->any())<p role="alert" class="rounded-xl border border-red-500 bg-white p-4 text-red-800">{{ $errors->first() }}</p>@endif
+                   @if ($errors->any())<p role="alert" class="rounded-xl border border-red-500 bg-white p-4 text-red-800">{{ $errors->first() }}</p>@endif
         @if (session('success'))<p role="status" class="rounded-xl border border-green-600 bg-white p-4 text-green-800">{{ session('success') }}</p>@endif
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <x-inspections.index-tabs route-name="admin.inspections.index" :tab="$tab" :counts="$counts" :search="$filters['search'] ?? ''" />
@@ -48,7 +46,7 @@
                                 <td class="max-w-xs p-3 font-semibold">{{ $inspection->form_name }}</td>
                                 <td class="whitespace-nowrap p-3">{{ $inspection->inspection_date->format('d/m/Y') }}</td>
                                 <td class="p-3">{{ $inspection->inspector_name }}</td>
-                                <td class="p-3">{{ $inspection->document_no ?? 'Belum diterbitkan' }}<p class="mt-1 text-slate-500">Versi {{ $inspection->document_version }}</p></td>
+                                <td class="p-3">{{ $inspection->document_no ?? 'Belum diterbitkan' }}</td>
                                 <td class="p-3">{{ ['A' => 'A · Normal', 'B' => 'B · Kurang Normal', 'C' => 'C · Rusak'][$worst] ?? 'Belum diperiksa' }}</td>
                                 <td class="p-3">
                                     <div class="flex min-w-52 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2">
@@ -58,10 +56,10 @@
                                     </div>
                                     @if ($inspection->workflow_error || $inspection->archive_error)<p class="mt-1 font-semibold text-red-700">Perlu pemeriksaan Admin</p>@endif
                                 </td>
-                                <td class="p-3"><div class="flex items-center gap-2">
-                                    @if ($remarkCount > 0)<button type="button" @click="openRemarks(@js(route('admin.inspections.remarks', $inspection)))" title="Lihat semua Remarks" aria-label="Lihat {{ $remarkCount }} item dengan Remark" class="inline-flex items-center gap-1 rounded-lg bg-yellow-400 px-2 py-2 font-bold text-slate-950"><span aria-hidden="true">!</span>{{ $remarkCount }}</button>@endif
-                                    <a href="{{ route('admin.inspections.pdf', $inspection) }}" target="_blank" rel="noopener" class="rounded-lg bg-blue-700 px-3 py-2 font-semibold text-white">PDF</a>
-                                    <a href="{{ route('admin.inspections.show', $inspection) }}" class="rounded-lg border border-slate-300 px-3 py-2">Detail</a>
+                                <td class="p-3"><div class="flex flex-nowrap items-center gap-1">
+                                    @if ($remarkCount > 0)<button type="button" @click="openRemarks(@js(route('admin.inspections.remarks', $inspection)))" title="Lihat {{ $remarkCount }} item dengan Remark" aria-label="Lihat {{ $remarkCount }} item dengan Remark" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700 transition hover:bg-amber-100"><i data-lucide="message-square-text" class="h-3 w-3" aria-hidden="true"></i></button>@endif
+                                    <a href="{{ route('admin.inspections.pdf', $inspection) }}" target="_blank" rel="noopener" title="Lihat PDF inspeksi" aria-label="Lihat PDF {{ $inspection->form_name }}" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50"><i data-lucide="file-text" class="h-3 w-3" aria-hidden="true"></i></a>
+                                    <a href="{{ route('admin.inspections.show', $inspection) }}" title="Lihat inspeksi" aria-label="Lihat inspeksi {{ $inspection->form_name }}" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100"><i data-lucide="eye" class="h-3 w-3" aria-hidden="true"></i></a>
                                     <x-inspections.delete-button :inspection="$inspection" route-name="admin.inspections.destroy" />
                                 </div></td>
                             </tr>

@@ -5,8 +5,8 @@
         @csrf
         @method('DELETE')
         <input type="hidden" name="lock_version" value="{{ $inspection->lock_version }}">
-        <button type="submit" title="Hapus inspeksi" aria-label="Hapus inspeksi {{ $inspection->form_name }}" class="inline-flex items-center justify-center rounded-lg border border-red-200 bg-red-50 p-2 text-red-600 hover:bg-red-100">
-            <i data-lucide="trash-2" class="h-4 w-4" aria-hidden="true"></i>
+        <button type="submit" title="Hapus inspeksi" aria-label="Hapus inspeksi {{ $inspection->form_name }}" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-700 transition hover:bg-rose-100">
+            <i data-lucide="trash-2" class="h-3 w-3" aria-hidden="true"></i>
         </button>
     </form>
 @endif

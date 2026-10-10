@@ -43,6 +43,6 @@ class EquipmentInspectionController extends Controller
             return back()->withErrors($exception->errors())->withInput($request->only('decision_note'));
         }
 
-        return redirect()->route('approval-documents.index')->with('status', 'Keputusan Inspeksi Peralatan tersimpan.');
+        return redirect()->route('approval-documents.index')->with('inspection_success', 'Keputusan Inspeksi Peralatan tersimpan.');
     }
 }

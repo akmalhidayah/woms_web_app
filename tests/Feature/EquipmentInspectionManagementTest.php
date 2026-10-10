@@ -37,6 +37,10 @@ class EquipmentInspectionManagementTest extends TestCase
         $this->assertFalse(EquipmentInspectionIndexTabs::apply(EquipmentInspection::query(), 'new')->whereKey($pending->id)->exists());
         $this->assertFalse(EquipmentInspectionIndexTabs::apply(EquipmentInspection::query(), 'history')->whereKey($draft->id)->exists());
         $this->assertTrue(EquipmentInspectionIndexTabs::apply(EquipmentInspection::query(), 'completed')->whereKey($approved->id)->exists());
+        $this->actingAs($admin)->get(route('admin.inspections.index'))
+            ->assertOk()
+            ->assertSee('data-inspection-alerts', false)
+            ->assertSee('data-swal-title="Hapus laporan inspeksi?"', false);
     }
 
     public function test_owner_deletion_cancels_approval_but_preserves_signed_audit_and_media(): void
@@ -49,7 +53,8 @@ class EquipmentInspectionManagementTest extends TestCase
         Storage::disk('local')->put($signature->signature_path, 'existing signature bytes');
 
         $this->actingAs($owner)->delete(route('inspector.inspections.destroy', $inspection), ['lock_version' => $inspection->lock_version])
-            ->assertRedirect(route('inspector.inspections.index'));
+            ->assertRedirect(route('inspector.inspections.index'))
+            ->assertSessionHas('success');
 
         $this->assertSoftDeleted('equipment_inspections', ['id' => $inspection->id]);
         $this->assertSame(EquipmentInspectionApproval::CANCELLED, $approval->fresh()->status);
@@ -115,6 +120,8 @@ class EquipmentInspectionManagementTest extends TestCase
         foreach ([route('inspector.equipment-forms.show', 'mesin-lipat'), route('inspector.inspections.show', $draft)] as $url) {
             $this->actingAs($owner)->get($url)->assertOk()
                 ->assertViewHas('recentSignatureDataUrl', $expected)
+                ->assertSee('data-inspection-alerts', false)
+                ->assertSee('sweetalert2@11', false)
                 ->assertSee('Gunakan TTD Terakhir')
                 ->assertDontSee(base64_encode('other user signature bytes'));
         }
@@ -140,6 +147,15 @@ class EquipmentInspectionManagementTest extends TestCase
         $this->actingAs($manager)->get(route('approval.equipment-inspection.show', $approval->token_encrypted))
             ->assertOk()
             ->assertViewHas('recentSignatureDataUrl', 'data:image/png;base64,'.base64_encode('existing signature bytes'))
+            ->assertSee('sweetalert2@11', false)
+            ->assertSee('data-swal-title="Kembalikan untuk revisi?"', false)
+            ->assertSee('Inspeksi Peralatan Digital Approval')
+            ->assertSee('Login sebagai')
+            ->assertSee($manager->email)
+            ->assertSee(route($manager->dashboardRouteName()), false)
+            ->assertSee('id="approvalPdfPreview"', false)
+            ->assertSee('data-initial-url="'.route('approval.equipment-inspection.pdf', $approval->token_encrypted).'"', false)
+            ->assertSee('Area Penandatanganan')
             ->assertSee('Gunakan TTD Terakhir')
             ->assertSee('Tahap 2 dari 2')
             ->assertDontSee('Tahap 2 dari 3');

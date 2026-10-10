@@ -11,7 +11,13 @@
                 if (!response.ok) throw new Error('Progres approval tidak dapat dimuat. Muat ulang halaman dan coba lagi.');
                 const data = await response.json();
                 if (id === this.approvalRequestId) this.approvalProgress = data;
-            } catch (error) { if (id === this.approvalRequestId) this.approvalError = error.message; }
+            } catch (error) {
+                if (id === this.approvalRequestId) {
+                    this.approvalError = error.message;
+                    this.approvalModalOpen = false;
+                    window.inspectionSweetAlert.error(error.message, 'Progres approval gagal dimuat');
+                }
+            }
             finally { if (id === this.approvalRequestId) this.approvalLoading = false; }
         },
         async openRemarks(url) {
@@ -21,7 +27,13 @@
                 const response = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
                 if (!response.ok) throw new Error('Remarks tidak dapat dimuat. Periksa hak akses atau coba lagi.');
                 const data = await response.json(); if (id === this.requestId) this.remarks = data;
-            } catch (error) { if (id === this.requestId) this.error = error.message; }
+            } catch (error) {
+                if (id === this.requestId) {
+                    this.error = error.message;
+                    this.$refs.remarksDialog.close();
+                    window.inspectionSweetAlert.error(error.message, 'Remarks gagal dimuat');
+                }
+            }
             finally { if (id === this.requestId) this.loading = false; }
         }
     }">
@@ -34,8 +46,7 @@
             </div>
         </section>
 
-        @if ($errors->any())<p role="alert" class="rounded-xl border border-red-500 bg-white p-4 text-red-800">{{ $errors->first() }}</p>@endif
-        @if (session('success'))<p role="status" class="rounded-xl border border-green-600 bg-white p-4 text-green-800">{{ session('success') }}</p>@endif
+        <x-inspections.sweet-alerts :success="session('success')" :error-messages="$errors->all()" />
         <section class="order-list-panel overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 px-5 py-4">
                 <x-inspections.index-tabs route-name="admin.inspections.index" :tab="$tab" :counts="$counts" :search="$filters['search'] ?? ''" />

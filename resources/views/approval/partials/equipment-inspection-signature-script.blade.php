@@ -126,7 +126,7 @@
                     signatureVisuals?.completed();
                 };
                 image.onerror = () => {
-                    alert('TTD terakhir tidak dapat dimuat. Silakan tanda tangan ulang.');
+                    window.inspectionSweetAlert.error('TTD terakhir tidak dapat dimuat. Silakan tanda tangan ulang.');
                 };
                 image.src = src;
             };
@@ -235,7 +235,7 @@
                         ? 'Tanda tangan terlalu sedikit. Silakan tanda tangani dengan coretan yang jelas.'
                         : 'Silakan tanda tangan terlebih dahulu.';
                     signatureVisuals?.error(message);
-                    alert(message);
+                    window.inspectionSweetAlert.warning(message, 'Tanda tangan belum lengkap');
                     return;
                 }
 
@@ -243,13 +243,24 @@
                 const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
 
                 if (!blob) {
-                    alert('Tanda tangan belum terbaca. Silakan tanda tangani ulang.');
+                    window.inspectionSweetAlert.error('Tanda tangan belum terbaca. Silakan tanda tangani ulang.');
                     return;
                 }
 
                 const transfer = new DataTransfer();
                 transfer.items.add(new File([blob], 'signature.png', { type: 'image/png' }));
                 signatureFile.files = transfer.files;
+
+                const confirmed = await window.inspectionSweetAlert.confirm({
+                    icon: 'question',
+                    title: 'Setujui laporan inspeksi?',
+                    text: 'Tanda tangan akan disimpan sebagai persetujuan Manager Workshop untuk versi laporan ini.',
+                    confirmButtonText: 'Ya, setujui',
+                });
+                if (!confirmed) {
+                    return;
+                }
+
                 preparedSubmit = true;
                 form.submit();
             });

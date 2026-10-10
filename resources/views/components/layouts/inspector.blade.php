@@ -11,6 +11,7 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         @fluxAppearance
         @livewireStyles
+        <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
         <style>[x-cloak]{ display:none !important; }</style>
     </head>
     <body class="min-h-screen bg-slate-50 font-sans text-slate-800 antialiased">

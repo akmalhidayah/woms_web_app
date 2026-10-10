@@ -8,14 +8,12 @@
             <a href="{{ route('admin.inspections.pdf', $inspection) }}" target="_blank" rel="noopener" class="mt-3 inline-block rounded-xl bg-blue-700 px-4 py-2 text-sm text-white">Preview PDF</a>
             <div class="mt-3"><x-inspections.delete-button :inspection="$inspection" route-name="admin.inspections.destroy" /></div>
         </header>
-        @if (session('success'))<p role="status" class="rounded-xl border border-green-600 bg-white p-4 text-green-800">{{ session('success') }}</p>@endif
-        @if ($errors->any())<p role="alert" class="rounded-xl border border-red-600 bg-white p-4 text-red-800">{{ $errors->first() }}</p>@endif
-        @if ($inspection->workflow_error || $inspection->archive_error)<p class="rounded-xl border border-red-600 bg-white p-4 text-sm text-red-800">{{ $inspection->workflow_error }} {{ $inspection->archive_error }}</p>@endif
+        <x-inspections.sweet-alerts :success="session('success')" :error-messages="$errors->all()" :warning="collect([$inspection->workflow_error, $inspection->archive_error])->filter()->implode(' ')" />
         @if ($inspection->status === \App\Models\EquipmentInspection::STATUS_LEADER)
-            <form method="POST" action="{{ route('admin.inspections.recover', $inspection) }}">@csrf<p class="mb-2 text-sm">Tahap TPM / Leader Gugus dinonaktifkan. Finalisasi menggunakan tanda tangan Inspektor dan Manager Workshop yang sudah tersimpan.</p><button class="rounded-lg bg-blue-700 px-4 py-2 text-white">Finalisasi dengan Dua Tanda Tangan</button></form>
+            <form method="POST" action="{{ route('admin.inspections.recover', $inspection) }}" data-swal-confirm data-swal-title="Finalisasi laporan lama?" data-swal-text="Laporan akan difinalisasi memakai tanda tangan Inspektor dan Manager Workshop yang sudah tersimpan." data-swal-confirm-text="Ya, finalisasi">@csrf<p class="mb-2 text-sm">Tahap TPM / Leader Gugus dinonaktifkan. Finalisasi menggunakan tanda tangan Inspektor dan Manager Workshop yang sudah tersimpan.</p><button class="rounded-lg bg-blue-700 px-4 py-2 text-white">Finalisasi dengan Dua Tanda Tangan</button></form>
         @endif
         @if ($inspection->status === \App\Models\EquipmentInspection::STATUS_READY || ($inspection->status === \App\Models\EquipmentInspection::STATUS_APPROVED && !$inspection->final_pdf_path))
-            <form method="POST" action="{{ route('admin.inspections.recover', $inspection) }}">@csrf<button class="rounded-lg bg-blue-700 px-4 py-2 text-white">{{ $inspection->status === \App\Models\EquipmentInspection::STATUS_READY ? 'Inisialisasi / Pulihkan Approval' : 'Coba Arsipkan PDF Final' }}</button></form>
+            <form method="POST" action="{{ route('admin.inspections.recover', $inspection) }}" data-swal-confirm data-swal-title="Proses pemulihan inspeksi?" data-swal-text="Sistem akan mencoba memulihkan alur approval atau arsip PDF sesuai status laporan saat ini." data-swal-confirm-text="Ya, proses">@csrf<button class="rounded-lg bg-blue-700 px-4 py-2 text-white">{{ $inspection->status === \App\Models\EquipmentInspection::STATUS_READY ? 'Inisialisasi / Pulihkan Approval' : 'Coba Arsipkan PDF Final' }}</button></form>
         @endif
         @if ($inspection->revision_note)<section class="rounded-xl border border-amber-500 bg-white p-4"><h2 class="font-bold">Catatan Pengembalian</h2><p class="mt-2 whitespace-pre-wrap text-sm">{{ $inspection->revision_note }}</p><p class="mt-2 text-xs text-slate-600">{{ $inspection->returned_by_name }} · {{ $inspection->returned_at?->format('d/m/Y H:i') }}</p></section>@endif
         <section class="grid gap-3 md:grid-cols-2" aria-label="Tahap approval aktif">
@@ -31,7 +29,7 @@
                         <p class="mt-3 whitespace-pre-wrap text-sm">{{ $approval->decision_note }}</p><p class="mt-3 text-xs">Email: {{ $emailStates[$approval->email_status] ?? $approval->email_status }}<br>Percobaan: {{ $approval->email_attempted_at?->format('d/m/Y H:i') ?? '—' }}</p>
                         @if ($approval->status === 'pending' && $inspection->status === \App\Models\EquipmentInspection::STATUS_MANAGER)
                             <p class="mt-2 text-xs">Token: {{ $approval->token_expires_at?->isFuture() ? 'Aktif' : 'Kedaluwarsa' }}</p>
-                            <form method="POST" action="{{ route('admin.inspections.resend', [$inspection, $approval]) }}" class="mt-3" onsubmit="return confirm('Kirim ulang email kepada approver aktif?')">@csrf<button class="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white">Kirim Ulang Email Approval</button></form>
+                            <form method="POST" action="{{ route('admin.inspections.resend', [$inspection, $approval]) }}" class="mt-3" data-swal-confirm data-swal-title="Kirim ulang email approval?" data-swal-text="Email akan dikirim ulang kepada approver yang sedang aktif." data-swal-confirm-text="Ya, kirim ulang">@csrf<button class="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white">Kirim Ulang Email Approval</button></form>
                         @endif
                     @endif
                 </article>

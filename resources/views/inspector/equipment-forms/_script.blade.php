@@ -5,7 +5,7 @@ window.equipmentInspectionPage = function (config) {
         savedAnswers: config.savedAnswers, savedDate: config.savedDate, today: config.today,
         persisted: config.persisted, readOnly: config.readOnly, conflict: config.conflict,
         recentSignatureDataUrl: config.recentSignatureDataUrl,
-        deleteAttachments: [], filesSelected: {}, saving: false, signing: false,
+        deleteAttachments: [], filesSelected: {}, deletionConfirmed: false, saving: false, signing: false,
         signatureModalOpen: false, signatureData: '', signatureConfirmed: false, hasInk: false, pointerId: null,
         get dirty() {
             return JSON.stringify(this.answers) !== JSON.stringify(this.savedAnswers)
@@ -38,10 +38,21 @@ window.equipmentInspectionPage = function (config) {
             if (input) input.value = '';
             this.filesSelected[id] = 0;
         },
-        submitInspection(event) {
+        async submitInspection(event) {
             if (this.saving || this.readOnly || this.conflict) { event.preventDefault(); return; }
-            if (this.deleteAttachments.length && !window.confirm('Hapus foto yang dipilih saat menyimpan pemeriksaan ini?')) {
-                event.preventDefault(); return;
+            if (this.deleteAttachments.length && !this.deletionConfirmed) {
+                event.preventDefault();
+                const submitter = event.submitter;
+                const confirmed = await window.inspectionSweetAlert.confirm({
+                    title: 'Hapus foto yang dipilih?',
+                    text: 'Foto akan dihapus saat laporan disimpan. Foto historis pada versi yang sudah ditandatangani tetap dipertahankan.',
+                    confirmButtonText: 'Ya, hapus dan simpan',
+                    confirmButtonColor: '#dc2626',
+                });
+                if (!confirmed) return;
+                this.deletionConfirmed = true;
+                event.target.requestSubmit(submitter ?? undefined);
+                return;
             }
             if (event.submitter?.dataset.action === 'sign') {
                 if (!this.canSign || !this.signatureData || !this.signatureConfirmed) { event.preventDefault(); return; }
@@ -73,7 +84,7 @@ window.equipmentInspectionPage = function (config) {
                 this.signatureData = '';
                 this.signatureConfirmed = false;
             };
-            image.onerror = () => window.alert('TTD terakhir tidak dapat dimuat. Silakan tanda tangan ulang.');
+            image.onerror = () => window.inspectionSweetAlert.error('TTD terakhir tidak dapat dimuat. Silakan tanda tangan ulang.');
             image.src = this.recentSignatureDataUrl;
         },
         paintSignatureBackground() {

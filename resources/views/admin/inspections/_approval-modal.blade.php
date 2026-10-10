@@ -41,7 +41,7 @@
                                 <p x-show="step.note" class="mt-2 whitespace-pre-wrap text-[11px] text-slate-600" x-text="step.note"></p>
                                 <p x-show="step.email_status" class="mt-2 text-[10px] text-slate-500" x-text="'Email: ' + step.email_status"></p>
                                 <template x-if="step.resend_url">
-                                    <form method="POST" :action="step.resend_url" class="mt-2" onsubmit="return confirm('Kirim ulang email kepada Manager Workshop?')">
+                                    <form method="POST" :action="step.resend_url" class="mt-2" data-swal-confirm data-swal-title="Kirim ulang email approval?" data-swal-text="Email akan dikirim ulang kepada Manager Workshop yang sedang aktif." data-swal-confirm-text="Ya, kirim ulang">
                                         @csrf
                                         <button class="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-sky-700 transition hover:bg-sky-100">
                                             <i data-lucide="send" class="h-3 w-3" aria-hidden="true"></i>Resend

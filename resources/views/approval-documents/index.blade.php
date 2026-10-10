@@ -11,6 +11,7 @@
     @endphp
 
     <div class="space-y-5">
+        <x-inspections.sweet-alerts :success="session('inspection_success')" />
         @if (session('status'))<p role="status" class="rounded-xl border border-green-600 bg-white p-4 text-sm text-green-800">{{ session('status') }}</p>@endif
         <section class="overflow-hidden rounded-[1.5rem] border border-red-100 bg-white shadow-sm">
             <div class="flex flex-col gap-4 border-b border-red-100 bg-red-50/70 px-5 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between">

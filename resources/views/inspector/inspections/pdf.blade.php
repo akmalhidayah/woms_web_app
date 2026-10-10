@@ -37,6 +37,7 @@
         .group td { background: #ededed; font-weight: bold; }
         .responsible { margin-top: 12px; page-break-inside: avoid; }
         .responsible td { vertical-align: middle; }
+        .responsible .condition-legend { vertical-align: top; }
         .watermark { position: fixed; top: 325px; left: 125px; font-size: 85px; color: #e6e6e6; transform: rotate(-35deg); z-index: -1000; }
         .photo-page { page-break-before: always; }
         .photo-box { margin-top: 12px; text-align: center; }
@@ -93,9 +94,9 @@
     </table>
     <table class="responsible">
         <colgroup><col style="width:24%"><col style="width:38%"><col style="width:38%"></colgroup>
-        <tr><td><strong>Penanggung Jawab</strong></td><td>{{ $inspection->inspector_name }}</td><td><strong>Keterangan:</strong><br>A = Kondisi Normal</td></tr>
-        <tr><td><strong>Tanda Tangan</strong></td><td class="center"><div class="signature-space">@if (isset($signatureImages['inspector']))<img class="signature-image" src="{{ $signatureImages['inspector'] }}" alt="Tanda tangan {{ $inspectorSignature?->signer_name ?? $inspection->inspector_name }}">@endif</div>@if ($inspectorSignature)<span class="small">{{ $inspectorSignature->signer_name }}<br>TTD: {{ $inspectorSignature->signed_at->format('d/m/Y H:i') }}</span>@endif</td><td>B = Kondisi kurang Normal<br><br>C = Kondisi Rusak</td></tr>
-        <tr><td><strong>Hari / Tanggal Pemeriksaan</strong></td><td>{{ $inspection->inspection_date->locale('id')->translatedFormat('l, d F Y') }}</td><td></td></tr>
+        <tr><td><strong>Penanggung Jawab</strong></td><td>{{ $inspection->inspector_name }}</td><td rowspan="3" class="condition-legend"><strong>Keterangan:</strong><br>A = Kondisi Normal<br><br>B = Kondisi kurang Normal<br><br>C = Kondisi Rusak</td></tr>
+        <tr><td><strong>Tanda Tangan</strong></td><td class="center"><div class="signature-space">@if (isset($signatureImages['inspector']))<img class="signature-image" src="{{ $signatureImages['inspector'] }}" alt="Tanda tangan {{ $inspectorSignature?->signer_name ?? $inspection->inspector_name }}">@endif</div>@if ($inspectorSignature)<span class="small">{{ $inspectorSignature->signer_name }}<br>TTD: {{ $inspectorSignature->signed_at->format('d/m/Y H:i') }}</span>@endif</td></tr>
+        <tr><td><strong>Hari / Tanggal Pemeriksaan</strong></td><td>{{ $inspection->inspection_date->locale('id')->translatedFormat('l, d F Y') }}</td></tr>
     </table>
 
     @foreach ($photos as $photo)

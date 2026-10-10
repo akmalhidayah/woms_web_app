@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Support\Inspector\EquipmentFormCatalog;
 use App\Support\Inspector\EquipmentInspectionViewData;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\Request;
 
 class EquipmentFormController extends Controller
 {
@@ -16,12 +17,12 @@ class EquipmentFormController extends Controller
         ]);
     }
 
-    public function show(string $equipmentForm): View
+    public function show(Request $request, string $equipmentForm): View
     {
         $form = EquipmentFormCatalog::find($equipmentForm);
 
         abort_if($form === null, 404);
 
-        return view('inspector.equipment-forms.show', EquipmentInspectionViewData::make($form));
+        return view('inspector.equipment-forms.show', EquipmentInspectionViewData::make($form, null, $request->user()));
     }
 }

@@ -7,7 +7,7 @@
         <p class="text-sm">Inspeksi Peralatan · Dokumen Approval</p>
         <h1 class="mt-2 text-2xl font-bold">{{ $inspection->form_name }}</h1>
         <p class="mt-2">{{ $inspection->document_no }} · Versi {{ $inspection->document_version }} · {{ $inspection->inspection_date->format('d/m/Y') }}</p>
-        <p class="mt-2 text-sm">{{ $approval->signer_name }} — {{ $approval->signer_position }} · Tahap {{ $approval->step_order }} dari 3</p>
+        <p class="mt-2 text-sm">{{ $approval->signer_name }} — {{ $approval->signer_position }} · Tahap {{ $approval->step_order }} dari {{ count(\App\Models\EquipmentInspectionSignature::STEPS) }}</p>
         <a class="mt-3 inline-block underline" href="{{ route('approval-documents.index') }}">Kembali ke Dokumen Approval</a>
     </header>
     @if ($errors->any())<p role="alert" class="rounded-xl bg-red-100 p-4 text-red-900">{{ $errors->first() }}</p>@endif
@@ -26,7 +26,7 @@
                 <h2 class="font-bold">Setujui dan Tanda Tangani</h2>
                 <div id="signaturePadShell" class="relative mt-3 overflow-hidden rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-3">
                     <div class="absolute right-3 top-3 z-20 flex gap-2">
-                        @if ($recentSignatureDataUrl)<button type="button" id="useRecentSignature" data-signature-src="{{ $recentSignatureDataUrl }}" class="rounded-lg border bg-white px-3 py-2 text-xs">Pakai TTD Terakhir</button>@endif
+                        @if ($recentSignatureDataUrl)<button type="button" id="useRecentSignature" data-signature-src="{{ $recentSignatureDataUrl }}" class="rounded-lg border bg-white px-3 py-2 text-xs">Gunakan TTD Terakhir</button>@endif
                         <button type="button" id="clearSignature" class="rounded-lg border bg-white px-3 py-2 text-xs">Clear</button>
                     </div>
                     <canvas id="signatureCanvas" width="620" height="260" class="relative z-10 h-56 w-full touch-none"></canvas>

@@ -11,6 +11,7 @@ use App\Support\AdminActionCenter;
 use App\Support\Inspector\EquipmentFormCatalog;
 use App\Support\Inspector\EquipmentInspectionIndexTabs;
 use App\Support\Inspector\EquipmentInspectionSnapshot;
+use App\Support\RecentApprovalSignatureResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -92,6 +93,89 @@ class EquipmentInspectionManagementTest extends TestCase
             ->assertJsonCount(2, 'steps')->assertJsonPath('steps.1.state', 'pending')
             ->assertJsonPath('steps.1.resend_url', route('admin.inspections.resend', [$inspection, $approval]))
             ->assertDontSee($approval->token_encrypted)->assertDontSee($approval->token_hash);
+    }
+
+    public function test_inspector_can_reuse_own_signature_on_new_and_draft_forms(): void
+    {
+        Storage::fake('local');
+        $owner = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
+        $this->travelTo(now()->subMinute());
+        $previous = $this->inspection($owner, EquipmentInspection::STATUS_MANAGER);
+        $this->travelBack();
+        $signature = $previous->signatures()->firstOrFail();
+        Storage::disk('local')->put($signature->signature_path, 'existing signature bytes');
+
+        $other = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
+        $otherSignature = $this->inspection($other, EquipmentInspection::STATUS_MANAGER)->signatures()->firstOrFail();
+        $otherSignature->update(['signature_sha256' => hash('sha256', 'other user signature bytes')]);
+        Storage::disk('local')->put($otherSignature->signature_path, 'other user signature bytes');
+
+        $expected = 'data:image/png;base64,'.base64_encode('existing signature bytes');
+        $draft = $this->inspection($owner);
+        foreach ([route('inspector.equipment-forms.show', 'mesin-lipat'), route('inspector.inspections.show', $draft)] as $url) {
+            $this->actingAs($owner)->get($url)->assertOk()
+                ->assertViewHas('recentSignatureDataUrl', $expected)
+                ->assertSee('Gunakan TTD Terakhir')
+                ->assertDontSee(base64_encode('other user signature bytes'));
+        }
+
+        $this->get(route('inspector.inspections.show', $previous))->assertOk()
+            ->assertViewHas('recentSignatureDataUrl', fn ($value): bool => $value === null)
+            ->assertDontSee('Gunakan TTD Terakhir');
+    }
+
+    public function test_manager_approval_reuses_inspection_signature_and_shows_two_steps(): void
+    {
+        Storage::fake('local');
+        $owner = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
+        $previous = $this->inspection($owner, EquipmentInspection::STATUS_APPROVED);
+        $signature = $previous->signatures()->where('role_key', EquipmentInspectionSignature::ROLE_MANAGER)->firstOrFail();
+        $manager = User::query()->findOrFail($signature->signer_user_id);
+        Storage::disk('local')->put($signature->signature_path, 'existing signature bytes');
+
+        $pending = $this->inspection($owner, EquipmentInspection::STATUS_MANAGER);
+        $approval = $pending->approvals()->firstOrFail();
+        $approval->update(['signer_user_id' => $manager->id, 'signer_name' => $manager->name]);
+
+        $this->actingAs($manager)->get(route('approval.equipment-inspection.show', $approval->token_encrypted))
+            ->assertOk()
+            ->assertViewHas('recentSignatureDataUrl', 'data:image/png;base64,'.base64_encode('existing signature bytes'))
+            ->assertSee('Gunakan TTD Terakhir')
+            ->assertSee('Tahap 2 dari 2')
+            ->assertDontSee('Tahap 2 dari 3');
+
+        $other = User::factory()->create(['role' => User::ROLE_APPROVER]);
+        $this->actingAs($other)->get(route('approval.equipment-inspection.show', $approval->token_encrypted))->assertNotFound();
+    }
+
+    public function test_unreadable_or_changed_inspection_signature_falls_back_without_using_public_file(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        $owner = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
+        $this->travelTo(now()->subMinute());
+        $older = $this->inspection($owner, EquipmentInspection::STATUS_MANAGER)->signatures()->firstOrFail();
+        $this->travelBack();
+        Storage::disk('local')->put($older->signature_path, 'existing signature bytes');
+        $latest = $this->inspection($owner, EquipmentInspection::STATUS_MANAGER)->signatures()->firstOrFail();
+        Storage::disk('local')->put($latest->signature_path, 'changed signature bytes');
+        Storage::disk('public')->put($latest->signature_path, 'existing signature bytes');
+        $resolver = app(RecentApprovalSignatureResolver::class);
+
+        $this->assertSame('data:image/png;base64,'.base64_encode('existing signature bytes'), $resolver->latestFullSignatureForUser($owner));
+        $this->assertNull($resolver->latestInitialForHppManager($owner));
+
+        Storage::disk('local')->delete($older->signature_path);
+        $this->assertNull($resolver->latestFullSignatureForUser($owner));
+    }
+
+    public function test_inspector_without_signature_history_does_not_get_reuse_button(): void
+    {
+        $owner = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
+
+        $this->actingAs($owner)->get(route('inspector.equipment-forms.show', 'mesin-lipat'))->assertOk()
+            ->assertViewHas('recentSignatureDataUrl', fn ($value): bool => $value === null)
+            ->assertDontSee('Gunakan TTD Terakhir');
     }
 
     private function inspection(User $owner, string $status = EquipmentInspection::STATUS_DRAFT): EquipmentInspection

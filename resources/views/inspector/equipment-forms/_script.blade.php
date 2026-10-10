@@ -4,6 +4,7 @@ window.equipmentInspectionPage = function (config) {
         answers: config.answers, inspectionDate: config.date,
         savedAnswers: config.savedAnswers, savedDate: config.savedDate, today: config.today,
         persisted: config.persisted, readOnly: config.readOnly, conflict: config.conflict,
+        recentSignatureDataUrl: config.recentSignatureDataUrl,
         deleteAttachments: [], filesSelected: {}, saving: false, signing: false,
         signatureModalOpen: false, signatureData: '', signatureConfirmed: false, hasInk: false, pointerId: null,
         get dirty() {
@@ -55,6 +56,25 @@ window.equipmentInspectionPage = function (config) {
             this.$nextTick(() => {
                 if (!this.hasInk) this.paintSignatureBackground();
             });
+        },
+        useRecentSignature() {
+            if (!this.canSign || !this.recentSignatureDataUrl || this.pointerId !== null) return;
+            const image = new Image();
+            image.onload = () => {
+                if (!this.canSign || !this.signatureModalOpen || this.pointerId !== null) return;
+                const canvas = this.$refs.signatureCanvas;
+                if (!canvas) return;
+                const scale = Math.min(canvas.width * 0.8 / image.naturalWidth, canvas.height * 0.75 / image.naturalHeight);
+                const width = image.naturalWidth * scale;
+                const height = image.naturalHeight * scale;
+                this.paintSignatureBackground();
+                canvas.getContext('2d').drawImage(image, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
+                this.hasInk = true;
+                this.signatureData = '';
+                this.signatureConfirmed = false;
+            };
+            image.onerror = () => window.alert('TTD terakhir tidak dapat dimuat. Silakan tanda tangan ulang.');
+            image.src = this.recentSignatureDataUrl;
         },
         paintSignatureBackground() {
             const canvas = this.$refs.signatureCanvas;

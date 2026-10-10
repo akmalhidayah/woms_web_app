@@ -45,6 +45,9 @@
                     <canvas x-ref="signatureCanvas" width="1000" height="320" @pointerdown.prevent="startStroke($event)" @pointermove.prevent="drawStroke($event)" @pointerup="endStroke($event)" @pointercancel="endStroke($event)" @lostpointercapture="pointerId = null" class="block h-48 w-full touch-none cursor-crosshair rounded-xl border border-slate-300 bg-white sm:h-56" aria-label="Kanvas tanda tangan menggunakan mouse atau sentuhan">Browser tidak mendukung kanvas tanda tangan.</canvas>
 
                     <div class="mt-4 grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+                        @if ($recentSignatureDataUrl)
+                            <button type="button" @click="useRecentSignature()" :disabled="!canSign" class="rounded-xl border border-blue-600 px-4 py-2.5 text-sm font-semibold text-blue-700 disabled:opacity-40">Gunakan TTD Terakhir</button>
+                        @endif
                         <button type="button" @click="clearSignature()" :disabled="signing" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold">Hapus</button>
                         <button type="button" @click="acceptSignature()" :disabled="!hasInk || signing" class="rounded-xl bg-[#7f1017] px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40">Gunakan TTD</button>
                     </div>

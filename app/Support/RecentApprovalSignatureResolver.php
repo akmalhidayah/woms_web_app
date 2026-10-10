@@ -2,12 +2,14 @@
 
 namespace App\Support;
 
+use App\Models\EquipmentInspectionSignature;
 use App\Models\HppSignature;
 use App\Models\InitialWorkSignature;
 use App\Models\LhppBastSignature;
 use App\Models\OrderScopeOfWork;
 use App\Models\QualityControlSignature;
 use App\Models\User;
+use App\Support\Inspector\InspectionImageStorage;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
@@ -17,6 +19,7 @@ class RecentApprovalSignatureResolver
 {
     public function __construct(
         private readonly HppApprovalMarkResolver $hppApprovalMarkResolver,
+        private readonly InspectionImageStorage $inspectionImages,
     ) {}
 
     public function latestForHppSignature(?User $user, HppSignature $signature): ?string
@@ -68,6 +71,7 @@ class RecentApprovalSignatureResolver
             ->merge($this->signedSignatureValues(LhppBastSignature::class, LhppBastSignature::STATUS_SIGNED, 'signature_data', $user->id))
             ->merge($this->signedSignatureValues(InitialWorkSignature::class, InitialWorkSignature::STATUS_SIGNED, 'signature_path', $user->id))
             ->merge($this->signedSignatureValues(QualityControlSignature::class, QualityControlSignature::STATUS_SIGNED, 'signature_data', $user->id))
+            ->merge($this->inspectionSignatureValues($user->id))
             ->merge($this->scopeOfWorkSignatureValues($user->id));
 
         return $this->firstReadableDataUrl($candidates);
@@ -113,14 +117,14 @@ class RecentApprovalSignatureResolver
     }
 
     /**
-     * @param  Collection<int, array{value: string, signed_at: mixed}>  $candidates
+     * @param  Collection<int, array{value: string, signed_at: mixed, inspection_sha256?: string}>  $candidates
      */
     private function firstReadableDataUrl(Collection $candidates): ?string
     {
         foreach ($candidates
             ->sortByDesc(fn (array $candidate): int => (int) ($candidate['signed_at']?->timestamp ?? 0))
             ->values() as $candidate) {
-            $dataUrl = $this->toDataUrl($candidate['value']);
+            $dataUrl = $this->toDataUrl($candidate['value'], $candidate['inspection_sha256'] ?? null);
 
             if ($dataUrl !== null) {
                 return $dataUrl;
@@ -128,6 +132,27 @@ class RecentApprovalSignatureResolver
         }
 
         return null;
+    }
+
+    /**
+     * @return Collection<int, array{value: string, signed_at: mixed, inspection_sha256: string}>
+     */
+    private function inspectionSignatureValues(int $userId): Collection
+    {
+        return EquipmentInspectionSignature::query()
+            ->where('signer_user_id', $userId)
+            ->whereIn('role_key', array_keys(EquipmentInspectionSignature::STEPS))
+            ->whereNotNull('signed_at')
+            ->whereNotNull('signature_path')
+            ->where('signature_path', '!=', '')
+            ->orderByDesc('signed_at')
+            ->limit(25)
+            ->get(['signature_path', 'signature_sha256', 'signed_at'])
+            ->map(fn (EquipmentInspectionSignature $signature): array => [
+                'value' => $signature->signature_path,
+                'signed_at' => $signature->signed_at,
+                'inspection_sha256' => $signature->signature_sha256,
+            ]);
     }
 
     /**
@@ -148,9 +173,15 @@ class RecentApprovalSignatureResolver
             ]);
     }
 
-    private function toDataUrl(?string $value): ?string
+    private function toDataUrl(?string $value, ?string $inspectionSha256 = null): ?string
     {
         try {
+            if ($inspectionSha256 !== null) {
+                return $inspectionSha256 !== ''
+                    ? 'data:image/png;base64,'.base64_encode($this->inspectionImages->read((string) $value, $inspectionSha256))
+                    : null;
+            }
+
             $source = SignatureImageStorage::imageSource($value);
 
             if (! $source) {

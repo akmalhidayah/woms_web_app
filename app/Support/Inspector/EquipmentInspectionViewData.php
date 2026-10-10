@@ -4,10 +4,12 @@ namespace App\Support\Inspector;
 
 use App\Models\EquipmentInspection;
 use App\Models\EquipmentInspectionSignature;
+use App\Models\User;
+use App\Support\RecentApprovalSignatureResolver;
 
 final class EquipmentInspectionViewData
 {
-    public static function make(array $form, ?EquipmentInspection $inspection = null): array
+    public static function make(array $form, ?EquipmentInspection $inspection = null, ?User $viewer = null): array
     {
         $values = [];
         $files = [];
@@ -25,12 +27,17 @@ final class EquipmentInspectionViewData
             }
         }
 
+        $readOnly = $inspection && ! $inspection->isDraft();
+
         return [
             'form' => $form,
             'inspection' => $inspection,
             'values' => $values,
             'attachmentsByItem' => $files,
-            'readOnly' => $inspection && ! $inspection->isDraft(),
+            'readOnly' => $readOnly,
+            'recentSignatureDataUrl' => ! $readOnly && $viewer
+                ? app(RecentApprovalSignatureResolver::class)->latestFullSignatureForUser($viewer)
+                : null,
             'inspectionDate' => $inspection?->inspection_date->format('Y-m-d') ?? now(config('app.timezone'))->toDateString(),
             'today' => now(config('app.timezone'))->toDateString(),
             'inspectorSignature' => $inspection?->signatures->first(fn ($signature): bool => $signature->role_key === EquipmentInspectionSignature::ROLE_INSPECTOR

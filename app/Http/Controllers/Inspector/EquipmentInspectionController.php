@@ -57,7 +57,7 @@ class EquipmentInspectionController extends Controller
     {
         $this->authorizeView($request, $inspection);
 
-        return view('inspector.equipment-forms.show', EquipmentInspectionViewData::make($inspection->template_snapshot, $inspection));
+        return view('inspector.equipment-forms.show', EquipmentInspectionViewData::make($inspection->template_snapshot, $inspection, $request->user()));
     }
 
     public function store(SaveEquipmentInspectionRequest $request, string $equipmentForm, EquipmentInspectionService $service): RedirectResponse

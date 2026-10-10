@@ -21,6 +21,7 @@
             'date' => $readOnly ? $inspectionDate : old('inspection_date', $inspectionDate),
             'savedDate' => $inspectionDate, 'today' => $today, 'persisted' => $inspection !== null,
             'readOnly' => (bool) $readOnly, 'conflict' => $errors->has('lock_version'),
+            'recentSignatureDataUrl' => $recentSignatureDataUrl,
         ];
         $itemNumber = 0;
     @endphp

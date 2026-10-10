@@ -39,6 +39,7 @@ class OrderWorkshop extends Model
         'started_at',
         'keterangan_progress',
         'catatan',
+        'pic_user',
     ];
 
     /**

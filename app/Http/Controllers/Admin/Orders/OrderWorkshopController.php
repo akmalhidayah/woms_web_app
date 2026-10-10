@@ -15,6 +15,7 @@ use App\Services\BengkelTasks\WorkshopOrderTaskSyncer;
 use App\Services\BengkelTasks\WorkshopStartService;
 use App\Services\BengkelTasks\WorkshopWorkPackageService;
 use App\Support\WorkshopReadiness;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -139,18 +140,41 @@ class OrderWorkshopController extends Controller
     public function store(StoreOrderRequest $request): RedirectResponse
     {
         $validated = $request->validated();
+        $orderInserted = false;
 
-        $order = DB::transaction(function () use ($request, $validated): Order {
-            $order = Order::create([
-                ...$validated,
-                'biaya' => $validated['biaya'] ?? null,
-                'created_by' => $request->user()?->id,
-            ]);
+        try {
+            $order = DB::transaction(function () use ($request, $validated, &$orderInserted): Order {
+                $order = Order::create([
+                    ...collect($validated)->except('pic_user')->all(),
+                    'biaya' => $validated['biaya'] ?? null,
+                    'created_by' => $request->user()?->id,
+                ]);
+                $orderInserted = true;
 
-            $this->workshopOrderTaskSyncer->ensureWorkshopLifecycle($order);
+                $workshop = $this->workshopOrderTaskSyncer->ensureWorkshopLifecycle($order);
+                $workshop?->update(['pic_user' => $validated['pic_user'] ?? null]);
 
-            return $order;
-        });
+                return $order;
+            });
+        } catch (UniqueConstraintViolationException $exception) {
+            if ($orderInserted) {
+                throw $exception;
+            }
+
+            $errors = [];
+            if (Order::query()->where('nomor_order', $validated['nomor_order'])->exists()) {
+                $errors['nomor_order'] = 'Nomor order ini sudah digunakan.';
+            }
+            if (filled($validated['notifikasi'] ?? null)
+                && Order::query()->where('notifikasi', $validated['notifikasi'])->exists()) {
+                $errors['notifikasi'] = 'Nomor notifikasi ini sudah digunakan.';
+            }
+            if ($errors === []) {
+                throw $exception;
+            }
+
+            throw ValidationException::withMessages($errors);
+        }
 
         return redirect()
             ->route('admin.orders.workshop.index', ['search' => $order->nomor_order])

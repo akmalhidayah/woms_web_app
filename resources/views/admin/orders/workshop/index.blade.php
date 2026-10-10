@@ -476,6 +476,7 @@
                                                 data-prioritas="{{ $order->prioritas }}"
                                                 data-target-selesai="{{ optional($order->target_selesai)->format('Y-m-d') }}"
                                                 data-biaya="{{ $order->biaya === null ? '' : \Illuminate\Support\Str::before((string) $order->biaya, '.') }}"
+                                                data-pic-user="{{ $workshop?->pic_user }}"
                                                 data-seksi="{{ $order->seksi }}"
                                                 data-catatan-status="{{ $order->catatan_status?->value ?? \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value }}"
                                                 data-catatan="{{ $order->catatan }}"
@@ -598,7 +599,7 @@
 
     <div id="createOrderModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
         <div class="max-h-[92vh] overflow-y-auto rounded-3xl bg-white shadow-2xl" style="width:min(100%, 860px);">
-            <form method="POST" action="{{ route('admin.orders.workshop.store') }}" class="p-6">
+            <form method="POST" id="createOrderForm" action="{{ route('admin.orders.workshop.store') }}" class="p-6">
                 @csrf
                 <input type="hidden" name="form_context" value="create">
                 <input type="hidden" name="tanggal_order" id="createTanggalOrder" value="{{ old('form_context') === 'create' ? old('tanggal_order', $today) : $today }}">
@@ -684,22 +685,38 @@
                             @enderror
                         @endif
                     </div>
-                    <div>
-                        <label class="mb-2 block text-sm text-slate-700">Status Catatan</label>
-                        <select id="createCatatanStatus" name="catatan_status" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
-                            @foreach ($userNoteStatusOptions as $value => $label)
-                                <option value="{{ $value }}" @selected(old('form_context') === 'create' ? old('catatan_status', \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value) === $value : $value === \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value)>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        @if (old('form_context') === 'create')
-                            @error('catatan_status')
-                                <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
-                            @enderror
-                        @endif
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm text-slate-700">Rencana Pemakaian</label>
-                        <input id="createTargetSelesai" name="target_selesai" type="date" value="{{ old('form_context') === 'create' ? old('target_selesai', $today) : $today }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                    <div class="grid gap-5 md:col-span-2 md:grid-cols-3">
+                        <div>
+                            <label class="mb-2 block text-sm text-slate-700">Status Catatan</label>
+                            <select id="createCatatanStatus" name="catatan_status" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                                @foreach ($userNoteStatusOptions as $value => $label)
+                                    <option value="{{ $value }}" @selected(old('form_context') === 'create' ? old('catatan_status', \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value) === $value : $value === \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            @if (old('form_context') === 'create')
+                                @error('catatan_status')
+                                    <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                                @enderror
+                            @endif
+                        </div>
+                        <div>
+                            <label for="createCatatanSelect" class="mb-2 block text-sm text-slate-700">Detail Catatan</label>
+                            <div class="space-y-2">
+                                <select id="createCatatanSelect" required class="hidden w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none"></select>
+                                <textarea id="createCatatanTextarea" rows="3" placeholder="Catatan (opsional)" class="hidden w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none"></textarea>
+                                <input type="hidden" name="catatan" id="createCatatan" value="{{ old('form_context') === 'create' ? old('catatan') : '' }}">
+                            </div>
+                            <p class="mt-1 text-xs text-slate-500">Regu Bengkel wajib dipilih.</p>
+                            @if (old('form_context') === 'create')
+                                @error('catatan')
+                                    <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                                @enderror
+                            @endif
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-sm text-slate-700">Rencana Pemakaian</label>
+                            <input id="createTargetSelesai" name="target_selesai" type="date" value="{{ old('form_context') === 'create' ? old('target_selesai', $today) : $today }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                        </div>
                     </div>
                     <div class="md:col-span-2">
                         <label for="createBiayaDisplay" class="mb-2 block text-sm text-slate-700">Biaya <span class="text-slate-400">(Opsional)</span></label>
@@ -715,12 +732,13 @@
                         @endif
                     </div>
                     <div class="md:col-span-2">
-                        <label class="mb-2 block text-sm text-slate-700">Detail Catatan</label>
-                        <div class="space-y-2">
-                            <select id="createCatatanSelect" class="hidden w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none"></select>
-                            <textarea id="createCatatanTextarea" rows="3" placeholder="Catatan (opsional)" class="hidden w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none"></textarea>
-                            <input type="hidden" name="catatan" id="createCatatan" value="{{ old('form_context') === 'create' ? old('catatan') : '' }}">
-                        </div>
+                        <label for="createPicUser" class="mb-2 block text-sm text-slate-700">PIC User <span class="text-slate-400">(Opsional)</span></label>
+                        <input id="createPicUser" name="pic_user" type="text" maxlength="255" value="{{ old('form_context') === 'create' ? old('pic_user') : '' }}" placeholder="Nama PIC User" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none">
+                        @if (old('form_context') === 'create')
+                            @error('pic_user')
+                                <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                            @enderror
+                        @endif
                     </div>
                 </div>
 
@@ -822,22 +840,38 @@
                             @enderror
                         @endif
                     </div>
-                    <div>
-                        <label class="mb-2 block text-sm text-slate-700">Status Catatan</label>
-                        <select id="editCatatanStatus" name="catatan_status" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
-                            @foreach ($userNoteStatusOptions as $value => $label)
-                                <option value="{{ $value }}" @selected(old('form_context') === 'edit' ? old('catatan_status', \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value) === $value : $value === \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value)>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        @if (old('form_context') === 'edit')
-                            @error('catatan_status')
-                                <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
-                            @enderror
-                        @endif
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm text-slate-700">Rencana Pemakaian</label>
-                        <input id="editTargetSelesai" name="target_selesai" type="date" value="{{ old('form_context') === 'edit' ? old('target_selesai') : '' }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                    <div class="grid gap-5 md:col-span-2 md:grid-cols-3">
+                        <div>
+                            <label class="mb-2 block text-sm text-slate-700">Status Catatan</label>
+                            <select id="editCatatanStatus" name="catatan_status" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                                @foreach ($userNoteStatusOptions as $value => $label)
+                                    <option value="{{ $value }}" @selected(old('form_context') === 'edit' ? old('catatan_status', \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value) === $value : $value === \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            @if (old('form_context') === 'edit')
+                                @error('catatan_status')
+                                    <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                                @enderror
+                            @endif
+                        </div>
+                        <div>
+                            <label for="editCatatanSelect" class="mb-2 block text-sm text-slate-700">Detail Catatan</label>
+                            <div class="space-y-2">
+                                <select id="editCatatanSelect" required class="hidden w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none"></select>
+                                <textarea id="editCatatanTextarea" rows="3" placeholder="Catatan (opsional)" class="hidden w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none"></textarea>
+                                <input type="hidden" name="catatan" id="editCatatan" value="{{ old('form_context') === 'edit' ? old('catatan') : '' }}">
+                            </div>
+                            <p class="mt-1 text-xs text-slate-500">Regu Bengkel wajib dipilih.</p>
+                            @if (old('form_context') === 'edit')
+                                @error('catatan')
+                                    <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                                @enderror
+                            @endif
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-sm text-slate-700">Rencana Pemakaian</label>
+                            <input id="editTargetSelesai" name="target_selesai" type="date" value="{{ old('form_context') === 'edit' ? old('target_selesai') : '' }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
+                        </div>
                     </div>
                     <div class="md:col-span-2">
                         <label for="editBiayaDisplay" class="mb-2 block text-sm text-slate-700">Biaya <span class="text-slate-400">(Opsional)</span></label>
@@ -853,12 +887,13 @@
                         @endif
                     </div>
                     <div class="md:col-span-2">
-                        <label class="mb-2 block text-sm text-slate-700">Detail Catatan</label>
-                        <div class="space-y-2">
-                            <select id="editCatatanSelect" class="hidden w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none"></select>
-                            <textarea id="editCatatanTextarea" rows="3" placeholder="Catatan (opsional)" class="hidden w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none"></textarea>
-                            <input type="hidden" name="catatan" id="editCatatan" value="{{ old('form_context') === 'edit' ? old('catatan') : '' }}">
-                        </div>
+                        <label for="editPicUser" class="mb-2 block text-sm text-slate-700">PIC User <span class="text-slate-400">(Opsional)</span></label>
+                        <input id="editPicUser" name="pic_user" type="text" maxlength="255" value="{{ old('form_context') === 'edit' ? old('pic_user') : '' }}" placeholder="Nama PIC User" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none">
+                        @if (old('form_context') === 'edit')
+                            @error('pic_user')
+                                <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                            @enderror
+                        @endif
                     </div>
                 </div>
 
@@ -951,6 +986,7 @@
             const workshopFlowModal = document.getElementById('workshopFlowModal');
             const orderModalOverlay = document.getElementById('orderModalOverlay');
             const createModal = document.getElementById('createOrderModal');
+            const createForm = document.getElementById('createOrderForm');
             const editModal = document.getElementById('editOrderModal');
             const editForm = document.getElementById('editOrderForm');
             const createUnitKerja = document.getElementById('createUnitKerja');
@@ -995,9 +1031,20 @@
                 .replaceAll('"', '&quot;')
                 .replaceAll("'", '&#039;');
 
-            const normalizeBiayaDigits = (value) => String(value ?? '')
-                .replace(/\D/g, '')
-                .replace(/^0+(?=\d)/, '');
+            const normalizeBiayaDigits = (value) => {
+                const amount = String(value ?? '').trim().replace(/^Rp\.?\s*/i, '');
+                if (amount === '') {
+                    return '';
+                }
+
+                // Accept Indonesian thousands separators and zero cents only.
+                // Reject negatives, fractions and ambiguous formats instead of changing their value.
+                if (!/^(?:\d+|\d{1,3}(?:\.\d{3})+)(?:,0{1,2})?$/.test(amount)) {
+                    return null;
+                }
+
+                return amount.split(',')[0].replaceAll('.', '').replace(/^0+(?=\d)/, '');
+            };
 
             const formatBiayaDigits = (value) => value.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
@@ -1007,13 +1054,74 @@
                 }
 
                 const digits = normalizeBiayaDigits(value);
+                if (digits === null) {
+                    displayInput.value = String(value ?? '');
+                    hiddenInput.value = displayInput.value;
+                    displayInput.setCustomValidity('Masukkan biaya Rupiah tanpa pecahan dan tidak negatif. Contoh: 1.250.000 atau Rp 1.250.000,00.');
+                    displayInput.setAttribute('aria-invalid', 'true');
+                    return;
+                }
+
+                displayInput.setCustomValidity('');
+                displayInput.removeAttribute('aria-invalid');
                 hiddenInput.value = digits;
                 displayInput.value = digits ? formatBiayaDigits(digits) : '';
             };
 
             const bindBiayaField = (displayInput, hiddenInput) => {
-                displayInput?.addEventListener('input', () => {
+                displayInput?.addEventListener('input', (event) => {
+                    let value = displayInput.value;
+                    const editingDigits = (event.inputType === 'insertText' && /^\d+$/.test(event.data || ''))
+                        || /^deleteContent/.test(event.inputType || '');
+
+                    // Remove our own grouping during typing, but validate pasted formats in full.
+                    if (editingDigits && /^\d+$/.test(hiddenInput.value) && /^[\d.]+$/.test(value)) {
+                        value = value.replaceAll('.', '');
+                    }
+                    setBiayaFieldValue(displayInput, hiddenInput, value);
+                    if (value.includes(',') && (event.inputType === 'insertText' || /^deleteContent/.test(event.inputType || ''))) {
+                        displayInput.value = value;
+                    }
+                });
+                displayInput?.addEventListener('blur', () => {
                     setBiayaFieldValue(displayInput, hiddenInput, displayInput.value);
+                });
+            };
+
+            const bindOrderSubmission = (form) => {
+                if (!form) {
+                    return;
+                }
+
+                const buttons = [...form.querySelectorAll('button[type="submit"]')];
+                const labels = buttons.map((button) => button.textContent);
+                form.addEventListener('submit', (event) => {
+                    if (event.defaultPrevented) {
+                        return;
+                    }
+                    if (form.dataset.submitting === 'true') {
+                        event.preventDefault();
+                        return;
+                    }
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        form.reportValidity();
+                        return;
+                    }
+
+                    form.dataset.submitting = 'true';
+                    buttons.forEach((button) => {
+                        button.disabled = true;
+                        button.textContent = 'Menyimpan...';
+                    });
+                });
+
+                window.addEventListener('pageshow', () => {
+                    delete form.dataset.submitting;
+                    buttons.forEach((button, index) => {
+                        button.disabled = false;
+                        button.textContent = labels[index];
+                    });
                 });
             };
 
@@ -1028,6 +1136,7 @@
 
                 const detailOptions = userNoteDetailOptions[selectedStatus] || [];
                 const useSelect = detailOptions.length > 0;
+                detailSelect.required = ['approved_workshop', 'approved_workshop_jasa'].includes(selectedStatus);
 
                 detailSelect.innerHTML = '';
 
@@ -1296,6 +1405,8 @@
             bindPriorityField('edit');
             bindBiayaField(createBiayaDisplay, createBiaya);
             bindBiayaField(editBiayaDisplay, editBiaya);
+            bindOrderSubmission(createForm);
+            bindOrderSubmission(editForm);
 
             document.querySelectorAll('[data-regu-toggle]').forEach((button) => {
                 button.addEventListener('click', () => {
@@ -1319,6 +1430,7 @@
                 document.getElementById('createTanggalOrder').value = '{{ $today }}';
                 document.getElementById('createDeskripsi').value = 'Order pekerjaan bengkel';
                 document.getElementById('createCatatan').value = '';
+                document.getElementById('createPicUser').value = '';
                 setBiayaFieldValue(createBiayaDisplay, createBiaya);
                 syncModalNoteField('create', defaultWorkshopStatus, '');
                 openCreateOrderModal();
@@ -1362,6 +1474,7 @@
                     document.getElementById('editTanggalOrder').value = button.dataset.tanggalOrder || button.dataset.targetSelesai || '{{ $today }}';
                     document.getElementById('editCatatan').value = button.dataset.catatan || '';
                     setBiayaFieldValue(editBiayaDisplay, editBiaya, button.dataset.biaya || '');
+                    document.getElementById('editPicUser').value = button.dataset.picUser || '';
                     document.getElementById('editDeskripsi').value = 'Order pekerjaan bengkel';
                     editStructurePair?.setValues(
                         button.dataset.unitKerja || '',

@@ -158,8 +158,12 @@ class OrderController extends Controller
     public function update(UpdateOrderRequest $request, Order $order): RedirectResponse
     {
         DB::transaction(function () use ($request, $order): void {
-            $order->update($request->validated());
-            $this->workshopOrderTaskSyncer->ensureWorkshopLifecycle($order->fresh() ?: $order);
+            $validated = $request->validated();
+            $order->update(collect($validated)->except('pic_user')->all());
+            $workshop = $this->workshopOrderTaskSyncer->ensureWorkshopLifecycle($order->fresh() ?: $order);
+            if ($workshop && array_key_exists('pic_user', $validated)) {
+                $workshop->update(['pic_user' => $validated['pic_user']]);
+            }
         });
 
         return redirect()

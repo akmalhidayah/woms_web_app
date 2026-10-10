@@ -37,10 +37,11 @@ class UpdateOrderRequest extends FormRequest
             OrderUserNoteStatus::ApprovedWorkshop->value,
             OrderUserNoteStatus::ApprovedWorkshopJasa->value,
         ], true);
-        $isWorkshopOrder = $usesWorkshopRegu || in_array($order->catatan_status?->value, [
+        $isExistingWorkshopOrder = in_array($order->catatan_status?->value, [
             OrderUserNoteStatus::ApprovedWorkshop->value,
             OrderUserNoteStatus::ApprovedWorkshopJasa->value,
         ], true);
+        $isWorkshopOrder = $usesWorkshopRegu || $isExistingWorkshopOrder;
         $detailOptions = Order::userNoteDetailOptions()[$status] ?? null;
 
         return [
@@ -55,6 +56,9 @@ class UpdateOrderRequest extends FormRequest
             'target_selesai' => ['required', 'date', 'after_or_equal:tanggal_order'],
             'biaya' => $isWorkshopOrder
                 ? ['nullable', 'integer', 'min:0', 'max:'.self::MAX_BIAYA]
+                : ['prohibited'],
+            'pic_user' => $isExistingWorkshopOrder
+                ? ['nullable', 'string', 'max:255']
                 : ['prohibited'],
             'catatan_status' => ['required', Rule::in(array_keys(OrderUserNoteStatus::options()))],
             'catatan' => $detailOptions !== null
@@ -115,6 +119,7 @@ class UpdateOrderRequest extends FormRequest
             'unit_kerja' => 'unit kerja',
             'target_selesai' => 'target selesai',
             'biaya' => 'biaya',
+            'pic_user' => 'PIC User',
             'catatan_status' => 'status catatan',
         ];
     }

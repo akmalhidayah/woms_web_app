@@ -56,6 +56,9 @@ class StoreOrderRequest extends FormRequest
             'biaya' => $this->routeIs('admin.orders.workshop.store')
                 ? ['nullable', 'integer', 'min:0', 'max:'.self::MAX_BIAYA]
                 : ['prohibited'],
+            'pic_user' => $this->routeIs('admin.orders.workshop.store')
+                ? ['nullable', 'string', 'max:255']
+                : ['prohibited'],
             'catatan_status' => ['required', Rule::in($statusOptions)],
             'catatan' => $detailOptions !== null
                 ? [$usesWorkshopRegu ? 'required' : 'nullable', 'string', Rule::in($detailOptions)]
@@ -108,6 +111,7 @@ class StoreOrderRequest extends FormRequest
             'unit_kerja' => 'unit kerja',
             'target_selesai' => 'target selesai',
             'biaya' => 'biaya',
+            'pic_user' => 'PIC User',
             'catatan_status' => 'status catatan',
         ];
     }

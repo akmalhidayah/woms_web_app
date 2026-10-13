@@ -133,7 +133,11 @@ class ApprovalNotificationService
         );
     }
 
-    public function sendWorkshopHandover(WorkshopHandover $handover, bool $resend = false): bool
+    public function sendWorkshopHandover(
+        WorkshopHandover $handover,
+        bool $resend = false,
+        bool $includeDefaultPassword = false,
+    ): bool
     {
         $handover->loadMissing(['recipient', 'order']);
 
@@ -150,6 +154,7 @@ class ApprovalNotificationService
                 'workshop_handover_id' => $handover->id,
                 'order_id' => $handover->order_id,
             ],
+            includeDefaultPassword: $includeDefaultPassword,
         );
     }
 
@@ -168,6 +173,7 @@ class ApprovalNotificationService
         array $context,
         ?string $documentAmountLabel = null,
         ?int $documentAmount = null,
+        bool $includeDefaultPassword = true,
     ): bool {
         $baseContext = [
             ...$context,
@@ -199,6 +205,7 @@ class ApprovalNotificationService
                 $expiresAt,
                 $documentAmountLabel,
                 $documentAmount,
+                $includeDefaultPassword,
             ));
 
             Log::info('Approval email sent.', [

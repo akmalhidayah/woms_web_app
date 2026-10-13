@@ -281,7 +281,7 @@ class OrderTrackingController extends Controller
         abort_unless(
             (int) request()->user()?->id === (int) $handover->recipient_user_id,
             Response::HTTP_FORBIDDEN,
-            'Dokumen Serah Terima hanya dapat dibuka oleh Manager User penerima.'
+            'Dokumen Serah Terima hanya dapat dibuka oleh PIC User penerima.'
         );
 
         return app(AdminWorkshopHandoverController::class)->renderPdf($handover);
@@ -598,9 +598,10 @@ class OrderTrackingController extends Controller
             && (int) auth()->id() === (int) $workshopHandover->recipient_user_id
             ? route('user.orders.workshop-handover.pdf', $order)
             : null;
+        $workshopHandoverRecipientRole = $workshopHandover?->recipient_position_snapshot ?: 'PIC User';
         $workshopHandoverLabel = match (true) {
             $workshopHandover?->status === WorkshopHandover::STATUS_COMPLETED => 'Serah Terima Selesai',
-            $workshopHandover?->status === WorkshopHandover::STATUS_WAITING_USER_SIGNATURE => 'Menunggu Tanda Tangan Manager User',
+            $workshopHandover?->status === WorkshopHandover::STATUS_WAITING_USER_SIGNATURE => 'Menunggu Tanda Tangan '.$workshopHandoverRecipientRole,
             $legacyWorkshopCompleted => 'Selesai (Data Legacy)',
             default => $order->orderWorkshop?->progress_status === OrderWorkshop::PROGRESS_DONE
                 ? 'Menunggu Serah Terima'
@@ -609,7 +610,7 @@ class OrderTrackingController extends Controller
         $workshopHandoverInfo = $this->buildTimelineInfoPayload('Serah Terima', [
             ['label' => 'Status', 'value' => $workshopHandoverLabel],
             ['label' => 'Nomor Dokumen', 'value' => $workshopHandover?->document_no ?: '-'],
-            ['label' => 'Manager User', 'value' => $workshopHandover?->recipient_name_snapshot ?: '-'],
+            ['label' => $workshopHandoverRecipientRole, 'value' => $workshopHandover?->recipient_name_snapshot ?: '-'],
             ['label' => $legacyWorkshopCompleted ? 'Tanggal Penandaan Legacy' : 'Tanggal Serah Terima', 'value' => $workshopHandover?->handed_over_at?->format('d/m/Y H:i')
                 ?: $order->orderWorkshop?->legacy_completed_at?->format('d/m/Y H:i')
                 ?: '-'],

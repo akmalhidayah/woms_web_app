@@ -9,9 +9,13 @@ use App\Models\OrderWorkshop;
 use App\Models\QualityControlReport;
 use App\Models\QualityControlSignature;
 use App\Models\User;
+use App\Models\WorkshopHandover;
 use App\Services\BengkelTasks\WorkshopHandoverQueue;
 use App\Support\WorkshopReadiness;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -192,6 +196,63 @@ class WorkshopFlowIntegrationTest extends TestCase
             ->assertSee('Non-Critical')
             ->assertSee('Menunggu Bukti Serah Terima')
             ->assertDontSee('MANUAL-BENGKEL-000206');
+    }
+
+    public function test_handover_is_sent_to_the_pic_user_account_selected_by_email(): void
+    {
+        Storage::fake('local');
+        Notification::fake();
+
+        $admin = $this->superAdmin();
+        $picUser = User::factory()->create([
+            'name' => 'Pak Liem',
+            'email' => 'pak.liem@example.com',
+            'role' => User::ROLE_USER,
+        ]);
+        [$order] = $this->workshopOrder($admin, OrderWorkshop::PROGRESS_DONE, true);
+        $order->orderWorkshop()->update(['pic_user' => 'Pak Liem']);
+
+        $this->actingAs($admin)
+            ->post(route('admin.workshop-handover.process', $order), [
+                'pic_user_email' => 'PAK.LIEM@example.com',
+                'photos' => [UploadedFile::fake()->image('bukti.jpg')],
+                'admin_signature_data' => 'data:image/png;base64,'.base64_encode(str_repeat('signature', 20)),
+            ])
+            ->assertSessionHasNoErrors();
+
+        $handover = WorkshopHandover::query()->whereBelongsTo($order)->firstOrFail();
+
+        $this->assertSame($picUser->id, $handover->recipient_user_id);
+        $this->assertSame($picUser->name, $handover->recipient_name_snapshot);
+        $this->assertSame('PIC User', $handover->recipient_position_snapshot);
+        $this->assertSame(User::ROLE_USER, $picUser->fresh()->role);
+    }
+
+    public function test_handover_creates_approval_account_when_pic_user_email_is_new(): void
+    {
+        Storage::fake('local');
+        Notification::fake();
+
+        $admin = $this->superAdmin();
+        [$order] = $this->workshopOrder($admin, OrderWorkshop::PROGRESS_DONE, true);
+        $order->orderWorkshop()->update(['pic_user' => 'Pak Liem']);
+
+        $this->actingAs($admin)
+            ->post(route('admin.workshop-handover.process', $order), [
+                'pic_user_email' => 'PAK.LIEM@example.com',
+                'photos' => [UploadedFile::fake()->image('bukti.jpg')],
+                'admin_signature_data' => 'data:image/png;base64,'.base64_encode(str_repeat('signature', 20)),
+            ])
+            ->assertSessionHasNoErrors();
+
+        $picUser = User::query()->where('email', 'pak.liem@example.com')->firstOrFail();
+        $handover = WorkshopHandover::query()->whereBelongsTo($order)->firstOrFail();
+
+        $this->assertSame('Pak Liem', $picUser->name);
+        $this->assertSame(User::ROLE_APPROVER, $picUser->role);
+        $this->assertTrue(Hash::check('bengkelmesin123', $picUser->password));
+        $this->assertSame($picUser->id, $handover->recipient_user_id);
+        $this->assertSame('PIC User', $handover->recipient_position_snapshot);
     }
 
     public function test_completed_legacy_order_skips_readiness_queue_and_enters_handover(): void

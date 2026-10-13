@@ -47,6 +47,9 @@
             @if (session('status'))
                 <div class="mx-4 mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">{{ session('status') }}</div>
             @endif
+            @if ($errors->any())
+                <div class="mx-4 mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">{{ $errors->first() }}</div>
+            @endif
 
             <div class="overflow-x-auto">
                 <table class="min-w-[1000px] w-full text-left text-xs">
@@ -69,21 +72,20 @@
                                 $jobName = $isHistory && $handover ? $handover->job_name_snapshot : $order->nama_pekerjaan;
                                 $unit = $isHistory && $handover ? $handover->unit_snapshot : $order->unit_kerja;
                                 $section = $isHistory && $handover ? $handover->section_snapshot : $order->seksi;
-                                $recipientPreview = ! $isHistory ? ($recipientPreviews[$order->id] ?? null) : null;
-                                $recipient = $recipientPreview['user'] ?? null;
-                                $canProcess = $recipient !== null;
+                                $picUser = trim((string) $order->orderWorkshop?->pic_user);
+                                $canProcess = $picUser !== '';
                                 $photoPath = $handover?->photo_paths[0] ?? null;
                                 $progressText = $isLegacyHistory ? 'Legacy' : ($handover?->progress() ?? '0/2');
                                 $progressRole = match (true) {
                                     $isLegacyHistory => 'Selesai (Data Legacy)',
                                     $handover?->isCompleted() => 'Approval selesai',
-                                    $handover !== null => 'Manager User',
+                                    $handover !== null => $handover->recipient_position_snapshot ?: 'PIC User',
                                     default => 'Bukti Serah Terima',
                                 };
                                 $progressActivity = match (true) {
                                     $isLegacyHistory => 'Data legacy',
                                     $handover?->isCompleted() => 'Serah terima selesai',
-                                    $handover !== null => 'Menunggu Manager User',
+                                    $handover !== null => 'Menunggu '.($handover->recipient_position_snapshot ?: 'PIC User'),
                                     default => 'Menunggu proses serah terima',
                                 };
                                 $progressUpdatedAt = $handover?->user_signed_at ?: $handover?->updated_at;
@@ -99,7 +101,7 @@
                                     ],
                                     [
                                         'step' => 2,
-                                        'role' => 'Manager User',
+                                        'role' => $handover->recipient_position_snapshot ?: 'PIC User',
                                         'name' => $handover->recipient_name_snapshot ?: '-',
                                         'status' => $handover->user_signed_at ? 'signed' : 'pending',
                                         'status_label' => $handover->user_signed_at ? 'Sudah TTD' : ($handover->tokenExpired() ? 'Token kedaluwarsa' : 'Menunggu TTD'),
@@ -166,11 +168,11 @@
                                             <a href="{{ route('admin.workshop-handover.pdf', $handover) }}" target="_blank" rel="noopener" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100" title="Preview PDF Serah Terima" aria-label="Preview PDF Serah Terima"><i data-lucide="file-text" class="h-3.5 w-3.5"></i></a>
                                         </div>
                                     @elseif ($canProcess)
-                                        <button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-700 text-white transition hover:bg-blue-800" title="Proses Serah Terima" aria-label="Proses Serah Terima" data-open-handover data-action="{{ route('admin.workshop-handover.process', $order) }}" data-order="{{ $order->nomor_order }}" data-job="{{ $order->nama_pekerjaan }}" data-unit="{{ $order->unit_kerja ?: '-' }}" data-section="{{ $order->seksi ?: '-' }}" data-path="{{ $queue->path($order) }}" data-recipient="{{ $recipient->name }}">
+                                        <button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-700 text-white transition hover:bg-blue-800" title="Proses Serah Terima" aria-label="Proses Serah Terima" data-open-handover data-action="{{ route('admin.workshop-handover.process', $order) }}" data-order="{{ $order->nomor_order }}" data-job="{{ $order->nama_pekerjaan }}" data-unit="{{ $order->unit_kerja ?: '-' }}" data-section="{{ $order->seksi ?: '-' }}" data-path="{{ $queue->path($order) }}" data-pic-user="{{ $picUser }}">
                                             <i data-lucide="handshake" class="h-3.5 w-3.5"></i>
                                         </button>
                                     @else
-                                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700" title="Manager User belum dikonfigurasi" aria-label="Manager User belum dikonfigurasi"><i data-lucide="user-x" class="h-3.5 w-3.5"></i></span>
+                                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700" title="PIC User belum diisi pada Order Pekerjaan Bengkel" aria-label="PIC User belum diisi"><i data-lucide="user-x" class="h-3.5 w-3.5"></i></span>
                                     @endif
                                 </td>
                             </tr>
@@ -210,7 +212,13 @@
                     <div><span class="text-slate-500">Seksi</span><p data-handover-value="section" class="font-semibold text-slate-900">-</p></div>
                     <div><span class="text-slate-500">Jalur</span><p data-handover-value="path" class="font-semibold text-slate-900">-</p></div>
                     <div><span class="text-slate-500">Tanggal Penyerahan</span><p class="font-semibold text-slate-900">{{ now()->format('d-m-Y H:i') }}</p></div>
-                    <div class="sm:col-span-2"><span class="text-slate-500">Manager User Penerima</span><p data-handover-value="recipient" class="font-semibold text-slate-900">-</p></div>
+                    <div class="sm:col-span-2"><span class="text-slate-500">PIC User</span><p data-handover-value="picUser" class="font-semibold text-slate-900">-</p></div>
+                </div>
+
+                <div>
+                    <label for="workshop-handover-pic-email" class="mb-1.5 block text-xs font-semibold text-slate-700">Email PIC User <span class="text-rose-600">*</span></label>
+                    <input id="workshop-handover-pic-email" type="email" name="pic_user_email" required maxlength="255" autocomplete="email" placeholder="Masukkan email PIC User" class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs text-slate-700 focus:border-blue-500 focus:outline-none">
+                    <p class="mt-1 text-[11px] text-slate-500">Jika email belum terdaftar, akun Approval dibuat otomatis dan informasi login dikirim melalui email.</p>
                 </div>
 
                 <div>
@@ -234,7 +242,7 @@
 
                 <div class="flex justify-end gap-2 border-t border-slate-200 pt-4">
                     <button type="button" data-close-handover class="rounded-lg border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">Batal</button>
-                    <button type="submit" id="workshop-handover-submit" class="rounded-lg bg-blue-700 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-800">Kirim ke Manager User</button>
+                    <button type="submit" id="workshop-handover-submit" class="rounded-lg bg-blue-700 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-800">Kirim ke Email PIC User</button>
                 </div>
             </form>
         </div>
@@ -250,6 +258,7 @@
         const signatureData = document.getElementById('workshop-handover-signature-data');
         const clearSignature = document.getElementById('workshop-handover-signature-clear');
         const photoInput = document.getElementById('workshop-handover-photos');
+        const picUserEmail = document.getElementById('workshop-handover-pic-email');
         const photoPreview = document.getElementById('workshop-handover-photo-preview');
         const errors = document.getElementById('workshop-handover-errors');
         const submitButton = document.getElementById('workshop-handover-submit');
@@ -355,7 +364,8 @@
                 ['order', 'job', 'unit', 'section', 'path'].forEach((key) => {
                     modal.querySelector(`[data-handover-value="${key}"]`).textContent = button.dataset[key] || '-';
                 });
-                modal.querySelector('[data-handover-value="recipient"]').textContent = button.dataset.recipient || '-';
+                modal.querySelector('[data-handover-value="picUser"]').textContent = button.dataset.picUser || '-';
+                picUserEmail.value = '';
                 resetPhotos();
                 clearCanvas();
                 modal.classList.remove('hidden');

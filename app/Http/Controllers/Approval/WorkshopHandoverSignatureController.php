@@ -93,7 +93,7 @@ class WorkshopHandoverSignatureController extends Controller
         }
 
         return redirect()->route('approval.workshop-handover.show', $token)
-            ->with('status', 'Tanda tangan Manager User berhasil disimpan. Serah Terima selesai.');
+            ->with('status', 'Tanda tangan '.($handover->recipient_position_snapshot ?: 'PIC User').' berhasil disimpan. Serah Terima selesai.');
     }
 
     public function photo(Request $request, string $token, int $index): Response
@@ -138,7 +138,7 @@ class WorkshopHandoverSignatureController extends Controller
             ]);
         }
 
-        abort_unless($authorized, Response::HTTP_FORBIDDEN, 'Link Serah Terima ini hanya untuk Manager User yang ditetapkan.');
+        abort_unless($authorized, Response::HTTP_FORBIDDEN, 'Link Serah Terima ini hanya untuk penerima yang ditetapkan.');
     }
 
     private function storeSignatureData(string $data, int $handoverId): string

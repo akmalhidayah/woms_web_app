@@ -4,15 +4,16 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\User;
 use App\Models\WorkshopHandover;
 use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\BengkelTasks\WorkshopHandoverQueue;
-use App\Support\WorkshopHandoverRecipientResolver;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -24,6 +25,8 @@ class WorkshopHandoverController extends Controller
 {
     private const TOKEN_TTL_DAYS = 7;
 
+    private const DEFAULT_APPROVER_PASSWORD = 'bengkelmesin123';
+
     public function __construct(
         private readonly ApprovalNotificationService $notificationService,
     ) {}
@@ -31,7 +34,6 @@ class WorkshopHandoverController extends Controller
     public function __invoke(
         Request $request,
         WorkshopHandoverQueue $queue,
-        WorkshopHandoverRecipientResolver $recipientResolver,
     ): View {
         $search = trim((string) $request->string('search'));
         $path = trim((string) $request->string('path'));
@@ -106,17 +108,11 @@ class WorkshopHandoverController extends Controller
             ->paginate(10, ['*'], 'history_page')
             ->withQueryString();
 
-        $recipientPreviews = [];
-        foreach ($waiting as $order) {
-            $recipientPreviews[$order->id] = $recipientResolver->resolve($order);
-        }
-
         return view('admin.workshop-handover.index', [
             'waiting' => $waiting,
             'history' => $history,
             'waitingCount' => $queue->count(),
             'historyCount' => $historyCount,
-            'recipientPreviews' => $recipientPreviews,
             'search' => $search,
             'path' => $path,
             'tab' => $tab,
@@ -128,20 +124,28 @@ class WorkshopHandoverController extends Controller
         Request $request,
         Order $order,
         WorkshopHandoverQueue $queue,
-        WorkshopHandoverRecipientResolver $recipientResolver,
     ): RedirectResponse {
-        $request->validate([
+        $request->merge([
+            'pic_user_email' => Str::lower(trim((string) $request->input('pic_user_email'))),
+        ]);
+
+        $validated = $request->validate([
             'photos' => ['required', 'array', 'min:1', 'max:3'],
             'photos.*' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'admin_signature_data' => ['required', 'string'],
+            'pic_user_email' => ['required', 'email:rfc', 'max:255'],
+        ], [
+            'pic_user_email.required' => 'Email PIC User wajib diisi.',
+            'pic_user_email.email' => 'Format email PIC User tidak valid.',
         ]);
 
         $storedPaths = [];
         $signaturePath = null;
         $emailSent = false;
+        $recipientAccountCreated = false;
 
         try {
-            $handover = DB::transaction(function () use ($request, $order, $queue, $recipientResolver, &$storedPaths, &$signaturePath): WorkshopHandover {
+            $handover = DB::transaction(function () use ($request, $validated, $order, $queue, &$storedPaths, &$signaturePath, &$recipientAccountCreated): WorkshopHandover {
                 $lockedOrder = Order::query()
                     ->with(['orderWorkshop', 'latestQualityControlReport.signatures', 'workPackages.assignments'])
                     ->findOrFail($order->id);
@@ -161,13 +165,26 @@ class WorkshopHandoverController extends Controller
                     ]);
                 }
 
-                $recipient = $recipientResolver->resolve($lockedOrder);
-                if (! $recipient['user']) {
+                if (blank($lockedOrder->orderWorkshop?->pic_user)) {
                     throw ValidationException::withMessages([
-                        'recipient' => $recipient['ambiguous']
-                            ? 'Manager User penerima tidak unik pada unit/seksi order.'
-                            : 'Manager User penerima belum ditemukan pada unit/seksi order.',
+                        'pic_user' => 'Nama PIC User belum diisi pada Order Pekerjaan Bengkel.',
                     ]);
+                }
+
+                $recipient = User::query()
+                    ->whereRaw('LOWER(email) = ?', [$validated['pic_user_email']])
+                    ->first();
+
+                if (! $recipient) {
+                    $recipient = User::create([
+                        'name' => trim((string) $lockedOrder->orderWorkshop->pic_user),
+                        'email' => $validated['pic_user_email'],
+                        'role' => User::ROLE_APPROVER,
+                        'admin_role' => null,
+                        'password' => self::DEFAULT_APPROVER_PASSWORD,
+                    ]);
+
+                    $recipientAccountCreated = true;
                 }
 
                 foreach ($request->file('photos', []) as $photo) {
@@ -201,19 +218,20 @@ class WorkshopHandoverController extends Controller
                     'admin_signed_at' => now(),
                     'admin_signed_ip' => $request->ip(),
                     'admin_signed_user_agent' => substr((string) $request->userAgent(), 0, 2000),
-                    'recipient_user_id' => $recipient['user']->id,
-                    'recipient_name_snapshot' => (string) $recipient['user']->name,
-                    'recipient_position_snapshot' => $recipient['section']?->name
-                        ? 'Manager '.$recipient['section']->name
-                        : 'Manager User',
+                    'recipient_user_id' => $recipient->id,
+                    'recipient_name_snapshot' => (string) $recipient->name,
+                    'recipient_position_snapshot' => 'PIC User',
                     'photo_paths' => array_values(array_slice($storedPaths, 0, count($storedPaths) - 1)),
                     'token_hash' => hash('sha256', $token),
                     'token_encrypted' => $token,
                     'token_expires_at' => now()->addDays(self::TOKEN_TTL_DAYS),
                 ]);
 
-                DB::afterCommit(function () use ($handover, &$emailSent): void {
-                    $emailSent = $this->notificationService->sendWorkshopHandover($handover->fresh(['recipient', 'order']));
+                DB::afterCommit(function () use ($handover, &$emailSent, &$recipientAccountCreated): void {
+                    $emailSent = $this->notificationService->sendWorkshopHandover(
+                        $handover->fresh(['recipient', 'order']),
+                        includeDefaultPassword: $recipientAccountCreated,
+                    );
                 });
 
                 return $handover;
@@ -224,7 +242,7 @@ class WorkshopHandoverController extends Controller
         }
 
         return back()->with('status', $emailSent
-            ? "Serah Terima {$handover->document_no} berhasil dibuat dan link dikirim ke Manager User."
+            ? "Serah Terima {$handover->document_no} berhasil dibuat dan link dikirim ke email PIC User."
             : "Serah Terima {$handover->document_no} berhasil dibuat, tetapi email gagal dikirim. Gunakan Salin Link atau Kirim Ulang.");
     }
 
@@ -234,7 +252,11 @@ class WorkshopHandoverController extends Controller
         abort_unless(! $workshopHandover->tokenExpired() && $workshopHandover->approvalUrl(), Response::HTTP_CONFLICT, 'Link Serah Terima sudah kedaluwarsa.');
 
         abort_unless(
-            $this->notificationService->sendWorkshopHandover($workshopHandover->fresh(['recipient', 'order']), true),
+            $this->notificationService->sendWorkshopHandover(
+                $workshopHandover->fresh(['recipient', 'order']),
+                true,
+                $this->recipientUsesDefaultPassword($workshopHandover),
+            ),
             Response::HTTP_BAD_GATEWAY,
             'Email Serah Terima gagal dikirim.'
         );
@@ -255,11 +277,14 @@ class WorkshopHandoverController extends Controller
             ]);
 
             DB::afterCommit(function () use ($locked): void {
-                $this->notificationService->sendWorkshopHandover($locked->fresh(['recipient', 'order']));
+                $this->notificationService->sendWorkshopHandover(
+                    $locked->fresh(['recipient', 'order']),
+                    includeDefaultPassword: $this->recipientUsesDefaultPassword($locked),
+                );
             });
         });
 
-        return back()->with('status', 'Token Serah Terima berhasil dibuat ulang dan dikirim ke Manager User.');
+        return back()->with('status', 'Token Serah Terima berhasil dibuat ulang dan dikirim ke PIC User.');
     }
 
     public function photo(WorkshopHandover $workshopHandover, int $index): Response
@@ -325,6 +350,14 @@ class WorkshopHandoverController extends Controller
         return $path && Storage::disk('local')->exists($path)
             ? Storage::disk('local')->path($path)
             : null;
+    }
+
+    private function recipientUsesDefaultPassword(WorkshopHandover $handover): bool
+    {
+        $handover->loadMissing('recipient');
+
+        return $handover->recipient !== null
+            && Hash::check(self::DEFAULT_APPROVER_PASSWORD, (string) $handover->recipient->password);
     }
 
     /** @param list<string> $paths */

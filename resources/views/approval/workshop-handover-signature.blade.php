@@ -57,7 +57,7 @@
                 @elseif ($canSign)
                     <form method="POST" action="{{ route('approval.workshop-handover.sign', $token) }}" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" id="workshop-handover-sign-form">
                         @csrf
-                        <h2 class="text-sm font-bold">Tanda Tangan Manager User</h2>
+                        <h2 class="text-sm font-bold">Tanda Tangan {{ $handover->recipient_position_snapshot ?: 'PIC User' }}</h2>
                         <canvas id="workshop-handover-user-signature" class="mt-3 h-40 w-full touch-none rounded-lg bg-white ring-1 ring-slate-200"></canvas>
                         <input type="hidden" name="signature_data" id="workshop-handover-user-signature-data">
                         <div class="mt-3 flex items-center justify-between gap-2"><button type="button" id="workshop-handover-user-clear" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold">Hapus/Ulangi</button><button class="rounded-lg bg-blue-700 px-4 py-2 text-xs font-semibold text-white">Tanda Tangan</button></div>

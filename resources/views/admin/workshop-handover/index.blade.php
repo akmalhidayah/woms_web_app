@@ -74,6 +74,13 @@
                                 $section = $isHistory && $handover ? $handover->section_snapshot : $order->seksi;
                                 $picUser = trim((string) $order->orderWorkshop?->pic_user);
                                 $photoPath = $handover?->photo_paths[0] ?? null;
+                                $photoUrls = $handover
+                                    ? collect($handover->photo_paths ?? [])
+                                        ->keys()
+                                        ->map(fn ($index) => route('admin.workshop-handover.photo', [$handover, $index]))
+                                        ->values()
+                                        ->all()
+                                    : [];
                                 $progressText = $isLegacyHistory ? 'Legacy' : ($handover?->progress() ?? '0/2');
                                 $progressRole = match (true) {
                                     $isLegacyHistory => 'Selesai (Data Legacy)',
@@ -153,7 +160,7 @@
                                     @elseif ($isHistory)
                                         <div class="flex flex-wrap justify-center gap-1.5">
                                             @if ($photoPath)
-                                                <a href="{{ route('admin.workshop-handover.photo', [$handover, 0]) }}" target="_blank" rel="noopener" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100" title="Lihat bukti serah terima" aria-label="Lihat bukti serah terima"><i data-lucide="image" class="h-3.5 w-3.5"></i></a>
+                                                <button type="button" data-open-photo-preview data-photo-title="Bukti Serah Terima - {{ $number }}" data-photo-urls='@json($photoUrls)' class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100" title="Lihat bukti serah terima" aria-label="Lihat bukti serah terima"><i data-lucide="image" class="h-3.5 w-3.5"></i></button>
                                             @else
                                                 <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-400" title="Bukti tidak tersedia" aria-label="Bukti tidak tersedia"><i data-lucide="image-off" class="h-3.5 w-3.5"></i></span>
                                             @endif
@@ -162,7 +169,7 @@
                                     @elseif ($handover)
                                         <div class="flex flex-wrap justify-center gap-1.5">
                                             @if ($photoPath)
-                                                <a href="{{ route('admin.workshop-handover.photo', [$handover, 0]) }}" target="_blank" rel="noopener" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100" title="Lihat bukti serah terima" aria-label="Lihat bukti serah terima"><i data-lucide="image" class="h-3.5 w-3.5"></i></a>
+                                                <button type="button" data-open-photo-preview data-photo-title="Bukti Serah Terima - {{ $number }}" data-photo-urls='@json($photoUrls)' class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100" title="Lihat bukti serah terima" aria-label="Lihat bukti serah terima"><i data-lucide="image" class="h-3.5 w-3.5"></i></button>
                                             @endif
                                             <a href="{{ route('admin.workshop-handover.pdf', $handover) }}" target="_blank" rel="noopener" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100" title="Preview PDF Serah Terima" aria-label="Preview PDF Serah Terima"><i data-lucide="file-text" class="h-3.5 w-3.5"></i></a>
                                         </div>
@@ -250,6 +257,16 @@
         </div>
     </div>
 
+    <div id="workshop-handover-photo-modal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-slate-950/75 p-4" role="dialog" aria-modal="true" aria-labelledby="workshop-handover-photo-title">
+        <div class="flex max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div class="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4">
+                <h2 id="workshop-handover-photo-title" class="text-base font-bold text-slate-900">Bukti Serah Terima</h2>
+                <button type="button" data-close-photo-preview class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Tutup preview foto">&times;</button>
+            </div>
+            <div id="workshop-handover-photo-gallery" class="grid min-h-0 flex-1 gap-3 overflow-y-auto bg-slate-100 p-4"></div>
+        </div>
+    </div>
+
     @include('admin.orders.partials.approval-signature-modal', ['approvalReassignmentUsers' => collect()])
 
 <script>
@@ -265,6 +282,9 @@
         const photoPreview = document.getElementById('workshop-handover-photo-preview');
         const errors = document.getElementById('workshop-handover-errors');
         const submitButton = document.getElementById('workshop-handover-submit');
+        const photoModal = document.getElementById('workshop-handover-photo-modal');
+        const photoModalTitle = document.getElementById('workshop-handover-photo-title');
+        const photoGallery = document.getElementById('workshop-handover-photo-gallery');
         if (! modal || ! form || ! canvas || ! signatureData) return;
 
         const context = canvas.getContext('2d');
@@ -385,6 +405,57 @@
         };
         modal.querySelectorAll('[data-close-handover]').forEach((button) => button.addEventListener('click', closeModal));
         modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });
+
+        const closePhotoModal = () => {
+            photoModal.classList.add('hidden');
+            photoModal.classList.remove('flex');
+            photoGallery.innerHTML = '';
+            document.body.classList.remove('overflow-hidden');
+        };
+
+        document.querySelectorAll('[data-open-photo-preview]').forEach((button) => {
+            button.addEventListener('click', () => {
+                let photoUrls = [];
+
+                try {
+                    photoUrls = JSON.parse(button.dataset.photoUrls || '[]');
+                } catch (error) {
+                    photoUrls = [];
+                }
+
+                if (! photoUrls.length) return;
+
+                photoModalTitle.textContent = button.dataset.photoTitle || 'Bukti Serah Terima';
+                photoGallery.innerHTML = '';
+                photoGallery.className = 'grid min-h-0 flex-1 gap-3 overflow-y-auto bg-slate-100 p-4'
+                    + (photoUrls.length > 1 ? ' sm:grid-cols-2' : '');
+
+                photoUrls.forEach((url, index) => {
+                    const frame = document.createElement('div');
+                    frame.className = 'flex min-h-0 items-center justify-center overflow-hidden rounded-xl bg-slate-900 p-2';
+
+                    const image = document.createElement('img');
+                    image.src = url;
+                    image.alt = 'Bukti serah terima ' + (index + 1);
+                    image.className = 'max-h-[72vh] max-w-full rounded-lg object-contain';
+
+                    frame.appendChild(image);
+                    photoGallery.appendChild(frame);
+                });
+
+                photoModal.classList.remove('hidden');
+                photoModal.classList.add('flex');
+                document.body.classList.add('overflow-hidden');
+            });
+        });
+
+        photoModal.querySelectorAll('[data-close-photo-preview]').forEach((button) => button.addEventListener('click', closePhotoModal));
+        photoModal.addEventListener('click', (event) => { if (event.target === photoModal) closePhotoModal(); });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && ! photoModal.classList.contains('hidden')) {
+                closePhotoModal();
+            }
+        });
 
         form.addEventListener('submit', (event) => {
             hideError();

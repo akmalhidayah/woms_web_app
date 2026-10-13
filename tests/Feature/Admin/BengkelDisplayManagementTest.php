@@ -665,7 +665,7 @@ class BengkelDisplayManagementTest extends TestCase
                 'catatan_status' => OrderUserNoteStatus::ApprovedWorkshop->value,
                 'catatan' => $order->catatan,
             ])
-            ->assertRedirect(route('admin.orders.show', '3000000001234567'))
+            ->assertRedirect(route('admin.orders.workshop.index', ['search' => '3000000001234567']))
             ->assertSessionHas('status', 'Order pekerjaan berhasil diperbarui.');
 
         $this->assertDatabaseHas('orders', [

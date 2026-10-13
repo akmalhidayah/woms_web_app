@@ -166,6 +166,14 @@ class OrderController extends Controller
             }
         });
 
+        $order->refresh()->load('orderWorkshop');
+
+        if ($order->isWorkshopOrder()) {
+            return redirect()
+                ->route('admin.orders.workshop.index', ['search' => $order->nomor_order])
+                ->with('status', 'Order pekerjaan berhasil diperbarui.');
+        }
+
         return redirect()
             ->route('admin.orders.show', $order)
             ->with('status', 'Order pekerjaan berhasil diperbarui.');

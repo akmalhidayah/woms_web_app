@@ -99,13 +99,13 @@ class OrderWorkshopBiayaTest extends TestCase
 
         $this->actingAs($this->admin)
             ->put(route('admin.orders.update', $order), $this->updatePayload($order, '2750000'))
-            ->assertRedirect(route('admin.orders.show', $order));
+            ->assertRedirect(route('admin.orders.workshop.index', ['search' => $order->nomor_order]));
 
         $this->assertSame('2750000.00', $order->refresh()->biaya);
 
         $this->actingAs($this->admin)
             ->put(route('admin.orders.update', $order), $this->updatePayload($order, ''))
-            ->assertRedirect(route('admin.orders.show', $order));
+            ->assertRedirect(route('admin.orders.workshop.index', ['search' => $order->nomor_order]));
 
         $this->assertNull($order->refresh()->biaya);
     }

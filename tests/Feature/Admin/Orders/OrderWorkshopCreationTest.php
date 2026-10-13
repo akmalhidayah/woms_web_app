@@ -87,7 +87,8 @@ class OrderWorkshopCreationTest extends TestCase
         $this->assertNull($order->orderWorkshop->pic_user);
 
         $this->put(route('admin.orders.update', $order), [...$this->payload, 'pic_user' => 'PIC Baru'])
-            ->assertSessionHasNoErrors();
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('admin.orders.workshop.index', ['search' => $order->nomor_order]));
         $this->assertSame('PIC Baru', $order->fresh()->orderWorkshop->pic_user);
 
         $this->put(route('admin.orders.update', $order), $this->payload)->assertSessionHasNoErrors();

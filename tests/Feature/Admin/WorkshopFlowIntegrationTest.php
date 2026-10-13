@@ -214,6 +214,7 @@ class WorkshopFlowIntegrationTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('admin.workshop-handover.process', $order), [
+                'pic_user_name' => 'Pak Liem',
                 'pic_user_email' => 'PAK.LIEM@example.com',
                 'photos' => [UploadedFile::fake()->image('bukti.jpg')],
                 'admin_signature_data' => 'data:image/png;base64,'.base64_encode(str_repeat('signature', 20)),
@@ -235,10 +236,10 @@ class WorkshopFlowIntegrationTest extends TestCase
 
         $admin = $this->superAdmin();
         [$order] = $this->workshopOrder($admin, OrderWorkshop::PROGRESS_DONE, true);
-        $order->orderWorkshop()->update(['pic_user' => 'Pak Liem']);
 
         $this->actingAs($admin)
             ->post(route('admin.workshop-handover.process', $order), [
+                'pic_user_name' => 'Pak Liem',
                 'pic_user_email' => 'PAK.LIEM@example.com',
                 'photos' => [UploadedFile::fake()->image('bukti.jpg')],
                 'admin_signature_data' => 'data:image/png;base64,'.base64_encode(str_repeat('signature', 20)),
@@ -253,6 +254,7 @@ class WorkshopFlowIntegrationTest extends TestCase
         $this->assertTrue(Hash::check('bengkelmesin123', $picUser->password));
         $this->assertSame($picUser->id, $handover->recipient_user_id);
         $this->assertSame('PIC User', $handover->recipient_position_snapshot);
+        $this->assertSame('Pak Liem', $order->orderWorkshop()->value('pic_user'));
     }
 
     public function test_completed_legacy_order_skips_readiness_queue_and_enters_handover(): void

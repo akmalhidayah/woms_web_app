@@ -126,6 +126,7 @@ class WorkshopHandoverController extends Controller
         WorkshopHandoverQueue $queue,
     ): RedirectResponse {
         $request->merge([
+            'pic_user_name' => trim((string) $request->input('pic_user_name')),
             'pic_user_email' => Str::lower(trim((string) $request->input('pic_user_email'))),
         ]);
 
@@ -133,8 +134,10 @@ class WorkshopHandoverController extends Controller
             'photos' => ['required', 'array', 'min:1', 'max:3'],
             'photos.*' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'admin_signature_data' => ['required', 'string'],
+            'pic_user_name' => ['required', 'string', 'max:255'],
             'pic_user_email' => ['required', 'email:rfc', 'max:255'],
         ], [
+            'pic_user_name.required' => 'Nama PIC User wajib diisi.',
             'pic_user_email.required' => 'Email PIC User wajib diisi.',
             'pic_user_email.email' => 'Format email PIC User tidak valid.',
         ]);
@@ -165,11 +168,9 @@ class WorkshopHandoverController extends Controller
                     ]);
                 }
 
-                if (blank($lockedOrder->orderWorkshop?->pic_user)) {
-                    throw ValidationException::withMessages([
-                        'pic_user' => 'Nama PIC User belum diisi pada Order Pekerjaan Bengkel.',
-                    ]);
-                }
+                $lockedOrder->orderWorkshop->update([
+                    'pic_user' => $validated['pic_user_name'],
+                ]);
 
                 $recipient = User::query()
                     ->whereRaw('LOWER(email) = ?', [$validated['pic_user_email']])
@@ -177,7 +178,7 @@ class WorkshopHandoverController extends Controller
 
                 if (! $recipient) {
                     $recipient = User::create([
-                        'name' => trim((string) $lockedOrder->orderWorkshop->pic_user),
+                        'name' => $validated['pic_user_name'],
                         'email' => $validated['pic_user_email'],
                         'role' => User::ROLE_APPROVER,
                         'admin_role' => null,

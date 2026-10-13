@@ -1,13 +1,16 @@
 <?php
 
+use App\Console\Commands\ManageOrganizationApiToken;
 use App\Console\Commands\ReprocessHppSignatureImages;
 use App\Console\Commands\RunMaintenanceScanCommand;
 use App\Console\Commands\SyncBastSmPengendali;
 use App\Http\Middleware\EnsureAdminHasSubrole;
 use App\Http\Middleware\EnsureAdminMenuAccess;
 use App\Http\Middleware\EnsureAdminOrderMenuAccess;
+use App\Http\Middleware\EnsureOrganizationApiToken;
 use App\Http\Middleware\EnsurePkmPanelAccess;
 use App\Http\Middleware\EnsureUserHasRole;
+use App\Support\Api\V1\OrganizationApiExceptionRenderer;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -24,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ReprocessHppSignatureImages::class,
         RunMaintenanceScanCommand::class,
         SyncBastSmPengendali::class,
+        ManageOrganizationApiToken::class,
     ])
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
@@ -32,6 +36,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin_menu' => EnsureAdminMenuAccess::class,
             'admin_order_menu' => EnsureAdminOrderMenuAccess::class,
             'pkm_panel' => EnsurePkmPanelAccess::class,
+            'organization.api' => EnsureOrganizationApiToken::class,
         ]);
 
         $middleware->redirectGuestsTo(fn () => route('login'));
@@ -44,5 +49,8 @@ return Application::configure(basePath: dirname(__DIR__))
         });
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        $exceptions->render(
+            fn (\Throwable $exception, Request $request) => app(OrganizationApiExceptionRenderer::class)
+                ->render($exception, $request)
+        );
     })->create();

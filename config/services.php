@@ -52,4 +52,10 @@ return [
         ],
     ],
 
+    'organization_api' => [
+        'client_user_id' => env('ORGANIZATION_API_CLIENT_USER_ID'),
+        'token_ttl_days' => env('ORGANIZATION_API_TOKEN_TTL_DAYS', 90),
+        'rate_limit_per_minute' => env('ORGANIZATION_API_RATE_LIMIT_PER_MINUTE', 30),
+    ],
+
 ];

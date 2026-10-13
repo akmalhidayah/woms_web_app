@@ -6,7 +6,10 @@ use App\Models\Hpp;
 use App\Models\OutlineAgreement;
 use App\Models\OutlineAgreementTarget;
 use App\View\Composers\PkmLayoutComposer;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -25,6 +28,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        RateLimiter::for('organization-api', function (Request $request): Limit {
+            $tokenId = $request->user()?->currentAccessToken()?->getKey();
+            $requestsPerMinute = max(
+                1,
+                (int) config('services.organization_api.rate_limit_per_minute', 30),
+            );
+
+            return Limit::perMinute($requestsPerMinute)
+                ->by('organization-api-token:'.($tokenId ?: 'missing'));
+        });
+
         View::composer('components.layouts.pkm', PkmLayoutComposer::class);
         View::composer('dashboards.admin', function ($view): void {
             $data = $view->getData();

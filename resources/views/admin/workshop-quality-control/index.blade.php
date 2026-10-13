@@ -44,6 +44,9 @@
                             ? $report->approvalSignedCount().'/'.$report->approvalStepCount().' TTD'
                             : '-';
                         $activeSignature = $report?->signatures?->first(fn ($signature) => $signature->isPending());
+                        $progressRole = $activeSignature?->displayRoleLabel() ?: $state['label'];
+                        $progressActivity = $activeSignature ? 'Menunggu '.$progressRole : $state['label'];
+                        $progressUpdatedAt = $activeSignature?->updated_at ?: $report?->updated_at;
                         $managerSignatures = $report?->signatures?->keyBy('role_key') ?? collect();
                         $checklist = $report ? collect([
                             [
@@ -91,8 +94,21 @@
                         <td class="px-4 py-3 align-top"><span class="font-semibold text-slate-800">{{ $report?->report_no ?: 'Belum dibuat' }}</span><p class="text-[10px] text-slate-500">{{ $report?->status === \App\Models\QualityControlReport::STATUS_SUBMITTED ? 'Submitted' : ($report ? 'Draft' : '-') }}</p></td>
                         <td class="px-4 py-3 align-top">
                             @if ($report)
-                                <div class="flex items-center gap-2"><span class="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">{{ $progressText }}</span><span class="font-semibold text-slate-700">{{ $activeSignature?->displayRoleLabel() ?: $state['label'] }}</span></div>
-                                <div class="mt-1 h-1.5 w-44 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full bg-blue-600" style="width: {{ min(100, $report->approvalProgressPercent()) }}%"></div></div>
+                                <div class="min-w-[220px] rounded-xl border border-blue-100 bg-blue-50 px-2 py-1.5">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="flex min-w-0 items-center gap-1.5">
+                                            <span class="inline-flex shrink-0 rounded-full bg-white px-1.5 py-0.5 text-[8px] font-bold text-blue-700 ring-1 ring-blue-100">{{ $progressText }}</span>
+                                            <span class="truncate text-[9px] font-semibold text-slate-800" title="{{ $progressRole }}">{{ $progressRole }}</span>
+                                        </div>
+                                        <button type="button" class="approval-signature-info-trigger inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-blue-200 bg-white text-blue-700 transition hover:bg-blue-100" title="Informasi approval" aria-label="Informasi approval QC {{ $order->nomor_order }}" data-title="Approval QC - {{ $order->nomor_order }}" data-summary="{{ $progressText }}" data-checklist='@json($checklist)' data-approval-url="{{ $activeSignature?->approvalUrl() }}" data-whatsapp-url="{{ $activeSignature && $activeSignature->approvalUrl() ? \App\Support\ApprovalWhatsappLink::forQualityControl($activeSignature) : '' }}" data-resend-url="{{ $activeSignature && $activeSignature->approvalUrl() ? route('admin.orders.workshop.quality-control.approval.resend', [$order, $report]) : '' }}" data-regenerate-url="{{ $activeSignature && $activeSignature->tokenExpired() ? route('admin.orders.workshop.quality-control.approval.regenerate', [$order, $report]) : '' }}" data-expiry="{{ $activeSignature?->token_expires_at?->format('d/m/Y H:i') }}">
+                                            <i data-lucide="info" class="h-3.5 w-3.5"></i>
+                                        </button>
+                                    </div>
+                                    <div class="mt-1 flex items-center gap-1 text-[8px] text-slate-400">
+                                        <i data-lucide="clock-3" class="h-2.5 w-2.5"></i>
+                                        <span class="truncate">{{ $progressActivity }}{{ $progressUpdatedAt ? ' · '.$progressUpdatedAt->locale('id')->diffForHumans() : '' }}</span>
+                                    </div>
+                                </div>
                             @else
                                 <span class="text-slate-400">Belum ada report</span>
                             @endif
@@ -100,11 +116,10 @@
                         <td class="px-4 py-3 text-center align-top">
                             <div class="flex flex-wrap justify-center gap-1.5">
                                 @if ($report)
-                                    <button type="button" class="approval-signature-info-trigger inline-flex h-8 items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 font-semibold text-blue-700" data-title="Approval QC - {{ $order->nomor_order }}" data-summary="{{ $progressText }}" data-checklist='@json($checklist)' data-approval-url="{{ $activeSignature?->approvalUrl() }}" data-whatsapp-url="{{ $activeSignature && $activeSignature->approvalUrl() ? \App\Support\ApprovalWhatsappLink::forQualityControl($activeSignature) : '' }}" data-resend-url="{{ $activeSignature && $activeSignature->approvalUrl() ? route('admin.orders.workshop.quality-control.approval.resend', [$order, $report]) : '' }}" data-regenerate-url="{{ $activeSignature && $activeSignature->tokenExpired() ? route('admin.orders.workshop.quality-control.approval.regenerate', [$order, $report]) : '' }}" data-expiry="{{ $activeSignature?->token_expires_at?->format('d/m/Y H:i') }}"><i data-lucide="list-checks" class="h-3.5 w-3.5"></i>Detail</button>
-                                    <a href="{{ route('admin.orders.workshop.quality-control.edit', [$order, $report]) }}" class="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 font-semibold text-slate-700"><i data-lucide="{{ $report->status === \App\Models\QualityControlReport::STATUS_SUBMITTED ? 'eye' : 'pencil' }}" class="h-3.5 w-3.5"></i>{{ $report->status === \App\Models\QualityControlReport::STATUS_SUBMITTED ? 'Lihat' : 'Periksa' }}</a>
-                                    <a href="{{ route('admin.orders.workshop.quality-control.pdf', [$order, $report]) }}" target="_blank" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700" title="PDF"><i data-lucide="file-text" class="h-3.5 w-3.5"></i></a>
+                                    <a href="{{ route('admin.orders.workshop.quality-control.edit', [$order, $report]) }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100" title="{{ $report->status === \App\Models\QualityControlReport::STATUS_SUBMITTED ? 'Lihat QC' : 'Periksa QC' }}" aria-label="{{ $report->status === \App\Models\QualityControlReport::STATUS_SUBMITTED ? 'Lihat QC' : 'Periksa QC' }}"><i data-lucide="{{ $report->status === \App\Models\QualityControlReport::STATUS_SUBMITTED ? 'eye' : 'pencil' }}" class="h-3.5 w-3.5"></i></a>
+                                    <a href="{{ route('admin.orders.workshop.quality-control.pdf', [$order, $report]) }}" target="_blank" rel="noopener" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100" title="Preview PDF QC" aria-label="Preview PDF QC"><i data-lucide="file-text" class="h-3.5 w-3.5"></i></a>
                                 @else
-                                    <a href="{{ route('admin.orders.workshop.quality-control.create', $order) }}" class="inline-flex h-8 items-center gap-1 rounded-lg bg-blue-700 px-3 font-semibold text-white"><i data-lucide="clipboard-plus" class="h-3.5 w-3.5"></i>Periksa</a>
+                                    <a href="{{ route('admin.orders.workshop.quality-control.create', $order) }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-700 text-white transition hover:bg-blue-800" title="Buat pemeriksaan QC" aria-label="Buat pemeriksaan QC"><i data-lucide="clipboard-plus" class="h-3.5 w-3.5"></i></a>
                                 @endif
                             </div>
                         </td>

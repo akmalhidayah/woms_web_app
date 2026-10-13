@@ -425,6 +425,10 @@
                                         <div class="min-w-0">
                                             <div class="text-[8px] font-semibold uppercase tracking-[0.1em] text-slate-400">Unit Kerja</div>
                                             <div class="mt-0.5 break-words text-[9px] font-medium text-slate-700">{{ $order->unit_kerja ?: '-' }}</div>
+                                            @if (filled($workshop?->pic_user))
+                                                <div class="mt-1.5 text-[8px] font-semibold uppercase tracking-[0.1em] text-slate-400">PIC User</div>
+                                                <div class="mt-0.5 break-words text-[9px] font-bold text-slate-900">{{ $workshop->pic_user }}</div>
+                                            @endif
                                         </div>
                                         <div class="min-w-0">
                                             <div class="text-[8px] font-semibold uppercase tracking-[0.1em] text-slate-400">Seksi</div>

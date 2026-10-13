@@ -55,9 +55,8 @@
                             <th class="px-4 py-3">Order</th>
                             <th class="px-4 py-3">Detail Pekerjaan</th>
                             <th class="px-4 py-3">Jalur</th>
-                            <th class="px-4 py-3">Progress</th>
-                            <th class="px-4 py-3">Status</th>
-                            <th class="px-4 py-3">Aksi</th>
+                            <th class="px-4 py-3">Progress Approval</th>
+                            <th class="px-4 py-3 text-center">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200">
@@ -74,6 +73,40 @@
                                 $recipient = $recipientPreview['user'] ?? null;
                                 $canProcess = $recipient !== null;
                                 $photoPath = $handover?->photo_paths[0] ?? null;
+                                $progressText = $isLegacyHistory ? 'Legacy' : ($handover?->progress() ?? '0/2');
+                                $progressRole = match (true) {
+                                    $isLegacyHistory => 'Selesai (Data Legacy)',
+                                    $handover?->isCompleted() => 'Approval selesai',
+                                    $handover !== null => 'Manager User',
+                                    default => 'Bukti Serah Terima',
+                                };
+                                $progressActivity = match (true) {
+                                    $isLegacyHistory => 'Data legacy',
+                                    $handover?->isCompleted() => 'Serah terima selesai',
+                                    $handover !== null => 'Menunggu Manager User',
+                                    default => 'Menunggu proses serah terima',
+                                };
+                                $progressUpdatedAt = $handover?->user_signed_at ?: $handover?->updated_at;
+                                $handoverChecklist = $handover ? [
+                                    [
+                                        'step' => 1,
+                                        'role' => 'Admin Workshop',
+                                        'name' => $handover->admin_name_snapshot ?: '-',
+                                        'status' => 'signed',
+                                        'status_label' => 'Sudah TTD',
+                                        'signed_at' => $handover->admin_signed_at?->format('d/m/Y H:i'),
+                                        'is_active' => false,
+                                    ],
+                                    [
+                                        'step' => 2,
+                                        'role' => 'Manager User',
+                                        'name' => $handover->recipient_name_snapshot ?: '-',
+                                        'status' => $handover->user_signed_at ? 'signed' : 'pending',
+                                        'status_label' => $handover->user_signed_at ? 'Sudah TTD' : ($handover->tokenExpired() ? 'Token kedaluwarsa' : 'Menunggu TTD'),
+                                        'signed_at' => $handover->user_signed_at?->format('d/m/Y H:i'),
+                                        'is_active' => ! $handover->user_signed_at,
+                                    ],
+                                ] : [];
                             @endphp
                             <tr class="hover:bg-slate-50">
                                 <td class="px-4 py-3 align-top">
@@ -95,57 +128,55 @@
                                     <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-700">{{ $handover?->path ?? $queue->path($order) }}</span>
                                 </td>
                                 <td class="px-4 py-3 align-top">
-                                    <span class="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">{{ $isLegacyHistory ? 'Legacy' : ($isHistory ? '2/2' : ($handover?->progress() ?? '0/2')) }}</span>
-                                </td>
-                                <td class="px-4 py-3 align-top">
-                                    @if ($isLegacyHistory)
-                                        <span class="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-200">Selesai (Data Legacy)</span>
-                                    @elseif ($isHistory)
-                                        <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">Selesai</span>
-                                    @elseif ($handover)
-                                        <span class="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">Menunggu TTD User</span>
-                                    @else
-                                        <span class="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">Menunggu Bukti Serah Terima</span>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3 align-top">
-                                    @if ($isLegacyHistory)
-                                        <span class="inline-flex items-center rounded-lg bg-slate-100 px-2.5 py-1.5 text-[10px] font-semibold text-slate-500">Tanpa dokumen</span>
-                                    @elseif ($isHistory)
-                                        <div class="flex flex-wrap gap-1.5">
-                                            @if ($photoPath)
-                                                <a href="{{ route('admin.workshop-handover.photo', [$handover, 0]) }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 rounded-lg bg-slate-600 px-2.5 py-1.5 text-[10px] font-semibold text-white hover:bg-slate-700">Lihat</a>
-                                            @else
-                                                <span class="inline-flex items-center rounded-lg bg-slate-200 px-2.5 py-1.5 text-[10px] font-semibold text-slate-500">Lihat</span>
+                                    <div class="min-w-[220px] rounded-xl border border-blue-100 bg-blue-50 px-2 py-1.5">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <div class="flex min-w-0 items-center gap-1.5">
+                                                <span class="inline-flex shrink-0 rounded-full bg-white px-1.5 py-0.5 text-[8px] font-bold text-blue-700 ring-1 ring-blue-100">{{ $progressText }}</span>
+                                                <span class="truncate text-[9px] font-semibold text-slate-800" title="{{ $progressRole }}">{{ $progressRole }}</span>
+                                            </div>
+                                            @if ($handover)
+                                                <button type="button" class="approval-signature-info-trigger inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-blue-200 bg-white text-blue-700 transition hover:bg-blue-100" title="Informasi approval" aria-label="Informasi approval Serah Terima {{ $number }}" data-title="Approval Serah Terima - {{ $number }}" data-summary="{{ $progressText }} TTD" data-checklist='@json($handoverChecklist)' data-approval-url="{{ $handover->approvalUrl() }}" data-whatsapp-url="" data-resend-url="{{ $handover->approvalUrl() ? route('admin.workshop-handover.resend', $handover) : '' }}" data-regenerate-url="{{ $handover->tokenExpired() && ! $handover->isCompleted() ? route('admin.workshop-handover.regenerate', $handover) : '' }}" data-expiry="{{ $handover->token_expires_at?->format('d/m/Y H:i') }}">
+                                                    <i data-lucide="info" class="h-3.5 w-3.5"></i>
+                                                </button>
                                             @endif
-                                            <a href="{{ route('admin.workshop-handover.pdf', $handover) }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 rounded-lg bg-blue-700 px-2.5 py-1.5 text-[10px] font-semibold text-white hover:bg-blue-800">PDF</a>
+                                        </div>
+                                        <div class="mt-1 flex items-center gap-1 text-[8px] text-slate-400">
+                                            <i data-lucide="clock-3" class="h-2.5 w-2.5"></i>
+                                            <span class="truncate">{{ $progressActivity }}{{ $progressUpdatedAt ? ' · '.$progressUpdatedAt->locale('id')->diffForHumans() : '' }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 text-center align-top">
+                                    @if ($isLegacyHistory)
+                                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-400" title="Tanpa dokumen" aria-label="Tanpa dokumen"><i data-lucide="file-x-2" class="h-3.5 w-3.5"></i></span>
+                                    @elseif ($isHistory)
+                                        <div class="flex flex-wrap justify-center gap-1.5">
+                                            @if ($photoPath)
+                                                <a href="{{ route('admin.workshop-handover.photo', [$handover, 0]) }}" target="_blank" rel="noopener" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100" title="Lihat bukti serah terima" aria-label="Lihat bukti serah terima"><i data-lucide="image" class="h-3.5 w-3.5"></i></a>
+                                            @else
+                                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-400" title="Bukti tidak tersedia" aria-label="Bukti tidak tersedia"><i data-lucide="image-off" class="h-3.5 w-3.5"></i></span>
+                                            @endif
+                                            <a href="{{ route('admin.workshop-handover.pdf', $handover) }}" target="_blank" rel="noopener" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100" title="Preview PDF Serah Terima" aria-label="Preview PDF Serah Terima"><i data-lucide="file-text" class="h-3.5 w-3.5"></i></a>
                                         </div>
                                     @elseif ($handover)
-                                        <div class="flex flex-wrap gap-1.5">
-                                            <button type="button" class="inline-flex items-center rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[10px] font-semibold text-amber-700" data-handover-status data-admin="{{ $handover->admin_name_snapshot }}" data-recipient="{{ $handover->recipient_name_snapshot }}" data-recipient-status="{{ $handover->tokenExpired() ? 'Token kedaluwarsa' : 'Menunggu TTD' }}">Status TTD</button>
+                                        <div class="flex flex-wrap justify-center gap-1.5">
                                             @if ($photoPath)
-                                                <a href="{{ route('admin.workshop-handover.photo', [$handover, 0]) }}" target="_blank" rel="noopener" class="inline-flex items-center rounded-lg bg-slate-600 px-2.5 py-1.5 text-[10px] font-semibold text-white hover:bg-slate-700">Lihat Bukti</a>
+                                                <a href="{{ route('admin.workshop-handover.photo', [$handover, 0]) }}" target="_blank" rel="noopener" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100" title="Lihat bukti serah terima" aria-label="Lihat bukti serah terima"><i data-lucide="image" class="h-3.5 w-3.5"></i></a>
                                             @endif
-                                            <a href="{{ route('admin.workshop-handover.pdf', $handover) }}" target="_blank" rel="noopener" class="inline-flex items-center rounded-lg bg-blue-700 px-2.5 py-1.5 text-[10px] font-semibold text-white">PDF</a>
-                                            @if ($handover->approvalUrl())
-                                                <button type="button" data-copy-handover-link="{{ $handover->approvalUrl() }}" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-700">Salin Link</button>
-                                                <form method="POST" action="{{ route('admin.workshop-handover.resend', $handover) }}" class="inline"><input type="hidden" name="_token" value="{{ csrf_token() }}"><button class="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10px] font-semibold text-blue-700">Kirim Ulang</button></form>
-                                            @elseif ($handover->tokenExpired())
-                                                <form method="POST" action="{{ route('admin.workshop-handover.regenerate', $handover) }}" class="inline"><input type="hidden" name="_token" value="{{ csrf_token() }}"><button class="inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[10px] font-semibold text-rose-700">Buat Token Baru</button></form>
-                                            @endif
+                                            <a href="{{ route('admin.workshop-handover.pdf', $handover) }}" target="_blank" rel="noopener" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100" title="Preview PDF Serah Terima" aria-label="Preview PDF Serah Terima"><i data-lucide="file-text" class="h-3.5 w-3.5"></i></a>
                                         </div>
                                     @elseif ($canProcess)
-                                        <button type="button" class="inline-flex items-center gap-1 rounded-lg bg-blue-700 px-2.5 py-1.5 text-[10px] font-semibold text-white hover:bg-blue-800" data-open-handover data-action="{{ route('admin.workshop-handover.process', $order) }}" data-order="{{ $order->nomor_order }}" data-job="{{ $order->nama_pekerjaan }}" data-unit="{{ $order->unit_kerja ?: '-' }}" data-section="{{ $order->seksi ?: '-' }}" data-path="{{ $queue->path($order) }}" data-recipient="{{ $recipient->name }}">
-                                            Proses Serah Terima
+                                        <button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-700 text-white transition hover:bg-blue-800" title="Proses Serah Terima" aria-label="Proses Serah Terima" data-open-handover data-action="{{ route('admin.workshop-handover.process', $order) }}" data-order="{{ $order->nomor_order }}" data-job="{{ $order->nama_pekerjaan }}" data-unit="{{ $order->unit_kerja ?: '-' }}" data-section="{{ $order->seksi ?: '-' }}" data-path="{{ $queue->path($order) }}" data-recipient="{{ $recipient->name }}">
+                                            <i data-lucide="handshake" class="h-3.5 w-3.5"></i>
                                         </button>
                                     @else
-                                        <span class="inline-flex max-w-[190px] rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[10px] font-semibold text-amber-700" title="Manager User belum dikonfigurasi">Manager User belum dikonfigurasi</span>
+                                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700" title="Manager User belum dikonfigurasi" aria-label="Manager User belum dikonfigurasi"><i data-lucide="user-x" class="h-3.5 w-3.5"></i></span>
                                     @endif
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-8 text-center text-slate-500">{{ $isHistory ? 'Belum ada riwayat Serah Terima.' : 'Belum ada pekerjaan yang siap diserahterimakan.' }}</td>
+                                <td colspan="5" class="px-4 py-8 text-center text-slate-500">{{ $isHistory ? 'Belum ada riwayat Serah Terima.' : 'Belum ada pekerjaan yang siap diserahterimakan.' }}</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -208,21 +239,11 @@
             </form>
         </div>
     </div>
+
+    @include('admin.orders.partials.approval-signature-modal', ['approvalReassignmentUsers' => collect()])
+
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        document.querySelectorAll('[data-handover-status]').forEach((button) => button.addEventListener('click', () => {
-            window.alert(`Admin Workshop: Sudah TTD\nManager User: ${button.dataset.recipientStatus}`);
-        }));
-        document.querySelectorAll('[data-copy-handover-link]').forEach((button) => button.addEventListener('click', async () => {
-            try {
-                await navigator.clipboard.writeText(button.dataset.copyHandoverLink);
-                const label = button.textContent;
-                button.textContent = 'Tersalin';
-                window.setTimeout(() => { button.textContent = label; }, 1500);
-            } catch (_) {
-                window.prompt('Salin link Serah Terima berikut:', button.dataset.copyHandoverLink);
-            }
-        }));
         const modal = document.getElementById('workshop-handover-modal');
         const form = document.getElementById('workshop-handover-form');
         const canvas = document.getElementById('workshop-handover-signature');

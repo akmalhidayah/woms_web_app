@@ -418,12 +418,19 @@
         return null;
     };
 
-    $buildApprovalCell = function (string $title, ?string $signaturePath = null, string $date = '-', string $name = 'N/A'): array {
+    $buildApprovalCell = function (
+        string $title,
+        ?string $signaturePath = null,
+        string $date = '-',
+        string $name = 'N/A',
+        bool $showPlaceholder = true,
+    ): array {
         return [
             'title' => $title,
             'signature' => $signaturePath,
             'date' => $date,
             'name' => $name,
+            'show_placeholder' => $showPlaceholder,
         ];
     };
 
@@ -561,7 +568,7 @@
     }
     $controllingNotes = $controllingNotes->values()->all();
 
-    $cellFromRole = function (string $roleKey, string $fallbackTitle) use (
+    $cellFromRole = function (string $roleKey, string $fallbackTitle, bool $showPlaceholder = true) use (
         $buildApprovalCell,
         $signatureFor,
         $signatureImage,
@@ -576,6 +583,7 @@
             $signatureImage($signature),
             $signatureDate($signature),
             $signatureName($signature),
+            $showPlaceholder,
         );
     };
 
@@ -624,7 +632,7 @@
 
     $plannerControlCell = $cellFromRole('planner_control', 'Planner Control');
     $counterPartCell = $cellFromRole('sm_counter_part', 'SM of Counter Part');
-    $directorCell = $cellFromRole('dirops', 'Director of Operation');
+    $directorCell = $cellFromRole('dirops', 'Director of Operation', false);
     $gmControllerCell = $cellFromRole($controllerGmRole, 'GM of '.$controllingDepartmentLabel);
     $smControllerCell = $cellFromRole($controllerSmRole, 'SM of '.$unitPengendaliLabel);
     $gmRequesterCell = $cellFromRole('gm_peminta', 'GM of '.$requestingDepartmentLabel);

@@ -27,6 +27,22 @@ class HppApprovalPdfLayoutTest extends TestCase
         }
     }
 
+    public function test_manual_dirops_cell_does_not_render_signature_placeholder(): void
+    {
+        foreach ([
+            'admin.hpp.partials.pdf.approval.fabrikasi-dalam' => 2,
+            'admin.hpp.partials.pdf.approval.fabrikasi-luar' => 2,
+            'admin.hpp.partials.pdf.approval.fabrikasi-workshop' => 2,
+            'admin.hpp.partials.pdf.approval.konstruksi-dalam' => 3,
+            'admin.hpp.partials.pdf.approval.konstruksi-luar' => 3,
+        ] as $view => $expectedPlaceholders) {
+            $bottomOver = view($view, $this->viewData('bottom', true))->render();
+
+            $this->assertStringContainsString('Director of Operation', $bottomOver);
+            $this->assertSame($expectedPlaceholders, substr_count($bottomOver, 'placeholder-line'));
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -52,7 +68,10 @@ class HppApprovalPdfLayoutTest extends TestCase
             'gmRequesterCell' => $cell('GM Peminta'),
             'smRequesterCell' => $cell('SM Peminta'),
             'plannerControlCell' => $cell('Planner Control'),
-            'directorCell' => $cell('Director of Operation'),
+            'directorCell' => [
+                ...$cell('Director of Operation'),
+                'show_placeholder' => false,
+            ],
             'gmControllerCell' => $cell('GM Pengendali'),
             'smControllerCell' => $cell('SM Pengendali'),
             'counterPartCell' => $cell('SM of Counter Part'),

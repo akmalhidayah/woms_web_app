@@ -29,7 +29,7 @@
                         <div class="sig-date">{{ $cell['date'] }}</div>
                         @if($cell['signature'])
                             <img src="{{ $cell['signature'] }}" alt="{{ $cell['title'] }}">
-                        @else
+                        @elseif($cell['show_placeholder'] ?? true)
                             <strong class="sig-fallback"><span class="placeholder-line"></span></strong>
                         @endif
                     </div>

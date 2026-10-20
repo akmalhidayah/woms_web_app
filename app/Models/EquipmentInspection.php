@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class EquipmentInspection extends Model
 {
@@ -72,6 +73,16 @@ class EquipmentInspection extends Model
     public function approvals(): HasMany
     {
         return $this->hasMany(EquipmentInspectionApproval::class)->orderBy('document_version')->orderBy('step_order');
+    }
+
+    public function adminReads(): HasMany
+    {
+        return $this->hasMany(EquipmentInspectionAdminRead::class);
+    }
+
+    public function unitLink(): HasOne
+    {
+        return $this->hasOne(EquipmentInspectionUnitLink::class);
     }
 
     public function isDraft(): bool

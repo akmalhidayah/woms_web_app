@@ -25,10 +25,23 @@ class EquipmentInspectionPolicy
 
     public function delete(User $user, EquipmentInspection $inspection): bool
     {
-        return ($this->monitor($user) || $this->view($user, $inspection))
-            && ! $inspection->trashed()
-            && in_array($inspection->status, [EquipmentInspection::STATUS_DRAFT, EquipmentInspection::STATUS_READY,
-                EquipmentInspection::STATUS_MANAGER, EquipmentInspection::STATUS_LEADER, EquipmentInspection::STATUS_REVISION], true)
-            && $inspection->final_pdf_path === null;
+        if ($inspection->trashed()) {
+            return false;
+        }
+        if ($this->monitor($user)) {
+            return true;
+        }
+
+        $signatureCount = array_key_exists('signatures_count', $inspection->getAttributes())
+            ? (int) $inspection->signatures_count : $inspection->signatures()->count();
+        $approvalCount = array_key_exists('approvals_count', $inspection->getAttributes())
+            ? (int) $inspection->approvals_count : $inspection->approvals()->count();
+
+        return $this->view($user, $inspection)
+            && $inspection->status === EquipmentInspection::STATUS_DRAFT
+            && $inspection->document_no === null
+            && $inspection->signed_at === null
+            && $signatureCount === 0
+            && $approvalCount === 0;
     }
 }

@@ -1,11 +1,12 @@
 @props(['inspection', 'routeName'])
 
 @if ((new \App\Policies\EquipmentInspectionPolicy)->delete(auth()->user(), $inspection))
+    @php($isAdminDeletion = auth()->user()?->isAdmin() ?? false)
     <form method="POST" action="{{ route($routeName, $inspection) }}"
         data-swal-confirm
         data-swal-icon="warning"
         data-swal-title="Hapus laporan inspeksi?"
-        data-swal-text="Permintaan approval aktif akan dibatalkan. Histori, tanda tangan, nomor dokumen, dan media audit tetap tersimpan."
+        data-swal-text="{{ $isAdminDeletion ? 'Permintaan approval aktif akan dibatalkan. Histori, tanda tangan, nomor dokumen, dan media audit tetap tersimpan.' : 'Draft asli ini akan dihapus dari daftar. Tindakan ini hanya tersedia sebelum laporan pernah disubmit.' }}"
         data-swal-confirm-text="Ya, hapus"
         data-swal-confirm-color="#dc2626">
         @csrf

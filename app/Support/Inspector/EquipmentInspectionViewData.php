@@ -14,7 +14,7 @@ final class EquipmentInspectionViewData
         $values = [];
         $files = [];
         if ($inspection) {
-            $inspection->load(['answers.attachments', 'signatures']);
+            $inspection->load(['answers.attachments', 'signatures', 'unitLink.unit']);
             foreach ($inspection->answers as $answer) {
                 $values[$answer->item_key] = ['rating' => $answer->rating ?? '', 'remark' => $answer->remark ?? ''];
                 $files[$answer->item_key] = $answer->attachments;
@@ -28,6 +28,13 @@ final class EquipmentInspectionViewData
         }
 
         $readOnly = $inspection && ! $inspection->isDraft();
+        $currentLink = $inspection?->unitLink;
+        $formId = (int) ($form['master_id'] ?? 0);
+        $units = $formId > 0
+            ? app(EquipmentInspectionUnitRepository::class)->eligibleForForm($formId, $currentLink?->equipment_inspection_unit_id)
+            : collect();
+        $unitRequired = $currentLink !== null
+            || (! $inspection && (bool) config('equipment-inspection.require_unit_for_new_inspections'));
 
         return [
             'form' => $form,
@@ -42,6 +49,15 @@ final class EquipmentInspectionViewData
             'today' => now(config('app.timezone'))->toDateString(),
             'inspectorSignature' => $inspection?->signatures->first(fn ($signature): bool => $signature->role_key === EquipmentInspectionSignature::ROLE_INSPECTOR
                 && $signature->document_version === $inspection->document_version),
+            'units' => $units,
+            'selectedUnitId' => $currentLink?->equipment_inspection_unit_id,
+            'selectedUnitSnapshot' => $currentLink ? [
+                'asset_code' => $currentLink->unit_code_snapshot,
+                'name' => $currentLink->unit_name_snapshot,
+                'location' => $currentLink->unit?->location,
+            ] : null,
+            'unitRequired' => $unitRequired,
+            'unitLocked' => (bool) ($inspection?->signed_at || $inspection?->document_no || $readOnly),
         ];
     }
 }

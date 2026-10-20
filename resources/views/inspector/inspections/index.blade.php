@@ -16,7 +16,7 @@
             @forelse ($inspections as $inspection)
                 <article class="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:grid-cols-[1fr_1.3fr_1fr_auto] lg:items-center">
                     <div><p class="text-xs text-slate-500">Tanggal Pemeriksaan</p><p class="mt-1 text-sm font-bold">{{ $inspection->inspection_date->translatedFormat('d F Y') }}</p><p class="mt-1 text-xs text-slate-500">Dibuat {{ $inspection->created_at->format('d/m/Y H:i') }}</p></div>
-                    <div><h2 class="text-sm font-bold">{{ $inspection->form_name }}</h2><p class="mt-1 break-words text-xs text-slate-600">{{ $inspection->document_no ?? 'Belum diterbitkan' }}</p></div>
+                    <div><h2 class="text-sm font-bold">{{ $inspection->form_name }}</h2>@if ($inspection->unitLink)<p class="mt-1 text-xs font-bold text-blue-700">{{ $inspection->unitLink->unit_code_snapshot }} — {{ $inspection->unitLink->unit_name_snapshot }}</p>@endif<p class="mt-1 break-words text-xs text-slate-600">{{ $inspection->document_no ?? 'Belum diterbitkan' }}</p></div>
                     <div><span class="inline-block rounded-full px-3 py-1 text-xs font-bold {{ $inspection->isDraft() ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800' }}">{{ $inspection->statusLabel() }}</span><p class="mt-2 text-xs text-slate-500">{{ $inspection->filled_answers_count }} / {{ $inspection->answers_count }} item terisi</p></div>
                     <div class="flex flex-wrap items-center gap-1">
                         @if ($inspection->status === \App\Models\EquipmentInspection::STATUS_REVISION)

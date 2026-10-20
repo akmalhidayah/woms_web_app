@@ -3,13 +3,14 @@ window.equipmentInspectionPage = function (config) {
     return {
         answers: config.answers, inspectionDate: config.date,
         savedAnswers: config.savedAnswers, savedDate: config.savedDate, today: config.today,
+        unitId: config.unitId, savedUnitId: config.savedUnitId, unitRequired: config.unitRequired,
         persisted: config.persisted, readOnly: config.readOnly, conflict: config.conflict,
         recentSignatureDataUrl: config.recentSignatureDataUrl,
         deleteAttachments: [], filesSelected: {}, deletionConfirmed: false, saving: false, signing: false,
         signatureModalOpen: false, signatureData: '', signatureConfirmed: false, hasInk: false, pointerId: null,
         get dirty() {
             return JSON.stringify(this.answers) !== JSON.stringify(this.savedAnswers)
-                || this.inspectionDate !== this.savedDate || this.deleteAttachments.length > 0
+                || this.inspectionDate !== this.savedDate || this.unitId !== this.savedUnitId || this.deleteAttachments.length > 0
                 || Object.values(this.filesSelected).some(count => count > 0) || this.hasInk;
         },
         get summary() {
@@ -24,7 +25,7 @@ window.equipmentInspectionPage = function (config) {
         },
         get canSign() {
             return !this.readOnly && !this.conflict && this.complete
-                && this.inspectionDate && this.inspectionDate <= this.today && !this.saving && !this.signing;
+                && (!this.unitRequired || this.unitId) && this.inspectionDate && this.inspectionDate <= this.today && !this.saving && !this.signing;
         },
         get formattedDate() {
             if (!this.inspectionDate) return 'Belum dipilih';

@@ -5,14 +5,15 @@ namespace App\Support\Inspector;
 use App\Models\EquipmentInspection;
 use App\Models\EquipmentInspectionAnswer;
 use App\Models\EquipmentInspectionAttachment;
+use App\Models\EquipmentInspectionUnitLink;
 
 final class EquipmentInspectionSnapshot
 {
     public static function payload(EquipmentInspection $inspection): array
     {
-        $inspection->load(['answers.attachments']);
+        $inspection->load(['answers.attachments', 'unitLink']);
 
-        return [
+        $payload = [
             'public_id' => $inspection->public_id,
             'document_version' => $inspection->document_version,
             'document_no' => $inspection->document_no,
@@ -37,6 +38,17 @@ final class EquipmentInspectionSnapshot
                 ])->all(),
             ])->all(),
         ];
+
+        // Dokumen legacy tanpa unit harus mempertahankan payload byte-for-byte seperti versi sebelumnya.
+        if ($inspection->unitLink?->link_source === EquipmentInspectionUnitLink::SOURCE_DIRECT) {
+            $payload['unit'] = [
+                'id' => (int) $inspection->unitLink->equipment_inspection_unit_id,
+                'asset_code' => $inspection->unitLink->unit_code_snapshot,
+                'name' => $inspection->unitLink->unit_name_snapshot,
+            ];
+        }
+
+        return $payload;
     }
 
     public static function hash(array $payload): string

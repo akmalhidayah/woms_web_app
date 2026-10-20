@@ -11,6 +11,7 @@ use App\Policies\EquipmentInspectionPolicy;
 use App\Services\Inspector\EquipmentInspectionPdfService;
 use App\Services\Inspector\EquipmentInspectionDeletionService;
 use App\Services\Inspector\EquipmentInspectionWorkflow;
+use App\Support\Inspector\EquipmentInspectionAdminUnread;
 use App\Support\Inspector\EquipmentInspectionIndexTabs;
 use App\Support\Inspector\InspectionImageStorage;
 use Illuminate\Contracts\View\View;
@@ -39,7 +40,8 @@ class EquipmentInspectionController extends Controller
         $tab = EquipmentInspectionIndexTabs::normalize($filters['tab'] ?? null);
         $query = EquipmentInspectionIndexTabs::apply(EquipmentInspection::query(), $tab);
         $query->when($filters['search'] ?? null, fn ($q, $search) => $q->where(fn ($q) => $q
-            ->where('document_no', 'like', '%'.$search.'%')->orWhere('form_name', 'like', '%'.$search.'%')->orWhere('inspector_name', 'like', '%'.$search.'%')));
+            ->where('document_no', 'like', '%'.$search.'%')->orWhere('form_name', 'like', '%'.$search.'%')->orWhere('inspector_name', 'like', '%'.$search.'%')
+            ->orWhereHas('unitLink', fn ($link) => $link->where('unit_code_snapshot', 'like', '%'.$search.'%')->orWhere('unit_name_snapshot', 'like', '%'.$search.'%'))));
         foreach (['document_no' => 'document_no', 'equipment' => 'form_name', 'inspector' => 'inspector_name'] as $key => $column) {
             $query->when($filters[$key] ?? null, fn ($q, $value) => $q->where($column, 'like', '%'.$value.'%'));
         }
@@ -47,7 +49,7 @@ class EquipmentInspectionController extends Controller
             ->when($filters['date_to'] ?? null, fn ($q, $date) => $q->whereDate('inspection_date', '<=', $date))
             ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
             ->when($filters['rating'] ?? null, fn ($q, $rating) => $q->whereHas('answers', fn ($q) => $q->where('rating', $rating)));
-        $inspections = $query->with('answers')->withCount(['signatures as signed_count' => fn ($q) => $q
+        $inspections = $query->with(['answers', 'unitLink'])->withCount(['signatures as signed_count' => fn ($q) => $q
             ->whereColumn('equipment_inspection_signatures.document_version', 'equipment_inspections.document_version')
             ->whereIn('role_key', array_keys(EquipmentInspectionSignature::STEPS))])->latest('id')->paginate(15)->withQueryString();
         $counts = EquipmentInspectionIndexTabs::counts($request->user());
@@ -96,10 +98,11 @@ class EquipmentInspectionController extends Controller
             'error' => $inspection->workflow_error ?? $inspection->archive_error], 200, ['Cache-Control' => 'private, no-store']);
     }
 
-    public function show(Request $request, EquipmentInspection $inspection): View
+    public function show(Request $request, EquipmentInspection $inspection, EquipmentInspectionAdminUnread $unread): View
     {
         $this->authorizeAdmin($request);
-        $inspection->load(['signatures', 'approvals']);
+        $unread->markRead($request->user(), $inspection);
+        $inspection->load(['signatures', 'approvals', 'unitLink']);
         $logs = $inspection->logs()->latest('id')->paginate(20);
 
         return view('admin.inspections.show', compact('inspection', 'logs'));

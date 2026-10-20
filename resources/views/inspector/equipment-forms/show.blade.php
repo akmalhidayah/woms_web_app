@@ -22,6 +22,9 @@
             'savedDate' => $inspectionDate, 'today' => $today, 'persisted' => $inspection !== null,
             'readOnly' => (bool) $readOnly, 'conflict' => $errors->has('lock_version'),
             'recentSignatureDataUrl' => $recentSignatureDataUrl,
+            'unitId' => (string) old('equipment_inspection_unit_id', $selectedUnitId ?? ''),
+            'savedUnitId' => (string) ($selectedUnitId ?? ''),
+            'unitRequired' => (bool) $unitRequired,
         ];
         $itemNumber = 0;
     @endphp
@@ -73,6 +76,27 @@
                     <div><p class="text-xs font-semibold uppercase text-slate-500">Process</p><p class="mt-1 text-sm font-semibold">Inspection &amp; List</p></div>
                     <div><p class="text-xs font-semibold uppercase text-slate-500">Seksi / Unit</p><p class="mt-1 text-sm font-semibold">Bengkel Mesin / Bengkel</p></div>
                     <div><p class="text-xs font-semibold uppercase text-slate-500">Nama Pelaksana</p><p class="mt-1 break-words text-sm font-semibold">{{ $inspection?->inspector_name ?? auth()->user()->name }}</p></div>
+                    <div class="sm:col-span-2 lg:col-span-1">
+                        <p class="text-xs font-semibold uppercase text-slate-500">Unit Peralatan{{ $unitRequired ? ' *' : ' (opsional selama rollout)' }}</p>
+                        @if ($unitLocked && $selectedUnitSnapshot)
+                            <input type="hidden" name="equipment_inspection_unit_id" value="{{ $selectedUnitId }}">
+                            <p class="mt-1 break-words text-sm font-bold text-slate-900">{{ $selectedUnitSnapshot['asset_code'] }} — {{ $selectedUnitSnapshot['name'] }}</p>
+                            @if ($selectedUnitSnapshot['location'])<p class="mt-1 text-xs text-slate-500">{{ $selectedUnitSnapshot['location'] }}</p>@endif
+                            <p class="mt-1 text-xs text-amber-700">Identitas unit terkunci karena dokumen pernah ditandatangani.</p>
+                        @elseif ($readOnly)
+                            <p class="mt-1 text-sm font-semibold text-slate-500">Belum terhubung ke unit fisik.</p>
+                        @else
+                            <select name="equipment_inspection_unit_id" x-model="unitId" @required($unitRequired) class="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+                                <option value="">{{ $unitRequired ? 'Pilih unit peralatan' : 'Belum dipilih' }}</option>
+                                @foreach ($units as $unit)
+                                    <option value="{{ $unit->id }}">{{ $unit->asset_code }} — {{ $unit->name }}{{ $unit->location ? ' · '.$unit->location : '' }}{{ $unit->lifecycle_status !== 'active' ? ' ('.ucfirst($unit->lifecycle_status).')' : '' }}</option>
+                                @endforeach
+                            </select>
+                            @if ($units->isEmpty())
+                                <p class="mt-1 text-xs text-amber-700">Belum ada Master Unit aktif untuk form ini. Hubungi Admin.</p>
+                            @endif
+                        @endif
+                    </div>
                     <div>
                         <label for="inspection-date" class="block text-xs font-semibold uppercase text-slate-500">Tanggal Pemeriksaan</label>
                         <input id="inspection-date" name="inspection_date" type="date" x-model="inspectionDate" max="{{ $today }}" required @disabled($readOnly) class="mt-1 w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base disabled:bg-slate-50 sm:text-sm">

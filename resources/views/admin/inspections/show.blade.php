@@ -4,6 +4,7 @@
             <a href="{{ route('admin.inspections.index') }}" class="text-sm font-semibold text-blue-700">← Monitoring Inspeksi</a>
             <h1 class="mt-3 text-xl font-bold">{{ $inspection->form_name }}</h1>
             <p class="mt-2 text-sm">{{ $inspection->document_no ?? 'Belum diterbitkan' }} · Versi {{ $inspection->document_version }} · {{ $inspection->inspection_date->format('d/m/Y') }}</p>
+            @if ($inspection->unitLink)<p class="mt-2 text-sm font-bold text-blue-900">Unit: {{ $inspection->unitLink->unit_code_snapshot }} — {{ $inspection->unitLink->unit_name_snapshot }}</p>@else<p class="mt-2 text-xs text-slate-500">Dokumen legacy ini belum dihubungkan ke unit fisik.</p>@endif
             <p class="mt-2 font-semibold text-blue-900">{{ $inspection->statusLabel() }}</p>
             <a href="{{ route('admin.inspections.pdf', $inspection) }}" target="_blank" rel="noopener" class="mt-3 inline-block rounded-xl bg-blue-700 px-4 py-2 text-sm text-white">Preview PDF</a>
             <div class="mt-3"><x-inspections.delete-button :inspection="$inspection" route-name="admin.inspections.destroy" /></div>

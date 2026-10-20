@@ -43,7 +43,7 @@ class EquipmentInspectionManagementTest extends TestCase
             ->assertSee('data-swal-title="Hapus laporan inspeksi?"', false);
     }
 
-    public function test_owner_deletion_cancels_approval_but_preserves_signed_audit_and_media(): void
+    public function test_admin_deletion_cancels_approval_but_preserves_signed_audit_and_media(): void
     {
         Storage::fake('local');
         $owner = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
@@ -53,7 +53,11 @@ class EquipmentInspectionManagementTest extends TestCase
         Storage::disk('local')->put($signature->signature_path, 'existing signature bytes');
 
         $this->actingAs($owner)->delete(route('inspector.inspections.destroy', $inspection), ['lock_version' => $inspection->lock_version])
-            ->assertRedirect(route('inspector.inspections.index'))
+            ->assertForbidden();
+
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN]);
+        $this->actingAs($admin)->delete(route('admin.inspections.destroy', $inspection), ['lock_version' => $inspection->lock_version])
+            ->assertRedirect(route('admin.inspections.index'))
             ->assertSessionHas('success');
 
         $this->assertSoftDeleted('equipment_inspections', ['id' => $inspection->id]);
@@ -61,28 +65,42 @@ class EquipmentInspectionManagementTest extends TestCase
         $this->assertNull($approval->fresh()->token_hash);
         $this->assertFalse(EquipmentInspectionApproval::query()->whereKey($approval->id)->active(true)->exists());
         $this->assertDatabaseHas('equipment_inspection_signatures', ['id' => $signature->id, 'content_hash' => $signature->content_hash]);
-        $this->assertDatabaseHas('equipment_inspection_logs', ['equipment_inspection_id' => $inspection->id, 'event' => 'inspection_deleted', 'actor_user_id' => $owner->id]);
+        $this->assertDatabaseHas('equipment_inspection_logs', ['equipment_inspection_id' => $inspection->id, 'event' => 'inspection_deleted', 'actor_user_id' => $admin->id]);
         $this->assertSame(4, $inspection->answers()->count());
         Storage::disk('local')->assertExists($signature->signature_path);
-        $this->get(route('inspector.inspections.show', $inspection->public_id))->assertNotFound();
+        $this->actingAs($owner)->get(route('inspector.inspections.show', $inspection->public_id))->assertNotFound();
     }
 
-    public function test_deletion_rejects_other_owners_final_reports_and_stale_versions(): void
+    public function test_deletion_rejects_other_owners_signed_reports_and_stale_versions_but_admin_may_delete_final(): void
     {
         $owner = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
         $other = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
         $draft = $this->inspection($owner);
         $approved = $this->inspection($owner, EquipmentInspection::STATUS_APPROVED);
+        $revision = $this->inspection($owner, EquipmentInspection::STATUS_REVISION);
 
         $this->actingAs($other)->delete(route('inspector.inspections.destroy', $draft), ['lock_version' => $draft->lock_version])->assertForbidden();
         $this->actingAs($owner)->delete(route('inspector.inspections.destroy', $approved), ['lock_version' => $approved->lock_version])->assertForbidden();
+        $this->delete(route('inspector.inspections.destroy', $revision), ['lock_version' => $revision->lock_version])->assertForbidden();
         $this->delete(route('inspector.inspections.destroy', $draft), ['lock_version' => $draft->lock_version + 1])->assertSessionHasErrors('inspection');
         $this->assertNull($draft->fresh()->deleted_at);
         $this->assertNull($approved->fresh()->deleted_at);
 
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN]);
-        $this->actingAs($admin)->delete(route('admin.inspections.destroy', $approved), ['lock_version' => $approved->lock_version])->assertForbidden();
+        $this->actingAs($admin)->delete(route('admin.inspections.destroy', $approved), ['lock_version' => $approved->lock_version])->assertRedirect();
+        $this->assertSoftDeleted('equipment_inspections', ['id' => $approved->id]);
         $this->delete(route('admin.inspections.destroy', $draft), ['lock_version' => $draft->lock_version])->assertRedirect();
+        $this->assertSoftDeleted('equipment_inspections', ['id' => $draft->id]);
+    }
+
+    public function test_owner_can_delete_only_original_unsigned_draft(): void
+    {
+        $owner = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
+        $draft = $this->inspection($owner);
+
+        $this->actingAs($owner)->delete(route('inspector.inspections.destroy', $draft), ['lock_version' => $draft->lock_version])
+            ->assertRedirect(route('inspector.inspections.index'));
+
         $this->assertSoftDeleted('equipment_inspections', ['id' => $draft->id]);
     }
 

@@ -237,8 +237,22 @@ class AdminMenuRegistry
                 'sidebar_hidden' => true,
             ],
             self::MENU_INSPEKSI => [
-                'key' => self::MENU_INSPEKSI, 'label' => 'Inspeksi', 'icon' => 'clipboard-check', 'group' => 'support',
-                'route_name' => 'admin.inspections.index', 'active_patterns' => ['admin.inspections.*'], 'badge_key' => 'inspeksi_baru',
+                'key' => self::MENU_INSPEKSI, 'label' => 'Inspeksi Peralatan', 'icon' => 'clipboard-check', 'group' => 'support',
+                'route_name' => 'admin.inspections.index', 'active_patterns' => ['admin.inspections.*', 'admin.inspection-forms.*', 'admin.inspection-units.*'], 'badge_key' => 'inspeksi_baru',
+                'children' => [
+                    [
+                        'key' => 'inspeksi_dokumen', 'permission_key' => self::MENU_INSPEKSI, 'label' => 'Dokumen Pemeriksaan',
+                        'route_name' => 'admin.inspections.index', 'active_patterns' => ['admin.inspections.*'],
+                    ],
+                    [
+                        'key' => 'inspeksi_master_form', 'permission_key' => self::MENU_INSPEKSI, 'label' => 'Master Form Inspeksi',
+                        'route_name' => 'admin.inspection-forms.index', 'active_patterns' => ['admin.inspection-forms.*'],
+                    ],
+                    [
+                        'key' => 'inspeksi_master_unit', 'permission_key' => self::MENU_INSPEKSI, 'label' => 'Master Unit Peralatan',
+                        'route_name' => 'admin.inspection-units.index', 'active_patterns' => ['admin.inspection-units.*'],
+                    ],
+                ],
             ],
             self::MENU_ACCESS_CONTROL => [
                 'key' => self::MENU_ACCESS_CONTROL,

@@ -160,9 +160,10 @@ final class EquipmentFormCatalog
     /**
      * @return array<string, array<string, mixed>>
      */
-    public static function all(): array
+    public static function legacy(): array
     {
         $forms = [];
+        $sortOrder = 0;
 
         foreach (self::FORMS as $formId => $definition) {
             $groups = [];
@@ -189,6 +190,7 @@ final class EquipmentFormCatalog
                 'description' => $definition['description'],
                 'groups' => $groups,
                 'item_count' => $itemCount,
+                'sort_order' => ++$sortOrder,
             ];
         }
 
@@ -196,10 +198,20 @@ final class EquipmentFormCatalog
     }
 
     /**
+     * Runtime catalog is database-backed. Hardcoded definitions above are only the legacy bootstrap source.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public static function all(): array
+    {
+        return app(EquipmentInspectionFormRepository::class)->activeCatalog();
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     public static function find(string $id): ?array
     {
-        return self::all()[$id] ?? null;
+        return app(EquipmentInspectionFormRepository::class)->findActive($id);
     }
 }

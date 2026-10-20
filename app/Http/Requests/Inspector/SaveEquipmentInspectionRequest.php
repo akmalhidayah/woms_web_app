@@ -52,6 +52,11 @@ class SaveEquipmentInspectionRequest extends FormRequest
         $allowedKeys = implode(',', $keys);
         $rules = [
             'inspection_date' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.now(config('app.timezone'))->toDateString()],
+            'equipment_inspection_unit_id' => [
+                ! $inspection && config('equipment-inspection.require_unit_for_new_inspections') ? 'required' : 'nullable',
+                'integer',
+                'min:1',
+            ],
             'lock_version' => [$inspection ? 'required' : 'nullable', 'integer', 'min:1'],
             'answers' => ['required', 'array:'.$allowedKeys, 'size:'.count($keys)],
             'photos' => ['sometimes', 'array:'.$allowedKeys],
@@ -90,6 +95,7 @@ class SaveEquipmentInspectionRequest extends FormRequest
             'answers.*.remark.max' => 'Keterangan maksimal 2.000 karakter.',
             'photos.*.max' => 'Maksimal 3 foto per item.',
             'photos.*.*.max' => 'Ukuran setiap foto maksimal 2 MB.',
+            'equipment_inspection_unit_id.required' => 'Pilih unit peralatan sebelum membuat inspeksi baru.',
         ];
     }
 }

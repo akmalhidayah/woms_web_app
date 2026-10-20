@@ -49,6 +49,7 @@ use App\Http\Controllers\Pkm\PkmNotificationController;
 use App\Http\Controllers\Pkm\UserPanelController as PkmUserPanelController;
 use App\Http\Controllers\Pkm\VendorStructureController as PkmVendorStructureController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PublicEquipmentInspectionController;
 use App\Http\Controllers\User\OrderTrackingController;
 use App\Http\Controllers\User\UserNotificationController;
 use Illuminate\Support\Facades\Route;
@@ -86,6 +87,15 @@ Route::get('display-pekerjaan-bengkel/laporan-harian/avatar/{key}', [AppSheetMed
     ->where('key', '[a-f0-9]{64}')
     ->name('display.bengkel.daily-report-avatar');
 
+Route::prefix('equipment/q')->name('public.equipment-history.')->middleware('throttle:30,1')->group(function () {
+    Route::get('{publicCode}', [PublicEquipmentInspectionController::class, 'show'])
+        ->where('publicCode', '[A-Za-z0-9]{32}')
+        ->name('show');
+    Route::get('{publicCode}/image', [PublicEquipmentInspectionController::class, 'image'])
+        ->where('publicCode', '[A-Za-z0-9]{32}')
+        ->name('image');
+});
+
 Route::middleware(['auth'])->group(function () {
     Route::prefix('approval/equipment-inspection')->name('approval.equipment-inspection.')->middleware('role:approver')->group(function () {
         Route::get('{token}', [\App\Http\Controllers\Approval\EquipmentInspectionController::class, 'show'])->name('show');
@@ -102,6 +112,32 @@ Route::middleware(['auth'])->group(function () {
         Route::get('{inspection}/attachments/{attachment}', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'attachment'])->whereNumber('attachment')->name('attachment');
         Route::post('{inspection}/recover', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'recover'])->middleware('throttle:3,1')->name('recover');
         Route::post('{inspection}/approvals/{approval}/resend', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'resend'])->whereNumber('approval')->middleware('throttle:3,1')->name('resend');
+    });
+    Route::prefix('admin/inspection-forms')->name('admin.inspection-forms.')->middleware(['role:admin', 'admin_menu:inspeksi'])->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'index'])->name('index');
+        Route::get('create', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'store'])->name('store');
+        Route::get('{equipmentInspectionForm}/preview', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'preview'])->name('preview');
+        Route::get('{equipmentInspectionForm}/edit', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'edit'])->name('edit');
+        Route::put('{equipmentInspectionForm}', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'update'])->name('update');
+        Route::patch('{equipmentInspectionForm}/activate', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'activate'])->name('activate');
+        Route::patch('{equipmentInspectionForm}/deactivate', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'deactivate'])->name('deactivate');
+        Route::get('{equipmentInspectionForm}/image', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'image'])->name('image');
+    });
+    Route::prefix('admin/inspection-units')->name('admin.inspection-units.')->middleware(['role:admin', 'admin_menu:inspeksi'])->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'index'])->name('index');
+        Route::get('create', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'store'])->name('store');
+        Route::get('{equipmentInspectionUnit}', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'show'])->name('show');
+        Route::get('{equipmentInspectionUnit}/edit', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'edit'])->name('edit');
+        Route::put('{equipmentInspectionUnit}', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'update'])->name('update');
+        Route::patch('{equipmentInspectionUnit}/public-access', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'togglePublic'])->name('public-access');
+        Route::patch('{equipmentInspectionUnit}/retire', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'retire'])->name('retire');
+        Route::post('{equipmentInspectionUnit}/rotate-public-code', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'rotate'])->middleware('throttle:3,1')->name('rotate');
+        Route::post('{equipmentInspectionUnit}/legacy-links', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'linkLegacy'])->name('legacy-links.store');
+        Route::get('{equipmentInspectionUnit}/image', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'image'])->name('image');
+        Route::get('{equipmentInspectionUnit}/qr.svg', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'qr'])->name('qr');
+        Route::get('{equipmentInspectionUnit}/label', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'label'])->name('label');
     });
     Route::post('impersonation/stop', [UserImpersonationController::class, 'stop'])
         ->name('impersonation.stop');
@@ -556,6 +592,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::prefix('inspector')->name('inspector.')->middleware('role:inspector')->group(function () {
         Route::get('equipment-forms', [EquipmentFormController::class, 'index'])->name('equipment-forms.index');
+        Route::get('equipment-forms/{equipmentForm}/image', [EquipmentFormController::class, 'image'])->name('equipment-forms.image');
         Route::get('equipment-forms/{equipmentForm}', [EquipmentFormController::class, 'show'])->name('equipment-forms.show');
         Route::post('equipment-forms/{equipmentForm}', [EquipmentInspectionController::class, 'store'])->name('inspections.store');
         Route::post('equipment-forms/{equipmentForm}/sign', [EquipmentInspectionController::class, 'storeAndSign'])->name('inspections.store-and-sign');

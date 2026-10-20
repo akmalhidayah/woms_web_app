@@ -23,6 +23,7 @@ final class EquipmentInspectionService
     public function __construct(
         private readonly InspectionImageStorage $images,
         private readonly EquipmentInspectionNumberGenerator $numbers,
+        private readonly EquipmentInspectionUnitService $units,
     ) {}
 
     public function save(User $actor, ?EquipmentInspection $existing, ?string $formSlug, array $data, array $uploads): EquipmentInspection
@@ -64,6 +65,18 @@ final class EquipmentInspectionService
                         }
                     }
                 }
+
+                $formId = (int) ($inspection->template_snapshot['master_id']
+                    ?? \App\Models\EquipmentInspectionForm::query()->where('slug', $inspection->form_slug)->value('id'));
+                if ($formId < 1) {
+                    throw ValidationException::withMessages(['equipment_inspection_unit_id' => 'Master Form laporan tidak tersedia.']);
+                }
+                $this->units->assignDirect(
+                    $actor,
+                    $inspection,
+                    $formId,
+                    filled($data['equipment_inspection_unit_id'] ?? null) ? (int) $data['equipment_inspection_unit_id'] : null,
+                );
 
                 $this->validateDate($data['inspection_date']);
                 $previousDate = $inspection->inspection_date->format('Y-m-d');

@@ -1189,6 +1189,9 @@
                                             <i data-lucide="{{ $supportMenu['icon'] }}" class="h-4 w-4"></i>
                                         </span>
                                         <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 text-left font-medium">{{ $supportMenu['label'] }}</span>
+                                        @if (($supportMenu['badge_count'] ?? 0) > 0)
+                                            <span x-show="sidebarOpen" class="rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">{{ $supportMenu['badge_count'] > 99 ? '99+' : $supportMenu['badge_count'] }}</span>
+                                        @endif
                                         <i
                                             data-lucide="chevron-down"
                                             class="h-4 w-4 transition"

@@ -73,7 +73,7 @@
                             @endphp
                             <tr class="transition duration-150 hover:bg-slate-50">
                                 <td class="px-4 py-3 align-top">{{ $inspections->firstItem() + $loop->index }}</td>
-                                <td class="px-4 py-3 align-top font-bold text-slate-900">{{ $inspection->form_name }}</td>
+                                <td class="px-4 py-3 align-top font-bold text-slate-900">{{ $inspection->form_name }}@if ($inspection->unitLink)<p class="mt-1 text-[10px] font-semibold text-blue-700">{{ $inspection->unitLink->unit_code_snapshot }} — {{ $inspection->unitLink->unit_name_snapshot }}</p>@endif</td>
                                 <td class="whitespace-nowrap px-4 py-3 align-top">{{ $inspection->inspection_date->format('d/m/Y') }}</td>
                                 <td class="px-4 py-3 align-top">{{ $inspection->inspector_name }}</td>
                                 <td class="break-words px-4 py-3 align-top">{{ $inspection->document_no ?? 'Belum diterbitkan' }}</td>

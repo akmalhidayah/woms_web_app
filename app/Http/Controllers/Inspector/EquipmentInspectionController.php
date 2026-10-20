@@ -34,11 +34,14 @@ class EquipmentInspectionController extends Controller
             'status' => ['nullable', Rule::in(array_keys(EquipmentInspection::STATUS_LABELS))],
         ]);
         $inspections = EquipmentInspection::query()->where('inspector_user_id', $request->user()->id)
-            ->when($filters['equipment'] ?? null, fn ($query, $name) => $query->where('form_name', 'like', '%'.$name.'%'))
+            ->when($filters['equipment'] ?? null, fn ($query, $name) => $query->where(fn ($nested) => $nested
+                ->where('form_name', 'like', '%'.$name.'%')
+                ->orWhereHas('unitLink', fn ($link) => $link->where('unit_code_snapshot', 'like', '%'.$name.'%')->orWhere('unit_name_snapshot', 'like', '%'.$name.'%'))))
             ->when($filters['date_from'] ?? null, fn ($query, $date) => $query->whereDate('inspection_date', '>=', $date))
             ->when($filters['date_to'] ?? null, fn ($query, $date) => $query->whereDate('inspection_date', '<=', $date))
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
-            ->withCount(['answers', 'answers as filled_answers_count' => fn ($query) => $query->whereIn('rating', ['A', 'B', 'C'])])
+            ->with('unitLink')
+            ->withCount(['answers', 'signatures', 'approvals', 'answers as filled_answers_count' => fn ($query) => $query->whereIn('rating', ['A', 'B', 'C'])])
             ->orderByDesc('inspection_date')->orderByDesc('id')->paginate(12)->withQueryString();
 
         return view('inspector.inspections.index', compact('inspections', 'filters'));
@@ -50,7 +53,7 @@ class EquipmentInspectionController extends Controller
         $data = $request->validate(['lock_version' => ['required', 'integer', 'min:1']]);
         $deletion->delete($request->user(), $inspection, (int) $data['lock_version']);
 
-        return redirect()->route('inspector.inspections.index')->with('success', 'Laporan dihapus dari daftar dan approval aktif dibatalkan. Histori tetap tersimpan.');
+        return redirect()->route('inspector.inspections.index')->with('success', 'Draft inspeksi berhasil dihapus.');
     }
 
     public function show(Request $request, EquipmentInspection $inspection): View

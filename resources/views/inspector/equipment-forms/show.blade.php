@@ -78,11 +78,14 @@
                     <div><p class="text-xs font-semibold uppercase text-slate-500">Nama Pelaksana</p><p class="mt-1 break-words text-sm font-semibold">{{ $inspection?->inspector_name ?? auth()->user()->name }}</p></div>
                     <div class="sm:col-span-2 lg:col-span-1">
                         <p class="text-xs font-semibold uppercase text-slate-500">Unit Peralatan{{ $unitRequired ? ' *' : ' (opsional selama rollout)' }}</p>
-                        @if ($unitLocked && $selectedUnitSnapshot)
+                        @if ($selectedUnitSnapshot)
                             <input type="hidden" name="equipment_inspection_unit_id" value="{{ $selectedUnitId }}">
                             <p class="mt-1 break-words text-sm font-bold text-slate-900">{{ $selectedUnitSnapshot['asset_code'] }} — {{ $selectedUnitSnapshot['name'] }}</p>
-                            @if ($selectedUnitSnapshot['location'])<p class="mt-1 text-xs text-slate-500">{{ $selectedUnitSnapshot['location'] }}</p>@endif
-                            <p class="mt-1 text-xs text-amber-700">Identitas unit terkunci karena dokumen pernah ditandatangani.</p>
+                            @if ($unitLocked)
+                                <p class="mt-1 text-xs text-amber-700">Identitas unit terkunci karena dokumen pernah ditandatangani.</p>
+                            @else
+                                <p class="mt-1 text-xs text-emerald-700">Terhubung otomatis ke QR peralatan.</p>
+                            @endif
                         @elseif ($readOnly)
                             <p class="mt-1 text-sm font-semibold text-slate-500">Belum terhubung ke unit fisik.</p>
                         @elseif ($automaticUnit)

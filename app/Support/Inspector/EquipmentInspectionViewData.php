@@ -14,7 +14,7 @@ final class EquipmentInspectionViewData
         $values = [];
         $files = [];
         if ($inspection) {
-            $inspection->load(['answers.attachments', 'signatures', 'unitLink.unit']);
+            $inspection->load(['answers.attachments', 'signatures', 'unitLink']);
             foreach ($inspection->answers as $answer) {
                 $values[$answer->item_key] = ['rating' => $answer->rating ?? '', 'remark' => $answer->remark ?? ''];
                 $files[$answer->item_key] = $answer->attachments;
@@ -30,7 +30,7 @@ final class EquipmentInspectionViewData
         $readOnly = $inspection && ! $inspection->isDraft();
         $currentLink = $inspection?->unitLink;
         $formId = (int) ($form['master_id'] ?? 0);
-        $units = $formId > 0
+        $units = ! $currentLink && ! $readOnly && $formId > 0
             ? app(EquipmentInspectionUnitRepository::class)->eligibleForForm($formId, $currentLink?->equipment_inspection_unit_id)
             : collect();
         $automaticUnit = ! $readOnly && ! $currentLink && $units->count() === 1
@@ -57,7 +57,6 @@ final class EquipmentInspectionViewData
             'selectedUnitSnapshot' => $currentLink ? [
                 'asset_code' => $currentLink->unit_code_snapshot,
                 'name' => $currentLink->unit_name_snapshot,
-                'location' => $currentLink->unit?->location,
             ] : null,
             'automaticUnit' => $automaticUnit,
             'unitConflict' => ! $currentLink && $units->count() > 1,

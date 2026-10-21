@@ -154,6 +154,10 @@ class EquipmentInspectionUnitQrTest extends TestCase
             'link_source' => EquipmentInspectionUnitLink::SOURCE_DIRECT,
             'unit_code_snapshot' => 'MB-001',
         ]);
+        $this->get(route('inspector.inspections.show', $inspection))
+            ->assertOk()
+            ->assertSee('MB-001')
+            ->assertSee('Terhubung otomatis ke QR peralatan.');
         $this->post(route('inspector.inspections.store', 'mesin-lipat'), [
             'inspection_date' => now()->toDateString(),
             'equipment_inspection_unit_id' => $other->id,
@@ -200,6 +204,10 @@ class EquipmentInspectionUnitQrTest extends TestCase
             'answers' => $this->answers('mesin-lipat', 'B', 'Rahasia internal yang tidak boleh tampil'),
         ], []);
         $this->approveForTest($approved, $inspector, $manager, '001/INSP/PUBLIC');
+        $this->actingAs($inspector)->get(route('inspector.inspections.show', $approved))
+            ->assertOk()
+            ->assertSee('MB-PUBLIC')
+            ->assertSee('Identitas unit terkunci karena dokumen pernah ditandatangani.');
 
         $draft = app(EquipmentInspectionService::class)->save($inspector, null, 'mesin-lipat', [
             'inspection_date' => now()->toDateString(),

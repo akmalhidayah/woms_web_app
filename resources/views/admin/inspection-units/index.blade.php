@@ -10,14 +10,14 @@
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <form method="GET" class="grid gap-3 border-b border-slate-200 p-4 lg:grid-cols-[1.4fr_1fr_1fr_.8fr_auto]">
                 <input name="search" value="{{ $filters['search'] ?? '' }}" placeholder="Cari kode atau nama unit..." class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
-                <select name="form_id" class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm"><option value="">Semua Master Form</option>@foreach ($forms as $form)<option value="{{ $form->id }}" @selected(($filters['form_id'] ?? null) == $form->id)>{{ $form->name }}</option>@endforeach</select>
+                <select name="form_id" class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm"><option value="">Semua Master Peralatan</option>@foreach ($forms as $form)<option value="{{ $form->id }}" @selected(($filters['form_id'] ?? null) == $form->id)>{{ $form->name }}</option>@endforeach</select>
                 <select name="location" class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm"><option value="">Semua Lokasi</option>@foreach ($locations as $location)<option value="{{ $location }}" @selected(($filters['location'] ?? null) === $location)>{{ $location }}</option>@endforeach</select>
                 <select name="status" class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm"><option value="">Semua Status</option>@foreach (\App\Models\EquipmentInspectionUnit::STATUSES as $status)<option value="{{ $status }}" @selected(($filters['status'] ?? null) === $status)>{{ ucfirst($status) }}</option>@endforeach</select>
                 <div class="flex gap-2"><button class="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white">Cari</button><a href="{{ route('admin.inspection-units.index') }}" title="Reset" class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300"><i data-lucide="rotate-ccw" class="h-4 w-4"></i></a></div>
             </form>
             <div class="overflow-x-auto">
                 <table class="w-full min-w-[1050px] text-left text-xs">
-                    <thead class="bg-slate-100 text-[11px] uppercase tracking-wide text-slate-600"><tr><th class="px-4 py-3">Unit</th><th class="px-4 py-3">Master Form</th><th class="px-4 py-3">Lokasi</th><th class="px-4 py-3">Status</th><th class="px-4 py-3">Histori Approved</th><th class="px-4 py-3 text-center">QR Publik</th><th class="px-4 py-3 text-center">Aksi</th></tr></thead>
+                    <thead class="bg-slate-100 text-[11px] uppercase tracking-wide text-slate-600"><tr><th class="px-4 py-3">Unit</th><th class="px-4 py-3">Master Peralatan</th><th class="px-4 py-3">Lokasi</th><th class="px-4 py-3">Status</th><th class="px-4 py-3">Histori Approved</th><th class="px-4 py-3 text-center">QR Publik</th><th class="px-4 py-3 text-center">Aksi</th></tr></thead>
                     <tbody class="divide-y divide-slate-200">
                         @forelse ($units as $unit)
                             <tr class="align-top">

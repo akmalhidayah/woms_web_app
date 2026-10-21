@@ -95,7 +95,7 @@
                         @elseif ($unitConflict)
                             <p class="mt-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">Terdapat lebih dari satu unit aktif. Inspeksi baru tidak dapat memilih unit secara aman. Hubungi Admin untuk menyelesaikan konflik.</p>
                         @else
-                            <p class="mt-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">Kode alat dan QR belum diatur. Hubungi Admin untuk mengatur QR pada Master Form ini.</p>
+                            <p class="mt-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">Kode alat dan QR belum diatur. Hubungi Admin untuk mengatur QR pada Master Peralatan ini.</p>
                         @endif
                     </div>
                     <div>

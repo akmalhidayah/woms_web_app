@@ -76,7 +76,11 @@
                     <div>
                         <label for="asset-code-{{ $form->id }}" class="mb-2 block text-sm font-bold text-slate-800">Kode Alat <span class="text-rose-600">*</span></label>
                         <input id="asset-code-{{ $form->id }}" name="asset_code" value="{{ (int) old('qr_form_id') === (int) $form->id ? old('asset_code') : '' }}" required maxlength="100" autocomplete="off" placeholder="Contoh: RC 05" class="w-full rounded-xl border border-slate-300 px-3.5 py-3 text-sm font-semibold text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <p class="mt-2 text-xs leading-5 text-slate-500">QR permanen dibuat satu kali. Akses publik tetap nonaktif sampai Admin mengaktifkannya.</p>
+                    </div>
+                    <div>
+                        <label for="location-{{ $form->id }}" class="mb-2 block text-sm font-bold text-slate-800">Lokasi <span class="font-normal text-slate-500">(opsional)</span></label>
+                        <input id="location-{{ $form->id }}" name="location" value="{{ (int) old('qr_form_id') === (int) $form->id ? old('location') : '' }}" maxlength="255" autocomplete="off" placeholder="Contoh: Workshop Mesin" class="w-full rounded-xl border border-slate-300 px-3.5 py-3 text-sm font-semibold text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">
+                        <p class="mt-2 text-xs leading-5 text-slate-500">Lokasi akan ditampilkan pada halaman riwayat QR. QR permanen dibuat satu kali dan akses publik tetap nonaktif sampai Admin mengaktifkannya.</p>
                     </div>
                     <div class="flex flex-col-reverse gap-2 border-t border-slate-200 pt-4 sm:flex-row sm:justify-end">
                         <button type="button" @click="qrModal = null" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Batal</button>
@@ -103,12 +107,20 @@
                             @csrf
                             @method('PUT')
                             <input type="hidden" name="qr_form_id" value="{{ $form->id }}">
-                            <label for="asset-code-{{ $form->id }}" class="mb-2 block text-sm font-bold text-slate-800">Kode Alat <span class="text-rose-600">*</span></label>
-                            <div class="flex flex-col gap-2 sm:flex-row">
-                                <input id="asset-code-{{ $form->id }}" name="asset_code" value="{{ (int) old('qr_form_id') === (int) $form->id ? old('asset_code', $qrUnit->asset_code) : $qrUnit->asset_code }}" required maxlength="100" autocomplete="off" class="min-w-0 flex-1 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">
-                                <button type="submit" class="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-800">Simpan Perubahan</button>
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label for="asset-code-{{ $form->id }}" class="mb-2 block text-sm font-bold text-slate-800">Kode Alat <span class="text-rose-600">*</span></label>
+                                    <input id="asset-code-{{ $form->id }}" name="asset_code" value="{{ (int) old('qr_form_id') === (int) $form->id ? old('asset_code', $qrUnit->asset_code) : $qrUnit->asset_code }}" required maxlength="100" autocomplete="off" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">
+                                </div>
+                                <div>
+                                    <label for="location-{{ $form->id }}" class="mb-2 block text-sm font-bold text-slate-800">Lokasi <span class="font-normal text-slate-500">(opsional)</span></label>
+                                    <input id="location-{{ $form->id }}" name="location" value="{{ (int) old('qr_form_id') === (int) $form->id ? old('location', $qrUnit->location) : $qrUnit->location }}" maxlength="255" autocomplete="off" placeholder="Contoh: Workshop Mesin" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">
+                                </div>
                             </div>
-                            <p class="mt-2 text-xs text-slate-500">Mengubah kode alat tidak mengubah URL atau QR permanen.</p>
+                            <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <p class="text-xs text-slate-500">Perubahan kode alat atau lokasi tidak mengubah URL maupun QR permanen.</p>
+                                <button type="submit" class="shrink-0 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-800">Simpan Perubahan</button>
+                            </div>
                         </form>
 
                         <div class="grid grid-cols-2 gap-2 text-sm">
@@ -133,29 +145,6 @@
                         @endif
                     </section>
                 </div>
-
-                <details class="mt-5 rounded-xl border border-slate-200">
-                    <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-bold text-slate-800">
-                        <span class="inline-flex items-center gap-2"><i data-lucide="link" class="h-4 w-4 text-blue-700"></i> Hubungkan Histori Lama</span>
-                        <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">{{ $qrState['legacy_candidate_count'] }} kandidat</span>
-                    </summary>
-                    <div class="border-t border-slate-200 p-4">
-                        <p class="mb-3 text-xs leading-5 text-slate-500">Hanya dokumen approved dari Master Form yang sama dengan signature Inspector dan Manager valid yang dapat dihubungkan.</p>
-                        @forelse ($qrState['legacy_candidates'] as $candidate)
-                            <form method="POST" action="{{ route('admin.inspection-units.legacy-links.store', $qrUnit) }}" class="flex flex-col gap-2 border-t border-slate-100 py-3 first:border-t-0 sm:flex-row sm:items-center sm:justify-between" data-swal-confirm data-swal-title="Hubungkan histori lama?" data-swal-text="Dokumen tidak diubah. Sistem hanya menambahkan relasi histori ke QR ini." data-swal-confirm-text="Ya, hubungkan">
-                                @csrf
-                                <input type="hidden" name="inspection_id" value="{{ $candidate->id }}">
-                                <div class="min-w-0 text-sm"><p class="truncate font-bold text-slate-900">{{ $candidate->document_no ?: 'Dokumen tanpa nomor' }}</p><p class="mt-0.5 text-xs text-slate-500">{{ optional($candidate->inspection_date)->format('d M Y') }} · {{ $candidate->inspector_name }}</p></div>
-                                <button type="submit" class="shrink-0 rounded-lg border border-blue-200 px-3 py-2 text-xs font-bold text-blue-700">Hubungkan</button>
-                            </form>
-                        @empty
-                            <p class="rounded-lg bg-slate-50 px-4 py-5 text-center text-sm text-slate-500">Tidak ada histori approved yang memenuhi syarat.</p>
-                        @endforelse
-                        @if ($qrState['legacy_candidate_count'] > 10)
-                            <a href="{{ route('admin.inspection-units.show', $qrUnit) }}" class="mt-3 inline-flex items-center gap-1 text-sm font-bold text-blue-700">Lihat semua kandidat <i data-lucide="arrow-right" class="h-4 w-4"></i></a>
-                        @endif
-                    </div>
-                </details>
 
                 <details class="mt-3 rounded-xl border border-slate-200">
                     <summary class="cursor-pointer list-none px-4 py-3 text-sm font-bold text-slate-700">Aksi lanjutan</summary>

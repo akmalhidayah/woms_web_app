@@ -245,7 +245,7 @@ class AdminMenuRegistry
                         'route_name' => 'admin.inspections.index', 'active_patterns' => ['admin.inspections.*'],
                     ],
                     [
-                        'key' => 'inspeksi_master_form', 'permission_key' => self::MENU_INSPEKSI, 'label' => 'Master Form Inspeksi',
+                        'key' => 'inspeksi_master_form', 'permission_key' => self::MENU_INSPEKSI, 'label' => 'Master Peralatan',
                         'route_name' => 'admin.inspection-forms.index', 'active_patterns' => ['admin.inspection-forms.*'],
                     ],
                 ],

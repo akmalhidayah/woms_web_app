@@ -22,6 +22,9 @@ class SaveEquipmentInspectionFormQrRequest extends FormRequest
             'asset_code' => is_string($this->input('asset_code'))
                 ? trim($this->input('asset_code'))
                 : $this->input('asset_code'),
+            'location' => is_string($this->input('location'))
+                ? trim($this->input('location'))
+                : $this->input('location'),
         ]);
     }
 
@@ -40,6 +43,7 @@ class SaveEquipmentInspectionFormQrRequest extends FormRequest
                 'max:100',
                 Rule::unique('equipment_inspection_units', 'asset_code')->ignore($unitId),
             ],
+            'location' => ['nullable', 'string', 'max:255'],
         ];
     }
 

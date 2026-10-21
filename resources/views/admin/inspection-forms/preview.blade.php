@@ -1,7 +1,7 @@
 <x-layouts.admin :title="'Preview '.$form['name'].' — WOMS'">
     <div class="space-y-4">
         <section class="flex flex-col gap-4 rounded-2xl border border-blue-100 bg-blue-50 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-            <div><a href="{{ route('admin.inspection-forms.index') }}" class="text-sm font-semibold text-blue-700">← Master Form Inspeksi</a><h1 class="mt-2 text-lg font-bold text-slate-900">Preview {{ $form['name'] }}</h1><p class="mt-1 text-sm text-slate-600">Tampilan struktur checklist yang digunakan untuk inspeksi baru.</p></div>
+            <div><a href="{{ route('admin.inspection-forms.index') }}" class="text-sm font-semibold text-blue-700">← Master Peralatan</a><h1 class="mt-2 text-lg font-bold text-slate-900">Preview {{ $form['name'] }}</h1><p class="mt-1 text-sm text-slate-600">Tampilan struktur checklist yang digunakan untuk inspeksi baru.</p></div>
             <div class="flex gap-2"><span class="rounded-full bg-white px-3 py-2 text-xs font-semibold ring-1 ring-slate-200">Versi {{ $form['version'] }} · {{ ucfirst($formModel->status) }}</span><a href="{{ route('admin.inspection-forms.edit', $formModel) }}" class="rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white">Edit</a></div>
         </section>
 

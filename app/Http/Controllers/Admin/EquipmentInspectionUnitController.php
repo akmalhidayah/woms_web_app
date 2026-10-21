@@ -76,26 +76,15 @@ class EquipmentInspectionUnitController extends Controller
     public function show(Request $request, EquipmentInspectionUnit $equipmentInspectionUnit, EquipmentQrCodeService $qr): View
     {
         $this->authorizeAdmin($request);
-        $legacyFilters = $request->validate(['legacy_search' => ['nullable', 'string', 'max:150']]);
         $equipmentInspectionUnit->load('form');
         $historyLinks = $equipmentInspectionUnit->links()->whereHas('inspection')->with(['linker', 'inspection'])
             ->orderByDesc('linked_at')->orderByDesc('id')->paginate(20, ['*'], 'history_page')->withQueryString();
         $unitLogs = $equipmentInspectionUnit->logs()->with('actor')->paginate(20, ['*'], 'audit_page')->withQueryString();
-        $unlinked = EquipmentInspection::query()
-            ->where('form_slug', $equipmentInspectionUnit->form->slug)
-            ->where('status', EquipmentInspection::STATUS_APPROVED)
-            ->whereDoesntHave('unitLink')
-            ->when($legacyFilters['legacy_search'] ?? null, fn ($query, $search) => $query->where(fn ($nested) => $nested
-                ->where('document_no', 'like', '%'.$search.'%')->orWhere('inspector_name', 'like', '%'.$search.'%')))
-            ->orderByDesc('inspection_date')->orderByDesc('id')
-            ->paginate(25, ['*'], 'legacy_page')->withQueryString();
 
         return view('admin.inspection-units.show', [
             'unit' => $equipmentInspectionUnit,
             'historyLinks' => $historyLinks,
             'unitLogs' => $unitLogs,
-            'unlinkedInspections' => $unlinked,
-            'legacyFilters' => $legacyFilters,
             'publicUrl' => $qr->publicUrl($equipmentInspectionUnit),
         ]);
     }

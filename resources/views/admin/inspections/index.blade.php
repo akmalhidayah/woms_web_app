@@ -106,7 +106,7 @@
             <div class="border-t border-slate-200 px-5 py-4">{{ $inspections->links() }}</div>
         </section>
         @include('admin.inspections._approval-modal')
-        <dialog x-ref="remarksDialog" aria-labelledby="remarks-title" class="w-[calc(100%-2rem)] max-w-3xl rounded-2xl border border-slate-300 p-0 backdrop:bg-black/60">
+        <dialog x-ref="remarksDialog" aria-labelledby="remarks-title" style="position: fixed; inset: 0; margin: auto;" class="w-[calc(100%-2rem)] max-w-3xl overflow-hidden rounded-2xl border border-slate-300 bg-white p-0 shadow-2xl backdrop:bg-black/60">
             <div class="flex max-h-[85vh] flex-col">
                 <header class="flex items-start justify-between gap-3 border-b p-5"><div><h2 id="remarks-title" class="text-lg font-bold" x-text="'Remarks ' + (remarks?.number ?? '')"></h2><p class="mt-1 text-sm text-slate-600" x-text="remarks ? remarks.equipment + ' · ' + remarks.date : ''"></p></div><button type="button" @click="$refs.remarksDialog.close()" aria-label="Tutup Remarks" class="rounded-lg border px-3 py-1">✕</button></header>
                 <div class="space-y-4 overflow-y-auto p-5">

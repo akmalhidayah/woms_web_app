@@ -141,7 +141,7 @@ final class EquipmentInspectionFormService
         $existing = $form->items()->get()->keyBy('id');
         $submittedIds = collect($submitted)->pluck('id')->filter()->map(fn ($id): int => (int) $id);
         if ($submittedIds->duplicates()->isNotEmpty() || $submittedIds->diff($existing->keys())->isNotEmpty()) {
-            throw ValidationException::withMessages(['items' => 'Daftar item tidak sesuai master form. Muat ulang halaman.']);
+            throw ValidationException::withMessages(['items' => 'Daftar item tidak sesuai master peralatan. Muat ulang halaman.']);
         }
         $deletingIds = $existing->keys()->diff($submittedIds)->all();
 

@@ -104,12 +104,21 @@ final class PublicEquipmentHistoryService
                 return null;
             }
 
-            return ['label' => $answer['item_label'], 'rating' => $answer['rating']];
+            $remark = $answer['remark'] ?? null;
+            if ($remark !== null && ! is_string($remark)) {
+                return null;
+            }
+
+            return [
+                'label' => $answer['item_label'],
+                'rating' => $answer['rating'],
+                'remark' => filled($remark) ? trim($remark) : null,
+            ];
         });
         if ($items->isEmpty() || $items->contains(null)) {
             return null;
         }
-        /** @var Collection<int, array{label: string, rating: string}> $items */
+        /** @var Collection<int, array{label: string, rating: string, remark: ?string}> $items */
         $counts = [
             'A' => $items->where('rating', 'A')->count(),
             'B' => $items->where('rating', 'B')->count(),
@@ -127,7 +136,7 @@ final class PublicEquipmentHistoryService
     }
 
     /**
-     * @param  Collection<int, array{label: string, rating: string}>  $items
+     * @param  Collection<int, array{label: string, rating: string, remark: ?string}>  $items
      * @param  array{A: int, B: int, C: int}  $counts
      */
     private function summary(Collection $items, array $counts): string

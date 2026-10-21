@@ -5,7 +5,7 @@
         'group_name' => $item->group_name ?? '', 'label' => $item->label,
     ])->values()->all() : [['id' => null, 'item_key' => null, 'group_key' => null, 'group_name' => '', 'label' => '']]);
 @endphp
-<x-layouts.admin :title="($editing ? 'Edit' : 'Tambah').' Master Form Inspeksi — WOMS'">
+<x-layouts.admin :title="($editing ? 'Edit' : 'Tambah').' Master Peralatan — WOMS'">
     <div class="space-y-4" x-data="{
         items: @js($initialItems).map((item, index) => ({ ...item, client_key: item.id ? `existing-${item.id}` : `initial-${index}` })),
         add() { this.items.push({ id: null, item_key: null, group_key: null, group_name: '', label: '', client_key: `new-${Date.now()}-${Math.random()}` }); },
@@ -13,7 +13,7 @@
         move(index, direction) { const target = index + direction; if (target < 0 || target >= this.items.length) return; [this.items[index], this.items[target]] = [this.items[target], this.items[index]]; }
     }">
         <section class="flex flex-col gap-4 rounded-2xl border border-blue-100 bg-blue-50 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-            <div><a href="{{ route('admin.inspection-forms.index') }}" class="text-sm font-semibold text-blue-700">← Master Form Inspeksi</a><h1 class="mt-2 text-lg font-bold text-slate-900">{{ $editing ? 'Edit '.$form->name : 'Tambah Form Inspeksi' }}</h1><p class="mt-1 text-sm text-slate-600">Item key dokumen lama tidak berubah ketika label atau urutan diperbarui.</p></div>
+            <div><a href="{{ route('admin.inspection-forms.index') }}" class="text-sm font-semibold text-blue-700">← Master Peralatan</a><h1 class="mt-2 text-lg font-bold text-slate-900">{{ $editing ? 'Edit '.$form->name : 'Tambah Peralatan' }}</h1><p class="mt-1 text-sm text-slate-600">Item key dokumen lama tidak berubah ketika label atau urutan diperbarui.</p></div>
             @if ($editing)<div class="flex items-center gap-2"><a href="{{ route('admin.inspection-forms.preview', $form) }}" class="rounded-xl border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-700">Preview</a><span class="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">Versi {{ $form->version }} · {{ ucfirst($form->status) }}</span></div>@endif
         </section>
 

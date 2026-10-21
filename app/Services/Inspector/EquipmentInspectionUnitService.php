@@ -21,10 +21,10 @@ final class EquipmentInspectionUnitService
 {
     public function __construct(private readonly EquipmentInspectionUnitImageStorage $images) {}
 
-    public function savePrimaryForForm(User $actor, EquipmentInspectionForm $existingForm, string $assetCode): EquipmentInspectionUnit
+    public function savePrimaryForForm(User $actor, EquipmentInspectionForm $existingForm, string $assetCode, ?string $location = null): EquipmentInspectionUnit
     {
         try {
-            return DB::transaction(function () use ($actor, $existingForm, $assetCode): EquipmentInspectionUnit {
+            return DB::transaction(function () use ($actor, $existingForm, $assetCode, $location): EquipmentInspectionUnit {
                 $form = EquipmentInspectionForm::query()->whereKey($existingForm->id)->lockForUpdate()->firstOrFail();
                 $units = EquipmentInspectionUnit::query()
                     ->where('equipment_inspection_form_id', $form->id)
@@ -34,11 +34,12 @@ final class EquipmentInspectionUnitService
 
                 if ($units->count() > 1) {
                     throw ValidationException::withMessages([
-                        'asset_code' => 'Master Form memiliki lebih dari satu unit. Selesaikan konflik unit lama sebelum menggunakan pengelolaan QR sederhana.',
+                        'asset_code' => 'Master Peralatan memiliki lebih dari satu unit. Selesaikan konflik unit lama sebelum menggunakan pengelolaan QR sederhana.',
                     ]);
                 }
 
                 $code = trim($assetCode);
+                $normalizedLocation = filled($location) ? trim($location) : null;
                 $unit = $units->first();
                 $codeOwner = EquipmentInspectionUnit::query()
                     ->where('asset_code', $code)
@@ -52,7 +53,7 @@ final class EquipmentInspectionUnitService
                         'equipment_inspection_form_id' => $form->id,
                         'asset_code' => $code,
                         'name' => $form->name,
-                        'location' => null,
+                        'location' => $normalizedLocation,
                         'description' => $form->description,
                         'image_path' => null,
                         'image_mime_type' => null,
@@ -71,10 +72,11 @@ final class EquipmentInspectionUnitService
                 }
 
                 $before = $this->auditSnapshot($unit);
-                if ($unit->asset_code !== $code || $unit->name !== $form->name) {
+                if ($unit->asset_code !== $code || $unit->name !== $form->name || $unit->location !== $normalizedLocation) {
                     $unit->forceFill([
                         'asset_code' => $code,
                         'name' => $form->name,
+                        'location' => $normalizedLocation,
                         'updated_by' => $actor->id,
                     ])->save();
                     $this->audit($unit, $actor, 'updated_from_master_form', [
@@ -134,7 +136,7 @@ final class EquipmentInspectionUnitService
                 if ($hasHistory && ((int) $data['equipment_inspection_form_id'] !== (int) $unit->equipment_inspection_form_id
                     || $data['asset_code'] !== $unit->asset_code)) {
                     throw ValidationException::withMessages([
-                        'asset_code' => 'Master Form dan kode unit tidak dapat diubah setelah unit memiliki riwayat inspeksi.',
+                        'asset_code' => 'Master Peralatan dan kode unit tidak dapat diubah setelah unit memiliki riwayat inspeksi.',
                     ]);
                 }
 
@@ -230,7 +232,7 @@ final class EquipmentInspectionUnitService
         if ($unitIds->count() > 1) {
             if ($isNew || $requestedUnitId !== null || $required) {
                 throw ValidationException::withMessages([
-                    'equipment_inspection_unit_id' => 'Terdapat lebih dari satu unit aktif pada Master Form ini. Hubungi Admin untuk menyelesaikan konflik unit.',
+                    'equipment_inspection_unit_id' => 'Terdapat lebih dari satu unit aktif pada Master Peralatan ini. Hubungi Admin untuk menyelesaikan konflik unit.',
                 ]);
             }
 
@@ -244,7 +246,7 @@ final class EquipmentInspectionUnitService
         }
         if ($required && $unitIds->isEmpty()) {
             throw ValidationException::withMessages([
-                'equipment_inspection_unit_id' => 'Kode alat dan QR belum diatur. Hubungi Admin untuk mengatur QR pada Master Form ini.',
+                'equipment_inspection_unit_id' => 'Kode alat dan QR belum diatur. Hubungi Admin untuk mengatur QR pada Master Peralatan ini.',
             ]);
         }
         return null;
@@ -267,7 +269,7 @@ final class EquipmentInspectionUnitService
 
         $unit = EquipmentInspectionUnit::query()->whereKey($unitId)->lockForUpdate()->first();
         if (! $unit || (int) $unit->equipment_inspection_form_id !== $formId) {
-            throw ValidationException::withMessages(['equipment_inspection_unit_id' => 'Unit tidak sesuai dengan Master Form inspeksi.']);
+            throw ValidationException::withMessages(['equipment_inspection_unit_id' => 'Unit tidak sesuai dengan Master Peralatan.']);
         }
         $sameUnit = $link && (int) $link->equipment_inspection_unit_id === (int) $unit->id;
         if ($sameUnit) {
@@ -380,7 +382,7 @@ final class EquipmentInspectionUnitService
         }
         $unit->loadMissing('form');
         if ($document->form_slug !== $unit->form?->slug) {
-            return 'Master Form dokumen tidak sesuai dengan unit tujuan.';
+            return 'Master Peralatan dokumen tidak sesuai dengan unit tujuan.';
         }
 
         $signatures = ($document->relationLoaded('signatures')

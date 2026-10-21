@@ -54,6 +54,7 @@ class EquipmentInspectionManagementTest extends TestCase
             ->assertOk()
             ->assertSee('data-remark-count="2"', false)
             ->assertSee('Lihat 2 item dengan Remark')
+            ->assertSee('style="position: fixed; inset: 0; margin: auto;"', false)
             ->assertDontSee('aria-label="Lihat inspeksi ', false);
     }
 

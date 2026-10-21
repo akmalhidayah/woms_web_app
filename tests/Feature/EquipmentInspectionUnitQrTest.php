@@ -61,6 +61,9 @@ class EquipmentInspectionUnitQrTest extends TestCase
 
         $payload['asset_code'] = 'MB-001';
         $this->post(route('admin.inspection-units.store'), $payload)->assertSessionHasErrors('asset_code');
+        $this->get(route('admin.inspection-units.show', $unit))
+            ->assertOk()
+            ->assertDontSee('Hubungkan Riwayat Inspeksi Lama');
         $this->patch(route('admin.inspection-units.retire', $unit))->assertRedirect();
         $unit->refresh();
         $this->assertSame(EquipmentInspectionUnit::STATUS_RETIRED, $unit->lifecycle_status);
@@ -83,15 +86,18 @@ class EquipmentInspectionUnitQrTest extends TestCase
         $this->actingAs($admin)->get(route('admin.inspection-forms.index'))
             ->assertOk()
             ->assertSee('Atur QR Code')
+            ->assertDontSee('Hubungkan Histori Lama')
             ->assertDontSee('Master Unit Peralatan');
         $this->put(route('admin.inspection-forms.qr.save', $form), [
             'asset_code' => 'RC 05',
+            'location' => 'Workshop Mesin',
             'qr_form_id' => $form->id,
         ])->assertRedirect();
 
         $unit = EquipmentInspectionUnit::query()->where('equipment_inspection_form_id', $form->id)->sole();
         $originalPublicCode = $unit->public_code;
         $this->assertSame('RC 05', $unit->asset_code);
+        $this->assertSame('Workshop Mesin', $unit->location);
         $this->assertSame($form->name, $unit->name);
         $this->assertSame(EquipmentInspectionUnit::STATUS_ACTIVE, $unit->lifecycle_status);
         $this->assertFalse($unit->public_enabled);
@@ -99,12 +105,14 @@ class EquipmentInspectionUnitQrTest extends TestCase
 
         $this->put(route('admin.inspection-forms.qr.save', $form), [
             'asset_code' => 'RC 05-A',
+            'location' => 'Area Fabrikasi',
             'qr_form_id' => $form->id,
         ])->assertRedirect();
 
         $this->assertSame(1, EquipmentInspectionUnit::query()->where('equipment_inspection_form_id', $form->id)->count());
         $this->assertSame($originalPublicCode, $unit->fresh()->public_code);
         $this->assertSame('RC 05-A', $unit->fresh()->asset_code);
+        $this->assertSame('Area Fabrikasi', $unit->fresh()->location);
         $this->assertDatabaseHas('equipment_inspection_unit_logs', [
             'equipment_inspection_unit_id' => $unit->id,
             'event' => 'updated_from_master_form',
@@ -190,7 +198,7 @@ class EquipmentInspectionUnitQrTest extends TestCase
         ], []);
     }
 
-    public function test_public_history_uses_approved_signed_snapshot_only_and_leaks_no_private_data(): void
+    public function test_public_history_uses_approved_signed_snapshot_and_excludes_private_metadata(): void
     {
         $inspector = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
         $manager = User::factory()->create(['role' => User::ROLE_APPROVER]);
@@ -198,10 +206,13 @@ class EquipmentInspectionUnitQrTest extends TestCase
         $unit = $this->unit($form, 'MB-PUBLIC');
         $unit->update(['name' => 'Unit <script>alert(1)</script>', 'public_enabled' => true]);
 
+        $approvedAnswers = $this->answers('mesin-lipat', 'B', 'Bearing perlu pelumasan ulang');
+        $normalItemKey = array_keys($approvedAnswers)[1];
+        $approvedAnswers[$normalItemKey]['remark'] = 'Kondisi normal setelah pemeriksaan';
         $approved = app(EquipmentInspectionService::class)->save($inspector, null, 'mesin-lipat', [
             'inspection_date' => now()->subDay()->toDateString(),
             'equipment_inspection_unit_id' => $unit->id,
-            'answers' => $this->answers('mesin-lipat', 'B', 'Rahasia internal yang tidak boleh tampil'),
+            'answers' => $approvedAnswers,
         ], []);
         $this->approveForTest($approved, $inspector, $manager, '001/INSP/PUBLIC');
         $this->actingAs($inspector)->get(route('inspector.inspections.show', $approved))
@@ -231,9 +242,11 @@ class EquipmentInspectionUnitQrTest extends TestCase
             ->assertSee('MB-PUBLIC')
             ->assertSee('001/INSP/PUBLIC')
             ->assertSee('Kurang Normal')
+            ->assertSee('Remarks:')
+            ->assertSee('Bearing perlu pelumasan ulang')
+            ->assertSee('Kondisi normal setelah pemeriksaan')
             ->assertDontSee('DRAFT-SECRET')
             ->assertDontSee('OTHER-UNIT-SECRET')
-            ->assertDontSee('Rahasia internal yang tidak boleh tampil')
             ->assertDontSee('signature_path')
             ->assertDontSee('token_hash')
             ->assertSee($form->name)

@@ -104,6 +104,14 @@ class EquipmentInspectionUnitQrTest extends TestCase
         $this->assertFalse($unit->public_enabled);
         $this->assertSame(32, strlen($unit->public_code));
 
+        $this->get(route('admin.inspection-forms.index'))
+            ->assertOk()
+            ->assertSee('RC 05');
+        $this->get(route('admin.inspection-units.label', $unit))
+            ->assertOk()
+            ->assertSee('assets/branding/logos/logo-sig.png', false)
+            ->assertSee('assets/branding/logos/logo-st2.png', false);
+
         $this->put(route('admin.inspection-forms.qr.save', $form), [
             'asset_code' => 'RC 05-A',
             'location' => 'Area Fabrikasi',

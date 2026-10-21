@@ -30,13 +30,22 @@
                                 $statusClasses = match ($form->status) { 'active' => 'bg-emerald-100 text-emerald-800', 'inactive' => 'bg-slate-200 text-slate-700', default => 'bg-amber-100 text-amber-800' };
                                 $statusLabel = match ($form->status) { 'active' => 'Aktif', 'inactive' => 'Nonaktif', default => 'Draft' };
                                 $qrState = $qrStates[$form->id] ?? ['status' => 'missing', 'unit' => null];
+                                $assetCode = ($qrState['unit'] ?? null)?->asset_code;
                                 $qrTitle = match ($qrState['status']) { 'ready' => 'Kelola QR Code', 'conflict' => 'Periksa konflik QR Code', default => 'Atur QR Code' };
                             @endphp
                             <tr>
                                 <td class="px-4 py-3 font-semibold">{{ $form->sort_order }}</td>
                                 <td class="px-4 py-3"><div class="flex items-center gap-3">
                                     @if ($form->image_path)<img src="{{ route('admin.inspection-forms.image', $form) }}" alt="Foto {{ $form->name }}" loading="lazy" class="h-12 w-16 rounded-lg object-cover ring-1 ring-slate-200">@else<div class="flex h-12 w-16 items-center justify-center rounded-lg bg-slate-100 px-1 text-center text-[10px] text-slate-500 ring-1 ring-slate-200">Foto belum tersedia</div>@endif
-                                    <div><p class="font-bold text-slate-900">{{ $form->name }}</p><p class="mt-1 text-xs text-slate-500">{{ $form->slug }}</p></div>
+                                    <div>
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <p class="font-bold text-slate-900">{{ $form->name }}</p>
+                                            @if (filled($assetCode))
+                                                <span class="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 ring-1 ring-inset ring-blue-200">{{ $assetCode }}</span>
+                                            @endif
+                                        </div>
+                                        <p class="mt-1 text-xs text-slate-500">{{ $form->slug }}</p>
+                                    </div>
                                 </div></td>
                                 <td class="px-4 py-3">{{ $form->items_count }}</td>
                                 <td class="px-4 py-3"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $statusClasses }}">{{ $statusLabel }}</span></td>

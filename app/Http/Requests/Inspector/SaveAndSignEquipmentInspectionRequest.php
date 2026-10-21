@@ -13,7 +13,6 @@ class SaveAndSignEquipmentInspectionRequest extends SaveEquipmentInspectionReque
             ...parent::rules(),
             'document_version' => ['required', 'integer', 'min:1'],
             'signature_data' => ['required', 'string', 'max:1400000'],
-            'confirmed' => ['accepted'],
         ];
     }
 

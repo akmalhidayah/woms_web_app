@@ -128,7 +128,7 @@
                         <button type="submit"
                             data-action="sign"
                             formaction="{{ $inspection ? route('inspector.inspections.update-and-sign', $inspection) : route('inspector.inspections.store-and-sign', $form['id']) }}"
-                            :disabled="!canSign || !signatureData || !signatureConfirmed || signing"
+                            :disabled="!canSign || !signatureData || signing"
                             class="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40"
                             x-text="signing ? 'Mengirim...' : 'Submit Pemeriksaan'">Submit Pemeriksaan</button>
                     </div>

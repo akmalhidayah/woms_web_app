@@ -251,16 +251,6 @@
                 transfer.items.add(new File([blob], 'signature.png', { type: 'image/png' }));
                 signatureFile.files = transfer.files;
 
-                const confirmed = await window.inspectionSweetAlert.confirm({
-                    icon: 'question',
-                    title: 'Setujui laporan inspeksi?',
-                    text: 'Tanda tangan akan disimpan sebagai persetujuan Manager Workshop untuk versi laporan ini.',
-                    confirmButtonText: 'Ya, setujui',
-                });
-                if (!confirmed) {
-                    return;
-                }
-
                 preparedSubmit = true;
                 form.submit();
             });

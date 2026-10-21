@@ -151,10 +151,6 @@
                                     <textarea id="approvalNote" name="decision_note" rows="3" maxlength="2000" placeholder="Tulis catatan persetujuan bila diperlukan..." class="mt-3 w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#c86432] focus:ring-[#c86432]">{{ old('decision_note') }}</textarea>
                                 </div>
                             </div>
-                            <label class="flex items-start gap-3 text-sm leading-6 text-slate-600">
-                                <input type="checkbox" name="confirmed" value="1" required class="mt-1 rounded border-slate-300 text-[#5b0f1b] focus:ring-[#5b0f1b]">
-                                Saya sudah meninjau laporan versi ini dan menyetujuinya.
-                            </label>
                             <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">
                                 <i data-lucide="signature" class="h-4 w-4"></i>
                                 Simpan Tanda Tangan
@@ -165,7 +161,6 @@
                             @csrf
                             <input type="hidden" name="decision" value="return">
                             <input type="hidden" name="document_version" value="{{ $inspection->document_version }}">
-                            <input type="hidden" name="confirmed" value="1">
                             <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Revisi Laporan</div>
                             <h2 class="mt-1 text-lg font-bold text-slate-900">Kembalikan ke Inspektor</h2>
                             <label for="revisionNote" class="mt-4 block text-sm font-semibold text-slate-700">Alasan revisi (wajib)</label>

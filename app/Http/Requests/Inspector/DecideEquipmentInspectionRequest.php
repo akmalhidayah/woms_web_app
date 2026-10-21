@@ -18,7 +18,7 @@ class DecideEquipmentInspectionRequest extends FormRequest
     public function rules(): array
     {
         return ['decision' => ['required', Rule::in(['approve', 'return'])], 'document_version' => ['required', 'integer', 'min:1'],
-            'decision_note' => ['required_if:decision,return', 'nullable', 'string', 'max:2000'], 'confirmed' => ['accepted'],
+            'decision_note' => ['required_if:decision,return', 'nullable', 'string', 'max:2000'],
             'signature_file' => ['required_if:decision,approve', 'nullable', 'file', 'image', 'mimes:png', 'mimetypes:image/png', 'max:1024', 'dimensions:max_width=2000,max_height=1000']];
     }
 

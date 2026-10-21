@@ -25,10 +25,6 @@
                     <span x-text="signatureData ? 'Ubah Tanda Tangan' : 'Tanda Tangan'">Tanda Tangan</span>
                 </button>
 
-                <label class="flex items-start gap-2 text-xs text-slate-600">
-                    <input type="checkbox" name="confirmed" value="1" x-model="signatureConfirmed" class="mt-0.5">
-                    <span>Saya mengonfirmasi isi pemeriksaan dan tanda tangan ini.</span>
-                </label>
             </div>
 
             <div x-show="signatureModalOpen" x-cloak @keydown.escape.window="signatureModalOpen = false" class="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-5" role="dialog" aria-modal="true" aria-labelledby="signature-modal-title">

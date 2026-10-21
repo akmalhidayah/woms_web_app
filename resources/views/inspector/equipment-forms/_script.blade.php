@@ -7,7 +7,7 @@ window.equipmentInspectionPage = function (config) {
         persisted: config.persisted, readOnly: config.readOnly, conflict: config.conflict,
         recentSignatureDataUrl: config.recentSignatureDataUrl,
         deleteAttachments: [], filesSelected: {}, deletionConfirmed: false, saving: false, signing: false,
-        signatureModalOpen: false, signatureData: '', signatureConfirmed: false, hasInk: false, pointerId: null,
+        signatureModalOpen: false, signatureData: '', hasInk: false, pointerId: null,
         get dirty() {
             return JSON.stringify(this.answers) !== JSON.stringify(this.savedAnswers)
                 || this.inspectionDate !== this.savedDate || this.unitId !== this.savedUnitId || this.deleteAttachments.length > 0
@@ -50,7 +50,7 @@ window.equipmentInspectionPage = function (config) {
                 return;
             }
             if (event.submitter?.dataset.action === 'sign') {
-                if (!this.canSign || !this.signatureData || !this.signatureConfirmed) { event.preventDefault(); return; }
+                if (!this.canSign || !this.signatureData) { event.preventDefault(); return; }
                 this.signing = true;
                 return;
             }
@@ -77,7 +77,6 @@ window.equipmentInspectionPage = function (config) {
                 canvas.getContext('2d').drawImage(image, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
                 this.hasInk = true;
                 this.signatureData = '';
-                this.signatureConfirmed = false;
             };
             image.onerror = () => window.inspectionSweetAlert.error('TTD terakhir tidak dapat dimuat. Silakan tanda tangan ulang.');
             image.src = this.recentSignatureDataUrl;
@@ -99,7 +98,6 @@ window.equipmentInspectionPage = function (config) {
             if (!event.isPrimary || this.pointerId !== null || !this.canSign || (event.pointerType === 'mouse' && event.button !== 0)) return;
             this.pointerId = event.pointerId;
             this.signatureData = '';
-            this.signatureConfirmed = false;
             const canvas = this.$refs.signatureCanvas;
             canvas.setPointerCapture(event.pointerId);
             const ctx = canvas.getContext('2d');
@@ -123,7 +121,7 @@ window.equipmentInspectionPage = function (config) {
             const canvas = this.$refs.signatureCanvas;
             if (!canvas) return;
             this.paintSignatureBackground();
-            this.hasInk = false; this.signatureData = ''; this.signatureConfirmed = false; this.pointerId = null;
+            this.hasInk = false; this.signatureData = ''; this.pointerId = null;
         },
         acceptSignature() {
             if (!this.hasInk) return;

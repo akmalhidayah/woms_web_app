@@ -206,6 +206,8 @@ class EquipmentInspectionManagementTest extends TestCase
             ->assertSee('Area Penandatanganan')
             ->assertSee('Gunakan TTD Terakhir')
             ->assertSee('Tahap 2 dari 2')
+            ->assertDontSee('Saya sudah meninjau laporan versi ini dan menyetujuinya.')
+            ->assertDontSee('Setujui laporan inspeksi?')
             ->assertDontSee('Tahap 2 dari 3');
 
         $other = User::factory()->create(['role' => User::ROLE_APPROVER]);
@@ -243,6 +245,7 @@ class EquipmentInspectionManagementTest extends TestCase
             ->assertSee('aria-label="Kembali ke daftar form"', false)
             ->assertSee('data-lucide="arrow-left"', false)
             ->assertSee('aria-label="Buka riwayat inspeksi"', false)
+            ->assertDontSee('Saya mengonfirmasi isi pemeriksaan dan tanda tangan ini.')
             ->assertDontSee('Gunakan TTD Terakhir');
     }
 

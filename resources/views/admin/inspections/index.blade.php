@@ -87,9 +87,13 @@
                                     @if ($inspection->workflow_error || $inspection->archive_error)<p class="mt-1 font-semibold text-red-700">Perlu pemeriksaan Admin</p>@endif
                                 </td>
                                 <td class="px-4 py-3 align-top"><div class="flex flex-nowrap items-center justify-center gap-1.5">
-                                    @if ($remarkCount > 0)<button type="button" @click="openRemarks(@js(route('admin.inspections.remarks', $inspection)))" title="Lihat {{ $remarkCount }} item dengan Remark" aria-label="Lihat {{ $remarkCount }} item dengan Remark" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700 transition hover:bg-amber-100"><i data-lucide="message-square-text" class="h-3 w-3" aria-hidden="true"></i></button>@endif
+                                    @if ($remarkCount > 0)
+                                        <button type="button" @click="openRemarks(@js(route('admin.inspections.remarks', $inspection)))" title="Lihat {{ $remarkCount }} item dengan Remark" aria-label="Lihat {{ $remarkCount }} item dengan Remark" class="relative inline-flex h-7 w-7 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700 transition hover:bg-amber-100">
+                                            <i data-lucide="message-square-text" class="h-3 w-3" aria-hidden="true"></i>
+                                            <span data-remark-count="{{ $remarkCount }}" class="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold leading-none text-white ring-2 ring-white" aria-hidden="true">{{ $remarkCount > 99 ? '99+' : $remarkCount }}</span>
+                                        </button>
+                                    @endif
                                     <a href="{{ route('admin.inspections.pdf', $inspection) }}" target="_blank" rel="noopener" title="Lihat PDF inspeksi" aria-label="Lihat PDF {{ $inspection->form_name }}" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50"><i data-lucide="file-text" class="h-3 w-3" aria-hidden="true"></i></a>
-                                    <a href="{{ route('admin.inspections.show', $inspection) }}" title="Lihat inspeksi" aria-label="Lihat inspeksi {{ $inspection->form_name }}" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100"><i data-lucide="eye" class="h-3 w-3" aria-hidden="true"></i></a>
                                     <x-inspections.delete-button :inspection="$inspection" route-name="admin.inspections.destroy" />
                                 </div></td>
                             </tr>

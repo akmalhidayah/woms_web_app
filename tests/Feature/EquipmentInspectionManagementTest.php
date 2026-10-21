@@ -43,6 +43,20 @@ class EquipmentInspectionManagementTest extends TestCase
             ->assertSee('data-swal-title="Hapus laporan inspeksi?"', false);
     }
 
+    public function test_admin_index_shows_remark_count_badge_without_view_action(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN]);
+        $owner = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
+        $inspection = $this->inspection($owner);
+        $inspection->answers()->get()->take(2)->each->update(['remark' => 'Perlu tindak lanjut']);
+
+        $this->actingAs($admin)->get(route('admin.inspections.index'))
+            ->assertOk()
+            ->assertSee('data-remark-count="2"', false)
+            ->assertSee('Lihat 2 item dengan Remark')
+            ->assertDontSee('aria-label="Lihat inspeksi ', false);
+    }
+
     public function test_admin_deletion_cancels_approval_but_preserves_signed_audit_and_media(): void
     {
         Storage::fake('local');

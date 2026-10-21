@@ -12,7 +12,17 @@
         @fluxAppearance
         @livewireStyles
         <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-        <style>[x-cloak]{ display:none !important; }</style>
+        <style>
+            [x-cloak] { display: none !important; }
+
+            @media (max-width: 768px) {
+                body input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]):not([type="hidden"]):not([type="button"]):not([type="submit"]),
+                body select,
+                body textarea {
+                    font-size: 16px !important;
+                }
+            }
+        </style>
     </head>
     <body class="min-h-screen bg-slate-50 font-sans text-slate-800 antialiased">
         @php($user = auth()->user())

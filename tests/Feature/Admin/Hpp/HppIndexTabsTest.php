@@ -33,7 +33,8 @@ class HppIndexTabsTest extends TestCase
             ->get(route('admin.hpp.index'))
             ->assertOk()
             ->assertDontSee('Semua Status')
-            ->assertDontSee('Resend Semua');
+            ->assertDontSee('Resend Semua')
+            ->assertDontSee('Regenerate Expired');
 
         $this->assertEqualsCanonicalizing(
             [$draft->id, $rejected->id],
@@ -44,10 +45,14 @@ class HppIndexTabsTest extends TestCase
             ->get(route('admin.hpp.index', ['tab' => HppIndexTabs::IN_APPROVAL]))
             ->assertOk()
             ->assertSee('Resend Semua')
+            ->assertSee('Regenerate Expired')
             ->assertSee(route('admin.hpp.approval.resend-all'), false)
+            ->assertSee(route('admin.hpp.approval-token.regenerate-expired-all'), false)
             ->assertSee('js-resend-all-approval-form', false)
+            ->assertSee('js-regenerate-expired-approval-form', false)
             ->assertSee('data-approval-document="HPP"', false)
             ->assertSee('Ya, kirim ulang')
+            ->assertSee('Ya, regenerate')
             ->assertDontSee('onsubmit="return confirm(', false);
 
         $this->assertSame(

@@ -1,10 +1,11 @@
 @once
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('.js-resend-all-approval-form').forEach((form) => {
+            document.querySelectorAll('.js-resend-all-approval-form, .js-regenerate-expired-approval-form').forEach((form) => {
                 const submitButton = form.querySelector('button[type="submit"]');
                 const cooldownLabel = form.querySelector('[data-resend-cooldown-label]');
                 const availableAt = Date.parse(form.dataset.resendAvailableAt || '');
+                const regeneratesExpiredTokens = form.classList.contains('js-regenerate-expired-approval-form');
 
                 if (submitButton && Number.isFinite(availableAt)) {
                     const syncCooldown = () => {
@@ -49,6 +50,13 @@
                     const cooldownText = form.dataset.cooldownHours
                         ? ` Setelah berhasil dikirim, tombol PKM akan dikunci selama ${form.dataset.cooldownHours} jam.`
                         : '';
+                    const title = regeneratesExpiredTokens
+                        ? `Regenerate semua token kedaluwarsa ${documentLabel}?`
+                        : `Resend semua email ${documentLabel}?`;
+                    const confirmationText = regeneratesExpiredTokens
+                        ? `Semua token approval ${documentLabel} yang sudah kedaluwarsa akan diganti dan email approval baru akan dikirim. Token yang masih valid tidak berubah.`
+                        : `Email approval akan dikirim ulang kepada seluruh approver ${documentLabel} yang sedang aktif.${cooldownText}`;
+                    const confirmationButtonText = regeneratesExpiredTokens ? 'Ya, regenerate' : 'Ya, kirim ulang';
 
                     if (!window.Swal) {
                         form.submit();
@@ -57,10 +65,10 @@
 
                     const result = await window.Swal.fire({
                         icon: 'question',
-                        title: `Resend semua email ${documentLabel}?`,
-                        text: `Email approval akan dikirim ulang kepada seluruh approver ${documentLabel} yang sedang aktif.${cooldownText}`,
+                        title,
+                        text: confirmationText,
                         showCancelButton: true,
-                        confirmButtonText: 'Ya, kirim ulang',
+                        confirmButtonText: confirmationButtonText,
                         cancelButtonText: 'Batal',
                         confirmButtonColor: '#2563eb',
                         cancelButtonColor: '#64748b',
@@ -77,7 +85,7 @@
                     if (submitButton) {
                         submitButton.disabled = true;
                         submitButton.classList.add('cursor-not-allowed', 'opacity-60');
-                        submitButton.textContent = 'Mengirim...';
+                        submitButton.textContent = regeneratesExpiredTokens ? 'Memproses...' : 'Mengirim...';
                     }
 
                     form.submit();

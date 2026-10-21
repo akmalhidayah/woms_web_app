@@ -60,13 +60,22 @@
                                 <div class="flex items-center justify-between gap-2">
                                     <span>Quality Control / Approval</span>
                                     @if ($activeTab === \App\Support\BastIndexTabs::TAB_IN_PROGRESS)
-                                        <form method="POST" action="{{ route('admin.lhpp.approval.resend-all') }}" class="js-resend-all-approval-form" data-approval-document="BAST/LHPP">
-                                            @csrf
-                                            <button type="submit" class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-[8px] font-bold normal-case tracking-normal text-white shadow-sm transition hover:bg-blue-700">
-                                                <i data-lucide="send" class="h-2.5 w-2.5"></i>
-                                                Resend Semua
-                                            </button>
-                                        </form>
+                                        <div class="flex flex-wrap justify-end gap-1">
+                                            <form method="POST" action="{{ route('admin.lhpp.approval-token.regenerate-expired-all') }}" class="js-regenerate-expired-approval-form" data-approval-document="BAST/LHPP">
+                                                @csrf
+                                                <button type="submit" class="inline-flex items-center gap-1 rounded-md bg-amber-500 px-2 py-1 text-[8px] font-bold normal-case tracking-normal text-white shadow-sm transition hover:bg-amber-600">
+                                                    <i data-lucide="refresh-cw" class="h-2.5 w-2.5"></i>
+                                                    Regenerate Expired
+                                                </button>
+                                            </form>
+                                            <form method="POST" action="{{ route('admin.lhpp.approval.resend-all') }}" class="js-resend-all-approval-form" data-approval-document="BAST/LHPP">
+                                                @csrf
+                                                <button type="submit" class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-[8px] font-bold normal-case tracking-normal text-white shadow-sm transition hover:bg-blue-700">
+                                                    <i data-lucide="send" class="h-2.5 w-2.5"></i>
+                                                    Resend Semua
+                                                </button>
+                                            </form>
+                                        </div>
                                     @endif
                                 </div>
                             </th>

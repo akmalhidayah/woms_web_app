@@ -307,6 +307,13 @@ class LhppController extends Controller
         return back()->with('status', $this->bulkNotificationService->resultMessage('BAST/LHPP', $result));
     }
 
+    public function regenerateAllExpiredApprovalTokens(): RedirectResponse
+    {
+        $result = $this->bulkNotificationService->regenerateExpiredBastApprovals();
+
+        return back()->with('status', $this->bulkNotificationService->regenerationResultMessage('BAST/LHPP', $result));
+    }
+
     public function rollbackSignature(Request $request, LhppBast $lhppBast, LhppBastSignature $signature): RedirectResponse
     {
         $validated = $request->validate([

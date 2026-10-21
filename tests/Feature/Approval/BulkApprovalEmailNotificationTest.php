@@ -67,6 +67,93 @@ class BulkApprovalEmailNotificationTest extends TestCase
         Notification::assertSentTo($terminTwoApprover, ApprovalRequestedNotification::class);
     }
 
+    public function test_admin_can_regenerate_all_expired_hpp_tokens_without_changing_valid_tokens(): void
+    {
+        Carbon::setTestNow('2026-10-21 15:30:00');
+        Notification::fake();
+
+        try {
+            $admin = $this->admin();
+            $expiredApprover = User::factory()->create(['role' => User::ROLE_APPROVER]);
+            $validApprover = User::factory()->create(['role' => User::ROLE_APPROVER]);
+            $diropsApprover = User::factory()->create(['role' => User::ROLE_APPROVER]);
+            $draftApprover = User::factory()->create(['role' => User::ROLE_APPROVER]);
+
+            $expired = $this->hppSignature(
+                $this->hpp($admin, 'REGENERATE-EXPIRED-HPP', Hpp::STATUS_IN_REVIEW),
+                $expiredApprover,
+                'expired-hpp-token',
+                expiresAt: now()->subMinute(),
+            );
+            $valid = $this->hppSignature(
+                $this->hpp($admin, 'REGENERATE-VALID-HPP', Hpp::STATUS_IN_REVIEW),
+                $validApprover,
+                'valid-hpp-token',
+                expiresAt: now()->addDay(),
+            );
+            $dirops = $this->hppSignature(
+                $this->hpp($admin, 'REGENERATE-DIROPS-HPP', Hpp::STATUS_IN_REVIEW),
+                $diropsApprover,
+                'expired-dirops-token',
+                expiresAt: now()->subMinute(),
+                roleKey: 'dirops',
+            );
+            $draft = $this->hppSignature(
+                $this->hpp($admin, 'REGENERATE-DRAFT-HPP', Hpp::STATUS_DRAFT),
+                $draftApprover,
+                'expired-draft-token',
+                expiresAt: now()->subMinute(),
+            );
+
+            $this->actingAs($admin)
+                ->post(route('admin.hpp.approval-token.regenerate-expired-all'))
+                ->assertRedirect()
+                ->assertSessionHas('status', fn (string $message): bool => str_contains($message, '1 token berhasil diperbarui'));
+
+            $this->assertNotSame('expired-hpp-token', $expired->fresh()->token);
+            $this->assertTrue($expired->fresh()->token_expires_at->equalTo(now()->addDays(14)));
+            $this->assertSame('valid-hpp-token', $valid->fresh()->token);
+            $this->assertSame('expired-dirops-token', $dirops->fresh()->token);
+            $this->assertSame('expired-draft-token', $draft->fresh()->token);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_admin_can_regenerate_all_expired_bast_tokens_for_both_termins(): void
+    {
+        Carbon::setTestNow('2026-10-21 15:30:00');
+        Notification::fake();
+
+        try {
+            $admin = $this->admin();
+            $terminOneApprover = User::factory()->create(['role' => User::ROLE_APPROVER]);
+            $terminTwoApprover = User::factory()->create(['role' => User::ROLE_APPROVER]);
+            $validApprover = User::factory()->create(['role' => User::ROLE_APPROVER]);
+            $order = $this->order($admin, 'REGENERATE-EXPIRED-BAST');
+            $terminOne = $this->bast($admin, $order, 'termin_1');
+            $terminTwo = $this->bast($admin, $order, 'termin_2', $terminOne);
+            $validBast = $this->bast($admin, $this->order($admin, 'REGENERATE-VALID-BAST'), 'termin_1');
+
+            $expiredTerminOne = $this->bastSignature($terminOne, $terminOneApprover, 'expired-bast-t1', now()->subMinute());
+            $expiredTerminTwo = $this->bastSignature($terminTwo, $terminTwoApprover, 'expired-bast-t2', now()->subMinute());
+            $valid = $this->bastSignature($validBast, $validApprover, 'valid-bast-token', now()->addDay());
+
+            $this->actingAs($admin)
+                ->post(route('admin.lhpp.approval-token.regenerate-expired-all'))
+                ->assertRedirect()
+                ->assertSessionHas('status', fn (string $message): bool => str_contains($message, '2 token berhasil diperbarui'));
+
+            $this->assertNotSame('expired-bast-t1', $expiredTerminOne->fresh()->token);
+            $this->assertNotSame('expired-bast-t2', $expiredTerminTwo->fresh()->token);
+            $this->assertTrue($expiredTerminOne->fresh()->token_expires_at->equalTo(now()->addDays(14)));
+            $this->assertTrue($expiredTerminTwo->fresh()->token_expires_at->equalTo(now()->addDays(14)));
+            $this->assertSame('valid-bast-token', $valid->fresh()->token);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
     public function test_pkm_can_resend_all_valid_active_bast_approvals(): void
     {
         Notification::fake();
@@ -221,6 +308,14 @@ class BulkApprovalEmailNotificationTest extends TestCase
 
         $this->actingAs($pkm)
             ->post(route('admin.lhpp.approval.resend-all'))
+            ->assertForbidden();
+
+        $this->actingAs($pkm)
+            ->post(route('admin.hpp.approval-token.regenerate-expired-all'))
+            ->assertForbidden();
+
+        $this->actingAs($pkm)
+            ->post(route('admin.lhpp.approval-token.regenerate-expired-all'))
             ->assertForbidden();
     }
 

@@ -433,6 +433,13 @@ class HppController extends Controller
         return back()->with('status', $this->bulkNotificationService->resultMessage('HPP', $result));
     }
 
+    public function regenerateAllExpiredApprovalTokens(): RedirectResponse
+    {
+        $result = $this->bulkNotificationService->regenerateExpiredHppApprovals();
+
+        return back()->with('status', $this->bulkNotificationService->regenerationResultMessage('HPP', $result));
+    }
+
     public function rollbackSignature(Request $request, Hpp $hpp, HppSignature $signature): RedirectResponse
     {
         $validated = $request->validate([

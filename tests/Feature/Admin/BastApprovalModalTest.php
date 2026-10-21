@@ -27,10 +27,14 @@ class BastApprovalModalTest extends TestCase
             ->assertOk()
             ->assertSee('Quality Control / Approval')
             ->assertSee('Resend Semua')
+            ->assertSee('Regenerate Expired')
             ->assertSee(route('admin.lhpp.approval.resend-all'), false)
+            ->assertSee(route('admin.lhpp.approval-token.regenerate-expired-all'), false)
             ->assertSee('js-resend-all-approval-form', false)
+            ->assertSee('js-regenerate-expired-approval-form', false)
             ->assertSee('data-approval-document="BAST/LHPP"', false)
             ->assertSee('Ya, kirim ulang')
+            ->assertSee('Ya, regenerate')
             ->assertDontSee('onsubmit="return confirm(', false);
     }
 

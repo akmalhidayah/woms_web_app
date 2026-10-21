@@ -58,6 +58,20 @@ class EquipmentInspectionManagementTest extends TestCase
             ->assertDontSee('aria-label="Lihat inspeksi ', false);
     }
 
+    public function test_inspector_index_uses_floating_filter_and_clickable_cards_without_view_icon(): void
+    {
+        $owner = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
+        $inspection = $this->inspection($owner);
+
+        $this->actingAs($owner)->get(route('inspector.inspections.index'))
+            ->assertOk()
+            ->assertSee('title="Buka filter inspeksi"', false)
+            ->assertSee('id="inspection-filter-dialog"', false)
+            ->assertSee('data-href="'.route('inspector.inspections.show', $inspection).'"', false)
+            ->assertSee('aria-label="Buka PDF '.$inspection->form_name.'"', false)
+            ->assertDontSee('data-lucide="eye"', false);
+    }
+
     public function test_admin_deletion_cancels_approval_but_preserves_signed_audit_and_media(): void
     {
         Storage::fake('local');

@@ -91,7 +91,11 @@ class EquipmentInspectionFormManagementTest extends TestCase
         $this->get(route('admin.inspection-forms.preview', $form))->assertOk()->assertSee('Check Bearing');
         $this->get(route('admin.inspection-forms.image', $form))->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
         $this->actingAs($inspector)->get(route('inspector.equipment-forms.index'))
-            ->assertOk()->assertSee('Mesin Uji Baru')->assertSee(route('inspector.equipment-forms.image', $form->slug), false);
+            ->assertOk()
+            ->assertSee('Mesin Uji Baru')
+            ->assertSee(route('inspector.equipment-forms.image', $form->slug), false)
+            ->assertSee('class="flex cursor-pointer flex-col', false)
+            ->assertSee('aria-label="Pilih Form Mesin Uji Baru"', false);
         $this->get(route('inspector.equipment-forms.image', $form->slug))->assertOk()->assertHeader('Cache-Control', 'private, no-store');
 
         $firstKey = $form->items->first()->item_key;

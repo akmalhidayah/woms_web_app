@@ -165,8 +165,11 @@ class EquipmentInspectionUnitQrTest extends TestCase
         ]);
         $this->get(route('inspector.inspections.show', $inspection))
             ->assertOk()
-            ->assertSee('MB-001')
-            ->assertSee('Terhubung otomatis ke QR peralatan.');
+            ->assertSee('name="equipment_inspection_unit_id" value="'.$unit->id.'"', false)
+            ->assertDontSee('Unit Peralatan')
+            ->assertDontSee('Terhubung otomatis ke QR peralatan.')
+            ->assertDontSee('Ringkasan pemeriksaan')
+            ->assertDontSee('Belum diperiksa');
         $this->post(route('inspector.inspections.store', 'mesin-lipat'), [
             'inspection_date' => now()->toDateString(),
             'equipment_inspection_unit_id' => $other->id,

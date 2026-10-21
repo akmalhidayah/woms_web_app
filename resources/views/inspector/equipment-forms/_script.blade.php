@@ -13,12 +13,6 @@ window.equipmentInspectionPage = function (config) {
                 || this.inspectionDate !== this.savedDate || this.unitId !== this.savedUnitId || this.deleteAttachments.length > 0
                 || Object.values(this.filesSelected).some(count => count > 0) || this.hasInk;
         },
-        get summary() {
-            const values = Object.values(this.answers).map(answer => answer.rating);
-            return { total: values.length, filled: values.filter(Boolean).length,
-                A: values.filter(value => value === 'A').length, B: values.filter(value => value === 'B').length,
-                C: values.filter(value => value === 'C').length, empty: values.filter(value => !value).length };
-        },
         get complete() {
             return Object.values(this.answers).every(answer => ['A', 'B', 'C'].includes(answer.rating)
                 && (answer.rating === 'A' || answer.remark.trim().length > 0));

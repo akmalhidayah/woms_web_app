@@ -63,6 +63,9 @@
                 @method('PUT')
                 <input type="hidden" name="lock_version" value="{{ old('lock_version', $inspection->lock_version) }}">
             @endif
+            @if ($selectedUnitId)
+                <input type="hidden" name="equipment_inspection_unit_id" value="{{ $selectedUnitId }}">
+            @endif
             <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" aria-labelledby="inspection-title">
                 <div class="flex items-start gap-3 border-b border-slate-200 p-5 sm:px-6">
                     <span class="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-700 ring-1 ring-red-100"><i data-lucide="{{ $form['icon'] }}" class="h-6 w-6" aria-hidden="true"></i></span>
@@ -76,28 +79,6 @@
                     <div><p class="text-xs font-semibold uppercase text-slate-500">Process</p><p class="mt-1 text-sm font-semibold">Inspection &amp; List</p></div>
                     <div><p class="text-xs font-semibold uppercase text-slate-500">Seksi / Unit</p><p class="mt-1 text-sm font-semibold">Bengkel Mesin / Bengkel</p></div>
                     <div><p class="text-xs font-semibold uppercase text-slate-500">Nama Pelaksana</p><p class="mt-1 break-words text-sm font-semibold">{{ $inspection?->inspector_name ?? auth()->user()->name }}</p></div>
-                    <div class="sm:col-span-2 lg:col-span-1">
-                        <p class="text-xs font-semibold uppercase text-slate-500">Unit Peralatan{{ $unitRequired ? ' *' : ' (opsional selama rollout)' }}</p>
-                        @if ($selectedUnitSnapshot)
-                            <input type="hidden" name="equipment_inspection_unit_id" value="{{ $selectedUnitId }}">
-                            <p class="mt-1 break-words text-sm font-bold text-slate-900">{{ $selectedUnitSnapshot['asset_code'] }} — {{ $selectedUnitSnapshot['name'] }}</p>
-                            @if ($unitLocked)
-                                <p class="mt-1 text-xs text-amber-700">Identitas unit terkunci karena dokumen pernah ditandatangani.</p>
-                            @else
-                                <p class="mt-1 text-xs text-emerald-700">Terhubung otomatis ke QR peralatan.</p>
-                            @endif
-                        @elseif ($readOnly)
-                            <p class="mt-1 text-sm font-semibold text-slate-500">Belum terhubung ke unit fisik.</p>
-                        @elseif ($automaticUnit)
-                            <input type="hidden" name="equipment_inspection_unit_id" value="{{ $automaticUnit->id }}">
-                            <p class="mt-1 break-words text-sm font-bold text-slate-900">{{ $automaticUnit->asset_code }} — {{ $form['name'] }}</p>
-                            <p class="mt-1 text-xs text-emerald-700">Terhubung otomatis ke QR peralatan.</p>
-                        @elseif ($unitConflict)
-                            <p class="mt-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">Terdapat lebih dari satu unit aktif. Inspeksi baru tidak dapat memilih unit secara aman. Hubungi Admin untuk menyelesaikan konflik.</p>
-                        @else
-                            <p class="mt-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">Kode alat dan QR belum diatur. Hubungi Admin untuk mengatur QR pada Master Peralatan ini.</p>
-                        @endif
-                    </div>
                     <div>
                         <label for="inspection-date" class="block text-xs font-semibold uppercase text-slate-500">Tanggal Pemeriksaan</label>
                         <input id="inspection-date" name="inspection_date" type="date" x-model="inspectionDate" max="{{ $today }}" required @disabled($readOnly) class="mt-1 w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base disabled:bg-slate-50 sm:text-sm">
@@ -107,14 +88,6 @@
                         <div><p class="text-xs font-semibold uppercase text-slate-500">Draft dibuat / Versi dokumen</p><p class="mt-1 text-sm">{{ $inspection->created_at->format('d/m/Y H:i') }} / {{ $inspection->document_version }}</p></div>
                     @endif
                 </div>
-            </section>
-
-            <section aria-label="Ringkasan pemeriksaan" class="flex flex-wrap gap-x-5 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-semibold" aria-live="polite">
-                <span>Total: <span x-text="summary.total"></span></span><span>Terisi: <span x-text="summary.filled"></span></span>
-                <span class="text-emerald-800">A / Normal: <span x-text="summary.A"></span></span>
-                <span class="text-amber-800">B / Kurang Normal: <span x-text="summary.B"></span></span>
-                <span class="text-red-800">C / Rusak: <span x-text="summary.C"></span></span>
-                <span>Belum diperiksa: <span x-text="summary.empty"></span></span>
             </section>
 
             <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" aria-labelledby="checklist-title">

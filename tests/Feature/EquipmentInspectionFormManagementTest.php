@@ -70,12 +70,21 @@ class EquipmentInspectionFormManagementTest extends TestCase
         $payload['image'] = $this->validImage();
         $this->actingAs($admin)->post(route('admin.inspection-forms.store'), $payload)->assertRedirect();
 
+        $this->get(route('admin.inspection-forms.index'))
+            ->assertOk()
+            ->assertDontSee('Form awal')
+            ->assertDontSee('>Versi<', false);
+
         $form = EquipmentInspectionForm::query()->where('slug', 'mesin-uji-baru')->with('items')->firstOrFail();
         $this->assertSame(EquipmentInspectionForm::STATUS_ACTIVE, $form->status);
         $this->assertCount(2, $form->items);
         $this->assertNotNull($form->image_path);
         Storage::disk('local')->assertExists($form->image_path);
         $this->assertArrayNotHasKey('image_path', EquipmentFormCatalog::find($form->slug));
+        $this->get(route('admin.inspection-forms.edit', $form))
+            ->assertOk()
+            ->assertDontSee('Grup (opsional)')
+            ->assertDontSee('Nama grup opsional');
         $this->get(route('admin.inspection-forms.preview', $form))->assertOk()->assertSee('Check Bearing');
         $this->get(route('admin.inspection-forms.image', $form))->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
         $this->actingAs($inspector)->get(route('inspector.equipment-forms.index'))

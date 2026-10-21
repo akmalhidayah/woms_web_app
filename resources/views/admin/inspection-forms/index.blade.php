@@ -19,7 +19,7 @@
             </form>
             <div class="overflow-x-auto">
                 <table class="w-full min-w-[820px] text-left text-sm">
-                    <thead class="bg-slate-100 text-xs uppercase tracking-wide text-slate-600"><tr><th class="px-4 py-3">Urutan</th><th class="px-4 py-3">Form / Peralatan</th><th class="px-4 py-3">Item</th><th class="px-4 py-3">Versi</th><th class="px-4 py-3">Status</th><th class="px-4 py-3 text-center">Aksi</th></tr></thead>
+                    <thead class="bg-slate-100 text-xs uppercase tracking-wide text-slate-600"><tr><th class="px-4 py-3">Urutan</th><th class="px-4 py-3">Form / Peralatan</th><th class="px-4 py-3">Item</th><th class="px-4 py-3">Status</th><th class="px-4 py-3 text-center">Aksi</th></tr></thead>
                     <tbody class="divide-y divide-slate-200">
                         @forelse ($forms as $form)
                             @php
@@ -30,10 +30,9 @@
                                 <td class="px-4 py-3 font-semibold">{{ $form->sort_order }}</td>
                                 <td class="px-4 py-3"><div class="flex items-center gap-3">
                                     @if ($form->image_path)<img src="{{ route('admin.inspection-forms.image', $form) }}" alt="Foto {{ $form->name }}" loading="lazy" class="h-12 w-16 rounded-lg object-cover ring-1 ring-slate-200">@else<div class="flex h-12 w-16 items-center justify-center rounded-lg bg-slate-100 px-1 text-center text-[10px] text-slate-500 ring-1 ring-slate-200">Foto belum tersedia</div>@endif
-                                    <div><p class="font-bold text-slate-900">{{ $form->name }}</p><p class="mt-1 text-xs text-slate-500">{{ $form->slug }}{{ $form->is_legacy ? ' · Form awal' : '' }}</p></div>
+                                    <div><p class="font-bold text-slate-900">{{ $form->name }}</p><p class="mt-1 text-xs text-slate-500">{{ $form->slug }}</p></div>
                                 </div></td>
                                 <td class="px-4 py-3">{{ $form->items_count }}</td>
-                                <td class="px-4 py-3">{{ $form->version }}</td>
                                 <td class="px-4 py-3"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $statusClasses }}">{{ $statusLabel }}</span></td>
                                 <td class="px-4 py-3"><div class="flex justify-center gap-1.5">
                                     <a href="{{ route('admin.inspection-forms.preview', $form) }}" title="Preview form" aria-label="Preview {{ $form->name }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700"><i data-lucide="eye" class="h-4 w-4"></i></a>
@@ -46,7 +45,7 @@
                                 </div></td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="px-6 py-12 text-center text-slate-500">Belum ada master form inspeksi.</td></tr>
+                            <tr><td colspan="5" class="px-6 py-12 text-center text-slate-500">Belum ada master form inspeksi.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

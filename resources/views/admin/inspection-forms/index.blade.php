@@ -7,7 +7,7 @@
         <section class="flex flex-col gap-4 rounded-2xl border border-blue-100 bg-blue-50 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <div class="flex items-center gap-3">
                 <span class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white text-blue-700 ring-1 ring-blue-200"><i data-lucide="list-checks" class="h-5 w-5"></i></span>
-                <div><h1 class="text-lg font-bold text-slate-900">Master Peralatan</h1><p class="mt-1 text-sm text-slate-600">Kelola peralatan dan item checklist untuk inspeksi baru.</p></div>
+                <h1 class="text-lg font-bold text-slate-900">Master Peralatan</h1>
             </div>
             <a href="{{ route('admin.inspection-forms.create') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white"><i data-lucide="plus" class="h-4 w-4"></i> Tambah Peralatan</a>
         </section>

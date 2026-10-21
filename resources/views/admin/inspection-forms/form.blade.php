@@ -13,8 +13,8 @@
         move(index, direction) { const target = index + direction; if (target < 0 || target >= this.items.length) return; [this.items[index], this.items[target]] = [this.items[target], this.items[index]]; }
     }">
         <section class="flex flex-col gap-4 rounded-2xl border border-blue-100 bg-blue-50 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-            <div><a href="{{ route('admin.inspection-forms.index') }}" class="text-sm font-semibold text-blue-700">← Master Peralatan</a><h1 class="mt-2 text-lg font-bold text-slate-900">{{ $editing ? 'Edit '.$form->name : 'Tambah Peralatan' }}</h1><p class="mt-1 text-sm text-slate-600">Item key dokumen lama tidak berubah ketika label atau urutan diperbarui.</p></div>
-            @if ($editing)<div class="flex items-center gap-2"><a href="{{ route('admin.inspection-forms.preview', $form) }}" class="rounded-xl border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-700">Preview</a><span class="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">Versi {{ $form->version }} · {{ ucfirst($form->status) }}</span></div>@endif
+            <div><a href="{{ route('admin.inspection-forms.index') }}" class="text-sm font-semibold text-blue-700">← Master Peralatan</a><h1 class="mt-2 text-lg font-bold text-slate-900">{{ $editing ? 'Edit '.$form->name : 'Tambah Peralatan' }}</h1></div>
+            @if ($editing)<a href="{{ route('admin.inspection-forms.preview', $form) }}" class="rounded-xl border border-blue-200 bg-white px-3 py-2 text-center text-xs font-semibold text-blue-700">Preview</a>@endif
         </section>
 
         <x-inspections.sweet-alerts :success="session('success')" :error-messages="$errors->all()" />

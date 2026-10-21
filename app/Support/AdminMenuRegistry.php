@@ -248,10 +248,6 @@ class AdminMenuRegistry
                         'key' => 'inspeksi_master_form', 'permission_key' => self::MENU_INSPEKSI, 'label' => 'Master Form Inspeksi',
                         'route_name' => 'admin.inspection-forms.index', 'active_patterns' => ['admin.inspection-forms.*'],
                     ],
-                    [
-                        'key' => 'inspeksi_master_unit', 'permission_key' => self::MENU_INSPEKSI, 'label' => 'Master Unit Peralatan',
-                        'route_name' => 'admin.inspection-units.index', 'active_patterns' => ['admin.inspection-units.*'],
-                    ],
                 ],
             ],
             self::MENU_ACCESS_CONTROL => [

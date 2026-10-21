@@ -85,16 +85,14 @@
                             <p class="mt-1 text-xs text-amber-700">Identitas unit terkunci karena dokumen pernah ditandatangani.</p>
                         @elseif ($readOnly)
                             <p class="mt-1 text-sm font-semibold text-slate-500">Belum terhubung ke unit fisik.</p>
+                        @elseif ($automaticUnit)
+                            <input type="hidden" name="equipment_inspection_unit_id" value="{{ $automaticUnit->id }}">
+                            <p class="mt-1 break-words text-sm font-bold text-slate-900">{{ $automaticUnit->asset_code }} — {{ $form['name'] }}</p>
+                            <p class="mt-1 text-xs text-emerald-700">Terhubung otomatis ke QR peralatan.</p>
+                        @elseif ($unitConflict)
+                            <p class="mt-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">Terdapat lebih dari satu unit aktif. Inspeksi baru tidak dapat memilih unit secara aman. Hubungi Admin untuk menyelesaikan konflik.</p>
                         @else
-                            <select name="equipment_inspection_unit_id" x-model="unitId" @required($unitRequired) class="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
-                                <option value="">{{ $unitRequired ? 'Pilih unit peralatan' : 'Belum dipilih' }}</option>
-                                @foreach ($units as $unit)
-                                    <option value="{{ $unit->id }}">{{ $unit->asset_code }} — {{ $unit->name }}{{ $unit->location ? ' · '.$unit->location : '' }}{{ $unit->lifecycle_status !== 'active' ? ' ('.ucfirst($unit->lifecycle_status).')' : '' }}</option>
-                                @endforeach
-                            </select>
-                            @if ($units->isEmpty())
-                                <p class="mt-1 text-xs text-amber-700">Belum ada Master Unit aktif untuk form ini. Hubungi Admin.</p>
-                            @endif
+                            <p class="mt-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">Kode alat dan QR belum diatur. Hubungi Admin untuk mengatur QR pada Master Form ini.</p>
                         @endif
                     </div>
                     <div>

@@ -21,7 +21,7 @@
                     <tbody class="divide-y divide-slate-200">
                         @forelse ($units as $unit)
                             <tr class="align-top">
-                                <td class="px-4 py-3"><p class="font-bold text-slate-900">{{ $unit->asset_code }}</p><p class="mt-1 text-slate-600">{{ $unit->name }}</p></td>
+                                <td class="px-4 py-3"><p class="font-bold text-slate-900">{{ $unit->asset_code }}</p><p class="mt-1 text-slate-600">{{ $unit->form?->name ?: $unit->name }}</p></td>
                                 <td class="px-4 py-3">{{ $unit->form->name }}</td>
                                 <td class="px-4 py-3">{{ $unit->location ?: '—' }}</td>
                                 <td class="px-4 py-3"><span class="rounded-full px-2 py-1 font-semibold {{ $unit->lifecycle_status === 'active' ? 'bg-emerald-100 text-emerald-800' : ($unit->lifecycle_status === 'retired' ? 'bg-slate-200 text-slate-700' : 'bg-amber-100 text-amber-800') }}">{{ ucfirst($unit->lifecycle_status) }}</span></td>

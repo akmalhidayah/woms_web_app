@@ -33,6 +33,9 @@ final class EquipmentInspectionViewData
         $units = $formId > 0
             ? app(EquipmentInspectionUnitRepository::class)->eligibleForForm($formId, $currentLink?->equipment_inspection_unit_id)
             : collect();
+        $automaticUnit = ! $readOnly && ! $currentLink && $units->count() === 1
+            ? $units->first()
+            : null;
         $unitRequired = $currentLink !== null
             || (! $inspection && (bool) config('equipment-inspection.require_unit_for_new_inspections'));
 
@@ -50,12 +53,14 @@ final class EquipmentInspectionViewData
             'inspectorSignature' => $inspection?->signatures->first(fn ($signature): bool => $signature->role_key === EquipmentInspectionSignature::ROLE_INSPECTOR
                 && $signature->document_version === $inspection->document_version),
             'units' => $units,
-            'selectedUnitId' => $currentLink?->equipment_inspection_unit_id,
+            'selectedUnitId' => $currentLink?->equipment_inspection_unit_id ?? $automaticUnit?->id,
             'selectedUnitSnapshot' => $currentLink ? [
                 'asset_code' => $currentLink->unit_code_snapshot,
                 'name' => $currentLink->unit_name_snapshot,
                 'location' => $currentLink->unit?->location,
             ] : null,
+            'automaticUnit' => $automaticUnit,
+            'unitConflict' => ! $currentLink && $units->count() > 1,
             'unitRequired' => $unitRequired,
             'unitLocked' => (bool) ($inspection?->signed_at || $inspection?->document_no || $readOnly),
         ];

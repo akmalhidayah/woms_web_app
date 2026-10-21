@@ -3,10 +3,14 @@
 namespace App\Services\Inspector;
 
 use App\Models\EquipmentInspection;
+use App\Models\EquipmentInspectionForm;
+use App\Models\EquipmentInspectionSignature;
 use App\Models\EquipmentInspectionUnit;
 use App\Models\EquipmentInspectionUnitLink;
 use App\Models\User;
+use App\Support\Inspector\EquipmentInspectionSnapshot;
 use App\Support\Inspector\EquipmentInspectionUnitImageStorage;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -16,6 +20,83 @@ use Throwable;
 final class EquipmentInspectionUnitService
 {
     public function __construct(private readonly EquipmentInspectionUnitImageStorage $images) {}
+
+    public function savePrimaryForForm(User $actor, EquipmentInspectionForm $existingForm, string $assetCode): EquipmentInspectionUnit
+    {
+        try {
+            return DB::transaction(function () use ($actor, $existingForm, $assetCode): EquipmentInspectionUnit {
+                $form = EquipmentInspectionForm::query()->whereKey($existingForm->id)->lockForUpdate()->firstOrFail();
+                $units = EquipmentInspectionUnit::query()
+                    ->where('equipment_inspection_form_id', $form->id)
+                    ->lockForUpdate()
+                    ->orderBy('id')
+                    ->get();
+
+                if ($units->count() > 1) {
+                    throw ValidationException::withMessages([
+                        'asset_code' => 'Master Form memiliki lebih dari satu unit. Selesaikan konflik unit lama sebelum menggunakan pengelolaan QR sederhana.',
+                    ]);
+                }
+
+                $code = trim($assetCode);
+                $unit = $units->first();
+                $codeOwner = EquipmentInspectionUnit::query()
+                    ->where('asset_code', $code)
+                    ->when($unit !== null, fn ($query) => $query->where('id', '!=', $unit->id))
+                    ->first();
+                if ($codeOwner) {
+                    throw ValidationException::withMessages(['asset_code' => 'Kode alat sudah digunakan oleh peralatan lain.']);
+                }
+                if (! $unit) {
+                    $unit = EquipmentInspectionUnit::query()->create([
+                        'equipment_inspection_form_id' => $form->id,
+                        'asset_code' => $code,
+                        'name' => $form->name,
+                        'location' => null,
+                        'description' => $form->description,
+                        'image_path' => null,
+                        'image_mime_type' => null,
+                        'image_size' => null,
+                        'image_sha256' => null,
+                        'public_code' => $this->uniquePublicCode(),
+                        'lifecycle_status' => EquipmentInspectionUnit::STATUS_ACTIVE,
+                        'public_enabled' => false,
+                        'sort_order' => $form->sort_order,
+                        'created_by' => $actor->id,
+                        'updated_by' => $actor->id,
+                    ]);
+                    $this->audit($unit, $actor, 'created_from_master_form', ['state' => $this->auditSnapshot($unit)]);
+
+                    return $unit;
+                }
+
+                $before = $this->auditSnapshot($unit);
+                if ($unit->asset_code !== $code || $unit->name !== $form->name) {
+                    $unit->forceFill([
+                        'asset_code' => $code,
+                        'name' => $form->name,
+                        'updated_by' => $actor->id,
+                    ])->save();
+                    $this->audit($unit, $actor, 'updated_from_master_form', [
+                        'before' => $before,
+                        'after' => $this->auditSnapshot($unit),
+                    ]);
+                }
+
+                return $unit;
+            });
+        } catch (QueryException $exception) {
+            $driverCode = (string) ($exception->errorInfo[0] ?? $exception->getCode());
+            $vendorCode = (int) ($exception->errorInfo[1] ?? 0);
+            if (in_array($driverCode, ['23000', '23505'], true) || $vendorCode === 1062) {
+                throw ValidationException::withMessages([
+                    'asset_code' => 'Kode alat sudah digunakan atau penyimpanan bersamaan terdeteksi. Muat ulang lalu coba lagi.',
+                ]);
+            }
+
+            throw $exception;
+        }
+    }
 
     public function create(User $actor, array $data, ?UploadedFile $image): EquipmentInspectionUnit
     {
@@ -136,6 +217,39 @@ final class EquipmentInspectionUnitService
         });
     }
 
+    public function resolveForInspection(int $formId, ?int $requestedUnitId, bool $required, bool $isNew): ?int
+    {
+        $unitIds = EquipmentInspectionUnit::query()
+            ->where('equipment_inspection_form_id', $formId)
+            ->active()
+            ->lockForUpdate()
+            ->orderBy('id')
+            ->limit(2)
+            ->pluck('id');
+
+        if ($unitIds->count() > 1) {
+            if ($isNew || $requestedUnitId !== null || $required) {
+                throw ValidationException::withMessages([
+                    'equipment_inspection_unit_id' => 'Terdapat lebih dari satu unit aktif pada Master Form ini. Hubungi Admin untuk menyelesaikan konflik unit.',
+                ]);
+            }
+
+            return null;
+        }
+        if ($requestedUnitId !== null) {
+            return $requestedUnitId;
+        }
+        if ($unitIds->count() === 1) {
+            return (int) $unitIds->first();
+        }
+        if ($required && $unitIds->isEmpty()) {
+            throw ValidationException::withMessages([
+                'equipment_inspection_unit_id' => 'Kode alat dan QR belum diatur. Hubungi Admin untuk mengatur QR pada Master Form ini.',
+            ]);
+        }
+        return null;
+    }
+
     public function assignDirect(
         User $actor,
         EquipmentInspection $inspection,
@@ -174,11 +288,13 @@ final class EquipmentInspectionUnitService
             'asset_code' => $link->unit_code_snapshot,
             'name' => $link->unit_name_snapshot,
         ] : null;
+        $unit->loadMissing('form');
+        $unitName = $unit->form?->name ?: $unit->name;
         $values = [
             'equipment_inspection_unit_id' => $unit->id,
             'link_source' => EquipmentInspectionUnitLink::SOURCE_DIRECT,
             'unit_code_snapshot' => $unit->asset_code,
-            'unit_name_snapshot' => $unit->name,
+            'unit_name_snapshot' => $unitName,
             'linked_by' => $actor->id,
             'linked_at' => now(),
         ];
@@ -195,7 +311,7 @@ final class EquipmentInspectionUnitService
             'metadata' => [
                 'source' => EquipmentInspectionUnitLink::SOURCE_DIRECT,
                 'before' => $before,
-                'after' => ['unit_id' => (int) $unit->id, 'asset_code' => $unit->asset_code, 'name' => $unit->name],
+                'after' => ['unit_id' => (int) $unit->id, 'asset_code' => $unit->asset_code, 'name' => $unitName],
             ],
             'created_at' => now(),
         ]);
@@ -216,15 +332,17 @@ final class EquipmentInspectionUnitService
                 }
                 throw ValidationException::withMessages(['inspection_id' => 'Dokumen sudah terhubung ke unit lain dan tidak dapat dipindahkan melalui mapping biasa.']);
             }
-            if ($document->form_slug !== $unit->form()->value('slug')) {
-                throw ValidationException::withMessages(['inspection_id' => 'Master Form dokumen tidak sesuai dengan unit tujuan.']);
+            if ($error = $this->legacyLinkValidationError($unit, $document)) {
+                throw ValidationException::withMessages(['inspection_id' => $error]);
             }
 
+            $unit->loadMissing('form');
+            $unitName = $unit->form?->name ?: $unit->name;
             $link = $document->unitLink()->create([
                 'equipment_inspection_unit_id' => $unit->id,
                 'link_source' => EquipmentInspectionUnitLink::SOURCE_ADMIN_LEGACY,
                 'unit_code_snapshot' => $unit->asset_code,
-                'unit_name_snapshot' => $unit->name,
+                'unit_name_snapshot' => $unitName,
                 'linked_by' => $actor->id,
                 'linked_at' => now(),
             ]);
@@ -250,6 +368,46 @@ final class EquipmentInspectionUnitService
 
             return $link;
         });
+    }
+
+    public function legacyLinkValidationError(EquipmentInspectionUnit $unit, EquipmentInspection $document): ?string
+    {
+        if ($document->trashed()) {
+            return 'Dokumen yang sudah dihapus tidak dapat dihubungkan ke QR publik.';
+        }
+        if ($document->status !== EquipmentInspection::STATUS_APPROVED) {
+            return 'Hanya dokumen approved yang dapat dihubungkan sebagai histori QR.';
+        }
+        $unit->loadMissing('form');
+        if ($document->form_slug !== $unit->form?->slug) {
+            return 'Master Form dokumen tidak sesuai dengan unit tujuan.';
+        }
+
+        $signatures = ($document->relationLoaded('signatures')
+            ? $document->signatures
+                ->where('document_version', $document->document_version)
+                ->whereIn('role_key', [EquipmentInspectionSignature::ROLE_INSPECTOR, EquipmentInspectionSignature::ROLE_MANAGER])
+            : $document->signatures()
+                ->where('document_version', $document->document_version)
+                ->whereIn('role_key', [EquipmentInspectionSignature::ROLE_INSPECTOR, EquipmentInspectionSignature::ROLE_MANAGER])
+                ->get())
+            ->keyBy('role_key');
+        $hashes = [];
+        foreach ([EquipmentInspectionSignature::ROLE_INSPECTOR, EquipmentInspectionSignature::ROLE_MANAGER] as $role) {
+            $signature = $signatures->get($role);
+            if (! $signature || ! $signature->signed_at || ! is_string($signature->content_hash)
+                || ! is_array($signature->signed_payload)
+                || (int) ($signature->signed_payload['document_version'] ?? 0) !== (int) $document->document_version
+                || ! hash_equals($signature->content_hash, EquipmentInspectionSnapshot::hash($signature->signed_payload))) {
+                return 'Dokumen belum memiliki signature Inspector dan Manager yang valid untuk versi approved saat ini.';
+            }
+            $hashes[] = $signature->content_hash;
+        }
+        if (! hash_equals($hashes[0], $hashes[1])) {
+            return 'Snapshot signature Inspector dan Manager tidak konsisten.';
+        }
+
+        return null;
     }
 
     private function uniquePublicCode(): string

@@ -3,15 +3,20 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\SaveEquipmentInspectionFormQrRequest;
 use App\Http\Requests\Admin\SaveEquipmentInspectionFormRequest;
+use App\Models\EquipmentInspection;
 use App\Models\EquipmentInspectionForm;
 use App\Policies\EquipmentInspectionPolicy;
 use App\Services\Inspector\EquipmentInspectionFormService;
+use App\Services\Inspector\EquipmentInspectionUnitService;
+use App\Services\Inspector\EquipmentQrCodeService;
 use App\Support\Inspector\EquipmentInspectionFormImageStorage;
 use App\Support\Inspector\EquipmentInspectionFormRepository;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\Response;
 
 class EquipmentInspectionFormController extends Controller
@@ -21,15 +26,90 @@ class EquipmentInspectionFormController extends Controller
         abort_unless((new EquipmentInspectionPolicy)->monitor($request->user()), 403);
     }
 
-    public function index(Request $request): View
+    public function index(
+        Request $request,
+        EquipmentInspectionUnitService $units,
+        EquipmentQrCodeService $qr,
+    ): View
     {
         $this->authorizeAdmin($request);
         $filters = $request->validate(['search' => ['nullable', 'string', 'max:150']]);
-        $forms = EquipmentInspectionForm::query()->withCount('items')
+        $forms = EquipmentInspectionForm::query()
+            ->withCount('items')
+            ->with(['units' => fn ($query) => $query->withCount([
+                'links as approved_history_count' => fn ($links) => $links->whereHas(
+                    'inspection',
+                    fn ($inspections) => $inspections->where('status', EquipmentInspection::STATUS_APPROVED),
+                ),
+            ])])
             ->when($filters['search'] ?? null, fn ($query, $search) => $query->where('name', 'like', '%'.$search.'%'))
             ->orderBy('sort_order')->orderBy('id')->paginate(20)->withQueryString();
 
-        return view('admin.inspection-forms.index', compact('forms', 'filters'));
+        $formSlugs = $forms->getCollection()->pluck('slug');
+        $unlinkedByForm = $formSlugs->isEmpty()
+            ? collect()
+            : EquipmentInspection::query()
+                ->whereIn('form_slug', $formSlugs)
+                ->where('status', EquipmentInspection::STATUS_APPROVED)
+                ->whereDoesntHave('unitLink')
+                ->with('signatures')
+                ->orderByDesc('inspection_date')
+                ->orderByDesc('id')
+                ->get()
+                ->groupBy('form_slug');
+        $qrStates = [];
+        foreach ($forms->getCollection() as $form) {
+            if ($form->units->isEmpty()) {
+                $qrStates[$form->id] = ['status' => 'missing', 'unit' => null];
+
+                continue;
+            }
+            if ($form->units->count() > 1) {
+                $qrStates[$form->id] = ['status' => 'conflict', 'units' => $form->units];
+
+                continue;
+            }
+
+            $unit = $form->units->first();
+            $unit->setRelation('form', $form);
+            try {
+                $publicUrl = $qr->publicUrl($unit);
+                $qrError = null;
+            } catch (InvalidArgumentException) {
+                $publicUrl = null;
+                $qrError = 'URL publik QR belum dapat dibuat. Periksa konfigurasi base URL aplikasi.';
+            }
+            $legacyCandidates = collect($unlinkedByForm->get($form->slug, []))
+                ->filter(fn (EquipmentInspection $inspection): bool => $units->legacyLinkValidationError($unit, $inspection) === null)
+                ->values();
+            $qrStates[$form->id] = [
+                'status' => 'ready',
+                'unit' => $unit,
+                'public_url' => $publicUrl,
+                'qr_error' => $qrError,
+                'legacy_candidates' => $legacyCandidates->take(10),
+                'legacy_candidate_count' => $legacyCandidates->count(),
+            ];
+        }
+
+        return view('admin.inspection-forms.index', compact('forms', 'filters', 'qrStates'));
+    }
+
+    public function saveQr(
+        SaveEquipmentInspectionFormQrRequest $request,
+        EquipmentInspectionForm $equipmentInspectionForm,
+        EquipmentInspectionUnitService $units,
+    ): RedirectResponse
+    {
+        $unit = $units->savePrimaryForForm(
+            $request->user(),
+            $equipmentInspectionForm,
+            $request->validated('asset_code'),
+        );
+
+        return back()->with('success', $unit->wasRecentlyCreated
+            ? 'Kode alat disimpan dan QR permanen berhasil dibuat. Aktifkan akses publik setelah data diverifikasi.'
+            : 'Kode alat berhasil diperbarui tanpa mengubah QR permanen.');
     }
 
     public function create(Request $request): View

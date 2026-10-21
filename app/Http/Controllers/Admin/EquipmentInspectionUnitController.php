@@ -83,6 +83,7 @@ class EquipmentInspectionUnitController extends Controller
         $unitLogs = $equipmentInspectionUnit->logs()->with('actor')->paginate(20, ['*'], 'audit_page')->withQueryString();
         $unlinked = EquipmentInspection::query()
             ->where('form_slug', $equipmentInspectionUnit->form->slug)
+            ->where('status', EquipmentInspection::STATUS_APPROVED)
             ->whereDoesntHave('unitLink')
             ->when($legacyFilters['legacy_search'] ?? null, fn ($query, $search) => $query->where(fn ($nested) => $nested
                 ->where('document_no', 'like', '%'.$search.'%')->orWhere('inspector_name', 'like', '%'.$search.'%')))
@@ -163,12 +164,12 @@ class EquipmentInspectionUnitController extends Controller
     ): Response {
         $this->authorizeAdmin($request);
         $equipmentInspectionUnit->loadMissing('form');
-        if ($equipmentInspectionUnit->image_path && $equipmentInspectionUnit->image_sha256) {
-            $binary = $unitImages->read($equipmentInspectionUnit->image_path, $equipmentInspectionUnit->image_sha256);
-            $mime = $equipmentInspectionUnit->image_mime_type ?: 'image/jpeg';
-        } elseif ($equipmentInspectionUnit->form?->image_path && $equipmentInspectionUnit->form?->image_sha256) {
+        if ($equipmentInspectionUnit->form?->image_path && $equipmentInspectionUnit->form?->image_sha256) {
             $binary = $formImages->read($equipmentInspectionUnit->form->image_path, $equipmentInspectionUnit->form->image_sha256);
             $mime = $equipmentInspectionUnit->form->image_mime_type ?: 'image/jpeg';
+        } elseif ($equipmentInspectionUnit->image_path && $equipmentInspectionUnit->image_sha256) {
+            $binary = $unitImages->read($equipmentInspectionUnit->image_path, $equipmentInspectionUnit->image_sha256);
+            $mime = $equipmentInspectionUnit->image_mime_type ?: 'image/jpeg';
         } else {
             abort(404);
         }
@@ -191,6 +192,7 @@ class EquipmentInspectionUnitController extends Controller
     public function label(Request $request, EquipmentInspectionUnit $equipmentInspectionUnit, EquipmentQrCodeService $qr): View
     {
         $this->authorizeAdmin($request);
+        $equipmentInspectionUnit->loadMissing('form');
 
         return view('admin.inspection-units.label', ['unit' => $equipmentInspectionUnit, 'publicUrl' => $qr->publicUrl($equipmentInspectionUnit)]);
     }

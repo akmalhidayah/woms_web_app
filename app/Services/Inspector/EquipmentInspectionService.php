@@ -71,11 +71,25 @@ final class EquipmentInspectionService
                 if ($formId < 1) {
                     throw ValidationException::withMessages(['equipment_inspection_unit_id' => 'Master Form laporan tidak tersedia.']);
                 }
+                $requestedUnitId = filled($data['equipment_inspection_unit_id'] ?? null)
+                    ? (int) $data['equipment_inspection_unit_id']
+                    : null;
+                $currentUnitId = $inspection->unitLink()->value('equipment_inspection_unit_id');
+                if ($requestedUnitId === null && $currentUnitId !== null) {
+                    $requestedUnitId = (int) $currentUnitId;
+                } elseif ($currentUnitId === null) {
+                    $requestedUnitId = $this->units->resolveForInspection(
+                        $formId,
+                        $requestedUnitId,
+                        $isNew && (bool) config('equipment-inspection.require_unit_for_new_inspections'),
+                        $isNew,
+                    );
+                }
                 $this->units->assignDirect(
                     $actor,
                     $inspection,
                     $formId,
-                    filled($data['equipment_inspection_unit_id'] ?? null) ? (int) $data['equipment_inspection_unit_id'] : null,
+                    $requestedUnitId,
                 );
 
                 $this->validateDate($data['inspection_date']);

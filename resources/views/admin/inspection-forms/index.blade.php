@@ -1,5 +1,9 @@
 <x-layouts.admin title="Master Form Inspeksi — WOMS">
-    <div class="space-y-4">
+    <div
+        class="space-y-4"
+        x-data="{ qrModal: @js((int) old('qr_form_id', 0)), copiedQr: null }"
+        @keydown.escape.window="qrModal = null"
+    >
         <section class="flex flex-col gap-4 rounded-2xl border border-blue-100 bg-blue-50 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <div class="flex items-center gap-3">
                 <span class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white text-blue-700 ring-1 ring-blue-200"><i data-lucide="list-checks" class="h-5 w-5"></i></span>
@@ -25,6 +29,8 @@
                             @php
                                 $statusClasses = match ($form->status) { 'active' => 'bg-emerald-100 text-emerald-800', 'inactive' => 'bg-slate-200 text-slate-700', default => 'bg-amber-100 text-amber-800' };
                                 $statusLabel = match ($form->status) { 'active' => 'Aktif', 'inactive' => 'Nonaktif', default => 'Draft' };
+                                $qrState = $qrStates[$form->id] ?? ['status' => 'missing', 'unit' => null];
+                                $qrTitle = match ($qrState['status']) { 'ready' => 'Kelola QR Code', 'conflict' => 'Periksa konflik QR Code', default => 'Atur QR Code' };
                             @endphp
                             <tr>
                                 <td class="px-4 py-3 font-semibold">{{ $form->sort_order }}</td>
@@ -37,6 +43,10 @@
                                 <td class="px-4 py-3"><div class="flex justify-center gap-1.5">
                                     <a href="{{ route('admin.inspection-forms.preview', $form) }}" title="Preview form" aria-label="Preview {{ $form->name }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700"><i data-lucide="eye" class="h-4 w-4"></i></a>
                                     <a href="{{ route('admin.inspection-forms.edit', $form) }}" title="Edit master form" aria-label="Edit {{ $form->name }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700"><i data-lucide="pencil" class="h-4 w-4"></i></a>
+                                    <button type="button" @click="qrModal = {{ $form->id }}; copiedQr = null" title="{{ $qrTitle }}" aria-label="{{ $qrTitle }} {{ $form->name }}" class="relative inline-flex h-8 w-8 items-center justify-center rounded-lg border {{ $qrState['status'] === 'conflict' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-violet-200 bg-violet-50 text-violet-700' }}">
+                                        <i data-lucide="qr-code" class="h-4 w-4"></i>
+                                        @if ($qrState['status'] === 'missing')<span class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-amber-400" aria-hidden="true"></span>@endif
+                                    </button>
                                     @if ($form->status === \App\Models\EquipmentInspectionForm::STATUS_ACTIVE)
                                         <form method="POST" action="{{ route('admin.inspection-forms.deactivate', $form) }}" data-swal-confirm data-swal-title="Nonaktifkan form?" data-swal-text="Form tidak tersedia untuk inspeksi baru. Dokumen lama tetap aman." data-swal-confirm-text="Ya, nonaktifkan">@csrf @method('PATCH')<button title="Nonaktifkan" aria-label="Nonaktifkan {{ $form->name }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700"><i data-lucide="pause" class="h-4 w-4"></i></button></form>
                                     @else
@@ -52,5 +62,12 @@
             </div>
             <div class="border-t border-slate-200 px-4 py-3">{{ $forms->links() }}</div>
         </section>
+
+        @foreach ($forms as $form)
+            @include('admin.inspection-forms.partials.qr-modal', [
+                'form' => $form,
+                'qrState' => $qrStates[$form->id] ?? ['status' => 'missing', 'unit' => null],
+            ])
+        @endforeach
     </div>
 </x-layouts.admin>

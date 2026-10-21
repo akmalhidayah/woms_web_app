@@ -29,12 +29,12 @@ class PublicEquipmentInspectionController extends Controller
     ): Response {
         $unit = $this->publishedUnit($publicCode);
         $unit->loadMissing('form');
-        if ($unit->image_path && $unit->image_sha256) {
-            $binary = $unitImages->read($unit->image_path, $unit->image_sha256);
-            $mime = $unit->image_mime_type ?: 'image/jpeg';
-        } elseif ($unit->form?->image_path && $unit->form?->image_sha256) {
+        if ($unit->form?->image_path && $unit->form?->image_sha256) {
             $binary = $formImages->read($unit->form->image_path, $unit->form->image_sha256);
             $mime = $unit->form->image_mime_type ?: 'image/jpeg';
+        } elseif ($unit->image_path && $unit->image_sha256) {
+            $binary = $unitImages->read($unit->image_path, $unit->image_sha256);
+            $mime = $unit->image_mime_type ?: 'image/jpeg';
         } else {
             abort(404);
         }

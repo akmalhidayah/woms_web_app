@@ -117,6 +117,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'index'])->name('index');
         Route::get('create', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'store'])->name('store');
+        Route::put('{equipmentInspectionForm}/qr', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'saveQr'])->name('qr.save');
         Route::get('{equipmentInspectionForm}/preview', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'preview'])->name('preview');
         Route::get('{equipmentInspectionForm}/edit', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'edit'])->name('edit');
         Route::put('{equipmentInspectionForm}', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'update'])->name('update');

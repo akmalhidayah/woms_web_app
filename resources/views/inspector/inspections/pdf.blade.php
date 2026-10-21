@@ -61,7 +61,7 @@
     <table class="meta">
         <colgroup><col style="width:42%"><col style="width:28%"><col style="width:30%"></colgroup>
         <tr>
-            <td rowspan="2"><strong>Document No:</strong><br>{{ $inspection->document_no ?? 'Belum diterbitkan' }}<br><br><strong>Seksi:</strong> Bengkel Mesin<br><strong>Unit:</strong> Bengkel</td>
+            <td rowspan="2"><strong>Document No:</strong><br>{{ $inspection->document_no ?? 'Belum diterbitkan' }}<br><br><strong>Seksi:</strong> Seksi Workshop Machine<br><strong>Unit:</strong> Workshop</td>
             <td rowspan="2" class="center"><strong>Process:</strong><br><br>Inspection &amp; List</td>
             <td class="center small"><strong>Approve<br>Manager Machine Workshop</strong></td>
         </tr>

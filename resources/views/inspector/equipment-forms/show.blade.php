@@ -31,15 +31,23 @@
     <x-inspections.sweet-alerts :success="session('success')" :error-messages="$errors->all()" :warning="$inspection?->archive_error ? 'Approval selesai, tetapi arsip PDF belum tersedia. Hubungi Admin untuk pemulihan arsip.' : null" />
     @include('inspector.equipment-forms._script')
     <div x-data="equipmentInspectionPage(@js($pageConfig))" @beforeunload.window="if (dirty && !saving && !signing) { $event.preventDefault(); $event.returnValue = ''; }" class="mt-3 min-w-0 space-y-4 sm:mt-2 lg:mt-3">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="flex flex-wrap gap-2">
-                <a href="{{ route('inspector.equipment-forms.index') }}" class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700">Daftar Form</a>
-                <a href="{{ route('inspector.inspections.index') }}" class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700">Inspeksi Saya</a>
+        <div class="space-y-2">
+            <div class="flex items-center justify-between gap-3">
+                <a href="{{ route('inspector.equipment-forms.index') }}" aria-label="Kembali ke daftar form" class="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300">
+                    <i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>
+                    Kembali
+                </a>
+                <a href="{{ route('inspector.inspections.index') }}" aria-label="Buka riwayat inspeksi" class="ml-auto inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200">
+                    <i data-lucide="history" class="h-4 w-4" aria-hidden="true"></i>
+                    Riwayat
+                </a>
+            </div>
+            <div class="flex flex-wrap items-center justify-end gap-2">
                 @if ($inspection)
                     <a href="{{ route('inspector.inspections.pdf', $inspection) }}" target="_blank" rel="noopener" class="rounded-xl bg-[#7f1017] px-4 py-2.5 text-sm font-semibold text-white">Preview PDF</a>
                 @endif
+                <span class="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-900">{{ $inspection?->statusLabel() ?? 'Pemeriksaan Baru' }}</span>
             </div>
-            <span class="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-900">{{ $inspection?->statusLabel() ?? 'Pemeriksaan Baru' }}</span>
         </div>
 
         @if ($readOnly)
@@ -77,7 +85,7 @@
                 <div class="grid grid-cols-2 gap-x-4 gap-y-5 p-5 sm:p-6 lg:grid-cols-3">
                     <div class="min-w-0"><p class="text-xs font-semibold uppercase text-slate-500">Document No</p><p class="mt-1 break-words text-sm font-bold">{{ $inspection?->document_no ?? 'Belum diterbitkan' }}</p></div>
                     <div class="min-w-0"><p class="text-xs font-semibold uppercase text-slate-500">Process</p><p class="mt-1 text-sm font-semibold">Inspection &amp; List</p></div>
-                    <div class="min-w-0"><p class="text-xs font-semibold uppercase text-slate-500">Seksi / Unit</p><p class="mt-1 break-words text-sm font-semibold">Bengkel Mesin / Bengkel</p></div>
+                    <div class="min-w-0"><p class="text-xs font-semibold uppercase text-slate-500">Seksi / Unit</p><p class="mt-1 break-words text-sm font-semibold">Seksi Workshop Machine / Workshop</p></div>
                     <div class="min-w-0"><p class="text-xs font-semibold uppercase text-slate-500">Nama Pelaksana</p><p class="mt-1 break-words text-sm font-semibold">{{ $inspection?->inspector_name ?? auth()->user()->name }}</p></div>
                     <div class="col-span-2 min-w-0 lg:col-span-1">
                         <label for="inspection-date" class="block text-xs font-semibold uppercase text-slate-500">Tanggal Pemeriksaan</label>

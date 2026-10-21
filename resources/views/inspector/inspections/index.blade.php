@@ -56,7 +56,10 @@
                         @if ($inspection->status === \App\Models\EquipmentInspection::STATUS_REVISION)
                             <form method="POST" action="{{ route('inspector.inspections.revise', $inspection) }}" data-swal-confirm data-swal-title="Mulai revisi laporan?" data-swal-text="Versi dokumen baru akan dibuka. Nomor dokumen tetap dan laporan harus ditandatangani ulang." data-swal-confirm-text="Ya, mulai revisi">@csrf<input type="hidden" name="document_version" value="{{ $inspection->document_version }}"><button title="Perbaiki laporan" aria-label="Perbaiki laporan {{ $inspection->form_name }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700 transition hover:bg-amber-100"><i data-lucide="rotate-ccw" class="h-4 w-4" aria-hidden="true"></i></button></form>
                         @endif
-                        <a href="{{ route('inspector.inspections.pdf', $inspection) }}" target="_blank" rel="noopener" title="Buka PDF inspeksi" aria-label="Buka PDF {{ $inspection->form_name }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"><i data-lucide="file-text" class="h-4 w-4" aria-hidden="true"></i></a>
+                        <a href="{{ route('inspector.inspections.pdf', $inspection) }}" target="_blank" rel="noopener" title="Lihat dokumen PDF" aria-label="Lihat dokumen PDF {{ $inspection->form_name }}" class="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300">
+                            <i data-lucide="file-search" class="h-4 w-4" aria-hidden="true"></i>
+                            Lihat Dokumen
+                        </a>
                         <x-inspections.delete-button :inspection="$inspection" route-name="inspector.inspections.destroy" size="md" />
                     </div>
                     @if ($inspection->status === \App\Models\EquipmentInspection::STATUS_REVISION)

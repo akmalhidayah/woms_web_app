@@ -68,7 +68,8 @@ class EquipmentInspectionManagementTest extends TestCase
             ->assertSee('title="Buka filter inspeksi"', false)
             ->assertSee('id="inspection-filter-dialog"', false)
             ->assertSee('data-href="'.route('inspector.inspections.show', $inspection).'"', false)
-            ->assertSee('aria-label="Buka PDF '.$inspection->form_name.'"', false)
+            ->assertSee('aria-label="Lihat dokumen PDF '.$inspection->form_name.'"', false)
+            ->assertSee('Lihat Dokumen')
             ->assertDontSee('data-lucide="eye"', false);
     }
 
@@ -239,6 +240,9 @@ class EquipmentInspectionManagementTest extends TestCase
         $this->actingAs($owner)->get(route('inspector.equipment-forms.show', 'mesin-lipat'))->assertOk()
             ->assertViewHas('recentSignatureDataUrl', fn ($value): bool => $value === null)
             ->assertSee('grid grid-cols-2 gap-x-4 gap-y-5', false)
+            ->assertSee('aria-label="Kembali ke daftar form"', false)
+            ->assertSee('data-lucide="arrow-left"', false)
+            ->assertSee('aria-label="Buka riwayat inspeksi"', false)
             ->assertDontSee('Gunakan TTD Terakhir');
     }
 

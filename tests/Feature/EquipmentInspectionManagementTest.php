@@ -238,6 +238,7 @@ class EquipmentInspectionManagementTest extends TestCase
 
         $this->actingAs($owner)->get(route('inspector.equipment-forms.show', 'mesin-lipat'))->assertOk()
             ->assertViewHas('recentSignatureDataUrl', fn ($value): bool => $value === null)
+            ->assertSee('grid grid-cols-2 gap-x-4 gap-y-5', false)
             ->assertDontSee('Gunakan TTD Terakhir');
     }
 

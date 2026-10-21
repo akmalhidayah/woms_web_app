@@ -74,18 +74,18 @@
                         <p class="mt-1 break-words text-base font-bold text-red-800 sm:text-lg">{{ $form['name'] }}</p>
                     </div>
                 </div>
-                <div class="grid gap-4 p-5 sm:grid-cols-2 sm:p-6 lg:grid-cols-3">
-                    <div><p class="text-xs font-semibold uppercase text-slate-500">Document No</p><p class="mt-1 break-words text-sm font-bold">{{ $inspection?->document_no ?? 'Belum diterbitkan' }}</p></div>
-                    <div><p class="text-xs font-semibold uppercase text-slate-500">Process</p><p class="mt-1 text-sm font-semibold">Inspection &amp; List</p></div>
-                    <div><p class="text-xs font-semibold uppercase text-slate-500">Seksi / Unit</p><p class="mt-1 text-sm font-semibold">Bengkel Mesin / Bengkel</p></div>
-                    <div><p class="text-xs font-semibold uppercase text-slate-500">Nama Pelaksana</p><p class="mt-1 break-words text-sm font-semibold">{{ $inspection?->inspector_name ?? auth()->user()->name }}</p></div>
-                    <div>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-5 p-5 sm:p-6 lg:grid-cols-3">
+                    <div class="min-w-0"><p class="text-xs font-semibold uppercase text-slate-500">Document No</p><p class="mt-1 break-words text-sm font-bold">{{ $inspection?->document_no ?? 'Belum diterbitkan' }}</p></div>
+                    <div class="min-w-0"><p class="text-xs font-semibold uppercase text-slate-500">Process</p><p class="mt-1 text-sm font-semibold">Inspection &amp; List</p></div>
+                    <div class="min-w-0"><p class="text-xs font-semibold uppercase text-slate-500">Seksi / Unit</p><p class="mt-1 break-words text-sm font-semibold">Bengkel Mesin / Bengkel</p></div>
+                    <div class="min-w-0"><p class="text-xs font-semibold uppercase text-slate-500">Nama Pelaksana</p><p class="mt-1 break-words text-sm font-semibold">{{ $inspection?->inspector_name ?? auth()->user()->name }}</p></div>
+                    <div class="col-span-2 min-w-0 lg:col-span-1">
                         <label for="inspection-date" class="block text-xs font-semibold uppercase text-slate-500">Tanggal Pemeriksaan</label>
                         <input id="inspection-date" name="inspection_date" type="date" x-model="inspectionDate" max="{{ $today }}" required @disabled($readOnly) class="mt-1 w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base disabled:bg-slate-50 sm:text-sm">
                         <p class="mt-1 text-xs text-slate-500" x-text="formattedDate"></p>
                     </div>
                     @if ($inspection)
-                        <div><p class="text-xs font-semibold uppercase text-slate-500">Draft dibuat / Versi dokumen</p><p class="mt-1 text-sm">{{ $inspection->created_at->format('d/m/Y H:i') }} / {{ $inspection->document_version }}</p></div>
+                        <div class="col-span-2 min-w-0 lg:col-span-1"><p class="text-xs font-semibold uppercase text-slate-500">Draft dibuat / Versi dokumen</p><p class="mt-1 text-sm">{{ $inspection->created_at->format('d/m/Y H:i') }} / {{ $inspection->document_version }}</p></div>
                     @endif
                 </div>
             </section>

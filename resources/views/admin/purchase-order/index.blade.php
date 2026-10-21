@@ -158,14 +158,23 @@
                                 <td class="px-4 py-3">
                                     <div class="space-y-1.5">
                                         <div class="grid gap-1.5 lg:grid-cols-2">
-                                            <input type="date" name="target_penyelesaian" form="purchase-order-form-{{ $notification['nomor_order'] }}" value="{{ $notification['target_penyelesaian'] }}" class="min-w-0 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-[9px] text-slate-700 focus:border-blue-500 focus:outline-none">
+                                            <input type="date" name="target_penyelesaian" form="purchase-order-form-{{ $notification['nomor_order'] }}" value="{{ $notification['target_penyelesaian'] }}" class="min-w-0 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-[9px] text-slate-700 focus:border-blue-500 focus:outline-none js-purchase-order-target-date">
 
-                                            <select name="approval_target" form="purchase-order-form-{{ $notification['nomor_order'] }}" class="min-w-0 w-full rounded-lg border px-2 py-1.5 text-[9px] font-medium focus:border-blue-500 focus:outline-none {{ $approvalBadgeClasses($notification['approval_target']) }}">
+                                            <select
+                                                name="approval_target"
+                                                form="purchase-order-form-{{ $notification['nomor_order'] }}"
+                                                class="js-purchase-order-approval-auto-save min-w-0 w-full rounded-lg border px-2 py-1.5 text-[9px] font-medium focus:border-blue-500 focus:outline-none disabled:cursor-wait disabled:opacity-60 {{ $approvalBadgeClasses($notification['approval_target']) }}"
+                                                data-url="{{ $notification['update_url'] }}"
+                                                data-saved-value="{{ $notification['approval_target'] ?? '' }}"
+                                                aria-describedby="purchase-order-approval-status-{{ $notification['nomor_order'] }}"
+                                            >
                                                 <option value="">Status Ajuan PKM</option>
                                                 <option value="setuju" @selected($notification['approval_target'] === 'setuju')>Setujui Tanggal</option>
                                                 <option value="tidak_setuju" @selected($notification['approval_target'] === 'tidak_setuju')>Tolak Tanggal</option>
                                             </select>
                                         </div>
+
+                                        <p id="purchase-order-approval-status-{{ $notification['nomor_order'] }}" class="js-purchase-order-approval-status hidden text-[8px] font-medium" aria-live="polite"></p>
 
                                         <div class="grid grid-cols-2 gap-x-2 gap-y-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
                                             <label class="flex items-center gap-1.5 text-[8px] text-slate-700">
@@ -283,6 +292,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             const statusAlert = document.getElementById('purchase-order-status-alert');
             const approveAllEstimatesForm = document.getElementById('approve-all-estimates-form');
+            const approvalRequestControllers = new WeakMap();
 
             if (statusAlert?.dataset.message && window.Swal) {
                 window.Swal.fire({
@@ -322,6 +332,115 @@
                 }).then((result) => {
                     if (result.isConfirmed) {
                         approveAllEstimatesForm.submit();
+                    }
+                });
+            });
+
+            const showApprovalAutoSaveError = (message) => {
+                if (window.Swal) {
+                    window.Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal menyimpan',
+                        text: message,
+                    });
+
+                    return;
+                }
+
+                window.alert(message);
+            };
+
+            const setApprovalAutoSaveStatus = (select, state, message) => {
+                const statusId = select.getAttribute('aria-describedby');
+                const status = statusId ? document.getElementById(statusId) : null;
+
+                if (! status) {
+                    return;
+                }
+
+                status.textContent = message;
+                status.classList.remove('hidden', 'text-amber-600', 'text-emerald-600', 'text-rose-600');
+                status.classList.add(state === 'saving'
+                    ? 'text-amber-600'
+                    : (state === 'saved' ? 'text-emerald-600' : 'text-rose-600'));
+            };
+
+            document.querySelectorAll('.js-purchase-order-approval-auto-save').forEach((select) => {
+                select.addEventListener('change', async () => {
+                    const url = select.dataset.url ?? '';
+                    const savedValue = select.dataset.savedValue ?? '';
+                    const currentValue = select.value;
+                    const formId = select.getAttribute('form');
+                    const targetDate = formId
+                        ? document.querySelector(`input[name="target_penyelesaian"][form="${formId}"]`)
+                        : null;
+
+                    if (! url || currentValue === savedValue) {
+                        return;
+                    }
+
+                    const previousController = approvalRequestControllers.get(select);
+                    previousController?.abort();
+
+                    const controller = new AbortController();
+                    approvalRequestControllers.set(select, controller);
+                    select.disabled = true;
+                    setApprovalAutoSaveStatus(select, 'saving', 'Menyimpan...');
+
+                    try {
+                        const response = await fetch(url, {
+                            method: 'PATCH',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': document
+                                    .querySelector('meta[name="csrf-token"]')
+                                    ?.getAttribute('content') ?? '',
+                            },
+                            body: JSON.stringify({
+                                approval_target: currentValue || null,
+                                target_penyelesaian: targetDate?.value || null,
+                            }),
+                            signal: controller.signal,
+                        });
+                        const responseData = await response.json().catch(() => ({}));
+
+                        if (! response.ok) {
+                            let errorMessage = 'Gagal menyimpan persetujuan tanggal. Silakan coba kembali.';
+
+                            if (response.status === 422) {
+                                errorMessage = responseData?.errors?.target_penyelesaian?.[0]
+                                    || responseData?.errors?.approval_target?.[0]
+                                    || responseData?.message
+                                    || errorMessage;
+                            } else if (response.status === 419) {
+                                errorMessage = 'Sesi Anda telah berakhir. Silakan muat ulang halaman.';
+                            } else if (response.status === 403) {
+                                errorMessage = 'Anda tidak memiliki akses untuk memperbarui Purchase Order ini.';
+                            }
+
+                            throw new Error(errorMessage);
+                        }
+
+                        select.dataset.savedValue = responseData?.data?.approval_target ?? '';
+                        select.value = select.dataset.savedValue;
+                        setApprovalAutoSaveStatus(select, 'saved', 'Tersimpan');
+                        window.setTimeout(() => window.location.reload(), 500);
+                    } catch (error) {
+                        if (error?.name === 'AbortError') {
+                            return;
+                        }
+
+                        select.value = savedValue;
+                        setApprovalAutoSaveStatus(select, 'error', 'Gagal disimpan');
+                        showApprovalAutoSaveError(error?.message || 'Gagal menyimpan persetujuan tanggal.');
+                    } finally {
+                        if (approvalRequestControllers.get(select) === controller) {
+                            approvalRequestControllers.delete(select);
+                            select.disabled = false;
+                        }
                     }
                 });
             });

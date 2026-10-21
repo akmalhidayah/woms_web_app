@@ -242,6 +242,60 @@ class PurchaseOrderIndexTabsTest extends TestCase
             ]));
     }
 
+    public function test_approval_target_auto_save_updates_only_target_fields(): void
+    {
+        [$admin, $hpp] = $this->makeEligibleHpp('PO-AUTO-SAVE');
+        $purchaseOrder = $this->makePurchaseOrder($hpp, [
+            'purchase_order_number' => 'PO-UNCHANGED-001',
+            'target_penyelesaian' => '2026-10-20',
+            'approval_target' => null,
+            'approve_manager' => true,
+            'approve_senior_manager' => true,
+            'admin_note' => 'Catatan tetap',
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson(route('admin.purchase-order.update', ['hpp' => $hpp->nomor_order]), [
+                'target_penyelesaian' => '2026-10-25',
+                'approval_target' => 'setuju',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.target_penyelesaian', '2026-10-25')
+            ->assertJsonPath('data.approval_target', 'setuju');
+
+        $purchaseOrder->refresh();
+        $this->assertSame('2026-10-25', $purchaseOrder->target_penyelesaian?->format('Y-m-d'));
+        $this->assertSame('setuju', $purchaseOrder->approval_target);
+        $this->assertSame('PO-UNCHANGED-001', $purchaseOrder->purchase_order_number);
+        $this->assertTrue($purchaseOrder->approve_manager);
+        $this->assertTrue($purchaseOrder->approve_senior_manager);
+        $this->assertSame('Catatan tetap', $purchaseOrder->admin_note);
+    }
+
+    public function test_approval_target_auto_save_requires_target_date_when_approved(): void
+    {
+        [$admin, $hpp] = $this->makeEligibleHpp('PO-AUTO-SAVE-DATE');
+        $purchaseOrder = $this->makePurchaseOrder($hpp, [
+            'purchase_order_number' => 'PO-AUTO-SAVE-DATE-001',
+            'target_penyelesaian' => null,
+            'approval_target' => null,
+            'approve_manager' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson(route('admin.purchase-order.update', ['hpp' => $hpp->nomor_order]), [
+                'target_penyelesaian' => null,
+                'approval_target' => 'setuju',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('target_penyelesaian');
+
+        $purchaseOrder->refresh();
+        $this->assertNull($purchaseOrder->target_penyelesaian);
+        $this->assertNull($purchaseOrder->approval_target);
+    }
+
     public function test_bulk_estimate_approval_updates_all_matching_rows_only(): void
     {
         [$admin, $matchingHpp] = $this->makeEligibleHpp('PO-BULK-MATCH');

@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\PurchaseOrder;
 use App\Support\PurchaseOrderIndexTabs;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -119,7 +120,7 @@ class PurchaseOrderController extends Controller
         }
     }
 
-    public function update(UpdatePurchaseOrderRequest $request, Hpp $hpp): RedirectResponse
+    public function update(UpdatePurchaseOrderRequest $request, Hpp $hpp): RedirectResponse|JsonResponse
     {
         try {
             $hpp->loadMissing(['order.initialWork', 'budgetVerification', 'purchaseOrder']);
@@ -132,6 +133,28 @@ class PurchaseOrderController extends Controller
                 $purchaseOrder->hpp()->associate($hpp);
                 $purchaseOrder->order()->associate($hpp->order);
                 $purchaseOrder->created_by = $request->user()?->id;
+            }
+
+            if ($request->expectsJson()) {
+                $validated = $request->validated();
+                $purchaseOrder->fill([
+                    'target_penyelesaian' => $this->normalizeNullableString($validated['target_penyelesaian'] ?? null),
+                    'approval_target' => $this->normalizeNullableString($validated['approval_target'] ?? null),
+                ]);
+                $purchaseOrder->updated_by = $request->user()?->id;
+                $purchaseOrder->save();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => sprintf(
+                        'Persetujuan tanggal untuk order %s berhasil disimpan.',
+                        $hpp->nomor_order,
+                    ),
+                    'data' => [
+                        'target_penyelesaian' => $purchaseOrder->target_penyelesaian?->format('Y-m-d'),
+                        'approval_target' => $purchaseOrder->approval_target,
+                    ],
+                ]);
             }
 
             $purchaseOrder->fill([
@@ -210,6 +233,13 @@ class PurchaseOrderController extends Controller
 
             if ($statusCode !== Response::HTTP_INTERNAL_SERVER_ERROR) {
                 throw $exception;
+            }
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Terjadi kesalahan saat menyimpan persetujuan tanggal Purchase Order.',
+                ], Response::HTTP_INTERNAL_SERVER_ERROR);
             }
 
             abort(Response::HTTP_INTERNAL_SERVER_ERROR, 'Terjadi kesalahan saat menyimpan Purchase Order.');

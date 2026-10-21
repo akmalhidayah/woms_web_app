@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Hpp;
 
+use App\Domain\Orders\Enums\OrderDocumentType;
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Hpp\ReplaceDiropsSignedDocumentRequest;
@@ -10,17 +11,22 @@ use App\Http\Requests\Admin\Hpp\UploadDiropsSignedDocumentRequest;
 use App\Models\Hpp;
 use App\Models\HppSignature;
 use App\Models\Order;
+use App\Models\OrderDocument;
+use App\Models\OrderScopeOfWork;
 use App\Models\OutlineAgreement;
 use App\Models\UnitWork;
 use App\Models\User;
 use App\Services\Approvals\ApprovalNotificationService;
 use App\Services\Approvals\ApprovalSignatureRollbackService;
 use App\Services\Approvals\BulkApprovalNotificationService;
+use App\Services\Orders\OrderDocumentService;
 use App\Support\HppApprovalFlow;
 use App\Support\HppApprovalSignatureBuilder;
 use App\Support\HppDocumentNumberGenerator;
 use App\Support\HppIndexTabs;
 use App\Support\HppSignatureIdentityResolver;
+use App\Support\ScopeOfWorkPdfPresenter;
+use App\Support\SignatureImageStorage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,6 +36,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 class HppController extends Controller
@@ -160,6 +167,46 @@ class HppController extends Controller
         }
 
         return $response;
+    }
+
+    public function supportingDocument(
+        Hpp $hpp,
+        OrderDocument $document,
+        OrderDocumentService $documentService,
+    ): BinaryFileResponse {
+        abort_unless((int) $document->order_id === (int) $hpp->order_id, Response::HTTP_NOT_FOUND);
+        abort_unless(in_array($document->jenis_dokumen, [
+            OrderDocumentType::Abnormalitas,
+            OrderDocumentType::GambarTeknik,
+        ], true), Response::HTTP_NOT_FOUND);
+
+        return $documentService->preview($document);
+    }
+
+    public function scopeOfWorkDocument(
+        Hpp $hpp,
+        OrderScopeOfWork $scopeOfWork,
+        ScopeOfWorkPdfPresenter $presenter,
+    ): Response {
+        abort_unless((int) $scopeOfWork->order_id === (int) $hpp->order_id, Response::HTTP_NOT_FOUND);
+
+        $scopeOfWork->loadMissing('creator');
+        $order = $hpp->order()->firstOrFail();
+        $order->loadMissing([
+            'creator',
+            'initialWork.outlineAgreement.unitWork',
+            'latestHpp.outlineAgreement.unitWork',
+        ]);
+
+        return Pdf::loadView('admin.orders.scope-of-work-pdf', [
+            'order' => $order,
+            'scopeOfWork' => $scopeOfWork,
+            'scopeItems' => $scopeOfWork->scope_items ?? [],
+            'signaturePath' => SignatureImageStorage::imageSource($scopeOfWork->tanda_tangan),
+            'creatorName' => $presenter->creatorName($scopeOfWork),
+            'creatorUnitLabel' => $presenter->creatorUnitLabel($order),
+        ])->setPaper('a4', 'portrait')
+            ->stream('scope-of-work-'.$order->nomor_order.'.pdf');
     }
 
     public function diropsSignedDocument(Hpp $hpp): Response

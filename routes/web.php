@@ -842,6 +842,12 @@ Route::prefix('admin/hpp')
             ->whereNumber('hpp')
             ->group(function () {
                 Route::get('/pdf', [HppController::class, 'pdf'])->name('pdf.by-id');
+                Route::get('/supporting-documents/{document}/preview', [HppController::class, 'supportingDocument'])
+                    ->whereNumber('document')
+                    ->name('supporting-documents.preview.by-id');
+                Route::get('/scope-of-work/{scopeOfWork}/pdf', [HppController::class, 'scopeOfWorkDocument'])
+                    ->whereNumber('scopeOfWork')
+                    ->name('scope-of-work.pdf.by-id');
                 Route::get('/dirops-signed-document', [HppController::class, 'diropsSignedDocument'])->name('dirops-document.show.by-id');
                 Route::post('/dirops-signed-document', [HppController::class, 'uploadDiropsSignedDocument'])->name('dirops-document.upload.by-id');
                 Route::patch('/dirops-signed-document', [HppController::class, 'replaceDiropsSignedDocument'])

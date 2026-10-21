@@ -163,25 +163,37 @@
                                     'role_label' => $activeSignature?->displayRoleLabel() ?: '',
                                     'signer_name' => $activeSignature?->displaySignerName() ?: '',
                                 ];
+                                $scopeOfWork = $row->order?->scopeOfWork;
+                                $abnormalitasDocument = $row->order?->documents?->first(
+                                    fn (\App\Models\OrderDocument $document): bool => $document->jenis_dokumen === \App\Domain\Orders\Enums\OrderDocumentType::Abnormalitas
+                                );
+                                $gambarTeknikDocument = $row->order?->documents?->first(
+                                    fn (\App\Models\OrderDocument $document): bool => $document->jenis_dokumen === \App\Domain\Orders\Enums\OrderDocumentType::GambarTeknik
+                                );
                                 $documentIndicators = [
                                     [
                                         'label' => 'SOW',
                                         'title' => 'Scope of Work',
-                                        'ready' => $row->order?->scopeOfWork !== null,
+                                        'ready' => $scopeOfWork !== null,
+                                        'url' => $scopeOfWork
+                                            ? route('admin.hpp.scope-of-work.pdf.by-id', [$row, $scopeOfWork])
+                                            : null,
                                     ],
                                     [
                                         'label' => 'Abnormalitas',
                                         'title' => 'Abnormalitas',
-                                        'ready' => (bool) $row->order?->documents?->contains(
-                                            fn (\App\Models\OrderDocument $document): bool => $document->jenis_dokumen === \App\Domain\Orders\Enums\OrderDocumentType::Abnormalitas
-                                        ),
+                                        'ready' => $abnormalitasDocument !== null,
+                                        'url' => $abnormalitasDocument
+                                            ? route('admin.hpp.supporting-documents.preview.by-id', [$row, $abnormalitasDocument])
+                                            : null,
                                     ],
                                     [
                                         'label' => 'Gambar Teknik',
                                         'title' => 'Gambar Teknik',
-                                        'ready' => (bool) $row->order?->documents?->contains(
-                                            fn (\App\Models\OrderDocument $document): bool => $document->jenis_dokumen === \App\Domain\Orders\Enums\OrderDocumentType::GambarTeknik
-                                        ),
+                                        'ready' => $gambarTeknikDocument !== null,
+                                        'url' => $gambarTeknikDocument
+                                            ? route('admin.hpp.supporting-documents.preview.by-id', [$row, $gambarTeknikDocument])
+                                            : null,
                                     ],
                                 ];
                             @endphp
@@ -206,13 +218,26 @@
                                     </div>
                                     <div class="mt-1.5 flex flex-wrap items-center gap-1">
                                         @foreach ($documentIndicators as $documentIndicator)
-                                            <span
-                                                class="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px] font-semibold {{ $documentIndicator['ready'] ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-400' }}"
-                                                title="{{ $documentIndicator['title'] }} {{ $documentIndicator['ready'] ? 'tersedia' : 'belum tersedia' }}"
-                                            >
-                                                <i data-lucide="{{ $documentIndicator['ready'] ? 'check' : 'minus' }}" class="h-2.5 w-2.5"></i>
-                                                {{ $documentIndicator['label'] }}
-                                            </span>
+                                            @if ($documentIndicator['ready'])
+                                                <a
+                                                    href="{{ $documentIndicator['url'] }}"
+                                                    target="_blank"
+                                                    rel="noopener"
+                                                    class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[8px] font-semibold text-emerald-700"
+                                                    title="{{ $documentIndicator['title'] }} tersedia"
+                                                >
+                                                    <i data-lucide="check" class="h-2.5 w-2.5"></i>
+                                                    {{ $documentIndicator['label'] }}
+                                                </a>
+                                            @else
+                                                <span
+                                                    class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[8px] font-semibold text-slate-400"
+                                                    title="{{ $documentIndicator['title'] }} belum tersedia"
+                                                >
+                                                    <i data-lucide="minus" class="h-2.5 w-2.5"></i>
+                                                    {{ $documentIndicator['label'] }}
+                                                </span>
+                                            @endif
                                         @endforeach
                                     </div>
                                 </td>

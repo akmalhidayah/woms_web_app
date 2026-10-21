@@ -165,14 +165,14 @@ class HppIndexTabsTest extends TestCase
         $admin = $this->admin();
         $hpp = $this->hpp($admin, Hpp::STATUS_DRAFT, 'DOCUMENT-INDICATORS');
 
-        OrderScopeOfWork::query()->create([
+        $scopeOfWork = OrderScopeOfWork::query()->create([
             'order_id' => $hpp->order_id,
             'nama_penginput' => $admin->name,
             'tanggal_dokumen' => '2026-07-01',
             'scope_items' => [['item' => 'Scope pekerjaan']],
             'created_by' => $admin->id,
         ]);
-        OrderDocument::query()->create([
+        $abnormalitas = OrderDocument::query()->create([
             'order_id' => $hpp->order_id,
             'jenis_dokumen' => OrderDocumentType::Abnormalitas->value,
             'nama_file_asli' => 'abnormalitas.pdf',
@@ -186,7 +186,9 @@ class HppIndexTabsTest extends TestCase
             ->assertOk()
             ->assertSee('title="Scope of Work tersedia"', false)
             ->assertSee('title="Abnormalitas tersedia"', false)
-            ->assertSee('title="Gambar Teknik belum tersedia"', false);
+            ->assertSee('title="Gambar Teknik belum tersedia"', false)
+            ->assertSee(route('admin.hpp.scope-of-work.pdf.by-id', [$hpp, $scopeOfWork]), false)
+            ->assertSee(route('admin.hpp.supporting-documents.preview.by-id', [$hpp, $abnormalitas]), false);
     }
 
     public function test_latest_hpp_activity_is_ordered_by_updated_at_then_id(): void

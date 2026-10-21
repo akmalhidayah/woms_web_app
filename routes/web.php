@@ -94,6 +94,10 @@ Route::prefix('equipment/q')->name('public.equipment-history.')->middleware('thr
     Route::get('{publicCode}/image', [PublicEquipmentInspectionController::class, 'image'])
         ->where('publicCode', '[A-Za-z0-9]{32}')
         ->name('image');
+    Route::get('{publicCode}/inspections/{inspectionPublicId}/pdf', [PublicEquipmentInspectionController::class, 'pdf'])
+        ->where('publicCode', '[A-Za-z0-9]{32}')
+        ->whereUuid('inspectionPublicId')
+        ->name('pdf');
 });
 
 Route::middleware(['auth'])->group(function () {

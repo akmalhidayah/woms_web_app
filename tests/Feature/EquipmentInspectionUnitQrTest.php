@@ -13,6 +13,7 @@ use App\Services\Inspector\EquipmentInspectionUnitService;
 use App\Support\Inspector\EquipmentFormCatalog;
 use App\Support\Inspector\EquipmentInspectionSnapshot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -200,6 +201,7 @@ class EquipmentInspectionUnitQrTest extends TestCase
 
     public function test_public_history_uses_approved_signed_snapshot_and_excludes_private_metadata(): void
     {
+        Storage::fake('local');
         $inspector = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
         $manager = User::factory()->create(['role' => User::ROLE_APPROVER]);
         $form = EquipmentInspectionForm::query()->where('slug', 'mesin-lipat')->firstOrFail();
@@ -215,6 +217,14 @@ class EquipmentInspectionUnitQrTest extends TestCase
             'answers' => $approvedAnswers,
         ], []);
         $this->approveForTest($approved, $inspector, $manager, '001/INSP/PUBLIC');
+        $pdfBinary = '%PDF-1.4 approved inspection';
+        $pdfPath = 'equipment-inspections/'.$approved->public_id.'/final/test.pdf';
+        Storage::disk('local')->put($pdfPath, $pdfBinary);
+        $approved->forceFill([
+            'final_pdf_path' => $pdfPath,
+            'final_pdf_sha256' => hash('sha256', $pdfBinary),
+            'archived_at' => now(),
+        ])->save();
         $this->actingAs($inspector)->get(route('inspector.inspections.show', $approved))
             ->assertOk()
             ->assertSee('MB-PUBLIC')
@@ -245,6 +255,7 @@ class EquipmentInspectionUnitQrTest extends TestCase
             ->assertSee('Remarks:')
             ->assertSee('Bearing perlu pelumasan ulang')
             ->assertSee('Kondisi normal setelah pemeriksaan')
+            ->assertSee(route('public.equipment-history.pdf', [$unit->public_code, $approved->public_id]), false)
             ->assertDontSee('DRAFT-SECRET')
             ->assertDontSee('OTHER-UNIT-SECRET')
             ->assertDontSee('signature_path')
@@ -253,6 +264,15 @@ class EquipmentInspectionUnitQrTest extends TestCase
             ->assertDontSee('Unit &lt;script&gt;alert(1)&lt;/script&gt;', false)
             ->assertDontSee('<script>alert(1)</script>', false)
             ->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+
+        $this->get(route('public.equipment-history.pdf', [$unit->public_code, $approved->public_id]))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertContent($pdfBinary);
+        $this->get(route('public.equipment-history.pdf', [$unit->public_code, $draft->public_id]))
+            ->assertNotFound();
+        $this->get(route('public.equipment-history.pdf', [$unit->public_code, $otherInspection->public_id]))
+            ->assertNotFound();
 
         $this->post(route('public.equipment-history.show', $unit->public_code))->assertStatus(405);
         $this->get('/equipment/q/'.str_repeat('z', 32))->assertNotFound();

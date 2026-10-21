@@ -12,6 +12,23 @@ use Illuminate\Support\Collection;
 
 final class PublicEquipmentHistoryService
 {
+    public function isPublishable(EquipmentInspection $inspection, EquipmentInspectionUnit $unit): bool
+    {
+        if ($inspection->status !== EquipmentInspection::STATUS_APPROVED) {
+            return false;
+        }
+
+        $inspection->loadMissing([
+            'unitLink',
+            'signatures' => fn ($query) => $query->whereIn('role_key', [
+                EquipmentInspectionSignature::ROLE_INSPECTOR,
+                EquipmentInspectionSignature::ROLE_MANAGER,
+            ]),
+        ]);
+
+        return $this->project($inspection, $unit) !== null;
+    }
+
     /**
      * @return array{unit: array<string, mixed>, inspections: LengthAwarePaginator, latest: ?array<string, mixed>}
      */
@@ -76,7 +93,7 @@ final class PublicEquipmentHistoryService
             return null;
         }
         $link = $inspection->unitLink;
-        if (! $link) {
+        if (! $link || (int) $link->equipment_inspection_unit_id !== (int) $unit->id) {
             return null;
         }
         $signedUnit = $payload['unit'] ?? null;
@@ -126,6 +143,7 @@ final class PublicEquipmentHistoryService
         ];
 
         return [
+            'public_id' => $inspection->public_id,
             'inspection_date' => $inspectionDate,
             'document_no' => $documentNo,
             'status' => 'Disetujui',

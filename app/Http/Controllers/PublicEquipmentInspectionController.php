@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\EquipmentInspection;
 use App\Models\EquipmentInspectionUnit;
+use App\Services\Inspector\EquipmentInspectionPdfService;
 use App\Services\Inspector\PublicEquipmentHistoryService;
 use App\Support\Inspector\EquipmentInspectionFormImageStorage;
 use App\Support\Inspector\EquipmentInspectionUnitImageStorage;
@@ -45,6 +47,28 @@ class PublicEquipmentInspectionController extends Controller
             'X-Content-Type-Options' => 'nosniff',
             'X-Robots-Tag' => 'noindex, nofollow',
         ]);
+    }
+
+    public function pdf(
+        string $publicCode,
+        string $inspectionPublicId,
+        PublicEquipmentHistoryService $history,
+        EquipmentInspectionPdfService $pdf,
+    ): Response {
+        $unit = $this->publishedUnit($publicCode);
+        $inspection = EquipmentInspection::query()
+            ->where('public_id', $inspectionPublicId)
+            ->where('status', EquipmentInspection::STATUS_APPROVED)
+            ->whereHas('unitLink', fn ($query) => $query->where('equipment_inspection_unit_id', $unit->id))
+            ->firstOrFail();
+
+        abort_unless($history->isPublishable($inspection, $unit), 404);
+
+        $response = $pdf->response($inspection);
+        $response->headers->set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+        $response->headers->set('Referrer-Policy', 'no-referrer');
+
+        return $response;
     }
 
     private function publishedUnit(string $publicCode): EquipmentInspectionUnit

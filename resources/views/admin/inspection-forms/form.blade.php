@@ -21,11 +21,11 @@
 
         <form method="POST" action="{{ $editing ? route('admin.inspection-forms.update', $form) : route('admin.inspection-forms.store') }}" enctype="multipart/form-data" class="space-y-4">
             @csrf @if ($editing) @method('PUT') @endif
+            <input type="hidden" name="sort_order" value="{{ old('sort_order', $form?->sort_order ?? 0) }}">
             <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 class="font-bold text-slate-900">Identitas Form</h2>
                 <div class="mt-4 grid gap-4 lg:grid-cols-2">
-                    <label class="text-sm font-semibold text-slate-700">Nama peralatan *<input name="name" value="{{ old('name', $form?->name) }}" required maxlength="150" class="mt-1 block w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal"></label>
-                    <label class="text-sm font-semibold text-slate-700">Urutan tampil *<input name="sort_order" type="number" min="0" max="100000" value="{{ old('sort_order', $form?->sort_order ?? 0) }}" required class="mt-1 block w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal"></label>
+                    <label class="text-sm font-semibold text-slate-700 lg:col-span-2">Nama peralatan *<input name="name" value="{{ old('name', $form?->name) }}" required maxlength="150" class="mt-1 block w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal"></label>
                     <label class="text-sm font-semibold text-slate-700 lg:col-span-2">Deskripsi<textarea name="description" rows="3" maxlength="2000" class="mt-1 block w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal">{{ old('description', $form?->description) }}</textarea></label>
                     <div class="lg:col-span-2"><label class="text-sm font-semibold text-slate-700">Foto peralatan <span class="font-normal text-slate-500">(wajib saat form baru diaktifkan)</span><input name="image" type="file" accept="image/jpeg,image/png,image/webp" class="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"></label><p class="mt-1 text-xs text-slate-500">JPG, PNG, atau WebP; maksimal 2 MB. Gambar disimpan privat dan dinormalisasi oleh server.</p>
                         @if ($editing && $form->image_path)<img src="{{ route('admin.inspection-forms.image', $form) }}" alt="Foto {{ $form->name }}" class="mt-3 aspect-[4/3] w-full max-w-xs rounded-xl object-cover ring-1 ring-slate-200">@elseif ($editing && $form->is_legacy)<p class="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">Form awal tetap aktif dengan placeholder sampai foto asli diunggah.</p>@endif
@@ -34,7 +34,7 @@
             </section>
 
             <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div class="flex items-center justify-between gap-3"><div><h2 class="font-bold text-slate-900">Item Pemeriksaan</h2><p class="mt-1 text-xs text-slate-500">Susunan item menjadi urutan checklist.</p></div><button type="button" @click="add()" class="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-3 py-2 text-sm font-semibold text-white"><i data-lucide="plus" class="h-4 w-4"></i> Tambah Item</button></div>
+                <div><h2 class="font-bold text-slate-900">Item Pemeriksaan</h2><p class="mt-1 text-xs text-slate-500">Susunan item menjadi urutan checklist.</p></div>
                 <div class="mt-4 space-y-3">
                     <template x-for="(item, index) in items" :key="item.client_key">
                         <div class="grid grid-cols-[2rem_minmax(0,1fr)] items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[2rem_minmax(0,1fr)_auto]">
@@ -44,6 +44,9 @@
                             <div class="col-start-2 flex gap-1 sm:col-start-auto"><button type="button" @click="move(index, -1)" :disabled="index === 0" title="Naik" aria-label="Naikkan item" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white disabled:opacity-30"><i data-lucide="arrow-up" class="h-4 w-4"></i></button><button type="button" @click="move(index, 1)" :disabled="index === items.length - 1" title="Turun" aria-label="Turunkan item" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white disabled:opacity-30"><i data-lucide="arrow-down" class="h-4 w-4"></i></button><button type="button" @click="remove(index)" :disabled="items.length === 1" title="Hapus item" aria-label="Hapus item" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-700 disabled:opacity-30"><i data-lucide="trash-2" class="h-4 w-4"></i></button></div>
                         </div>
                     </template>
+                </div>
+                <div class="mt-4 flex justify-end">
+                    <button type="button" @click="add()" class="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-3 py-2 text-sm font-semibold text-white"><i data-lucide="plus" class="h-4 w-4"></i> Tambah Item</button>
                 </div>
             </section>
 

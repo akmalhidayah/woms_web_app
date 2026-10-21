@@ -84,7 +84,10 @@ class EquipmentInspectionFormManagementTest extends TestCase
         $this->get(route('admin.inspection-forms.edit', $form))
             ->assertOk()
             ->assertDontSee('Grup (opsional)')
-            ->assertDontSee('Nama grup opsional');
+            ->assertDontSee('Nama grup opsional')
+            ->assertDontSee('Urutan tampil')
+            ->assertSee('name="sort_order"', false)
+            ->assertSeeInOrder(['Check Bearing', 'Tambah Item']);
         $this->get(route('admin.inspection-forms.preview', $form))->assertOk()->assertSee('Check Bearing');
         $this->get(route('admin.inspection-forms.image', $form))->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
         $this->actingAs($inspector)->get(route('inspector.equipment-forms.index'))

@@ -43,7 +43,6 @@ class SaveEquipmentInspectionFormRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'sort_order' => ['required', 'integer', 'min:0', 'max:100000'],
             'action' => ['required', Rule::in(['save_draft', 'publish'])],
             'image' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'mimetypes:image/jpeg,image/png,image/webp', 'extensions:jpg,jpeg,png,webp', 'max:2048', 'dimensions:max_width=4096,max_height=4096'],
             'items' => ['required', 'array', 'min:1', 'max:200'],

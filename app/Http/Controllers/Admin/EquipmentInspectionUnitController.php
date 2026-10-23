@@ -50,7 +50,7 @@ class EquipmentInspectionUnitController extends Controller
 
         return view('admin.inspection-units.index', [
             'units' => $units,
-            'forms' => EquipmentInspectionForm::query()->orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
+            'forms' => EquipmentInspectionForm::query()->orderBy('name')->orderBy('id')->get(['id', 'name']),
             'locations' => EquipmentInspectionUnit::query()->whereNotNull('location')->distinct()->orderBy('location')->pluck('location'),
             'filters' => $filters,
         ]);
@@ -62,7 +62,7 @@ class EquipmentInspectionUnitController extends Controller
 
         return view('admin.inspection-units.form', [
             'unit' => null,
-            'forms' => EquipmentInspectionForm::query()->orderBy('sort_order')->orderBy('name')->get(),
+            'forms' => EquipmentInspectionForm::query()->orderBy('name')->orderBy('id')->get(),
         ]);
     }
 
@@ -95,7 +95,7 @@ class EquipmentInspectionUnitController extends Controller
 
         return view('admin.inspection-units.form', [
             'unit' => $equipmentInspectionUnit,
-            'forms' => EquipmentInspectionForm::query()->orderBy('sort_order')->orderBy('name')->get(),
+            'forms' => EquipmentInspectionForm::query()->orderBy('name')->orderBy('id')->get(),
         ]);
     }
 

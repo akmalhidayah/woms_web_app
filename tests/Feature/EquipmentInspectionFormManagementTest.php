@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\EquipmentInspection;
 use App\Models\EquipmentInspectionForm;
 use App\Models\EquipmentInspectionSignature;
+use App\Models\EquipmentInspectionUnit;
 use App\Models\User;
 use App\Services\Inspector\EquipmentInspectionService;
 use App\Support\Inspector\EquipmentFormCatalog;
@@ -57,7 +58,6 @@ class EquipmentInspectionFormManagementTest extends TestCase
         $payload = [
             'name' => 'Mesin Uji Baru',
             'description' => 'Form dari database.',
-            'sort_order' => 50,
             'action' => 'publish',
             'image' => $this->validImage(),
             'items' => [
@@ -73,11 +73,17 @@ class EquipmentInspectionFormManagementTest extends TestCase
         $this->get(route('admin.inspection-forms.index'))
             ->assertOk()
             ->assertDontSee('Form awal')
+            ->assertDontSee('>Urutan<', false)
             ->assertDontSee('>Versi<', false);
 
         $form = EquipmentInspectionForm::query()->where('slug', 'mesin-uji-baru')->with('items')->firstOrFail();
         $this->assertSame(EquipmentInspectionForm::STATUS_ACTIVE, $form->status);
         $this->assertCount(2, $form->items);
+        $unit = $form->units()->sole();
+        $this->assertSame('EQ01', $unit->asset_code);
+        $this->assertSame('Workshop Machine', $unit->location);
+        $this->assertFalse($unit->public_enabled);
+        $this->assertSame(32, strlen($unit->public_code));
         $this->assertNotNull($form->image_path);
         Storage::disk('local')->assertExists($form->image_path);
         $this->assertArrayNotHasKey('image_path', EquipmentFormCatalog::find($form->slug));
@@ -86,7 +92,7 @@ class EquipmentInspectionFormManagementTest extends TestCase
             ->assertDontSee('Grup (opsional)')
             ->assertDontSee('Nama grup opsional')
             ->assertDontSee('Urutan tampil')
-            ->assertSee('name="sort_order"', false)
+            ->assertDontSee('name="sort_order"', false)
             ->assertSeeInOrder(['Check Bearing', 'Tambah Item']);
         $this->get(route('admin.inspection-forms.preview', $form))->assertOk()->assertSee('Check Bearing');
         $this->get(route('admin.inspection-forms.image', $form))->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
@@ -114,6 +120,7 @@ class EquipmentInspectionFormManagementTest extends TestCase
         ])->assertRedirect();
 
         $form->refresh()->load('items');
+        $this->assertSame(0, $form->sort_order);
         $this->assertSame('mesin-uji-baru', $form->slug);
         $this->assertSame(2, $form->version);
         $this->assertSame($firstKey, $form->items->first()->item_key);
@@ -195,16 +202,67 @@ class EquipmentInspectionFormManagementTest extends TestCase
         $this->get(route('admin.inspection-forms.index'))->assertForbidden();
     }
 
+    public function test_new_forms_receive_stable_automatic_asset_codes_by_equipment_category(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN]);
+        $this->actingAs($admin);
+        $examples = [
+            'Mesin Potong Portable' => 'MP01',
+            'Mesin Potong Cadangan' => 'MP02',
+            'Mesin Lipat Portable' => 'MB01',
+            'Mesin Roll Portable' => 'MR01',
+            'Mesin Bor Baru' => 'BO01',
+            'Mesin Las Portable' => 'ML01',
+            'Forklift Baru' => 'FL01',
+            'Plasma Cutting Mobile' => 'PC01',
+            'Overhead Crane Mobile' => 'OC01',
+            'Pompa Workshop' => 'EQ01',
+        ];
+
+        foreach ($examples as $name => $expectedCode) {
+            $this->post(route('admin.inspection-forms.store'), [
+                'name' => $name,
+                'description' => null,
+                'action' => 'save_draft',
+                'items' => [['group_name' => '', 'label' => 'Check kondisi']],
+            ])->assertRedirect();
+
+            $form = EquipmentInspectionForm::query()->where('name', $name)->firstOrFail();
+            $unit = EquipmentInspectionUnit::query()->where('equipment_inspection_form_id', $form->id)->sole();
+            $this->assertSame($expectedCode, $unit->asset_code);
+            $this->assertSame('Workshop Machine', $unit->location);
+            $this->assertFalse($unit->public_enabled);
+        }
+    }
+
+    public function test_admin_and_inspector_catalogs_are_sorted_by_name_then_id(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN]);
+
+        $this->actingAs($admin)->get(route('admin.inspection-forms.index'))
+            ->assertOk()
+            ->assertViewHas('forms', function ($forms): bool {
+                $actual = $forms->getCollection()->pluck('id')->all();
+                $expected = EquipmentInspectionForm::query()->orderBy('name')->orderBy('id')->pluck('id')->all();
+
+                return $actual === $expected;
+            });
+
+        $actualCatalog = array_values(array_map(fn (array $form): int => $form['master_id'], EquipmentFormCatalog::all()));
+        $expectedCatalog = EquipmentInspectionForm::query()->active()->orderBy('name')->orderBy('id')->pluck('id')->all();
+        $this->assertSame($expectedCatalog, $actualCatalog);
+    }
+
     public function test_master_validation_and_unique_slug_generation_are_server_side(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN]);
         $this->actingAs($admin)->post(route('admin.inspection-forms.store'), [
-            'name' => '', 'sort_order' => 0, 'action' => 'save_draft', 'items' => [],
+            'name' => '', 'action' => 'save_draft', 'items' => [],
         ])->assertSessionHasErrors(['name', 'items']);
 
         foreach ([1, 2] as $iteration) {
             $this->post(route('admin.inspection-forms.store'), [
-                'name' => 'Nama Slug Sama', 'description' => null, 'sort_order' => $iteration,
+                'name' => 'Nama Slug Sama', 'description' => null,
                 'action' => 'save_draft', 'items' => [['group_name' => '', 'label' => 'Check']],
             ])->assertRedirect();
         }

@@ -22,8 +22,8 @@
                 @if (filled($filters['search'] ?? null))<a href="{{ route('admin.inspection-forms.index') }}" class="rounded-xl border border-slate-300 px-4 py-2.5 text-center text-sm font-semibold">Reset</a>@endif
             </form>
             <div class="overflow-x-auto">
-                <table class="w-full min-w-[820px] text-left text-sm">
-                    <thead class="bg-slate-100 text-xs uppercase tracking-wide text-slate-600"><tr><th class="px-4 py-3">Urutan</th><th class="px-4 py-3">Peralatan</th><th class="px-4 py-3">Item</th><th class="px-4 py-3">Status</th><th class="px-4 py-3 text-center">Aksi</th></tr></thead>
+                <table class="w-full min-w-[720px] text-left text-sm">
+                    <thead class="bg-slate-100 text-xs uppercase tracking-wide text-slate-600"><tr><th class="px-4 py-3">Peralatan</th><th class="px-4 py-3">Item</th><th class="px-4 py-3">Status</th><th class="px-4 py-3 text-center">Aksi</th></tr></thead>
                     <tbody class="divide-y divide-slate-200">
                         @forelse ($forms as $form)
                             @php
@@ -34,7 +34,6 @@
                                 $qrTitle = match ($qrState['status']) { 'ready' => 'Kelola QR Code', 'conflict' => 'Periksa konflik QR Code', default => 'Atur QR Code' };
                             @endphp
                             <tr>
-                                <td class="px-4 py-3 font-semibold">{{ $form->sort_order }}</td>
                                 <td class="px-4 py-3"><div class="flex items-center gap-3">
                                     @if ($form->image_path)<img src="{{ route('admin.inspection-forms.image', $form) }}" alt="Foto {{ $form->name }}" loading="lazy" class="h-12 w-16 rounded-lg object-cover ring-1 ring-slate-200">@else<div class="flex h-12 w-16 items-center justify-center rounded-lg bg-slate-100 px-1 text-center text-[10px] text-slate-500 ring-1 ring-slate-200">Foto belum tersedia</div>@endif
                                     <div>
@@ -64,7 +63,7 @@
                                 </div></td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="px-6 py-12 text-center text-slate-500">Belum ada master peralatan.</td></tr>
+                            <tr><td colspan="4" class="px-6 py-12 text-center text-slate-500">Belum ada master peralatan.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

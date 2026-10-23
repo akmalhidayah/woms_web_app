@@ -6,6 +6,7 @@ use App\Models\EquipmentInspectionForm;
 use App\Models\EquipmentInspectionFormItem;
 use App\Models\User;
 use App\Support\Inspector\EquipmentInspectionFormImageStorage;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -14,33 +15,49 @@ use Throwable;
 
 final class EquipmentInspectionFormService
 {
-    public function __construct(private readonly EquipmentInspectionFormImageStorage $images) {}
+    private const CREATE_ATTEMPTS = 5;
+
+    public function __construct(
+        private readonly EquipmentInspectionFormImageStorage $images,
+        private readonly EquipmentInspectionUnitService $units,
+    ) {}
 
     public function create(User $actor, array $data, ?UploadedFile $image): EquipmentInspectionForm
     {
         $stored = $image ? $this->images->store($image) : null;
         try {
-            return DB::transaction(function () use ($actor, $data, $stored): EquipmentInspectionForm {
-                if ($data['action'] === 'publish' && $stored === null) {
-                    throw ValidationException::withMessages(['image' => 'Foto peralatan wajib sebelum form baru diaktifkan.']);
-                }
-                $form = EquipmentInspectionForm::query()->create([
-                    'slug' => $this->uniqueSlug($data['name']),
-                    'name' => $data['name'],
-                    'description' => $data['description'] ?: null,
-                    'sort_order' => (int) $data['sort_order'],
-                    'status' => $data['action'] === 'publish' ? EquipmentInspectionForm::STATUS_ACTIVE : EquipmentInspectionForm::STATUS_DRAFT,
-                    'version' => 1,
-                    'is_legacy' => false,
-                    'created_by' => $actor->id,
-                    'updated_by' => $actor->id,
-                    ...$this->imageColumns($stored),
-                ]);
-                $this->syncItems($form, $data['items']);
-                $this->audit($form, $actor, $data['action'] === 'publish' ? 'created_and_published' : 'draft_created');
+            for ($attempt = 1; $attempt <= self::CREATE_ATTEMPTS; $attempt++) {
+                try {
+                    return DB::transaction(function () use ($actor, $data, $stored): EquipmentInspectionForm {
+                        if ($data['action'] === 'publish' && $stored === null) {
+                            throw ValidationException::withMessages(['image' => 'Foto peralatan wajib sebelum form baru diaktifkan.']);
+                        }
+                        $form = EquipmentInspectionForm::query()->create([
+                            'slug' => $this->uniqueSlug($data['name']),
+                            'name' => $data['name'],
+                            'description' => $data['description'] ?: null,
+                            'sort_order' => 0,
+                            'status' => $data['action'] === 'publish' ? EquipmentInspectionForm::STATUS_ACTIVE : EquipmentInspectionForm::STATUS_DRAFT,
+                            'version' => 1,
+                            'is_legacy' => false,
+                            'created_by' => $actor->id,
+                            'updated_by' => $actor->id,
+                            ...$this->imageColumns($stored),
+                        ]);
+                        $this->syncItems($form, $data['items']);
+                        $this->units->createAutomaticForForm($actor, $form);
+                        $this->audit($form, $actor, $data['action'] === 'publish' ? 'created_and_published' : 'draft_created');
 
-                return $form->fresh('items');
-            });
+                        return $form->fresh(['items', 'units']);
+                    }, self::CREATE_ATTEMPTS);
+                } catch (QueryException $exception) {
+                    if ($attempt === self::CREATE_ATTEMPTS || ! $this->isUniqueConstraintViolation($exception)) {
+                        throw $exception;
+                    }
+                }
+            }
+
+            throw new \RuntimeException('Master Peralatan gagal dibuat setelah beberapa percobaan.');
         } catch (Throwable $exception) {
             $this->images->cleanup($stored['path'] ?? null);
             throw $exception;
@@ -67,7 +84,6 @@ final class EquipmentInspectionFormService
                 $form->forceFill([
                     'name' => $data['name'],
                     'description' => $data['description'] ?: null,
-                    'sort_order' => (int) $data['sort_order'],
                     'status' => $publishing ? EquipmentInspectionForm::STATUS_ACTIVE : EquipmentInspectionForm::STATUS_DRAFT,
                     'updated_by' => $actor->id,
                     ...($stored ? $this->imageColumns($stored) : []),
@@ -201,6 +217,14 @@ final class EquipmentInspectionFormService
             'image_size' => $stored['size'],
             'image_sha256' => $stored['sha256'],
         ] : [];
+    }
+
+    private function isUniqueConstraintViolation(QueryException $exception): bool
+    {
+        $driverCode = (string) ($exception->errorInfo[0] ?? $exception->getCode());
+        $vendorCode = (int) ($exception->errorInfo[1] ?? 0);
+
+        return in_array($driverCode, ['23000', '23505'], true) || $vendorCode === 1062;
     }
 
     private function auditSnapshot(EquipmentInspectionForm $form): array

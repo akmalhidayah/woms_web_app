@@ -42,7 +42,7 @@ class EquipmentInspectionFormController extends Controller
                 ),
             ])])
             ->when($filters['search'] ?? null, fn ($query, $search) => $query->where('name', 'like', '%'.$search.'%'))
-            ->orderBy('sort_order')->orderBy('id')->paginate(20)->withQueryString();
+            ->orderBy('name')->orderBy('id')->paginate(20)->withQueryString();
 
         $qrStates = [];
         foreach ($forms->getCollection() as $form) {

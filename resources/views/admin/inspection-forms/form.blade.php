@@ -21,7 +21,6 @@
 
         <form method="POST" action="{{ $editing ? route('admin.inspection-forms.update', $form) : route('admin.inspection-forms.store') }}" enctype="multipart/form-data" class="space-y-4">
             @csrf @if ($editing) @method('PUT') @endif
-            <input type="hidden" name="sort_order" value="{{ old('sort_order', $form?->sort_order ?? 0) }}">
             <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 class="font-bold text-slate-900">Identitas Form</h2>
                 <div class="mt-4 grid gap-4 lg:grid-cols-2">

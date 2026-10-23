@@ -12,7 +12,7 @@ final class EquipmentInspectionFormRepository
     public function activeCatalog(): array
     {
         return EquipmentInspectionForm::query()->active()->with('items')
-            ->orderBy('sort_order')->orderBy('id')->get()
+            ->orderBy('name')->orderBy('id')->get()
             ->mapWithKeys(fn (EquipmentInspectionForm $form): array => [$form->slug => $this->template($form)])->all();
     }
 

@@ -78,8 +78,8 @@
                         <input id="asset-code-{{ $form->id }}" name="asset_code" value="{{ (int) old('qr_form_id') === (int) $form->id ? old('asset_code') : '' }}" required maxlength="100" autocomplete="off" placeholder="Contoh: RC 05" class="w-full rounded-xl border border-slate-300 px-3.5 py-3 text-sm font-semibold text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">
                     </div>
                     <div>
-                        <label for="location-{{ $form->id }}" class="mb-2 block text-sm font-bold text-slate-800">Lokasi <span class="font-normal text-slate-500">(opsional)</span></label>
-                        <input id="location-{{ $form->id }}" name="location" value="{{ (int) old('qr_form_id') === (int) $form->id ? old('location') : '' }}" maxlength="255" autocomplete="off" placeholder="Contoh: Workshop Mesin" class="w-full rounded-xl border border-slate-300 px-3.5 py-3 text-sm font-semibold text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">
+                        <label for="location-{{ $form->id }}" class="mb-2 block text-sm font-bold text-slate-800">Lokasi</label>
+                        <input id="location-{{ $form->id }}" name="location" value="{{ (int) old('qr_form_id') === (int) $form->id ? old('location', \App\Services\Inspector\EquipmentInspectionUnitService::DEFAULT_LOCATION) : \App\Services\Inspector\EquipmentInspectionUnitService::DEFAULT_LOCATION }}" maxlength="255" autocomplete="off" placeholder="Workshop Machine" class="w-full rounded-xl border border-slate-300 px-3.5 py-3 text-sm font-semibold text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">
                         <p class="mt-2 text-xs leading-5 text-slate-500">Lokasi akan ditampilkan pada halaman riwayat QR. QR permanen dibuat satu kali dan akses publik tetap nonaktif sampai Admin mengaktifkannya.</p>
                     </div>
                     <div class="flex flex-col-reverse gap-2 border-t border-slate-200 pt-4 sm:flex-row sm:justify-end">

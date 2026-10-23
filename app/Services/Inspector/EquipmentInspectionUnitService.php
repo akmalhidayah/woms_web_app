@@ -19,9 +19,14 @@ use Throwable;
 
 final class EquipmentInspectionUnitService
 {
-    public function __construct(private readonly EquipmentInspectionUnitImageStorage $images) {}
+    public const DEFAULT_LOCATION = 'Workshop Machine';
 
-    public function savePrimaryForForm(User $actor, EquipmentInspectionForm $existingForm, string $assetCode, ?string $location = null): EquipmentInspectionUnit
+    public function __construct(
+        private readonly EquipmentInspectionUnitImageStorage $images,
+        private readonly EquipmentAssetCodeGenerator $assetCodes,
+    ) {}
+
+    public function savePrimaryForForm(?User $actor, EquipmentInspectionForm $existingForm, string $assetCode, ?string $location = null): EquipmentInspectionUnit
     {
         try {
             return DB::transaction(function () use ($actor, $existingForm, $assetCode, $location): EquipmentInspectionUnit {
@@ -39,10 +44,10 @@ final class EquipmentInspectionUnitService
                 }
 
                 $code = trim($assetCode);
-                $normalizedLocation = filled($location) ? trim($location) : null;
+                $normalizedLocation = filled($location) ? trim($location) : self::DEFAULT_LOCATION;
                 $unit = $units->first();
                 $codeOwner = EquipmentInspectionUnit::query()
-                    ->where('asset_code', $code)
+                    ->whereRaw('UPPER(asset_code) = ?', [Str::upper($code)])
                     ->when($unit !== null, fn ($query) => $query->where('id', '!=', $unit->id))
                     ->first();
                 if ($codeOwner) {
@@ -63,8 +68,8 @@ final class EquipmentInspectionUnitService
                         'lifecycle_status' => EquipmentInspectionUnit::STATUS_ACTIVE,
                         'public_enabled' => false,
                         'sort_order' => $form->sort_order,
-                        'created_by' => $actor->id,
-                        'updated_by' => $actor->id,
+                        'created_by' => $actor?->id,
+                        'updated_by' => $actor?->id,
                     ]);
                     $this->audit($unit, $actor, 'created_from_master_form', ['state' => $this->auditSnapshot($unit)]);
 
@@ -77,7 +82,7 @@ final class EquipmentInspectionUnitService
                         'asset_code' => $code,
                         'name' => $form->name,
                         'location' => $normalizedLocation,
-                        'updated_by' => $actor->id,
+                        'updated_by' => $actor?->id,
                     ])->save();
                     $this->audit($unit, $actor, 'updated_from_master_form', [
                         'before' => $before,
@@ -98,6 +103,51 @@ final class EquipmentInspectionUnitService
 
             throw $exception;
         }
+    }
+
+    public function createAutomaticForForm(User $actor, EquipmentInspectionForm $existingForm): EquipmentInspectionUnit
+    {
+        return DB::transaction(function () use ($actor, $existingForm): EquipmentInspectionUnit {
+            $form = EquipmentInspectionForm::query()->whereKey($existingForm->id)->lockForUpdate()->firstOrFail();
+            $units = EquipmentInspectionUnit::query()
+                ->where('equipment_inspection_form_id', $form->id)
+                ->lockForUpdate()
+                ->orderBy('id')
+                ->limit(2)
+                ->get();
+
+            if ($units->count() > 1) {
+                throw ValidationException::withMessages([
+                    'name' => 'Master Peralatan memiliki lebih dari satu unit sehingga kode otomatis tidak dapat ditentukan.',
+                ]);
+            }
+            if ($units->count() === 1) {
+                return $units->first();
+            }
+
+            $unit = EquipmentInspectionUnit::query()->create([
+                'equipment_inspection_form_id' => $form->id,
+                'asset_code' => $this->assetCodes->nextForName($form->name),
+                'name' => $form->name,
+                'location' => self::DEFAULT_LOCATION,
+                'description' => $form->description,
+                'image_path' => null,
+                'image_mime_type' => null,
+                'image_size' => null,
+                'image_sha256' => null,
+                'public_code' => $this->uniquePublicCode(),
+                'lifecycle_status' => EquipmentInspectionUnit::STATUS_ACTIVE,
+                'public_enabled' => false,
+                'sort_order' => $form->sort_order,
+                'created_by' => $actor->id,
+                'updated_by' => $actor->id,
+            ]);
+            $this->audit($unit, $actor, 'created_automatically_from_master_form', [
+                'state' => $this->auditSnapshot($unit),
+            ]);
+
+            return $unit;
+        });
     }
 
     public function create(User $actor, array $data, ?UploadedFile $image): EquipmentInspectionUnit
@@ -464,10 +514,10 @@ final class EquipmentInspectionUnitService
         ];
     }
 
-    private function audit(EquipmentInspectionUnit $unit, User $actor, string $event, array $metadata = []): void
+    private function audit(EquipmentInspectionUnit $unit, ?User $actor, string $event, array $metadata = []): void
     {
         $unit->logs()->create([
-            'actor_user_id' => $actor->id,
+            'actor_user_id' => $actor?->id,
             'event' => $event,
             'metadata' => $metadata,
             'created_at' => now(),

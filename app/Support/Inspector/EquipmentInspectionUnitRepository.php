@@ -17,7 +17,7 @@ final class EquipmentInspectionUnitRepository
             ->where(function ($query) use ($includeUnitId): void {
                 $query->active();
                 if ($includeUnitId) {
-                    $query->orWhereKey($includeUnitId);
+                    $query->orWhere('id', $includeUnitId);
                 }
             })
             ->orderBy('sort_order')->orderBy('asset_code')->orderBy('id')

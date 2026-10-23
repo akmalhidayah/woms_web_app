@@ -1,8 +1,8 @@
 <x-layouts.admin title="Master Peralatan — WOMS">
     <div
         class="space-y-4"
-        x-data="{ qrModal: @js((int) old('qr_form_id', 0)), copiedQr: null }"
-        @keydown.escape.window="qrModal = null"
+        x-data="{ qrModal: @js((int) old('qr_form_id', 0)), copiedQr: null, imagePreview: null }"
+        @keydown.escape.window="qrModal = null; imagePreview = null"
     >
         <section class="flex flex-col gap-4 rounded-2xl border border-blue-100 bg-blue-50 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <div class="flex items-center gap-3">
@@ -35,7 +35,22 @@
                             @endphp
                             <tr>
                                 <td class="px-4 py-3"><div class="flex items-center gap-3">
-                                    @if ($form->image_path)<img src="{{ route('admin.inspection-forms.image', $form) }}" alt="Foto {{ $form->name }}" loading="lazy" class="h-12 w-16 rounded-lg object-cover ring-1 ring-slate-200">@else<div class="flex h-12 w-16 items-center justify-center rounded-lg bg-slate-100 px-1 text-center text-[10px] text-slate-500 ring-1 ring-slate-200">Foto belum tersedia</div>@endif
+                                    @if ($form->image_path)
+                                        <button
+                                            type="button"
+                                            @click="imagePreview = { src: @js(route('admin.inspection-forms.image', $form)), name: @js($form->name) }"
+                                            title="Preview foto {{ $form->name }}"
+                                            aria-label="Preview foto {{ $form->name }}"
+                                            class="group relative h-12 w-16 shrink-0 overflow-hidden rounded-lg ring-1 ring-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        >
+                                            <img src="{{ route('admin.inspection-forms.image', $form) }}" alt="Foto {{ $form->name }}" loading="lazy" class="h-full w-full object-cover transition duration-200 group-hover:scale-105">
+                                            <span class="absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/40 group-hover:opacity-100 group-focus:bg-slate-950/40 group-focus:opacity-100" aria-hidden="true">
+                                                <i data-lucide="maximize-2" class="h-4 w-4"></i>
+                                            </span>
+                                        </button>
+                                    @else
+                                        <div class="flex h-12 w-16 shrink-0 items-center justify-center rounded-lg bg-slate-100 px-1 text-center text-[10px] text-slate-500 ring-1 ring-slate-200">Foto belum tersedia</div>
+                                    @endif
                                     <div>
                                         <div class="flex flex-wrap items-center gap-2">
                                             <p class="font-bold text-slate-900">{{ $form->name }}</p>
@@ -77,5 +92,39 @@
                 'qrState' => $qrStates[$form->id] ?? ['status' => 'missing', 'unit' => null],
             ])
         @endforeach
+
+        <div
+            x-show="imagePreview"
+            x-cloak
+            x-transition.opacity
+            class="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/70 px-4 py-6"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="equipment-image-preview-title"
+            @click.self="imagePreview = null"
+        >
+            <div x-show="imagePreview" x-transition class="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+                <header class="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-6">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-blue-700">
+                            <i data-lucide="image" class="h-4 w-4"></i>
+                            Preview Foto Peralatan
+                        </div>
+                        <h2 id="equipment-image-preview-title" class="mt-1 truncate text-lg font-bold text-slate-900" x-text="imagePreview ? imagePreview.name : ''"></h2>
+                    </div>
+                    <button type="button" @click="imagePreview = null" aria-label="Tutup preview foto" class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900">
+                        <i data-lucide="x" class="h-5 w-5"></i>
+                    </button>
+                </header>
+
+                <div class="flex min-h-0 flex-1 items-center justify-center bg-slate-100 p-4 sm:p-6">
+                    <img
+                        :src="imagePreview ? imagePreview.src : ''"
+                        :alt="imagePreview ? 'Foto ' + imagePreview.name : 'Preview foto peralatan'"
+                        class="max-h-[72vh] max-w-full rounded-xl bg-white object-contain shadow-sm"
+                    >
+                </div>
+            </div>
+        </div>
     </div>
 </x-layouts.admin>

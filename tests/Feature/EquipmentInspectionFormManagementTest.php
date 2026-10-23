@@ -74,7 +74,10 @@ class EquipmentInspectionFormManagementTest extends TestCase
             ->assertOk()
             ->assertDontSee('Form awal')
             ->assertDontSee('>Urutan<', false)
-            ->assertDontSee('>Versi<', false);
+            ->assertDontSee('>Versi<', false)
+            ->assertSee('aria-label="Preview foto Mesin Uji Baru"', false)
+            ->assertSee('id="equipment-image-preview-title"', false)
+            ->assertSee('x-show="imagePreview"', false);
 
         $form = EquipmentInspectionForm::query()->where('slug', 'mesin-uji-baru')->with('items')->firstOrFail();
         $this->assertSame(EquipmentInspectionForm::STATUS_ACTIVE, $form->status);

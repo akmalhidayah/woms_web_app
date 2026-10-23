@@ -43,6 +43,20 @@ class EquipmentInspectionManagementTest extends TestCase
             ->assertSee('data-swal-title="Hapus laporan inspeksi?"', false);
     }
 
+    public function test_sidebar_badge_excludes_inspections_that_are_already_in_history(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN,
+        ]);
+        $owner = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
+        $this->inspection($owner, EquipmentInspection::STATUS_APPROVED);
+
+        $this->assertSame(0, EquipmentInspectionIndexTabs::count($admin, 'new'));
+        $this->assertSame(1, EquipmentInspectionIndexTabs::count($admin, 'history'));
+        $this->assertSame(0, app(AdminActionCenter::class)->sidebarCounts($admin)['inspeksi_baru']);
+    }
+
     public function test_admin_index_shows_remark_count_badge_without_view_action(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN]);

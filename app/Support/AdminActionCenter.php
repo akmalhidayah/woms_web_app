@@ -15,6 +15,7 @@ use App\Models\PurchaseOrder;
 use App\Models\User;
 use App\Services\BengkelTasks\WorkshopHandoverQueue;
 use App\Services\BengkelTasks\WorkshopQualityControlQueue;
+use App\Support\Inspector\EquipmentInspectionIndexTabs;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -124,7 +125,7 @@ class AdminActionCenter
             'order_jasa_incomplete' => $counts[self::MODULE_ORDER_INCOMPLETE],
             'orders_total' => $counts[self::MODULE_ORDER_INCOMPLETE],
             'inspeksi_baru' => $user && AdminMenuRegistry::canAccess($user, AdminMenuRegistry::MENU_INSPEKSI)
-                ? app(\App\Support\Inspector\EquipmentInspectionAdminUnread::class)->count($user) : 0,
+                ? EquipmentInspectionIndexTabs::count($user, 'new') : 0,
             'create_hpp' => $counts[self::MODULE_CREATE_HPP],
             'verifikasi_anggaran' => $counts[self::MODULE_BUDGET_VERIFICATION],
             'purchase_order' => $counts[self::MODULE_PURCHASE_ORDER],

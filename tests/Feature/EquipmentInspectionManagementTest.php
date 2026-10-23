@@ -62,14 +62,26 @@ class EquipmentInspectionManagementTest extends TestCase
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN]);
         $owner = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
         $inspection = $this->inspection($owner);
-        $inspection->answers()->get()->take(2)->each->update(['remark' => 'Perlu tindak lanjut']);
+        $answers = $inspection->answers()->orderBy('position')->take(3)->get();
+        $answers[0]->update(['rating' => 'A', 'remark' => 'Kondisi normal']);
+        $answers[1]->update(['rating' => 'B', 'remark' => 'Perlu tindak lanjut']);
+        $answers[2]->update(['rating' => 'C', 'remark' => 'Peralatan rusak']);
 
         $this->actingAs($admin)->get(route('admin.inspections.index'))
             ->assertOk()
-            ->assertSee('data-remark-count="2"', false)
-            ->assertSee('Lihat 2 item dengan Remark')
+            ->assertSee('data-remark-count="3"', false)
+            ->assertSee('Lihat 3 item dengan Remark')
             ->assertSee('style="position: fixed; inset: 0; margin: auto;"', false)
             ->assertDontSee('aria-label="Lihat inspeksi ', false);
+
+        $this->getJson(route('admin.inspections.remarks', $inspection))
+            ->assertOk()
+            ->assertJsonPath('items.0.rating_label', 'Normal')
+            ->assertJsonPath('items.0.rating_alert', false)
+            ->assertJsonPath('items.1.rating_label', 'Kurang Normal')
+            ->assertJsonPath('items.1.rating_alert', true)
+            ->assertJsonPath('items.2.rating_label', 'Rusak')
+            ->assertJsonPath('items.2.rating_alert', true);
     }
 
     public function test_inspector_index_uses_floating_filter_and_clickable_cards_without_view_icon(): void

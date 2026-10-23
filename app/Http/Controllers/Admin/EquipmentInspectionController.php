@@ -115,7 +115,9 @@ class EquipmentInspectionController extends Controller
 
         return response()->json(['number' => $inspection->document_no ?? 'Draft', 'equipment' => $inspection->form_name,
             'date' => $inspection->inspection_date->format('d/m/Y'), 'items' => $inspection->answers->filter(fn ($a) => preg_match('/[^\s\p{Z}]/u', (string) $a->remark))
-                ->map(fn ($a) => ['position' => $a->position, 'label' => $a->item_label, 'rating' => $a->rating, 'remark' => $a->remark,
+                ->map(fn ($a) => ['position' => $a->position, 'label' => $a->item_label, 'rating' => $a->rating,
+                    'rating_label' => ['A' => 'Normal', 'B' => 'Kurang Normal', 'C' => 'Rusak'][$a->rating] ?? 'Belum dipilih',
+                    'rating_alert' => in_array($a->rating, ['B', 'C'], true), 'remark' => $a->remark,
                     'photos' => $a->attachments->map(fn ($file) => route('admin.inspections.attachment', [$inspection, $file]))->all()])->values()], 200, ['Cache-Control' => 'private, no-store']);
     }
 

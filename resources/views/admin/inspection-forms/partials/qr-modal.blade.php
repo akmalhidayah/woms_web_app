@@ -146,6 +146,8 @@
                     </section>
                 </div>
 
+                @include('admin.inspection-forms.partials.cilt-document')
+
                 <details class="mt-3 rounded-xl border border-slate-200">
                     <summary class="cursor-pointer list-none px-4 py-3 text-sm font-bold text-slate-700">Aksi lanjutan</summary>
                     <div class="border-t border-slate-200 p-4">

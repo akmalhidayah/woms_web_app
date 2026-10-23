@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\SaveEquipmentCiltRequest;
 use App\Http\Requests\Admin\SaveEquipmentInspectionUnitRequest;
 use App\Models\EquipmentInspection;
 use App\Models\EquipmentInspectionForm;
 use App\Models\EquipmentInspectionUnit;
 use App\Policies\EquipmentInspectionPolicy;
+use App\Services\Inspector\EquipmentCiltService;
 use App\Services\Inspector\EquipmentInspectionUnitService;
 use App\Services\Inspector\EquipmentQrCodeService;
 use App\Support\Inspector\EquipmentInspectionFormImageStorage;
@@ -189,6 +191,30 @@ class EquipmentInspectionUnitController extends Controller
     private function authorizeAdmin(Request $request): void
     {
         abort_unless((new EquipmentInspectionPolicy)->monitor($request->user()), 403);
+    }
+
+    public function storeCilt(SaveEquipmentCiltRequest $request, EquipmentInspectionUnit $equipmentInspectionUnit, EquipmentCiltService $cilt): RedirectResponse
+    {
+        $cilt->replace($request->user(), $equipmentInspectionUnit, $request->file('cilt_pdf'));
+
+        return back()->with('success', 'Dokumen Standar CILT berhasil disimpan.')
+            ->withInput(['qr_form_id' => $equipmentInspectionUnit->equipment_inspection_form_id]);
+    }
+
+    public function previewCilt(Request $request, EquipmentInspectionUnit $equipmentInspectionUnit, EquipmentCiltService $cilt): Response
+    {
+        $this->authorizeAdmin($request);
+
+        return $cilt->response($equipmentInspectionUnit);
+    }
+
+    public function deleteCilt(Request $request, EquipmentInspectionUnit $equipmentInspectionUnit, EquipmentCiltService $cilt): RedirectResponse
+    {
+        $this->authorizeAdmin($request);
+        $cilt->delete($request->user(), $equipmentInspectionUnit);
+
+        return back()->with('success', 'Dokumen Standar CILT telah dihapus.')
+            ->withInput(['qr_form_id' => $equipmentInspectionUnit->equipment_inspection_form_id]);
     }
 
     private function safeFilename(string $value): string

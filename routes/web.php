@@ -88,6 +88,9 @@ Route::get('display-pekerjaan-bengkel/laporan-harian/avatar/{key}', [AppSheetMed
     ->name('display.bengkel.daily-report-avatar');
 
 Route::prefix('equipment/q')->name('public.equipment-history.')->middleware('throttle:30,1')->group(function () {
+    Route::get('{publicCode}/cilt', [PublicEquipmentInspectionController::class, 'cilt'])
+        ->where('publicCode', '[A-Za-z0-9]{32}')
+        ->name('cilt');
     Route::get('{publicCode}', [PublicEquipmentInspectionController::class, 'show'])
         ->where('publicCode', '[A-Za-z0-9]{32}')
         ->name('show');
@@ -130,6 +133,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('{equipmentInspectionForm}/image', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'image'])->name('image');
     });
     Route::prefix('admin/inspection-units')->name('admin.inspection-units.')->middleware(['role:admin', 'admin_menu:inspeksi'])->group(function () {
+        Route::post('{equipmentInspectionUnit}/cilt', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'storeCilt'])->name('cilt.store');
+        Route::get('{equipmentInspectionUnit}/cilt', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'previewCilt'])->name('cilt.preview');
+        Route::delete('{equipmentInspectionUnit}/cilt', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'deleteCilt'])->name('cilt.destroy');
         Route::get('/', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'index'])->name('index');
         Route::get('create', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'store'])->name('store');

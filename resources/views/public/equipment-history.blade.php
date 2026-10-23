@@ -8,24 +8,193 @@
     <title>{{ $unit['asset_code'] }} — Riwayat Inspeksi WOMS</title>
     <link rel="icon" type="image/png" href="{{ asset('assets/branding/logos/logo-st2.png') }}?v=tonasa">
     <style>
-        :root{color-scheme:light;--blue:#173f91;--ink:#172033;--muted:#64748b;--line:#dbe3ef;--bg:#f4f7fb}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Arial,Helvetica,sans-serif}.wrap{width:min(760px,100%);margin:auto;padding:16px}.top{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:18px;background:var(--blue);color:#fff;box-shadow:0 12px 28px #173f9126}.logo{width:42px;height:42px;border-radius:12px;background:#fff;padding:6px;object-fit:contain}.top small{display:block;margin-top:3px;color:#c9d8ff}.card{margin-top:14px;border:1px solid var(--line);border-radius:18px;background:#fff;box-shadow:0 8px 24px #0f172a0b;overflow:hidden}.equipment{display:grid;gap:16px;padding:16px}.photo{width:100%;aspect-ratio:16/10;border-radius:14px;background:#eef2f7;object-fit:cover}.placeholder{display:grid;place-items:center;color:var(--muted);font-weight:700}.eyebrow{font-size:11px;font-weight:800;letter-spacing:.12em;color:var(--blue);text-transform:uppercase}.title{margin:6px 0 0;font-size:23px;line-height:1.15}.code{display:inline-block;margin-top:10px;padding:6px 10px;border-radius:999px;background:#eaf1ff;color:#123b8d;font-size:13px;font-weight:800}.meta{margin-top:12px}.meta div{padding:10px;border-radius:12px;background:#f8fafc}.meta span{display:block;font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}.meta strong{display:block;margin-top:4px;font-size:13px}.section-head{padding:15px 16px;border-bottom:1px solid var(--line)}.section-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.section-head h2{margin:0;font-size:16px}.section-head p{margin:5px 0 0;color:var(--muted);font-size:12px}.pdf-link{display:inline-flex;width:34px;height:34px;flex:none;align-items:center;justify-content:center;border:1px solid #fecaca;border-radius:10px;background:#fff5f5;color:#b91c1c;text-decoration:none}.pdf-link:hover{background:#fee2e2}.pdf-link svg{width:17px;height:17px}.body{padding:16px}.counts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.count{padding:10px 6px;border-radius:12px;text-align:center;font-size:11px;font-weight:700}.count strong{display:block;font-size:20px}.a{background:#e9f9ef;color:#166534}.b{background:#fff7db;color:#92400e}.c{background:#feecec;color:#991b1b}.summary{margin:12px 0 0;padding:12px;border-radius:12px;background:#f8fafc;font-size:13px;line-height:1.5}.checklist{margin-top:12px;border:1px solid var(--line);border-radius:13px;overflow:hidden}.item{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:11px 12px;border-top:1px solid var(--line);font-size:13px}.item:first-child{border-top:0}.item-copy{min-width:0}.remark{display:block;margin-top:4px;color:var(--muted);font-size:11px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}.remark strong{color:#475569}.rating{min-width:32px;border-radius:9px;padding:5px;text-align:center;font-weight:900}.history{padding:0 14px 14px}.entry{margin-top:12px;border:1px solid var(--line);border-radius:14px;overflow:hidden}.entry summary{cursor:pointer;list-style:none;padding:13px}.entry summary::-webkit-details-marker{display:none}.row{display:flex;align-items:center;justify-content:space-between;gap:10px}.entry-actions{display:flex;align-items:center;gap:7px}.date{font-size:14px;font-weight:800}.doc{margin-top:4px;color:var(--muted);font-size:11px;word-break:break-word}.approved{border-radius:999px;background:#e9f9ef;color:#166534;padding:5px 8px;font-size:10px;font-weight:800}.details{border-top:1px solid var(--line);padding:12px}.empty{padding:32px 18px;text-align:center;color:var(--muted);font-size:14px}.notice{margin:14px 0 4px;padding:13px;border-radius:14px;border:1px solid #f0cf7a;background:#fffbeb;color:#744210;font-size:12px;line-height:1.5}.pagination{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:14px;color:var(--muted);font-size:12px}.page-link{border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--blue);padding:8px 11px;font-weight:700;text-decoration:none}.page-link.disabled{color:#94a3b8;pointer-events:none}@media(min-width:620px){.wrap{padding:24px}.equipment{grid-template-columns:220px 1fr;align-items:center}.photo{aspect-ratio:4/3}}
+        :root { color-scheme: light; --blue: #173f91; --ink: #172033; --muted: #64748b; --line: #dbe3ef; --bg: #f4f7fb; }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: var(--bg); color: var(--ink); font-family: Arial, Helvetica, sans-serif; }
+        [x-cloak] { display: none !important; }
+        .equipment-history { width: min(760px, 100%); margin: auto; padding: 16px; }
+        .equipment-history .top { display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: 18px; background: var(--blue); color: white; box-shadow: 0 12px 28px #173f9126; }
+        .equipment-history .logo { width: 40px; height: 40px; flex: none; border-radius: 10px; background: white; padding: 5px; object-fit: contain; }
+        .equipment-history .top strong { font-size: 14px; line-height: 1.4; }
+        .equipment-history .top small { display: block; margin-top: 3px; color: #c9d8ff; font-size: 11px; }
+        .equipment-history .card { margin-top: 14px; border: 1px solid var(--line); border-radius: 18px; background: white; box-shadow: 0 8px 24px #0f172a0b; overflow: hidden; }
+        .equipment-history .equipment { display: grid; gap: 16px; padding: 16px; }
+        .equipment-history .photo { width: 100%; aspect-ratio: 16/10; border-radius: 14px; background: #eef2f7; object-fit: cover; }
+        .equipment-history .placeholder { display: grid; place-items: center; color: var(--muted); font-weight: 700; }
+        .equipment-history .eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .1em; color: var(--blue); text-transform: uppercase; }
+        .equipment-history .title { margin: 6px 0 0; font-size: 23px; line-height: 1.2; overflow-wrap: anywhere; }
+        .equipment-history .code { display: inline-block; margin: 10px 6px 0 0; padding: 6px 10px; border-radius: 999px; background: #eaf1ff; color: var(--blue); font-size: 13px; font-weight: 800; }
+        .equipment-history .location { margin: 12px 0 0; color: var(--muted); font-size: 14px; }
+        .equipment-history .unit-status { display: inline-block; border-radius: 999px; padding: 5px 8px; font-size: 11px; font-weight: 700; background: #eef2f7; }
+        .equipment-history .unit-status.active { background: #e9f9ef; color: #166534; }
+        .equipment-history .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin-top: 16px; }
+        .equipment-history .tab { display: flex; align-items: center; flex-direction: column; gap: 7px; min-height: 76px; padding: 12px 4px; border: 1px solid var(--line); border-radius: 14px; background: white; color: var(--muted); cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; }
+        .equipment-history .tab.selected { border-color: #74a6f2; color: var(--blue); background: #eaf2ff; box-shadow: 0 3px 10px #173f9112; }
+        .equipment-history svg { width: 22px; height: 22px; flex: none; }
+        .equipment-history :is(button, a, summary):focus-visible { outline: 3px solid #60a5fa; outline-offset: 3px; }
+        .equipment-history .panel { min-height: 260px; }
+        .equipment-history .section-head { padding: 15px 16px; border-bottom: 1px solid var(--line); }
+        .equipment-history h2 { margin: 0; font-size: 17px; line-height: 1.4; }
+        .equipment-history .section-head p { margin: 7px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+        .equipment-history .body { padding: 16px; }
+        .equipment-history .counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .equipment-history .count { padding: 10px 4px; border-radius: 12px; text-align: center; font-size: 11px; font-weight: 700; line-height: 1.5; }
+        .equipment-history .count strong { display: block; font-size: 22px; }
+        .equipment-history .a { background: #e9f9ef; color: #166534; }
+        .equipment-history .b { background: #fff7db; color: #92400e; }
+        .equipment-history .c { background: #feecec; color: #991b1b; }
+        .equipment-history .summary { margin: 12px 0; padding: 12px; border-radius: 12px; background: #f8fafc; font-size: 13px; line-height: 1.6; }
+        .equipment-history .checklist { margin-top: 12px; border: 1px solid var(--line); border-radius: 13px; overflow: hidden; }
+        .equipment-history .item { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 12px; border-top: 1px solid var(--line); font-size: 13px; line-height: 1.5; }
+        .equipment-history .item:first-child { border-top: 0; }
+        .equipment-history .item-copy { min-width: 0; overflow-wrap: anywhere; }
+        .equipment-history .item-group { display: block; margin-bottom: 4px; color: var(--muted); font-size: 11px; }
+        .equipment-history .remark { margin: 6px 0 0; font-size: 12px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .equipment-history .rating { min-width: 32px; flex: none; border-radius: 9px; padding: 5px; text-align: center; font-weight: 900; }
+        .equipment-history .approved { display: inline-block; border-radius: 999px; background: #e9f9ef; color: #166534; padding: 5px 8px; font-size: 11px; font-weight: 800; }
+        .equipment-history .history { padding: 0 14px 14px; }
+        .equipment-history .entry { margin-top: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; }
+        .equipment-history .entry h3 { margin: 8px 0 5px; font-size: 15px; overflow-wrap: anywhere; }
+        .equipment-history .date { margin: 0 0 12px; color: var(--muted); font-size: 12px; }
+        .equipment-history summary { cursor: pointer; padding: 12px 0; color: var(--blue); font-size: 13px; font-weight: 700; }
+        .equipment-history .document-link { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 14px; border: 1px solid #c4d8f9; border-radius: 11px; background: #eef5ff; color: var(--blue); font-size: 13px; font-weight: 700; text-decoration: none; }
+        .equipment-history .document-link svg { width: 19px; height: 19px; }
+        .equipment-history .document-link.primary { margin-top: 14px; width: 100%; background: var(--blue); color: white; border-color: var(--blue); }
+        .equipment-history .empty { padding: 40px 18px; text-align: center; color: var(--muted); font-size: 14px; line-height: 1.6; }
+        .equipment-history .cilt-document { padding: 28px 18px; text-align: center; }
+        .equipment-history .cilt-document > svg { width: 48px; height: 48px; color: var(--blue); margin-bottom: 14px; }
+        .equipment-history .cilt-document h3 { margin: 0; font-size: 17px; overflow-wrap: anywhere; }
+        .equipment-history .cilt-document p { font-size: 13px; line-height: 1.6; color: var(--muted); }
+        .equipment-history .notice { margin: 14px 0 4px; padding: 13px; border-radius: 14px; border: 1px solid #f0cf7a; background: #fffbeb; color: #744210; font-size: 12px; line-height: 1.6; }
+        .equipment-history .pagination { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 14px; color: var(--muted); font-size: 12px; }
+        .equipment-history .page-link { border: 1px solid var(--line); border-radius: 10px; background: white; color: var(--blue); padding: 12px 8px; font-weight: 700; text-decoration: none; }
+        .equipment-history .page-link.disabled { color: #94a3b8; }
+        @media (min-width: 620px) { .equipment-history { padding: 24px; } .equipment-history .equipment { grid-template-columns: 220px 1fr; align-items: center; } .equipment-history .photo { aspect-ratio: 4/3; } }
     </style>
 </head>
 <body>
-    <main class="wrap">
-        <header class="top"><img class="logo" src="{{ asset('assets/branding/logos/logo-st2.png') }}" alt="Logo"><div><strong>WOMS EQUIPMENT HISTORY</strong><small>Riwayat Pemeriksaan Peralatan</small></div></header>
+    <main class="equipment-history" x-data="{
+        activeTab: @js(request('tab') === 'history' || $inspections->currentPage() > 1 ? 'history' : 'inspection'),
+        tabs: ['inspection', 'history', 'cilt'],
+        moveTab(event) {
+            const index = this.tabs.indexOf(this.activeTab);
+            const next = event.key === 'Home' ? 0 : event.key === 'End' ? 2 : (index + (event.key === 'ArrowRight' ? 1 : 2)) % 3;
+            this.activeTab = this.tabs[next];
+            this.$nextTick(() => document.getElementById('tab-' + this.activeTab).focus());
+        }
+    }">
+        <header class="top">
+            <img class="logo" src="{{ asset('assets/branding/logos/logo-sig.png') }}" alt="SIG">
+            <img class="logo" src="{{ asset('assets/branding/logos/logo-st2.png') }}" alt="Semen Tonasa">
+            <div><strong>WOMS EQUIPMENT HISTORY</strong><small>Riwayat Pemeriksaan Peralatan</small></div>
+        </header>
 
-        <section class="card equipment">
-            @if ($unit['has_image'])<img class="photo" src="{{ route('public.equipment-history.image', $unit['public_code']) }}" alt="Foto {{ $unit['name'] }}">@else<div class="photo placeholder">Foto belum tersedia</div>@endif
-            <div><p class="eyebrow">Unit Peralatan</p><h1 class="title">{{ $unit['name'] }}</h1><span class="code">{{ $unit['asset_code'] }}</span><div class="meta"><div><span>Lokasi</span><strong>{{ $unit['location'] ?: 'Tidak dicantumkan' }}</strong></div></div></div>
+        <section class="card equipment" aria-label="Identitas peralatan">
+            @if ($unit['has_image'])
+                <img class="photo" src="{{ route('public.equipment-history.image', $unit['public_code']) }}" alt="Foto {{ $unit['name'] }}">
+            @else
+                <div class="photo placeholder">Foto belum tersedia</div>
+            @endif
+            <div>
+                <p class="eyebrow">Unit Peralatan</p>
+                <h1 class="title">{{ $unit['name'] }}</h1>
+                <span class="code">{{ $unit['asset_code'] }}</span>
+                <span class="unit-status {{ $unit['lifecycle_status'] === 'active' ? 'active' : '' }}">{{ $unit['lifecycle_status'] === 'active' ? 'Unit Aktif' : 'Unit Nonaktif' }}</span>
+                <p class="location">{{ $unit['location'] ?: 'Lokasi tidak dicantumkan' }}</p>
+            </div>
         </section>
 
-        @if ($latest)
-            <section class="card"><div class="section-head"><div class="section-title-row"><div><h2>Riwayat Pemeriksaan Terakhir</h2><p>{{ \Illuminate\Support\Carbon::parse($latest['inspection_date'])->translatedFormat('d F Y') }} · {{ $latest['document_no'] ?: 'Nomor tidak tersedia' }}</p></div><a class="pdf-link" href="{{ route('public.equipment-history.pdf', [$unit['public_code'], $latest['public_id']]) }}" target="_blank" rel="noopener" title="Lihat PDF pemeriksaan terakhir" aria-label="Lihat PDF pemeriksaan terakhir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 15h8M8 18h5"/></svg></a></div></div><div class="body"><div class="counts"><div class="count a"><strong>{{ $latest['counts']['A'] }}</strong>Normal (A)</div><div class="count b"><strong>{{ $latest['counts']['B'] }}</strong>Kurang Normal (B)</div><div class="count c"><strong>{{ $latest['counts']['C'] }}</strong>Rusak (C)</div></div><div class="checklist">@foreach ($latest['items'] as $item)<div class="item"><div class="item-copy"><span>{{ $item['label'] }}</span>@if ($item['remark'])<small class="remark"><strong>Remarks:</strong> {{ $item['remark'] }}</small>@endif</div><span class="rating {{ strtolower($item['rating']) }}">{{ $item['rating'] }}</span></div>@endforeach</div></div></section>
-        @endif
+        <nav class="tabs" role="tablist" aria-label="Informasi peralatan"
+            @keydown.arrow-right.prevent="moveTab($event)" @keydown.arrow-left.prevent="moveTab($event)"
+            @keydown.home.prevent="moveTab($event)" @keydown.end.prevent="moveTab($event)">
+            @foreach (['inspection' => 'Inspeksi', 'history' => 'Riwayat', 'cilt' => 'CILT'] as $tab => $label)
+                <button type="button" id="tab-{{ $tab }}" role="tab" class="tab"
+                    :class="{ selected: activeTab === '{{ $tab }}' }"
+                    :aria-selected="activeTab === '{{ $tab }}'" :tabindex="activeTab === '{{ $tab }}' ? 0 : -1"
+                    aria-controls="panel-{{ $tab }}" @click="activeTab = '{{ $tab }}'">
+                    @include('public.partials.equipment-icon', ['icon' => $tab])
+                    <span>{{ $label }}</span>
+                </button>
+            @endforeach
+        </nav>
 
-        <section class="card"><div class="section-head"><h2>Riwayat Keseluruhan</h2><p>A = Normal · B = Kurang Normal · C = Rusak</p></div>@if ($inspections->isEmpty())<div class="empty">Belum ada riwayat pemeriksaan yang disetujui.</div>@else<div class="history">@foreach ($inspections as $inspection)<details class="entry" @if ($loop->first && ! $latest) open @endif><summary><div class="row"><div><div class="date">{{ \Illuminate\Support\Carbon::parse($inspection['inspection_date'])->translatedFormat('d F Y') }}</div><div class="doc">{{ $inspection['document_no'] ?: 'Nomor tidak tersedia' }} · A {{ $inspection['counts']['A'] }} / B {{ $inspection['counts']['B'] }} / C {{ $inspection['counts']['C'] }}</div></div><div class="entry-actions"><span class="approved">Disetujui</span><a class="pdf-link" href="{{ route('public.equipment-history.pdf', [$unit['public_code'], $inspection['public_id']]) }}" target="_blank" rel="noopener" title="Lihat PDF {{ $inspection['document_no'] ?: 'pemeriksaan' }}" aria-label="Lihat PDF {{ $inspection['document_no'] ?: 'pemeriksaan' }}" onclick="event.stopPropagation()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 15h8M8 18h5"/></svg></a></div></div></summary><div class="details"><div class="checklist">@foreach ($inspection['items'] as $item)<div class="item"><span>{{ $item['label'] }}</span><span class="rating {{ strtolower($item['rating']) }}">{{ $item['rating'] }}</span></div>@endforeach</div></div></details>@endforeach@if ($inspections->hasPages())<nav class="pagination" aria-label="Navigasi riwayat"><a class="page-link{{ $inspections->onFirstPage() ? ' disabled' : '' }}" href="{{ $inspections->previousPageUrl() ?: '#' }}" @if ($inspections->onFirstPage()) aria-disabled="true" tabindex="-1" @endif>← Sebelumnya</a><span>Halaman {{ $inspections->currentPage() }} dari {{ $inspections->lastPage() }}</span><a class="page-link{{ $inspections->hasMorePages() ? '' : ' disabled' }}" href="{{ $inspections->nextPageUrl() ?: '#' }}" @unless ($inspections->hasMorePages()) aria-disabled="true" tabindex="-1" @endunless>Berikutnya →</a></nav>@endif</div>@endif</section>
+        <section id="panel-inspection" role="tabpanel" aria-labelledby="tab-inspection" tabindex="0" class="card panel" x-show="activeTab === 'inspection'" x-cloak>
+            <div class="section-head"><h2>Hasil Pemeriksaan Terakhir</h2>
+                @if ($latest)
+                    <p>{{ $latest['document_no'] ?: 'Nomor tidak tersedia' }}<br>{{ \Illuminate\Support\Carbon::parse($latest['inspection_date'])->translatedFormat('d F Y') }}</p>
+                    <p>Inspektor: {{ $latest['inspector_name'] ?: 'Tidak dicantumkan' }}</p>
+                    <p><span class="approved">{{ $latest['status'] }}</span></p>
+                @endif
+            </div>
+            @if ($latest)
+                <div class="body">
+                    @include('public.partials.equipment-counts', ['inspection' => $latest])
+                    <p class="summary">{{ $latest['summary'] }}</p>
+                    @include('public.partials.equipment-checklist', ['inspection' => $latest])
+                    <a class="document-link primary" href="{{ route('public.equipment-history.pdf', [$unit['public_code'], $latest['public_id']]) }}" target="_blank" rel="noopener noreferrer">
+                        @include('public.partials.equipment-icon', ['icon' => 'pdf']) Buka PDF Inspeksi
+                    </a>
+                </div>
+            @else
+                <div class="empty">Belum ada hasil pemeriksaan yang disetujui.</div>
+            @endif
+        </section>
+
+        <section id="panel-history" role="tabpanel" aria-labelledby="tab-history" tabindex="0" class="card panel" x-show="activeTab === 'history'" x-cloak>
+            <div class="section-head"><h2>Riwayat Pemeriksaan</h2><p>Pemeriksaan yang telah disetujui, dari terbaru ke terlama.</p></div>
+            <div class="history">
+                @forelse ($inspections as $inspection)
+                    <article class="entry">
+                        <span class="approved">{{ $inspection['status'] }}</span>
+                        <h3>{{ $inspection['document_no'] ?: 'Nomor tidak tersedia' }}</h3>
+                        <p class="date">{{ \Illuminate\Support\Carbon::parse($inspection['inspection_date'])->translatedFormat('d F Y') }}</p>
+                        @include('public.partials.equipment-counts')
+                        <p class="summary">{{ $inspection['summary'] }}</p>
+                        <details>
+                            <summary>Lihat Detail Checklist &amp; Remarks</summary>
+                            @include('public.partials.equipment-checklist')
+                        </details>
+                        <a class="document-link" href="{{ route('public.equipment-history.pdf', [$unit['public_code'], $inspection['public_id']]) }}" target="_blank" rel="noopener noreferrer">
+                            @include('public.partials.equipment-icon', ['icon' => 'pdf']) Buka PDF
+                        </a>
+                    </article>
+                @empty
+                    <div class="empty">Belum ada riwayat pemeriksaan yang disetujui.</div>
+                @endforelse
+                @if ($inspections->hasPages())
+                    @php($inspections->appends(['tab' => 'history']))
+                    <nav class="pagination" aria-label="Navigasi riwayat">
+                        @if ($inspections->onFirstPage())<span class="page-link disabled" aria-disabled="true">← Sebelumnya</span>
+                        @else<a class="page-link" href="{{ $inspections->previousPageUrl() }}">← Sebelumnya</a>@endif
+                        <span>Halaman {{ $inspections->currentPage() }}</span>
+                        @if ($inspections->hasMorePages())<a class="page-link" href="{{ $inspections->nextPageUrl() }}">Berikutnya →</a>
+                        @else<span class="page-link disabled" aria-disabled="true">Berikutnya →</span>@endif
+                    </nav>
+                @endif
+            </div>
+        </section>
+
+        <section id="panel-cilt" role="tabpanel" aria-labelledby="tab-cilt" tabindex="0" class="card panel" x-show="activeTab === 'cilt'" x-cloak>
+            <div class="section-head"><h2>Standar CILT Peralatan</h2><p>Cleaning, Inspection, Lubrication &amp; Tightening</p></div>
+            @if ($cilt && $cilt['available'])
+                <div class="cilt-document">
+                    @include('public.partials.equipment-icon', ['icon' => 'pdf'])
+                    <h3>{{ $cilt['name'] }}</h3>
+                    <p>Dokumen standar perawatan {{ $unit['name'] }}.</p>
+                    @if ($cilt['updated_at'])<p>Diperbarui {{ \Illuminate\Support\Carbon::parse($cilt['updated_at'])->timezone(config('app.timezone'))->translatedFormat('d F Y H:i') }}</p>@endif
+                    <a class="document-link primary" href="{{ route('public.equipment-history.cilt', $unit['public_code']) }}" target="_blank" rel="noopener noreferrer">
+                        @include('public.partials.equipment-icon', ['icon' => 'pdf']) Buka Dokumen CILT
+                    </a>
+                </div>
+            @else
+                <div class="empty">Dokumen Standar CILT belum tersedia untuk peralatan ini.</div>
+            @endif
+        </section>
+
+        <noscript><p class="notice">Aktifkan JavaScript untuk membuka tab informasi peralatan.</p></noscript>
         <p class="notice">Informasi merupakan hasil pemeriksaan yang telah disetujui. Persetujuan dokumen tidak otomatis menyatakan peralatan layak dioperasikan.</p>
     </main>
+    {{-- Livewire supplies the existing local Alpine runtime; no second Alpine instance. --}}
+    @livewireScripts
 </body>
 </html>

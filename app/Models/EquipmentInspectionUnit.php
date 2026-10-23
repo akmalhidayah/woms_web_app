@@ -35,7 +35,7 @@ class EquipmentInspectionUnit extends Model
         'updated_by',
     ];
 
-    protected $hidden = ['image_path', 'image_sha256'];
+    protected $hidden = ['image_path', 'image_sha256', 'cilt_path'];
 
     protected function casts(): array
     {
@@ -43,6 +43,8 @@ class EquipmentInspectionUnit extends Model
             'public_enabled' => 'boolean',
             'sort_order' => 'integer',
             'image_size' => 'integer',
+            'cilt_size' => 'integer',
+            'cilt_updated_at' => 'datetime',
         ];
     }
 

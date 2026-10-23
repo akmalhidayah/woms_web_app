@@ -324,6 +324,48 @@ class EquipmentInspectionUnitQrTest extends TestCase
             ->assertSee('Belum ada riwayat pemeriksaan yang disetujui.');
     }
 
+    public function test_history_paginates_only_valid_snapshots_and_latest_stays_available_on_page_two(): void
+    {
+        config(['equipment-inspection.public_history_per_page' => 1]);
+        $inspector = User::factory()->create(['role' => User::ROLE_INSPECTOR, 'name' => 'Inspektor Snapshot']);
+        $manager = User::factory()->create(['role' => User::ROLE_APPROVER]);
+        $form = EquipmentInspectionForm::query()->where('slug', 'mesin-lipat')->firstOrFail();
+        $unit = $this->unit($form, 'MB-PAGES');
+        $unit->update(['public_enabled' => true]);
+        $documents = [];
+        foreach (['OLDER', 'LATEST', 'INVALID', 'DELETED'] as $index => $number) {
+            $inspection = app(EquipmentInspectionService::class)->save($inspector, null, $form->slug, [
+                'inspection_date' => now()->subDays(5 - $index)->toDateString(),
+                'equipment_inspection_unit_id' => $unit->id,
+                'answers' => $this->answers($form->slug, 'B', $number.' remark'),
+            ], []);
+            $inspection->answers()->update(['group_label' => 'Mekanik Snapshot']);
+            $this->approveForTest($inspection, $inspector, $manager, $number);
+            $documents[$number] = $inspection;
+        }
+        $documents['INVALID']->signatures()->where('role_key', EquipmentInspectionSignature::ROLE_MANAGER)
+            ->update(['content_hash' => str_repeat('0', 64)]);
+        $documents['DELETED']->delete();
+        $signedBefore = $documents['LATEST']->signatures()->get()->map->getAttributes()->all();
+        $inspector->update(['name' => 'New profile name']);
+        app(\App\Services\Inspector\EquipmentCiltService::class)->replace(
+            $this->admin(), $unit, \Illuminate\Http\UploadedFile::fake()->createWithContent('CILT.pdf', '%PDF-1.4 reference'),
+        );
+        $this->assertSame($signedBefore, $documents['LATEST']->signatures()->get()->map->getAttributes()->all());
+
+        $url = route('public.equipment-history.show', $unit->public_code);
+        $pageOne = $this->get($url)->assertOk()->assertDontSee('INVALID remark')->assertDontSee('DELETED remark')
+            ->assertSee('Inspektor Snapshot')->assertDontSee('New profile name');
+        $this->assertSame('LATEST', $pageOne->viewData('latest')['document_no']);
+        $this->assertSame(['LATEST'], $pageOne->viewData('inspections')->getCollection()->pluck('document_no')->all());
+        $this->assertTrue($pageOne->viewData('inspections')->hasMorePages());
+        $pageTwo = $this->get($url.'?page=2')->assertOk()->assertSee('OLDER remark');
+        $this->assertSame('LATEST', $pageTwo->viewData('latest')['document_no']);
+        $this->assertSame(['OLDER'], $pageTwo->viewData('inspections')->getCollection()->pluck('document_no')->all());
+        $this->assertFalse($pageTwo->viewData('inspections')->hasMorePages());
+        $this->assertSame('Mekanik Snapshot', $pageTwo->viewData('latest')['items'][0]['group']);
+    }
+
     public function test_qr_rotation_invalidates_old_url_without_changing_history(): void
     {
         $admin = $this->admin();

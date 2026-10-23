@@ -7,7 +7,7 @@ use App\Models\EquipmentInspectionSignature;
 use App\Models\EquipmentInspectionUnit;
 use App\Models\EquipmentInspectionUnitLink;
 use App\Support\Inspector\EquipmentInspectionSnapshot;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
 
 final class PublicEquipmentHistoryService
@@ -30,29 +30,52 @@ final class PublicEquipmentHistoryService
     }
 
     /**
-     * @return array{unit: array<string, mixed>, inspections: LengthAwarePaginator, latest: ?array<string, mixed>}
+     * @return array{unit: array<string, mixed>, inspections: Paginator, latest: ?array<string, mixed>}
      */
     public function history(EquipmentInspectionUnit $unit): array
     {
         $unit->loadMissing('form');
         $perPage = max(1, min(25, (int) config('equipment-inspection.public_history_per_page', 10)));
-        $paginator = EquipmentInspection::query()
+        $page = Paginator::resolveCurrentPage();
+        $skip = ($page - 1) * $perPage;
+        $safe = collect();
+        $latest = null;
+        $validCount = 0;
+        $candidates = EquipmentInspection::query()
+            ->select(['id', 'public_id', 'document_version', 'inspection_date', 'status'])
             ->where('status', EquipmentInspection::STATUS_APPROVED)
             ->whereHas('unitLink', fn ($query) => $query->where('equipment_inspection_unit_id', $unit->id))
             ->with([
                 'unitLink',
-                'signatures' => fn ($query) => $query->whereIn('role_key', [
+                'signatures' => fn ($query) => $query->select([
+                    'id', 'equipment_inspection_id', 'document_version', 'role_key', 'content_hash', 'signed_payload',
+                ])->whereIn('role_key', [
                     EquipmentInspectionSignature::ROLE_INSPECTOR,
                     EquipmentInspectionSignature::ROLE_MANAGER,
                 ]),
             ])
-            ->orderByDesc('inspection_date')->orderByDesc('id')
-            ->paginate($perPage)->withQueryString();
+            ->orderByDesc('inspection_date')->orderByDesc('id');
 
-        $safe = $paginator->getCollection()
-            ->map(fn (EquipmentInspection $inspection): ?array => $this->project($inspection, $unit))
-            ->filter()->values();
-        $paginator->setCollection($safe);
+        // Validate in bounded, eager-loaded batches. Stop after one extra valid row:
+        // pagination must never count invalid snapshots or load all history at once.
+        foreach ($candidates->lazy(50) as $inspection) {
+            $projected = $this->project($inspection, $unit);
+            if ($projected === null) {
+                continue;
+            }
+            $latest ??= $projected;
+            if ($validCount++ < $skip) {
+                continue;
+            }
+            $safe->push($projected);
+            if ($safe->count() > $perPage) {
+                break;
+            }
+        }
+        $paginator = (new Paginator($safe, $perPage, $page, [
+            'path' => Paginator::resolveCurrentPath(),
+            'pageName' => 'page',
+        ]))->withQueryString();
 
         return [
             'unit' => [
@@ -64,7 +87,7 @@ final class PublicEquipmentHistoryService
                 'has_image' => filled($unit->image_path) || filled($unit->form?->image_path),
             ],
             'inspections' => $paginator,
-            'latest' => $paginator->currentPage() === 1 ? $safe->first() : null,
+            'latest' => $latest,
         ];
     }
 
@@ -128,8 +151,9 @@ final class PublicEquipmentHistoryService
 
             return [
                 'label' => $answer['item_label'],
+                'group' => is_string($answer['group_label'] ?? null) ? $answer['group_label'] : null,
                 'rating' => $answer['rating'],
-                'remark' => filled($remark) ? trim($remark) : null,
+                'remark' => filled($remark) ? $remark : null,
             ];
         });
         if ($items->isEmpty() || $items->contains(null)) {
@@ -147,6 +171,7 @@ final class PublicEquipmentHistoryService
             'inspection_date' => $inspectionDate,
             'document_no' => $documentNo,
             'status' => 'Disetujui',
+            'inspector_name' => is_string($payload['inspector_name'] ?? null) ? $payload['inspector_name'] : null,
             'counts' => $counts,
             'items' => $items->values()->all(),
             'summary' => $this->summary($items, $counts),

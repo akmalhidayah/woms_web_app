@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\SaveEquipmentInspectionFormRequest;
 use App\Models\EquipmentInspection;
 use App\Models\EquipmentInspectionForm;
 use App\Policies\EquipmentInspectionPolicy;
+use App\Services\Inspector\EquipmentCiltService;
 use App\Services\Inspector\EquipmentInspectionFormService;
 use App\Services\Inspector\EquipmentInspectionUnitService;
 use App\Services\Inspector\EquipmentQrCodeService;
@@ -29,6 +30,7 @@ class EquipmentInspectionFormController extends Controller
     public function index(
         Request $request,
         EquipmentQrCodeService $qr,
+        EquipmentCiltService $cilt,
     ): View
     {
         $this->authorizeAdmin($request);
@@ -71,6 +73,7 @@ class EquipmentInspectionFormController extends Controller
                 'unit' => $unit,
                 'public_url' => $publicUrl,
                 'qr_error' => $qrError,
+                'cilt' => $cilt->describe($unit),
             ];
         }
 

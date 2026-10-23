@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\EquipmentInspection;
 use App\Models\EquipmentInspectionUnit;
+use App\Services\Inspector\EquipmentCiltService;
 use App\Services\Inspector\EquipmentInspectionPdfService;
 use App\Services\Inspector\PublicEquipmentHistoryService;
 use App\Support\Inspector\EquipmentInspectionFormImageStorage;
@@ -12,11 +13,14 @@ use Symfony\Component\HttpFoundation\Response;
 
 class PublicEquipmentInspectionController extends Controller
 {
-    public function show(string $publicCode, PublicEquipmentHistoryService $history): Response
+    public function show(string $publicCode, PublicEquipmentHistoryService $history, EquipmentCiltService $cilt): Response
     {
         $unit = $this->publishedUnit($publicCode);
 
-        return response()->view('public.equipment-history', $history->history($unit), 200, [
+        return response()->view('public.equipment-history', [
+            ...$history->history($unit),
+            'cilt' => $cilt->describe($unit),
+        ], 200, [
             'Cache-Control' => 'private, no-store',
             'X-Content-Type-Options' => 'nosniff',
             'X-Robots-Tag' => 'noindex, nofollow, noarchive',
@@ -69,6 +73,11 @@ class PublicEquipmentInspectionController extends Controller
         $response->headers->set('Referrer-Policy', 'no-referrer');
 
         return $response;
+    }
+
+    public function cilt(string $publicCode, EquipmentCiltService $cilt): Response
+    {
+        return $cilt->response($this->publishedUnit($publicCode));
     }
 
     private function publishedUnit(string $publicCode): EquipmentInspectionUnit

@@ -9,6 +9,7 @@ use App\Models\InitialWorkSignature;
 use App\Models\LhppBastSignature;
 use App\Models\PurchaseOrder;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
@@ -30,11 +31,7 @@ class AdminNotificationCenter
 
         $sourceLimit = max($limit * 4, 20);
 
-        return self::allNotifications($sourceLimit)
-            ->filter(fn (array $notification): bool => AdminMenuRegistry::canAccess(
-                $user,
-                $notification['menu_key'] ?? '',
-            ))
+        return self::allNotifications($user, $sourceLimit)
             ->reject(fn (array $notification): bool => $this->isRead($notification, $user))
             ->sortByDesc('signed_at')
             ->values()
@@ -47,13 +44,7 @@ class AdminNotificationCenter
             return 0;
         }
 
-        return self::allNotifications()
-            ->filter(fn (array $notification): bool => AdminMenuRegistry::canAccess(
-                $user,
-                $notification['menu_key'] ?? '',
-            ))
-            ->reject(fn (array $notification): bool => $this->isRead($notification, $user))
-            ->count();
+        return $this->unreadInformationKeys($user)->count();
     }
 
     /**
@@ -65,29 +56,59 @@ class AdminNotificationCenter
             return collect();
         }
 
-        return self::allNotifications()
-            ->filter(fn (array $notification): bool => AdminMenuRegistry::canAccess(
-                $user,
-                $notification['menu_key'] ?? '',
-            ))
-            ->reject(fn (array $notification): bool => $this->isRead($notification, $user))
-            ->pluck('key')
-            ->filter()
-            ->unique()
-            ->values();
+        // Only identities are needed for the count/read-all, not signatures,
+        // document relations, formatted messages, or URLs.
+        $keys = collect();
+
+        foreach ([
+            [AdminMenuRegistry::MENU_CREATE_HPP, HppSignature::class, 'hpp-signature:'],
+            [AdminMenuRegistry::MENU_ORDER_JASA, InitialWorkSignature::class, 'initial-work-signature:'],
+            [AdminMenuRegistry::MENU_LHPP_BAST, LhppBastSignature::class, 'bast-signature:'],
+        ] as [$menu, $model, $prefix]) {
+            if (AdminMenuRegistry::canAccess($user, $menu)) {
+                $keys = $keys->merge(self::signedQuery($model)->pluck('id')
+                    ->map(fn ($id): string => $prefix.$id));
+            }
+        }
+
+        if (AdminMenuRegistry::canAccess($user, AdminMenuRegistry::MENU_ORDER_JASA)) {
+            foreach ([
+                [self::pkmPurchaseOrderProgressQuery(), 'pkm-po-progress:'],
+                [self::pkmInitialWorkProgressQuery(), 'pkm-initial-work-progress:'],
+            ] as [$query, $prefix]) {
+                $keys = $keys->merge($query
+                    ->where('updated_at', '>=', now()->subDays(self::RECENT_DAYS))
+                    ->get(['id', 'updated_at'])
+                    ->map(fn ($record): string => $prefix.$record->id.':'.($record->updated_at?->timestamp ?? 0)));
+            }
+        }
+
+        return $keys->diff($this->readKeysForUser($user))->unique()->values();
     }
 
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private static function allNotifications(?int $limit = null): Collection
+    private static function allNotifications(User $user, ?int $limit = null): Collection
     {
-        return collect()
-            ->merge(self::hppSignedNotifications($limit))
-            ->merge(self::initialWorkSignedNotifications($limit))
-            ->merge(self::bastSignedNotifications($limit))
-            ->merge(self::pkmPurchaseOrderProgressNotifications($limit))
-            ->merge(self::pkmInitialWorkProgressNotifications($limit));
+        $notifications = collect();
+
+        if (AdminMenuRegistry::canAccess($user, AdminMenuRegistry::MENU_CREATE_HPP)) {
+            $notifications = $notifications->merge(self::hppSignedNotifications($limit));
+        }
+        if (AdminMenuRegistry::canAccess($user, AdminMenuRegistry::MENU_ORDER_JASA)) {
+            $notifications = $notifications->merge(self::initialWorkSignedNotifications($limit));
+        }
+        if (AdminMenuRegistry::canAccess($user, AdminMenuRegistry::MENU_LHPP_BAST)) {
+            $notifications = $notifications->merge(self::bastSignedNotifications($limit));
+        }
+        if (AdminMenuRegistry::canAccess($user, AdminMenuRegistry::MENU_ORDER_JASA)) {
+            $notifications = $notifications
+                ->merge(self::pkmPurchaseOrderProgressNotifications($limit))
+                ->merge(self::pkmInitialWorkProgressNotifications($limit));
+        }
+
+        return $notifications;
     }
 
     private function isRead(array $notification, User $user): bool
@@ -104,8 +125,12 @@ class AdminNotificationCenter
      */
     private function readKeysForUser(User $user): Collection
     {
+        if (isset($this->readKeysCache[$user->id])) {
+            return $this->readKeysCache[$user->id];
+        }
+
         if (! Schema::hasTable('admin_notification_reads')) {
-            return collect();
+            return $this->readKeysCache[$user->id] = collect();
         }
 
         return $this->readKeysCache[$user->id] ??= AdminNotificationRead::query()
@@ -118,11 +143,8 @@ class AdminNotificationCenter
      */
     private static function hppSignedNotifications(?int $limit): Collection
     {
-        return self::limitQuery(HppSignature::query()
+        return self::limitQuery(self::signedQuery(HppSignature::class)
             ->with('hpp:id,nomor_order,nama_pekerjaan')
-            ->where('status', HppSignature::STATUS_SIGNED)
-            ->whereNotNull('signed_at')
-            ->where('signed_at', '>=', now()->subDays(self::RECENT_DAYS))
             ->latest('signed_at'), $limit)
             ->get()
             ->map(fn (HppSignature $signature): array => [
@@ -151,11 +173,8 @@ class AdminNotificationCenter
      */
     private static function initialWorkSignedNotifications(?int $limit): Collection
     {
-        return self::limitQuery(InitialWorkSignature::query()
+        return self::limitQuery(self::signedQuery(InitialWorkSignature::class)
             ->with('initialWork:id,order_id,nomor_order,nomor_initial_work,nama_pekerjaan')
-            ->where('status', InitialWorkSignature::STATUS_SIGNED)
-            ->whereNotNull('signed_at')
-            ->where('signed_at', '>=', now()->subDays(self::RECENT_DAYS))
             ->latest('signed_at'), $limit)
             ->get()
             ->map(fn (InitialWorkSignature $signature): array => [
@@ -181,14 +200,11 @@ class AdminNotificationCenter
      */
     private static function bastSignedNotifications(?int $limit): Collection
     {
-        return self::limitQuery(LhppBastSignature::query()
+        return self::limitQuery(self::signedQuery(LhppBastSignature::class)
             ->with([
                 'lhppBast:id,nomor_order,termin_type,deskripsi_pekerjaan',
                 'lhppBast.garansi:id,lhpp_bast_id,garansi_months',
             ])
-            ->where('status', LhppBastSignature::STATUS_SIGNED)
-            ->whereNotNull('signed_at')
-            ->where('signed_at', '>=', now()->subDays(self::RECENT_DAYS))
             ->latest('signed_at'), $limit)
             ->get()
             ->map(fn (LhppBastSignature $signature): array => [
@@ -342,6 +358,14 @@ class AdminNotificationCenter
             'signed_at' => $updatedAt,
             'url' => $url,
         ];
+    }
+
+    private static function signedQuery(string $model): Builder
+    {
+        return $model::query()
+            ->where('status', $model::STATUS_SIGNED)
+            ->whereNotNull('signed_at')
+            ->where('signed_at', '>=', now()->subDays(self::RECENT_DAYS));
     }
 
     private static function limitQuery($query, ?int $limit)

@@ -2,9 +2,14 @@
 
 namespace App\Providers;
 
+use App\Models\AdminRoleMenuAccess;
 use App\Models\Hpp;
 use App\Models\OutlineAgreement;
 use App\Models\OutlineAgreementTarget;
+use App\Support\AdminActionCenter;
+use App\Support\AdminMenuPermissions;
+use App\Support\AdminNotificationCenter;
+use App\Support\AdminPresentationData;
 use App\View\Composers\PkmLayoutComposer;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,7 +25,19 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(AdminPresentationData::class, function ($app): AdminPresentationData {
+            $request = $app['request'];
+            $key = AdminPresentationData::class;
+
+            if (! $request->attributes->has($key)) {
+                $request->attributes->set($key, new AdminPresentationData(
+                    $app->make(AdminActionCenter::class),
+                    $app->make(AdminNotificationCenter::class),
+                ));
+            }
+
+            return $request->attributes->get($key);
+        });
     }
 
     /**
@@ -28,6 +45,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        AdminRoleMenuAccess::saved(fn () => app(AdminMenuPermissions::class)->forget());
+        AdminRoleMenuAccess::deleted(fn () => app(AdminMenuPermissions::class)->forget());
+
         RateLimiter::for('organization-api', function (Request $request): Limit {
             $tokenId = $request->user()?->currentAccessToken()?->getKey();
             $requestsPerMinute = max(

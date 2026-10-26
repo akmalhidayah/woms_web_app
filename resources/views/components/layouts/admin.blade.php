@@ -748,12 +748,9 @@
                 ' ',
                 $user?->resolvedAdminRole() ?? $user?->role ?? 'admin'
             ));
-            $adminActionCenter = app(\App\Support\AdminActionCenter::class);
-            $adminInformationCenter = app(\App\Support\AdminNotificationCenter::class);
-            $adminActions = $adminActionCenter->actions($user, 10);
-            $adminPendingActionCount = $adminActionCenter->pendingActionCount($user);
-            $adminInformationNotifications = $adminInformationCenter->informationNotifications($user, 5);
-            $adminUnreadInformationCount = $adminInformationCenter->unreadInformationCount($user);
+            $adminPresentation = app(\App\Support\AdminPresentationData::class)->summary($user);
+            $adminPendingActionCount = $adminPresentation['pending_count'];
+            $adminUnreadInformationCount = $adminPresentation['unread_count'];
             $adminNotificationBadge = $adminPendingActionCount > 9 ? '9+' : (string) $adminPendingActionCount;
             $adminActionFeedUrl = \Illuminate\Support\Facades\Route::has('admin.notifications.action-feed')
                 ? route('admin.notifications.action-feed')
@@ -772,22 +769,6 @@
                     'icon' => 'network',
                 ],
             ])->filter(fn (array $link): bool => \App\Support\AdminMenuRegistry::canAccess($user, $link['key']) && \Illuminate\Support\Facades\Route::has($link['route']));
-            $notificationToneClasses = [
-                'blue' => 'bg-blue-50 text-blue-700 ring-blue-100',
-                'amber' => 'bg-amber-50 text-amber-700 ring-amber-100',
-                'emerald' => 'bg-emerald-50 text-emerald-700 ring-emerald-100',
-                'rose' => 'bg-rose-50 text-rose-700 ring-rose-100',
-            ];
-            $actionWaitingClasses = [
-                'normal' => 'text-slate-500',
-                'warning' => 'text-amber-700',
-                'danger' => 'font-semibold text-rose-700',
-            ];
-            $actionWaitingBadgeClasses = [
-                'normal' => '',
-                'warning' => 'rounded-full bg-amber-50 px-1.5 py-0.5 ring-1 ring-amber-100',
-                'danger' => 'rounded-full bg-rose-50 px-1.5 py-0.5 ring-1 ring-rose-100',
-            ];
         @endphp
 
         <div
@@ -796,6 +777,40 @@
                 mobileOpen: false,
                 profileOpen: false,
                 notificationsOpen: false,
+                notificationsLoading: false,
+                notificationsHtml: '',
+                notificationsError: '',
+                notificationsLoadedAt: 0,
+                pendingActionCount: {{ $adminPendingActionCount }},
+                unreadInformationCount: {{ $adminUnreadInformationCount }},
+                async openNotifications() {
+                    this.notificationsOpen = true;
+                    if (Date.now() - this.notificationsLoadedAt >= 45000) await this.loadNotifications();
+                },
+                async loadNotifications() {
+                    if (this.notificationsLoading) return;
+                    this.notificationsLoading = true;
+                    this.notificationsError = '';
+                    try {
+                        const response = await fetch(@js(route('admin.notifications.panel')), {
+                            headers: { Accept: 'application/json' },
+                            credentials: 'same-origin',
+                            cache: 'no-store',
+                        });
+                        if (!response.ok || response.redirected) throw new Error('load');
+                        const data = await response.json();
+                        if (typeof data.html !== 'string') throw new Error('load');
+                        this.notificationsHtml = data.html;
+                        this.pendingActionCount = data.pending_count;
+                        this.unreadInformationCount = data.unread_count;
+                        this.notificationsLoadedAt = Date.now();
+                        this.$nextTick(() => window.lucide?.createIcons());
+                    } catch (_) {
+                        this.notificationsError = 'Pemberitahuan belum dapat dimuat. Silakan coba lagi.';
+                    } finally {
+                        this.notificationsLoading = false;
+                    }
+                },
                 structurePreviewOpen: false,
                 structurePreviewLoading: false,
                 structurePreviewHtml: '',
@@ -893,7 +908,7 @@
             }"
             x-init="$watch('mobileOpen', () => syncBodyOverflow()); $watch('structurePreviewOpen', () => syncBodyOverflow())"
             @keydown.escape.window="if (structurePreviewOpen) closeStructurePreview()"
-            x-on:admin-action-center:open.window="notificationsOpen = true; $nextTick(() => document.querySelector('[data-admin-action-section]')?.scrollIntoView({ block: 'nearest' }))"
+            x-on:admin-action-center:open.window="openNotifications().then(() => $nextTick(() => $refs.notificationContent.querySelector('[data-admin-action-section]')?.scrollIntoView({ block: 'nearest' })))"
             class="min-h-screen"
         >
             <div
@@ -1338,16 +1353,13 @@
                             <div class="relative" @click.outside="notificationsOpen = false">
                                 <button
                                     type="button"
-                                    @click="notificationsOpen = !notificationsOpen"
+                                    @click="notificationsOpen ? notificationsOpen = false : openNotifications()"
                                     class="relative inline-flex h-9 w-9 items-center justify-center rounded-lg text-white transition hover:bg-white/10"
                                     aria-label="Notifications"
                                 >
                                     <i data-lucide="bell" class="h-5 w-5"></i>
-                                    @if ($adminPendingActionCount > 0)
-                                        <span class="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">{{ $adminNotificationBadge }}</span>
-                                    @elseif ($adminUnreadInformationCount > 0)
-                                        <span class="absolute right-0 top-0 h-2.5 w-2.5 rounded-full bg-sky-300 ring-2 ring-blue-900" aria-label="Ada informasi terbaru"></span>
-                                    @endif
+                                    <span x-show="pendingActionCount > 0" x-cloak x-text="pendingActionCount > 9 ? '9+' : pendingActionCount" class="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">{{ $adminNotificationBadge }}</span>
+                                    <span x-show="pendingActionCount === 0 && unreadInformationCount > 0" x-cloak class="absolute right-0 top-0 h-2.5 w-2.5 rounded-full bg-sky-300 ring-2 ring-blue-900" aria-label="Ada informasi terbaru"></span>
                                 </button>
 
                                 <div
@@ -1360,96 +1372,26 @@
                                         <div>
                                             <div class="text-sm font-bold text-slate-900">Pemberitahuan</div>
                                             <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-semibold text-slate-500">
-                                                <span>Perlu Tindakan: {{ $adminPendingActionCount }}</span>
-                                                <span>Informasi Baru: {{ $adminUnreadInformationCount }}</span>
+                                                <span>Perlu Tindakan: <span x-text="pendingActionCount">{{ $adminPendingActionCount }}</span></span>
+                                                <span>Informasi Baru: <span x-text="unreadInformationCount">{{ $adminUnreadInformationCount }}</span></span>
                                             </div>
-                                            @if ($adminUnreadInformationCount > 0)
-                                                <form method="POST" action="{{ route('admin.notifications.read-all') }}" class="mt-1">
-                                                    @csrf
-                                                    <button type="submit" class="text-[11px] font-bold text-blue-700 transition hover:text-blue-900">
-                                                        Tandai semua dibaca
-                                                    </button>
-                                                </form>
-                                            @endif
+                                            <form x-show="unreadInformationCount > 0" x-cloak method="POST" action="{{ route('admin.notifications.read-all') }}" class="mt-1">
+                                                @csrf
+                                                <button type="submit" class="text-[11px] font-bold text-blue-700 transition hover:text-blue-900">
+                                                    Tandai semua dibaca
+                                                </button>
+                                            </form>
                                         </div>
-                                        @if ($adminPendingActionCount > 0)
-                                            <span class="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-700 ring-1 ring-red-100">{{ $adminNotificationBadge }}</span>
-                                        @endif
+                                        <span x-show="pendingActionCount > 0" x-cloak x-text="pendingActionCount > 9 ? '9+' : pendingActionCount" class="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-700 ring-1 ring-red-100">{{ $adminNotificationBadge }}</span>
                                     </div>
 
                                     <div class="max-h-[min(70vh,24rem)] overflow-y-auto">
-                                        <section data-admin-action-section>
-                                            <div class="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-slate-50/95 px-3 py-2 backdrop-blur sm:px-4">
-                                                <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Perlu Tindakan</span>
-                                                <span class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">{{ $adminPendingActionCount }}</span>
-                                            </div>
-
-                                            @if ($adminActions->isEmpty())
-                                                <div class="px-4 py-6 text-center text-xs text-slate-500">Tidak ada pekerjaan yang perlu ditindaklanjuti.</div>
-                                            @else
-                                                @foreach ($adminActions as $action)
-                                                @php($toneClass = $notificationToneClasses[$action['tone'] ?? 'blue'] ?? $notificationToneClasses['blue'])
-                                                @php($waitingClass = $actionWaitingClasses[$action['overdue_level'] ?? 'normal'] ?? $actionWaitingClasses['normal'])
-                                                @php($waitingBadgeClass = $actionWaitingBadgeClasses[$action['overdue_level'] ?? 'normal'] ?? '')
-                                                <a href="{{ $action['url'] }}" class="group flex gap-2.5 border-b border-slate-100 px-3 py-2.5 text-left transition hover:bg-slate-50 sm:gap-3 sm:px-4 sm:py-3">
-                                                    <span class="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ring-1 sm:h-9 sm:w-9 {{ $toneClass }}">
-                                                        <i data-lucide="{{ $action['icon'] }}" class="h-4 w-4"></i>
-                                                    </span>
-                                                    <span class="min-w-0 flex-1">
-                                                        <span class="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{{ $action['type'] }}</span>
-                                                        <span class="mt-1 block text-[12px] font-semibold leading-4 text-slate-900 sm:text-sm sm:leading-5">{{ $action['message'] }}</span>
-                                                        <span class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] sm:text-[11px]">
-                                                            <span class="font-semibold text-blue-700">{{ $action['action_label'] }}</span>
-                                                            @if ($action['meta'])
-                                                                <span class="text-slate-300">/</span>
-                                                                <span class="max-w-full truncate text-slate-500">{{ $action['meta'] }}</span>
-                                                            @endif
-                                                            <span class="text-slate-300">/</span>
-                                                            <span class="{{ $waitingClass }} {{ $waitingBadgeClass }}">{{ $action['waiting_text'] }}</span>
-                                                        </span>
-                                                    </span>
-                                                    <span class="mt-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition group-hover:text-blue-600">
-                                                        <i data-lucide="arrow-right" class="h-4 w-4"></i>
-                                                    </span>
-                                                </a>
-                                                @endforeach
-                                            @endif
-                                        </section>
-
-                                        <section>
-                                            <div class="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-slate-50/95 px-3 py-2 backdrop-blur sm:px-4">
-                                                <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Informasi Terbaru</span>
-                                                <span class="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-700">{{ $adminUnreadInformationCount }}</span>
-                                            </div>
-
-                                            @forelse ($adminInformationNotifications as $notification)
-                                                @php($toneClass = $notificationToneClasses[$notification['tone'] ?? 'blue'] ?? $notificationToneClasses['blue'])
-                                                <form method="POST" action="{{ route('admin.notifications.read') }}" class="border-b border-slate-100 last:border-b-0">
-                                                @csrf
-                                                <input type="hidden" name="notification_key" value="{{ $notification['key'] }}">
-                                                <input type="hidden" name="redirect_url" value="{{ $notification['url'] }}">
-                                                <button type="submit" class="group flex w-full gap-2.5 px-3 py-2.5 text-left transition hover:bg-slate-50 sm:gap-3 sm:px-4 sm:py-3">
-                                                    <span class="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ring-1 sm:h-9 sm:w-9 {{ $toneClass }}">
-                                                        <i data-lucide="{{ $notification['icon'] }}" class="h-4 w-4"></i>
-                                                    </span>
-                                                    <span class="min-w-0 flex-1">
-                                                        <span class="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 sm:text-xs">{{ $notification['type'] }}</span>
-                                                        <span class="mt-1 block text-[12px] font-semibold leading-4 text-slate-900 sm:text-sm sm:leading-5">{{ $notification['message'] }}</span>
-                                                        <span class="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-                                                            <span>{{ $notification['meta'] ?: '-' }}</span>
-                                                            <span class="text-slate-300">/</span>
-                                                            <span>{{ optional($notification['signed_at'])->diffForHumans() }}</span>
-                                                        </span>
-                                                    </span>
-                                                    <span class="mt-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition group-hover:text-slate-600">
-                                                        <i data-lucide="arrow-right" class="h-4 w-4"></i>
-                                                    </span>
-                                                </button>
-                                                </form>
-                                            @empty
-                                                <div class="px-4 py-6 text-center text-xs text-slate-500">Belum ada informasi terbaru.</div>
-                                            @endforelse
-                                        </section>
+                                        <div x-show="notificationsLoading && !notificationsHtml" class="px-4 py-6 text-center text-xs text-slate-500" role="status">Memuat pemberitahuan…</div>
+                                        <div x-show="notificationsError" x-cloak class="px-4 py-6 text-center text-xs text-slate-500">
+                                            <p x-text="notificationsError"></p>
+                                            <button type="button" @click="loadNotifications()" class="mt-1 text-[11px] font-bold text-blue-700">Coba Lagi</button>
+                                        </div>
+                                        <div x-ref="notificationContent" x-html="notificationsHtml" :aria-busy="notificationsLoading"></div>
 
                                         @if ($adminActionFeedUrl)
                                             <div class="border-t border-slate-100 bg-slate-50 px-3 py-2.5 sm:px-4" data-admin-browser-notification>
@@ -1684,15 +1626,26 @@
                     localStorage.setItem(seenKey, JSON.stringify(uniqueKeys.slice(-200)));
                 };
 
-                const fetchFeed = async () => {
-                    const response = await fetch(endpoint, {
-                        headers: { Accept: 'application/json' },
-                        credentials: 'same-origin',
-                    });
+                let feedPromise = null;
+                let lastFeedAt = 0;
+                let lastFeed = null;
+                const fetchFeed = () => {
+                    if (lastFeed && Date.now() - lastFeedAt < 45000) return Promise.resolve(lastFeed);
+                    if (feedPromise) return feedPromise;
+                    feedPromise = (async () => {
+                        const response = await fetch(endpoint, {
+                            headers: { Accept: 'application/json' },
+                            credentials: 'same-origin',
+                            cache: 'no-store',
+                        });
 
-                    if (!response.ok) throw new Error('Action feed tidak dapat dimuat.');
+                        if (!response.ok || response.redirected) throw new Error('Action feed tidak dapat dimuat.');
+                        lastFeed = await response.json();
+                        lastFeedAt = Date.now();
+                        return lastFeed;
+                    })().finally(() => { feedPromise = null; });
 
-                    return response.json();
+                    return feedPromise;
                 };
 
                 const saveCurrentActionsAsBaseline = async () => {
@@ -1744,7 +1697,7 @@
                 const startPolling = () => {
                     if (window.__womsAdminBrowserActionCenter?.intervalId) return;
 
-                    const intervalId = window.setInterval(notifyNewActions, 60_000);
+                    const intervalId = window.setInterval(notifyNewActions, 180_000);
                     const visibilityHandler = () => {
                         if (!document.hidden) notifyNewActions();
                     };

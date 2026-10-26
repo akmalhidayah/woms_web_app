@@ -11,7 +11,7 @@ use App\Models\OutlineAgreementTarget;
 use App\Services\Admin\DashboardFinancialSummaryService;
 use App\Services\Admin\DashboardTopTenHppCostService;
 use App\Services\Admin\WorkshopDashboardService;
-use App\Support\AdminActionCenter;
+use App\Support\AdminPresentationData;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -26,13 +26,13 @@ class DashboardController extends Controller
         private readonly DashboardFinancialSummaryService $financialSummaryService,
         private readonly DashboardTopTenHppCostService $topTenHppCostService,
         private readonly WorkshopDashboardService $workshopDashboardService,
-        private readonly AdminActionCenter $actionCenter,
     ) {}
 
     public function __invoke(Request $request): View
     {
         $activeDashboard = $request->string('dashboard')->toString() === 'bengkel' ? 'bengkel' : 'jasa';
-        $pendingActionCount = $this->actionCenter->pendingActionCount($request->user());
+        $presentation = app(AdminPresentationData::class)->summary($request->user());
+        $pendingActionCount = $presentation['pending_count'];
         $showActionSummaryBanner = (bool) $request->session()->pull(
             'show_admin_action_summary_banner',
             false,
@@ -41,7 +41,7 @@ class DashboardController extends Controller
             'activeDashboard' => $activeDashboard,
             'showActionSummaryBanner' => $showActionSummaryBanner,
             'adminActionSummaryCount' => $pendingActionCount,
-            'adminActionSummary' => $this->actionCenter->summary($request->user()),
+            'adminActionSummary' => $presentation['action_summary'],
         ];
 
         if ($activeDashboard === 'bengkel') {

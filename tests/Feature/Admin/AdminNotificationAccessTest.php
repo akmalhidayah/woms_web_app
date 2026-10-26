@@ -118,6 +118,46 @@ class AdminNotificationAccessTest extends TestCase
         ])->assertRedirect($expectedBastUrl);
     }
 
+    public function test_lazy_panel_cache_keeps_read_state_private_and_refreshes_after_read(): void
+    {
+        $first = $this->admin(User::ADMIN_ROLE_SUPER_ADMIN);
+        $second = $this->admin(User::ADMIN_ROLE_SUPER_ADMIN);
+        $signature = $this->signedHppInformation($first, 'PRIVATE-READ');
+
+        $this->actingAs($first)->getJson(route('admin.notifications.panel'))
+            ->assertOk()->assertJsonPath('unread_count', 1);
+        $this->actingAs($second)->getJson(route('admin.notifications.panel'))
+            ->assertOk()->assertJsonPath('unread_count', 1);
+
+        $this->actingAs($first)->post(route('admin.notifications.read'), [
+            'notification_key' => 'hpp-signature:'.$signature->id,
+        ])->assertRedirect();
+
+        $response = $this->getJson(route('admin.notifications.panel'))
+            ->assertOk()->assertJsonPath('unread_count', 0);
+        $this->assertStringNotContainsString('PRIVATE-READ', $response->json('html'));
+        $this->actingAs($second)->getJson(route('admin.notifications.panel'))
+            ->assertOk()->assertJsonPath('unread_count', 1);
+    }
+
+    public function test_cached_panel_does_not_keep_revoked_menu_information(): void
+    {
+        $admin = $this->admin(User::ADMIN_ROLE_ADMIN);
+        $permission = AdminRoleMenuAccess::query()->create([
+            'admin_role' => User::ADMIN_ROLE_ADMIN,
+            'menu_key' => AdminMenuRegistry::MENU_CREATE_HPP,
+        ]);
+        $this->signedHppInformation($admin, 'REVOKED-INFO');
+        $response = $this->actingAs($admin)->getJson(route('admin.notifications.panel'))
+            ->assertOk()->assertJsonPath('unread_count', 1);
+        $this->assertStringContainsString('REVOKED-INFO', $response->json('html'));
+
+        $permission->delete();
+        $response = $this->getJson(route('admin.notifications.panel'))
+            ->assertOk()->assertJsonPath('unread_count', 0);
+        $this->assertStringNotContainsString('REVOKED-INFO', $response->json('html'));
+    }
+
     private function admin(string $adminRole): User
     {
         return User::factory()->create([

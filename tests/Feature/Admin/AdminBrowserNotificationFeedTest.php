@@ -66,11 +66,15 @@ class AdminBrowserNotificationFeedTest extends TestCase
             ->get(route('admin.dashboard'))
             ->assertOk()
             ->assertSee('Perlu Tindakan')
-            ->assertSee('Informasi Terbaru')
+            ->assertSee('notificationsHtml', false)
             ->assertSee('Aktifkan notifikasi browser untuk pekerjaan penting.')
             ->assertSee('woms_admin_seen_action_keys', false)
             ->assertDontSee('Lihat Inbox')
             ->assertDontSee('Approval Inbox');
+
+        $panel = $this->getJson(route('admin.notifications.panel'))->assertOk()->json('html');
+        $this->assertStringContainsString('Perlu Tindakan', $panel);
+        $this->assertStringContainsString('Informasi Terbaru', $panel);
     }
 
     private function admin(string $adminRole): User

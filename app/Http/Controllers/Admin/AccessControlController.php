@@ -115,6 +115,8 @@ class AccessControlController extends Controller
         if ($newRows !== []) {
             AdminRoleMenuAccess::query()->insert($newRows);
         }
+
+        app(\App\Support\AdminMenuPermissions::class)->forget();
     }
 
     private function withLegacySplitPermissions(Collection $menuKeys): Collection

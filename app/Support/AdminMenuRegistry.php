@@ -2,7 +2,6 @@
 
 namespace App\Support;
 
-use App\Models\AdminRoleMenuAccess;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
@@ -353,10 +352,8 @@ class AdminMenuRegistry
                 return true;
             }
 
-            $hasSplitOrderPermission = AdminRoleMenuAccess::query()
-                ->where('admin_role', $user->resolvedAdminRole())
-                ->whereIn('menu_key', [self::MENU_ORDER_JASA, self::MENU_ORDER_BENGKEL])
-                ->exists();
+            $hasSplitOrderPermission = $user->hasAdminMenuAccess(self::MENU_ORDER_JASA)
+                || $user->hasAdminMenuAccess(self::MENU_ORDER_BENGKEL);
 
             return ! $hasSplitOrderPermission
                 && $user->hasAdminMenuAccess(self::MENU_ORDERS);
@@ -367,10 +364,8 @@ class AdminMenuRegistry
                 return true;
             }
 
-            $hasSplitAppSheetPermission = AdminRoleMenuAccess::query()
-                ->where('admin_role', $user->resolvedAdminRole())
-                ->whereIn('menu_key', [self::MENU_APPSHEET_HISTORY_CONSUMABLE, self::MENU_APPSHEET_STOCK_CONSUMABLE])
-                ->exists();
+            $hasSplitAppSheetPermission = $user->hasAdminMenuAccess(self::MENU_APPSHEET_HISTORY_CONSUMABLE)
+                || $user->hasAdminMenuAccess(self::MENU_APPSHEET_STOCK_CONSUMABLE);
 
             return ! $hasSplitAppSheetPermission
                 && $user->hasAdminMenuAccess(self::MENU_APPSHEET);

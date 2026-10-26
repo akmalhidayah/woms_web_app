@@ -78,7 +78,7 @@
     <div x-show="showHppApprovalModal" x-transition.opacity x-cloak class="fixed inset-0 z-40 bg-slate-950/55" @click="closeHppApprovalModal()"></div>
     <div x-show="showHppApprovalModal" x-transition.opacity x-cloak class="fixed inset-0 z-50 overflow-y-auto p-4">
         <div class="flex min-h-full items-start justify-center py-10">
-            <form method="POST" action="{{ route('admin.structure.hpp-approval-setting.update') }}" class="w-full max-w-3xl rounded-[1.35rem] bg-white p-5 shadow-2xl" @click.stop>
+            <form method="POST" action="{{ route('admin.structure.hpp-approval-setting.update') }}" class="w-full max-w-3xl rounded-[1.35rem] bg-white p-5 shadow-2xl" @click.stop @submit="if (!userOptionsLoaded) $event.preventDefault()">
         @csrf
         @method('PUT')
 
@@ -97,11 +97,9 @@
                 <label class="mb-1.5 block text-sm font-semibold text-slate-800">Planner Control</label>
                 <select name="planner_control_user_id" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700 focus:border-violet-500 focus:outline-none">
                     <option value="">Pilih User Planner Control</option>
-                    @foreach ($users as $user)
-                        <option value="{{ $user->id }}" @selected((int) old('planner_control_user_id', $hppApprovalSetting->planner_control_user_id) === $user->id)>
-                            {{ $user->name }}
-                        </option>
-                    @endforeach
+                    <template x-for="person in userOptions" :key="person.id">
+                        <option :value="person.id" :selected="String(person.id) === String(@js((string) old('planner_control_user_id', $hppApprovalSetting->planner_control_user_id)))" x-text="person.name"></option>
+                    </template>
                 </select>
             </div>
 
@@ -109,11 +107,9 @@
                 <label class="mb-1.5 block text-sm font-semibold text-slate-800">DIROPS</label>
                 <select name="dirops_user_id" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700 focus:border-violet-500 focus:outline-none">
                     <option value="">Pilih User DIROPS</option>
-                    @foreach ($users as $user)
-                        <option value="{{ $user->id }}" @selected((int) old('dirops_user_id', $hppApprovalSetting->dirops_user_id) === $user->id)>
-                            {{ $user->name }}
-                        </option>
-                    @endforeach
+                    <template x-for="person in userOptions" :key="person.id">
+                        <option :value="person.id" :selected="String(person.id) === String(@js((string) old('dirops_user_id', $hppApprovalSetting->dirops_user_id)))" x-text="person.name"></option>
+                    </template>
                 </select>
             </div>
 
@@ -167,7 +163,7 @@
         </div>
 
         <div class="flex justify-end">
-            <button type="submit" class="rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700">
+            <button type="submit" :disabled="!userOptionsLoaded" class="rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700">
                 Simpan Master HPP
             </button>
         </div>
@@ -207,7 +203,7 @@
                                 </ul>
                             </div>
                         @endif
-                        <form id="vendor-work-type-{{ $vendorWorkType->id }}" method="POST" action="{{ route('admin.structure.vendor-structures.update', $vendorWorkType) }}">
+                        <form id="vendor-work-type-{{ $vendorWorkType->id }}" method="POST" action="{{ route('admin.structure.vendor-structures.update', $vendorWorkType) }}" @submit="if (!userOptionsLoaded) $event.preventDefault()">
                             @csrf
                             @method('PUT')
                         </form>
@@ -236,9 +232,9 @@
                                             <label class="mb-1 block text-[10px] font-semibold text-slate-600">Manager Seksi</label>
                                             <select :name="`sections[${index}][manager_id]`" x-model="section.manager_id" form="vendor-work-type-{{ $vendorWorkType->id }}" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:border-[#ca642f] focus:outline-none" required>
                                                 <option value="">Pilih Manager</option>
-                                                @foreach ($users as $user)
-                                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
-                                                @endforeach
+                                                <template x-for="person in userOptions" :key="person.id">
+                                                    <option :value="person.id" :selected="String(person.id) === String(section.manager_id)" x-text="person.name"></option>
+                                                </template>
                                             </select>
                                         </div>
                                         <button type="button" @click="removeSection(index)" class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-rose-50 text-rose-600 transition hover:bg-rose-100" title="Hapus Seksi">
@@ -253,7 +249,7 @@
                         <button type="button" @click="closeVendorEditModal()" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200">
                             Batal
                         </button>
-                        <button type="submit" form="vendor-work-type-{{ $vendorWorkType->id }}" class="inline-flex items-center gap-2 rounded-lg bg-[#ca642f] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#b85b2b]">
+                        <button type="submit" :disabled="!userOptionsLoaded" form="vendor-work-type-{{ $vendorWorkType->id }}" class="inline-flex items-center gap-2 rounded-lg bg-[#ca642f] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#b85b2b]">
                             <i data-lucide="save" class="h-4 w-4"></i>
                             Simpan Seksi
                         </button>
@@ -433,7 +429,7 @@
         <div x-show="showModal" x-transition.opacity x-cloak class="fixed inset-0 z-50 overflow-y-auto p-4">
             <div class="flex min-h-full items-start justify-center py-10">
                 <div class="w-full overflow-hidden rounded-[1.5rem] bg-white shadow-2xl" style="max-width: 920px;" @click.stop>
-                    <form method="POST" :action="formAction" class="flex max-h-[88vh] flex-col">
+                    <form method="POST" :action="formAction" class="flex max-h-[88vh] flex-col" @submit="if (!userOptionsLoaded) $event.preventDefault()">
                         @csrf
                         <template x-if="mode === 'edit'"><input type="hidden" name="_method" value="PUT"></template>
 
@@ -488,18 +484,18 @@
                                     <label class="mb-1.5 block text-sm font-semibold text-slate-800">General Manager</label>
                                     <select name="general_manager_id" x-model="form.general_manager_id" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
                                         <option value="">Pilih General Manager</option>
-                                        @foreach ($users as $user)
-                                            <option value="{{ $user->id }}">{{ $user->name }}</option>
-                                        @endforeach
+                                        <template x-for="person in userOptions" :key="person.id">
+                                            <option :value="person.id" :selected="String(person.id) === String(form.general_manager_id)" x-text="person.name"></option>
+                                        </template>
                                     </select>
                                 </div>
                                 <div>
                                     <label class="mb-1.5 block text-sm font-semibold text-slate-800">Senior Manager</label>
                                     <select name="senior_manager_id" x-model="form.senior_manager_id" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
                                         <option value="">Pilih Senior Manager</option>
-                                        @foreach ($users as $user)
-                                            <option value="{{ $user->id }}">{{ $user->name }}</option>
-                                        @endforeach
+                                        <template x-for="person in userOptions" :key="person.id">
+                                            <option :value="person.id" :selected="String(person.id) === String(form.senior_manager_id)" x-text="person.name"></option>
+                                        </template>
                                     </select>
                                 </div>
                             </div>
@@ -535,9 +531,9 @@
                                                         <label class="mb-1.5 block text-xs font-semibold text-slate-700">Manager Seksi</label>
                                                         <select :name="`sections[${index}][manager_id]`" x-model="section.manager_id" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
                                                             <option value="">Pilih Manager</option>
-                                                            @foreach ($users as $user)
-                                                                <option value="{{ $user->id }}">{{ $user->name }}</option>
-                                                            @endforeach
+                                                            <template x-for="person in userOptions" :key="person.id">
+                                                                <option :value="person.id" :selected="String(person.id) === String(section.manager_id)" x-text="person.name"></option>
+                                                            </template>
                                                         </select>
                                                     </div>
                                                     <button type="button" @click="removeSection(index)" class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-rose-50 text-rose-600 transition hover:bg-rose-100" title="Hapus Seksi">
@@ -559,7 +555,7 @@
                                 </button>
                                 <div class="flex items-center gap-3">
                                     <button type="button" @click="closeModal()" class="rounded-lg bg-slate-100 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200">Batal</button>
-                                    <button type="submit" class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700">Simpan</button>
+                                    <button type="submit" :disabled="!userOptionsLoaded" class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700">Simpan</button>
                                 </div>
                             </div>
                         </div>
@@ -572,7 +568,7 @@
         <div x-show="showDepartmentModal" x-transition.opacity x-cloak class="fixed inset-0 z-50 overflow-y-auto p-4">
             <div class="flex min-h-full items-start justify-center py-10">
                 <div class="w-full max-w-2xl overflow-hidden rounded-[1.5rem] bg-white shadow-2xl" @click.stop>
-                    <form method="POST" :action="departmentForm.action" class="flex max-h-[88vh] flex-col">
+                    <form method="POST" :action="departmentForm.action" class="flex max-h-[88vh] flex-col" @submit="if (!userOptionsLoaded) $event.preventDefault()">
                         @csrf
                         <input type="hidden" name="_method" value="PUT">
 
@@ -596,9 +592,9 @@
                                     <label class="mb-1.5 block text-sm font-semibold text-slate-800">General Manager</label>
                                     <select name="general_manager_id" x-model="departmentForm.general_manager_id" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
                                         <option value="">Pilih General Manager</option>
-                                        @foreach ($users as $user)
-                                            <option value="{{ $user->id }}">{{ $user->name }}</option>
-                                        @endforeach
+                                        <template x-for="person in userOptions" :key="person.id">
+                                            <option :value="person.id" :selected="String(person.id) === String(departmentForm.general_manager_id)" x-text="person.name"></option>
+                                        </template>
                                     </select>
                                 </div>
                             </div>
@@ -608,7 +604,7 @@
                         <div class="border-t border-slate-200 bg-white px-6 py-4">
                             <div class="flex items-center justify-end gap-3">
                                 <button type="button" @click="closeDepartmentModal()" class="rounded-lg bg-slate-100 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200">Batal</button>
-                                <button type="submit" class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700">Simpan</button>
+                                <button type="submit" :disabled="!userOptionsLoaded" class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700">Simpan</button>
                             </div>
                         </div>
                     </form>
@@ -644,6 +640,56 @@
 
     function structureOrgPage(initialState, initialDepartmentState) {
         return {
+            userOptions: [],
+            userOptionsLoaded: false,
+            userOptionsLoading: false,
+            userOptionsError: '',
+            userOptionsPromise: null,
+            init() {
+                if (this.showModal || this.showDepartmentModal || this.showHppApprovalModal || this.showVendorEditModal) {
+                    this.ensureUserOptions();
+                }
+            },
+            async ensureUserOptions() {
+                if (this.userOptionsLoaded) return true;
+                if (this.userOptionsPromise) return this.userOptionsPromise;
+                this.userOptionsPromise = this.fetchUserOptions();
+                try {
+                    return await this.userOptionsPromise;
+                } finally {
+                    this.userOptionsPromise = null;
+                }
+            },
+            async fetchUserOptions() {
+                this.userOptionsLoading = true;
+                this.userOptionsError = '';
+                try {
+                    const response = await fetch(@js(route('admin.structure.user-options')), {
+                        headers: { Accept: 'application/json' },
+                        credentials: 'same-origin',
+                        cache: 'no-store',
+                    });
+                    if (!response.ok || response.redirected) throw new Error('load');
+                    const data = await response.json();
+                    if (!Array.isArray(data.users)) throw new Error('load');
+                    this.userOptions = data.users;
+                    await this.$nextTick();
+                    this.userOptionsLoaded = true;
+                    return true;
+                } catch (_) {
+                    this.userOptionsError = 'Pilihan pengguna belum dapat dimuat. Silakan coba lagi.';
+                    if (window.Swal) {
+                        window.Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal memuat data',
+                            text: this.userOptionsError,
+                        });
+                    }
+                    return false;
+                } finally {
+                    this.userOptionsLoading = false;
+                }
+            },
             showModal: initialState.open || false,
             showDepartmentModal: initialDepartmentState.open || false,
             showHppApprovalModal: @js(
@@ -684,11 +730,13 @@
                 this.mode = 'create';
                 this.formAction = '{{ route('admin.structure.store') }}';
             },
-            openCreate() {
+            async openCreate() {
+                if (!await this.ensureUserOptions()) return;
                 this.resetForm();
                 this.showModal = true;
             },
-            openEdit(payload) {
+            async openEdit(payload) {
+                if (!await this.ensureUserOptions()) return;
                 let raw = payload || '';
                 try {
                     raw = decodeURIComponent(raw);
@@ -725,7 +773,8 @@
             closeModal() {
                 this.showModal = false;
             },
-            openDepartmentEdit(payload) {
+            async openDepartmentEdit(payload) {
+                if (!await this.ensureUserOptions()) return;
                 try {
                     const data = JSON.parse(atob(decodeURIComponent(payload || '')));
                     this.departmentForm = {
@@ -748,13 +797,15 @@
             closeDepartmentModal() {
                 this.showDepartmentModal = false;
             },
-            openHppApprovalModal() {
+            async openHppApprovalModal() {
+                if (!await this.ensureUserOptions()) return;
                 this.showHppApprovalModal = true;
             },
             closeHppApprovalModal() {
                 this.showHppApprovalModal = false;
             },
-            openVendorEditModal(id) {
+            async openVendorEditModal(id) {
+                if (!await this.ensureUserOptions()) return;
                 this.showVendorEditModal = id || '';
             },
             closeVendorEditModal() {

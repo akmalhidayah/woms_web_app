@@ -10,6 +10,7 @@ use App\Http\Middleware\EnsureAdminOrderMenuAccess;
 use App\Http\Middleware\EnsureOrganizationApiToken;
 use App\Http\Middleware\EnsurePkmPanelAccess;
 use App\Http\Middleware\EnsureUserHasRole;
+use App\Http\Middleware\RefreshAdminPresentationCache;
 use App\Support\Api\V1\OrganizationApiExceptionRenderer;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -30,6 +31,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ManageOrganizationApiToken::class,
     ])
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->web(append: [RefreshAdminPresentationCache::class]);
+
         $middleware->alias([
             'role' => EnsureUserHasRole::class,
             'admin_role' => EnsureAdminHasSubrole::class,

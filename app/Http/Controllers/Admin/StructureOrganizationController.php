@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\HppApprovalSetting;
 use App\Models\UnitWork;
-use App\Models\UnitWorkSection;
 use App\Models\User;
 use App\Models\VendorWorkType;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -32,9 +32,9 @@ class StructureOrganizationController extends Controller
 
         $departments = Department::query()
             ->with([
-                'generalManager',
+                'generalManager:id,name',
                 'units' => fn ($query) => $query
-                    ->with(['seniorManager', 'sections.manager'])
+                    ->with(['seniorManager:id,name', 'sections.manager:id,name'])
                     ->orderBy('name'),
             ])
             ->when($filters['department'] !== '', fn ($query) => $query->where('id', (int) $filters['department']))
@@ -54,36 +54,40 @@ class StructureOrganizationController extends Controller
 
         $hppApprovalSetting = HppApprovalSetting::query()
             ->with([
-                'plannerControl:id,name',
                 'counterPartUnit:id,name,senior_manager_id',
                 'counterPartUnit.seniorManager:id,name',
                 'counterPartSection:id,unit_work_id,name,manager_id',
                 'counterPartSection.manager:id,name',
-                'dirops:id,name',
             ])
-            ->firstOrCreate([]);
+            ->firstOrNew([]);
 
         $unitWorks = UnitWork::query()
-            ->with(['sections.manager'])
+            ->with('sections:id,unit_work_id,name')
             ->orderBy('name')
             ->get(['id', 'name', 'senior_manager_id']);
 
         return view('admin.structure.index', [
             'departments' => Department::query()->orderBy('name')->get(['id', 'name']),
             'structureDepartments' => $departments,
-            'users' => User::query()->orderBy('name')->get(['id', 'name']),
             'filters' => $filters,
             'hppApprovalSetting' => $hppApprovalSetting,
             'unitWorks' => $unitWorks,
-            'sectionOptions' => UnitWorkSection::query()
-                ->with('unitWork:id,name')
-                ->orderBy('name')
-                ->get(['id', 'unit_work_id', 'name', 'manager_id']),
             'vendorWorkType' => VendorWorkType::query()
-                ->with(['vendorSections.manager:id,name'])
+                ->with('vendorSections')
                 ->where('name', VendorWorkType::FIXED_VENDOR_NAME)
                 ->firstOrFail(),
         ]);
+    }
+
+    public function userOptions(): JsonResponse
+    {
+        return response()->json([
+            'users' => User::query()->orderBy('name')->orderBy('id')
+                ->get(['id', 'name'])->map(fn (User $user): array => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                ])->all(),
+        ])->header('Cache-Control', 'private, no-store');
     }
 
     /**

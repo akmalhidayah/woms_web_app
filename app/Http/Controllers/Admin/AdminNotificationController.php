@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminNotificationRead;
-use App\Support\AdminActionCenter;
 use App\Support\AdminNotificationCenter;
+use App\Support\AdminPresentationData;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,7 +14,6 @@ class AdminNotificationController extends Controller
 {
     public function __construct(
         private readonly AdminNotificationCenter $notificationCenter,
-        private readonly AdminActionCenter $actionCenter,
     ) {}
 
     public function read(Request $request): RedirectResponse
@@ -66,10 +65,11 @@ class AdminNotificationController extends Controller
     public function actionFeed(Request $request): JsonResponse
     {
         $user = $request->user();
+        $presentation = app(AdminPresentationData::class);
 
         return response()->json([
-            'pending_count' => $this->actionCenter->pendingActionCount($user),
-            'actions' => $this->actionCenter
+            'pending_count' => $presentation->summary($user)['pending_count'],
+            'actions' => $presentation
                 ->actions($user, 20)
                 ->map(fn (array $action): array => [
                     'key' => $action['key'],
@@ -80,7 +80,25 @@ class AdminNotificationController extends Controller
                 ])
                 ->values()
                 ->all(),
-        ]);
+        ])->header('Cache-Control', 'private, no-store');
+    }
+
+    public function panel(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $presentation = app(AdminPresentationData::class);
+        $summary = $presentation->summary($user);
+
+        return response()->json([
+            'html' => view('admin.notifications.panel', [
+                'adminActions' => $presentation->actions($user, 10),
+                'adminInformationNotifications' => $presentation->information($user),
+                'adminPendingActionCount' => $summary['pending_count'],
+                'adminUnreadInformationCount' => $summary['unread_count'],
+            ])->render(),
+            'pending_count' => $summary['pending_count'],
+            'unread_count' => $summary['unread_count'],
+        ])->header('Cache-Control', 'private, no-store');
     }
 
     private function safeRedirectUrl(Request $request, ?string $url): string

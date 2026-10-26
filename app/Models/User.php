@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Notifications\ResetPasswordNotification;
+use App\Support\AdminMenuPermissions;
 use App\Support\AdminMenuRegistry;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -252,9 +253,6 @@ class User extends Authenticatable // implements MustVerifyEmail
             return true;
         }
 
-        return AdminRoleMenuAccess::query()
-            ->where('admin_role', $this->resolvedAdminRole())
-            ->where('menu_key', $menuKey)
-            ->exists();
+        return in_array($menuKey, app(AdminMenuPermissions::class)->keys($this->resolvedAdminRole()), true);
     }
 }

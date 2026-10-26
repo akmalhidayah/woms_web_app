@@ -228,6 +228,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('admin/notifications/action-feed', [AdminNotificationController::class, 'actionFeed'])
         ->middleware('role:admin')
         ->name('admin.notifications.action-feed');
+    Route::get('admin/notifications/panel', [AdminNotificationController::class, 'panel'])
+        ->middleware('role:admin')
+        ->name('admin.notifications.panel');
 
     Route::prefix('admin/appsheet')
         ->name('admin.appsheet.')
@@ -552,6 +555,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('admin/struktur-organisasi/preview', [StructureOrganizationController::class, 'preview'])
         ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
         ->name('admin.structure.preview');
+
+    Route::get('admin/struktur-organisasi/user-options', [StructureOrganizationController::class, 'userOptions'])
+        ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])
+        ->name('admin.structure.user-options');
 
     Route::post('admin/struktur-organisasi', [StructureOrganizationController::class, 'store'])
         ->middleware(['role:admin', 'admin_menu:struktur_organisasi'])

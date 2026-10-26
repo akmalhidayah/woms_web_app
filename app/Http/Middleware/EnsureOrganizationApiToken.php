@@ -21,8 +21,7 @@ class EnsureOrganizationApiToken
             blank($request->bearerToken())
             || ! $user
             || ! $accessToken instanceof PersonalAccessToken
-            || $accessToken->expires_at === null
-            || $accessToken->expires_at->isPast()
+            || ($accessToken->expires_at !== null && $accessToken->expires_at->isPast())
         ) {
             return $this->error('Unauthenticated', Response::HTTP_UNAUTHORIZED);
         }

@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\OutlineAgreement;
 use App\Support\ApprovalFlowSignerPreview;
 use App\Support\HppApprovalFlow;
+use App\Support\HppSpecialAreaPolicy;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Component;
 
@@ -47,6 +48,7 @@ class CreateHppForm extends Component
             ->orderByDesc('id')
             ->get(['id', 'nomor_order', 'nama_pekerjaan', 'unit_kerja', 'seksi']);
 
+        $specialAreaPolicy = app(HppSpecialAreaPolicy::class);
         $orderOptions = $orders
             ->map(fn (Order $order) => [
                 'value' => (string) $order->id,
@@ -55,6 +57,7 @@ class CreateHppForm extends Component
                 'nama_pekerjaan' => $order->nama_pekerjaan,
                 'unit_kerja' => $order->unit_kerja,
                 'seksi' => $order->seksi,
+                'special_area' => $specialAreaPolicy->availability($order),
             ])
             ->values()
             ->all();
@@ -93,6 +96,8 @@ class CreateHppForm extends Component
             'kategoriOptions' => HppApprovalFlow::kategoriOptions(),
             'areaOptions' => HppApprovalFlow::areaOptions(),
             'areaKeysByLabel' => HppApprovalFlow::areaKeysByLabel(),
+            'insideAreaLabel' => HppApprovalFlow::displayArea('Dalam'),
+            'specialAreaLabel' => HppApprovalFlow::SPECIAL_AREA_LABEL,
             'bucketOptions' => HppApprovalFlow::bucketOptions(),
             'flowMatrix' => HppApprovalFlow::flowMatrix(),
             'itemGroupPresets' => $itemGroupPresets,

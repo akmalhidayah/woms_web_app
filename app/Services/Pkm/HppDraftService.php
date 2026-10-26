@@ -7,9 +7,14 @@ use App\Models\Order;
 use App\Models\OutlineAgreement;
 use App\Models\UnitWork;
 use App\Support\HppApprovalFlow;
+use App\Support\HppSpecialAreaPolicy;
 
 class HppDraftService
 {
+    public function __construct(
+        private readonly HppSpecialAreaPolicy $specialAreaPolicy,
+    ) {}
+
     /**
      * @param  array<string,mixed>  $validated
      * @param  array<string,mixed>  $payload
@@ -24,11 +29,19 @@ class HppDraftService
         $total = $this->sumItemGroupSubtotals($groups);
         $bucket = HppApprovalFlow::resolveBucketFromTotal($total);
         $areaKey = HppApprovalFlow::normalizeAreaKey($validated['area_pekerjaan']);
-        $defaultFlow = HppApprovalFlow::resolveApprovalFlow(
-            $validated['kategori_pekerjaan'],
-            $areaKey,
-            $bucket,
-        );
+        $isSpecialArea = HppApprovalFlow::isSpecialArea($areaKey);
+        $defaultFlow = $isSpecialArea
+            ? $this->specialAreaPolicy->resolveApprovalFlow(
+                $order,
+                $validated['kategori_pekerjaan'],
+                $bucket,
+                false,
+            )
+            : HppApprovalFlow::resolveApprovalFlow(
+                $validated['kategori_pekerjaan'],
+                $areaKey,
+                $bucket,
+            );
 
         $hpp->fill([
             'order_id' => $order->id,
@@ -53,7 +66,9 @@ class HppDraftService
                 $areaKey,
                 $bucket,
             ),
-            'approval_flow' => $this->resolveDraftApprovalFlow($hpp, $defaultFlow),
+            'approval_flow' => $isSpecialArea
+                ? array_values($defaultFlow)
+                : $this->resolveDraftApprovalFlow($hpp, $defaultFlow),
             'item_groups' => $groups,
             'total_keseluruhan' => $total,
             'status' => Hpp::STATUS_DRAFT,

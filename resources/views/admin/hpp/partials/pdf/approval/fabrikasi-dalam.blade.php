@@ -1,3 +1,6 @@
+@if (($position ?? 'top') === 'top' && ($isSpecialArea ?? false))
+    @include('admin.hpp.partials.pdf.approval.special-requester')
+@else
 @php
     $groups = ($position ?? 'top') === 'top'
         ? [['label' => 'FUNGSI PEMINTA', 'cells' => [$gmRequesterCell, $smRequesterCell]]]
@@ -78,3 +81,4 @@
         </tr>
     @endif
 </table>
+@endif

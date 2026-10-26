@@ -5,6 +5,8 @@
         kategoriOptions: @js($kategoriOptions),
         areaOptions: @js($areaOptions),
         areaKeysByLabel: @js($areaKeysByLabel),
+        insideAreaLabel: @js($insideAreaLabel),
+        specialAreaLabel: @js($specialAreaLabel),
         bucketOptions: @js($bucketOptions),
         flowMatrix: @js($flowMatrix),
         initialState: @js($initialState),
@@ -180,9 +182,18 @@
                             class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                         >
                             @foreach ($areaOptions as $value => $label)
-                                <option value="{{ $value }}">{{ $label }}</option>
+                                <option
+                                    value="{{ $value }}"
+                                    @if ($value === $specialAreaLabel) :disabled="! specialAreaAvailable" @endif
+                                >{{ $label }}</option>
                             @endforeach
                         </select>
+                        <p
+                            class="text-[9px]"
+                            :class="specialAreaAvailable ? (specialAreaCanSubmit ? 'text-blue-600' : 'text-amber-600') : 'text-slate-500'"
+                            x-show="specialAreaMessage"
+                            x-text="specialAreaMessage"
+                        ></p>
                     </div>
 
                     <div class="grid gap-3 border-t border-slate-200 pt-3 md:grid-cols-2">
@@ -329,7 +340,7 @@
                                 <li
                                     class="flex items-start gap-2 rounded-lg border px-2.5 py-1.5 transition"
                                     :class="index === 0 ? 'border-emerald-100 bg-emerald-50' : 'border-slate-200 bg-white'"
-                                    :draggable="canReorderApprovalFlow"
+                                    :draggable="approvalFlowIsReorderable()"
                                     @dragstart="startApprovalDrag(index)"
                                     @dragover.prevent
                                     @drop.prevent="dropApprovalStep(index)"
@@ -338,7 +349,7 @@
                                     <button
                                         type="button"
                                         class="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-white text-slate-400 ring-1 ring-slate-200"
-                                        :class="canReorderApprovalFlow ? 'cursor-grab active:cursor-grabbing' : 'cursor-not-allowed opacity-40'"
+                                        :class="approvalFlowIsReorderable() ? 'cursor-grab active:cursor-grabbing' : 'cursor-not-allowed opacity-40'"
                                         title="Geser urutan"
                                     >
                                         <i data-lucide="grip-vertical" class="h-3 w-3"></i>
@@ -422,7 +433,14 @@
                 {{ $isEdit ? 'Update Draft' : 'Simpan Draft' }}
             </button>
             @unless ($isPkmDraft)
-                <button type="submit" name="action" value="submit" class="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-[10px] font-semibold text-white transition hover:bg-blue-700" @disabled($orderOptions === [] || $outlineAgreementOptions === [])>
+                <button
+                    type="submit"
+                    name="action"
+                    value="submit"
+                    class="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-[10px] font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    :disabled="isSpecialArea() && ! specialAreaCanSubmit"
+                    @disabled($orderOptions === [] || $outlineAgreementOptions === [])
+                >
                     {{ $isEdit ? 'Update & Submit' : 'Submit' }}
                 </button>
             @endunless
@@ -438,6 +456,8 @@
             kategoriOptions: config.kategoriOptions,
             areaOptions: config.areaOptions,
             areaKeysByLabel: config.areaKeysByLabel,
+            insideAreaLabel: config.insideAreaLabel,
+            specialAreaLabel: config.specialAreaLabel,
             bucketOptions: config.bucketOptions,
             flowMatrix: config.flowMatrix,
             selectedOrder: String(config.initialState.selectedOrder ?? ''),
@@ -455,6 +475,7 @@
             approvalFlow: [],
             approvalSignerPreview: config.initialState.approvalSignerPreview ?? {},
             canReorderApprovalFlow: Boolean(config.initialState.canReorderApprovalFlow ?? true),
+            specialAreaResetNotice: '',
             draggedApprovalIndex: null,
             init() {
                 if (! this.selectedOrder && this.orderOptions.length > 0) {
@@ -493,10 +514,43 @@
             get selectedOutlineAgreementData() {
                 return this.outlineAgreementOptions.find((agreement) => String(agreement.value) === String(this.selectedOutlineAgreement)) ?? {};
             },
+            get specialAreaState() {
+                return this.selectedOrderData.special_area ?? {};
+            },
+            get specialAreaAvailable() {
+                return Boolean(this.selectedOrder && this.specialAreaState.available);
+            },
+            get specialAreaCanSubmit() {
+                return Boolean(this.specialAreaAvailable && this.specialAreaState.can_submit);
+            },
+            get specialAreaMessage() {
+                if (this.specialAreaResetNotice) {
+                    return this.specialAreaResetNotice;
+                }
+
+                if (! this.selectedOrder) {
+                    return 'Pilih Order Pekerjaan untuk memeriksa ketersediaan Area Khusus.';
+                }
+
+                return this.specialAreaState.reason ?? '';
+            },
+            isSpecialArea() {
+                return this.areaPekerjaan === this.specialAreaLabel;
+            },
             syncOrderFields() {
+                this.specialAreaResetNotice = '';
                 this.namaPekerjaan = this.selectedOrderData.nama_pekerjaan ?? '';
                 this.unitKerja = this.selectedOrderData.unit_kerja ?? '';
                 this.seksiPeminta = this.selectedOrderData.seksi ?? '';
+
+                if (this.canReorderApprovalFlow && this.isSpecialArea() && ! this.specialAreaAvailable) {
+                    this.areaPekerjaan = this.insideAreaLabel;
+                    this.specialAreaResetNotice = 'Area Khusus tidak lagi valid untuk Order ini dan telah dikembalikan ke Dalam.';
+                }
+
+                if (this.canReorderApprovalFlow) {
+                    this.resetApprovalFlow();
+                }
             },
             syncOutlineAgreementFields() {
                 this.unitKerjaPengendali = this.selectedOutlineAgreementData.unit_kerja_pengendali ?? '';
@@ -510,21 +564,31 @@
 
                 const prefix = this.kategoriPekerjaan === 'Fabrikasi' ? 'FAB' : 'KONS';
                 const areaKey = this.areaKeysByLabel?.[this.areaPekerjaan] ?? this.areaPekerjaan;
-                const area = areaKey.toUpperCase();
+                const area = (this.isSpecialArea() ? 'Dalam' : areaKey).toUpperCase();
                 const bucket = this.nilaiBucket === 'over' ? 'OVER250' : 'UNDER250';
 
                 return `${prefix}-${area}-${bucket}`;
             },
             defaultApprovalFlow() {
                 const areaKey = this.areaKeysByLabel?.[this.areaPekerjaan] ?? this.areaPekerjaan;
+                const matrixAreaKey = this.isSpecialArea() ? 'Dalam' : areaKey;
+                const flow = [...(this.flowMatrix?.[this.kategoriPekerjaan]?.[matrixAreaKey]?.[this.nilaiBucket] ?? [])];
 
-                return [...(this.flowMatrix?.[this.kategoriPekerjaan]?.[areaKey]?.[this.nilaiBucket] ?? [])];
+                if (! this.isSpecialArea()) {
+                    return flow;
+                }
+
+                const missingRoles = Array.isArray(this.specialAreaState.missing_roles)
+                    ? this.specialAreaState.missing_roles
+                    : [];
+
+                return flow.filter((role) => ! missingRoles.includes(role));
             },
             approvalSignerName(step, index) {
                 const byIndex = this.approvalSignerPreview?.by_index ?? {};
                 const indexValue = byIndex?.[index] ?? byIndex?.[String(index)];
 
-                if (indexValue) {
+                if (! this.canReorderApprovalFlow && indexValue) {
                     return indexValue;
                 }
 
@@ -532,8 +596,10 @@
                 const orderMap = this.approvalSignerPreview?.orders?.[String(this.selectedOrder)] ?? {};
                 const oaMap = this.approvalSignerPreview?.outline_agreements?.[String(this.selectedOutlineAgreement)] ?? {};
                 const staticMap = this.approvalSignerPreview?.static ?? {};
+                const specialRequesterMap = this.specialAreaState.requester_names ?? {};
 
-                return orderMap?.[role]
+                return (this.isSpecialArea() ? specialRequesterMap?.[role] : null)
+                    || orderMap?.[role]
                     || oaMap?.[role]
                     || staticMap?.[role]
                     || '-';
@@ -546,6 +612,13 @@
 
                 if (! this.canReorderApprovalFlow) {
                     this.approvalFlow = flow.length > 0 ? flow : defaultFlow;
+                    this.refreshApprovalIcons();
+
+                    return;
+                }
+
+                if (this.isSpecialArea()) {
+                    this.approvalFlow = defaultFlow;
                     this.refreshApprovalIcons();
 
                     return;
@@ -586,7 +659,7 @@
                     && this.approvalFlow.every((step, index) => step === defaultFlow[index]);
             },
             canMoveApprovalStep(from, to) {
-                if (! this.canReorderApprovalFlow) {
+                if (! this.canReorderApprovalFlow || this.isSpecialArea()) {
                     return false;
                 }
 
@@ -600,6 +673,9 @@
 
                 return ! flow.includes('DIROPS') || flow[flow.length - 1] === 'DIROPS';
             },
+            approvalFlowIsReorderable() {
+                return this.canReorderApprovalFlow && ! this.isSpecialArea();
+            },
             moveApprovalStep(from, to) {
                 if (! this.canMoveApprovalStep(from, to)) {
                     return;
@@ -612,7 +688,7 @@
                 this.refreshApprovalIcons();
             },
             startApprovalDrag(index) {
-                if (! this.canReorderApprovalFlow) {
+                if (! this.approvalFlowIsReorderable()) {
                     return;
                 }
 

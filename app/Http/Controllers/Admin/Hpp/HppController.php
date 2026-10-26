@@ -25,6 +25,7 @@ use App\Support\HppApprovalSignatureBuilder;
 use App\Support\HppDocumentNumberGenerator;
 use App\Support\HppIndexTabs;
 use App\Support\HppSignatureIdentityResolver;
+use App\Support\HppSpecialAreaPolicy;
 use App\Support\ScopeOfWorkPdfPresenter;
 use App\Support\SignatureImageStorage;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -48,6 +49,7 @@ class HppController extends Controller
         private readonly HppDocumentNumberGenerator $documentNumberGenerator,
         private readonly BulkApprovalNotificationService $bulkNotificationService,
         private readonly HppSignatureIdentityResolver $identityResolver,
+        private readonly HppSpecialAreaPolicy $specialAreaPolicy,
     ) {}
 
     public function index(Request $request): View
@@ -639,6 +641,21 @@ class HppController extends Controller
         }
 
         $areaPekerjaanKey = HppApprovalFlow::normalizeAreaKey($validated['area_pekerjaan']);
+        $currentAreaKey = HppApprovalFlow::normalizeAreaKey((string) $hpp->area_pekerjaan);
+
+        if (
+            ! $canReorderApprovalFlow
+            && (HppApprovalFlow::isSpecialArea($currentAreaKey) || HppApprovalFlow::isSpecialArea($areaPekerjaanKey))
+            && (
+                $currentAreaKey !== $areaPekerjaanKey
+                || (string) $hpp->kategori_pekerjaan !== (string) $validated['kategori_pekerjaan']
+                || (string) $hpp->nilai_hpp_bucket !== $nilaiHppBucket
+            )
+        ) {
+            throw ValidationException::withMessages([
+                'area_pekerjaan' => 'Kategori, Area Khusus, dan bucket nilai tidak dapat diubah setelah HPP masuk proses approval.',
+            ]);
+        }
 
         $approvalCase = HppApprovalFlow::resolvePreviewCase(
             $validated['kategori_pekerjaan'],
@@ -646,15 +663,24 @@ class HppController extends Controller
             $nilaiHppBucket,
         );
 
-        $defaultApprovalFlow = HppApprovalFlow::resolveApprovalFlow(
-            $validated['kategori_pekerjaan'],
-            $areaPekerjaanKey,
-            $nilaiHppBucket,
-        );
+        $isSpecialArea = HppApprovalFlow::isSpecialArea($areaPekerjaanKey);
+        $defaultApprovalFlow = $isSpecialArea && $canReorderApprovalFlow
+            ? $this->specialAreaPolicy->resolveApprovalFlow(
+                $order,
+                $validated['kategori_pekerjaan'],
+                $nilaiHppBucket,
+                $validated['action'] === 'submit',
+            )
+            : HppApprovalFlow::resolveApprovalFlow(
+                $validated['kategori_pekerjaan'],
+                $areaPekerjaanKey,
+                $nilaiHppBucket,
+            );
         $approvalFlow = $canReorderApprovalFlow
             ? $this->resolveApprovalFlowSnapshot(
                 $defaultApprovalFlow,
                 $payload['approval_flow'] ?? [],
+                $isSpecialArea,
             )
             : $this->existingApprovalFlowOrDefault($hpp, $defaultApprovalFlow);
 
@@ -708,7 +734,11 @@ class HppController extends Controller
      * @param  list<string>  $defaultFlow
      * @return list<string>
      */
-    private function resolveApprovalFlowSnapshot(array $defaultFlow, mixed $submittedFlow): array
+    private function resolveApprovalFlowSnapshot(
+        array $defaultFlow,
+        mixed $submittedFlow,
+        bool $isSpecialArea = false,
+    ): array
     {
         $submittedFlow = is_array($submittedFlow)
             ? collect($submittedFlow)
@@ -737,6 +767,12 @@ class HppController extends Controller
         if (in_array('DIROPS', $submittedFlow, true) && end($submittedFlow) !== 'DIROPS') {
             throw ValidationException::withMessages([
                 'approval_flow' => 'DIROPS harus tetap menjadi step terakhir karena tahap ini memakai upload dokumen final.',
+            ]);
+        }
+
+        if ($isSpecialArea && $submittedFlow !== array_values($defaultFlow)) {
+            throw ValidationException::withMessages([
+                'approval_flow' => 'Urutan approval HPP Khusus harus mengikuti urutan Counter Part, Peminta, Pengendali, lalu DIROPS sesuai matriks Dalam.',
             ]);
         }
 

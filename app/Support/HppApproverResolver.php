@@ -366,7 +366,7 @@ class HppApproverResolver
 
     private function resolveRequesterManager(Hpp $hpp, string $roleKey, string $flowRoleLabel): array
     {
-        $source = $this->requesterChain($this->requireOrder($hpp));
+        $source = $this->requesterChainForHpp($hpp);
         $user = $this->requireUser($source['section']?->manager, 'Manager Peminta tidak ditemukan.');
 
         return $this->approverPayload(
@@ -382,7 +382,7 @@ class HppApproverResolver
 
     private function resolveRequesterSeniorManager(Hpp $hpp, string $roleKey, string $flowRoleLabel): array
     {
-        $source = $this->requesterChain($this->requireOrder($hpp));
+        $source = $this->requesterChainForHpp($hpp);
         $user = $this->requireUser($source['unit']?->seniorManager, 'SM Peminta tidak ditemukan.');
 
         return $this->approverPayload(
@@ -398,7 +398,7 @@ class HppApproverResolver
 
     private function resolveRequesterGeneralManager(Hpp $hpp, string $roleKey, string $flowRoleLabel): array
     {
-        $source = $this->requesterChain($this->requireOrder($hpp));
+        $source = $this->requesterChainForHpp($hpp);
         $user = $this->requireUser($source['unit']?->department?->generalManager, 'GM Peminta tidak ditemukan.');
 
         return $this->approverPayload(
@@ -422,6 +422,20 @@ class HppApproverResolver
         $section = $this->resolveSectionForOutlineAgreement($outlineAgreement);
 
         return ['unit' => $unit, 'section' => $section];
+    }
+
+    /**
+     * @return array{unit: ?UnitWork, section: ?UnitWorkSection}
+     */
+    private function requesterChainForHpp(Hpp $hpp): array
+    {
+        $order = $this->requireOrder($hpp);
+
+        if (HppApprovalFlow::isSpecialArea((string) $hpp->area_pekerjaan)) {
+            return app(HppSpecialAreaPolicy::class)->requesterChain($order);
+        }
+
+        return $this->requesterChain($order);
     }
 
     /**

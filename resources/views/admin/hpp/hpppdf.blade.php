@@ -486,6 +486,7 @@
         ->whereIn('id', $hppSignaturesCollection->pluck('signer_user_id')->filter()->unique()->values())
         ->pluck('inisial', 'id');
     $isWorkshopCase = str_starts_with($approvalCase, 'FAB-WORKSHOP');
+    $isSpecialArea = HppApprovalFlow::isSpecialArea((string) $hpp->area_pekerjaan);
     $controllerManagerRole = $isWorkshopCase ? 'workshop_manager_pengendali' : 'manager_pengendali';
     $controllerSmRole = $isWorkshopCase ? 'workshop_sm_pengendali' : 'sm_pengendali';
     $controllerGmRole = $isWorkshopCase ? 'workshop_gm_pengendali' : 'gm_pengendali';
@@ -641,6 +642,27 @@
         $requesterManagerRole,
         $isWorkshopCase ? 'Mgr of '.$unitPengendaliLabel : 'Mgr of '.$unitPemintaLabel,
     );
+    if ($isSpecialArea && ! $requesterManagerInitial['signature'] && $order) {
+        try {
+            $specialRequesterManager = app(\App\Support\HppSpecialAreaPolicy::class)
+                ->requesterChain($order)['section']
+                ->manager;
+            $requesterManagerInitial['value'] = $specialRequesterManager?->initials()
+                ?: $initials($specialRequesterManager?->name);
+        } catch (\Throwable $e) {
+            // Draft PDF remains renderable while the form reports organization errors.
+        }
+    }
+    $approvalFlowSnapshot = collect((array) $hpp->approval_flow)
+        ->map(fn (mixed $role): string => trim((string) $role))
+        ->filter()
+        ->values();
+    $specialRequesterCells = collect([
+        'GM Peminta' => $gmRequesterCell,
+        'SM Peminta' => $smRequesterCell,
+    ])->filter(
+        fn (array $cell, string $role): bool => $approvalFlowSnapshot->containsStrict($role),
+    )->values()->all();
 
     $approvalFamily = match (true) {
         str_starts_with($approvalCase, 'FAB-DALAM') => 'fabrikasi-dalam',

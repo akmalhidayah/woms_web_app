@@ -6,6 +6,10 @@ class HppApprovalFlow
 {
     public const THRESHOLD = 250_000_000;
 
+    public const SPECIAL_AREA_KEY = 'Khusus';
+
+    public const SPECIAL_AREA_LABEL = 'Khusus (Warehouse, dan Lain-Lain)';
+
     /**
      * @return array<string, string>
      */
@@ -15,6 +19,7 @@ class HppApprovalFlow
             'Dalam' => 'Dalam (T.23,4,5, Pelabuhan BKS & Packing Plant)',
             'Luar' => 'Luar (BTG&CUS)',
             'Workshop' => 'Workshop',
+            self::SPECIAL_AREA_KEY => self::SPECIAL_AREA_LABEL,
         ];
     }
 
@@ -71,6 +76,11 @@ class HppApprovalFlow
         return static::canonicalAreaLabels()[$key] ?? trim($areaPekerjaan);
     }
 
+    public static function isSpecialArea(string $areaPekerjaan): bool
+    {
+        return static::normalizeAreaKey($areaPekerjaan) === self::SPECIAL_AREA_KEY;
+    }
+
     /**
      * @return array<string, string>
      */
@@ -117,7 +127,7 @@ class HppApprovalFlow
         }
 
         $prefix = $kategoriPekerjaan === 'Fabrikasi' ? 'FAB' : 'KONS';
-        $area = strtoupper($areaKey);
+        $area = strtoupper(static::isSpecialArea($areaKey) ? 'Dalam' : $areaKey);
         $bucket = $nilaiBucket === 'over' ? 'OVER250' : 'UNDER250';
 
         return "{$prefix}-{$area}-{$bucket}";

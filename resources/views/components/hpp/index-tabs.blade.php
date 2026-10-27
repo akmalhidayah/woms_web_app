@@ -41,7 +41,7 @@
                 name="search"
                 type="search"
                 value="{{ $search }}"
-                placeholder="Cari nomor order / pekerjaan / area..."
+                placeholder="Cari nomor order / notifikasi / pekerjaan / area..."
                 class="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-[11px] text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
             >
         </div>

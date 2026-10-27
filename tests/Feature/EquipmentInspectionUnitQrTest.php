@@ -128,6 +128,50 @@ class EquipmentInspectionUnitQrTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_print_active_public_qr_labels_two_per_a4_sheet(): void
+    {
+        $admin = $this->admin();
+        $inspector = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
+        $forms = EquipmentInspectionForm::query()->active()->orderBy('id')->take(6)->get();
+
+        foreach ($forms->take(3) as $index => $form) {
+            $this->unit($form, 'PRINT-0'.($index + 1))->update(['public_enabled' => true]);
+        }
+
+        $inactiveUnit = $this->unit($forms[3], 'UNIT-NONAKTIF', EquipmentInspectionUnit::STATUS_INACTIVE);
+        $inactiveUnit->update(['public_enabled' => true]);
+        $this->unit($forms[4], 'QR-PUBLIK-NONAKTIF');
+        $inactiveFormUnit = $this->unit($forms[5], 'FORM-NONAKTIF');
+        $inactiveFormUnit->update(['public_enabled' => true]);
+        $forms[5]->update(['status' => EquipmentInspectionForm::STATUS_INACTIVE]);
+
+        $this->actingAs($inspector)
+            ->get(route('admin.inspection-units.labels.active'))
+            ->assertForbidden();
+
+        $this->actingAs($admin)
+            ->get(route('admin.inspection-forms.index'))
+            ->assertOk()
+            ->assertSee(route('admin.inspection-units.labels.active'), false)
+            ->assertSee('Cetak Semua QR Aktif');
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.inspection-units.labels.active'))
+            ->assertOk()
+            ->assertSee('data-label-count="3"', false)
+            ->assertSee('PRINT-01')
+            ->assertSee('PRINT-02')
+            ->assertSee('PRINT-03')
+            ->assertDontSee('UNIT-NONAKTIF')
+            ->assertDontSee('QR-PUBLIK-NONAKTIF')
+            ->assertDontSee('FORM-NONAKTIF')
+            ->assertSee('size: A4 landscape', false)
+            ->assertSee('class="sheet single"', false)
+            ->assertSee('2 label per lembar A4');
+
+        $this->assertSame(2, substr_count($response->getContent(), 'data-label-sheet'));
+    }
+
     public function test_simplified_qr_flow_stops_when_form_has_multiple_legacy_units(): void
     {
         $admin = $this->admin();

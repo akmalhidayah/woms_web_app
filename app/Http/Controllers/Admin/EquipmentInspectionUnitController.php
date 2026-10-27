@@ -188,6 +188,30 @@ class EquipmentInspectionUnitController extends Controller
         return view('admin.inspection-units.label', ['unit' => $equipmentInspectionUnit, 'publicUrl' => $qr->publicUrl($equipmentInspectionUnit)]);
     }
 
+    public function activeLabels(Request $request): View
+    {
+        $this->authorizeAdmin($request);
+
+        $units = EquipmentInspectionUnit::query()
+            ->with('form:id,name,status')
+            ->active()
+            ->where('public_enabled', true)
+            ->whereNotNull('public_code')
+            ->where('public_code', '!=', '')
+            ->whereHas('form', fn ($query) => $query->active())
+            ->orderBy(
+                EquipmentInspectionForm::query()
+                    ->select('name')
+                    ->whereColumn('equipment_inspection_forms.id', 'equipment_inspection_units.equipment_inspection_form_id')
+                    ->limit(1),
+            )
+            ->orderBy('asset_code')
+            ->orderBy('id')
+            ->get();
+
+        return view('admin.inspection-units.active-labels', compact('units'));
+    }
+
     private function authorizeAdmin(Request $request): void
     {
         abort_unless((new EquipmentInspectionPolicy)->monitor($request->user()), 403);

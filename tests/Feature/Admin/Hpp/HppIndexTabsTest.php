@@ -147,6 +147,29 @@ class HppIndexTabsTest extends TestCase
             ->assertDontSee($matchingReview->nomor_order);
     }
 
+    public function test_admin_and_pkm_can_search_hpp_by_order_notification_number(): void
+    {
+        $admin = $this->admin();
+        $pkm = User::factory()->create(['role' => User::ROLE_PKM]);
+        $matching = $this->hpp($admin, Hpp::STATUS_DRAFT, 'NOTIFICATION-TARGET');
+        $other = $this->hpp($admin, Hpp::STATUS_DRAFT, 'NOTIFICATION-OTHER');
+
+        $matching->order()->update(['notifikasi' => '300001999888']);
+        $other->order()->update(['notifikasi' => '300001111222']);
+
+        foreach ([
+            [$admin, 'admin.hpp.index'],
+            [$pkm, 'pkm.hpp.index'],
+        ] as [$user, $routeName]) {
+            $rows = $this->actingAs($user)
+                ->get(route($routeName, ['search' => '300001999888']))
+                ->assertOk()
+                ->viewData('rows');
+
+            $this->assertSame([$matching->id], collect($rows->items())->pluck('id')->all());
+        }
+    }
+
     public function test_admin_index_keeps_pkm_creator_label_and_paginates_ten_rows(): void
     {
         $admin = $this->admin();

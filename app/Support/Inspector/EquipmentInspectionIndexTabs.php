@@ -47,4 +47,18 @@ final class EquipmentInspectionIndexTabs
 
         return self::apply($query, $tab)->count();
     }
+
+    public static function menuBadgeCount(User $viewer): int
+    {
+        return EquipmentInspection::query()
+            ->when(! $viewer->isAdmin(), fn (Builder $builder) => $builder->where('inspector_user_id', $viewer->id))
+            ->whereIn('status', [
+                EquipmentInspection::STATUS_DRAFT,
+                EquipmentInspection::STATUS_REVISION,
+                EquipmentInspection::STATUS_READY,
+                EquipmentInspection::STATUS_LEADER,
+                EquipmentInspection::STATUS_MANAGER,
+            ])
+            ->count();
+    }
 }

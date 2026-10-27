@@ -95,7 +95,10 @@ class Hpp extends Model
                 ->orWhere('nama_pekerjaan', 'like', "%{$search}%")
                 ->orWhere('kategori_pekerjaan', 'like', "%{$search}%")
                 ->orWhere('area_pekerjaan', 'like', "%{$search}%")
-                ->orWhere('unit_kerja', 'like', "%{$search}%");
+                ->orWhere('unit_kerja', 'like', "%{$search}%")
+                ->orWhereHas('order', function (Builder $orderQuery) use ($search) {
+                    $orderQuery->where('notifikasi', 'like', "%{$search}%");
+                });
         });
     }
 

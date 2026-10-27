@@ -33,7 +33,8 @@ class EquipmentInspectionManagementTest extends TestCase
 
         $this->assertSame(['new' => 2, 'approval' => 1, 'history' => 1], EquipmentInspectionIndexTabs::counts($admin));
         $this->assertSame(['new' => 1, 'approval' => 1, 'history' => 1], EquipmentInspectionIndexTabs::counts($owner));
-        $this->assertSame(2, app(AdminActionCenter::class)->sidebarCounts($admin)['inspeksi_baru']);
+        $this->assertSame(3, EquipmentInspectionIndexTabs::menuBadgeCount($admin));
+        $this->assertSame(3, app(AdminActionCenter::class)->sidebarCounts($admin)['inspeksi_baru']);
         $this->assertFalse(EquipmentInspectionIndexTabs::apply(EquipmentInspection::query(), 'new')->whereKey($pending->id)->exists());
         $this->assertFalse(EquipmentInspectionIndexTabs::apply(EquipmentInspection::query(), 'history')->whereKey($draft->id)->exists());
         $this->assertTrue(EquipmentInspectionIndexTabs::apply(EquipmentInspection::query(), 'completed')->whereKey($approved->id)->exists());
@@ -54,6 +55,7 @@ class EquipmentInspectionManagementTest extends TestCase
 
         $this->assertSame(0, EquipmentInspectionIndexTabs::count($admin, 'new'));
         $this->assertSame(1, EquipmentInspectionIndexTabs::count($admin, 'history'));
+        $this->assertSame(0, EquipmentInspectionIndexTabs::menuBadgeCount($admin));
         $this->assertSame(0, app(AdminActionCenter::class)->sidebarCounts($admin)['inspeksi_baru']);
     }
 
@@ -97,6 +99,23 @@ class EquipmentInspectionManagementTest extends TestCase
             ->assertSee('aria-label="Lihat dokumen PDF '.$inspection->form_name.'"', false)
             ->assertSee('Lihat Dokumen')
             ->assertDontSee('data-lucide="eye"', false);
+    }
+
+    public function test_inspection_pdf_does_not_repeat_the_section_label(): void
+    {
+        $owner = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
+        $inspection = $this->inspection($owner);
+
+        $html = view('inspector.inspections.pdf', [
+            'inspection' => $inspection,
+            'signatures' => collect(),
+            'signatureImages' => [],
+            'rows' => [],
+            'photos' => [],
+        ])->render();
+
+        $this->assertStringContainsString('<strong>Seksi:</strong> Workshop Machine', $html);
+        $this->assertStringNotContainsString('<strong>Seksi:</strong> Seksi Workshop Machine', $html);
     }
 
     public function test_admin_deletion_cancels_approval_but_preserves_signed_audit_and_media(): void

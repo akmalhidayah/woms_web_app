@@ -9,7 +9,10 @@
                 <span class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white text-blue-700 ring-1 ring-blue-200"><i data-lucide="list-checks" class="h-5 w-5"></i></span>
                 <h1 class="text-lg font-bold text-slate-900">Master Peralatan</h1>
             </div>
-            <a href="{{ route('admin.inspection-forms.create') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white"><i data-lucide="plus" class="h-4 w-4"></i> Tambah Peralatan</a>
+            <div class="flex flex-col gap-2 sm:flex-row">
+                <a href="{{ route('admin.inspection-units.labels.active') }}" target="_blank" rel="noopener" class="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-blue-700"><i data-lucide="printer" class="h-4 w-4"></i> Cetak Semua QR Aktif</a>
+                <a href="{{ route('admin.inspection-forms.create') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white"><i data-lucide="plus" class="h-4 w-4"></i> Tambah Peralatan</a>
+            </div>
         </section>
 
         <x-inspections.sweet-alerts :success="session('success')" :error-messages="$errors->all()" />

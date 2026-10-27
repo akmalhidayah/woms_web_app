@@ -139,6 +139,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'index'])->name('index');
         Route::get('create', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'store'])->name('store');
+        Route::get('labels/active', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'activeLabels'])->name('labels.active');
         Route::get('{equipmentInspectionUnit}', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'show'])->name('show');
         Route::get('{equipmentInspectionUnit}/edit', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'edit'])->name('edit');
         Route::put('{equipmentInspectionUnit}', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'update'])->name('update');

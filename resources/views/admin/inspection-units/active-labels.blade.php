@@ -13,22 +13,21 @@
         .toolbar button { background: #1d4ed8; color: #fff; }
         .toolbar a { border: 1px solid #cbd5e1; background: #fff; color: #334155; }
         .summary { font-size: 13px; color: #475569; }
-        .sheet { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: center; gap: 7mm; width: 277mm; height: 190mm; margin: 10mm auto; background: #fff; }
+        .sheet { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); align-items: center; gap: 6mm 7mm; width: 277mm; height: 190mm; margin: 10mm auto; background: #fff; }
+        .sheet::before { position: absolute; inset: 50% 0 auto; border-top: 1px dashed #94a3b8; content: ''; }
         .sheet::after { position: absolute; inset: 0 auto 0 50%; border-left: 1px dashed #94a3b8; content: ''; }
-        .sheet.single { grid-template-columns: 1fr; }
-        .sheet.single::after { display: none; }
-        .label { display: flex; width: 135mm; height: 96mm; min-width: 0; flex-direction: column; justify-self: center; border: 1px solid #0f172a; background: #fff; padding: 6mm; }
-        .brand { display: flex; align-items: center; justify-content: space-between; gap: 4mm; border-bottom: 1px solid #111827; padding-bottom: 3mm; }
+        .label { display: flex; width: 135mm; height: 90mm; min-width: 0; flex-direction: column; justify-self: center; border: 1px solid #0f172a; background: #fff; padding: 5mm; }
+        .brand { display: flex; align-items: center; justify-content: space-between; gap: 4mm; border-bottom: 1px solid #111827; padding-bottom: 2mm; }
         .brand-logos { display: flex; flex: 0 0 auto; align-items: center; gap: 2mm; }
-        .brand-logo { display: block; width: 14mm; height: 14mm; object-fit: contain; }
-        .brand-title { font-size: 10pt; font-weight: 800; letter-spacing: .7px; text-align: right; }
-        .content { display: flex; min-height: 0; flex: 1; align-items: center; gap: 7mm; }
-        .qr { width: 55mm; height: 55mm; flex: 0 0 auto; object-fit: contain; }
+        .brand-logo { display: block; width: 12mm; height: 12mm; object-fit: contain; }
+        .brand-title { font-size: 9pt; font-weight: 800; letter-spacing: .6px; text-align: right; }
+        .content { display: flex; min-height: 0; flex: 1; align-items: center; gap: 6mm; }
+        .qr { width: 50mm; height: 50mm; flex: 0 0 auto; object-fit: contain; }
         .info { min-width: 0; }
-        .name { overflow-wrap: anywhere; font-size: 19pt; font-weight: 800; line-height: 1.12; }
-        .code { margin-top: 4mm; font-size: 17pt; font-weight: 700; }
-        .scan { margin-top: 6mm; font-size: 10pt; font-weight: 700; line-height: 1.3; }
-        .foot { font-size: 7.5pt; color: #475569; text-align: center; }
+        .name { overflow-wrap: anywhere; font-size: 16pt; font-weight: 800; line-height: 1.12; }
+        .code { margin-top: 3mm; font-size: 14pt; font-weight: 700; }
+        .scan { margin-top: 4mm; font-size: 8.5pt; font-weight: 700; line-height: 1.3; }
+        .foot { font-size: 7pt; color: #475569; text-align: center; }
         .empty { max-width: 640px; margin: 80px auto; border: 1px solid #cbd5e1; border-radius: 14px; background: #fff; padding: 32px; text-align: center; }
         @media print {
             body { background: #fff; }
@@ -41,14 +40,14 @@
 <body data-label-count="{{ $units->count() }}">
     <div class="toolbar">
         <a href="{{ route('admin.inspection-forms.index') }}">Kembali</a>
-        <span class="summary">{{ $units->count() }} QR publik aktif · 2 label per lembar A4</span>
+        <span class="summary">{{ $units->count() }} QR publik aktif · 4 label per lembar A4</span>
         @if ($units->isNotEmpty())
             <button type="button" onclick="window.print()">Cetak Semua QR</button>
         @endif
     </div>
 
-    @forelse ($units->chunk(2) as $pageUnits)
-        <section class="sheet{{ $pageUnits->count() === 1 ? ' single' : '' }}" data-label-sheet>
+    @forelse ($units->chunk(4) as $pageUnits)
+        <section class="sheet" data-label-sheet>
             @foreach ($pageUnits as $unit)
                 <article class="label">
                     @include('admin.inspection-units.partials.label-content', ['unit' => $unit])

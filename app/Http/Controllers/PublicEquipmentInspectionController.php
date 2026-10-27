@@ -62,7 +62,7 @@ class PublicEquipmentInspectionController extends Controller
         $unit = $this->publishedUnit($publicCode);
         $inspection = EquipmentInspection::query()
             ->where('public_id', $inspectionPublicId)
-            ->where('status', EquipmentInspection::STATUS_APPROVED)
+            ->whereIn('status', [EquipmentInspection::STATUS_MANAGER, EquipmentInspection::STATUS_APPROVED])
             ->whereHas('unitLink', fn ($query) => $query->where('equipment_inspection_unit_id', $unit->id))
             ->firstOrFail();
 

@@ -15,12 +15,13 @@ final class PublicEquipmentHistoryService
 {
     public function isPublishable(EquipmentInspection $inspection, EquipmentInspectionUnit $unit): bool
     {
-        if ($inspection->status !== EquipmentInspection::STATUS_APPROVED) {
+        if (! in_array($inspection->status, [EquipmentInspection::STATUS_MANAGER, EquipmentInspection::STATUS_APPROVED], true)) {
             return false;
         }
 
         $inspection->loadMissing([
             'unitLink',
+            'approvals' => fn ($query) => $query->where('role_key', EquipmentInspectionSignature::ROLE_MANAGER),
             'signatures' => fn ($query) => $query->whereIn('role_key', [
                 EquipmentInspectionSignature::ROLE_INSPECTOR,
                 EquipmentInspectionSignature::ROLE_MANAGER,
@@ -174,13 +175,18 @@ final class PublicEquipmentHistoryService
                 'label' => $answer['item_label'],
                 'group' => is_string($answer['group_label'] ?? null) ? $answer['group_label'] : null,
                 'rating' => $answer['rating'],
+                'rating_label' => match ($answer['rating']) {
+                    'A' => 'Normal',
+                    'B' => 'Kurang Normal',
+                    'C' => 'Rusak',
+                },
                 'remark' => filled($remark) ? $remark : null,
             ];
         });
         if ($items->isEmpty() || $items->contains(null)) {
             return null;
         }
-        /** @var Collection<int, array{label: string, rating: string, remark: ?string}> $items */
+        /** @var Collection<int, array{label: string, rating: string, rating_label: string, remark: ?string}> $items */
         $counts = [
             'A' => $items->where('rating', 'A')->count(),
             'B' => $items->where('rating', 'B')->count(),
@@ -193,7 +199,7 @@ final class PublicEquipmentHistoryService
             'document_no' => $documentNo,
             'status' => $approved ? 'Disetujui' : 'Proses Approval',
             'is_approved' => $approved,
-            'pdf_available' => $approved,
+            'pdf_available' => true,
             'inspector_name' => is_string($payload['inspector_name'] ?? null) ? $payload['inspector_name'] : null,
             'counts' => $counts,
             'items' => $items->values()->all(),
@@ -202,7 +208,7 @@ final class PublicEquipmentHistoryService
     }
 
     /**
-     * @param  Collection<int, array{label: string, rating: string, remark: ?string}>  $items
+     * @param  Collection<int, array{label: string, rating: string, rating_label: string, remark: ?string}>  $items
      * @param  array{A: int, B: int, C: int}  $counts
      */
     private function summary(Collection $items, array $counts): string
@@ -213,7 +219,7 @@ final class PublicEquipmentHistoryService
             $counts['C'].' Rusak',
         ];
         $findings = $items->whereIn('rating', ['B', 'C'])
-            ->map(fn (array $item): string => $item['rating'].' pada '.$item['label'])->values();
+            ->map(fn (array $item): string => $item['rating_label'].' pada '.$item['label'])->values();
         $suffix = $findings->isEmpty() ? '.' : ': '.$findings->implode(', ').'.';
 
         return 'Dari '.$items->count().' item pemeriksaan, '.implode(', ', $parts).$suffix;

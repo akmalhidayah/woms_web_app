@@ -6,7 +6,7 @@
                 <strong>{{ $item['label'] }}</strong>
                 @if ($item['remark'])<p class="remark"><strong>Remarks:</strong> {{ $item['remark'] }}</p>@endif
             </div>
-            <span class="rating {{ strtolower($item['rating']) }}" aria-label="{{ match ($item['rating']) { 'A' => 'Normal', 'B' => 'Kurang Normal', 'C' => 'Rusak' } }}">{{ $item['rating'] }}</span>
+            <span class="rating {{ strtolower($item['rating']) }}">{{ $item['rating_label'] }}</span>
         </div>
     @endforeach
 </div>

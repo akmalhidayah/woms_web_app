@@ -268,6 +268,7 @@ class EquipmentInspectionUnitQrTest extends TestCase
         $approvedAnswers = $this->answers('mesin-lipat', 'B', 'Bearing perlu pelumasan ulang');
         $normalItemKey = array_keys($approvedAnswers)[1];
         $approvedAnswers[$normalItemKey]['remark'] = 'Kondisi normal setelah pemeriksaan';
+        $approvedAnswers[array_keys($approvedAnswers)[2]] = ['rating' => 'C', 'remark' => 'Komponen rusak dan perlu diganti'];
         $approved = app(EquipmentInspectionService::class)->save($inspector, null, 'mesin-lipat', [
             'inspection_date' => now()->subDay()->toDateString(),
             'equipment_inspection_unit_id' => $unit->id,
@@ -286,6 +287,7 @@ class EquipmentInspectionUnitQrTest extends TestCase
             ->assertOk()
             ->assertSee('MB-PUBLIC')
             ->assertSee('Identitas unit terkunci karena dokumen pernah ditandatangani.');
+        auth()->logout();
 
         $pending = app(EquipmentInspectionService::class)->save($inspector, null, 'mesin-lipat', [
             'inspection_date' => now()->toDateString(),
@@ -323,7 +325,18 @@ class EquipmentInspectionUnitQrTest extends TestCase
             ->assertSee('Bearing perlu pelumasan ulang')
             ->assertSee('Kondisi normal setelah pemeriksaan')
             ->assertSee(route('public.equipment-history.pdf', [$unit->public_code, $approved->public_id]), false)
-            ->assertDontSee(route('public.equipment-history.pdf', [$unit->public_code, $pending->public_id]), false)
+            ->assertSee(route('public.equipment-history.pdf', [$unit->public_code, $pending->public_id]), false)
+            ->assertSee('>Normal</span>', false)
+            ->assertSee('>Kurang Normal</span>', false)
+            ->assertSee('>Rusak</span>', false)
+            ->assertDontSee('Normal (A)')
+            ->assertDontSee('Kurang Normal (B)')
+            ->assertDontSee('Rusak (C)')
+            ->assertDontSee('>A</span>', false)
+            ->assertDontSee('>B</span>', false)
+            ->assertDontSee('>C</span>', false)
+            ->assertDontSee('B pada ')
+            ->assertDontSee('C pada ')
             ->assertDontSee('DRAFT-SECRET')
             ->assertDontSee('OTHER-UNIT-SECRET')
             ->assertDontSee('signature_path')
@@ -333,6 +346,10 @@ class EquipmentInspectionUnitQrTest extends TestCase
             ->assertDontSee('Unit &lt;script&gt;alert(1)&lt;/script&gt;', false)
             ->assertDontSee('<script>alert(1)</script>', false)
             ->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+        $pendingPdfUrl = route('public.equipment-history.pdf', [$unit->public_code, $pending->public_id]);
+        $this->assertSame(2, substr_count($response->getContent(), $pendingPdfUrl));
+        $this->assertStringContainsString('Kurang Normal pada ', $response->viewData('latest')['summary']);
+        $this->assertStringContainsString('Rusak pada ', $response->viewData('inspections')->getCollection()->last()['summary']);
 
         $this->get(route('public.equipment-history.pdf', [$unit->public_code, $approved->public_id]))
             ->assertOk()
@@ -340,13 +357,28 @@ class EquipmentInspectionUnitQrTest extends TestCase
             ->assertContent($pdfBinary);
         $this->get(route('public.equipment-history.pdf', [$unit->public_code, $draft->public_id]))
             ->assertNotFound();
-        $this->get(route('public.equipment-history.pdf', [$unit->public_code, $pending->public_id]))
-            ->assertNotFound();
+        $pendingPdf = $this->get($pendingPdfUrl)
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+        $this->assertStringStartsWith('%PDF-', $pendingPdf->getContent());
+        $this->assertNull($pending->fresh()->final_pdf_path);
+        $this->assertSame(EquipmentInspection::STATUS_MANAGER, $pending->fresh()->status);
+        $this->assertSame(1, $pending->signatures()->count());
         $this->get(route('public.equipment-history.pdf', [$unit->public_code, $otherInspection->public_id]))
             ->assertNotFound();
 
         $this->post(route('public.equipment-history.show', $unit->public_code))->assertStatus(405);
         $this->get('/equipment/q/'.str_repeat('z', 32))->assertNotFound();
+
+        $signature = $pending->signatures()->firstOrFail();
+        $originalHash = $signature->content_hash;
+        $signature->update(['content_hash' => str_repeat('0', 64)]);
+        $this->get($pendingPdfUrl)->assertNotFound();
+        $signature->update(['content_hash' => $originalHash]);
+        $unit->update(['public_enabled' => false]);
+        $this->get($pendingPdfUrl)->assertNotFound();
+        $unit->update(['public_enabled' => true]);
 
         $pending->approvals()->update([
             'status' => EquipmentInspectionApproval::CANCELLED,
@@ -356,6 +388,7 @@ class EquipmentInspectionUnitQrTest extends TestCase
         $this->get(route('public.equipment-history.show', $unit->public_code))
             ->assertOk()
             ->assertDontSee('002/INSP/PENDING');
+        $this->get($pendingPdfUrl)->assertNotFound();
 
         $approved->delete();
         $this->get(route('public.equipment-history.show', $unit->public_code))
@@ -591,6 +624,8 @@ class EquipmentInspectionUnitQrTest extends TestCase
             'status' => EquipmentInspection::STATUS_MANAGER,
         ])->save();
         $payload = EquipmentInspectionSnapshot::payload($inspection);
+        $signatureBinary = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFElEQVR42mNkYGD4z8DAwMDEAAUADikBA07hWZQAAAAASUVORK5CYII=', true);
+        Storage::disk('local')->put('equipment-inspections/test/pending-inspector.png', $signatureBinary);
         $inspection->signatures()->create([
             'document_version' => $inspection->document_version,
             'role_key' => EquipmentInspectionSignature::ROLE_INSPECTOR,
@@ -599,7 +634,7 @@ class EquipmentInspectionUnitQrTest extends TestCase
             'signer_name' => $inspector->name,
             'signer_position' => 'Inspektor',
             'signature_path' => 'equipment-inspections/test/pending-inspector.png',
-            'signature_sha256' => hash('sha256', 'signature'),
+            'signature_sha256' => hash('sha256', $signatureBinary),
             'signed_at' => now(),
             'content_hash' => EquipmentInspectionSnapshot::hash($payload),
             'signed_payload' => $payload,

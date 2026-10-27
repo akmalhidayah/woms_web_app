@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\EquipmentInspection;
+use App\Models\EquipmentInspectionApproval;
 use App\Models\EquipmentInspectionForm;
 use App\Models\EquipmentInspectionSignature;
 use App\Models\EquipmentInspectionUnit;
@@ -255,7 +256,7 @@ class EquipmentInspectionUnitQrTest extends TestCase
         ], []);
     }
 
-    public function test_public_history_uses_approved_signed_snapshot_and_excludes_private_metadata(): void
+    public function test_public_history_uses_signed_snapshots_for_approved_and_in_approval_inspections(): void
     {
         Storage::fake('local');
         $inspector = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
@@ -286,6 +287,13 @@ class EquipmentInspectionUnitQrTest extends TestCase
             ->assertSee('MB-PUBLIC')
             ->assertSee('Identitas unit terkunci karena dokumen pernah ditandatangani.');
 
+        $pending = app(EquipmentInspectionService::class)->save($inspector, null, 'mesin-lipat', [
+            'inspection_date' => now()->toDateString(),
+            'equipment_inspection_unit_id' => $unit->id,
+            'answers' => $this->answers('mesin-lipat', 'B', 'Menunggu verifikasi Manager'),
+        ], []);
+        $this->submitForApprovalForTest($pending, $inspector, $manager, '002/INSP/PENDING');
+
         $draft = app(EquipmentInspectionService::class)->save($inspector, null, 'mesin-lipat', [
             'inspection_date' => now()->toDateString(),
             'equipment_inspection_unit_id' => $unit->id,
@@ -307,15 +315,20 @@ class EquipmentInspectionUnitQrTest extends TestCase
         $response->assertOk()
             ->assertSee('MB-PUBLIC')
             ->assertSee('001/INSP/PUBLIC')
+            ->assertSee('002/INSP/PENDING')
+            ->assertSee('Proses Approval')
+            ->assertSee('Menunggu verifikasi Manager')
             ->assertSee('Kurang Normal')
             ->assertSee('Remarks:')
             ->assertSee('Bearing perlu pelumasan ulang')
             ->assertSee('Kondisi normal setelah pemeriksaan')
             ->assertSee(route('public.equipment-history.pdf', [$unit->public_code, $approved->public_id]), false)
+            ->assertDontSee(route('public.equipment-history.pdf', [$unit->public_code, $pending->public_id]), false)
             ->assertDontSee('DRAFT-SECRET')
             ->assertDontSee('OTHER-UNIT-SECRET')
             ->assertDontSee('signature_path')
             ->assertDontSee('token_hash')
+            ->assertDontSee('Persetujuan dokumen tidak otomatis menyatakan peralatan layak dioperasikan.')
             ->assertSee($form->name)
             ->assertDontSee('Unit &lt;script&gt;alert(1)&lt;/script&gt;', false)
             ->assertDontSee('<script>alert(1)</script>', false)
@@ -327,11 +340,22 @@ class EquipmentInspectionUnitQrTest extends TestCase
             ->assertContent($pdfBinary);
         $this->get(route('public.equipment-history.pdf', [$unit->public_code, $draft->public_id]))
             ->assertNotFound();
+        $this->get(route('public.equipment-history.pdf', [$unit->public_code, $pending->public_id]))
+            ->assertNotFound();
         $this->get(route('public.equipment-history.pdf', [$unit->public_code, $otherInspection->public_id]))
             ->assertNotFound();
 
         $this->post(route('public.equipment-history.show', $unit->public_code))->assertStatus(405);
         $this->get('/equipment/q/'.str_repeat('z', 32))->assertNotFound();
+
+        $pending->approvals()->update([
+            'status' => EquipmentInspectionApproval::CANCELLED,
+            'token_hash' => null,
+            'token_encrypted' => null,
+        ]);
+        $this->get(route('public.equipment-history.show', $unit->public_code))
+            ->assertOk()
+            ->assertDontSee('002/INSP/PENDING');
 
         $approved->delete();
         $this->get(route('public.equipment-history.show', $unit->public_code))
@@ -556,6 +580,43 @@ class EquipmentInspectionUnitQrTest extends TestCase
             'signer_name' => $manager->name,
             'signer_position' => 'Manager Workshop',
             'signature_path' => 'equipment-inspections/test/manager.png',
+        ]);
+    }
+
+    private function submitForApprovalForTest(EquipmentInspection $inspection, User $inspector, User $manager, string $number): void
+    {
+        $inspection->forceFill([
+            'document_no' => $number,
+            'signed_at' => now(),
+            'status' => EquipmentInspection::STATUS_MANAGER,
+        ])->save();
+        $payload = EquipmentInspectionSnapshot::payload($inspection);
+        $inspection->signatures()->create([
+            'document_version' => $inspection->document_version,
+            'role_key' => EquipmentInspectionSignature::ROLE_INSPECTOR,
+            'step' => EquipmentInspectionSignature::STEPS[EquipmentInspectionSignature::ROLE_INSPECTOR],
+            'signer_user_id' => $inspector->id,
+            'signer_name' => $inspector->name,
+            'signer_position' => 'Inspektor',
+            'signature_path' => 'equipment-inspections/test/pending-inspector.png',
+            'signature_sha256' => hash('sha256', 'signature'),
+            'signed_at' => now(),
+            'content_hash' => EquipmentInspectionSnapshot::hash($payload),
+            'signed_payload' => $payload,
+        ]);
+        $token = Str::random(64);
+        $inspection->approvals()->create([
+            'document_version' => $inspection->document_version,
+            'step_order' => EquipmentInspectionSignature::STEPS[EquipmentInspectionSignature::ROLE_MANAGER],
+            'role_key' => EquipmentInspectionSignature::ROLE_MANAGER,
+            'signer_user_id' => $manager->id,
+            'signer_name' => $manager->name,
+            'signer_position' => 'Manager Workshop',
+            'status' => EquipmentInspectionApproval::PENDING,
+            'token_hash' => hash('sha256', $token),
+            'token_encrypted' => $token,
+            'token_expires_at' => now()->addDays(7),
+            'activated_at' => now(),
         ]);
     }
 }

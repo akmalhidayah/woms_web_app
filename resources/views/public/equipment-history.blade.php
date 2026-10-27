@@ -52,6 +52,7 @@
         .equipment-history .remark { margin: 6px 0 0; font-size: 12px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
         .equipment-history .rating { min-width: 32px; flex: none; border-radius: 9px; padding: 5px; text-align: center; font-weight: 900; }
         .equipment-history .approved { display: inline-block; border-radius: 999px; background: #e9f9ef; color: #166534; padding: 5px 8px; font-size: 11px; font-weight: 800; }
+        .equipment-history .pending { display: inline-block; border-radius: 999px; background: #fff7db; color: #92400e; padding: 5px 8px; font-size: 11px; font-weight: 800; }
         .equipment-history .history { padding: 0 14px 14px; }
         .equipment-history .entry { margin-top: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; }
         .equipment-history .entry h3 { margin: 8px 0 5px; font-size: 15px; overflow-wrap: anywhere; }
@@ -123,7 +124,7 @@
                 @if ($latest)
                     <p>{{ $latest['document_no'] ?: 'Nomor tidak tersedia' }}<br>{{ \Illuminate\Support\Carbon::parse($latest['inspection_date'])->translatedFormat('d F Y') }}</p>
                     <p>Inspektor: {{ $latest['inspector_name'] ?: 'Tidak dicantumkan' }}</p>
-                    <p><span class="approved">{{ $latest['status'] }}</span></p>
+                    <p><span class="{{ $latest['is_approved'] ? 'approved' : 'pending' }}">{{ $latest['status'] }}</span></p>
                 @endif
             </div>
             @if ($latest)
@@ -131,21 +132,23 @@
                     @include('public.partials.equipment-counts', ['inspection' => $latest])
                     <p class="summary">{{ $latest['summary'] }}</p>
                     @include('public.partials.equipment-checklist', ['inspection' => $latest])
-                    <a class="document-link primary" href="{{ route('public.equipment-history.pdf', [$unit['public_code'], $latest['public_id']]) }}" target="_blank" rel="noopener noreferrer">
-                        @include('public.partials.equipment-icon', ['icon' => 'pdf']) Buka PDF Inspeksi
-                    </a>
+                    @if ($latest['pdf_available'])
+                        <a class="document-link primary" href="{{ route('public.equipment-history.pdf', [$unit['public_code'], $latest['public_id']]) }}" target="_blank" rel="noopener noreferrer">
+                            @include('public.partials.equipment-icon', ['icon' => 'pdf']) Buka PDF Inspeksi
+                        </a>
+                    @endif
                 </div>
             @else
-                <div class="empty">Belum ada hasil pemeriksaan yang disetujui.</div>
+                <div class="empty">Belum ada hasil pemeriksaan yang dapat ditampilkan.</div>
             @endif
         </section>
 
         <section id="panel-history" role="tabpanel" aria-labelledby="tab-history" tabindex="0" class="card panel" x-show="activeTab === 'history'" x-cloak>
-            <div class="section-head"><h2>Riwayat Pemeriksaan</h2><p>Pemeriksaan yang telah disetujui, dari terbaru ke terlama.</p></div>
+            <div class="section-head"><h2>Riwayat Pemeriksaan</h2><p>Pemeriksaan dalam proses approval dan yang telah disetujui, dari terbaru ke terlama.</p></div>
             <div class="history">
                 @forelse ($inspections as $inspection)
                     <article class="entry">
-                        <span class="approved">{{ $inspection['status'] }}</span>
+                        <span class="{{ $inspection['is_approved'] ? 'approved' : 'pending' }}">{{ $inspection['status'] }}</span>
                         <h3>{{ $inspection['document_no'] ?: 'Nomor tidak tersedia' }}</h3>
                         <p class="date">{{ \Illuminate\Support\Carbon::parse($inspection['inspection_date'])->translatedFormat('d F Y') }}</p>
                         @include('public.partials.equipment-counts')
@@ -154,12 +157,14 @@
                             <summary>Lihat Detail Checklist &amp; Remarks</summary>
                             @include('public.partials.equipment-checklist')
                         </details>
-                        <a class="document-link" href="{{ route('public.equipment-history.pdf', [$unit['public_code'], $inspection['public_id']]) }}" target="_blank" rel="noopener noreferrer">
-                            @include('public.partials.equipment-icon', ['icon' => 'pdf']) Buka PDF
-                        </a>
+                        @if ($inspection['pdf_available'])
+                            <a class="document-link" href="{{ route('public.equipment-history.pdf', [$unit['public_code'], $inspection['public_id']]) }}" target="_blank" rel="noopener noreferrer">
+                                @include('public.partials.equipment-icon', ['icon' => 'pdf']) Buka PDF
+                            </a>
+                        @endif
                     </article>
                 @empty
-                    <div class="empty">Belum ada riwayat pemeriksaan yang disetujui.</div>
+                    <div class="empty">Belum ada riwayat pemeriksaan yang dapat ditampilkan.</div>
                 @endforelse
                 @if ($inspections->hasPages())
                     @php($inspections->appends(['tab' => 'history']))
@@ -192,7 +197,6 @@
         </section>
 
         <noscript><p class="notice">Aktifkan JavaScript untuk membuka tab informasi peralatan.</p></noscript>
-        <p class="notice">Informasi merupakan hasil pemeriksaan yang telah disetujui. Persetujuan dokumen tidak otomatis menyatakan peralatan layak dioperasikan.</p>
     </main>
     {{-- Livewire supplies the existing local Alpine runtime; no second Alpine instance. --}}
     @livewireScripts

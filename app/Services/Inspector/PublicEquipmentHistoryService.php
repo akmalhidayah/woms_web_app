@@ -3,6 +3,7 @@
 namespace App\Services\Inspector;
 
 use App\Models\EquipmentInspection;
+use App\Models\EquipmentInspectionApproval;
 use App\Models\EquipmentInspectionSignature;
 use App\Models\EquipmentInspectionUnit;
 use App\Models\EquipmentInspectionUnitLink;
@@ -43,7 +44,7 @@ final class PublicEquipmentHistoryService
         $validCount = 0;
         $candidates = EquipmentInspection::query()
             ->select(['id', 'public_id', 'document_version', 'inspection_date', 'status'])
-            ->where('status', EquipmentInspection::STATUS_APPROVED)
+            ->whereIn('status', [EquipmentInspection::STATUS_MANAGER, EquipmentInspection::STATUS_APPROVED])
             ->whereHas('unitLink', fn ($query) => $query->where('equipment_inspection_unit_id', $unit->id))
             ->with([
                 'unitLink',
@@ -53,6 +54,9 @@ final class PublicEquipmentHistoryService
                     EquipmentInspectionSignature::ROLE_INSPECTOR,
                     EquipmentInspectionSignature::ROLE_MANAGER,
                 ]),
+                'approvals' => fn ($query) => $query->select([
+                    'id', 'equipment_inspection_id', 'document_version', 'step_order', 'role_key', 'status', 'token_hash',
+                ])->where('role_key', EquipmentInspectionSignature::ROLE_MANAGER),
             ])
             ->orderByDesc('inspection_date')->orderByDesc('id');
 
@@ -96,17 +100,34 @@ final class PublicEquipmentHistoryService
      */
     private function project(EquipmentInspection $inspection, EquipmentInspectionUnit $unit): ?array
     {
+        $approved = $inspection->status === EquipmentInspection::STATUS_APPROVED;
+        $inApproval = $inspection->status === EquipmentInspection::STATUS_MANAGER;
+        if (! $approved && ! $inApproval) {
+            return null;
+        }
+
         $signatures = $inspection->signatures
             ->where('document_version', $inspection->document_version)
             ->keyBy('role_key');
         $inspector = $signatures->get(EquipmentInspectionSignature::ROLE_INSPECTOR);
         $manager = $signatures->get(EquipmentInspectionSignature::ROLE_MANAGER);
-        if (! $inspector || ! $manager
-            || ! is_string($inspector->content_hash) || ! is_string($manager->content_hash)
-            || ! is_array($inspector->signed_payload) || ! is_array($manager->signed_payload)
-            || ! hash_equals($inspector->content_hash, $manager->content_hash)
+        if (! $inspector
+            || ! is_string($inspector->content_hash)
+            || ! is_array($inspector->signed_payload)
             || ! hash_equals($inspector->content_hash, EquipmentInspectionSnapshot::hash($inspector->signed_payload))
-            || ! hash_equals($manager->content_hash, EquipmentInspectionSnapshot::hash($manager->signed_payload))) {
+            || ($approved && (! $manager
+                || ! is_string($manager->content_hash)
+                || ! is_array($manager->signed_payload)
+                || ! hash_equals($inspector->content_hash, $manager->content_hash)
+                || ! hash_equals($manager->content_hash, EquipmentInspectionSnapshot::hash($manager->signed_payload))))) {
+            return null;
+        }
+        if ($inApproval && ! $inspection->approvals->contains(fn (EquipmentInspectionApproval $approval): bool =>
+            $approval->document_version === $inspection->document_version
+            && $approval->step_order === EquipmentInspectionSignature::STEPS[EquipmentInspectionSignature::ROLE_MANAGER]
+            && $approval->role_key === EquipmentInspectionSignature::ROLE_MANAGER
+            && $approval->status === EquipmentInspectionApproval::PENDING
+            && filled($approval->token_hash))) {
             return null;
         }
 
@@ -170,7 +191,9 @@ final class PublicEquipmentHistoryService
             'public_id' => $inspection->public_id,
             'inspection_date' => $inspectionDate,
             'document_no' => $documentNo,
-            'status' => 'Disetujui',
+            'status' => $approved ? 'Disetujui' : 'Proses Approval',
+            'is_approved' => $approved,
+            'pdf_available' => $approved,
             'inspector_name' => is_string($payload['inspector_name'] ?? null) ? $payload['inspector_name'] : null,
             'counts' => $counts,
             'items' => $items->values()->all(),

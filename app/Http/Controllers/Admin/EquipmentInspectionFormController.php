@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\SaveEquipmentInspectionFormQrRequest;
 use App\Http\Requests\Admin\SaveEquipmentInspectionFormRequest;
+use App\Models\BengkelPic;
 use App\Models\EquipmentInspection;
 use App\Models\EquipmentInspectionForm;
 use App\Policies\EquipmentInspectionPolicy;
@@ -102,7 +103,10 @@ class EquipmentInspectionFormController extends Controller
     {
         $this->authorizeAdmin($request);
 
-        return view('admin.inspection-forms.form', ['form' => null]);
+        return view('admin.inspection-forms.form', [
+            'form' => null,
+            'picOptions' => $this->picOptions(),
+        ]);
     }
 
     public function store(SaveEquipmentInspectionFormRequest $request, EquipmentInspectionFormService $service): RedirectResponse
@@ -116,9 +120,12 @@ class EquipmentInspectionFormController extends Controller
     public function edit(Request $request, EquipmentInspectionForm $equipmentInspectionForm): View
     {
         $this->authorizeAdmin($request);
-        $equipmentInspectionForm->load(['items', 'logs.actor']);
+        $equipmentInspectionForm->load(['items', 'logs.actor', 'pic']);
 
-        return view('admin.inspection-forms.form', ['form' => $equipmentInspectionForm]);
+        return view('admin.inspection-forms.form', [
+            'form' => $equipmentInspectionForm,
+            'picOptions' => $this->picOptions(),
+        ]);
     }
 
     public function preview(Request $request, EquipmentInspectionForm $equipmentInspectionForm, EquipmentInspectionFormRepository $forms): View
@@ -165,5 +172,18 @@ class EquipmentInspectionFormController extends Controller
             'Cache-Control' => 'private, no-store',
             'X-Content-Type-Options' => 'nosniff',
         ]);
+    }
+
+    /**
+     * @return array<int, array{id: int, name: string, avatar_url: ?string, avatar_position: string}>
+     */
+    private function picOptions(): array
+    {
+        return BengkelPic::query()->orderBy('name')->get()->map(fn (BengkelPic $pic): array => [
+            'id' => $pic->id,
+            'name' => $pic->name,
+            'avatar_url' => $pic->avatar_url,
+            'avatar_position' => $pic->avatar_object_position,
+        ])->all();
     }
 }

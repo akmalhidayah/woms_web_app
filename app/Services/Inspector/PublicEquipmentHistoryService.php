@@ -36,7 +36,7 @@ final class PublicEquipmentHistoryService
      */
     public function history(EquipmentInspectionUnit $unit): array
     {
-        $unit->loadMissing('form');
+        $unit->loadMissing('form.pic');
         $perPage = max(1, min(25, (int) config('equipment-inspection.public_history_per_page', 10)));
         $page = Paginator::resolveCurrentPage();
         $skip = ($page - 1) * $perPage;
@@ -90,6 +90,11 @@ final class PublicEquipmentHistoryService
                 'location' => $unit->location,
                 'lifecycle_status' => $unit->lifecycle_status,
                 'has_image' => filled($unit->image_path) || filled($unit->form?->image_path),
+                'pic' => $unit->form?->pic ? [
+                    'name' => $unit->form->pic->name,
+                    'avatar_url' => $unit->form->pic->avatar_url,
+                    'avatar_position' => $unit->form->pic->avatar_object_position,
+                ] : null,
             ],
             'inspections' => $paginator,
             'latest' => $latest,

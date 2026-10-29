@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\BengkelPic;
 use App\Models\EquipmentInspection;
 use App\Models\EquipmentInspectionForm;
 use App\Models\EquipmentInspectionSignature;
@@ -53,11 +54,20 @@ class EquipmentInspectionFormManagementTest extends TestCase
     public function test_admin_can_create_edit_preview_and_deactivate_form_while_non_admin_is_rejected(): void
     {
         Storage::fake('local');
+        Storage::fake('public');
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN]);
         $inspector = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
+        $pic = BengkelPic::query()->create([
+            'name' => 'PIC Mesin Uji',
+            'avatar_path' => 'bengkel-pics/pic-mesin-uji.png',
+            'avatar_position_x' => 45,
+            'avatar_position_y' => 35,
+        ]);
+        Storage::disk('public')->put($pic->avatar_path, 'avatar-pic');
         $payload = [
             'name' => 'Mesin Uji Baru',
             'description' => 'Form dari database.',
+            'bengkel_pic_id' => $pic->id,
             'action' => 'publish',
             'image' => $this->validImage(),
             'items' => [
@@ -81,6 +91,7 @@ class EquipmentInspectionFormManagementTest extends TestCase
 
         $form = EquipmentInspectionForm::query()->where('slug', 'mesin-uji-baru')->with('items')->firstOrFail();
         $this->assertSame(EquipmentInspectionForm::STATUS_ACTIVE, $form->status);
+        $this->assertTrue($form->pic->is($pic));
         $this->assertCount(2, $form->items);
         $unit = $form->units()->sole();
         $this->assertSame('EQ01', $unit->asset_code);
@@ -92,6 +103,9 @@ class EquipmentInspectionFormManagementTest extends TestCase
         $this->assertArrayNotHasKey('image_path', EquipmentFormCatalog::find($form->slug));
         $this->get(route('admin.inspection-forms.edit', $form))
             ->assertOk()
+            ->assertSee('name="bengkel_pic_id"', false)
+            ->assertSee('PIC Mesin Uji')
+            ->assertSee('Nama dan foto mengikuti data Master Bengkel PIC.')
             ->assertDontSee('Grup (opsional)')
             ->assertDontSee('Nama grup opsional')
             ->assertDontSee('Urutan tampil')
@@ -113,6 +127,7 @@ class EquipmentInspectionFormManagementTest extends TestCase
         $this->actingAs($admin)->put(route('admin.inspection-forms.update', $form), [
             'name' => 'Mesin Uji Renamed',
             'description' => 'Diperbarui.',
+            'bengkel_pic_id' => $pic->id,
             'sort_order' => 3,
             'action' => 'publish',
             'image' => $this->validImage(),
@@ -124,6 +139,7 @@ class EquipmentInspectionFormManagementTest extends TestCase
 
         $form->refresh()->load('items');
         $this->assertSame(0, $form->sort_order);
+        $this->assertSame($pic->id, $form->bengkel_pic_id);
         $this->assertSame('mesin-uji-baru', $form->slug);
         $this->assertSame(2, $form->version);
         $this->assertSame($firstKey, $form->items->first()->item_key);
@@ -147,6 +163,7 @@ class EquipmentInspectionFormManagementTest extends TestCase
         ])->assertRedirect();
         $form->refresh()->load('items');
         $this->assertSame([$second->item_key, $first->item_key], $form->items->pluck('item_key')->all());
+        $this->assertNull($form->bengkel_pic_id);
         $this->assertSame(3, $form->version);
 
         $this->patch(route('admin.inspection-forms.deactivate', $form))->assertRedirect();
@@ -260,8 +277,8 @@ class EquipmentInspectionFormManagementTest extends TestCase
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN]);
         $this->actingAs($admin)->post(route('admin.inspection-forms.store'), [
-            'name' => '', 'action' => 'save_draft', 'items' => [],
-        ])->assertSessionHasErrors(['name', 'items']);
+            'name' => '', 'bengkel_pic_id' => PHP_INT_MAX, 'action' => 'save_draft', 'items' => [],
+        ])->assertSessionHasErrors(['name', 'bengkel_pic_id', 'items']);
 
         foreach ([1, 2] as $iteration) {
             $this->post(route('admin.inspection-forms.store'), [

@@ -21,6 +21,7 @@ class EquipmentInspectionForm extends Model
         'slug',
         'name',
         'description',
+        'bengkel_pic_id',
         'image_path',
         'image_mime_type',
         'image_size',
@@ -68,6 +69,11 @@ class EquipmentInspectionForm extends Model
     public function units(): HasMany
     {
         return $this->hasMany(EquipmentInspectionUnit::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function pic(): BelongsTo
+    {
+        return $this->belongsTo(BengkelPic::class, 'bengkel_pic_id');
     }
 
     public function creator(): BelongsTo

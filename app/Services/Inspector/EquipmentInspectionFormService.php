@@ -36,6 +36,7 @@ final class EquipmentInspectionFormService
                             'slug' => $this->uniqueSlug($data['name']),
                             'name' => $data['name'],
                             'description' => $data['description'] ?: null,
+                            'bengkel_pic_id' => $data['bengkel_pic_id'] ?? null,
                             'sort_order' => 0,
                             'status' => $data['action'] === 'publish' ? EquipmentInspectionForm::STATUS_ACTIVE : EquipmentInspectionForm::STATUS_DRAFT,
                             'version' => 1,
@@ -84,6 +85,7 @@ final class EquipmentInspectionFormService
                 $form->forceFill([
                     'name' => $data['name'],
                     'description' => $data['description'] ?: null,
+                    'bengkel_pic_id' => $data['bengkel_pic_id'] ?? null,
                     'status' => $publishing ? EquipmentInspectionForm::STATUS_ACTIVE : EquipmentInspectionForm::STATUS_DRAFT,
                     'updated_by' => $actor->id,
                     ...($stored ? $this->imageColumns($stored) : []),
@@ -234,6 +236,7 @@ final class EquipmentInspectionFormService
         return [
             'name' => $form->name,
             'description' => $form->description,
+            'bengkel_pic_id' => $form->bengkel_pic_id,
             'sort_order' => (int) $form->sort_order,
             'image_sha256' => $form->image_sha256,
             'items' => $form->items->map(fn (EquipmentInspectionFormItem $item): array => [

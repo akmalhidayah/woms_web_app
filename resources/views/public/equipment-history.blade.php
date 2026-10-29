@@ -19,6 +19,8 @@
         .equipment-history .top small { display: block; margin-top: 3px; color: #c9d8ff; font-size: 11px; }
         .equipment-history .card { margin-top: 14px; border: 1px solid var(--line); border-radius: 18px; background: white; box-shadow: 0 8px 24px #0f172a0b; overflow: hidden; }
         .equipment-history .equipment { display: grid; gap: 16px; padding: 16px; }
+        .equipment-history .equipment-details { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 14px; min-width: 0; }
+        .equipment-history .equipment-copy { min-width: 0; }
         .equipment-history .photo { width: 100%; aspect-ratio: 16/10; border-radius: 14px; background: #eef2f7; object-fit: cover; }
         .equipment-history .placeholder { display: grid; place-items: center; color: var(--muted); font-weight: 700; }
         .equipment-history .eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .1em; color: var(--blue); text-transform: uppercase; }
@@ -27,6 +29,11 @@
         .equipment-history .location { margin: 12px 0 0; color: var(--muted); font-size: 14px; }
         .equipment-history .unit-status { display: inline-block; border-radius: 999px; padding: 5px 8px; font-size: 11px; font-weight: 700; background: #eef2f7; }
         .equipment-history .unit-status.active { background: #e9f9ef; color: #166534; }
+        .equipment-history .equipment-pic { width: 96px; text-align: center; }
+        .equipment-history .pic-photo, .equipment-history .pic-fallback { width: 72px; height: 72px; margin-left: auto; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 3px white, 0 0 0 4px #dbe3ef; }
+        .equipment-history .pic-fallback { display: grid; place-items: center; background: #eaf1ff; color: var(--blue); font-size: 18px; font-weight: 900; }
+        .equipment-history .pic-label { margin: 9px 0 0; color: var(--blue); font-size: 9px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+        .equipment-history .pic-name { margin: 3px 0 0; font-size: 11px; font-weight: 800; line-height: 1.3; overflow-wrap: anywhere; }
         .equipment-history .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin-top: 16px; }
         .equipment-history .tab { display: flex; align-items: center; flex-direction: column; gap: 7px; min-height: 76px; padding: 12px 4px; border: 1px solid var(--line); border-radius: 14px; background: white; color: var(--muted); cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; }
         .equipment-history .tab.selected { border-color: #74a6f2; color: var(--blue); background: #eaf2ff; box-shadow: 0 3px 10px #173f9112; }
@@ -96,12 +103,25 @@
             @else
                 <div class="photo placeholder">Foto belum tersedia</div>
             @endif
-            <div>
-                <p class="eyebrow">Unit Peralatan</p>
-                <h1 class="title">{{ $unit['name'] }}</h1>
-                <span class="code">{{ $unit['asset_code'] }}</span>
-                <span class="unit-status {{ $unit['lifecycle_status'] === 'active' ? 'active' : '' }}">{{ $unit['lifecycle_status'] === 'active' ? 'Unit Aktif' : 'Unit Nonaktif' }}</span>
-                <p class="location">{{ $unit['location'] ?: 'Lokasi tidak dicantumkan' }}</p>
+            <div class="equipment-details">
+                <div class="equipment-copy">
+                    <p class="eyebrow">Unit Peralatan</p>
+                    <h1 class="title">{{ $unit['name'] }}</h1>
+                    <span class="code">{{ $unit['asset_code'] }}</span>
+                    <span class="unit-status {{ $unit['lifecycle_status'] === 'active' ? 'active' : '' }}">{{ $unit['lifecycle_status'] === 'active' ? 'Unit Aktif' : 'Unit Nonaktif' }}</span>
+                    <p class="location">{{ $unit['location'] ?: 'Lokasi tidak dicantumkan' }}</p>
+                </div>
+                @if ($unit['pic'])
+                    <aside class="equipment-pic" aria-label="PIC peralatan">
+                        @if ($unit['pic']['avatar_url'])
+                            <img class="pic-photo" src="{{ $unit['pic']['avatar_url'] }}" alt="Foto {{ $unit['pic']['name'] }}" style="object-position: {{ $unit['pic']['avatar_position'] }}">
+                        @else
+                            <div class="pic-fallback" aria-hidden="true">{{ collect(preg_split('/\s+/', trim($unit['pic']['name'])))->filter()->take(2)->map(fn ($word) => mb_strtoupper(mb_substr($word, 0, 1)))->implode('') ?: 'PIC' }}</div>
+                        @endif
+                        <p class="pic-label">PIC Peralatan</p>
+                        <p class="pic-name">{{ $unit['pic']['name'] }}</p>
+                    </aside>
+                @endif
             </div>
         </section>
 

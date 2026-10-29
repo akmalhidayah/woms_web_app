@@ -34,6 +34,7 @@ class SaveEquipmentInspectionFormRequest extends FormRequest
         $this->merge([
             'name' => is_string($this->input('name')) ? trim($this->input('name')) : $this->input('name'),
             'description' => is_string($this->input('description')) ? trim($this->input('description')) : $this->input('description'),
+            'bengkel_pic_id' => filled($this->input('bengkel_pic_id')) ? $this->input('bengkel_pic_id') : null,
             'items' => $items,
         ]);
     }
@@ -43,6 +44,7 @@ class SaveEquipmentInspectionFormRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:2000'],
+            'bengkel_pic_id' => ['nullable', 'integer', 'exists:bengkel_pics,id'],
             'action' => ['required', Rule::in(['save_draft', 'publish'])],
             'image' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'mimetypes:image/jpeg,image/png,image/webp', 'extensions:jpg,jpeg,png,webp', 'max:2048', 'dimensions:max_width=4096,max_height=4096'],
             'items' => ['required', 'array', 'min:1', 'max:200'],

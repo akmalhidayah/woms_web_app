@@ -42,7 +42,7 @@
         .equipment-history .latest-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
         .equipment-history .latest-side { min-width: 0; border-left: 1px solid var(--line); padding-left: 14px; }
         .equipment-history .meta-label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-        .equipment-history h2 + .meta-label { margin-top: 10px; }
+        .equipment-history h2 + .meta-value { margin-top: 10px; }
         .equipment-history .meta-value { display: block; color: var(--ink); font-size: 12px; font-weight: 800; line-height: 1.4; overflow-wrap: anywhere; }
         .equipment-history .meta-date { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.4; }
         .equipment-history .latest-side .approved, .equipment-history .latest-side .pending { margin-top: 9px; }
@@ -143,7 +143,6 @@
             <div class="section-head latest-head">
                 <div><h2>Hasil Pemeriksaan Terakhir</h2>
                     @if ($latest)
-                        <span class="meta-label">Dokumen</span>
                         <span class="meta-value">{{ $latest['document_no'] ?: 'Nomor tidak tersedia' }}</span>
                         <span class="meta-date">{{ \Illuminate\Support\Carbon::parse($latest['inspection_date'])->translatedFormat('d F Y') }}</span>
                     @endif

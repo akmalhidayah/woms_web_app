@@ -122,13 +122,13 @@ final class AdminGlobalSearchService
         return [
             'scopeOfWork:id,order_id',
             'initialWork:id,order_id,progress_pekerjaan',
-            'latestHpp:id,order_id,nomor_order,status',
+            'latestHpp:hpps.id,hpps.order_id,hpps.nomor_order,hpps.status',
             'budgetVerification:id,order_id,hpp_id,status_anggaran,kategori_item,kategori_biaya,cost_element',
             'purchaseOrder:id,order_id,hpp_id,purchase_order_number,target_penyelesaian,approval_target,approve_manager,progress_pekerjaan',
             'garansi:id,order_id,lhpp_bast_id,garansi_months',
             'orderWorkshop:id,order_id,preparation_status,progress_status,legacy_completed_at',
             'workPackages:id,order_id,status',
-            'latestQualityControlReport:id,order_id,status,payload',
+            'latestQualityControlReport:quality_control_reports.id,quality_control_reports.order_id,quality_control_reports.status,quality_control_reports.payload',
             'latestQualityControlReport.signatures',
             'workshopHandover:id,order_id,status',
             'lhppBasts' => fn ($query) => $query

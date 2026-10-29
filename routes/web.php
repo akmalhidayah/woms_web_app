@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\BudgetVerificationController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\FabricationConstructionContractController;
 use App\Http\Controllers\Admin\GaransiController;
+use App\Http\Controllers\Admin\GlobalSearchController;
 use App\Http\Controllers\Admin\Hpp\HppController;
 use App\Http\Controllers\Admin\HppApprovalSettingController;
 use App\Http\Controllers\Admin\InformationUploadController;
@@ -209,6 +210,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('admin/dashboard', AdminDashboardController::class)
         ->middleware('role:admin')
         ->name('admin.dashboard');
+    Route::get('admin/global-search', GlobalSearchController::class)
+        ->middleware(['role:admin', 'throttle:30,1'])
+        ->name('admin.global-search.index');
     Route::get('admin/get-years', [AdminDashboardController::class, 'years'])
         ->middleware('role:admin')
         ->name('admin.dashboard.years');

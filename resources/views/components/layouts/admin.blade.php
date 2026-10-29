@@ -1288,9 +1288,129 @@
             </aside>
 
             <div class="min-h-screen transition-all duration-300" :class="sidebarOpen ? 'lg:pl-60' : 'lg:pl-16'">
-                <header class="sticky top-0 z-20 border-b border-blue-950/30 bg-blue-900">
-                    <div class="flex items-center justify-between px-3 py-2 lg:px-5">
-                        <div class="flex items-center gap-2.5">
+                <header
+                    class="sticky top-0 z-20 border-b border-blue-950/30 bg-blue-900"
+                    x-data="{
+                        globalSearchUrl: @js(route('admin.global-search.index')),
+                        searchQuery: '',
+                        results: [],
+                        searchOpen: false,
+                        mobileSearchOpen: false,
+                        searchLoading: false,
+                        searchPerformed: false,
+                        searchError: '',
+                        selectedIndex: -1,
+                        searchTimer: null,
+                        requestSequence: 0,
+                        requestController: null,
+                        scheduleSearch() {
+                            window.clearTimeout(this.searchTimer);
+                            const query = this.searchQuery.trim();
+                            this.searchError = '';
+                            this.searchPerformed = false;
+
+                            if (query.length < 2) {
+                                this.requestController?.abort();
+                                this.results = [];
+                                this.selectedIndex = -1;
+                                this.searchLoading = false;
+                                this.searchOpen = false;
+                                return;
+                            }
+
+                            this.results = [];
+                            this.selectedIndex = -1;
+                            this.searchOpen = true;
+                            this.searchLoading = true;
+                            this.searchTimer = window.setTimeout(() => this.runSearch(query), 400);
+                        },
+                        async runSearch(query) {
+                            const sequence = ++this.requestSequence;
+                            this.requestController?.abort();
+                            this.requestController = new AbortController();
+
+                            try {
+                                const response = await fetch(`${this.globalSearchUrl}?q=${encodeURIComponent(query)}`, {
+                                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                                    credentials: 'same-origin',
+                                    cache: 'no-store',
+                                    signal: this.requestController.signal,
+                                });
+
+                                if (sequence !== this.requestSequence || query !== this.searchQuery.trim()) return;
+
+                                if (response.status === 401) throw new Error('Sesi Anda telah berakhir. Silakan login kembali.');
+                                if (response.status === 403) throw new Error('Anda tidak memiliki akses pencarian pekerjaan.');
+                                if (response.status === 422) throw new Error('Masukkan minimal 2 dan maksimal 100 karakter.');
+                                if (response.status === 429) throw new Error('Pencarian terlalu cepat. Tunggu sebentar lalu coba lagi.');
+                                if (!response.ok || response.redirected) throw new Error('Pencarian belum dapat dimuat.');
+
+                                const payload = await response.json();
+                                this.results = Array.isArray(payload.results) ? payload.results : [];
+                                this.selectedIndex = this.results.length > 0 ? 0 : -1;
+                                this.searchPerformed = true;
+                                this.$nextTick(() => window.lucide?.createIcons());
+                            } catch (error) {
+                                if (error?.name === 'AbortError' || sequence !== this.requestSequence) return;
+                                this.results = [];
+                                this.selectedIndex = -1;
+                                this.searchPerformed = true;
+                                this.searchError = error?.message || 'Terjadi gangguan jaringan.';
+                            } finally {
+                                if (sequence === this.requestSequence) this.searchLoading = false;
+                            }
+                        },
+                        moveSelection(direction) {
+                            if (this.results.length === 0) return;
+                            this.searchOpen = true;
+                            this.selectedIndex = (this.selectedIndex + direction + this.results.length) % this.results.length;
+                        },
+                        openSelected() {
+                            if (this.searchLoading) return;
+                            const result = this.results[this.selectedIndex >= 0 ? this.selectedIndex : 0];
+                            if (result) this.openResult(result);
+                        },
+                        openResult(result) {
+                            if (result?.url) window.location.assign(result.url);
+                        },
+                        closeSearchResults() {
+                            this.searchOpen = false;
+                            this.selectedIndex = -1;
+                        },
+                        openMobileSearch() {
+                            this.mobileSearchOpen = true;
+                            this.searchOpen = this.searchQuery.trim().length >= 2;
+                            this.$nextTick(() => this.$refs.mobileGlobalSearch?.focus());
+                        },
+                        closeMobileSearch() {
+                            this.mobileSearchOpen = false;
+                            this.closeSearchResults();
+                        },
+                        activeDescendant(prefix) {
+                            return this.selectedIndex >= 0 ? `${prefix}-${this.selectedIndex}` : null;
+                        },
+                        typeBadgeClasses(type) {
+                            return type === 'Gabungan'
+                                ? 'bg-violet-100 text-violet-700'
+                                : (type === 'Bengkel' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700');
+                        },
+                        toneTextClasses(tone) {
+                            return {
+                                emerald: 'text-emerald-700', rose: 'text-rose-700', orange: 'text-orange-700',
+                                violet: 'text-violet-700', amber: 'text-amber-700', blue: 'text-blue-700',
+                            }[tone] || 'text-slate-600';
+                        },
+                        toneDotClasses(tone) {
+                            return {
+                                emerald: 'bg-emerald-500', rose: 'bg-rose-500', orange: 'bg-orange-500',
+                                violet: 'bg-violet-500', amber: 'bg-amber-500', blue: 'bg-blue-500',
+                            }[tone] || 'bg-slate-400';
+                        },
+                    }"
+                    @keydown.escape.window="mobileSearchOpen ? closeMobileSearch() : closeSearchResults()"
+                >
+                    <div class="flex items-center justify-between gap-2 px-3 py-2 lg:px-5">
+                        <div class="flex shrink-0 items-center gap-2.5">
                             <button
                                 @click="toggleSidebar()"
                                 class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-white transition hover:bg-white/10 lg:hidden"
@@ -1314,7 +1434,51 @@
                             </div>
                         </div>
 
-                        <div class="flex items-center gap-2">
+                        <div class="relative mx-auto hidden min-w-0 max-w-xl flex-1 px-3 lg:block" @click.outside="closeSearchResults()">
+                            <label for="admin-global-search" class="sr-only">Cari pekerjaan WOMS</label>
+                            <div class="relative">
+                                <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-blue-200"></i>
+                                <input
+                                    id="admin-global-search"
+                                    type="search"
+                                    x-model="searchQuery"
+                                    @input="scheduleSearch()"
+                                    @focus="if (searchQuery.trim().length >= 2) searchOpen = true"
+                                    @keydown.arrow-down.prevent="moveSelection(1)"
+                                    @keydown.arrow-up.prevent="moveSelection(-1)"
+                                    @keydown.enter.prevent="openSelected()"
+                                    placeholder="Cari order, notifikasi SAP, atau pekerjaan…"
+                                    autocomplete="off"
+                                    role="combobox"
+                                    aria-autocomplete="list"
+                                    aria-controls="admin-global-search-results"
+                                    :aria-expanded="searchOpen"
+                                    :aria-activedescendant="activeDescendant('admin-global-search-results')"
+                                    class="h-9 w-full rounded-xl border border-white/20 bg-blue-950/35 pl-9 pr-9 text-xs font-semibold text-white outline-none transition placeholder:text-blue-200/80 focus:border-white/50 focus:bg-white focus:text-slate-900 focus:placeholder:text-slate-400 focus:ring-2 focus:ring-white/20"
+                                >
+                                <button
+                                    x-show="searchQuery"
+                                    x-cloak
+                                    type="button"
+                                    @click="searchQuery = ''; scheduleSearch()"
+                                    class="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-blue-200 hover:bg-white/10 focus:text-slate-500"
+                                    aria-label="Hapus pencarian"
+                                >
+                                    <i data-lucide="x" class="h-3.5 w-3.5"></i>
+                                </button>
+                            </div>
+
+                            <div
+                                x-show="searchOpen"
+                                x-transition.origin.top
+                                x-cloak
+                                class="absolute left-3 right-3 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+                            >
+                                @include('admin.global-search.results', ['listId' => 'admin-global-search-results'])
+                            </div>
+                        </div>
+
+                        <div class="flex shrink-0 items-center gap-2">
                             @foreach ($headerQuickLinks as $quickLink)
                                 @if ($quickLink['key'] === \App\Support\AdminMenuRegistry::MENU_STRUKTUR_ORGANISASI)
                                     <button
@@ -1458,6 +1622,55 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <div class="px-3 pb-2 lg:hidden">
+                        <button
+                            type="button"
+                            @click="openMobileSearch()"
+                            class="flex h-9 w-full items-center gap-2 rounded-xl border border-white/15 bg-blue-950/30 px-3 text-left text-xs font-semibold text-blue-100 transition hover:bg-white/10"
+                            aria-label="Cari pekerjaan"
+                        >
+                            <i data-lucide="search" class="h-4 w-4 shrink-0"></i>
+                            <span class="truncate">Cari order, notifikasi SAP, atau pekerjaan…</span>
+                        </button>
+                    </div>
+
+                    <div x-show="mobileSearchOpen" x-cloak class="fixed inset-0 z-[70] lg:hidden" role="dialog" aria-modal="true" aria-label="Pencarian pekerjaan WOMS">
+                        <div class="absolute inset-0 bg-slate-950/55" @click="closeMobileSearch()"></div>
+                        <section class="relative mx-3 mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+                            <div class="flex items-center gap-2 border-b border-slate-200 p-3">
+                                <div class="relative min-w-0 flex-1">
+                                    <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
+                                    <input
+                                        x-ref="mobileGlobalSearch"
+                                        type="search"
+                                        x-model="searchQuery"
+                                        @input="scheduleSearch()"
+                                        @keydown.arrow-down.prevent="moveSelection(1)"
+                                        @keydown.arrow-up.prevent="moveSelection(-1)"
+                                        @keydown.enter.prevent="openSelected()"
+                                        placeholder="Order, notifikasi SAP, atau pekerjaan…"
+                                        autocomplete="off"
+                                        role="combobox"
+                                        aria-autocomplete="list"
+                                        aria-controls="mobile-global-search-results"
+                                        :aria-expanded="searchOpen"
+                                        :aria-activedescendant="activeDescendant('mobile-global-search-results')"
+                                        class="h-11 w-full rounded-xl border border-slate-300 bg-slate-50 pl-9 pr-3 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                                    >
+                                </div>
+                                <button type="button" @click="closeMobileSearch()" class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600" aria-label="Tutup pencarian">
+                                    <i data-lucide="x" class="h-5 w-5"></i>
+                                </button>
+                            </div>
+
+                            @include('admin.global-search.results', ['listId' => 'mobile-global-search-results'])
+
+                            <div x-show="!searchLoading && !searchPerformed && searchQuery.trim().length < 2" class="px-4 py-7 text-center text-xs text-slate-500">
+                                Masukkan minimal 2 karakter untuk mencari pekerjaan.
+                            </div>
+                        </section>
                     </div>
                 </header>
 

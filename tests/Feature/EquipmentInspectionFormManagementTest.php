@@ -305,6 +305,25 @@ class EquipmentInspectionFormManagementTest extends TestCase
         $this->assertSame('Check', $first->items->first()->fresh()->label);
     }
 
+    public function test_deleting_bengkel_pic_clears_master_equipment_assignment(): void
+    {
+        Storage::fake('public');
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN]);
+        $pic = BengkelPic::query()->create([
+            'name' => 'PIC yang Dihapus',
+            'avatar_path' => 'bengkel-pics/deleted-pic.png',
+        ]);
+        Storage::disk('public')->put($pic->avatar_path, 'avatar');
+        $form = EquipmentInspectionForm::query()->where('slug', 'mesin-lipat')->firstOrFail();
+        $form->update(['bengkel_pic_id' => $pic->id]);
+
+        $this->actingAs($admin)->delete(route('admin.bengkel-pics.destroy', $pic))->assertRedirect();
+
+        $this->assertNull($form->fresh()->bengkel_pic_id);
+        $this->assertDatabaseMissing('bengkel_pics', ['id' => $pic->id]);
+        Storage::disk('public')->assertMissing('bengkel-pics/deleted-pic.png');
+    }
+
     public function test_inactive_master_blocks_new_inspection_but_existing_draft_keeps_snapshot(): void
     {
         $inspector = User::factory()->create(['role' => User::ROLE_INSPECTOR]);

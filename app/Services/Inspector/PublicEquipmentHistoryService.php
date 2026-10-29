@@ -87,6 +87,7 @@ final class PublicEquipmentHistoryService
                 'public_code' => $unit->public_code,
                 'asset_code' => $unit->asset_code,
                 'name' => $unit->form?->name ?: $unit->name,
+                'description' => $unit->form?->description,
                 'location' => $unit->location,
                 'lifecycle_status' => $unit->lifecycle_status,
                 'has_image' => filled($unit->image_path) || filled($unit->form?->image_path),

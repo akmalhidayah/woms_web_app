@@ -23,12 +23,8 @@
         .equipment-history .equipment-copy { min-width: 0; }
         .equipment-history .photo { width: 100%; aspect-ratio: 16/10; border-radius: 14px; background: #eef2f7; object-fit: cover; }
         .equipment-history .placeholder { display: grid; place-items: center; color: var(--muted); font-weight: 700; }
-        .equipment-history .eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .1em; color: var(--blue); text-transform: uppercase; }
-        .equipment-history .title { margin: 6px 0 0; font-size: 23px; line-height: 1.2; overflow-wrap: anywhere; }
-        .equipment-history .code { display: inline-block; margin: 10px 6px 0 0; padding: 6px 10px; border-radius: 999px; background: #eaf1ff; color: var(--blue); font-size: 13px; font-weight: 800; }
-        .equipment-history .location { margin: 12px 0 0; color: var(--muted); font-size: 14px; }
-        .equipment-history .unit-status { display: inline-block; border-radius: 999px; padding: 5px 8px; font-size: 11px; font-weight: 700; background: #eef2f7; }
-        .equipment-history .unit-status.active { background: #e9f9ef; color: #166534; }
+        .equipment-history .title { margin: 0; font-size: 25px; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
+        .equipment-history .description { margin: 10px 0 0; color: var(--muted); font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
         .equipment-history .equipment-pic { width: 96px; text-align: center; }
         .equipment-history .pic-photo, .equipment-history .pic-fallback { width: 72px; height: 72px; margin-left: auto; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 3px white, 0 0 0 4px #dbe3ef; }
         .equipment-history .pic-fallback { display: grid; place-items: center; background: #eaf1ff; color: var(--blue); font-size: 18px; font-weight: 900; }
@@ -43,6 +39,13 @@
         .equipment-history .section-head { padding: 15px 16px; border-bottom: 1px solid var(--line); }
         .equipment-history h2 { margin: 0; font-size: 17px; line-height: 1.4; }
         .equipment-history .section-head p { margin: 7px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+        .equipment-history .latest-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+        .equipment-history .latest-side { min-width: 0; border-left: 1px solid var(--line); padding-left: 14px; }
+        .equipment-history .meta-label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+        .equipment-history h2 + .meta-label { margin-top: 10px; }
+        .equipment-history .meta-value { display: block; color: var(--ink); font-size: 12px; font-weight: 800; line-height: 1.4; overflow-wrap: anywhere; }
+        .equipment-history .meta-date { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+        .equipment-history .latest-side .approved, .equipment-history .latest-side .pending { margin-top: 9px; }
         .equipment-history .body { padding: 16px; }
         .equipment-history .counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
         .equipment-history .count { padding: 10px 4px; border-radius: 12px; text-align: center; font-size: 11px; font-weight: 700; line-height: 1.5; }
@@ -105,11 +108,8 @@
             @endif
             <div class="equipment-details">
                 <div class="equipment-copy">
-                    <p class="eyebrow">Unit Peralatan</p>
                     <h1 class="title">{{ $unit['name'] }}</h1>
-                    <span class="code">{{ $unit['asset_code'] }}</span>
-                    <span class="unit-status {{ $unit['lifecycle_status'] === 'active' ? 'active' : '' }}">{{ $unit['lifecycle_status'] === 'active' ? 'Unit Aktif' : 'Unit Nonaktif' }}</span>
-                    <p class="location">{{ $unit['location'] ?: 'Lokasi tidak dicantumkan' }}</p>
+                    <p class="description">{{ $unit['description'] ?: 'Deskripsi peralatan belum tersedia.' }}</p>
                 </div>
                 @if ($unit['pic'])
                     <aside class="equipment-pic" aria-label="PIC peralatan">
@@ -140,11 +140,20 @@
         </nav>
 
         <section id="panel-inspection" role="tabpanel" aria-labelledby="tab-inspection" tabindex="0" class="card panel" x-show="activeTab === 'inspection'" x-cloak>
-            <div class="section-head"><h2>Hasil Pemeriksaan Terakhir</h2>
+            <div class="section-head latest-head">
+                <div><h2>Hasil Pemeriksaan Terakhir</h2>
+                    @if ($latest)
+                        <span class="meta-label">Dokumen</span>
+                        <span class="meta-value">{{ $latest['document_no'] ?: 'Nomor tidak tersedia' }}</span>
+                        <span class="meta-date">{{ \Illuminate\Support\Carbon::parse($latest['inspection_date'])->translatedFormat('d F Y') }}</span>
+                    @endif
+                </div>
                 @if ($latest)
-                    <p>{{ $latest['document_no'] ?: 'Nomor tidak tersedia' }}<br>{{ \Illuminate\Support\Carbon::parse($latest['inspection_date'])->translatedFormat('d F Y') }}</p>
-                    <p>Inspektor: {{ $latest['inspector_name'] ?: 'Tidak dicantumkan' }}</p>
-                    <p><span class="{{ $latest['is_approved'] ? 'approved' : 'pending' }}">{{ $latest['status'] }}</span></p>
+                    <div class="latest-side">
+                        <span class="meta-label">Inspektor</span>
+                        <span class="meta-value">{{ $latest['inspector_name'] ?: 'Tidak dicantumkan' }}</span>
+                        <span class="{{ $latest['is_approved'] ? 'approved' : 'pending' }}">{{ $latest['status'] }}</span>
+                    </div>
                 @endif
             </div>
             @if ($latest)

@@ -262,6 +262,7 @@ class EquipmentInspectionUnitQrTest extends TestCase
         $inspector = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
         $manager = User::factory()->create(['role' => User::ROLE_APPROVER]);
         $form = EquipmentInspectionForm::query()->where('slug', 'mesin-lipat')->firstOrFail();
+        $form->update(['description' => 'Pemeriksaan sistem hidrolik dan kondisi operasional forklift.']);
         $picBinary = 'pic-forklift-image';
         $picPath = 'equipment-inspection-pics/pic-forklift.jpg';
         Storage::disk('local')->put($picPath, $picBinary);
@@ -327,7 +328,10 @@ class EquipmentInspectionUnitQrTest extends TestCase
         $response->assertOk()
             ->assertSee('MB-PUBLIC')
             ->assertSee('Muhammad PIC Forklift')
+            ->assertSee('Pemeriksaan sistem hidrolik dan kondisi operasional forklift.')
             ->assertSee('PIC Peralatan')
+            ->assertSee('class="latest-head"', false)
+            ->assertSee('class="latest-side"', false)
             ->assertSee('class="equipment-pic"', false)
             ->assertSee(route('public.equipment-history.pic-photo', $unit->public_code, false), false)
             ->assertSee('001/INSP/PUBLIC')

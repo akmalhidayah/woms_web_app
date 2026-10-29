@@ -24,7 +24,7 @@
         <span class="mx-auto inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500">
             <i data-lucide="search-x" class="h-4 w-4"></i>
         </span>
-        <p class="mt-2 text-xs font-bold text-slate-700">Pekerjaan tidak ditemukan</p>
+        <p class="mt-2 text-xs font-bold text-slate-700">Tidak ada hasil ditemukan.</p>
         <p class="mt-1 text-[11px] text-slate-500">Cari nomor order, nomor notifikasi SAP, atau nama pekerjaan.</p>
     </div>
 

@@ -14,9 +14,12 @@ class GlobalSearchController extends Controller
         AdminGlobalSearchService $searchService,
     ): JsonResponse {
         $validated = $request->validated();
+        $results = $searchService->search((string) $validated['q'], $request->user());
 
         return response()->json([
-            'results' => $searchService->search((string) $validated['q'], $request->user()),
+            'success' => true,
+            'results' => $results,
+            'message' => $results === [] ? 'Tidak ada hasil ditemukan.' : null,
         ]);
     }
 }

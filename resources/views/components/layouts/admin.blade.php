@@ -1339,11 +1339,16 @@
 
                                 if (sequence !== this.requestSequence || query !== this.searchQuery.trim()) return;
 
-                                if (response.status === 401) throw new Error('Sesi Anda telah berakhir. Silakan login kembali.');
+                                if (response.status === 401 || response.redirected) throw new Error('Sesi berakhir, silakan login kembali.');
                                 if (response.status === 403) throw new Error('Anda tidak memiliki akses pencarian pekerjaan.');
                                 if (response.status === 422) throw new Error('Masukkan minimal 2 dan maksimal 100 karakter.');
-                                if (response.status === 429) throw new Error('Pencarian terlalu cepat. Tunggu sebentar lalu coba lagi.');
-                                if (!response.ok || response.redirected) throw new Error('Pencarian belum dapat dimuat.');
+                                if (response.status === 429) throw new Error('Terlalu banyak pencarian, coba beberapa saat lagi.');
+                                if (!response.ok) throw new Error('Pencarian belum dapat dimuat.');
+
+                                const contentType = response.headers.get('content-type') || '';
+                                if (!contentType.includes('application/json')) {
+                                    throw new Error('Pencarian belum dapat dimuat.');
+                                }
 
                                 const payload = await response.json();
                                 this.results = Array.isArray(payload.results) ? payload.results : [];
@@ -1355,7 +1360,16 @@
                                 this.results = [];
                                 this.selectedIndex = -1;
                                 this.searchPerformed = true;
-                                this.searchError = error?.message || 'Terjadi gangguan jaringan.';
+                                const publicMessages = [
+                                    'Sesi berakhir, silakan login kembali.',
+                                    'Anda tidak memiliki akses pencarian pekerjaan.',
+                                    'Masukkan minimal 2 dan maksimal 100 karakter.',
+                                    'Terlalu banyak pencarian, coba beberapa saat lagi.',
+                                    'Pencarian belum dapat dimuat.',
+                                ];
+                                this.searchError = publicMessages.includes(error?.message)
+                                    ? error.message
+                                    : 'Pencarian belum dapat dimuat.';
                             } finally {
                                 if (sequence === this.requestSequence) this.searchLoading = false;
                             }

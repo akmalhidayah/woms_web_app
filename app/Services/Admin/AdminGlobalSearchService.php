@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\User;
 use App\Support\AdminMenuRegistry;
 use Illuminate\Database\Eloquent\Builder;
+use Throwable;
 
 final class AdminGlobalSearchService
 {
@@ -94,7 +95,12 @@ final class AdminGlobalSearchService
 
         return $orders
             ->map(function (Order $order) use ($user): array {
-                $progress = $this->progressResolver->resolve($order, $user);
+                try {
+                    $progress = $this->progressResolver->resolve($order, $user);
+                } catch (Throwable $exception) {
+                    report($exception);
+                    $progress = $this->fallbackProgress($order);
+                }
 
                 return [
                     'id' => (int) $order->getKey(),
@@ -125,7 +131,7 @@ final class AdminGlobalSearchService
             'latestQualityControlReport:id,order_id,status,payload',
             'latestQualityControlReport.signatures',
             'workshopHandover:id,order_id,status',
-            'lhppBasts' => fn (Builder $query): Builder => $query
+            'lhppBasts' => fn ($query) => $query
                 ->select([
                     'id',
                     'order_id',
@@ -141,6 +147,29 @@ final class AdminGlobalSearchService
                     'lpjPpl:id,lhpp_bast_id,lpj_number_termin1,ppl_number_termin1,lpj_document_path_termin1,ppl_document_path_termin1,lpj_number_termin2,ppl_number_termin2,lpj_document_path_termin2,ppl_document_path_termin2',
                 ])
                 ->orderBy('id'),
+        ];
+    }
+
+    /**
+     * Keep a malformed legacy workflow record from failing the entire search response.
+     *
+     * @return array<string, mixed>
+     */
+    private function fallbackProgress(Order $order): array
+    {
+        $type = match ((string) $order->getRawOriginal('catatan_status')) {
+            OrderUserNoteStatus::ApprovedWorkshop->value => 'Bengkel',
+            OrderUserNoteStatus::ApprovedWorkshopJasa->value => 'Gabungan',
+            default => 'Jasa',
+        };
+
+        return [
+            'type' => $type,
+            'status' => 'Perlu Pemeriksaan',
+            'tone' => 'slate',
+            'action_label' => 'Buka Detail Order',
+            'url' => route('admin.orders.show', ['order' => $order]),
+            'paths' => [],
         ];
     }
 

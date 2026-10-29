@@ -34,7 +34,7 @@ class SaveEquipmentInspectionFormRequest extends FormRequest
         $this->merge([
             'name' => is_string($this->input('name')) ? trim($this->input('name')) : $this->input('name'),
             'description' => is_string($this->input('description')) ? trim($this->input('description')) : $this->input('description'),
-            'bengkel_pic_id' => filled($this->input('bengkel_pic_id')) ? $this->input('bengkel_pic_id') : null,
+            'pic_name' => is_string($this->input('pic_name')) ? trim($this->input('pic_name')) : $this->input('pic_name'),
             'items' => $items,
         ]);
     }
@@ -44,7 +44,9 @@ class SaveEquipmentInspectionFormRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'bengkel_pic_id' => ['nullable', 'integer', 'exists:bengkel_pics,id'],
+            'pic_name' => ['nullable', 'required_with:pic_photo', 'string', 'max:150'],
+            'pic_photo' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'mimetypes:image/jpeg,image/png,image/webp', 'extensions:jpg,jpeg,png,webp', 'max:2048', 'dimensions:max_width=4096,max_height=4096'],
+            'remove_pic_photo' => ['nullable', 'boolean'],
             'action' => ['required', Rule::in(['save_draft', 'publish'])],
             'image' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'mimetypes:image/jpeg,image/png,image/webp', 'extensions:jpg,jpeg,png,webp', 'max:2048', 'dimensions:max_width=4096,max_height=4096'],
             'items' => ['required', 'array', 'min:1', 'max:200'],
@@ -64,6 +66,8 @@ class SaveEquipmentInspectionFormRequest extends FormRequest
             'items.min' => 'Form harus mempunyai minimal satu item pemeriksaan.',
             'items.*.label.required' => 'Nama setiap item pemeriksaan wajib diisi.',
             'image.max' => 'Ukuran foto peralatan maksimal 2 MB.',
+            'pic_name.required_with' => 'Nama PIC wajib diisi ketika foto PIC diunggah.',
+            'pic_photo.max' => 'Ukuran foto PIC maksimal 2 MB.',
         ];
     }
 }

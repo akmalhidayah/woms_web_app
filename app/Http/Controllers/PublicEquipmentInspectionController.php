@@ -8,6 +8,7 @@ use App\Services\Inspector\EquipmentCiltService;
 use App\Services\Inspector\EquipmentInspectionPdfService;
 use App\Services\Inspector\PublicEquipmentHistoryService;
 use App\Support\Inspector\EquipmentInspectionFormImageStorage;
+use App\Support\Inspector\EquipmentInspectionPicImageStorage;
 use App\Support\Inspector\EquipmentInspectionUnitImageStorage;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -47,6 +48,20 @@ class PublicEquipmentInspectionController extends Controller
 
         return response($binary, 200, [
             'Content-Type' => $mime,
+            'Cache-Control' => 'no-store',
+            'X-Content-Type-Options' => 'nosniff',
+            'X-Robots-Tag' => 'noindex, nofollow',
+        ]);
+    }
+
+    public function picPhoto(string $publicCode, EquipmentInspectionPicImageStorage $images): Response
+    {
+        $unit = $this->publishedUnit($publicCode);
+        $unit->loadMissing('form');
+        abort_if(blank($unit->form?->pic_photo_path) || blank($unit->form?->pic_photo_sha256), 404);
+
+        return response($images->read($unit->form->pic_photo_path, $unit->form->pic_photo_sha256), 200, [
+            'Content-Type' => $unit->form->pic_photo_mime_type ?: 'image/jpeg',
             'Cache-Control' => 'no-store',
             'X-Content-Type-Options' => 'nosniff',
             'X-Robots-Tag' => 'noindex, nofollow',

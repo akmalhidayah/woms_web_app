@@ -57,17 +57,11 @@ class EquipmentInspectionFormManagementTest extends TestCase
         Storage::fake('public');
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN]);
         $inspector = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
-        $pic = BengkelPic::query()->create([
-            'name' => 'PIC Mesin Uji',
-            'avatar_path' => 'bengkel-pics/pic-mesin-uji.png',
-            'avatar_position_x' => 45,
-            'avatar_position_y' => 35,
-        ]);
-        Storage::disk('public')->put($pic->avatar_path, 'avatar-pic');
         $payload = [
             'name' => 'Mesin Uji Baru',
             'description' => 'Form dari database.',
-            'bengkel_pic_id' => $pic->id,
+            'pic_name' => 'PIC Mesin Uji',
+            'pic_photo' => $this->validImage('pic-mesin-uji.png'),
             'action' => 'publish',
             'image' => $this->validImage(),
             'items' => [
@@ -78,6 +72,7 @@ class EquipmentInspectionFormManagementTest extends TestCase
 
         $this->actingAs($inspector)->post(route('admin.inspection-forms.store'), $payload)->assertForbidden();
         $payload['image'] = $this->validImage();
+        $payload['pic_photo'] = $this->validImage('pic-mesin-uji.png');
         $this->actingAs($admin)->post(route('admin.inspection-forms.store'), $payload)->assertRedirect();
 
         $this->get(route('admin.inspection-forms.index'))
@@ -91,7 +86,9 @@ class EquipmentInspectionFormManagementTest extends TestCase
 
         $form = EquipmentInspectionForm::query()->where('slug', 'mesin-uji-baru')->with('items')->firstOrFail();
         $this->assertSame(EquipmentInspectionForm::STATUS_ACTIVE, $form->status);
-        $this->assertTrue($form->pic->is($pic));
+        $this->assertSame('PIC Mesin Uji', $form->pic_name);
+        $this->assertNotNull($form->pic_photo_path);
+        Storage::disk('local')->assertExists($form->pic_photo_path);
         $this->assertCount(2, $form->items);
         $unit = $form->units()->sole();
         $this->assertSame('EQ01', $unit->asset_code);
@@ -103,9 +100,10 @@ class EquipmentInspectionFormManagementTest extends TestCase
         $this->assertArrayNotHasKey('image_path', EquipmentFormCatalog::find($form->slug));
         $this->get(route('admin.inspection-forms.edit', $form))
             ->assertOk()
-            ->assertSee('name="bengkel_pic_id"', false)
+            ->assertSee('name="pic_name"', false)
+            ->assertSee('name="pic_photo"', false)
             ->assertSee('PIC Mesin Uji')
-            ->assertSee('Nama dan foto mengikuti data Master Bengkel PIC.')
+            ->assertSee('tidak terhubung ke Master Bengkel PIC')
             ->assertDontSee('Grup (opsional)')
             ->assertDontSee('Nama grup opsional')
             ->assertDontSee('Urutan tampil')
@@ -113,6 +111,7 @@ class EquipmentInspectionFormManagementTest extends TestCase
             ->assertSeeInOrder(['Check Bearing', 'Tambah Item']);
         $this->get(route('admin.inspection-forms.preview', $form))->assertOk()->assertSee('Check Bearing');
         $this->get(route('admin.inspection-forms.image', $form))->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
+        $this->get(route('admin.inspection-forms.pic-photo', $form))->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
         $this->actingAs($inspector)->get(route('inspector.equipment-forms.index'))
             ->assertOk()
             ->assertSee('Mesin Uji Baru')
@@ -124,10 +123,12 @@ class EquipmentInspectionFormManagementTest extends TestCase
         $firstKey = $form->items->first()->item_key;
         $removedItemId = $form->items[1]->id;
         $originalImagePath = $form->image_path;
+        $originalPicPath = $form->pic_photo_path;
         $this->actingAs($admin)->put(route('admin.inspection-forms.update', $form), [
             'name' => 'Mesin Uji Renamed',
             'description' => 'Diperbarui.',
-            'bengkel_pic_id' => $pic->id,
+            'pic_name' => 'PIC Mesin Uji Baru',
+            'pic_photo' => $this->validImage('pic-mesin-uji-baru.png'),
             'sort_order' => 3,
             'action' => 'publish',
             'image' => $this->validImage(),
@@ -139,7 +140,7 @@ class EquipmentInspectionFormManagementTest extends TestCase
 
         $form->refresh()->load('items');
         $this->assertSame(0, $form->sort_order);
-        $this->assertSame($pic->id, $form->bengkel_pic_id);
+        $this->assertSame('PIC Mesin Uji Baru', $form->pic_name);
         $this->assertSame('mesin-uji-baru', $form->slug);
         $this->assertSame(2, $form->version);
         $this->assertSame($firstKey, $form->items->first()->item_key);
@@ -148,6 +149,9 @@ class EquipmentInspectionFormManagementTest extends TestCase
         $this->assertNotSame($originalImagePath, $form->image_path);
         Storage::disk('local')->assertMissing($originalImagePath);
         Storage::disk('local')->assertExists($form->image_path);
+        Storage::disk('local')->assertMissing($originalPicPath);
+        Storage::disk('local')->assertExists($form->pic_photo_path);
+        $replacementPicPath = $form->pic_photo_path;
 
         $first = $form->items[0];
         $second = $form->items[1];
@@ -163,7 +167,9 @@ class EquipmentInspectionFormManagementTest extends TestCase
         ])->assertRedirect();
         $form->refresh()->load('items');
         $this->assertSame([$second->item_key, $first->item_key], $form->items->pluck('item_key')->all());
-        $this->assertNull($form->bengkel_pic_id);
+        $this->assertNull($form->pic_name);
+        $this->assertNull($form->pic_photo_path);
+        Storage::disk('local')->assertMissing($replacementPicPath);
         $this->assertSame(3, $form->version);
 
         $this->patch(route('admin.inspection-forms.deactivate', $form))->assertRedirect();
@@ -222,6 +228,22 @@ class EquipmentInspectionFormManagementTest extends TestCase
         $this->get(route('admin.inspection-forms.index'))->assertForbidden();
     }
 
+    public function test_pic_photo_requires_a_manual_pic_name(): void
+    {
+        Storage::fake('local');
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN]);
+
+        $this->actingAs($admin)->post(route('admin.inspection-forms.store'), [
+            'name' => 'Peralatan dengan Foto PIC',
+            'pic_name' => '',
+            'pic_photo' => $this->validImage('pic.png'),
+            'action' => 'save_draft',
+            'items' => [['group_name' => '', 'label' => 'Check kondisi']],
+        ])->assertSessionHasErrors('pic_name');
+
+        $this->assertDatabaseMissing('equipment_inspection_forms', ['name' => 'Peralatan dengan Foto PIC']);
+    }
+
     public function test_new_forms_receive_stable_automatic_asset_codes_by_equipment_category(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN]);
@@ -277,8 +299,8 @@ class EquipmentInspectionFormManagementTest extends TestCase
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN]);
         $this->actingAs($admin)->post(route('admin.inspection-forms.store'), [
-            'name' => '', 'bengkel_pic_id' => PHP_INT_MAX, 'action' => 'save_draft', 'items' => [],
-        ])->assertSessionHasErrors(['name', 'bengkel_pic_id', 'items']);
+            'name' => '', 'pic_name' => str_repeat('x', 151), 'action' => 'save_draft', 'items' => [],
+        ])->assertSessionHasErrors(['name', 'pic_name', 'items']);
 
         foreach ([1, 2] as $iteration) {
             $this->post(route('admin.inspection-forms.store'), [
@@ -305,8 +327,9 @@ class EquipmentInspectionFormManagementTest extends TestCase
         $this->assertSame('Check', $first->items->first()->fresh()->label);
     }
 
-    public function test_deleting_bengkel_pic_clears_master_equipment_assignment(): void
+    public function test_manual_equipment_pic_is_independent_from_bengkel_pic_master(): void
     {
+        Storage::fake('local');
         Storage::fake('public');
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN]);
         $pic = BengkelPic::query()->create([
@@ -315,12 +338,22 @@ class EquipmentInspectionFormManagementTest extends TestCase
         ]);
         Storage::disk('public')->put($pic->avatar_path, 'avatar');
         $form = EquipmentInspectionForm::query()->where('slug', 'mesin-lipat')->firstOrFail();
-        $form->update(['bengkel_pic_id' => $pic->id]);
+        $picPhotoPath = 'equipment-inspection-pics/manual-pic.jpg';
+        Storage::disk('local')->put($picPhotoPath, 'manual-avatar');
+        $form->update([
+            'pic_name' => 'PIC Peralatan Mandiri',
+            'pic_photo_path' => $picPhotoPath,
+            'pic_photo_mime_type' => 'image/jpeg',
+            'pic_photo_size' => strlen('manual-avatar'),
+            'pic_photo_sha256' => hash('sha256', 'manual-avatar'),
+        ]);
 
         $this->actingAs($admin)->delete(route('admin.bengkel-pics.destroy', $pic))->assertRedirect();
 
-        $this->assertNull($form->fresh()->bengkel_pic_id);
+        $this->assertSame('PIC Peralatan Mandiri', $form->fresh()->pic_name);
+        $this->assertSame($picPhotoPath, $form->fresh()->pic_photo_path);
         $this->assertDatabaseMissing('bengkel_pics', ['id' => $pic->id]);
+        Storage::disk('local')->assertExists($picPhotoPath);
         Storage::disk('public')->assertMissing('bengkel-pics/deleted-pic.png');
     }
 
@@ -405,10 +438,10 @@ class EquipmentInspectionFormManagementTest extends TestCase
         ]);
     }
 
-    private function validImage(): UploadedFile
+    private function validImage(string $name = 'equipment.png'): UploadedFile
     {
         return UploadedFile::fake()->createWithContent(
-            'equipment.png',
+            $name,
             base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFElEQVR42mNkYGD4z8DAwMDEAAUADikBA07hWZQAAAAASUVORK5CYII=', true)
         );
     }

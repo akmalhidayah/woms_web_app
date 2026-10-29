@@ -8,10 +8,11 @@
 <x-layouts.admin :title="($editing ? 'Edit' : 'Tambah').' Master Peralatan — WOMS'">
     <div class="space-y-4" x-data="{
         items: @js($initialItems).map((item, index) => ({ ...item, client_key: item.id ? `existing-${item.id}` : `initial-${index}` })),
-        pics: @js($picOptions),
-        picId: @js((string) old('bengkel_pic_id', $form?->bengkel_pic_id ?? '')),
-        selectedPic() { return this.pics.find(pic => String(pic.id) === String(this.picId)) || null; },
-        picInitials() { return (this.selectedPic()?.name || 'PIC').split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase(); },
+        picPreview: null,
+        previewPic(event) {
+            if (this.picPreview) URL.revokeObjectURL(this.picPreview);
+            this.picPreview = event.target.files?.[0] ? URL.createObjectURL(event.target.files[0]) : null;
+        },
         add() { this.items.push({ id: null, item_key: null, group_key: null, group_name: '', label: '', client_key: `new-${Date.now()}-${Math.random()}` }); },
         remove(index) { if (this.items.length > 1) this.items.splice(index, 1); },
         move(index, direction) { const target = index + direction; if (target < 0 || target >= this.items.length) return; [this.items[index], this.items[target]] = [this.items[target], this.items[index]]; }
@@ -33,19 +34,25 @@
                     <div><label class="text-sm font-semibold text-slate-700">Foto peralatan <span class="font-normal text-slate-500">(wajib saat form baru diaktifkan)</span><input name="image" type="file" accept="image/jpeg,image/png,image/webp" class="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"></label><p class="mt-1 text-xs text-slate-500">JPG, PNG, atau WebP; maksimal 2 MB. Gambar disimpan privat dan dinormalisasi oleh server.</p>
                         @if ($editing && $form->image_path)<img src="{{ route('admin.inspection-forms.image', $form) }}" alt="Foto {{ $form->name }}" class="mt-3 aspect-[4/3] w-full max-w-xs rounded-xl object-cover ring-1 ring-slate-200">@elseif ($editing && $form->is_legacy)<p class="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">Form awal tetap aktif dengan placeholder sampai foto asli diunggah.</p>@endif
                     </div>
-                    <div>
-                        <label class="text-sm font-semibold text-slate-700">PIC peralatan
-                            <select name="bengkel_pic_id" x-model="picId" class="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal">
-                                <option value="">Belum ditentukan</option>
-                                @foreach ($picOptions as $picOption)<option value="{{ $picOption['id'] }}">{{ $picOption['name'] }}</option>@endforeach
-                            </select>
+                    <div class="space-y-3">
+                        <label class="text-sm font-semibold text-slate-700">Nama PIC peralatan
+                            <input name="pic_name" value="{{ old('pic_name', $form?->pic_name) }}" maxlength="150" placeholder="Masukkan nama PIC" class="mt-1 block w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal">
                         </label>
-                        <p class="mt-1 text-xs text-slate-500">Nama dan foto mengikuti data Master Bengkel PIC.</p>
-                        <div x-show="selectedPic()" x-cloak class="mt-3 flex max-w-xs items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                            <template x-if="selectedPic()?.avatar_url"><img :src="selectedPic().avatar_url" :alt="`Foto ${selectedPic().name}`" class="h-16 w-16 rounded-full object-cover ring-2 ring-white" :style="`object-position: ${selectedPic().avatar_position}`"></template>
-                            <template x-if="selectedPic() && ! selectedPic().avatar_url"><span class="inline-flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 font-black text-blue-700" x-text="picInitials()"></span></template>
-                            <div class="min-w-0"><p class="text-xs font-bold uppercase tracking-wider text-blue-700">PIC Peralatan</p><p class="mt-1 truncate text-sm font-semibold text-slate-900" x-text="selectedPic()?.name"></p></div>
+                        <label class="text-sm font-semibold text-slate-700">Foto PIC
+                            <input name="pic_photo" type="file" accept="image/jpeg,image/png,image/webp" @change="previewPic($event)" class="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-normal">
+                        </label>
+                        <p class="text-xs text-slate-500">Diisi manual dan tidak terhubung ke Master Bengkel PIC. JPG, PNG, atau WebP; maksimal 2 MB.</p>
+                        <div x-show="picPreview" x-cloak class="flex max-w-xs items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3">
+                            <img :src="picPreview" alt="Preview foto PIC" class="h-16 w-16 rounded-full object-cover ring-2 ring-white">
+                            <p class="text-xs font-semibold text-blue-800">Preview foto PIC baru</p>
                         </div>
+                        @if ($editing && $form->pic_photo_path)
+                            <div x-show="! picPreview" class="flex max-w-xs items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <img src="{{ route('admin.inspection-forms.pic-photo', $form) }}" alt="Foto {{ $form->pic_name ?: 'PIC peralatan' }}" class="h-16 w-16 rounded-full object-cover ring-2 ring-white">
+                                <div class="min-w-0"><p class="text-xs font-bold uppercase tracking-wider text-blue-700">PIC Peralatan</p><p class="mt-1 truncate text-sm font-semibold text-slate-900">{{ $form->pic_name ?: 'Nama belum diisi' }}</p></div>
+                            </div>
+                            <label class="inline-flex items-center gap-2 text-xs font-semibold text-rose-700"><input type="checkbox" name="remove_pic_photo" value="1" @checked(old('remove_pic_photo')) class="rounded border-slate-300"> Hapus foto PIC saat disimpan</label>
+                        @endif
                     </div>
                 </div>
             </section>

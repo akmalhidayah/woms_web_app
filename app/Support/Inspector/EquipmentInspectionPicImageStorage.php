@@ -1,0 +1,96 @@
+<?php
+
+namespace App\Support\Inspector;
+
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use RuntimeException;
+use Throwable;
+
+final class EquipmentInspectionPicImageStorage
+{
+    public const DISK = 'local';
+
+    /**
+     * @return array{path: string, mime_type: string, size: int, sha256: string}
+     */
+    public function store(UploadedFile $file): array
+    {
+        $binary = file_get_contents($file->getRealPath());
+        if (! function_exists('imagecreatefromstring')) {
+            throw ValidationException::withMessages(['pic_photo' => 'Server belum mendukung pemrosesan gambar (GD). Hubungi administrator.']);
+        }
+
+        $info = is_string($binary) && $binary !== '' && strlen($binary) <= 2 * 1024 * 1024
+            ? @getimagesizefromstring($binary) : false;
+        if (! $info || ! in_array($info[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP], true)
+            || $info[0] > 4096 || $info[1] > 4096 || $info[0] * $info[1] > 12000000) {
+            throw ValidationException::withMessages(['pic_photo' => 'Foto PIC tidak valid, terlalu besar, atau formatnya tidak didukung.']);
+        }
+
+        $image = @imagecreatefromstring($binary);
+        if (! $image) {
+            throw ValidationException::withMessages(['pic_photo' => 'Isi foto PIC tidak dapat dibaca.']);
+        }
+
+        try {
+            $scale = min(1, 800 / max(imagesx($image), imagesy($image)));
+            $width = max(1, (int) round(imagesx($image) * $scale));
+            $height = max(1, (int) round(imagesy($image) * $scale));
+            $output = imagecreatetruecolor($width, $height);
+            imagefill($output, 0, 0, imagecolorallocate($output, 255, 255, 255));
+            imagecopyresampled($output, $image, 0, 0, 0, 0, $width, $height, imagesx($image), imagesy($image));
+            ob_start();
+            imagejpeg($output, null, 85);
+            $normalized = (string) ob_get_clean();
+            imagedestroy($output);
+        } finally {
+            imagedestroy($image);
+        }
+
+        $path = 'equipment-inspection-pics/'.Str::uuid().'.jpg';
+        try {
+            $written = $normalized !== '' && Storage::disk(self::DISK)->put($path, $normalized, ['visibility' => 'private']);
+        } catch (Throwable) {
+            $written = false;
+        }
+        if (! $written) {
+            $this->cleanup($path);
+            throw ValidationException::withMessages(['pic_photo' => 'Foto PIC gagal disimpan. Tidak ada perubahan master yang diterapkan.']);
+        }
+
+        return [
+            'path' => $path,
+            'mime_type' => 'image/jpeg',
+            'size' => strlen($normalized),
+            'sha256' => hash('sha256', $normalized),
+        ];
+    }
+
+    public function read(string $path, string $expectedHash): string
+    {
+        if (! str_starts_with($path, 'equipment-inspection-pics/') || str_contains($path, '..')) {
+            throw new RuntimeException('Lokasi foto PIC peralatan tidak valid.');
+        }
+        $binary = Storage::disk(self::DISK)->get($path);
+        if (! is_string($binary) || $binary === '' || ! hash_equals($expectedHash, hash('sha256', $binary))) {
+            throw new RuntimeException('Foto PIC peralatan tidak tersedia atau integritasnya berubah.');
+        }
+
+        return $binary;
+    }
+
+    public function cleanup(?string $path): void
+    {
+        if (! $path || ! str_starts_with($path, 'equipment-inspection-pics/') || str_contains($path, '..')) {
+            return;
+        }
+        try {
+            Storage::disk(self::DISK)->delete($path);
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+    }
+}

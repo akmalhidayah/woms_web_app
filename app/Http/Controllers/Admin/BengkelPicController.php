@@ -4,10 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\BengkelPic;
-use App\Models\EquipmentInspectionForm;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
@@ -85,11 +83,7 @@ class BengkelPicController extends Controller
     {
         $avatarPath = $bengkel_pic->avatar_path;
 
-        DB::transaction(function () use ($bengkel_pic): void {
-            $pic = BengkelPic::query()->whereKey($bengkel_pic->getKey())->lockForUpdate()->firstOrFail();
-            EquipmentInspectionForm::query()->where('bengkel_pic_id', $pic->getKey())->update(['bengkel_pic_id' => null]);
-            $pic->delete();
-        });
+        $bengkel_pic->delete();
 
         if ($avatarPath) {
             Storage::disk('public')->delete($avatarPath);

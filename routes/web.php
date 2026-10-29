@@ -97,6 +97,9 @@ Route::prefix('equipment/q')->name('public.equipment-history.')->middleware('thr
     Route::get('{publicCode}/image', [PublicEquipmentInspectionController::class, 'image'])
         ->where('publicCode', '[A-Za-z0-9]{32}')
         ->name('image');
+    Route::get('{publicCode}/pic-photo', [PublicEquipmentInspectionController::class, 'picPhoto'])
+        ->where('publicCode', '[A-Za-z0-9]{32}')
+        ->name('pic-photo');
     Route::get('{publicCode}/inspections/{inspectionPublicId}/pdf', [PublicEquipmentInspectionController::class, 'pdf'])
         ->where('publicCode', '[A-Za-z0-9]{32}')
         ->whereUuid('inspectionPublicId')
@@ -131,6 +134,7 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('{equipmentInspectionForm}/activate', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'activate'])->name('activate');
         Route::patch('{equipmentInspectionForm}/deactivate', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'deactivate'])->name('deactivate');
         Route::get('{equipmentInspectionForm}/image', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'image'])->name('image');
+        Route::get('{equipmentInspectionForm}/pic-photo', [\App\Http\Controllers\Admin\EquipmentInspectionFormController::class, 'picPhoto'])->name('pic-photo');
     });
     Route::prefix('admin/inspection-units')->name('admin.inspection-units.')->middleware(['role:admin', 'admin_menu:inspeksi'])->group(function () {
         Route::post('{equipmentInspectionUnit}/cilt', [\App\Http\Controllers\Admin\EquipmentInspectionUnitController::class, 'storeCilt'])->name('cilt.store');

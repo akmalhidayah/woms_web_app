@@ -21,7 +21,11 @@ class EquipmentInspectionForm extends Model
         'slug',
         'name',
         'description',
-        'bengkel_pic_id',
+        'pic_name',
+        'pic_photo_path',
+        'pic_photo_mime_type',
+        'pic_photo_size',
+        'pic_photo_sha256',
         'image_path',
         'image_mime_type',
         'image_size',
@@ -34,7 +38,7 @@ class EquipmentInspectionForm extends Model
         'updated_by',
     ];
 
-    protected $hidden = ['image_path', 'image_sha256'];
+    protected $hidden = ['image_path', 'image_sha256', 'pic_photo_path', 'pic_photo_sha256'];
 
     protected function casts(): array
     {
@@ -42,6 +46,7 @@ class EquipmentInspectionForm extends Model
             'sort_order' => 'integer',
             'version' => 'integer',
             'image_size' => 'integer',
+            'pic_photo_size' => 'integer',
             'is_legacy' => 'boolean',
         ];
     }
@@ -69,11 +74,6 @@ class EquipmentInspectionForm extends Model
     public function units(): HasMany
     {
         return $this->hasMany(EquipmentInspectionUnit::class)->orderBy('sort_order')->orderBy('id');
-    }
-
-    public function pic(): BelongsTo
-    {
-        return $this->belongsTo(BengkelPic::class, 'bengkel_pic_id');
     }
 
     public function creator(): BelongsTo

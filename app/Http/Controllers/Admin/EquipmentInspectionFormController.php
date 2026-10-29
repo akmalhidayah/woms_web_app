@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\SaveEquipmentInspectionFormQrRequest;
 use App\Http\Requests\Admin\SaveEquipmentInspectionFormRequest;
-use App\Models\BengkelPic;
 use App\Models\EquipmentInspection;
 use App\Models\EquipmentInspectionForm;
 use App\Policies\EquipmentInspectionPolicy;
@@ -15,6 +14,7 @@ use App\Services\Inspector\EquipmentInspectionUnitService;
 use App\Services\Inspector\EquipmentQrCodeService;
 use App\Support\Inspector\EquipmentInspectionFormImageStorage;
 use App\Support\Inspector\EquipmentInspectionFormRepository;
+use App\Support\Inspector\EquipmentInspectionPicImageStorage;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -103,15 +103,17 @@ class EquipmentInspectionFormController extends Controller
     {
         $this->authorizeAdmin($request);
 
-        return view('admin.inspection-forms.form', [
-            'form' => null,
-            'picOptions' => $this->picOptions(),
-        ]);
+        return view('admin.inspection-forms.form', ['form' => null]);
     }
 
     public function store(SaveEquipmentInspectionFormRequest $request, EquipmentInspectionFormService $service): RedirectResponse
     {
-        $form = $service->create($request->user(), $request->validated(), $request->file('image'));
+        $form = $service->create(
+            $request->user(),
+            $request->validated(),
+            $request->file('image'),
+            $request->file('pic_photo'),
+        );
 
         return redirect()->route('admin.inspection-forms.edit', $form)
             ->with('success', $form->status === EquipmentInspectionForm::STATUS_ACTIVE ? 'Master peralatan dibuat dan diaktifkan.' : 'Draft master peralatan disimpan.');
@@ -120,12 +122,9 @@ class EquipmentInspectionFormController extends Controller
     public function edit(Request $request, EquipmentInspectionForm $equipmentInspectionForm): View
     {
         $this->authorizeAdmin($request);
-        $equipmentInspectionForm->load(['items', 'logs.actor', 'pic']);
+        $equipmentInspectionForm->load(['items', 'logs.actor']);
 
-        return view('admin.inspection-forms.form', [
-            'form' => $equipmentInspectionForm,
-            'picOptions' => $this->picOptions(),
-        ]);
+        return view('admin.inspection-forms.form', ['form' => $equipmentInspectionForm]);
     }
 
     public function preview(Request $request, EquipmentInspectionForm $equipmentInspectionForm, EquipmentInspectionFormRepository $forms): View
@@ -141,7 +140,13 @@ class EquipmentInspectionFormController extends Controller
 
     public function update(SaveEquipmentInspectionFormRequest $request, EquipmentInspectionForm $equipmentInspectionForm, EquipmentInspectionFormService $service): RedirectResponse
     {
-        $form = $service->update($request->user(), $equipmentInspectionForm, $request->validated(), $request->file('image'));
+        $form = $service->update(
+            $request->user(),
+            $equipmentInspectionForm,
+            $request->validated(),
+            $request->file('image'),
+            $request->file('pic_photo'),
+        );
 
         return redirect()->route('admin.inspection-forms.edit', $form)->with('success', 'Master peralatan berhasil diperbarui.');
     }
@@ -174,16 +179,15 @@ class EquipmentInspectionFormController extends Controller
         ]);
     }
 
-    /**
-     * @return array<int, array{id: int, name: string, avatar_url: ?string, avatar_position: string}>
-     */
-    private function picOptions(): array
+    public function picPhoto(Request $request, EquipmentInspectionForm $equipmentInspectionForm, EquipmentInspectionPicImageStorage $images): Response
     {
-        return BengkelPic::query()->orderBy('name')->get()->map(fn (BengkelPic $pic): array => [
-            'id' => $pic->id,
-            'name' => $pic->name,
-            'avatar_url' => $pic->avatar_url,
-            'avatar_position' => $pic->avatar_object_position,
-        ])->all();
+        $this->authorizeAdmin($request);
+        abort_if(blank($equipmentInspectionForm->pic_photo_path) || blank($equipmentInspectionForm->pic_photo_sha256), 404);
+
+        return response($images->read($equipmentInspectionForm->pic_photo_path, $equipmentInspectionForm->pic_photo_sha256), 200, [
+            'Content-Type' => $equipmentInspectionForm->pic_photo_mime_type ?: 'image/jpeg',
+            'Cache-Control' => 'private, no-store',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 }

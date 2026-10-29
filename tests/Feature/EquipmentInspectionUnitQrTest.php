@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\BengkelPic;
 use App\Models\EquipmentInspection;
 use App\Models\EquipmentInspectionApproval;
 use App\Models\EquipmentInspectionForm;
@@ -260,18 +259,19 @@ class EquipmentInspectionUnitQrTest extends TestCase
     public function test_public_history_uses_signed_snapshots_for_approved_and_in_approval_inspections(): void
     {
         Storage::fake('local');
-        Storage::fake('public');
         $inspector = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
         $manager = User::factory()->create(['role' => User::ROLE_APPROVER]);
         $form = EquipmentInspectionForm::query()->where('slug', 'mesin-lipat')->firstOrFail();
-        $pic = BengkelPic::query()->create([
-            'name' => 'Muhammad PIC Forklift',
-            'avatar_path' => 'bengkel-pics/pic-forklift.png',
-            'avatar_position_x' => 40,
-            'avatar_position_y' => 30,
+        $picBinary = 'pic-forklift-image';
+        $picPath = 'equipment-inspection-pics/pic-forklift.jpg';
+        Storage::disk('local')->put($picPath, $picBinary);
+        $form->update([
+            'pic_name' => 'Muhammad PIC Forklift',
+            'pic_photo_path' => $picPath,
+            'pic_photo_mime_type' => 'image/jpeg',
+            'pic_photo_size' => strlen($picBinary),
+            'pic_photo_sha256' => hash('sha256', $picBinary),
         ]);
-        Storage::disk('public')->put($pic->avatar_path, 'pic-forklift-image');
-        $form->update(['bengkel_pic_id' => $pic->id]);
         $unit = $this->unit($form, 'MB-PUBLIC');
         $unit->update(['name' => 'Unit <script>alert(1)</script>', 'public_enabled' => true]);
 
@@ -329,7 +329,7 @@ class EquipmentInspectionUnitQrTest extends TestCase
             ->assertSee('Muhammad PIC Forklift')
             ->assertSee('PIC Peralatan')
             ->assertSee('class="equipment-pic"', false)
-            ->assertSee(route('bengkel-pics.avatar', $pic, false), false)
+            ->assertSee(route('public.equipment-history.pic-photo', $unit->public_code, false), false)
             ->assertSee('001/INSP/PUBLIC')
             ->assertSee('002/INSP/PENDING')
             ->assertSee('Proses Approval')
@@ -360,7 +360,11 @@ class EquipmentInspectionUnitQrTest extends TestCase
             ->assertDontSee('Unit &lt;script&gt;alert(1)&lt;/script&gt;', false)
             ->assertDontSee('<script>alert(1)</script>', false)
             ->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
-        $this->get(route('bengkel-pics.avatar', $pic))->assertOk();
+
+        $this->get(route('public.equipment-history.pic-photo', $unit->public_code))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/jpeg')
+            ->assertContent($picBinary);
         $pendingPdfUrl = route('public.equipment-history.pdf', [$unit->public_code, $pending->public_id]);
         $this->assertSame(2, substr_count($response->getContent(), $pendingPdfUrl));
         $this->assertStringContainsString('Kurang Normal pada ', $response->viewData('latest')['summary']);

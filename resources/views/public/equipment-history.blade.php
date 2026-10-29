@@ -113,8 +113,8 @@
                 </div>
                 @if ($unit['pic'])
                     <aside class="equipment-pic" aria-label="PIC peralatan">
-                        @if ($unit['pic']['avatar_url'])
-                            <img class="pic-photo" src="{{ $unit['pic']['avatar_url'] }}" alt="Foto {{ $unit['pic']['name'] }}" style="object-position: {{ $unit['pic']['avatar_position'] }}">
+                        @if ($unit['pic']['has_photo'])
+                            <img class="pic-photo" src="{{ route('public.equipment-history.pic-photo', $unit['public_code']) }}" alt="Foto {{ $unit['pic']['name'] }}">
                         @else
                             <div class="pic-fallback" aria-hidden="true">{{ collect(preg_split('/\s+/', trim($unit['pic']['name'])))->filter()->take(2)->map(fn ($word) => mb_strtoupper(mb_substr($word, 0, 1)))->implode('') ?: 'PIC' }}</div>
                         @endif

@@ -6,6 +6,7 @@ use App\Models\EquipmentInspectionForm;
 use App\Models\EquipmentInspectionFormItem;
 use App\Models\User;
 use App\Support\Inspector\EquipmentInspectionFormImageStorage;
+use App\Support\Inspector\EquipmentInspectionPicImageStorage;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -19,16 +20,23 @@ final class EquipmentInspectionFormService
 
     public function __construct(
         private readonly EquipmentInspectionFormImageStorage $images,
+        private readonly EquipmentInspectionPicImageStorage $picImages,
         private readonly EquipmentInspectionUnitService $units,
     ) {}
 
-    public function create(User $actor, array $data, ?UploadedFile $image): EquipmentInspectionForm
+    public function create(User $actor, array $data, ?UploadedFile $image, ?UploadedFile $picPhoto): EquipmentInspectionForm
     {
         $stored = $image ? $this->images->store($image) : null;
         try {
+            $storedPic = $picPhoto ? $this->picImages->store($picPhoto) : null;
+        } catch (Throwable $exception) {
+            $this->images->cleanup($stored['path'] ?? null);
+            throw $exception;
+        }
+        try {
             for ($attempt = 1; $attempt <= self::CREATE_ATTEMPTS; $attempt++) {
                 try {
-                    return DB::transaction(function () use ($actor, $data, $stored): EquipmentInspectionForm {
+                    return DB::transaction(function () use ($actor, $data, $stored, $storedPic): EquipmentInspectionForm {
                         if ($data['action'] === 'publish' && $stored === null) {
                             throw ValidationException::withMessages(['image' => 'Foto peralatan wajib sebelum form baru diaktifkan.']);
                         }
@@ -36,7 +44,7 @@ final class EquipmentInspectionFormService
                             'slug' => $this->uniqueSlug($data['name']),
                             'name' => $data['name'],
                             'description' => $data['description'] ?: null,
-                            'bengkel_pic_id' => $data['bengkel_pic_id'] ?? null,
+                            'pic_name' => ($data['pic_name'] ?? null) ?: null,
                             'sort_order' => 0,
                             'status' => $data['action'] === 'publish' ? EquipmentInspectionForm::STATUS_ACTIVE : EquipmentInspectionForm::STATUS_DRAFT,
                             'version' => 1,
@@ -44,6 +52,7 @@ final class EquipmentInspectionFormService
                             'created_by' => $actor->id,
                             'updated_by' => $actor->id,
                             ...$this->imageColumns($stored),
+                            ...$this->picPhotoColumns($storedPic),
                         ]);
                         $this->syncItems($form, $data['items']);
                         $this->units->createAutomaticForForm($actor, $form);
@@ -61,19 +70,29 @@ final class EquipmentInspectionFormService
             throw new \RuntimeException('Master Peralatan gagal dibuat setelah beberapa percobaan.');
         } catch (Throwable $exception) {
             $this->images->cleanup($stored['path'] ?? null);
+            $this->picImages->cleanup($storedPic['path'] ?? null);
             throw $exception;
         }
     }
 
-    public function update(User $actor, EquipmentInspectionForm $existing, array $data, ?UploadedFile $image): EquipmentInspectionForm
+    public function update(User $actor, EquipmentInspectionForm $existing, array $data, ?UploadedFile $image, ?UploadedFile $picPhoto): EquipmentInspectionForm
     {
         $stored = $image ? $this->images->store($image) : null;
-        $oldPath = null;
         try {
-            $form = DB::transaction(function () use ($actor, $existing, $data, $stored, &$oldPath): EquipmentInspectionForm {
+            $storedPic = $picPhoto ? $this->picImages->store($picPhoto) : null;
+        } catch (Throwable $exception) {
+            $this->images->cleanup($stored['path'] ?? null);
+            throw $exception;
+        }
+        $oldPath = null;
+        $oldPicPath = null;
+        try {
+            $form = DB::transaction(function () use ($actor, $existing, $data, $stored, $storedPic, &$oldPath, &$oldPicPath): EquipmentInspectionForm {
                 $form = EquipmentInspectionForm::query()->whereKey($existing->id)->lockForUpdate()->with('items')->firstOrFail();
                 $before = $this->auditSnapshot($form);
                 $oldPath = $stored ? $form->image_path : null;
+                $clearPicPhoto = blank($data['pic_name'] ?? null) || (bool) ($data['remove_pic_photo'] ?? false);
+                $oldPicPath = ($storedPic || $clearPicPhoto) ? $form->pic_photo_path : null;
                 $publishing = $data['action'] === 'publish' || $form->status === EquipmentInspectionForm::STATUS_ACTIVE;
                 $publishingSavedRevision = $publishing
                     && $form->status === EquipmentInspectionForm::STATUS_DRAFT
@@ -85,10 +104,13 @@ final class EquipmentInspectionFormService
                 $form->forceFill([
                     'name' => $data['name'],
                     'description' => $data['description'] ?: null,
-                    'bengkel_pic_id' => $data['bengkel_pic_id'] ?? null,
+                    'pic_name' => ($data['pic_name'] ?? null) ?: null,
                     'status' => $publishing ? EquipmentInspectionForm::STATUS_ACTIVE : EquipmentInspectionForm::STATUS_DRAFT,
                     'updated_by' => $actor->id,
                     ...($stored ? $this->imageColumns($stored) : []),
+                    ...($storedPic
+                        ? $this->picPhotoColumns($storedPic)
+                        : ($clearPicPhoto ? $this->emptyPicPhotoColumns() : [])),
                 ])->save();
                 $this->syncItems($form, $data['items']);
                 $form->load('items');
@@ -108,11 +130,15 @@ final class EquipmentInspectionFormService
             });
         } catch (Throwable $exception) {
             $this->images->cleanup($stored['path'] ?? null);
+            $this->picImages->cleanup($storedPic['path'] ?? null);
             throw $exception;
         }
 
         if ($oldPath) {
             $this->images->cleanup($oldPath);
+        }
+        if ($oldPicPath) {
+            $this->picImages->cleanup($oldPicPath);
         }
 
         return $form;
@@ -221,6 +247,26 @@ final class EquipmentInspectionFormService
         ] : [];
     }
 
+    private function picPhotoColumns(?array $stored): array
+    {
+        return $stored ? [
+            'pic_photo_path' => $stored['path'],
+            'pic_photo_mime_type' => $stored['mime_type'],
+            'pic_photo_size' => $stored['size'],
+            'pic_photo_sha256' => $stored['sha256'],
+        ] : [];
+    }
+
+    private function emptyPicPhotoColumns(): array
+    {
+        return [
+            'pic_photo_path' => null,
+            'pic_photo_mime_type' => null,
+            'pic_photo_size' => null,
+            'pic_photo_sha256' => null,
+        ];
+    }
+
     private function isUniqueConstraintViolation(QueryException $exception): bool
     {
         $driverCode = (string) ($exception->errorInfo[0] ?? $exception->getCode());
@@ -236,7 +282,8 @@ final class EquipmentInspectionFormService
         return [
             'name' => $form->name,
             'description' => $form->description,
-            'bengkel_pic_id' => $form->bengkel_pic_id,
+            'pic_name' => $form->pic_name,
+            'pic_photo_sha256' => $form->pic_photo_sha256,
             'sort_order' => (int) $form->sort_order,
             'image_sha256' => $form->image_sha256,
             'items' => $form->items->map(fn (EquipmentInspectionFormItem $item): array => [

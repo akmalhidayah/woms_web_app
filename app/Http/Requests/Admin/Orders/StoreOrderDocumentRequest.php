@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\Orders;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Validator;
 
 class StoreOrderDocumentRequest extends FormRequest
@@ -22,10 +23,17 @@ class StoreOrderDocumentRequest extends FormRequest
      */
     public function rules(): array
     {
+        // Form memakai gambar_teknik_file[] (banyak file); satu file tunggal tetap diterima.
+        $gambarTeknikRules = $this->file('gambar_teknik_file') instanceof UploadedFile
+            ? ['gambar_teknik_file' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,pdf']]
+            : [
+                'gambar_teknik_file' => ['nullable', 'array', 'max:20'],
+                'gambar_teknik_file.*' => ['file', 'max:10240', 'mimes:jpg,jpeg,pdf'],
+            ];
+
         return [
             'abnormalitas_file' => ['nullable', 'file', 'max:10240', 'mimes:pdf'],
-            'gambar_teknik_file' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,pdf,doc,docx'],
-        ];
+        ] + $gambarTeknikRules;
     }
 
     /**
@@ -37,6 +45,9 @@ class StoreOrderDocumentRequest extends FormRequest
     {
         return [
             'abnormalitas_file.mimes' => 'Dokumen Abnormalitas wajib berupa file PDF.',
+            'gambar_teknik_file.mimes' => 'Gambar Teknik wajib berupa file JPG, JPEG, atau PDF.',
+            'gambar_teknik_file.*.mimes' => 'Gambar Teknik wajib berupa file JPG, JPEG, atau PDF.',
+            'gambar_teknik_file.max' => 'Gambar Teknik maksimal 20 file per unggahan.',
         ];
     }
 

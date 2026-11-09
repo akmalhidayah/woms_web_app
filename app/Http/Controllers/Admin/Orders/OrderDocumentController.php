@@ -7,15 +7,21 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Orders\StoreOrderDocumentRequest;
 use App\Models\Order;
 use App\Models\OrderDocument;
+use App\Services\Orders\GambarTeknikPdfBuilder;
 use App\Services\Orders\OrderDocumentService;
 use App\Support\RecentApprovalSignatureResolver;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
+use RuntimeException;
 
 class OrderDocumentController extends Controller
 {
     public function __construct(
         private readonly OrderDocumentService $documentService,
+        private readonly GambarTeknikPdfBuilder $gambarTeknikPdfBuilder,
     ) {}
 
     /**
@@ -51,25 +57,71 @@ class OrderDocumentController extends Controller
             'gambar_teknik_file' => OrderDocumentType::GambarTeknik,
         ];
 
-        foreach ($uploads as $field => $type) {
-            if (! $request->hasFile($field)) {
-                continue;
+        // Tahap 1: siapkan semua file (termasuk penggabungan) sebelum menghapus dokumen lama,
+        // supaya kegagalan gabung tidak menghilangkan dokumen yang sudah ada.
+        $prepared = [];
+        $temporaryPaths = [];
+
+        try {
+            foreach ($uploads as $field => $type) {
+                if (! $request->hasFile($field)) {
+                    continue;
+                }
+
+                $files = array_values(array_filter(Arr::wrap($request->file($field))));
+
+                if (count($files) === 1) {
+                    $prepared[$field] = $files[0];
+
+                    continue;
+                }
+
+                $mergedContent = $this->gambarTeknikPdfBuilder->build(
+                    $files,
+                    'Gambar Teknik '.$order->nomor_order,
+                );
+                $temporaryPath = tempnam(sys_get_temp_dir(), 'woms-gambar-teknik-');
+
+                if ($temporaryPath === false || file_put_contents($temporaryPath, $mergedContent) === false) {
+                    throw new RuntimeException('Gagal menyimpan file gabungan Gambar Teknik.');
+                }
+
+                $temporaryPaths[] = $temporaryPath;
+                $prepared[$field] = new UploadedFile(
+                    $temporaryPath,
+                    'gambar-teknik-'.Str::slug((string) $order->nomor_order).'.pdf',
+                    'application/pdf',
+                    null,
+                    true,
+                );
             }
+        } catch (RuntimeException $exception) {
+            $this->removeTemporaryFiles($temporaryPaths);
 
-            $existing = $order->documents()
-                ->where('jenis_dokumen', $type->value)
-                ->get();
+            return back()->withErrors(['gambar_teknik_file' => $exception->getMessage()]);
+        }
 
-            foreach ($existing as $document) {
-                $this->documentService->delete($document);
+        try {
+            foreach ($prepared as $field => $file) {
+                $type = $uploads[$field];
+
+                $existing = $order->documents()
+                    ->where('jenis_dokumen', $type->value)
+                    ->get();
+
+                foreach ($existing as $document) {
+                    $this->documentService->delete($document);
+                }
+
+                $this->documentService->store(
+                    order: $order,
+                    file: $file,
+                    type: $type,
+                    user: $request->user(),
+                );
             }
-
-            $this->documentService->store(
-                order: $order,
-                file: $request->file($field),
-                type: $type,
-                user: $request->user(),
-            );
+        } finally {
+            $this->removeTemporaryFiles($temporaryPaths);
         }
 
         return redirect()
@@ -109,6 +161,18 @@ class OrderDocumentController extends Controller
         return redirect()
             ->to($this->documentPageUrl($order))
             ->with('status', 'Dokumen order berhasil dihapus.');
+    }
+
+    /**
+     * @param  list<string>  $paths
+     */
+    private function removeTemporaryFiles(array $paths): void
+    {
+        foreach ($paths as $path) {
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
     }
 
     private function returnUrl(Order $order): string

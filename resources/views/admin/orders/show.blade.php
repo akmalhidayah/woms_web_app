@@ -5,7 +5,7 @@
         $scopeItems = $scopeOfWork?->scope_items ?? [];
         $showSowOnLoad = old('scope_pekerjaan') || old('nama_penginput');
         $abnormalitasUploadHint = 'Maks. 10 MB - PDF';
-        $gambarTeknikUploadHint = 'Maks. 10 MB - JPG, JPEG, PDF, DOC, DOCX';
+        $gambarTeknikUploadHint = 'Maks. 10 MB - JPG, JPEG, PDF - bisa pilih beberapa file, digabung jadi satu PDF';
     @endphp
 
     <div
@@ -101,9 +101,10 @@
                         <div>
                             <label class="mb-1 block text-[10px] font-semibold text-slate-700">Gambar Teknik</label>
                             <input
-                                name="gambar_teknik_file"
+                                name="gambar_teknik_file[]"
                                 type="file"
-                                accept=".jpg,.jpeg,.pdf,.doc,.docx,image/jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                multiple
+                                accept=".jpg,.jpeg,.pdf,image/jpeg,application/pdf"
                                 class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-[9px] text-slate-700 file:mr-2 file:rounded-md file:border-0 file:bg-slate-700 file:px-2.5 file:py-1 file:text-[9px] file:font-semibold file:text-white hover:file:bg-slate-800"
                             >
                             <div class="mt-1 text-[8px] text-slate-400">{{ $gambarTeknikUploadHint }}</div>

@@ -261,6 +261,17 @@
 @endphp
 
 <div class="space-y-3">
+    <section class="relative isolate flex min-h-[4.5rem] items-center overflow-hidden rounded-xl bg-[#141250] px-5 py-4 shadow-sm sm:px-6">
+        <img
+            src="{{ asset('assets/branding/illustrations/bg-login.jpg') }}"
+            alt=""
+            aria-hidden="true"
+            class="absolute inset-y-0 right-0 -z-20 h-full w-3/5 object-cover object-[center_38%]"
+        >
+        <div class="absolute inset-0 -z-10 bg-gradient-to-r from-[#141250] from-40% via-[#141250]/55 via-60% to-transparent" aria-hidden="true"></div>
+        <h1 class="min-w-0 truncate text-lg font-bold text-white sm:text-xl">Selamat Datang, {{ auth()->user()?->name ?? 'Vendor' }}</h1>
+    </section>
+
     <section class="grid grid-cols-2 gap-2 sm:grid-cols-4">
         @foreach ($topCards as $card)
             <article class="min-w-0 rounded-xl border border-black/10 px-3 py-2.5 shadow-sm sm:px-3.5 sm:py-3" style="background-color: {{ $card['color'] }};">

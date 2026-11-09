@@ -101,17 +101,6 @@
                             <i data-lucide="panel-left" class="h-4 w-4"></i>
                         </button>
                     </div>
-
-                    <div class="px-3 pb-3" x-show="sidebarOpen" x-transition.opacity.duration.200ms>
-                        <div class="relative">
-                            <i data-lucide="search" class="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/60"></i>
-                            <input
-                                type="text"
-                                placeholder="Cari menu..."
-                                class="w-full rounded-lg border border-white/20 bg-white/12 py-1.5 pl-8 pr-3 text-[12px] text-white placeholder:text-white/55 focus:border-white/30 focus:outline-none focus:ring-2 focus:ring-white/20"
-                            >
-                        </div>
-                    </div>
                 </div>
 
                 <div class="no-scrollbar flex-1 overflow-y-auto px-2 py-3">

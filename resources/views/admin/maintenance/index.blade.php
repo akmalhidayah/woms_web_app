@@ -244,15 +244,19 @@
                 </div>
             @elseif ($activeTab === 'online_users')
                 <div class="px-4 py-4">
-                    <div class="mb-3">
+                    <div class="mb-3 flex items-center justify-between gap-2">
                         <div class="flex items-center gap-2 text-sm font-bold text-slate-900">
                             <i data-lucide="users" class="h-4 w-4 text-blue-600"></i>
                             Pengguna Online
                         </div>
-                        <p class="mt-1 text-xs text-slate-500">
-                            Pengguna dengan aktivitas dalam {{ $onlineUsers['window_minutes'] }} menit terakhir, dihitung saat halaman dimuat.
-                            Aktivitas tercatat ketika pengguna membuka/memuat halaman. Sesi masuk-sebagai-user-lain (impersonation) tampil atas nama akun yang ditiru.
-                        </p>
+                        <a
+                            href="{{ route('admin.maintenance.index', ['tab' => 'online_users', 'refresh' => now()->timestamp]) }}"
+                            class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                            title="Muat ulang daftar"
+                        >
+                            <i data-lucide="refresh-cw" class="h-3.5 w-3.5"></i>
+                            Muat Ulang
+                        </a>
                     </div>
 
                     @if (! $onlineUsers['available'])
@@ -339,11 +343,6 @@
                 </div>
             @endif
         </section>
-
-        <div class="text-xs text-slate-500">
-            Status scan: <strong>{{ strtoupper($scanStatus['status'] ?? 'idle') }}</strong>.
-            Halaman ini tidak memperbarui data secara otomatis; muat ulang untuk melihat hasil terbaru.
-        </div>
 
         <div
             x-cloak

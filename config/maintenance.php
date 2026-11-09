@@ -17,4 +17,5 @@ return [
     'deep_scan_step_warning_duration_ms' => 8000,
     'job_timeout_seconds' => 1200,
     'lock_seconds' => 1800,
+    'online_window_minutes' => 5,
 ];

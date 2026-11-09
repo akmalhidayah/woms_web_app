@@ -3,27 +3,15 @@
         $snapshot = $quickSnapshot ?? $deepSnapshot;
         $summary = $snapshot['summary'] ?? ['critical' => 0, 'warning' => 0, 'info' => 0, 'total' => 0];
         $quickCategories = $quickSnapshot['categories'] ?? [];
-        $deepCategories = $deepSnapshot['categories'] ?? [];
         $tabs = [
             'summary' => 'Ringkasan',
-            'approval' => 'Approval',
-            'documents' => 'Dokumen',
-            'files' => 'File & Storage',
-            'users_structure' => 'User & Struktur',
-            'queue_scheduler' => 'Queue & Scheduler',
+            'online_users' => 'Pengguna Online',
             'logs' => 'Log Laravel',
         ];
-        $findings = match ($activeTab) {
-            'approval' => $quickCategories['approval'] ?? [],
-            'documents' => $quickCategories['documents'] ?? [],
-            'files' => $deepCategories['files'] ?? [],
-            'users_structure' => $quickCategories['users_structure'] ?? [],
-            'queue_scheduler' => $quickCategories['queue_scheduler'] ?? [],
-            default => collect($quickCategories)->flatten(1)
-                ->filter(fn (array $finding) => in_array($finding['severity'] ?? null, ['critical', 'warning'], true))
-                ->values()
-                ->all(),
-        };
+        $findings = collect($quickCategories)->flatten(1)
+            ->filter(fn (array $finding) => in_array($finding['severity'] ?? null, ['critical', 'warning'], true))
+            ->values()
+            ->all();
         $severityClasses = [
             'critical' => 'bg-rose-100 text-rose-700',
             'warning' => 'bg-amber-100 text-amber-700',
@@ -254,14 +242,60 @@
                         @endforelse
                     </div>
                 </div>
+            @elseif ($activeTab === 'online_users')
+                <div class="px-4 py-4">
+                    <div class="mb-3">
+                        <div class="flex items-center gap-2 text-sm font-bold text-slate-900">
+                            <i data-lucide="users" class="h-4 w-4 text-blue-600"></i>
+                            Pengguna Online
+                        </div>
+                        <p class="mt-1 text-xs text-slate-500">
+                            Pengguna dengan aktivitas dalam {{ $onlineUsers['window_minutes'] }} menit terakhir, dihitung saat halaman dimuat.
+                            Aktivitas tercatat ketika pengguna membuka/memuat halaman. Sesi masuk-sebagai-user-lain (impersonation) tampil atas nama akun yang ditiru.
+                        </p>
+                    </div>
+
+                    @if (! $onlineUsers['available'])
+                        <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-6 text-center text-sm text-amber-800">
+                            Daftar pengguna online memerlukan penyimpanan sesi di database (SESSION_DRIVER=database).
+                        </div>
+                    @elseif ($onlineUsers['users'] === [])
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
+                            Tidak ada pengguna aktif dalam {{ $onlineUsers['window_minutes'] }} menit terakhir.
+                        </div>
+                    @else
+                        <div class="overflow-x-auto">
+                            <table class="w-full min-w-[640px] text-sm">
+                                <thead>
+                                    <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+                                        <th class="px-3 py-2 font-semibold">Pengguna</th>
+                                        <th class="px-3 py-2 font-semibold">Role</th>
+                                        <th class="px-3 py-2 font-semibold">Aktivitas Terakhir</th>
+                                        <th class="px-3 py-2 font-semibold">Perangkat</th>
+                                        <th class="px-3 py-2 text-right font-semibold">Sesi</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    @foreach ($onlineUsers['users'] as $onlineUser)
+                                        <tr>
+                                            <td class="px-3 py-2.5 font-semibold text-slate-900">{{ $onlineUser['name'] }}</td>
+                                            <td class="px-3 py-2.5 text-slate-600">{{ $onlineUser['role_label'] }}</td>
+                                            <td class="px-3 py-2.5 text-slate-600" title="{{ $onlineUser['last_activity']->format('d/m/Y H:i:s') }}">{{ $onlineUser['last_activity']->diffForHumans() }}</td>
+                                            <td class="px-3 py-2.5 text-slate-600">{{ implode(', ', $onlineUser['devices']) }}</td>
+                                            <td class="px-3 py-2.5 text-right text-slate-600">{{ $onlineUser['session_count'] }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+                </div>
             @elseif (! $snapshot)
                 <div class="px-5 py-14 text-center">
                     <i data-lucide="clipboard-search" class="mx-auto h-10 w-10 text-slate-300"></i>
                     <h2 class="mt-4 font-semibold text-slate-900">Belum pernah diperiksa.</h2>
                     <p class="mt-1 text-sm text-slate-500">Jalankan Pemeriksaan Cepat untuk membuat hasil diagnosis pertama.</p>
                 </div>
-            @elseif ($activeTab === 'files' && ! $deepSnapshot)
-                <div class="px-5 py-14 text-center text-sm text-slate-500">Pemeriksaan file belum dijalankan.</div>
             @elseif (empty($findings))
                 <div class="px-5 py-14 text-center">
                     <i data-lucide="circle-check" class="mx-auto h-10 w-10 text-emerald-500"></i>

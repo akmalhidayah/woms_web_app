@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Maintenance\LaravelLogReader;
 use App\Services\Maintenance\MaintenanceScanService;
 use App\Services\Maintenance\MaintenanceSnapshotRepository;
+use App\Services\Maintenance\OnlineUsersReader;
 use App\Services\Maintenance\StagedDeepScanService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -20,10 +21,13 @@ class MaintenanceController extends Controller
     public function index(
         Request $request,
         MaintenanceSnapshotRepository $snapshots,
-        LaravelLogReader $logs
+        LaravelLogReader $logs,
+        OnlineUsersReader $onlineUsers
     ): View {
         $tab = $request->string('tab')->toString();
-        $allowedTabs = ['summary', 'approval', 'documents', 'files', 'users_structure', 'queue_scheduler', 'logs'];
+        // Tab kategori (approval, documents, files, users_structure, queue_scheduler) disembunyikan;
+        // evaluator-nya tetap dipakai scan sehingga temuan tetap muncul di tab Ringkasan.
+        $allowedTabs = ['summary', 'online_users', 'logs'];
         $activeTab = in_array($tab, $allowedTabs, true) ? $tab : 'summary';
 
         return view('admin.maintenance.index', [
@@ -31,6 +35,7 @@ class MaintenanceController extends Controller
             'deepSnapshot' => $snapshots->snapshot('deep'),
             'scanStatus' => $snapshots->status(),
             'latestLogs' => $activeTab === 'logs' ? $logs->latest(10) : [],
+            'onlineUsers' => $activeTab === 'online_users' ? $onlineUsers->read() : null,
             'activeTab' => $activeTab,
         ]);
     }

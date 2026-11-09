@@ -8,21 +8,14 @@
             overflow-y: visible !important;
         }
 
-        /* Latar foto pabrik dengan gradien putih agar kartu tetap terbaca. Hanya berlaku di halaman dashboard. */
-        body:has(.dashboard-bg-marker) {
-            background-color: #f8fafc;
+        /* Banner header: putih di kiri, memudar ke foto pabrik di kanan agar teks dan filter tetap terbaca. */
+        .dashboard-header {
             background-image:
-                linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.90) 45%, rgba(255, 255, 255, 0.97) 100%),
+                linear-gradient(90deg, #ffffff 0%, #ffffff 30%, rgba(255, 255, 255, 0.86) 55%, rgba(255, 255, 255, 0.58) 100%),
                 url('{{ asset('assets/branding/illustrations/bg-login.jpg') }}');
-            background-position: center top;
+            background-position: center 38%;
             background-repeat: no-repeat;
             background-size: cover;
-        }
-
-        @media (min-width: 1024px) {
-            body:has(.dashboard-bg-marker) {
-                background-attachment: fixed;
-            }
         }
 
         .admin-compact {
@@ -33,8 +26,6 @@
             box-shadow: none !important;
         }
     </style>
-
-    <span class="dashboard-bg-marker hidden" aria-hidden="true"></span>
 
     @if ($activeDashboard === 'jasa')
         @php

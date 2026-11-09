@@ -42,6 +42,7 @@ use App\Http\Controllers\ApprovalDocumentController;
 use App\Http\Controllers\Inspector\EquipmentFormController;
 use App\Http\Controllers\Inspector\EquipmentInspectionController;
 use App\Http\Controllers\Pkm\DashboardController as PkmDashboardController;
+use App\Http\Controllers\Pkm\GlobalSearchController as PkmGlobalSearchController;
 use App\Http\Controllers\Pkm\DocumentsController as PkmDocumentsController;
 use App\Http\Controllers\Pkm\HppDraftController;
 use App\Http\Controllers\Pkm\JobWaitingController;
@@ -696,6 +697,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('pkm/dashboard', [PkmDashboardController::class, 'index'])
         ->middleware('pkm_panel')
         ->name('pkm.dashboard');
+    Route::get('pkm/global-search', PkmGlobalSearchController::class)
+        ->middleware(['pkm_panel', 'throttle:30,1'])
+        ->name('pkm.global-search.index');
     Route::get('pkm/user-panel', [PkmUserPanelController::class, 'index'])
         ->middleware('pkm_panel')
         ->name('pkm.user-panel.index');

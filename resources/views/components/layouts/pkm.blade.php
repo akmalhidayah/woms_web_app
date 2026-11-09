@@ -181,6 +181,8 @@
                             </div>
                         </div>
 
+                        <x-pkm.global-search />
+
                         <div class="flex items-center gap-3">
                             @if ($pkmVendorWorkType)
                                 <button

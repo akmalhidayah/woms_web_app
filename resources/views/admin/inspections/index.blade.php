@@ -50,6 +50,24 @@
         <section class="order-list-panel overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 px-5 py-4">
                 <x-inspections.index-tabs route-name="admin.inspections.index" :tab="$tab" :counts="$counts" :search="$filters['search'] ?? ''" />
+                @if ($tab === 'approval')
+                    <div class="mt-3 flex flex-wrap justify-end gap-1.5">
+                        <form method="POST" action="{{ route('admin.inspections.approvals.regenerate-expired-all') }}" class="js-regenerate-expired-approval-form" data-approval-document="Inspeksi Peralatan">
+                            @csrf
+                            <button type="submit" class="inline-flex items-center gap-1 rounded-md bg-amber-500 px-2 py-1 text-[9px] font-bold text-white shadow-sm transition hover:bg-amber-600">
+                                <i data-lucide="refresh-cw" class="h-2.5 w-2.5"></i>
+                                Regenerate Expired
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ route('admin.inspections.approvals.resend-all') }}" class="js-resend-all-approval-form" data-approval-document="Inspeksi Peralatan">
+                            @csrf
+                            <button type="submit" class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-[9px] font-bold text-white shadow-sm transition hover:bg-blue-700">
+                                <i data-lucide="send" class="h-2.5 w-2.5"></i>
+                                Resend Semua
+                            </button>
+                        </form>
+                    </div>
+                @endif
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full min-w-[1100px] table-fixed bg-white text-left text-[11px] text-slate-700">
@@ -106,6 +124,7 @@
             <div class="border-t border-slate-200 px-5 py-4">{{ $inspections->links() }}</div>
         </section>
         @include('admin.inspections._approval-modal')
+        <x-approval.resend-all-confirmation />
         <dialog x-ref="remarksDialog" aria-labelledby="remarks-title" style="position: fixed; inset: 0; margin: auto;" class="w-[calc(100%-2rem)] max-w-3xl overflow-hidden rounded-2xl border border-slate-300 bg-white p-0 shadow-2xl backdrop:bg-black/60">
             <div class="flex max-h-[85vh] flex-col">
                 <header class="flex items-start justify-between gap-3 border-b p-5"><div><h2 id="remarks-title" class="text-lg font-bold" x-text="'Remarks ' + (remarks?.number ?? '')"></h2><p class="mt-1 text-sm text-slate-600" x-text="remarks ? remarks.equipment + ' · ' + remarks.date : ''"></p></div><button type="button" @click="$refs.remarksDialog.close()" aria-label="Tutup Remarks" class="rounded-lg border px-3 py-1">✕</button></header>

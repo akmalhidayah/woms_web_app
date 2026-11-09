@@ -115,6 +115,8 @@ Route::middleware(['auth'])->group(function () {
     });
     Route::prefix('admin/inspections')->name('admin.inspections.')->middleware(['role:admin', 'admin_menu:inspeksi'])->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'index'])->name('index');
+        Route::post('approvals/resend-all', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'resendAllApprovals'])->middleware('throttle:3,1')->name('approvals.resend-all');
+        Route::post('approvals/regenerate-expired-all', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'regenerateExpiredApprovals'])->middleware('throttle:3,1')->name('approvals.regenerate-expired-all');
         Route::get('{inspection}', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'show'])->name('show');
         Route::get('{inspection}/remarks', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'remarks'])->name('remarks');
         Route::get('{inspection}/approval-progress', [\App\Http\Controllers\Admin\EquipmentInspectionController::class, 'approvalProgress'])->name('approval-progress');

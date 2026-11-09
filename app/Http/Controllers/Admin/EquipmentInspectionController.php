@@ -8,6 +8,7 @@ use App\Models\EquipmentInspectionApproval;
 use App\Models\EquipmentInspectionAttachment;
 use App\Models\EquipmentInspectionSignature;
 use App\Policies\EquipmentInspectionPolicy;
+use App\Services\Inspector\EquipmentInspectionBulkApprovalService;
 use App\Services\Inspector\EquipmentInspectionPdfService;
 use App\Services\Inspector\EquipmentInspectionDeletionService;
 use App\Services\Inspector\EquipmentInspectionWorkflow;
@@ -160,5 +161,21 @@ class EquipmentInspectionController extends Controller
         $workflow->sendEmail($approval->id, $request->user());
 
         return back()->with('success', 'Percobaan kirim ulang selesai. Lihat status email; ini bukan bukti email dibaca.');
+    }
+
+    public function resendAllApprovals(Request $request, EquipmentInspectionBulkApprovalService $bulk): RedirectResponse
+    {
+        $this->authorizeAdmin($request);
+        $result = $bulk->resendActive($request->user());
+
+        return back()->with('success', EquipmentInspectionBulkApprovalService::resendMessage($result));
+    }
+
+    public function regenerateExpiredApprovals(Request $request, EquipmentInspectionBulkApprovalService $bulk): RedirectResponse
+    {
+        $this->authorizeAdmin($request);
+        $result = $bulk->regenerateExpired($request->user());
+
+        return back()->with('success', EquipmentInspectionBulkApprovalService::regenerateMessage($result));
     }
 }

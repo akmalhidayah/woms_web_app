@@ -12,7 +12,9 @@ use App\Support\Inspector\EquipmentFormCatalog;
 use App\Support\Inspector\EquipmentInspectionIndexTabs;
 use App\Support\Inspector\EquipmentInspectionSnapshot;
 use App\Support\RecentApprovalSignatureResolver;
+use App\Notifications\ApprovalRequestedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -191,6 +193,60 @@ class EquipmentInspectionManagementTest extends TestCase
             ->assertJsonCount(2, 'steps')->assertJsonPath('steps.1.state', 'pending')
             ->assertJsonPath('steps.1.resend_url', route('admin.inspections.resend', [$inspection, $approval]))
             ->assertDontSee($approval->token_encrypted)->assertDontSee($approval->token_hash);
+    }
+
+    public function test_bulk_regenerate_renews_only_expired_manager_tokens_and_emails_them(): void
+    {
+        Notification::fake();
+        $owner = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
+        $expired = $this->inspection($owner, EquipmentInspection::STATUS_MANAGER);
+        $valid = $this->inspection($owner, EquipmentInspection::STATUS_MANAGER);
+        $expiredApproval = $expired->approvals()->firstOrFail();
+        $validApproval = $valid->approvals()->firstOrFail();
+        $oldExpiredHash = $expiredApproval->token_hash;
+        $validHash = $validApproval->token_hash;
+        $expiredApproval->update(['token_expires_at' => now()->subDay()]);
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN]);
+
+        $this->actingAs($admin)->post(route('admin.inspections.approvals.regenerate-expired-all'))
+            ->assertRedirect()->assertSessionHas('success');
+
+        $expiredApproval->refresh();
+        $this->assertNotSame($oldExpiredHash, $expiredApproval->token_hash);
+        $this->assertTrue($expiredApproval->token_expires_at->isFuture());
+        $this->assertSame('resent', $expiredApproval->email_status);
+        $this->assertSame($validHash, $validApproval->refresh()->token_hash);
+        $this->assertSame('not_sent', $validApproval->email_status);
+        Notification::assertSentToTimes(User::query()->findOrFail($expiredApproval->signer_user_id), ApprovalRequestedNotification::class, 1);
+        $this->assertTrue(EquipmentInspectionApproval::query()->active()->whereKey($expiredApproval->id)->exists());
+    }
+
+    public function test_bulk_resend_emails_active_managers_and_skips_expired_tokens(): void
+    {
+        Notification::fake();
+        $owner = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
+        $active = $this->inspection($owner, EquipmentInspection::STATUS_MANAGER);
+        $expired = $this->inspection($owner, EquipmentInspection::STATUS_MANAGER);
+        $expiredApproval = $expired->approvals()->firstOrFail();
+        $expiredApproval->update(['token_expires_at' => now()->subDay()]);
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'admin_role' => User::ADMIN_ROLE_SUPER_ADMIN]);
+
+        $this->actingAs($admin)->post(route('admin.inspections.approvals.resend-all'))
+            ->assertRedirect()->assertSessionHas('success');
+
+        $this->assertSame('resent', $active->approvals()->firstOrFail()->email_status);
+        $this->assertSame('not_sent', $expiredApproval->refresh()->email_status);
+        Notification::assertSentTimes(ApprovalRequestedNotification::class, 1);
+    }
+
+    public function test_bulk_approval_actions_are_admin_only(): void
+    {
+        $owner = User::factory()->create(['role' => User::ROLE_INSPECTOR]);
+
+        foreach (['admin.inspections.approvals.resend-all', 'admin.inspections.approvals.regenerate-expired-all'] as $routeName) {
+            $this->post(route($routeName))->assertRedirect(route('login'));
+            $this->actingAs($owner)->post(route($routeName))->assertForbidden();
+        }
     }
 
     public function test_inspector_can_reuse_own_signature_on_new_and_draft_forms(): void

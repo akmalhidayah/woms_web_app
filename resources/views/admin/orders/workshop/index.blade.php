@@ -724,7 +724,8 @@
                             <input id="createTargetSelesai" name="target_selesai" type="date" value="{{ old('form_context') === 'create' ? old('target_selesai', $today) : $today }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
                         </div>
                     </div>
-                    <div class="md:col-span-2">
+                    <div class="grid gap-3 md:col-span-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+                    <div class="min-w-0">
                         <label for="createBiayaDisplay" class="mb-2 block text-sm text-slate-700">Biaya <span class="text-slate-400">(Opsional)</span></label>
                         <div class="relative">
                             <span class="pointer-events-none absolute inset-y-0 left-4 flex items-center text-sm font-medium text-slate-500">Rp</span>
@@ -736,6 +737,19 @@
                                 <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
                             @enderror
                         @endif
+                    </div>
+                    <div>
+                        <span class="mb-2 hidden text-sm text-transparent select-none md:block" aria-hidden="true">.</span>
+                        <label for="createPelayananMaterial" class="flex min-h-[46px] cursor-pointer items-center gap-2 rounded-lg border border-slate-400 px-4 py-3 text-sm text-slate-700">
+                            <input id="createPelayananMaterial" name="pelayanan_material" type="checkbox" value="1" @checked(old('form_context') === 'create' && old('pelayanan_material')) class="h-4 w-4 rounded border-slate-400 text-blue-600 focus:ring-blue-500">
+                            <span class="font-medium">Pelayanan Material</span>
+                        </label>
+                        @if (old('form_context') === 'create')
+                            @error('pelayanan_material')
+                                <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                            @enderror
+                        @endif
+                    </div>
                     </div>
                     <div class="md:col-span-2">
                         <label for="createPicUser" class="mb-2 block text-sm text-slate-700">PIC User <span class="text-slate-400">(Opsional)</span></label>
@@ -1438,6 +1452,7 @@
                 document.getElementById('createCatatan').value = '';
                 document.getElementById('createPicUser').value = '';
                 setBiayaFieldValue(createBiayaDisplay, createBiaya);
+                document.getElementById('createPelayananMaterial').checked = false;
                 syncModalNoteField('create', defaultWorkshopStatus, '');
                 openCreateOrderModal();
             });

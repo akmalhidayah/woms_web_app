@@ -138,8 +138,8 @@ class WorkshopOrderTrackingDetailTest extends TestCase
         $this->actingAs($user)
             ->get(route('user.orders.show', $order))
             ->assertOk()
-            ->assertSee('Selesai (Data Legacy)')
-            ->assertSee('Tanggal Penandaan Legacy')
+            ->assertSee('Selesai (Pelayanan Material)')
+            ->assertSee('Tanggal Pelayanan Material')
             ->assertDontSee('Menunggu Serah Terima');
 
         $this->assertDatabaseMissing('workshop_handovers', ['order_id' => $order->id]);

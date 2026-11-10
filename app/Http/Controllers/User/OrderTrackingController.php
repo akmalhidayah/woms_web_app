@@ -602,7 +602,7 @@ class OrderTrackingController extends Controller
         $workshopHandoverLabel = match (true) {
             $workshopHandover?->status === WorkshopHandover::STATUS_COMPLETED => 'Serah Terima Selesai',
             $workshopHandover?->status === WorkshopHandover::STATUS_WAITING_USER_SIGNATURE => 'Menunggu Tanda Tangan '.$workshopHandoverRecipientRole,
-            $legacyWorkshopCompleted => 'Selesai (Data Legacy)',
+            $legacyWorkshopCompleted => 'Selesai (Pelayanan Material)',
             default => $order->orderWorkshop?->progress_status === OrderWorkshop::PROGRESS_DONE
                 ? 'Menunggu Serah Terima'
                 : 'Belum siap Serah Terima',
@@ -611,7 +611,7 @@ class OrderTrackingController extends Controller
             ['label' => 'Status', 'value' => $workshopHandoverLabel],
             ['label' => 'Nomor Dokumen', 'value' => $workshopHandover?->document_no ?: '-'],
             ['label' => $workshopHandoverRecipientRole, 'value' => $workshopHandover?->recipient_name_snapshot ?: '-'],
-            ['label' => $legacyWorkshopCompleted ? 'Tanggal Penandaan Legacy' : 'Tanggal Serah Terima', 'value' => $workshopHandover?->handed_over_at?->format('d/m/Y H:i')
+            ['label' => $legacyWorkshopCompleted ? 'Tanggal Pelayanan Material' : 'Tanggal Serah Terima', 'value' => $workshopHandover?->handed_over_at?->format('d/m/Y H:i')
                 ?: $order->orderWorkshop?->legacy_completed_at?->format('d/m/Y H:i')
                 ?: '-'],
         ], $workshopHandover?->isCompleted() || $legacyWorkshopCompleted ? 'done' : 'waiting');

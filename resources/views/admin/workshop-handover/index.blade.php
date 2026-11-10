@@ -81,15 +81,15 @@
                                         ->values()
                                         ->all()
                                     : [];
-                                $progressText = $isLegacyHistory ? 'Legacy' : ($handover?->progress() ?? '0/2');
+                                $progressText = $isLegacyHistory ? 'Selesai' : ($handover?->progress() ?? '0/2');
                                 $progressRole = match (true) {
-                                    $isLegacyHistory => 'Selesai (Data Legacy)',
+                                    $isLegacyHistory => 'Pelayanan Material',
                                     $handover?->isCompleted() => 'Approval selesai',
                                     $handover !== null => $handover->recipient_position_snapshot ?: 'PIC User',
                                     default => 'Bukti Serah Terima',
                                 };
                                 $progressActivity = match (true) {
-                                    $isLegacyHistory => 'Data legacy',
+                                    $isLegacyHistory => 'Tanpa serah terima',
                                     $handover?->isCompleted() => 'Serah terima selesai',
                                     $handover !== null => 'Menunggu '.($handover->recipient_position_snapshot ?: 'PIC User'),
                                     default => 'Menunggu proses serah terima',

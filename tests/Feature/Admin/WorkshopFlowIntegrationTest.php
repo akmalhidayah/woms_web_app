@@ -313,7 +313,7 @@ class WorkshopFlowIntegrationTest extends TestCase
             ->get(route('admin.workshop-handover.index', ['tab' => 'history']))
             ->assertOk()
             ->assertSee($order->nomor_order)
-            ->assertSee('Selesai (Data Legacy)')
+            ->assertSee('Pelayanan Material')
             ->assertSee('Tanpa dokumen');
     }
 

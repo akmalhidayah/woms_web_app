@@ -140,12 +140,13 @@ class OrderWorkshopController extends Controller
     public function store(StoreOrderRequest $request): RedirectResponse
     {
         $validated = $request->validated();
+        $isMaterialService = $request->boolean('pelayanan_material');
         $orderInserted = false;
 
         try {
-            $order = DB::transaction(function () use ($request, $validated, &$orderInserted): Order {
+            $order = DB::transaction(function () use ($request, $validated, $isMaterialService, &$orderInserted): Order {
                 $order = Order::create([
-                    ...collect($validated)->except('pic_user')->all(),
+                    ...collect($validated)->except(['pic_user', 'pelayanan_material'])->all(),
                     'biaya' => $validated['biaya'] ?? null,
                     'created_by' => $request->user()?->id,
                 ]);
@@ -153,6 +154,16 @@ class OrderWorkshopController extends Controller
 
                 $workshop = $this->workshopOrderTaskSyncer->ensureWorkshopLifecycle($order);
                 $workshop?->update(['pic_user' => $validated['pic_user'] ?? null]);
+
+                if ($isMaterialService && $workshop) {
+                    // Pelayanan Material tidak melalui Serah Terima: pakai penanda selesai yang sudah dibaca
+                    // antrean/riwayat Serah Terima, Dashboard Workshop, dan Tracking User.
+                    $workshop->forceFill([
+                        'progress_status' => OrderWorkshop::PROGRESS_DONE,
+                        'legacy_completed_at' => now(),
+                    ])->save();
+                    $this->workshopOrderTaskSyncer->syncProgress($order, $workshop);
+                }
 
                 return $order;
             });
@@ -174,6 +185,12 @@ class OrderWorkshopController extends Controller
             }
 
             throw ValidationException::withMessages($errors);
+        }
+
+        if ($isMaterialService) {
+            return redirect()
+                ->route('admin.orders.workshop.index', ['search' => $order->nomor_order, 'tab' => 'history'])
+                ->with('status', 'Order Pelayanan Material berhasil dibuat dan langsung masuk Riwayat.');
         }
 
         return redirect()

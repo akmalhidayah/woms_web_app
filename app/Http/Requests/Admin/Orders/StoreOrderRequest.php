@@ -59,6 +59,10 @@ class StoreOrderRequest extends FormRequest
             'pic_user' => $this->routeIs('admin.orders.workshop.store')
                 ? ['nullable', 'string', 'max:255']
                 : ['prohibited'],
+            // Hanya untuk Order Pekerjaan Bengkel: tanpa Serah Terima, langsung tercatat selesai di Riwayat.
+            'pelayanan_material' => $this->routeIs('admin.orders.workshop.store')
+                ? ['nullable', 'boolean']
+                : ['prohibited'],
             'catatan_status' => ['required', Rule::in($statusOptions)],
             'catatan' => $detailOptions !== null
                 ? [$usesWorkshopRegu ? 'required' : 'nullable', 'string', Rule::in($detailOptions)]
@@ -97,6 +101,7 @@ class StoreOrderRequest extends FormRequest
             'biaya.integer' => 'Biaya harus berupa nominal Rupiah tanpa pecahan.',
             'biaya.min' => 'Biaya tidak boleh bernilai negatif.',
             'biaya.max' => 'Biaya melebihi batas nominal yang dapat disimpan.',
+            'pelayanan_material.boolean' => 'Pilihan Pelayanan Material tidak valid.',
             'catatan.required' => 'Regu Bengkel wajib dipilih untuk Order Pekerjaan Bengkel.',
             'catatan.in' => 'Regu Bengkel yang dipilih tidak valid.',
         ];

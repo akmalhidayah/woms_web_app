@@ -10,9 +10,11 @@ use App\Http\Requests\Admin\Orders\UpdateOrderPriorityRequest;
 use App\Http\Requests\Admin\Orders\UpdateOrderRequest;
 use App\Http\Requests\Admin\Orders\UpdateOrderUserNoteRequest;
 use App\Models\Order;
+use App\Models\OrderWorkshop;
 use App\Models\OutlineAgreement;
 use App\Models\UnitWork;
 use App\Models\User;
+use App\Models\WorkshopHandover;
 use App\Services\BengkelTasks\WorkshopOrderTaskSyncer;
 use App\Services\Orders\OrderDeletionService;
 use App\Support\RecentApprovalSignatureResolver;
@@ -21,6 +23,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class OrderController extends Controller
@@ -187,12 +190,17 @@ class OrderController extends Controller
      */
     public function update(UpdateOrderRequest $request, Order $order): RedirectResponse
     {
-        DB::transaction(function () use ($request, $order): void {
+        $markedAsMaterialService = false;
+
+        DB::transaction(function () use ($request, $order, &$markedAsMaterialService): void {
             $validated = $request->validated();
-            $order->update(collect($validated)->except('pic_user')->all());
+            $order->update(collect($validated)->except(['pic_user', 'pelayanan_material'])->all());
             $workshop = $this->workshopOrderTaskSyncer->ensureWorkshopLifecycle($order->fresh() ?: $order);
             if ($workshop && array_key_exists('pic_user', $validated)) {
                 $workshop->update(['pic_user' => $validated['pic_user']]);
+            }
+            if ($workshop && ($validated['pelayanan_material'] ?? null) !== null) {
+                $markedAsMaterialService = $this->syncMaterialService($order, $workshop, $request->boolean('pelayanan_material'));
             }
         });
 
@@ -200,13 +208,53 @@ class OrderController extends Controller
 
         if ($order->isWorkshopOrder()) {
             return redirect()
-                ->route('admin.orders.workshop.index', ['search' => $order->nomor_order])
-                ->with('status', 'Order pekerjaan berhasil diperbarui.');
+                ->route('admin.orders.workshop.index', array_filter([
+                    'search' => $order->nomor_order,
+                    'tab' => $markedAsMaterialService ? 'history' : null,
+                ]))
+                ->with('status', $markedAsMaterialService
+                    ? 'Order ditandai Pelayanan Material dan langsung masuk Riwayat tanpa Serah Terima.'
+                    : 'Order pekerjaan berhasil diperbarui.');
         }
 
         return redirect()
             ->route('admin.orders.show', $order)
             ->with('status', 'Order pekerjaan berhasil diperbarui.');
+    }
+
+    /**
+     * Terapkan / cabut penanda Pelayanan Material pada order bengkel (dipanggil di dalam transaction).
+     *
+     * @return bool true bila order baru saja ditandai Pelayanan Material.
+     */
+    private function syncMaterialService(Order $order, OrderWorkshop $workshop, bool $enabled): bool
+    {
+        $locked = OrderWorkshop::query()->whereKey($workshop->getKey())->lockForUpdate()->firstOrFail();
+
+        if ($enabled === $locked->legacyCompleted()) {
+            return false;
+        }
+
+        if (! $enabled) {
+            // Kembali ke alur normal; status progres tidak diubah.
+            $locked->forceFill(['legacy_completed_at' => null])->save();
+
+            return false;
+        }
+
+        if (WorkshopHandover::query()->where('order_id', $order->getKey())->lockForUpdate()->exists()) {
+            throw ValidationException::withMessages([
+                'pelayanan_material' => 'Order ini sudah memiliki dokumen Serah Terima sehingga tidak dapat ditandai Pelayanan Material.',
+            ]);
+        }
+
+        $locked->forceFill([
+            'progress_status' => OrderWorkshop::PROGRESS_DONE,
+            'legacy_completed_at' => now(),
+        ])->save();
+        $this->workshopOrderTaskSyncer->syncProgress($order, $locked);
+
+        return true;
     }
 
     /**

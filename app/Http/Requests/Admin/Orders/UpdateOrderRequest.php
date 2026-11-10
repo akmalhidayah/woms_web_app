@@ -44,7 +44,12 @@ class UpdateOrderRequest extends FormRequest
         $isWorkshopOrder = $usesWorkshopRegu || $isExistingWorkshopOrder;
         $detailOptions = Order::userNoteDetailOptions()[$status] ?? null;
 
-        return [
+        // Pelayanan Material hanya relevan untuk order bengkel; pada status lain field diabaikan (tidak ikut validated()).
+        $materialServiceRules = $usesWorkshopRegu
+            ? ['pelayanan_material' => ['nullable', 'boolean']]
+            : [];
+
+        return $materialServiceRules + [
             'nomor_order' => ['required', 'string', 'max:100', Rule::unique('orders', 'nomor_order')->ignore($order->id)],
             'notifikasi' => ['nullable', 'string', 'max:255', Rule::unique('orders', 'notifikasi')->ignore($order->id)],
             'nama_pekerjaan' => ['required', 'string', 'max:255'],
@@ -105,6 +110,7 @@ class UpdateOrderRequest extends FormRequest
             'biaya.integer' => 'Biaya harus berupa nominal Rupiah tanpa pecahan.',
             'biaya.min' => 'Biaya tidak boleh bernilai negatif.',
             'biaya.max' => 'Biaya melebihi batas nominal yang dapat disimpan.',
+            'pelayanan_material.boolean' => 'Pilihan Pelayanan Material tidak valid.',
             'catatan.required' => 'Regu Bengkel wajib dipilih untuk Order Pekerjaan Bengkel.',
             'catatan.in' => 'Regu Bengkel yang dipilih tidak valid.',
         ];

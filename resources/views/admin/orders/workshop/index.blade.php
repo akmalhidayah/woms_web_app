@@ -113,6 +113,68 @@
             padding-left: 3rem !important;
         }
 
+        .order-material-row {
+            display: grid;
+            gap: 0.75rem;
+            align-items: start;
+        }
+
+        @media (min-width: 768px) {
+            .order-material-row {
+                grid-template-columns: minmax(0, 1fr) auto;
+            }
+
+            /* Sejajar dengan kolom Biaya: tinggi label "Biaya" + jaraknya. */
+            .order-material-cell {
+                padding-top: 1.75rem;
+            }
+        }
+
+        .order-material-toggle {
+            display: flex;
+            box-sizing: border-box;
+            align-items: center;
+            gap: 0.45rem;
+            height: 2.2rem;
+            padding: 0 0.65rem;
+            border: 1px solid #94a3b8;
+            border-radius: 0.5rem;
+            background: #fff;
+            color: #334155;
+            font-size: 0.76rem;
+            font-weight: 500;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .order-material-toggle input[type="checkbox"] {
+            width: 0.9rem;
+            height: 0.9rem;
+            margin: 0;
+            accent-color: #2563eb;
+            cursor: pointer;
+        }
+
+        .order-material-toggle input[type="checkbox"]:disabled,
+        .order-material-toggle:has(input:disabled) {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .order-material-hint {
+            width: 0;
+            min-width: 100%;
+            margin-top: 0.25rem;
+            color: #e11d48;
+            font-size: 0.7rem;
+            font-weight: 500;
+            line-height: 1.1rem;
+        }
+
+        .order-material-hint[hidden] {
+            display: none;
+        }
+
         @media (max-width: 1279px) {
             .order-workshop-table thead {
                 display: none;
@@ -487,6 +549,8 @@
                                                 data-catatan-status="{{ $order->catatan_status?->value ?? \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value }}"
                                                 data-catatan="{{ $order->catatan }}"
                                                 data-tanggal-order="{{ optional($order->tanggal_order)->format('Y-m-d') }}"
+                                                data-pelayanan-material="{{ $workshop?->legacyCompleted() ? '1' : '0' }}"
+                                                data-pelayanan-material-locked="{{ $order->workshopHandover ? '1' : '0' }}"
                                             >
                                                 <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
                                             </button>
@@ -724,7 +788,7 @@
                             <input id="createTargetSelesai" name="target_selesai" type="date" value="{{ old('form_context') === 'create' ? old('target_selesai', $today) : $today }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
                         </div>
                     </div>
-                    <div class="grid gap-3 md:col-span-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+                    <div class="order-material-row md:col-span-2">
                     <div class="min-w-0">
                         <label for="createBiayaDisplay" class="mb-2 block text-sm text-slate-700">Biaya <span class="text-slate-400">(Opsional)</span></label>
                         <div class="relative">
@@ -738,18 +802,7 @@
                             @enderror
                         @endif
                     </div>
-                    <div>
-                        <span class="mb-2 hidden text-sm text-transparent select-none md:block" aria-hidden="true">.</span>
-                        <label for="createPelayananMaterial" class="flex min-h-[46px] cursor-pointer items-center gap-2 rounded-lg border border-slate-400 px-4 py-3 text-sm text-slate-700">
-                            <input id="createPelayananMaterial" name="pelayanan_material" type="checkbox" value="1" @checked(old('form_context') === 'create' && old('pelayanan_material')) class="h-4 w-4 rounded border-slate-400 text-blue-600 focus:ring-blue-500">
-                            <span class="font-medium">Pelayanan Material</span>
-                        </label>
-                        @if (old('form_context') === 'create')
-                            @error('pelayanan_material')
-                                <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
-                            @enderror
-                        @endif
-                    </div>
+                        @include('admin.orders.partials.material-service-toggle', ['prefix' => 'create'])
                     </div>
                     <div class="md:col-span-2">
                         <label for="createPicUser" class="mb-2 block text-sm text-slate-700">PIC User <span class="text-slate-400">(Opsional)</span></label>
@@ -893,7 +946,8 @@
                             <input id="editTargetSelesai" name="target_selesai" type="date" value="{{ old('form_context') === 'edit' ? old('target_selesai') : '' }}" class="w-full rounded-lg border border-slate-400 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none" required>
                         </div>
                     </div>
-                    <div class="md:col-span-2">
+                    <div class="order-material-row md:col-span-2">
+                    <div class="min-w-0">
                         <label for="editBiayaDisplay" class="mb-2 block text-sm text-slate-700">Biaya <span class="text-slate-400">(Opsional)</span></label>
                         <div class="relative">
                             <span class="pointer-events-none absolute inset-y-0 left-4 flex items-center text-sm font-medium text-slate-500">Rp</span>
@@ -905,6 +959,8 @@
                                 <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
                             @enderror
                         @endif
+                    </div>
+                        @include('admin.orders.partials.material-service-toggle', ['prefix' => 'edit'])
                     </div>
                     <div class="md:col-span-2">
                         <label for="editPicUser" class="mb-2 block text-sm text-slate-700">PIC User <span class="text-slate-400">(Opsional)</span></label>
@@ -1439,6 +1495,34 @@
                 });
             });
 
+            const syncMaterialHint = (checkbox) => {
+                const hint = document.getElementById(checkbox.dataset.materialHint || '');
+
+                if (hint) {
+                    hint.hidden = !checkbox.checked;
+                }
+            };
+
+            const setMaterialService = (prefix, checked, locked = false) => {
+                const checkbox = document.getElementById(`${prefix}PelayananMaterial`);
+
+                if (!checkbox) {
+                    return;
+                }
+
+                checkbox.checked = Boolean(checked);
+                checkbox.disabled = Boolean(locked);
+                checkbox.closest('label')?.setAttribute(
+                    'title',
+                    locked ? 'Order ini sudah memiliki dokumen Serah Terima, tidak dapat diubah menjadi Pelayanan Material.' : ''
+                );
+                syncMaterialHint(checkbox);
+            };
+
+            document.querySelectorAll('input[data-material-hint]').forEach((checkbox) => {
+                checkbox.addEventListener('change', () => syncMaterialHint(checkbox));
+            });
+
             document.getElementById('openCreateOrderModal')?.addEventListener('click', () => {
                 document.getElementById('createNomorOrder').value = '';
                 document.getElementById('createNotifikasi').value = '';
@@ -1452,7 +1536,7 @@
                 document.getElementById('createCatatan').value = '';
                 document.getElementById('createPicUser').value = '';
                 setBiayaFieldValue(createBiayaDisplay, createBiaya);
-                document.getElementById('createPelayananMaterial').checked = false;
+                setMaterialService('create', false);
                 syncModalNoteField('create', defaultWorkshopStatus, '');
                 openCreateOrderModal();
             });
@@ -1503,6 +1587,7 @@
                         { allowLegacy: true }
                     );
                     syncModalNoteField('edit', button.dataset.catatanStatus || defaultWorkshopStatus, button.dataset.catatan || '');
+                    setMaterialService('edit', button.dataset.pelayananMaterial === '1', button.dataset.pelayananMaterialLocked === '1');
 
                     closeRowActionMenus();
                     openEditOrderModal();
@@ -1543,6 +1628,7 @@
                         { allowLegacy: true }
                     );
                     syncModalNoteField('edit', @json(old('catatan_status', \App\Domain\Orders\Enums\OrderUserNoteStatus::ApprovedWorkshop->value)), @json(old('catatan', '')));
+                    setMaterialService('edit', @json((bool) old('pelayanan_material')), editTrigger.dataset.pelayananMaterialLocked === '1');
                     openEditOrderModal();
                 }
             }

@@ -1774,4 +1774,5 @@
             });
         });
     </script>
+    @include('admin.orders.partials.unique-check')
 </x-layouts.admin>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Orders;
 
 use App\Domain\Orders\Enums\OrderUserNoteStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\Orders\CheckOrderUniquenessRequest;
 use App\Http\Requests\Admin\Orders\StoreOrderRequest;
 use App\Http\Requests\Admin\Orders\UpdateOrderPriorityRequest;
 use App\Http\Requests\Admin\Orders\UpdateOrderRequest;
@@ -28,6 +29,35 @@ class OrderController extends Controller
         private readonly OrderDeletionService $orderDeletionService,
         private readonly WorkshopOrderTaskSyncer $workshopOrderTaskSyncer,
     ) {}
+
+    /**
+     * Pengecekan cepat (read-only) apakah nomor order / notifikasi sudah dipakai, untuk label di modal order.
+     * Validasi unique pada Store/UpdateOrderRequest tetap menjadi penjaga utama.
+     */
+    public function checkUnique(CheckOrderUniquenessRequest $request): JsonResponse
+    {
+        $field = (string) $request->validated('field');
+        $value = trim((string) $request->validated('value'));
+        $ignore = trim((string) $request->validated('ignore'));
+
+        $existing = Order::query()
+            ->where($field, $value)
+            ->when($ignore !== '', fn ($query) => $query->where('nomor_order', '!=', $ignore))
+            ->first(['id', 'nomor_order']);
+
+        $message = null;
+
+        if ($existing) {
+            $message = $field === 'nomor_order'
+                ? 'Nomor order ini sudah dibuat.'
+                : sprintf('Nomor notifikasi ini sudah dipakai pada order %s.', $existing->nomor_order);
+        }
+
+        return response()->json([
+            'exists' => $existing !== null,
+            'message' => $message,
+        ]);
+    }
 
     /**
      * Display a listing of the resource.

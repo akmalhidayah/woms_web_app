@@ -17,6 +17,7 @@ Route::prefix('admin/orders')
         Route::get('/', [OrderController::class, 'index'])->middleware('admin_menu:order_jasa')->name('index');
         Route::get('/workshop/list', [OrderWorkshopController::class, 'index'])->middleware('admin_menu:order_bengkel')->name('workshop.index');
         Route::post('/workshop', [OrderWorkshopController::class, 'store'])->middleware('admin_menu:order_bengkel')->name('workshop.store');
+        Route::get('/check-unique', [OrderController::class, 'checkUnique'])->middleware(['admin_menu:order_jasa,order_bengkel', 'throttle:60,1'])->name('check-unique');
         Route::get('/create', [OrderController::class, 'create'])->middleware('admin_menu:order_jasa')->name('create');
         Route::post('/', [OrderController::class, 'store'])->middleware('admin_menu:order_jasa')->name('store');
         Route::patch('/{order}/priority', [OrderController::class, 'updatePriority'])->middleware('admin_order_menu')->name('priority.update');

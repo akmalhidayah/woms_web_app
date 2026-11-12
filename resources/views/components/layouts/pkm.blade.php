@@ -15,9 +15,35 @@
         <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
         <script defer src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
 
-        <style>[x-cloak]{ display:none !important; }</style>
+        <style>
+            [x-cloak]{ display:none !important; }
+
+            /* Rail: tab aktif berlekuk. Warna #ffffff HARUS sama dengan latar body dan latar tab aktif. */
+            .sidebar-rail .nav-active::before,
+            .sidebar-rail .nav-active::after {
+                content: '';
+                position: absolute;
+                right: 0;
+                width: 16px;
+                height: 16px;
+                background: transparent;
+                pointer-events: none;
+            }
+
+            .sidebar-rail .nav-active::before {
+                top: -16px;
+                border-bottom-right-radius: 16px;
+                box-shadow: 6px 6px 0 6px #ffffff;
+            }
+
+            .sidebar-rail .nav-active::after {
+                bottom: -16px;
+                border-top-right-radius: 16px;
+                box-shadow: 6px -6px 0 6px #ffffff;
+            }
+        </style>
     </head>
-    <body class="bg-slate-50 font-sans text-slate-800 antialiased">
+    <body class="bg-white font-sans text-slate-800 antialiased">
         @php
             $logoBms = asset('assets/branding/logos/logo-bms2.png');
             $logoSig = asset('assets/branding/logos/logo-sig.png');
@@ -41,6 +67,9 @@
                 ['route' => 'pkm.jobwaiting', 'icon' => 'bell', 'label' => 'List Pekerjaan', 'badge_count' => $pkmBadgeCounts['jobwaiting'] ?? 0],
                 ['route' => 'pkm.lhpp.index', 'icon' => 'file-text', 'label' => 'Buat BAST/LHPP', 'badge_count' => $pkmBadgeCounts['lhpp'] ?? 0],
                 ['route' => 'pkm.laporan', 'icon' => 'folder-open', 'label' => 'Dokumen', 'badge_count' => $pkmBadgeCounts['documents'] ?? 0],
+            ];
+            $pkmSettingMenus = [
+                ['route' => 'pkm.user-panel.index', 'active' => 'pkm.user-panel.*', 'icon' => 'users', 'label' => 'User Panel'],
             ];
         @endphp
 
@@ -74,28 +103,28 @@
             ></div>
 
             <aside
-                class="fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-[#cb6b33]/35 bg-[#de773b] shadow-sm transition-all duration-300"
+                class="sidebar-rail fixed inset-y-0 left-0 z-40 flex w-72 flex-col rounded-r-3xl bg-[#de773b] text-white transition-all duration-300"
                 :class="[
                     (mobileOpen ? 'translate-x-0' : '-translate-x-full') + ' lg:translate-x-0',
-                    sidebarOpen ? 'lg:w-60' : 'lg:w-16'
+                    sidebarOpen ? 'lg:w-72' : 'lg:w-20'
                 ]"
             >
-                <div class="sticky top-0 z-10 border-b border-[#cb6b33]/35 bg-[#de773b]">
-                    <div class="flex items-center justify-between gap-2 px-3 py-3">
+                <div class="border-b border-white/15">
+                    <div class="flex items-center justify-between gap-2 px-3 py-3" :class="sidebarOpen ? '' : 'lg:flex-col lg:gap-3'">
                         <div class="flex min-w-0 items-center gap-2.5">
-                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white p-1.5 shadow-sm">
+                            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white p-1.5">
                                 <img src="{{ $logoBms }}" alt="Logo BMS2" class="max-h-full w-auto object-contain">
                             </div>
 
-                            <div class="min-w-0" x-show="sidebarOpen" x-transition.opacity.duration.200ms>
-                                <div class="truncate text-[13px] font-extrabold leading-none tracking-tight text-white">Vendor BMS</div>
-                                <div class="mt-0.5 truncate text-[10px] font-medium text-white/70">PKM Dashboard</div>
+                            <div class="min-w-0 leading-tight" x-show="sidebarOpen" x-transition.opacity.duration.200ms>
+                                <div class="truncate text-sm font-extrabold tracking-tight text-white">Vendor BMS</div>
+                                <div class="mt-0.5 truncate text-[11px] font-medium text-white/75">PKM Dashboard</div>
                             </div>
                         </div>
 
                         <button
                             @click="toggle()"
-                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-white transition hover:bg-white/10 active:scale-[0.98]"
+                            class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/85 transition hover:bg-white/10 active:scale-[0.98]"
                             aria-label="Toggle Sidebar"
                         >
                             <i data-lucide="panel-left" class="h-4 w-4"></i>
@@ -103,24 +132,66 @@
                     </div>
                 </div>
 
-                <div class="no-scrollbar flex-1 overflow-y-auto px-2 py-3">
-                    <nav class="space-y-1 text-[13px]">
+                <div class="no-scrollbar flex-1 overflow-y-auto overflow-x-hidden px-3 pb-6 pt-2">
+                    <nav class="space-y-1">
+                        <div x-show="sidebarOpen" x-transition.opacity.duration.200ms class="px-3 pb-1.5 pt-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/60">Utama</div>
                         @foreach ($pkmMenus as $menu)
+                            @php
+                                $menuActive = request()->routeIs($menu['active'] ?? $menu['route']);
+                                $menuBadge = (int) ($menu['badge_count'] ?? 0);
+                            @endphp
                             <a
                                 href="{{ route($menu['route']) }}"
-                                class="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ request()->routeIs($menu['active'] ?? $menu['route']) ? 'bg-white text-[#c7612c] ring-1 ring-white/45' : 'text-white/95 hover:bg-white/12' }}"
+                                @if ($menuActive) aria-current="page" @endif
+                                :title="sidebarOpen ? '' : @js($menu['label'])"
+                                class="group relative flex items-center gap-3 px-2.5 py-2 transition {{ $menuActive ? 'nav-active -mr-3 rounded-l-2xl bg-white text-[#c7612c]' : 'rounded-xl text-white/90 hover:bg-white/10 hover:text-white' }}"
                             >
-                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg transition {{ request()->routeIs($menu['active'] ?? $menu['route']) ? 'bg-[#fde9db] text-[#c7612c]' : 'bg-white/12 text-white/90 group-hover:bg-white/16' }}">
+                                <span class="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition {{ $menuActive ? 'bg-[#c7612c] text-white shadow-md' : 'bg-white/15 text-white group-hover:bg-white/25' }}">
                                     <i data-lucide="{{ $menu['icon'] }}" class="h-4 w-4"></i>
+                                    @if ($menuBadge > 0)
+                                        <span x-show="!sidebarOpen" x-cloak class="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-white ring-2 {{ $menuActive ? 'ring-[#c7612c]' : 'ring-[#de773b]' }}"></span>
+                                    @endif
                                 </span>
-                                <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 font-medium">{{ $menu['label'] }}</span>
-                                @if (($menu['badge_count'] ?? 0) > 0)
+                                <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="min-w-0 flex-1 truncate text-[13px] font-medium">{{ $menu['label'] }}</span>
+                                @if ($menuBadge > 0)
                                     <span
                                         x-show="sidebarOpen"
                                         x-transition.opacity.duration.200ms
-                                        class="inline-flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-[#c7612c]"
+                                        class="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-extrabold leading-none {{ $menuActive ? 'bg-[#c7612c] text-white' : 'bg-white text-[#c7612c]' }}"
                                     >
-                                        {{ $menu['badge_count'] > 99 ? '99+' : $menu['badge_count'] }}
+                                        {{ $menuBadge > 999 ? '999+' : $menuBadge }}
+                                    </span>
+                                @endif
+                            </a>
+                        @endforeach
+
+                        <div class="mx-auto my-3 h-px w-8 bg-white/25" x-show="!sidebarOpen" x-cloak></div>
+                        <div x-show="sidebarOpen" x-transition.opacity.duration.200ms class="px-3 pb-1.5 pt-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/60">Pengaturan</div>
+                        @foreach ($pkmSettingMenus as $menu)
+                            @php
+                                $menuActive = request()->routeIs($menu['active'] ?? $menu['route']);
+                                $menuBadge = (int) ($menu['badge_count'] ?? 0);
+                            @endphp
+                            <a
+                                href="{{ route($menu['route']) }}"
+                                @if ($menuActive) aria-current="page" @endif
+                                :title="sidebarOpen ? '' : @js($menu['label'])"
+                                class="group relative flex items-center gap-3 px-2.5 py-2 transition {{ $menuActive ? 'nav-active -mr-3 rounded-l-2xl bg-white text-[#c7612c]' : 'rounded-xl text-white/90 hover:bg-white/10 hover:text-white' }}"
+                            >
+                                <span class="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition {{ $menuActive ? 'bg-[#c7612c] text-white shadow-md' : 'bg-white/15 text-white group-hover:bg-white/25' }}">
+                                    <i data-lucide="{{ $menu['icon'] }}" class="h-4 w-4"></i>
+                                    @if ($menuBadge > 0)
+                                        <span x-show="!sidebarOpen" x-cloak class="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-white ring-2 {{ $menuActive ? 'ring-[#c7612c]' : 'ring-[#de773b]' }}"></span>
+                                    @endif
+                                </span>
+                                <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="min-w-0 flex-1 truncate text-[13px] font-medium">{{ $menu['label'] }}</span>
+                                @if ($menuBadge > 0)
+                                    <span
+                                        x-show="sidebarOpen"
+                                        x-transition.opacity.duration.200ms
+                                        class="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-extrabold leading-none {{ $menuActive ? 'bg-[#c7612c] text-white' : 'bg-white text-[#c7612c]' }}"
+                                    >
+                                        {{ $menuBadge > 999 ? '999+' : $menuBadge }}
                                     </span>
                                 @endif
                             </a>
@@ -128,23 +199,16 @@
                     </nav>
                 </div>
 
-                <div class="border-t border-white/10 px-2 py-2">
-                    <a href="{{ route('pkm.user-panel.index') }}" class="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition {{ request()->routeIs('pkm.user-panel.*') ? 'bg-white text-[#c7612c] ring-1 ring-white/45' : 'text-white/95 hover:bg-white/12' }}">
-                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg transition {{ request()->routeIs('pkm.user-panel.*') ? 'bg-[#fde9db] text-[#c7612c]' : 'bg-white/12 text-white/90 group-hover:bg-white/16' }}"><i data-lucide="users" class="h-4 w-4"></i></span>
-                        <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 font-medium">User Panel</span>
-                    </a>
-                </div>
-
-                <div class="border-t border-white/12 p-2">
-                    <div class="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[11px] text-white/70">
-                        <i data-lucide="sparkles" class="h-3.5 w-3.5"></i>
+                <div class="border-t border-white/15 p-3">
+                    <div class="flex items-center gap-2 rounded-xl px-3 py-1.5 text-[11px] text-white/75" :class="sidebarOpen ? '' : 'justify-center px-0'">
+                        <i data-lucide="sparkles" class="h-3.5 w-3.5 shrink-0"></i>
                         <span x-show="sidebarOpen" x-transition.opacity.duration.200ms>Vendor - PKM</span>
                     </div>
                 </div>
             </aside>
 
-            <div class="min-h-screen transition-all duration-300" :class="sidebarOpen ? 'lg:pl-60' : 'lg:pl-16'">
-                <header class="sticky top-0 z-20 border-b border-[#cb6b33]/35 bg-[#de773b]">
+            <div class="min-h-screen transition-all duration-300" :class="sidebarOpen ? 'lg:pl-[18.75rem]' : 'lg:pl-[5.75rem]'">
+                <header class="sticky top-0 z-20 bg-[#de773b] lg:rounded-bl-3xl">
                     <div class="flex items-center justify-between px-3 py-2.5 lg:px-4">
                         <div class="flex items-center gap-3">
                             <button

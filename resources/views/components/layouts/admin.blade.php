@@ -21,6 +21,30 @@
         <style>
             [x-cloak]{ display:none !important; }
 
+            /* Rail melayang: tab aktif berlekuk. Warna #ffffff HARUS sama dengan latar body dan latar tab aktif. */
+            .sidebar-rail .nav-active::before,
+            .sidebar-rail .nav-active::after {
+                content: '';
+                position: absolute;
+                right: 0;
+                width: 16px;
+                height: 16px;
+                background: transparent;
+                pointer-events: none;
+            }
+
+            .sidebar-rail .nav-active::before {
+                top: -16px;
+                border-bottom-right-radius: 16px;
+                box-shadow: 6px 6px 0 6px #ffffff;
+            }
+
+            .sidebar-rail .nav-active::after {
+                bottom: -16px;
+                border-top-right-radius: 16px;
+                box-shadow: 6px -6px 0 6px #ffffff;
+            }
+
             .admin-compact :is(section, article, div)[class*="rounded-[1."] {
                 border-radius: 0.85rem !important;
             }
@@ -716,7 +740,7 @@
             }
         </style>
     </head>
-    <body class="bg-slate-50 font-sans text-slate-800 antialiased">
+    <body class="bg-white font-sans text-slate-800 antialiased">
         @php
             $logoBms = asset('assets/branding/logos/logo-bms2.png');
             $logoSig = asset('assets/branding/logos/logo-sig.png');
@@ -920,27 +944,27 @@
             ></div>
 
             <aside
-                class="fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-blue-950/30 bg-blue-900 shadow-sm transition-all duration-300"
+                class="sidebar-rail fixed inset-y-0 left-0 z-40 flex w-72 flex-col rounded-r-3xl bg-gradient-to-b from-blue-900 via-blue-900 to-indigo-950 text-white transition-all duration-300 lg:inset-y-3 lg:left-3 lg:rounded-3xl"
                 :class="[
                     mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-                    sidebarOpen ? 'lg:w-60' : 'lg:w-16'
+                    sidebarOpen ? 'lg:w-72' : 'lg:w-20'
                 ]"
             >
-                <div class="sticky top-0 z-10 border-b border-blue-950/30 bg-blue-900">
-                    <div class="flex items-center justify-between gap-2 px-3 py-3">
-                        <div class="flex min-w-0 items-center gap-2">
-                            <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 p-1.5 ring-1 ring-white/10" x-show="sidebarOpen" x-transition.opacity.duration.200ms>
+                <div class="border-b border-white/10">
+                    <div class="flex items-center justify-between gap-2 px-3 py-3" :class="sidebarOpen ? '' : 'lg:flex-col lg:gap-3'">
+                        <div class="flex min-w-0 items-center gap-2.5">
+                            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white p-1.5">
                                 <img src="{{ $logoBms }}" alt="Logo BMS2" class="max-h-full w-auto object-contain">
                             </div>
-
-                            <div class="min-w-0 space-y-1" x-show="sidebarOpen" x-transition.opacity.duration.200ms>
-                                <div class="truncate text-[11px] font-medium text-white/70">Admin Dashboard</div>
+                            <div class="min-w-0 leading-tight" x-show="sidebarOpen" x-transition.opacity.duration.200ms>
+                                <div class="truncate text-sm font-extrabold tracking-tight text-white">WOMS</div>
+                                <div class="mt-0.5 truncate text-[11px] font-medium text-white/70">Admin Dashboard</div>
                             </div>
                         </div>
 
                         <button
                             @click="toggleSidebar()"
-                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-white transition hover:bg-white/10 active:scale-[0.98]"
+                            class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/80 transition hover:bg-white/10 active:scale-[0.98]"
                             aria-label="Toggle Sidebar"
                         >
                             <i data-lucide="panel-left" class="h-4 w-4"></i>
@@ -953,77 +977,52 @@
                             <input
                                 type="text"
                                 placeholder="Cari menu..."
-                                class="w-full rounded-lg border border-white/15 bg-white/10 py-1.5 pl-8 pr-2.5 text-xs text-white placeholder:text-white/50 focus:border-white/25 focus:outline-none focus:ring-2 focus:ring-white/20"
+                                class="w-full rounded-xl border border-white/15 bg-white/10 py-1.5 pl-8 pr-2.5 text-xs text-white placeholder:text-white/50 focus:border-white/25 focus:outline-none focus:ring-2 focus:ring-white/20"
                             >
                         </div>
                     </div>
                 </div>
 
-                <div class="no-scrollbar flex-1 overflow-y-auto px-2 py-3">
-                    <nav class="space-y-0.5 text-xs">
+                <div class="no-scrollbar flex-1 overflow-y-auto overflow-x-hidden px-3 pb-6 pt-2">
+                    <nav class="space-y-1">
+                        @if ($dashboardMenu || $appsheetMenu)
+                            <div x-show="sidebarOpen" x-transition.opacity.duration.200ms class="px-3 pb-1.5 pt-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/50">Utama</div>
+                        @endif
+
                         @if ($dashboardMenu)
-                            @php($isActive = $dashboardMenu['active'] ?? false)
-                            <a
-                                href="{{ $dashboardMenu['href'] }}"
-                                class="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ $isActive ? 'bg-white text-blue-900 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
-                            >
-                                <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition {{ $isActive ? 'bg-blue-100 text-blue-900' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
-                                    <i data-lucide="{{ $dashboardMenu['icon'] }}" class="h-4 w-4"></i>
-                                </span>
-                                <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="font-medium">{{ $dashboardMenu['label'] }}</span>
-                            </a>
+                            <x-admin.sidebar.link
+                                :href="$dashboardMenu['href']"
+                                :icon="$dashboardMenu['icon']"
+                                :label="$dashboardMenu['label']"
+                                :active="(bool) ($dashboardMenu['active'] ?? false)"
+                            />
                         @endif
 
                         @if ($appsheetMenu)
-                            <div class="rounded-xl">
-                                <button
-                                    type="button"
-                                    @click="stockOpen = !stockOpen"
-                                    :aria-expanded="(stockOpen && sidebarOpen).toString()"
-                                    aria-controls="stock-submenus"
-                                    class="group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ $isStockSection ? 'bg-white text-blue-900 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
-                                >
-                                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition {{ $isStockSection ? 'bg-blue-100 text-blue-900' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
-                                        <i data-lucide="{{ $appsheetMenu['icon'] }}" class="h-4 w-4"></i>
-                                    </span>
-                                    <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 text-left font-medium">{{ $appsheetMenu['label'] }}</span>
-                                    <i
-                                        data-lucide="chevron-down"
-                                        class="h-4 w-4 transition {{ $isStockSection ? 'text-blue-900' : 'text-white/70' }}"
-                                        :class="stockOpen ? 'rotate-180' : ''"
-                                        x-show="sidebarOpen"
-                                        x-transition.opacity.duration.200ms
-                                        aria-hidden="true"
-                                    ></i>
-                                </button>
-
-                                <div id="stock-submenus" x-show="stockOpen && sidebarOpen" x-transition.opacity.duration.200ms x-cloak class="mt-0.5 space-y-0.5 pl-9">
-                                    @foreach ($appsheetMenu['children'] ?? [] as $menu)
-                                        <a
-                                            href="{{ $menu['href'] }}"
-                                            @if ($menu['active'] ?? false) aria-current="page" @endif
-                                            class="block rounded-md px-2.5 py-1.5 transition {{ ($menu['active'] ?? false) ? 'bg-white text-blue-900' : 'text-white/80 hover:bg-white/10 hover:text-white' }}"
-                                        >
-                                            {{ $menu['label'] }}
-                                        </a>
-                                    @endforeach
-                                </div>
-                            </div>
+                            <x-admin.sidebar.dropdown
+                                :icon="$appsheetMenu['icon']"
+                                :label="$appsheetMenu['label']"
+                                :active="(bool) $isStockSection"
+                                :open="(bool) $isStockSection"
+                                :items="$appsheetMenu['children'] ?? []"
+                                menu-id="stock-submenus"
+                            />
                         @endif
 
                         @if ($orderMenu || $mainMenus !== [])
+                            <div class="mx-auto my-3 h-px w-8 bg-white/20" x-show="!sidebarOpen" x-cloak></div>
                             <button
                                 type="button"
                                 @click="mainOpen = !mainOpen; if (mainOpen) workshopOpen = false"
                                 x-show="sidebarOpen"
                                 x-transition.opacity.duration.200ms
-                                class="mt-2 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-white/65 transition hover:bg-white/10 hover:text-white"
+                                class="flex w-full items-center gap-2 px-3 pb-1.5 pt-4 text-left text-[10px] font-semibold uppercase tracking-[0.18em] text-white/50 transition hover:text-white/80"
                                 :aria-expanded="mainOpen.toString()"
                             >
                                 <span class="flex-1">Pekerjaan Jasa</span>
                                 @if ($mainMenuBadgeCount > 0)
-                                    <span x-show="!mainOpen" class="inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[9px] font-semibold leading-none text-white">
-                                        {{ $mainMenuBadgeCount > 99 ? '99+' : $mainMenuBadgeCount }}
+                                    <span x-show="!mainOpen" class="inline-flex min-w-5 items-center justify-center rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold leading-none text-slate-900">
+                                        {{ $mainMenuBadgeCount > 999 ? '999+' : $mainMenuBadgeCount }}
                                     </span>
                                 @endif
                                 <i data-lucide="chevron-down" class="h-3.5 w-3.5 transition" :class="mainOpen ? 'rotate-180' : ''"></i>
@@ -1031,265 +1030,120 @@
                         @endif
 
                         @if ($orderMenu)
-                            <div class="rounded-xl">
-                                <button
-                                    @click="orderOpen = !orderOpen"
-                                    class="group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ $isOrdersSection ? 'bg-white text-blue-900 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
-                                >
-                                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition {{ $isOrdersSection ? 'bg-blue-100 text-blue-900' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
-                                        <i data-lucide="{{ $orderMenu['icon'] }}" class="h-4 w-4"></i>
-                                    </span>
-                                    <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 text-left font-medium">{{ $orderMenu['label'] }}</span>
-                                    @if (($orderMenu['badge_count'] ?? 0) > 0)
-                                        <span
-                                            x-show="sidebarOpen"
-                                            x-transition.opacity.duration.200ms
-                                            class="inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
-                                        >
-                                            {{ $orderMenu['badge_count'] > 99 ? '99+' : $orderMenu['badge_count'] }}
-                                        </span>
-                                    @endif
-                                    <i
-                                        data-lucide="chevron-down"
-                                        class="h-4 w-4 transition"
-                                        :class="orderOpen ? 'rotate-180 {{ $isOrdersSection ? 'text-blue-900' : 'text-white/70' }}' : '{{ $isOrdersSection ? 'text-blue-900' : 'text-white/70' }}'"
-                                        x-show="sidebarOpen"
-                                        x-transition.opacity.duration.200ms
-                                    ></i>
-                                </button>
-
-                                <div x-show="orderOpen && sidebarOpen" x-transition.opacity.duration.200ms x-cloak class="mt-0.5 space-y-0.5 pl-9">
-                                    @foreach ($orderMenus as $menu)
-                                        <a href="{{ $menu['href'] }}" class="flex items-center justify-between rounded-md px-2.5 py-1.5 transition {{ $menu['active'] ? 'bg-white text-blue-900' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
-                                            <span>{{ $menu['label'] }}</span>
-                                            @if (($menu['badge_count'] ?? 0) > 0)
-                                                <span class="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
-                                                    {{ $menu['badge_count'] > 99 ? '99+' : $menu['badge_count'] }}
-                                                </span>
-                                            @endif
-                                        </a>
-                                    @endforeach
-                                </div>
-                            </div>
+                            <x-admin.sidebar.dropdown
+                                :icon="$orderMenu['icon']"
+                                :label="$orderMenu['label']"
+                                :active="(bool) $isOrdersSection"
+                                :open="(bool) $isOrdersSection"
+                                :badge="(int) ($orderMenu['badge_count'] ?? 0)"
+                                :items="$orderMenus"
+                            />
                         @endif
 
-                        <div x-show="mainOpen || !sidebarOpen" x-transition.opacity.duration.200ms x-cloak class="space-y-0.5">
-                        @foreach ($mainMenus as $menu)
-                            @php($isActive = $menu['active'] ?? false)
-                            @if (! empty($menu['children']))
-                                <div class="rounded-xl" x-data="{ open: {{ $isActive ? 'true' : 'false' }} }">
-                                    <button
-                                        @click="open = !open"
-                                        class="group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ $isActive ? 'bg-white text-blue-900 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
-                                    >
-                                        <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition {{ $isActive ? 'bg-blue-100 text-blue-900' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
-                                            <i data-lucide="{{ $menu['icon'] }}" class="h-4 w-4"></i>
-                                        </span>
-                                        <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 text-left font-medium">{{ $menu['label'] }}</span>
-                                        @if (($menu['badge_count'] ?? 0) > 0)
-                                            <span
-                                                x-show="sidebarOpen"
-                                                x-transition.opacity.duration.200ms
-                                                class="inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
-                                            >
-                                                {{ $menu['badge_count'] > 99 ? '99+' : $menu['badge_count'] }}
-                                            </span>
-                                        @endif
-                                        <i
-                                            data-lucide="chevron-down"
-                                            class="h-4 w-4 transition"
-                                            :class="open ? 'rotate-180 {{ $isActive ? 'text-blue-900' : 'text-white/70' }}' : '{{ $isActive ? 'text-blue-900' : 'text-white/70' }}'"
-                                            x-show="sidebarOpen"
-                                            x-transition.opacity.duration.200ms
-                                        ></i>
-                                    </button>
-
-                                    <div x-show="open && sidebarOpen" x-transition.opacity.duration.200ms x-cloak class="mt-0.5 space-y-0.5 pl-9">
-                                        @foreach ($menu['children'] as $childMenu)
-                                            <a href="{{ $childMenu['href'] }}" class="flex items-center justify-between rounded-md px-2.5 py-1.5 transition {{ $childMenu['active'] ? 'bg-white text-blue-900' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
-                                                <span>{{ $childMenu['label'] }}</span>
-                                                @if (($childMenu['badge_count'] ?? 0) > 0)
-                                                    <span class="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
-                                                        {{ $childMenu['badge_count'] > 99 ? '99+' : $childMenu['badge_count'] }}
-                                                    </span>
-                                                @endif
-                                            </a>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            @else
-                                <a
-                                    href="{{ $menu['href'] }}"
-                                    class="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ $isActive ? 'bg-white text-blue-900 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
-                                >
-                                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition {{ $isActive ? 'bg-blue-100 text-blue-900' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
-                                        <i data-lucide="{{ $menu['icon'] }}" class="h-4 w-4"></i>
-                                    </span>
-                                    <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 font-medium">{{ $menu['label'] }}</span>
-                                    @if (($menu['badge_count'] ?? 0) > 0)
-                                        <span
-                                            x-show="sidebarOpen"
-                                            x-transition.opacity.duration.200ms
-                                            class="inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
-                                        >
-                                            {{ $menu['badge_count'] > 99 ? '99+' : $menu['badge_count'] }}
-                                        </span>
-                                    @endif
-                                </a>
-                            @endif
-                        @endforeach
+                        <div x-show="mainOpen || !sidebarOpen" x-transition.opacity.duration.200ms x-cloak class="space-y-1">
+                            @foreach ($mainMenus as $menu)
+                                @if (! empty($menu['children']))
+                                    <x-admin.sidebar.dropdown
+                                        :icon="$menu['icon']"
+                                        :label="$menu['label']"
+                                        :active="(bool) ($menu['active'] ?? false)"
+                                        :open="(bool) ($menu['active'] ?? false)"
+                                        :badge="(int) ($menu['badge_count'] ?? 0)"
+                                        :items="$menu['children']"
+                                    />
+                                @else
+                                    <x-admin.sidebar.link
+                                        :href="$menu['href']"
+                                        :icon="$menu['icon']"
+                                        :label="$menu['label']"
+                                        :active="(bool) ($menu['active'] ?? false)"
+                                        :badge="(int) ($menu['badge_count'] ?? 0)"
+                                    />
+                                @endif
+                            @endforeach
                         </div>
 
                         @if ($workshopMenus !== [])
+                            <div class="mx-auto my-3 h-px w-8 bg-white/20" x-show="!sidebarOpen" x-cloak></div>
                             <button
                                 type="button"
                                 @click="workshopOpen = !workshopOpen; if (workshopOpen) mainOpen = false"
                                 x-show="sidebarOpen"
                                 x-transition.opacity.duration.200ms
-                                class="mt-2 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-white/65 transition hover:bg-white/10 hover:text-white"
+                                class="flex w-full items-center gap-2 px-3 pb-1.5 pt-4 text-left text-[10px] font-semibold uppercase tracking-[0.18em] text-white/50 transition hover:text-white/80"
                                 :aria-expanded="workshopOpen.toString()"
                             >
                                 <span class="flex-1">Pekerjaan Bengkel</span>
                                 @if ($workshopMenuBadgeCount > 0)
-                                    <span x-show="!workshopOpen" class="inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[9px] font-semibold leading-none text-white">
-                                        {{ $workshopMenuBadgeCount > 99 ? '99+' : $workshopMenuBadgeCount }}
+                                    <span x-show="!workshopOpen" class="inline-flex min-w-5 items-center justify-center rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold leading-none text-slate-900">
+                                        {{ $workshopMenuBadgeCount > 999 ? '999+' : $workshopMenuBadgeCount }}
                                     </span>
                                 @endif
                                 <i data-lucide="chevron-down" class="h-3.5 w-3.5 transition" :class="workshopOpen ? 'rotate-180' : ''"></i>
                             </button>
                         @endif
 
-                        <div x-show="workshopOpen || !sidebarOpen" x-transition.opacity.duration.200ms x-cloak class="space-y-0.5">
-                        @foreach ($workshopMenus as $workshopMenu)
-                            @php($workshopActive = $workshopMenu['active'] ?? false)
-                            <a
-                                href="{{ $workshopMenu['href'] }}"
-                                class="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ $workshopActive ? 'bg-white text-blue-900 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
-                            >
-                                <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition {{ $workshopActive ? 'bg-blue-100 text-blue-900' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
-                                    <i data-lucide="{{ $workshopMenu['icon'] }}" class="h-4 w-4"></i>
-                                </span>
-                                <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="font-medium">{{ $workshopMenu['label'] }}</span>
-                                @if (($workshopMenu['badge_count'] ?? 0) > 0)
-                                    <span
-                                        x-show="sidebarOpen"
-                                        x-transition.opacity.duration.200ms
-                                        class="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
-                                    >
-                                        {{ $workshopMenu['badge_count'] > 99 ? '99+' : $workshopMenu['badge_count'] }}
-                                    </span>
-                                @endif
-                            </a>
-                        @endforeach
+                        <div x-show="workshopOpen || !sidebarOpen" x-transition.opacity.duration.200ms x-cloak class="space-y-1">
+                            @foreach ($workshopMenus as $workshopMenu)
+                                <x-admin.sidebar.link
+                                    :href="$workshopMenu['href']"
+                                    :icon="$workshopMenu['icon']"
+                                    :label="$workshopMenu['label']"
+                                    :active="(bool) ($workshopMenu['active'] ?? false)"
+                                    :badge="(int) ($workshopMenu['badge_count'] ?? 0)"
+                                />
+                            @endforeach
                         </div>
 
                         @if ($supportMenus !== [] || $otherMenus !== [])
-                            <div class="pb-0.5 pt-2" x-show="sidebarOpen" x-transition.opacity.duration.200ms>
-                                <div class="px-2.5 text-[10px] uppercase tracking-wider text-white/60">Menu Pendukung</div>
-                            </div>
+                            <div class="mx-auto my-3 h-px w-8 bg-white/20" x-show="!sidebarOpen" x-cloak></div>
+                            <div x-show="sidebarOpen" x-transition.opacity.duration.200ms class="px-3 pb-1.5 pt-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/50">Menu Pendukung</div>
                         @endif
 
                         @foreach ($supportMenus as $supportMenu)
-                            @php($supportActive = $supportMenu['active'] ?? false)
                             @if (! empty($supportMenu['children']))
-                                <div x-data="{ supportOpen: {{ $supportActive ? 'true' : 'false' }} }" class="rounded-xl">
-                                    <button
-                                        type="button"
-                                        @click="supportOpen = !supportOpen"
-                                        :aria-expanded="supportOpen && sidebarOpen"
-                                        aria-controls="support-submenus-{{ $supportMenu['key'] }}"
-                                        class="group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ $supportActive ? 'bg-white text-blue-900 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
-                                    >
-                                        <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition {{ $supportActive ? 'bg-blue-100 text-blue-900' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
-                                            <i data-lucide="{{ $supportMenu['icon'] }}" class="h-4 w-4"></i>
-                                        </span>
-                                        <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 text-left font-medium">{{ $supportMenu['label'] }}</span>
-                                        @if (($supportMenu['badge_count'] ?? 0) > 0)
-                                            <span x-show="sidebarOpen" class="rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">{{ $supportMenu['badge_count'] > 99 ? '99+' : $supportMenu['badge_count'] }}</span>
-                                        @endif
-                                        <i
-                                            data-lucide="chevron-down"
-                                            class="h-4 w-4 transition"
-                                            :class="supportOpen ? 'rotate-180' : ''"
-                                            x-show="sidebarOpen"
-                                            x-transition.opacity.duration.200ms
-                                            aria-hidden="true"
-                                        ></i>
-                                    </button>
-
-                                    <div id="support-submenus-{{ $supportMenu['key'] }}" x-show="supportOpen && sidebarOpen" x-transition.opacity.duration.200ms x-cloak class="mt-0.5 space-y-0.5 pl-9">
-                                        @foreach ($supportMenu['children'] as $menu)
-                                            <a
-                                                href="{{ $menu['href'] }}"
-                                                @if ($menu['active']) aria-current="page" @endif
-                                                class="block rounded-md px-2.5 py-1.5 transition {{ $menu['active'] ? 'bg-white text-blue-900' : 'text-white/80 hover:bg-white/10 hover:text-white' }}"
-                                            >
-                                                {{ $menu['label'] }}
-                                            </a>
-                                        @endforeach
-                                    </div>
-                                </div>
+                                <x-admin.sidebar.dropdown
+                                    :icon="$supportMenu['icon']"
+                                    :label="$supportMenu['label']"
+                                    :active="(bool) ($supportMenu['active'] ?? false)"
+                                    :open="(bool) ($supportMenu['active'] ?? false)"
+                                    :badge="(int) ($supportMenu['badge_count'] ?? 0)"
+                                    :items="$supportMenu['children']"
+                                    :menu-id="'support-submenus-'.$supportMenu['key']"
+                                />
                             @else
-                                <a
-                                    href="{{ $supportMenu['href'] }}"
-                                    class="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition {{ $supportActive ? 'bg-white text-blue-900 ring-1 ring-white/30' : 'text-white/90 hover:bg-white/10' }}"
-                                >
-                                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition {{ $supportActive ? 'bg-blue-100 text-blue-900' : 'bg-white/10 text-white/90 group-hover:bg-white/15' }}">
-                                        <i data-lucide="{{ $supportMenu['icon'] }}" class="h-4 w-4"></i>
-                                    </span>
-                                    <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 font-medium">{{ $supportMenu['label'] }}</span>
-                                    @if (($supportMenu['badge_count'] ?? 0) > 0)
-                                        <span x-show="sidebarOpen" class="rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">{{ $supportMenu['badge_count'] > 99 ? '99+' : $supportMenu['badge_count'] }}</span>
-                                    @endif
-                                </a>
+                                <x-admin.sidebar.link
+                                    :href="$supportMenu['href']"
+                                    :icon="$supportMenu['icon']"
+                                    :label="$supportMenu['label']"
+                                    :active="(bool) ($supportMenu['active'] ?? false)"
+                                    :badge="(int) ($supportMenu['badge_count'] ?? 0)"
+                                />
                             @endif
                         @endforeach
 
                         @if ($otherMenus !== [])
-                            <div class="rounded-xl">
-                                <button
-                                    @click="otherOpen = !otherOpen"
-                                    class="group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-white/90 transition hover:bg-white/10"
-                                >
-                                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 text-white/90 transition group-hover:bg-white/15">
-                                        <i data-lucide="layers" class="h-4 w-4"></i>
-                                    </span>
-                                    <span x-show="sidebarOpen" x-transition.opacity.duration.200ms class="flex-1 text-left font-medium">Master Data</span>
-                                    <i
-                                        data-lucide="chevron-down"
-                                        class="h-4 w-4 text-white/70 transition"
-                                        :class="otherOpen ? 'rotate-180' : ''"
-                                        x-show="sidebarOpen"
-                                        x-transition.opacity.duration.200ms
-                                    ></i>
-                                </button>
-
-                                <div x-show="otherOpen && sidebarOpen" x-transition.opacity.duration.200ms x-cloak class="mt-0.5 space-y-0.5 pl-9">
-                                    @foreach ($otherMenus as $menu)
-                                        <a
-                                            href="{{ $menu['href'] }}"
-                                            class="block rounded-md px-2.5 py-1.5 transition {{ $menu['active'] ? 'bg-white text-blue-900' : 'text-white/80 hover:bg-white/10 hover:text-white' }}"
-                                        >
-                                            {{ $menu['label'] }}
-                                        </a>
-                                    @endforeach
-                                </div>
-                            </div>
+                            <x-admin.sidebar.dropdown
+                                icon="layers"
+                                label="Master Data"
+                                :open="(bool) $isOtherSection"
+                                :items="$otherMenus"
+                            />
                         @endif
                     </nav>
                 </div>
 
-                <div class="border-t border-white/10 p-2">
-                    <div class="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px] text-white/70">
-                        <i data-lucide="sparkles" class="h-3.5 w-3.5"></i>
+                <div class="border-t border-white/10 p-3">
+                    <div class="flex items-center gap-2 rounded-xl px-3 py-1.5 text-[11px] text-white/70" :class="sidebarOpen ? '' : 'justify-center px-0'">
+                        <i data-lucide="sparkles" class="h-3.5 w-3.5 shrink-0"></i>
                         <span x-show="sidebarOpen" x-transition.opacity.duration.200ms>Workshop - Admin</span>
                     </div>
                 </div>
             </aside>
 
-            <div class="min-h-screen transition-all duration-300" :class="sidebarOpen ? 'lg:pl-60' : 'lg:pl-16'">
+            <div class="min-h-screen transition-all duration-300" :class="sidebarOpen ? 'lg:pl-[19.5rem]' : 'lg:pl-[6.5rem]'">
                 <header
-                    class="sticky top-0 z-20 border-b border-blue-950/30 bg-blue-900"
+                    class="sticky top-0 z-20 bg-blue-900 lg:rounded-bl-3xl"
                     x-data="{
                         globalSearchUrl: @js(route('admin.global-search.index')),
                         searchQuery: '',

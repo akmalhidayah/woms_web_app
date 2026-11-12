@@ -944,7 +944,7 @@
             ></div>
 
             <aside
-                class="sidebar-rail fixed inset-y-0 left-0 z-40 flex w-72 flex-col rounded-r-3xl bg-gradient-to-b from-blue-900 via-blue-900 to-indigo-950 text-white transition-all duration-300 lg:inset-y-3 lg:left-3 lg:rounded-3xl"
+                class="sidebar-rail fixed inset-y-0 left-0 z-40 flex w-72 flex-col rounded-r-3xl bg-blue-900 text-white transition-all duration-300"
                 :class="[
                     mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
                     sidebarOpen ? 'lg:w-72' : 'lg:w-20'
@@ -1141,7 +1141,7 @@
                 </div>
             </aside>
 
-            <div class="min-h-screen transition-all duration-300" :class="sidebarOpen ? 'lg:pl-[19.5rem]' : 'lg:pl-[6.5rem]'">
+            <div class="min-h-screen transition-all duration-300" :class="sidebarOpen ? 'lg:pl-[18.75rem]' : 'lg:pl-[5.75rem]'">
                 <header
                     class="sticky top-0 z-20 bg-blue-900 lg:rounded-bl-3xl"
                     x-data="{

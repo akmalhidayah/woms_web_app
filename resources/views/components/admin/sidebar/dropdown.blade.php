@@ -57,7 +57,7 @@
             <a
                 href="{{ $item['href'] }}"
                 @if ($childActive) aria-current="page" @endif
-                class="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12.5px] transition {{ $childActive ? 'bg-white font-semibold text-blue-700 shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}"
+                class="relative flex items-center gap-2 px-2.5 py-1.5 text-[12.5px] transition {{ $childActive ? 'nav-active -mr-3 rounded-l-xl bg-white font-semibold text-blue-700' : 'rounded-lg text-white/80 hover:bg-white/10 hover:text-white' }}"
             >
                 <i data-lucide="{{ $item['icon'] ?? 'circle' }}" class="h-4 w-4 shrink-0"></i>
                 <span class="min-w-0 flex-1 truncate">{{ $item['label'] }}</span>
